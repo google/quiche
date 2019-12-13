@@ -72,8 +72,6 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
   if (frame.stream_count > incoming_advertised_max_streams_) {
     // Peer thinks it can send more streams that we've told it.
     // This is a protocol error.
-    // TODO(fkastenholz): revise when proper IETF Connection Close support is
-    // done.
     QUIC_CODE_COUNT(quic_streams_blocked_too_big);
     delegate_->OnError(QUIC_STREAMS_BLOCKED_ERROR,
                        "Invalid stream count specified");
@@ -187,19 +185,21 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
 }
 
 QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
-  // TODO(fkastenholz): Should we close the connection?
+  // Applications should always consult CanOpenNextOutgoingStream() first.
+  // If they ask for stream ids that violate the limit, it's an implementation
+  // bug.
   QUIC_BUG_IF(outgoing_stream_count_ >= outgoing_max_streams_)
       << "Attempt to allocate a new outgoing stream that would exceed the "
          "limit ("
       << outgoing_max_streams_ << ")";
   QuicStreamId id = next_outgoing_stream_id_;
-  next_outgoing_stream_id_ += QuicUtils::StreamIdDelta(transport_version());
+  next_outgoing_stream_id_ += QuicUtils::StreamIdDelta(transport_version_);
   outgoing_stream_count_++;
   return id;
 }
 
 bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
-  DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  DCHECK(VersionHasIetfQuicFrames(transport_version_));
   if (outgoing_stream_count_ < outgoing_max_streams_) {
     return true;
   }
@@ -223,22 +223,21 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     const QuicStreamId stream_id) {
   // |stream_id| must be an incoming stream of the right directionality.
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
-  DCHECK_NE(
-      QuicUtils::IsServerInitiatedStreamId(transport_version(), stream_id),
-      perspective() == Perspective::IS_SERVER);
+  DCHECK_NE(QuicUtils::IsServerInitiatedStreamId(transport_version_, stream_id),
+            perspective() == Perspective::IS_SERVER);
   available_streams_.erase(stream_id);
 
   if (largest_peer_created_stream_id_ !=
-          QuicUtils::GetInvalidStreamId(transport_version()) &&
+          QuicUtils::GetInvalidStreamId(transport_version_) &&
       stream_id <= largest_peer_created_stream_id_) {
     return true;
   }
 
   QuicStreamCount stream_count_increment;
   if (largest_peer_created_stream_id_ !=
-      QuicUtils::GetInvalidStreamId(transport_version())) {
+      QuicUtils::GetInvalidStreamId(transport_version_)) {
     stream_count_increment = (stream_id - largest_peer_created_stream_id_) /
-                             QuicUtils::StreamIdDelta(transport_version());
+                             QuicUtils::StreamIdDelta(transport_version_);
   } else {
     // Largest_peer_created_stream_id is the invalid ID,
     // which means that the peer has not created any stream IDs.
@@ -246,7 +245,7 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     // been used. For example, if the FirstIncoming ID is 1
     // and stream_id is 1, then we want the increment to be 1.
     stream_count_increment = ((stream_id - GetFirstIncomingStreamId()) /
-                              QuicUtils::StreamIdDelta(transport_version())) +
+                              QuicUtils::StreamIdDelta(transport_version_)) +
                              1;
   }
 
@@ -269,12 +268,12 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
 
   QuicStreamId id = GetFirstIncomingStreamId();
   if (largest_peer_created_stream_id_ !=
-      QuicUtils::GetInvalidStreamId(transport_version())) {
+      QuicUtils::GetInvalidStreamId(transport_version_)) {
     id = largest_peer_created_stream_id_ +
-         QuicUtils::StreamIdDelta(transport_version());
+         QuicUtils::StreamIdDelta(transport_version_);
   }
 
-  for (; id < stream_id; id += QuicUtils::StreamIdDelta(transport_version())) {
+  for (; id < stream_id; id += QuicUtils::StreamIdDelta(transport_version_)) {
     available_streams_.insert(id);
   }
   incoming_stream_count_ += stream_count_increment;
@@ -291,7 +290,7 @@ bool QuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   }
   // For peer created streams, we also need to consider available streams.
   return largest_peer_created_stream_id_ ==
-             QuicUtils::GetInvalidStreamId(transport_version()) ||
+             QuicUtils::GetInvalidStreamId(transport_version_) ||
          id > largest_peer_created_stream_id_ ||
          QuicContainsKey(available_streams_, id);
 }
@@ -308,16 +307,16 @@ bool QuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {
 
 QuicStreamId QuicStreamIdManager::GetFirstOutgoingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version(), perspective())
+                                 transport_version_, perspective())
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version(), perspective());
+                                 transport_version_, perspective());
 }
 
 QuicStreamId QuicStreamIdManager::GetFirstIncomingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version(), peer_perspective())
+                                 transport_version_, peer_perspective())
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version(), peer_perspective());
+                                 transport_version_, peer_perspective());
 }
 
 Perspective QuicStreamIdManager::perspective() const {
@@ -326,10 +325,6 @@ Perspective QuicStreamIdManager::perspective() const {
 
 Perspective QuicStreamIdManager::peer_perspective() const {
   return QuicUtils::InvertPerspective(perspective());
-}
-
-QuicTransportVersion QuicStreamIdManager::transport_version() const {
-  return transport_version_;
 }
 
 size_t QuicStreamIdManager::available_incoming_streams() {
@@ -348,14 +343,14 @@ void QuicStreamIdManager::OnConfigNegotiated() {
   // If a STREAMS_BLOCKED or MAX_STREAMS is pending, send it and clear
   // the pending state.
   if (pending_streams_blocked_ !=
-      QuicUtils::GetInvalidStreamId(transport_version())) {
+      QuicUtils::GetInvalidStreamId(transport_version_)) {
     if (pending_streams_blocked_ >= outgoing_max_streams_) {
       // There is a pending STREAMS_BLOCKED frame and the current limit does not
       // let new streams be formed. Regenerate and send the frame.
       delegate_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
     }
     pending_streams_blocked_ =
-        QuicUtils::GetInvalidStreamId(transport_version());
+        QuicUtils::GetInvalidStreamId(transport_version_);
   }
   if (pending_max_streams_) {
     // Generate a MAX_STREAMS using the current stream limits.

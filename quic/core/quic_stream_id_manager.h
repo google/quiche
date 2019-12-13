@@ -176,8 +176,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   Perspective perspective() const;
   Perspective peer_perspective() const;
 
-  QuicTransportVersion transport_version() const;
-
   // Called when session has been configured. Causes the Stream ID manager to
   // send out any pending MAX_STREAMS and STREAMS_BLOCKED frames.
   void OnConfigNegotiated();
