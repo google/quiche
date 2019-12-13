@@ -105,8 +105,7 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
 
     // Override the HpackDecoderListener methods:
     void OnHeaderListStart() override;
-    void OnHeader(http2::HpackEntryType entry_type,
-                  const http2::HpackString& name,
+    void OnHeader(const http2::HpackString& name,
                   const http2::HpackString& value) override;
     void OnHeaderListEnd() override;
     void OnHeaderErrorDetected(SpdyStringPiece error_message) override;
@@ -116,7 +115,7 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
                             size_t insert_count) override;
     void OnUseEntry(const http2::HpackStringPair& entry,
                     size_t insert_count,
-                    int64_t insert_time) override;
+                    int64_t time_added) override;
 
     void AddToTotalHpackBytes(size_t delta) { total_hpack_bytes_ += delta; }
     size_t total_hpack_bytes() const { return total_hpack_bytes_; }

@@ -66,8 +66,7 @@ class HpackDecoderAdapterPeer {
       : decoder_(decoder) {}
 
   void HandleHeaderRepresentation(SpdyStringPiece name, SpdyStringPiece value) {
-    decoder_->listener_adapter_.OnHeader(HpackEntryType::kIndexedLiteralHeader,
-                                         HpackString(name), HpackString(value));
+    decoder_->listener_adapter_.OnHeader(HpackString(name), HpackString(value));
   }
 
   http2::HpackDecoderTables* GetDecoderTables() {

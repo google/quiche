@@ -10,7 +10,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 using ::http2::DecodeBuffer;
-using ::http2::HpackEntryType;
 using ::http2::HpackString;
 
 namespace spdy {
@@ -146,8 +145,7 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListStart() {
   }
 }
 
-void HpackDecoderAdapter::ListenerAdapter::OnHeader(HpackEntryType entry_type,
-                                                    const HpackString& name,
+void HpackDecoderAdapter::ListenerAdapter::OnHeader(const HpackString& name,
                                                     const HpackString& value) {
   SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnHeader:\n name: "
                 << name << "\n value: " << value;
@@ -178,16 +176,17 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderErrorDetected(
 }
 
 int64_t HpackDecoderAdapter::ListenerAdapter::OnEntryInserted(
-    const http2::HpackStringPair& sp,
+    const http2::HpackStringPair& entry,
     size_t insert_count) {
   SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: "
-                << sp << ",  insert_count=" << insert_count;
+                << entry << ",  insert_count=" << insert_count;
   if (visitor_ == nullptr) {
     return 0;
   }
-  HpackEntry entry(sp.name.ToStringPiece(), sp.value.ToStringPiece(),
-                   /*is_static*/ false, insert_count);
-  int64_t time_added = visitor_->OnNewEntry(entry);
+  HpackEntry hpack_entry(entry.name.ToStringPiece(),
+                         entry.value.ToStringPiece(),
+                         /*is_static*/ false, insert_count);
+  int64_t time_added = visitor_->OnNewEntry(hpack_entry);
   SPDY_DVLOG(2)
       << "HpackDecoderAdapter::ListenerAdapter::OnEntryInserted: time_added="
       << time_added;
@@ -195,17 +194,18 @@ int64_t HpackDecoderAdapter::ListenerAdapter::OnEntryInserted(
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnUseEntry(
-    const http2::HpackStringPair& sp,
+    const http2::HpackStringPair& entry,
     size_t insert_count,
     int64_t time_added) {
-  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnUseEntry: " << sp
+  SPDY_DVLOG(2) << "HpackDecoderAdapter::ListenerAdapter::OnUseEntry: " << entry
                 << ",  insert_count=" << insert_count
                 << ",  time_added=" << time_added;
   if (visitor_ != nullptr) {
-    HpackEntry entry(sp.name.ToStringPiece(), sp.value.ToStringPiece(),
-                     /*is_static*/ false, insert_count);
-    entry.set_time_added(time_added);
-    visitor_->OnUseEntry(entry);
+    HpackEntry hpack_entry(entry.name.ToStringPiece(),
+                           entry.value.ToStringPiece(), /*is_static*/ false,
+                           insert_count);
+    hpack_entry.set_time_added(time_added);
+    visitor_->OnUseEntry(hpack_entry);
   }
 }
 

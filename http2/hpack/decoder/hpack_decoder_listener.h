@@ -28,9 +28,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderListener {
   // Called for each header name-value pair that is decoded, in the order they
   // appear in the HPACK block. Multiple values for a given key will be emitted
   // as multiple calls to OnHeader.
-  virtual void OnHeader(HpackEntryType entry_type,
-                        const HpackString& name,
-                        const HpackString& value) = 0;
+  virtual void OnHeader(const HpackString& name, const HpackString& value) = 0;
 
   // OnHeaderListEnd is called after successfully decoding an HPACK block into
   // an HTTP/2 header list. Will only be called once per block, even if it
@@ -52,9 +50,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderNoOpListener
   ~HpackDecoderNoOpListener() override;
 
   void OnHeaderListStart() override;
-  void OnHeader(HpackEntryType entry_type,
-                const HpackString& name,
-                const HpackString& value) override;
+  void OnHeader(const HpackString& name, const HpackString& value) override;
   void OnHeaderListEnd() override;
   void OnHeaderErrorDetected(quiche::QuicheStringPiece error_message) override;
 

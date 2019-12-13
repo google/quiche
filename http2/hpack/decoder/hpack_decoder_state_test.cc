@@ -39,10 +39,8 @@ namespace {
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD0(OnHeaderListStart, void());
-  MOCK_METHOD3(OnHeader,
-               void(HpackEntryType entry_type,
-                    const HpackString& name,
-                    const HpackString& value));
+  MOCK_METHOD2(OnHeader,
+               void(const HpackString& name, const HpackString& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
   MOCK_METHOD1(OnHeaderErrorDetected,
                void(quiche::QuicheStringPiece error_message));
@@ -114,8 +112,7 @@ class HpackDecoderStateTest : public ::testing::Test {
                                   HpackEntryType expected_type,
                                   const char* expected_name,
                                   const char* expected_value) {
-    EXPECT_CALL(listener_,
-                OnHeader(expected_type, Eq(expected_name), Eq(expected_value)));
+    EXPECT_CALL(listener_, OnHeader(Eq(expected_name), Eq(expected_value)));
     decoder_state_.OnIndexedHeader(index);
     Mock::VerifyAndClearExpectations(&listener_);
   }
@@ -126,7 +123,7 @@ class HpackDecoderStateTest : public ::testing::Test {
                                   const char* value,
                                   StringBacking value_backing) {
     SetValue(value, value_backing);
-    EXPECT_CALL(listener_, OnHeader(entry_type, Eq(name), Eq(value)));
+    EXPECT_CALL(listener_, OnHeader(Eq(name), Eq(value)));
     decoder_state_.OnNameIndexAndLiteralValue(entry_type, name_index,
                                               &value_buffer_);
     Mock::VerifyAndClearExpectations(&listener_);
@@ -139,7 +136,7 @@ class HpackDecoderStateTest : public ::testing::Test {
                                          StringBacking value_backing) {
     SetName(name, name_backing);
     SetValue(value, value_backing);
-    EXPECT_CALL(listener_, OnHeader(entry_type, Eq(name), Eq(value)));
+    EXPECT_CALL(listener_, OnHeader(Eq(name), Eq(value)));
     decoder_state_.OnLiteralNameAndValue(entry_type, &name_buffer_,
                                          &value_buffer_);
     Mock::VerifyAndClearExpectations(&listener_);

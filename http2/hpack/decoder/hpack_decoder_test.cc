@@ -57,7 +57,7 @@ class HpackDecoderPeer {
 
 namespace {
 
-typedef std::tuple<HpackEntryType, std::string, std::string> HpackHeaderEntry;
+typedef std::pair<std::string, std::string> HpackHeaderEntry;
 typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 
 // TODO(jamessynge): Create a ...test_utils.h file with the mock listener
@@ -65,10 +65,8 @@ typedef std::vector<HpackHeaderEntry> HpackHeaderEntries;
 class MockHpackDecoderListener : public HpackDecoderListener {
  public:
   MOCK_METHOD0(OnHeaderListStart, void());
-  MOCK_METHOD3(OnHeader,
-               void(HpackEntryType entry_type,
-                    const HpackString& name,
-                    const HpackString& value));
+  MOCK_METHOD2(OnHeader,
+               void(const HpackString& name, const HpackString& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
   MOCK_METHOD1(OnHeaderErrorDetected,
                void(quiche::QuicheStringPiece error_message));
@@ -96,14 +94,10 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   // Called for each header name-value pair that is decoded, in the order they
   // appear in the HPACK block. Multiple values for a given key will be emitted
   // as multiple calls to OnHeader.
-  void OnHeader(HpackEntryType entry_type,
-                const HpackString& name,
-                const HpackString& value) override {
+  void OnHeader(const HpackString& name, const HpackString& value) override {
     ASSERT_TRUE(saw_start_);
     ASSERT_FALSE(saw_end_);
-    //     header_entries_.push_back({entry_type, name.ToString(),
-    //     value.ToString()});
-    header_entries_.emplace_back(entry_type, name.ToString(), value.ToString());
+    header_entries_.emplace_back(name.ToString(), value.ToString());
   }
 
   // OnHeaderBlockEnd is called after successfully decoding an HPACK block. Will
@@ -252,15 +246,13 @@ TEST_P(HpackDecoderTest, C3_RequestExamples) {
                                               |   www.example.com
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "http"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path", "/"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, ":authority",
-                           "www.example.com"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "http"},
+                  HpackHeaderEntry{":path", "/"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -292,17 +284,14 @@ TEST_P(HpackDecoderTest, C3_RequestExamples) {
                                               | -> cache-control: no-cache
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "http"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path", "/"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":authority",
-                           "www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                           "cache-control", "no-cache"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "http"},
+                  HpackHeaderEntry{":path", "/"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+                  HpackHeaderEntry{"cache-control", "no-cache"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -337,18 +326,14 @@ TEST_P(HpackDecoderTest, C3_RequestExamples) {
                                               |   custom-value
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "https"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path",
-                           "/index.html"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":authority",
-                           "www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, "custom-key",
-                           "custom-value"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "https"},
+                  HpackHeaderEntry{":path", "/index.html"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+                  HpackHeaderEntry{"custom-key", "custom-value"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -390,15 +375,13 @@ TEST_P(HpackDecoderTest, C4_RequestExamplesWithHuffmanEncoding) {
                                               |   www.example.com
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "http"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path", "/"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, ":authority",
-                           "www.example.com"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "http"},
+                  HpackHeaderEntry{":path", "/"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -433,17 +416,14 @@ TEST_P(HpackDecoderTest, C4_RequestExamplesWithHuffmanEncoding) {
                                               | -> cache-control: no-cache
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "http"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path", "/"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":authority",
-                           "www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                           "cache-control", "no-cache"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "http"},
+                  HpackHeaderEntry{":path", "/"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+                  HpackHeaderEntry{"cache-control", "no-cache"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -484,18 +464,14 @@ TEST_P(HpackDecoderTest, C4_RequestExamplesWithHuffmanEncoding) {
                                             |   custom-value
   )");
   EXPECT_TRUE(DecodeBlock(hpack_block));
-  ASSERT_THAT(
-      header_entries_,
-      ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":method", "GET"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":scheme", "https"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":path",
-                           "/index.html"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":authority",
-                           "www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, "custom-key",
-                           "custom-value"},
-      }));
+  ASSERT_THAT(header_entries_,
+              ElementsAreArray({
+                  HpackHeaderEntry{":method", "GET"},
+                  HpackHeaderEntry{":scheme", "https"},
+                  HpackHeaderEntry{":path", "/index.html"},
+                  HpackHeaderEntry{":authority", "www.example.com"},
+                  HpackHeaderEntry{"custom-key", "custom-value"},
+              }));
 
   // Dynamic Table (after decoding):
   //
@@ -560,14 +536,10 @@ TEST_P(HpackDecoderTest, C5_ResponseExamples) {
   EXPECT_TRUE(DecodeBlock(hpack_block));
   ASSERT_THAT(header_entries_,
               ElementsAreArray({
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   ":status", "302"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "cache-control", "private"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "date", "Mon, 21 Oct 2013 20:13:21 GMT"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "location", "https://www.example.com"},
+                  HpackHeaderEntry{":status", "302"},
+                  HpackHeaderEntry{"cache-control", "private"},
+                  HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:21 GMT"},
+                  HpackHeaderEntry{"location", "https://www.example.com"},
               }));
 
   // Dynamic Table (after decoding):
@@ -619,14 +591,10 @@ TEST_P(HpackDecoderTest, C5_ResponseExamples) {
   EXPECT_TRUE(DecodeBlock(hpack_block));
   ASSERT_THAT(header_entries_,
               ElementsAreArray({
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   ":status", "307"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader,
-                                   "cache-control", "private"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader, "date",
-                                   "Mon, 21 Oct 2013 20:13:21 GMT"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader, "location",
-                                   "https://www.example.com"},
+                  HpackHeaderEntry{":status", "307"},
+                  HpackHeaderEntry{"cache-control", "private"},
+                  HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:21 GMT"},
+                  HpackHeaderEntry{"location", "https://www.example.com"},
               }));
 
   // Dynamic Table (after decoding):
@@ -705,17 +673,13 @@ TEST_P(HpackDecoderTest, C5_ResponseExamples) {
   ASSERT_THAT(
       header_entries_,
       ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":status", "200"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, "cache-control",
-                           "private"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, "date",
-                           "Mon, 21 Oct 2013 20:13:22 GMT"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, "location",
-                           "https://www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                           "content-encoding", "gzip"},
+          HpackHeaderEntry{":status", "200"},
+          HpackHeaderEntry{"cache-control", "private"},
+          HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:22 GMT"},
+          HpackHeaderEntry{"location", "https://www.example.com"},
+          HpackHeaderEntry{"content-encoding", "gzip"},
           HpackHeaderEntry{
-              HpackEntryType::kIndexedLiteralHeader, "set-cookie",
+              "set-cookie",
               "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"},
       }));
 
@@ -785,14 +749,10 @@ TEST_P(HpackDecoderTest, C6_ResponseExamplesWithHuffmanEncoding) {
   EXPECT_TRUE(DecodeBlock(hpack_block));
   ASSERT_THAT(header_entries_,
               ElementsAreArray({
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   ":status", "302"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "cache-control", "private"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "date", "Mon, 21 Oct 2013 20:13:21 GMT"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   "location", "https://www.example.com"},
+                  HpackHeaderEntry{":status", "302"},
+                  HpackHeaderEntry{"cache-control", "private"},
+                  HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:21 GMT"},
+                  HpackHeaderEntry{"location", "https://www.example.com"},
               }));
 
   // Dynamic Table (after decoding):
@@ -843,14 +803,10 @@ TEST_P(HpackDecoderTest, C6_ResponseExamplesWithHuffmanEncoding) {
   EXPECT_TRUE(DecodeBlock(hpack_block));
   ASSERT_THAT(header_entries_,
               ElementsAreArray({
-                  HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                                   ":status", "307"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader,
-                                   "cache-control", "private"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader, "date",
-                                   "Mon, 21 Oct 2013 20:13:21 GMT"},
-                  HpackHeaderEntry{HpackEntryType::kIndexedHeader, "location",
-                                   "https://www.example.com"},
+                  HpackHeaderEntry{":status", "307"},
+                  HpackHeaderEntry{"cache-control", "private"},
+                  HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:21 GMT"},
+                  HpackHeaderEntry{"location", "https://www.example.com"},
               }));
 
   // Dynamic Table (after decoding):
@@ -928,17 +884,13 @@ TEST_P(HpackDecoderTest, C6_ResponseExamplesWithHuffmanEncoding) {
   ASSERT_THAT(
       header_entries_,
       ElementsAreArray({
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, ":status", "200"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, "cache-control",
-                           "private"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader, "date",
-                           "Mon, 21 Oct 2013 20:13:22 GMT"},
-          HpackHeaderEntry{HpackEntryType::kIndexedHeader, "location",
-                           "https://www.example.com"},
-          HpackHeaderEntry{HpackEntryType::kIndexedLiteralHeader,
-                           "content-encoding", "gzip"},
+          HpackHeaderEntry{":status", "200"},
+          HpackHeaderEntry{"cache-control", "private"},
+          HpackHeaderEntry{"date", "Mon, 21 Oct 2013 20:13:22 GMT"},
+          HpackHeaderEntry{"location", "https://www.example.com"},
+          HpackHeaderEntry{"content-encoding", "gzip"},
           HpackHeaderEntry{
-              HpackEntryType::kIndexedLiteralHeader, "set-cookie",
+              "set-cookie",
               "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"},
       }));
 
@@ -1015,8 +967,7 @@ TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
     hbb.AppendIndexedHeader(4);  // :path: /
     EXPECT_TRUE(DecodeBlock(hbb.buffer()));
     EXPECT_THAT(header_entries_,
-                ElementsAreArray({HpackHeaderEntry{
-                    HpackEntryType::kIndexedHeader, ":path", "/"}}));
+                ElementsAreArray({HpackHeaderEntry{":path", "/"}}));
     EXPECT_EQ(1024u, header_table_size_limit());
     EXPECT_EQ(0u, current_header_table_size());
   }
@@ -1030,8 +981,7 @@ TEST_P(HpackDecoderTest, ProcessesRequiredTableSizeUpdate) {
     hbb.AppendIndexedHeader(5);  // :path: /index.html
     EXPECT_TRUE(DecodeBlock(hbb.buffer()));
     EXPECT_THAT(header_entries_,
-                ElementsAreArray({HpackHeaderEntry{
-                    HpackEntryType::kIndexedHeader, ":path", "/index.html"}}));
+                ElementsAreArray({HpackHeaderEntry{":path", "/index.html"}}));
     EXPECT_EQ(1250u, header_table_size_limit());
     EXPECT_EQ(0u, current_header_table_size());
   }
@@ -1197,19 +1147,14 @@ TEST_P(HpackDecoderTest, OversizeStringDetected) {
   // Normally able to decode this block.
   EXPECT_TRUE(DecodeBlock(hbb.buffer()));
   EXPECT_THAT(header_entries_,
-              ElementsAreArray(
-                  {HpackHeaderEntry{HpackEntryType::kNeverIndexedLiteralHeader,
-                                    "name", "some data."},
-                   HpackHeaderEntry{HpackEntryType::kUnindexedLiteralHeader,
-                                    "name2", "longer data"}}));
+              ElementsAreArray({HpackHeaderEntry{"name", "some data."},
+                                HpackHeaderEntry{"name2", "longer data"}}));
 
   // But not if the maximum size of strings is less than the longest string.
   decoder_.set_max_string_size_bytes(10);
   EXPECT_FALSE(DecodeBlock(hbb.buffer()));
-  EXPECT_THAT(
-      header_entries_,
-      ElementsAreArray({HpackHeaderEntry{
-          HpackEntryType::kNeverIndexedLiteralHeader, "name", "some data."}}));
+  EXPECT_THAT(header_entries_,
+              ElementsAreArray({HpackHeaderEntry{"name", "some data."}}));
   EXPECT_FALSE(saw_end_);
   EXPECT_EQ(1u, error_messages_.size());
   EXPECT_THAT(error_messages_[0], HasSubstr("too long"));

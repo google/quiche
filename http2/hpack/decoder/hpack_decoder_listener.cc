@@ -13,8 +13,7 @@ HpackDecoderNoOpListener::HpackDecoderNoOpListener() = default;
 HpackDecoderNoOpListener::~HpackDecoderNoOpListener() = default;
 
 void HpackDecoderNoOpListener::OnHeaderListStart() {}
-void HpackDecoderNoOpListener::OnHeader(HpackEntryType entry_type,
-                                        const HpackString& name,
+void HpackDecoderNoOpListener::OnHeader(const HpackString& name,
                                         const HpackString& value) {}
 void HpackDecoderNoOpListener::OnHeaderListEnd() {}
 void HpackDecoderNoOpListener::OnHeaderErrorDetected(

@@ -90,8 +90,7 @@ void HpackDecoderState::OnIndexedHeader(size_t index) {
   allow_dynamic_table_size_update_ = false;
   const HpackStringPair* entry = decoder_tables_.Lookup(index);
   if (entry != nullptr) {
-    listener_->OnHeader(HpackEntryType::kIndexedHeader, entry->name,
-                        entry->value);
+    listener_->OnHeader(entry->name, entry->value);
   } else {
     ReportError("Invalid index.");
   }
@@ -115,7 +114,7 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
   const HpackStringPair* entry = decoder_tables_.Lookup(name_index);
   if (entry != nullptr) {
     HpackString value(ExtractHpackString(value_buffer));
-    listener_->OnHeader(entry_type, entry->name, value);
+    listener_->OnHeader(entry->name, value);
     if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
       decoder_tables_.Insert(entry->name, value);
     }
@@ -140,7 +139,7 @@ void HpackDecoderState::OnLiteralNameAndValue(
   allow_dynamic_table_size_update_ = false;
   HpackString name(ExtractHpackString(name_buffer));
   HpackString value(ExtractHpackString(value_buffer));
-  listener_->OnHeader(entry_type, name, value);
+  listener_->OnHeader(name, value);
   if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
     decoder_tables_.Insert(name, value);
   }
