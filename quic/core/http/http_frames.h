@@ -11,9 +11,9 @@
 
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -35,7 +35,7 @@ enum class HttpFrameType : uint8_t {
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
 struct QUIC_EXPORT_PRIVATE DataFrame {
-  QuicStringPiece data;
+  quiche::QuicheStringPiece data;
 };
 
 // 4.2.2.  HEADERS
@@ -43,7 +43,7 @@ struct QUIC_EXPORT_PRIVATE DataFrame {
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
 struct QUIC_EXPORT_PRIVATE HeadersFrame {
-  QuicStringPiece headers;
+  quiche::QuicheStringPiece headers;
 };
 
 // 4.2.3.  PRIORITY
@@ -82,12 +82,12 @@ struct QUIC_EXPORT_PRIVATE PriorityFrame {
            weight == rhs.weight;
   }
   std::string ToString() const {
-    return QuicStrCat("Priority Frame : {prioritized_type: ", prioritized_type,
-                      ", dependency_type: ", dependency_type,
-                      ", exclusive: ", exclusive,
-                      ", prioritized_element_id: ", prioritized_element_id,
-                      ", element_dependency_id: ", element_dependency_id,
-                      ", weight: ", weight, "}");
+    return quiche::QuicheStrCat(
+        "Priority Frame : {prioritized_type: ", prioritized_type,
+        ", dependency_type: ", dependency_type, ", exclusive: ", exclusive,
+        ", prioritized_element_id: ", prioritized_element_id,
+        ", element_dependency_id: ", element_dependency_id,
+        ", weight: ", weight, "}");
   }
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -129,7 +129,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
   std::string ToString() const {
     std::string s;
     for (auto it : values) {
-      std::string setting = QuicStrCat(
+      std::string setting = quiche::QuicheStrCat(
           SpdyUtils::H3SettingsToString(
               static_cast<Http3AndQpackSettingsIdentifiers>(it.first)),
           " = ", it.second, "; ");
@@ -150,7 +150,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
 //   set from server to client, as in HTTP/2.
 struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
   PushId push_id;
-  QuicStringPiece headers;
+  quiche::QuicheStringPiece headers;
 
   bool operator==(const PushPromiseFrame& rhs) const {
     return push_id == rhs.push_id && headers == rhs.headers;

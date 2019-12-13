@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -35,7 +36,8 @@ void QuicHeaderList::OnHeaderBlockStart() {
       << "OnHeaderBlockStart called more than once!";
 }
 
-void QuicHeaderList::OnHeader(QuicStringPiece name, QuicStringPiece value) {
+void QuicHeaderList::OnHeader(quiche::QuicheStringPiece name,
+                              quiche::QuicheStringPiece value) {
   // Avoid infinite buffering of headers. No longer store headers
   // once the current headers are over the limit.
   if (current_header_list_size_ < max_header_list_size_) {

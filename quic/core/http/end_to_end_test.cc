@@ -31,11 +31,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_sleep.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_loopback.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/bad_packet_writer.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -65,6 +62,9 @@
 #include "net/third_party/quiche/src/quic/tools/quic_server.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_stream.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3LowestPriority;
 using spdy::SpdyFramer;
@@ -115,7 +115,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  std::string rv = QuicStrCat(
+  std::string rv = quiche::QuicheStrCat(
       ParsedQuicVersionToString(p.negotiated_version), "_Server_",
       ParsedQuicVersionVectorToString(p.server_supported_versions), "_Client_",
       ParsedQuicVersionVectorToString(p.client_supported_versions), "_",
@@ -476,9 +476,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  void AddToCache(QuicStringPiece path,
+  void AddToCache(quiche::QuicheStringPiece path,
                   int response_code,
-                  QuicStringPiece body) {
+                  quiche::QuicheStringPiece body) {
     memory_cache_backend_.AddSimpleResponse(server_hostname_, path,
                                             response_code, body);
   }
@@ -2903,7 +2903,7 @@ class ServerStreamWithErrorResponseBody : public QuicSimpleServerStream {
     SpdyHeaderBlock headers;
     headers[":status"] = "500";
     headers["content-length"] =
-        QuicTextUtils::Uint64ToString(response_body_.size());
+        quiche::QuicheTextUtils::Uint64ToString(response_body_.size());
     // This method must call CloseReadSide to cause the test case, StopReading
     // is not sufficient.
     QuicStreamPeer::CloseReadSide(this);
@@ -3122,7 +3122,8 @@ TEST_P(EndToEndTestWithTls, Trailers) {
 
   SpdyHeaderBlock headers;
   headers[":status"] = "200";
-  headers["content-length"] = QuicTextUtils::Uint64ToString(kBody.size());
+  headers["content-length"] =
+      quiche::QuicheTextUtils::Uint64ToString(kBody.size());
 
   SpdyHeaderBlock trailers;
   trailers["some-trailing-header"] = "trailing-header-value";
@@ -3173,11 +3174,12 @@ class EndToEndTestServerPush : public EndToEndTest {
       std::string body =
           use_large_response
               ? large_resource
-              : QuicStrCat("This is server push response body for ", url);
+              : quiche::QuicheStrCat("This is server push response body for ",
+                                     url);
       SpdyHeaderBlock response_headers;
       response_headers[":status"] = "200";
       response_headers["content-length"] =
-          QuicTextUtils::Uint64ToString(body.size());
+          quiche::QuicheTextUtils::Uint64ToString(body.size());
       push_resources.push_back(QuicBackendResponse::ServerPushInfo(
           resource_url, std::move(response_headers), kV3LowestPriority, body));
     }
@@ -3235,7 +3237,7 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
   for (const std::string& url : push_urls) {
     QUIC_DVLOG(1) << "send request for pushed stream on url " << url;
     std::string expected_body =
-        QuicStrCat("This is server push response body for ", url);
+        quiche::QuicheStrCat("This is server push response body for ", url);
     std::string response_body = client_->SendSynchronousRequest(url);
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
@@ -3288,7 +3290,7 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
     // as the responses are already in the client's cache.
     QUIC_DVLOG(1) << "send request for pushed stream on url " << url;
     std::string expected_body =
-        QuicStrCat("This is server push response body for ", url);
+        quiche::QuicheStrCat("This is server push response body for ", url);
     std::string response_body = client_->SendSynchronousRequest(url);
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
@@ -3327,7 +3329,8 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   const size_t kNumResources = 1 + kNumMaxStreams;  // 11.
   std::string push_urls[11];
   for (size_t i = 0; i < kNumResources; ++i) {
-    push_urls[i] = QuicStrCat("https://example.com/push_resources", i);
+    push_urls[i] =
+        quiche::QuicheStrCat("https://example.com/push_resources", i);
   }
   AddRequestAndResponseWithServerPush("example.com", "/push_example", kBody,
                                       push_urls, kNumResources, 0);
@@ -3344,8 +3347,9 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   for (const std::string& url : push_urls) {
     // Sending subsequent requesets will not actually send anything on the wire,
     // as the responses are already in the client's cache.
-    EXPECT_EQ(QuicStrCat("This is server push response body for ", url),
-              client_->SendSynchronousRequest(url));
+    EXPECT_EQ(
+        quiche::QuicheStrCat("This is server push response body for ", url),
+        client_->SendSynchronousRequest(url));
   }
 
   // Only 1 request should have been sent.
@@ -3385,7 +3389,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
   const size_t kNumResources = kNumMaxStreams + 1;
   std::string push_urls[11];
   for (size_t i = 0; i < kNumResources; ++i) {
-    push_urls[i] = QuicStrCat("http://example.com/push_resources", i);
+    push_urls[i] = quiche::QuicheStrCat("http://example.com/push_resources", i);
   }
   AddRequestAndResponseWithServerPush("example.com", "/push_example", kBody,
                                       push_urls, kNumResources, kBodySize);
@@ -3462,7 +3466,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugePostWithPacketLoss) {
   headers[":scheme"] = "https";
   headers[":authority"] = server_hostname_;
   headers["content-length"] =
-      QuicTextUtils::Uint64ToString(request_body_size_bytes);
+      quiche::QuicheTextUtils::Uint64ToString(request_body_size_bytes);
 
   client_->SendMessage(headers, "", /*fin=*/false);
 
@@ -3794,9 +3798,9 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
   // (and the FIN) after the response body.
   std::string response_body(1305, 'a');
   SpdyHeaderBlock response_headers;
-  response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
+  response_headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(200);
   response_headers["content-length"] =
-      QuicTextUtils::Uint64ToString(response_body.length());
+      quiche::QuicheTextUtils::Uint64ToString(response_body.length());
   memory_cache_backend_.AddSpecialResponse(
       server_hostname_, "/test_url", std::move(response_headers), response_body,
       QuicBackendResponse::INCOMPLETE_RESPONSE);
@@ -3853,22 +3857,22 @@ TEST_P(EndToEndTest, SendMessages) {
   ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
 
   std::string message_string(kMaxOutgoingPacketSize, 'a');
-  QuicStringPiece message_buffer(message_string);
+  quiche::QuicheStringPiece message_buffer(message_string);
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
     QuicConnection::ScopedPacketFlusher flusher(client_session->connection());
     // Verify the largest message gets successfully sent.
-    EXPECT_EQ(
-        MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-        client_session->SendMessage(MakeSpan(
-            client_session->connection()
-                ->helper()
-                ->GetStreamSendBufferAllocator(),
-            QuicStringPiece(message_buffer.data(),
-                            client_session->GetCurrentLargestMessagePayload()),
-            &storage)));
+    EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
+              client_session->SendMessage(MakeSpan(
+                  client_session->connection()
+                      ->helper()
+                      ->GetStreamSendBufferAllocator(),
+                  quiche::QuicheStringPiece(
+                      message_buffer.data(),
+                      client_session->GetCurrentLargestMessagePayload()),
+                  &storage)));
     // Send more messages with size (0, largest_payload] until connection is
     // write blocked.
     const int kTestMaxNumberOfMessages = 100;
@@ -3881,7 +3885,8 @@ TEST_P(EndToEndTest, SendMessages) {
           client_session->connection()
               ->helper()
               ->GetStreamSendBufferAllocator(),
-          QuicStringPiece(message_buffer.data(), message_length), &storage));
+          quiche::QuicheStringPiece(message_buffer.data(), message_length),
+          &storage));
       if (result.status == MESSAGE_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
@@ -3897,7 +3902,7 @@ TEST_P(EndToEndTest, SendMessages) {
                     client_session->connection()
                         ->helper()
                         ->GetStreamSendBufferAllocator(),
-                    QuicStringPiece(
+                    quiche::QuicheStringPiece(
                         message_buffer.data(),
                         client_session->GetCurrentLargestMessagePayload() + 1),
                     &storage))
@@ -4026,9 +4031,9 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   // frame for the stream.
   std::string response_body(1305, 'a');
   SpdyHeaderBlock response_headers;
-  response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
+  response_headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(200);
   response_headers["content-length"] =
-      QuicTextUtils::Uint64ToString(response_body.length());
+      quiche::QuicheTextUtils::Uint64ToString(response_body.length());
   memory_cache_backend_.AddStopSendingResponse(
       server_hostname_, "/test_url", std::move(response_headers), response_body,
       kStopSendingTestCode);

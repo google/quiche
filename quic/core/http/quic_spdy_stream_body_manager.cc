@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -27,7 +28,7 @@ size_t QuicSpdyStreamBodyManager::OnNonBody(QuicByteCount length) {
   return 0;
 }
 
-void QuicSpdyStreamBodyManager::OnBody(QuicStringPiece body) {
+void QuicSpdyStreamBodyManager::OnBody(quiche::QuicheStringPiece body) {
   DCHECK(!body.empty());
 
   fragments_.push_back({body, 0});
@@ -45,7 +46,7 @@ size_t QuicSpdyStreamBodyManager::OnBodyConsumed(size_t num_bytes) {
     }
 
     Fragment& fragment = fragments_.front();
-    const QuicStringPiece body = fragment.body;
+    const quiche::QuicheStringPiece body = fragment.body;
 
     if (body.length() > remaining_bytes) {
       // Consume leading |remaining_bytes| bytes of body.
@@ -77,7 +78,7 @@ int QuicSpdyStreamBodyManager::PeekBody(iovec* iov, size_t iov_len) const {
 
   size_t iov_filled = 0;
   while (iov_filled < fragments_.size() && iov_filled < iov_len) {
-    QuicStringPiece body = fragments_[iov_filled].body;
+    quiche::QuicheStringPiece body = fragments_[iov_filled].body;
     iov[iov_filled].iov_base = const_cast<char*>(body.data());
     iov[iov_filled].iov_len = body.size();
     iov_filled++;
@@ -101,7 +102,7 @@ size_t QuicSpdyStreamBodyManager::ReadBody(const struct iovec* iov,
 
   while (!fragments_.empty()) {
     Fragment& fragment = fragments_.front();
-    const QuicStringPiece body = fragment.body;
+    const quiche::QuicheStringPiece body = fragment.body;
 
     const size_t bytes_to_copy =
         std::min<size_t>(body.length(), dest_remaining);

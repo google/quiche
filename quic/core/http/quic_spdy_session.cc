@@ -22,8 +22,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
 using http2::Http2DecoderAdapter;
@@ -145,10 +146,10 @@ class QuicSpdySession::SpdyFramerVisitor
       default:
         break;
     }
-    CloseConnection(
-        QuicStrCat("SPDY framing error: ",
-                   Http2DecoderAdapter::SpdyFramerErrorToString(error)),
-        code);
+    CloseConnection(quiche::QuicheStrCat(
+                        "SPDY framing error: ",
+                        Http2DecoderAdapter::SpdyFramerErrorToString(error)),
+                    code);
   }
 
   void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
@@ -414,20 +415,22 @@ void QuicSpdySession::Initialize() {
       2 * max_inbound_header_list_size_);
 }
 
-void QuicSpdySession::OnDecoderStreamError(QuicStringPiece error_message) {
+void QuicSpdySession::OnDecoderStreamError(
+    quiche::QuicheStringPiece error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
       QUIC_QPACK_DECODER_STREAM_ERROR,
-      QuicStrCat("Decoder stream error: ", error_message));
+      quiche::QuicheStrCat("Decoder stream error: ", error_message));
 }
 
-void QuicSpdySession::OnEncoderStreamError(QuicStringPiece error_message) {
+void QuicSpdySession::OnEncoderStreamError(
+    quiche::QuicheStringPiece error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
       QUIC_QPACK_ENCODER_STREAM_ERROR,
-      QuicStrCat("Encoder stream error: ", error_message));
+      quiche::QuicheStrCat("Encoder stream error: ", error_message));
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(
@@ -460,7 +463,8 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
       const std::string& header_key = header.first;
       const std::string& header_value = header.second;
       if (header_key == kFinalOffsetHeaderKey) {
-        if (!QuicTextUtils::StringToSizeT(header_value, &final_byte_offset)) {
+        if (!quiche::QuicheTextUtils::StringToSizeT(header_value,
+                                                    &final_byte_offset)) {
           connection()->CloseConnection(
               QUIC_INVALID_HEADERS_STREAM_DATA,
               "Trailers are malformed (no final offset)",
@@ -523,7 +527,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(priority_frame));
   headers_stream()->WriteOrBufferData(
-      QuicStringPiece(frame.data(), frame.size()), false, nullptr);
+      quiche::QuicheStringPiece(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
 
@@ -581,7 +585,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 
     SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
     headers_stream()->WriteOrBufferData(
-        QuicStringPiece(frame.data(), frame.size()), false, nullptr);
+        quiche::QuicheStringPiece(frame.data(), frame.size()), false, nullptr);
     return;
   }
 
@@ -628,7 +632,8 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
   if (stream && stream->is_static()) {
     QUIC_BUG << "GetOrCreateSpdyDataStream returns static stream " << stream_id;
     connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, QuicStrCat("stream ", stream_id, " is static"),
+        QUIC_INVALID_STREAM_ID,
+        quiche::QuicheStrCat("stream ", stream_id, " is static"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return nullptr;
   }
@@ -681,7 +686,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
   }
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(headers_frame));
   headers_stream()->WriteOrBufferData(
-      QuicStringPiece(frame.data(), frame.size()), false,
+      quiche::QuicheStringPiece(frame.data(), frame.size()), false,
       std::move(ack_listener));
 
   // Calculate compressed header block size without framing overhead.
@@ -766,7 +771,8 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
           if (IsConnected()) {
             CloseConnectionWithDetails(
                 QUIC_INVALID_HEADERS_STREAM_DATA,
-                QuicStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ", value));
+                quiche::QuicheStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ",
+                                     value));
           }
           return;
         }
@@ -782,7 +788,8 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         if (IsConnected()) {
           CloseConnectionWithDetails(
               QUIC_INVALID_HEADERS_STREAM_DATA,
-              QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
+              quiche::QuicheStrCat(
+                  "Unsupported field of HTTP/2 SETTINGS frame: ", id));
         }
       }
       break;
@@ -799,7 +806,8 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       if (IsConnected()) {
         CloseConnectionWithDetails(
             QUIC_INVALID_HEADERS_STREAM_DATA,
-            QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
+            quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                                 id));
       }
   }
 }
@@ -1062,12 +1070,13 @@ void QuicSpdySession::SendMaxPushId() {
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
-    QuicStringPiece type) {
-  QUIC_PEER_BUG << QuicStrCat("Received a duplicate ", type,
-                              " stream: Closing connection.");
+    quiche::QuicheStringPiece type) {
+  QUIC_PEER_BUG << quiche::QuicheStrCat("Received a duplicate ", type,
+                                        " stream: Closing connection.");
   // TODO(b/124216424): Change to HTTP_STREAM_CREATION_ERROR.
-  CloseConnectionWithDetails(QUIC_INVALID_STREAM_ID,
-                             QuicStrCat(type, " stream is received twice."));
+  CloseConnectionWithDetails(
+      QUIC_INVALID_STREAM_ID,
+      quiche::QuicheStrCat(type, " stream is received twice."));
 }
 
 // static

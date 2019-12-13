@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 
 #include "url/gurl.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyHeaderBlock;
 
@@ -39,7 +40,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end() || it->second.empty()) {
     return std::string();
   }
-  QuicStringPiece scheme = it->second;
+  quiche::QuicheStringPiece scheme = it->second;
 
   // RFC 7540, Section 8.2: The server MUST include a value in the
   // ":authority" pseudo-header field for which the server is authoritative
@@ -48,7 +49,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end() || it->second.empty()) {
     return std::string();
   }
-  QuicStringPiece authority = it->second;
+  quiche::QuicheStringPiece authority = it->second;
 
   // RFC 7540, Section 8.1.2.3 requires that the ":path" pseudo-header MUST
   // NOT be empty for "http" or "https" URIs;
@@ -59,7 +60,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end()) {
     return std::string();
   }
-  QuicStringPiece path = it->second;
+  quiche::QuicheStringPiece path = it->second;
 
   return GetPushPromiseUrl(scheme, authority, path);
 }
@@ -79,9 +80,10 @@ bool SpdyServerPushUtils::PromisedUrlIsValid(const SpdyHeaderBlock& headers) {
 }
 
 // static
-std::string SpdyServerPushUtils::GetPushPromiseUrl(QuicStringPiece scheme,
-                                                   QuicStringPiece authority,
-                                                   QuicStringPiece path) {
+std::string SpdyServerPushUtils::GetPushPromiseUrl(
+    quiche::QuicheStringPiece scheme,
+    quiche::QuicheStringPiece authority,
+    quiche::QuicheStringPiece path) {
   // RFC 7540, Section 8.1.2.3: The ":path" pseudo-header field includes the
   // path and query parts of the target URI (the "path-absolute" production
   // and optionally a '?' character followed by the "query" production (see

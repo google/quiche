@@ -17,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_quic_spdy_client_stream.h"
@@ -28,6 +27,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyHeaderBlock;
 using testing::_;
@@ -427,7 +428,7 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
         connection_->transport_version(), 3);
     char type[] = {0x00};
 
-    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
     session_->OnStreamFrame(data1);
   } else {
     id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
@@ -457,7 +458,7 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
         connection_->transport_version(), 3);
     char type[] = {0x00};
 
-    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
     session_->OnStreamFrame(data1);
   } else {
     id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
@@ -744,7 +745,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseDuplicateUrl) {
 
 TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
   for (size_t i = 0u; i < session_->get_max_promises(); i++) {
-    push_promise_[":path"] = QuicStringPrintf("/bar%zu", i);
+    push_promise_[":path"] = quiche::QuicheStringPrintf("/bar%zu", i);
 
     QuicStreamId id =
         promised_stream_id_ +
@@ -762,7 +763,7 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
 
   // One more promise, this should be refused.
   int i = session_->get_max_promises();
-  push_promise_[":path"] = QuicStringPrintf("/bar%d", i);
+  push_promise_[":path"] = quiche::QuicheStringPrintf("/bar%d", i);
 
   QuicStreamId id =
       promised_stream_id_ +
@@ -922,7 +923,7 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
         connection_->transport_version(), promise_count);
     auto headers = QuicHeaderList();
     headers.OnHeaderBlockStart();
-    headers.OnHeader(":path", QuicStrCat("/", promise_count));
+    headers.OnHeader(":path", quiche::QuicheStrCat("/", promise_count));
     headers.OnHeader(":authority", "www.google.com");
     headers.OnHeader(":method", "GET");
     headers.OnHeader(":scheme", "https");

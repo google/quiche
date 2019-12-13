@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_CORE_HTTP_SPDY_SERVER_PUSH_UTILS_H_
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -33,9 +33,9 @@ class QUIC_EXPORT_PRIVATE SpdyServerPushUtils {
   // Returns a canonical, valid URL for a PUSH_PROMISE with the specified
   // ":scheme", ":authority", and ":path" header fields, or an empty
   // string if the resulting URL is not valid or supported.
-  static std::string GetPushPromiseUrl(QuicStringPiece scheme,
-                                       QuicStringPiece authority,
-                                       QuicStringPiece path);
+  static std::string GetPushPromiseUrl(quiche::QuicheStringPiece scheme,
+                                       quiche::QuicheStringPiece authority,
+                                       quiche::QuicheStringPiece path);
 };
 
 }  // namespace quic

@@ -26,6 +26,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -121,7 +122,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
-  void WriteOrBufferBody(QuicStringPiece data, bool fin);
+  void WriteOrBufferBody(quiche::QuicheStringPiece data, bool fin);
 
   // Writes the trailers contained in |trailer_block| on the dedicated headers
   // stream or on this stream, depending on VersionUsesHttp3().  Trailers will
@@ -216,7 +217,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers,
                         bool header_list_size_limit_exceeded) override;
-  void OnHeaderDecodingError(QuicStringPiece error_message) override;
+  void OnHeaderDecodingError(quiche::QuicheStringPiece error_message) override;
 
  protected:
   // Called when the received headers are too large. By default this will
@@ -255,17 +256,17 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Called by HttpDecoderVisitor.
   bool OnDataFrameStart(QuicByteCount header_length);
-  bool OnDataFramePayload(QuicStringPiece payload);
+  bool OnDataFramePayload(quiche::QuicheStringPiece payload);
   bool OnDataFrameEnd();
   bool OnHeadersFrameStart(QuicByteCount header_length);
-  bool OnHeadersFramePayload(QuicStringPiece payload);
+  bool OnHeadersFramePayload(quiche::QuicheStringPiece payload);
   bool OnHeadersFrameEnd();
   bool OnPushPromiseFrameStart(QuicByteCount header_length);
   bool OnPushPromiseFramePushId(PushId push_id, QuicByteCount push_id_length);
-  bool OnPushPromiseFramePayload(QuicStringPiece payload);
+  bool OnPushPromiseFramePayload(quiche::QuicheStringPiece payload);
   bool OnPushPromiseFrameEnd();
   bool OnUnknownFrameStart(uint64_t frame_type, QuicByteCount header_length);
-  bool OnUnknownFramePayload(QuicStringPiece payload);
+  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload);
   bool OnUnknownFrameEnd();
 
   // Given the interval marked by [|offset|, |offset| + |data_length|), return

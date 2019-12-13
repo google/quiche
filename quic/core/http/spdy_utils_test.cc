@@ -7,9 +7,9 @@
 
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
 using testing::Pair;
@@ -66,13 +66,14 @@ TEST_F(CopyAndValidateHeaders, NormalUsage) {
   SpdyHeaderBlock block;
   ASSERT_TRUE(
       SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
-  EXPECT_THAT(block,
-              UnorderedElementsAre(
-                  Pair("cookie", " part 1; part 2 ; part3;  fin!"),
-                  Pair("passed-through", QuicStringPiece("foo\0baz", 7)),
-                  Pair("joined", QuicStringPiece("value 1\0value 2", 15)),
-                  Pair("empty", ""),
-                  Pair("empty-joined", QuicStringPiece("\0foo\0\0", 6))));
+  EXPECT_THAT(
+      block,
+      UnorderedElementsAre(
+          Pair("cookie", " part 1; part 2 ; part3;  fin!"),
+          Pair("passed-through", quiche::QuicheStringPiece("foo\0baz", 7)),
+          Pair("joined", quiche::QuicheStringPiece("value 1\0value 2", 15)),
+          Pair("empty", ""),
+          Pair("empty-joined", quiche::QuicheStringPiece("\0foo\0\0", 6))));
   EXPECT_EQ(-1, content_length);
 }
 
@@ -103,10 +104,11 @@ TEST_F(CopyAndValidateHeaders, MultipleContentLengths) {
   SpdyHeaderBlock block;
   ASSERT_TRUE(
       SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
-  EXPECT_THAT(block, UnorderedElementsAre(
-                         Pair("foo", "foovalue"), Pair("bar", "barvalue"),
-                         Pair("content-length", QuicStringPiece("9\09", 3)),
-                         Pair("baz", "")));
+  EXPECT_THAT(block,
+              UnorderedElementsAre(
+                  Pair("foo", "foovalue"), Pair("bar", "barvalue"),
+                  Pair("content-length", quiche::QuicheStringPiece("9\09", 3)),
+                  Pair("baz", "")));
   EXPECT_EQ(9, content_length);
 }
 
@@ -133,7 +135,8 @@ TEST_F(CopyAndValidateHeaders, LargeContentLength) {
       SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
   EXPECT_THAT(block, UnorderedElementsAre(
                          Pair("foo", "foovalue"), Pair("bar", "barvalue"),
-                         Pair("content-length", QuicStringPiece("9000000000")),
+                         Pair("content-length",
+                              quiche::QuicheStringPiece("9000000000")),
                          Pair("baz", "")));
   EXPECT_EQ(9000000000, content_length);
 }
@@ -148,10 +151,11 @@ TEST_F(CopyAndValidateHeaders, MultipleValues) {
   SpdyHeaderBlock block;
   ASSERT_TRUE(
       SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
-  EXPECT_THAT(block, UnorderedElementsAre(
-                         Pair("foo", QuicStringPiece("foovalue\0boo", 12)),
-                         Pair("bar", "barvalue"),
-                         Pair("baz", QuicStringPiece("\0buzz", 5))));
+  EXPECT_THAT(block,
+              UnorderedElementsAre(
+                  Pair("foo", quiche::QuicheStringPiece("foovalue\0boo", 12)),
+                  Pair("bar", "barvalue"),
+                  Pair("baz", quiche::QuicheStringPiece("\0buzz", 5))));
   EXPECT_EQ(-1, content_length);
 }
 
@@ -163,9 +167,9 @@ TEST_F(CopyAndValidateHeaders, MoreThanTwoValues) {
   SpdyHeaderBlock block;
   ASSERT_TRUE(
       SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
-  EXPECT_THAT(
-      block, UnorderedElementsAre(Pair(
-                 "set-cookie", QuicStringPiece("value1\0value2\0value3", 20))));
+  EXPECT_THAT(block, UnorderedElementsAre(Pair(
+                         "set-cookie", quiche::QuicheStringPiece(
+                                           "value1\0value2\0value3", 20))));
   EXPECT_EQ(-1, content_length);
 }
 
@@ -307,7 +311,7 @@ TEST_F(CopyAndValidateTrailers, DuplicateTrailers) {
       block,
       UnorderedElementsAre(
           Pair("key",
-               QuicStringPiece(
+               quiche::QuicheStringPiece(
                    "value0\0value1\0\0\0value2\0\0non_contiguous_duplicate",
                    48)),
           Pair("other_key", "value")));

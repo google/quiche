@@ -12,9 +12,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
@@ -29,12 +29,12 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
     return false;
   } else {
     // Check whether multiple values are consistent.
-    QuicStringPiece content_length_header = it->second;
-    std::vector<QuicStringPiece> values =
-        QuicTextUtils::Split(content_length_header, '\0');
-    for (const QuicStringPiece& value : values) {
+    quiche::QuicheStringPiece content_length_header = it->second;
+    std::vector<quiche::QuicheStringPiece> values =
+        quiche::QuicheTextUtils::Split(content_length_header, '\0');
+    for (const quiche::QuicheStringPiece& value : values) {
       uint64_t new_value;
-      if (!QuicTextUtils::StringToUint64(value, &new_value)) {
+      if (!quiche::QuicheTextUtils::StringToUint64(value, &new_value)) {
         QUIC_DLOG(ERROR)
             << "Content length was either unparseable or negative.";
         return false;
@@ -65,7 +65,7 @@ bool SpdyUtils::CopyAndValidateHeaders(const QuicHeaderList& header_list,
       return false;
     }
 
-    if (QuicTextUtils::ContainsUpperCase(name)) {
+    if (quiche::QuicheTextUtils::ContainsUpperCase(name)) {
       QUIC_DLOG(ERROR) << "Malformed header: Header name " << name
                        << " contains upper-case characters.";
       return false;
@@ -95,7 +95,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
     // response body bytes expected.
     if (expect_final_byte_offset && !found_final_byte_offset &&
         name == kFinalOffsetHeaderKey &&
-        QuicTextUtils::StringToSizeT(p.second, final_byte_offset)) {
+        quiche::QuicheTextUtils::StringToSizeT(p.second, final_byte_offset)) {
       found_final_byte_offset = true;
       continue;
     }
@@ -107,7 +107,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
       return false;
     }
 
-    if (QuicTextUtils::ContainsUpperCase(name)) {
+    if (quiche::QuicheTextUtils::ContainsUpperCase(name)) {
       QUIC_DLOG(ERROR) << "Malformed header: Header name " << name
                        << " contains upper-case characters.";
       return false;
@@ -162,7 +162,7 @@ std::string SpdyUtils::H3SettingsToString(
     RETURN_STRING_LITERAL(SETTINGS_MAX_HEADER_LIST_SIZE);
     RETURN_STRING_LITERAL(SETTINGS_QPACK_BLOCKED_STREAMS);
   }
-  return QuicStrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
+  return quiche::QuicheStrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

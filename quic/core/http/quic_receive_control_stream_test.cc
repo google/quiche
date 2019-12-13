@@ -8,10 +8,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {
@@ -43,7 +44,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& tp) {
-  return QuicStrCat(
+  return quiche::QuicheStrCat(
       ParsedQuicVersionToString(tp.version), "_",
       (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
 }
@@ -88,7 +89,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
                                 session_.transport_version(), 3);
     char type[] = {kControlStream};
 
-    QuicStreamFrame data1(id, false, 0, QuicStringPiece(type, 1));
+    QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
     session_.OnStreamFrame(data1);
 
     receive_control_stream_ =
@@ -285,7 +286,7 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
 
 // Regression test for b/137554973: unknown frames should be consumed.
 TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
-  std::string unknown_frame = QuicTextUtils::HexDecode(
+  std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
       "21"        // reserved frame type
       "03"        // payload length
       "666f6f");  // payload "foo"

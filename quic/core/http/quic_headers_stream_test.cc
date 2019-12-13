@@ -18,14 +18,14 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -128,7 +128,7 @@ class MockVisitor : public SpdyFramerVisitorInterface {
   MOCK_METHOD2(OnContinuation, void(SpdyStreamId stream_id, bool end));
   MOCK_METHOD3(OnAltSvc,
                void(SpdyStreamId stream_id,
-                    QuicStringPiece origin,
+                    quiche::QuicheStringPiece origin,
                     const SpdyAltSvcWireFormat::AlternativeServiceVector&
                         altsvc_vector));
   MOCK_METHOD4(OnPriority,
@@ -163,7 +163,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& tp) {
-  return QuicStrCat(
+  return quiche::QuicheStrCat(
       ParsedQuicVersionToString(tp.version), "_",
       (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
 }
@@ -244,7 +244,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     return true;
   }
 
-  void SaveHeaderDataStringPiece(QuicStringPiece data) {
+  void SaveHeaderDataStringPiece(quiche::QuicheStringPiece data) {
     saved_header_data_.append(data.data(), data.length());
   }
 
@@ -661,30 +661,34 @@ TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameUnsupportedFields) {
   SpdySerializedFrame frame(framer_->SerializeFrame(data));
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
-                      QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
-                                 SETTINGS_MAX_CONCURRENT_STREAMS),
-                      _));
+      CloseConnection(
+          QUIC_INVALID_HEADERS_STREAM_DATA,
+          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                               SETTINGS_MAX_CONCURRENT_STREAMS),
+          _));
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
-                      QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
-                                 SETTINGS_INITIAL_WINDOW_SIZE),
-                      _));
+      CloseConnection(
+          QUIC_INVALID_HEADERS_STREAM_DATA,
+          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                               SETTINGS_INITIAL_WINDOW_SIZE),
+          _));
   if (session_.perspective() == Perspective::IS_CLIENT) {
-    EXPECT_CALL(*connection_,
-                CloseConnection(
-                    QUIC_INVALID_HEADERS_STREAM_DATA,
-                    QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
-                               SETTINGS_ENABLE_PUSH),
-                    _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(
+            QUIC_INVALID_HEADERS_STREAM_DATA,
+            quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                                 SETTINGS_ENABLE_PUSH),
+            _));
   }
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
-                      QuicStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
-                                 SETTINGS_MAX_FRAME_SIZE),
-                      _));
+      CloseConnection(
+          QUIC_INVALID_HEADERS_STREAM_DATA,
+          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                               SETTINGS_MAX_FRAME_SIZE),
+          _));
   stream_frame_.data_buffer = frame.data();
   stream_frame_.data_length = frame.size();
   headers_stream_->OnStreamFrame(stream_frame_);

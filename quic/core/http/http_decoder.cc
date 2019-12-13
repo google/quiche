@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -190,7 +191,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::DATA): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      QuicStringPiece payload;
+      quiche::QuicheStringPiece payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -201,7 +202,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::HEADERS): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      QuicStringPiece payload;
+      quiche::QuicheStringPiece payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -277,7 +278,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       if (bytes_to_read == 0) {
         break;
       }
-      QuicStringPiece payload;
+      quiche::QuicheStringPiece payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -300,7 +301,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     default: {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      QuicStringPiece payload;
+      quiche::QuicheStringPiece payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -440,7 +441,7 @@ bool HttpDecoder::FinishParsing() {
 void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_frame_length_, reader->BytesRemaining());
-  QuicStringPiece payload;
+  quiche::QuicheStringPiece payload;
   bool success = reader->ReadStringPiece(&payload, bytes_to_read);
   DCHECK(success);
   remaining_frame_length_ -= payload.length();

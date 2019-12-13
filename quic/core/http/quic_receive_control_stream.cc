@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -95,7 +96,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnDataFramePayload(QuicStringPiece /*payload*/) override {
+  bool OnDataFramePayload(quiche::QuicheStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Data");
     return false;
   }
@@ -110,7 +111,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnHeadersFramePayload(QuicStringPiece /*payload*/) override {
+  bool OnHeadersFramePayload(quiche::QuicheStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Headers");
     return false;
   }
@@ -131,7 +132,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnPushPromiseFramePayload(QuicStringPiece /*payload*/) override {
+  bool OnPushPromiseFramePayload(
+      quiche::QuicheStringPiece /*payload*/) override {
     CloseConnectionOnWrongFrame("Push Promise");
     return false;
   }
@@ -147,7 +149,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return true;
   }
 
-  bool OnUnknownFramePayload(QuicStringPiece /* payload */) override {
+  bool OnUnknownFramePayload(quiche::QuicheStringPiece /* payload */) override {
     // Ignore unknown frame types.
     return true;
   }
@@ -158,11 +160,11 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
  private:
-  void CloseConnectionOnWrongFrame(QuicStringPiece frame_type) {
+  void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
     // TODO(renjietang): Change to HTTP/3 error type.
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR,
-        QuicStrCat(frame_type, " frame received on control stream"),
+        quiche::QuicheStrCat(frame_type, " frame received on control stream"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 

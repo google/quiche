@@ -11,7 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -46,8 +46,8 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   char data[sizeof(kControlStream)];
   QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
   writer.WriteVarInt62(kControlStream);
-  WriteOrBufferData(QuicStringPiece(writer.data(), writer.length()), false,
-                    nullptr);
+  WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
+                    false, nullptr);
 
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
@@ -66,7 +66,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   if (spdy_session->debug_visitor() != nullptr) {
     spdy_session->debug_visitor()->OnSettingsFrameSent(settings);
   }
-  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
+  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;
 }
@@ -78,8 +78,8 @@ void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
   QuicByteCount frame_length =
       HttpEncoder::SerializePriorityFrame(priority, &buffer);
   QUIC_DVLOG(1) << "Control Stream " << id() << " is writing " << priority;
-  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
-                    nullptr);
+  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
+                    false, nullptr);
 }
 
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
@@ -91,7 +91,7 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeMaxPushIdFrame(frame, &buffer);
-  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length),
+  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
 }
 
@@ -110,8 +110,8 @@ void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
-  WriteOrBufferData(QuicStringPiece(buffer.get(), frame_length), false,
-                    nullptr);
+  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
+                    false, nullptr);
 }
 
 }  // namespace quic

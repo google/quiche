@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 using spdy::SpdyHeaderBlock;
@@ -140,7 +141,7 @@ void QuicSpdyClientStream::OnBodyAvailable() {
 }
 
 size_t QuicSpdyClientStream::SendRequest(SpdyHeaderBlock headers,
-                                         QuicStringPiece body,
+                                         quiche::QuicheStringPiece body,
                                          bool fin) {
   QuicConnection::ScopedPacketFlusher flusher(session_->connection());
   bool send_fin_with_headers = fin && body.empty();

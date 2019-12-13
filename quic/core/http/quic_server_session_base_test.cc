@@ -36,6 +36,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::StrictMock;
@@ -235,7 +236,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Open a stream, then reset it.
   // Send two bytes of payload to open it.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        QuicStringPiece("HT"));
+                        quiche::QuicheStringPiece("HT"));
   session_->OnStreamFrame(data1);
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
 
@@ -294,7 +295,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
 
   // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        QuicStringPiece("HT"));
+                        quiche::QuicheStringPiece("HT"));
   session_->OnStreamFrame(data1);
 
   // The stream should never be opened, now that the reset is received.
@@ -305,9 +306,9 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
 TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   // Send (empty) compressed headers followed by two bytes of data.
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                         QuicStringPiece("\1\0\0\0\0\0\0\0HT"));
+                         quiche::QuicheStringPiece("\1\0\0\0\0\0\0\0HT"));
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(1), false, 0,
-                         QuicStringPiece("\2\0\0\0\0\0\0\0HT"));
+                         quiche::QuicheStringPiece("\2\0\0\0\0\0\0\0HT"));
   session_->OnStreamFrame(frame1);
   session_->OnStreamFrame(frame2);
   EXPECT_EQ(2u, session_->GetNumOpenIncomingStreams());
@@ -336,9 +337,9 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   // past the reset point of stream 3.  As it's a closed stream we just drop the
   // data on the floor, but accept the packet because it has data for stream 5.
   QuicStreamFrame frame3(GetNthClientInitiatedBidirectionalId(0), false, 2,
-                         QuicStringPiece("TP"));
+                         quiche::QuicheStringPiece("TP"));
   QuicStreamFrame frame4(GetNthClientInitiatedBidirectionalId(1), false, 2,
-                         QuicStringPiece("TP"));
+                         quiche::QuicheStringPiece("TP"));
   session_->OnStreamFrame(frame3);
   session_->OnStreamFrame(frame4);
   // The stream should never be opened, now that the reset is received.
