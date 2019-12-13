@@ -13,8 +13,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -213,7 +213,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       return false;
     }
   }
-  QuicStringPiece packet_payload = reader->ReadRemainingPayload();
+  quiche::QuicheStringPiece packet_payload = reader->ReadRemainingPayload();
   if (!writer.WriteStringPiece(packet_payload)) {
     QUIC_BUG << "Failed to write packet_payload";
     return false;
@@ -222,13 +222,13 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
 }
 
 void MasqueCompressionEngine::CompressAndSendPacket(
-    QuicStringPiece packet,
+    quiche::QuicheStringPiece packet,
     QuicConnectionId client_connection_id,
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& server_address) {
   QUIC_DVLOG(2) << "Compressing client " << client_connection_id << " server "
                 << server_connection_id << "\n"
-                << QuicTextUtils::HexDump(packet);
+                << quiche::QuicheTextUtils::HexDump(packet);
   DCHECK(server_address.IsInitialized());
   if (packet.empty()) {
     QUIC_BUG << "Tried to send empty packet";
@@ -450,7 +450,7 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
       return false;
     }
   }
-  QuicStringPiece payload = reader->ReadRemainingPayload();
+  quiche::QuicheStringPiece payload = reader->ReadRemainingPayload();
   if (!writer.WriteStringPiece(payload)) {
     QUIC_BUG << "Failed to write payload";
     return false;
@@ -459,7 +459,7 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
 }
 
 bool MasqueCompressionEngine::DecompressDatagram(
-    QuicStringPiece datagram,
+    quiche::QuicheStringPiece datagram,
     QuicConnectionId* client_connection_id,
     QuicConnectionId* server_connection_id,
     QuicSocketAddress* server_address,
@@ -512,7 +512,7 @@ bool MasqueCompressionEngine::DecompressDatagram(
 
   QUIC_DVLOG(2) << "Decompressed client " << context.client_connection_id
                 << " server " << context.server_connection_id << "\n"
-                << QuicTextUtils::HexDump(*packet);
+                << quiche::QuicheTextUtils::HexDump(*packet);
 
   return true;
 }

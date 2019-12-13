@@ -11,7 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -47,7 +47,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // hand off the uncompressed packet to an encapsulated session that will treat
   // it as having come from the provided |server_address|.
   // The connection IDs are the one used by the encapsulated |packet|.
-  void CompressAndSendPacket(QuicStringPiece packet,
+  void CompressAndSendPacket(quiche::QuicheStringPiece packet,
                              QuicConnectionId client_connection_id,
                              QuicConnectionId server_connection_id,
                              const QuicSocketAddress& server_address);
@@ -58,7 +58,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // |server_address| will be filled with the |server_address| passed to
   // CompressAndSendPacket. |version_present| will contain whether the
   // encapsulated |packet| contains a Version field.
-  bool DecompressDatagram(QuicStringPiece datagram,
+  bool DecompressDatagram(quiche::QuicheStringPiece datagram,
                           QuicConnectionId* client_connection_id,
                           QuicConnectionId* server_connection_id,
                           QuicSocketAddress* server_address,
