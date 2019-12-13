@@ -12,7 +12,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -41,16 +41,16 @@ class QUIC_EXPORT_PRIVATE CryptoSecretBoxer {
   // returns the resulting ciphertext. Since an authenticator and nonce are
   // included, the result will be slightly larger than |plaintext|. The first
   // key in the vector supplied to |SetKeys| will be used.
-  std::string Box(QuicRandom* rand, QuicStringPiece plaintext) const;
+  std::string Box(QuicRandom* rand, quiche::QuicheStringPiece plaintext) const;
 
   // Unbox takes the result of a previous call to |Box| in |ciphertext| and
   // authenticates+decrypts it. If |ciphertext| cannot be decrypted with any of
   // the supplied keys, the function returns false. Otherwise, |out_storage| is
   // used to store the result and |out| is set to point into |out_storage| and
   // contains the original plaintext.
-  bool Unbox(QuicStringPiece ciphertext,
+  bool Unbox(quiche::QuicheStringPiece ciphertext,
              std::string* out_storage,
-             QuicStringPiece* out) const;
+             quiche::QuicheStringPiece* out) const;
 
  private:
   struct State;

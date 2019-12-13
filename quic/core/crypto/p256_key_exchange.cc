@@ -15,6 +15,7 @@
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,7 +33,8 @@ std::unique_ptr<P256KeyExchange> P256KeyExchange::New() {
 }
 
 // static
-std::unique_ptr<P256KeyExchange> P256KeyExchange::New(QuicStringPiece key) {
+std::unique_ptr<P256KeyExchange> P256KeyExchange::New(
+    quiche::QuicheStringPiece key) {
   if (key.empty()) {
     QUIC_DLOG(INFO) << "Private key is empty";
     return nullptr;
@@ -81,8 +83,9 @@ std::string P256KeyExchange::NewPrivateKey() {
   return std::string(reinterpret_cast<char*>(private_key.get()), key_len);
 }
 
-bool P256KeyExchange::CalculateSharedKeySync(QuicStringPiece peer_public_value,
-                                             std::string* shared_key) const {
+bool P256KeyExchange::CalculateSharedKeySync(
+    quiche::QuicheStringPiece peer_public_value,
+    std::string* shared_key) const {
   if (peer_public_value.size() != kUncompressedP256PointBytes) {
     QUIC_DLOG(INFO) << "Peer public value is invalid";
     return false;
@@ -111,9 +114,9 @@ bool P256KeyExchange::CalculateSharedKeySync(QuicStringPiece peer_public_value,
   return true;
 }
 
-QuicStringPiece P256KeyExchange::public_value() const {
-  return QuicStringPiece(reinterpret_cast<const char*>(public_key_),
-                         sizeof(public_key_));
+quiche::QuicheStringPiece P256KeyExchange::public_value() const {
+  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(public_key_),
+                                   sizeof(public_key_));
 }
 
 }  // namespace quic

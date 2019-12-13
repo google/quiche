@@ -9,7 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/aead_base_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -17,8 +17,9 @@ class QUIC_EXPORT_PRIVATE ChaChaBaseEncrypter : public AeadBaseEncrypter {
  public:
   using AeadBaseEncrypter::AeadBaseEncrypter;
 
-  bool SetHeaderProtectionKey(QuicStringPiece key) override;
-  std::string GenerateHeaderProtectionMask(QuicStringPiece sample) override;
+  bool SetHeaderProtectionKey(quiche::QuicheStringPiece key) override;
+  std::string GenerateHeaderProtectionMask(
+      quiche::QuicheStringPiece sample) override;
 
  private:
   // The key used for packet number encryption.

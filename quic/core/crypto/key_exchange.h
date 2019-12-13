@@ -10,7 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE AsynchronousKeyExchange {
   // that |callback| might be invoked synchronously.  Results will be written
   // into |*shared_key|.
   virtual void CalculateSharedKeyAsync(
-      QuicStringPiece peer_public_value,
+      quiche::QuicheStringPiece peer_public_value,
       std::string* shared_key,
       std::unique_ptr<Callback> callback) const = 0;
 
@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE SynchronousKeyExchange
 
   // AyncKeyExchange API.  Note that this method is marked 'final.'  Subclasses
   // should implement CalculateSharedKeySync only.
-  void CalculateSharedKeyAsync(QuicStringPiece peer_public_value,
+  void CalculateSharedKeyAsync(quiche::QuicheStringPiece peer_public_value,
                                std::string* shared_key,
                                std::unique_ptr<Callback> callback) const final {
     const bool ok = CalculateSharedKeySync(peer_public_value, shared_key);
@@ -75,14 +75,15 @@ class QUIC_EXPORT_PRIVATE SynchronousKeyExchange
 
   // CalculateSharedKey computes the shared key between a local private key and
   // a public value from the peer.  Results will be written into |*shared_key|.
-  virtual bool CalculateSharedKeySync(QuicStringPiece peer_public_value,
-                                      std::string* shared_key) const = 0;
+  virtual bool CalculateSharedKeySync(
+      quiche::QuicheStringPiece peer_public_value,
+      std::string* shared_key) const = 0;
 
   // public_value returns the local public key which can be sent to a peer in
-  // order to complete a key exchange. The returned QuicStringPiece is a
-  // reference to a member of this object and is only valid for as long as it
+  // order to complete a key exchange. The returned quiche::QuicheStringPiece is
+  // a reference to a member of this object and is only valid for as long as it
   // exists.
-  virtual QuicStringPiece public_value() const = 0;
+  virtual quiche::QuicheStringPiece public_value() const = 0;
 };
 
 // Create a SynchronousKeyExchange object which will use a keypair generated
@@ -91,7 +92,7 @@ class QUIC_EXPORT_PRIVATE SynchronousKeyExchange
 // invalid.
 std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
     QuicTag type,
-    QuicStringPiece private_key);
+    quiche::QuicheStringPiece private_key);
 
 // Create a SynchronousKeyExchange object which will use a keypair generated
 // from |rand|, and a key-exchange algorithm specified by |type|, which must be

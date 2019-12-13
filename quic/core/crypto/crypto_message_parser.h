@@ -9,7 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -23,7 +23,8 @@ class QUIC_EXPORT_PRIVATE CryptoMessageParser {
   // Processes input data, which must be delivered in order. The input data
   // being processed was received at encryption level |level|. Returns
   // false if there was an error, and true otherwise.
-  virtual bool ProcessInput(QuicStringPiece input, EncryptionLevel level) = 0;
+  virtual bool ProcessInput(quiche::QuicheStringPiece input,
+                            EncryptionLevel level) = 0;
 
   // Returns the number of bytes of buffered input data remaining to be
   // parsed.

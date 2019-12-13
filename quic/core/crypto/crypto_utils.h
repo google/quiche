@@ -19,7 +19,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -101,7 +101,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   //   <20 bytes> random
   static void GenerateNonce(QuicWallTime now,
                             QuicRandom* random_generator,
-                            QuicStringPiece orbit,
+                            quiche::QuicheStringPiece orbit,
                             std::string* nonce);
 
   // DeriveKeys populates |crypters->encrypter|, |crypters->decrypter|, and
@@ -124,11 +124,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
   static bool DeriveKeys(const ParsedQuicVersion& version,
-                         QuicStringPiece premaster_secret,
+                         quiche::QuicheStringPiece premaster_secret,
                          QuicTag aead,
-                         QuicStringPiece client_nonce,
-                         QuicStringPiece server_nonce,
-                         QuicStringPiece pre_shared_key,
+                         quiche::QuicheStringPiece client_nonce,
+                         quiche::QuicheStringPiece server_nonce,
+                         quiche::QuicheStringPiece pre_shared_key,
                          const std::string& hkdf_input,
                          Perspective perspective,
                          Diversification diversification,
@@ -139,15 +139,15 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // dependent on |subkey_secret|, |label|, and |context|. Returns false if the
   // parameters are invalid (e.g. |label| contains null bytes); returns true on
   // success.
-  static bool ExportKeyingMaterial(QuicStringPiece subkey_secret,
-                                   QuicStringPiece label,
-                                   QuicStringPiece context,
+  static bool ExportKeyingMaterial(quiche::QuicheStringPiece subkey_secret,
+                                   quiche::QuicheStringPiece label,
+                                   quiche::QuicheStringPiece context,
                                    size_t result_len,
                                    std::string* result);
 
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
   // XLCT tag.
-  static uint64_t ComputeLeafCertHash(QuicStringPiece cert);
+  static uint64_t ComputeLeafCertHash(quiche::QuicheStringPiece cert);
 
   // Validates that |server_hello| is actually an SHLO message and that it is
   // not part of a downgrade attack.

@@ -18,7 +18,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -104,7 +105,7 @@ std::string TransportParameterIdToString(
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
   }
-  return "Unknown(" + QuicTextUtils::Uint64ToString(param_id) + ")";
+  return "Unknown(" + quiche::QuicheTextUtils::Uint64ToString(param_id) + ")";
 }
 
 }  // namespace
@@ -198,7 +199,7 @@ std::string TransportParameters::IntegerParameter::ToString(
   }
   std::string rv = for_use_in_list ? " " : "";
   rv += TransportParameterIdToString(param_id_) + " ";
-  rv += QuicTextUtils::Uint64ToString(value_);
+  rv += quiche::QuicheTextUtils::Uint64ToString(value_);
   if (!IsValid()) {
     rv += " (Invalid)";
   }
@@ -230,7 +231,7 @@ std::string TransportParameters::PreferredAddress::ToString() const {
   return "[" + ipv4_socket_address.ToString() + " " +
          ipv6_socket_address.ToString() + " connection_id " +
          connection_id.ToString() + " stateless_reset_token " +
-         QuicTextUtils::HexEncode(
+         quiche::QuicheTextUtils::HexEncode(
              reinterpret_cast<const char*>(stateless_reset_token.data()),
              stateless_reset_token.size()) +
          "]";
@@ -262,7 +263,7 @@ std::string TransportParameters::ToString() const {
   rv += idle_timeout_milliseconds.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
     rv += " " + TransportParameterIdToString(kStatelessResetToken) + " " +
-          QuicTextUtils::HexEncode(
+          quiche::QuicheTextUtils::HexEncode(
               reinterpret_cast<const char*>(stateless_reset_token.data()),
               stateless_reset_token.size());
   }
@@ -289,8 +290,8 @@ std::string TransportParameters::ToString() const {
   }
   rv += "]";
   for (const auto& kv : custom_parameters) {
-    rv += " 0x" + QuicTextUtils::Hex(static_cast<uint32_t>(kv.first));
-    rv += "=" + QuicTextUtils::HexEncode(kv.second);
+    rv += " 0x" + quiche::QuicheTextUtils::Hex(static_cast<uint32_t>(kv.first));
+    rv += "=" + quiche::QuicheTextUtils::HexEncode(kv.second);
   }
   return rv;
 }
@@ -749,7 +750,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           QUIC_DLOG(ERROR) << "Received a second Google parameter";
           return false;
         }
-        QuicStringPiece serialized_params(
+        quiche::QuicheStringPiece serialized_params(
             reinterpret_cast<const char*>(CBS_data(&value)), CBS_len(&value));
         out->google_quic_params = CryptoFramer::ParseMessage(serialized_params);
       } break;

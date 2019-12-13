@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+
 namespace quic {
 
 TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate)
@@ -66,7 +68,7 @@ ssl_private_key_result_t TlsServerConnection::PrivateKeySign(SSL* ssl,
                                                              size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->PrivateKeySign(
       out, out_len, max_out, sig_alg,
-      QuicStringPiece(reinterpret_cast<const char*>(in), in_len));
+      quiche::QuicheStringPiece(reinterpret_cast<const char*>(in), in_len));
 }
 
 // static

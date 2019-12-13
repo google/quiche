@@ -10,7 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,16 +29,16 @@ class QUIC_EXPORT_PRIVATE Curve25519KeyExchange
   // New creates a new key-exchange object from a private key. If |private_key|
   // is invalid, nullptr is returned.
   static std::unique_ptr<Curve25519KeyExchange> New(
-      QuicStringPiece private_key);
+      quiche::QuicheStringPiece private_key);
 
   // NewPrivateKey returns a private key, generated from |rand|, suitable for
   // passing to |New|.
   static std::string NewPrivateKey(QuicRandom* rand);
 
   // SynchronousKeyExchange interface.
-  bool CalculateSharedKeySync(QuicStringPiece peer_public_value,
+  bool CalculateSharedKeySync(quiche::QuicheStringPiece peer_public_value,
                               std::string* shared_key) const override;
-  QuicStringPiece public_value() const override;
+  quiche::QuicheStringPiece public_value() const override;
   QuicTag type() const override { return kC255; }
 
  private:

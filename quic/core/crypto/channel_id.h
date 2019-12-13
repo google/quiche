@@ -10,7 +10,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -30,17 +30,17 @@ class QUIC_EXPORT_PRIVATE ChannelIDVerifier {
 
   // Verify returns true iff |signature| is a valid signature of |signed_data|
   // by |key|.
-  static bool Verify(QuicStringPiece key,
-                     QuicStringPiece signed_data,
-                     QuicStringPiece signature);
+  static bool Verify(quiche::QuicheStringPiece key,
+                     quiche::QuicheStringPiece signed_data,
+                     quiche::QuicheStringPiece signature);
 
   // FOR TESTING ONLY: VerifyRaw returns true iff |signature| is a valid
   // signature of |signed_data| by |key|. |is_channel_id_signature| indicates
   // whether |signature| is a ChannelID signature (with kContextStr prepended
   // to the data to be signed).
-  static bool VerifyRaw(QuicStringPiece key,
-                        QuicStringPiece signed_data,
-                        QuicStringPiece signature,
+  static bool VerifyRaw(quiche::QuicheStringPiece key,
+                        quiche::QuicheStringPiece signed_data,
+                        quiche::QuicheStringPiece signature,
                         bool is_channel_id_signature);
 };
 

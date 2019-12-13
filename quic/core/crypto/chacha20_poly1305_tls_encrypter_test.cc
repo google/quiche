@@ -11,8 +11,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace {
 
@@ -70,9 +71,9 @@ namespace test {
 // EncryptWithNonce wraps the |Encrypt| method of |encrypter| to allow passing
 // in an nonce and also to allocate the buffer needed for the ciphertext.
 QuicData* EncryptWithNonce(ChaCha20Poly1305TlsEncrypter* encrypter,
-                           QuicStringPiece nonce,
-                           QuicStringPiece associated_data,
-                           QuicStringPiece plaintext) {
+                           quiche::QuicheStringPiece nonce,
+                           quiche::QuicheStringPiece associated_data,
+                           quiche::QuicheStringPiece plaintext) {
   size_t ciphertext_size = encrypter->GetCiphertextSize(plaintext.length());
   std::unique_ptr<char[]> ciphertext(new char[ciphertext_size]);
 
@@ -90,7 +91,7 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ChaCha20Poly1305TlsEncrypter encrypter;
   ChaCha20Poly1305TlsDecrypter decrypter;
 
-  std::string key = QuicTextUtils::HexDecode(test_vectors[0].key);
+  std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[0].key);
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(decrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetIV("abcdefghijkl"));
@@ -104,7 +105,7 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
                                       encrypted, &len,
                                       QUIC_ARRAYSIZE(encrypted)));
-  QuicStringPiece ciphertext(encrypted, len);
+  quiche::QuicheStringPiece ciphertext(encrypted, len);
   char decrypted[1024];
   ASSERT_TRUE(decrypter.DecryptPacket(packet_number, associated_data,
                                       ciphertext, decrypted, &len,
@@ -114,12 +115,13 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {
   for (size_t i = 0; test_vectors[i].key != nullptr; i++) {
     // Decode the test vector.
-    std::string key = QuicTextUtils::HexDecode(test_vectors[i].key);
-    std::string pt = QuicTextUtils::HexDecode(test_vectors[i].pt);
-    std::string iv = QuicTextUtils::HexDecode(test_vectors[i].iv);
-    std::string fixed = QuicTextUtils::HexDecode(test_vectors[i].fixed);
-    std::string aad = QuicTextUtils::HexDecode(test_vectors[i].aad);
-    std::string ct = QuicTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[i].key);
+    std::string pt = quiche::QuicheTextUtils::HexDecode(test_vectors[i].pt);
+    std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[i].iv);
+    std::string fixed =
+        quiche::QuicheTextUtils::HexDecode(test_vectors[i].fixed);
+    std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[i].aad);
+    std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[i].ct);
 
     ChaCha20Poly1305TlsEncrypter encrypter;
     ASSERT_TRUE(encrypter.SetKey(key));
@@ -127,7 +129,8 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {
         &encrypter, fixed + iv,
         // This deliberately tests that the encrypter can handle an AAD that
         // is set to nullptr, as opposed to a zero-length, non-nullptr pointer.
-        QuicStringPiece(aad.length() ? aad.data() : nullptr, aad.length()),
+        quiche::QuicheStringPiece(aad.length() ? aad.data() : nullptr,
+                                  aad.length()),
         pt));
     ASSERT_TRUE(encrypted.get());
     EXPECT_EQ(16u, ct.size() - pt.size());
@@ -155,13 +158,13 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, GetCiphertextSize) {
 
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, GenerateHeaderProtectionMask) {
   ChaCha20Poly1305TlsEncrypter encrypter;
-  std::string key = QuicTextUtils::HexDecode(
+  std::string key = quiche::QuicheTextUtils::HexDecode(
       "6a067f432787bd6034dd3f08f07fc9703a27e58c70e2d88d948b7f6489923cc7");
   std::string sample =
-      QuicTextUtils::HexDecode("1210d91cceb45c716b023f492c29e612");
+      quiche::QuicheTextUtils::HexDecode("1210d91cceb45c716b023f492c29e612");
   ASSERT_TRUE(encrypter.SetHeaderProtectionKey(key));
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
-  std::string expected_mask = QuicTextUtils::HexDecode("1cc2cd98dc");
+  std::string expected_mask = quiche::QuicheTextUtils::HexDecode("1cc2cd98dc");
   test::CompareCharArraysWithHexError("header protection mask", mask.data(),
                                       mask.size(), expected_mask.data(),
                                       expected_mask.size());

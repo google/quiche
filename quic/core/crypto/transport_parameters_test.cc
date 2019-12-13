@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -644,7 +645,7 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   ASSERT_NE(new_params.google_quic_params.get(), nullptr);
   EXPECT_EQ(new_params.google_quic_params->tag(),
             orig_params.google_quic_params->tag());
-  QuicStringPiece test_string;
+  quiche::QuicheStringPiece test_string;
   EXPECT_TRUE(new_params.google_quic_params->GetStringPiece(42, &test_string));
   EXPECT_EQ(test_string, kTestString);
   uint32_t test_value;

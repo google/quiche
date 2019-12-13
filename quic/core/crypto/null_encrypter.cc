@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -14,25 +15,25 @@ const size_t kHashSizeShort = 12;  // size of uint128 serialized short
 NullEncrypter::NullEncrypter(Perspective perspective)
     : perspective_(perspective) {}
 
-bool NullEncrypter::SetKey(QuicStringPiece key) {
+bool NullEncrypter::SetKey(quiche::QuicheStringPiece key) {
   return key.empty();
 }
 
-bool NullEncrypter::SetNoncePrefix(QuicStringPiece nonce_prefix) {
+bool NullEncrypter::SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullEncrypter::SetIV(QuicStringPiece iv) {
+bool NullEncrypter::SetIV(quiche::QuicheStringPiece iv) {
   return iv.empty();
 }
 
-bool NullEncrypter::SetHeaderProtectionKey(QuicStringPiece key) {
+bool NullEncrypter::SetHeaderProtectionKey(quiche::QuicheStringPiece key) {
   return key.empty();
 }
 
 bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
-                                  QuicStringPiece associated_data,
-                                  QuicStringPiece plaintext,
+                                  quiche::QuicheStringPiece associated_data,
+                                  quiche::QuicheStringPiece plaintext,
                                   char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {
@@ -58,7 +59,7 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
 }
 
 std::string NullEncrypter::GenerateHeaderProtectionMask(
-    QuicStringPiece /*sample*/) {
+    quiche::QuicheStringPiece /*sample*/) {
   return std::string(5, 0);
 }
 
@@ -82,12 +83,12 @@ size_t NullEncrypter::GetCiphertextSize(size_t plaintext_size) const {
   return plaintext_size + GetHashLength();
 }
 
-QuicStringPiece NullEncrypter::GetKey() const {
-  return QuicStringPiece();
+quiche::QuicheStringPiece NullEncrypter::GetKey() const {
+  return quiche::QuicheStringPiece();
 }
 
-QuicStringPiece NullEncrypter::GetNoncePrefix() const {
-  return QuicStringPiece();
+quiche::QuicheStringPiece NullEncrypter::GetNoncePrefix() const {
+  return quiche::QuicheStringPiece();
 }
 
 size_t NullEncrypter::GetHashLength() const {

@@ -42,10 +42,11 @@ TEST_F(NullDecrypterTest, DecryptClient) {
   NullDecrypter decrypter(Perspective::IS_SERVER);
   char buffer[256];
   size_t length = 0;
-  ASSERT_TRUE(decrypter.DecryptPacket(
-      0, "hello world!", QuicStringPiece(data, len), buffer, &length, 256));
+  ASSERT_TRUE(decrypter.DecryptPacket(0, "hello world!",
+                                      quiche::QuicheStringPiece(data, len),
+                                      buffer, &length, 256));
   EXPECT_LT(0u, length);
-  EXPECT_EQ("goodbye!", QuicStringPiece(buffer, length));
+  EXPECT_EQ("goodbye!", quiche::QuicheStringPiece(buffer, length));
 }
 
 TEST_F(NullDecrypterTest, DecryptServer) {
@@ -78,10 +79,11 @@ TEST_F(NullDecrypterTest, DecryptServer) {
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;
-  ASSERT_TRUE(decrypter.DecryptPacket(
-      0, "hello world!", QuicStringPiece(data, len), buffer, &length, 256));
+  ASSERT_TRUE(decrypter.DecryptPacket(0, "hello world!",
+                                      quiche::QuicheStringPiece(data, len),
+                                      buffer, &length, 256));
   EXPECT_LT(0u, length);
-  EXPECT_EQ("goodbye!", QuicStringPiece(buffer, length));
+  EXPECT_EQ("goodbye!", quiche::QuicheStringPiece(buffer, length));
 }
 
 TEST_F(NullDecrypterTest, BadHash) {
@@ -114,8 +116,9 @@ TEST_F(NullDecrypterTest, BadHash) {
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;
-  ASSERT_FALSE(decrypter.DecryptPacket(
-      0, "hello world!", QuicStringPiece(data, len), buffer, &length, 256));
+  ASSERT_FALSE(decrypter.DecryptPacket(0, "hello world!",
+                                       quiche::QuicheStringPiece(data, len),
+                                       buffer, &length, 256));
 }
 
 TEST_F(NullDecrypterTest, ShortInput) {
@@ -128,8 +131,9 @@ TEST_F(NullDecrypterTest, ShortInput) {
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;
-  ASSERT_FALSE(decrypter.DecryptPacket(
-      0, "hello world!", QuicStringPiece(data, len), buffer, &length, 256));
+  ASSERT_FALSE(decrypter.DecryptPacket(0, "hello world!",
+                                       quiche::QuicheStringPiece(data, len),
+                                       buffer, &length, 256));
 }
 
 }  // namespace test

@@ -11,10 +11,12 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-bool ChaChaBaseDecrypter::SetHeaderProtectionKey(QuicStringPiece key) {
+bool ChaChaBaseDecrypter::SetHeaderProtectionKey(
+    quiche::QuicheStringPiece key) {
   if (key.size() != GetKeySize()) {
     QUIC_BUG << "Invalid key size for header protection";
     return false;
@@ -25,7 +27,7 @@ bool ChaChaBaseDecrypter::SetHeaderProtectionKey(QuicStringPiece key) {
 
 std::string ChaChaBaseDecrypter::GenerateHeaderProtectionMask(
     QuicDataReader* sample_reader) {
-  QuicStringPiece sample;
+  quiche::QuicheStringPiece sample;
   if (!sample_reader->ReadStringPiece(&sample, 16)) {
     return std::string();
   }

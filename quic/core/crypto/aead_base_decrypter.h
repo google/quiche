@@ -10,7 +10,7 @@
 #include "third_party/boringssl/src/include/openssl/aead.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,22 +29,22 @@ class QUIC_EXPORT_PRIVATE AeadBaseDecrypter : public QuicDecrypter {
   ~AeadBaseDecrypter() override;
 
   // QuicDecrypter implementation
-  bool SetKey(QuicStringPiece key) override;
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override;
-  bool SetIV(QuicStringPiece iv) override;
-  bool SetPreliminaryKey(QuicStringPiece key) override;
+  bool SetKey(quiche::QuicheStringPiece key) override;
+  bool SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) override;
+  bool SetIV(quiche::QuicheStringPiece iv) override;
+  bool SetPreliminaryKey(quiche::QuicheStringPiece key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
   bool DecryptPacket(uint64_t packet_number,
-                     QuicStringPiece associated_data,
-                     QuicStringPiece ciphertext,
+                     quiche::QuicheStringPiece associated_data,
+                     quiche::QuicheStringPiece ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;
-  QuicStringPiece GetKey() const override;
-  QuicStringPiece GetNoncePrefix() const override;
+  quiche::QuicheStringPiece GetKey() const override;
+  quiche::QuicheStringPiece GetNoncePrefix() const override;
 
  protected:
   // Make these constants available to the subclasses so that the subclasses

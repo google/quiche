@@ -11,6 +11,7 @@
 #include "third_party/boringssl/src/include/openssl/ecdsa.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -20,16 +21,16 @@ const char ChannelIDVerifier::kContextStr[] = "QUIC ChannelID";
 const char ChannelIDVerifier::kClientToServerStr[] = "client -> server";
 
 // static
-bool ChannelIDVerifier::Verify(QuicStringPiece key,
-                               QuicStringPiece signed_data,
-                               QuicStringPiece signature) {
+bool ChannelIDVerifier::Verify(quiche::QuicheStringPiece key,
+                               quiche::QuicheStringPiece signed_data,
+                               quiche::QuicheStringPiece signature) {
   return VerifyRaw(key, signed_data, signature, true);
 }
 
 // static
-bool ChannelIDVerifier::VerifyRaw(QuicStringPiece key,
-                                  QuicStringPiece signed_data,
-                                  QuicStringPiece signature,
+bool ChannelIDVerifier::VerifyRaw(quiche::QuicheStringPiece key,
+                                  quiche::QuicheStringPiece signed_data,
+                                  quiche::QuicheStringPiece signature,
                                   bool is_channel_id_signature) {
   if (key.size() != 32 * 2 || signature.size() != 32 * 2) {
     return false;

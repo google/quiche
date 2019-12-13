@@ -11,6 +11,7 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -67,7 +68,7 @@ void CryptoSecretBoxer::SetKeys(const std::vector<std::string>& keys) {
 }
 
 std::string CryptoSecretBoxer::Box(QuicRandom* rand,
-                                   QuicStringPiece plaintext) const {
+                                   quiche::QuicheStringPiece plaintext) const {
   // The box is formatted as:
   //   12 bytes of random nonce
   //   n bytes of ciphertext
@@ -103,9 +104,9 @@ std::string CryptoSecretBoxer::Box(QuicRandom* rand,
   return ret;
 }
 
-bool CryptoSecretBoxer::Unbox(QuicStringPiece in_ciphertext,
+bool CryptoSecretBoxer::Unbox(quiche::QuicheStringPiece in_ciphertext,
                               std::string* out_storage,
-                              QuicStringPiece* out) const {
+                              quiche::QuicheStringPiece* out) const {
   if (in_ciphertext.size() < kSIVNonceSize) {
     return false;
   }
@@ -129,7 +130,7 @@ bool CryptoSecretBoxer::Unbox(QuicStringPiece in_ciphertext,
                             kSIVNonceSize, ciphertext, ciphertext_len, nullptr,
                             0)) {
         ok = true;
-        *out = QuicStringPiece(out_storage->data(), bytes_written);
+        *out = quiche::QuicheStringPiece(out_storage->data(), bytes_written);
         break;
       }
 

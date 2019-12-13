@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -262,7 +263,7 @@ TEST(CryptoFramerTest, ProcessInput) {
   };
 
   EXPECT_TRUE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_EQ(0u, framer.InputBytesRemaining());
   EXPECT_EQ(0, visitor.error_count_);
   ASSERT_EQ(1u, visitor.messages_.size());
@@ -306,7 +307,7 @@ TEST(CryptoFramerTest, ProcessInputWithThreeKeys) {
   };
 
   EXPECT_TRUE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_EQ(0u, framer.InputBytesRemaining());
   EXPECT_EQ(0, visitor.error_count_);
   ASSERT_EQ(1u, visitor.messages_.size());
@@ -345,7 +346,8 @@ TEST(CryptoFramerTest, ProcessInputIncrementally) {
   };
 
   for (size_t i = 0; i < QUIC_ARRAYSIZE(input); i++) {
-    EXPECT_TRUE(framer.ProcessInput(QuicStringPiece(AsChars(input) + i, 1)));
+    EXPECT_TRUE(
+        framer.ProcessInput(quiche::QuicheStringPiece(AsChars(input) + i, 1)));
   }
   EXPECT_EQ(0u, framer.InputBytesRemaining());
   ASSERT_EQ(1u, visitor.messages_.size());
@@ -379,7 +381,7 @@ TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
   };
 
   EXPECT_FALSE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -407,7 +409,7 @@ TEST(CryptoFramerTest, ProcessEndOffsetsOutOfOrder) {
   };
 
   EXPECT_FALSE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -427,7 +429,7 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
   };
 
   EXPECT_FALSE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TOO_MANY_ENTRIES));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -455,7 +457,7 @@ TEST(CryptoFramerTest, ProcessInputZeroLength) {
   };
 
   EXPECT_TRUE(framer.ProcessInput(
-      QuicStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
+      quiche::QuicheStringPiece(AsChars(input), QUIC_ARRAYSIZE(input))));
   EXPECT_EQ(0, visitor.error_count_);
 }
 

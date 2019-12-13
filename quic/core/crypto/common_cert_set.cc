@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -55,7 +56,7 @@ const uint64_t kSetHashes[] = {
 
 // Compare returns a value less than, equal to or greater than zero if |a| is
 // lexicographically less than, equal to or greater than |b|, respectively.
-int Compare(QuicStringPiece a, const unsigned char* b, size_t b_len) {
+int Compare(quiche::QuicheStringPiece a, const unsigned char* b, size_t b_len) {
   size_t len = a.size();
   if (len > b_len) {
     len = b_len;
@@ -78,16 +79,18 @@ int Compare(QuicStringPiece a, const unsigned char* b, size_t b_len) {
 class CommonCertSetsQUIC : public CommonCertSets {
  public:
   // CommonCertSets interface.
-  QuicStringPiece GetCommonHashes() const override {
-    return QuicStringPiece(reinterpret_cast<const char*>(kSetHashes),
-                           sizeof(uint64_t) * QUIC_ARRAYSIZE(kSetHashes));
+  quiche::QuicheStringPiece GetCommonHashes() const override {
+    return quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kSetHashes),
+        sizeof(uint64_t) * QUIC_ARRAYSIZE(kSetHashes));
   }
 
-  QuicStringPiece GetCert(uint64_t hash, uint32_t index) const override {
+  quiche::QuicheStringPiece GetCert(uint64_t hash,
+                                    uint32_t index) const override {
     for (size_t i = 0; i < QUIC_ARRAYSIZE(kSets); i++) {
       if (kSets[i].hash == hash) {
         if (index < kSets[i].num_certs) {
-          return QuicStringPiece(
+          return quiche::QuicheStringPiece(
               reinterpret_cast<const char*>(kSets[i].certs[index]),
               kSets[i].lens[index]);
         }
@@ -95,11 +98,11 @@ class CommonCertSetsQUIC : public CommonCertSets {
       }
     }
 
-    return QuicStringPiece();
+    return quiche::QuicheStringPiece();
   }
 
-  bool MatchCert(QuicStringPiece cert,
-                 QuicStringPiece common_set_hashes,
+  bool MatchCert(quiche::QuicheStringPiece cert,
+                 quiche::QuicheStringPiece common_set_hashes,
                  uint64_t* out_hash,
                  uint32_t* out_index) const override {
     if (common_set_hashes.size() % sizeof(uint64_t) != 0) {

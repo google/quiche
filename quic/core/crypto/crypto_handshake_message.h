@@ -13,8 +13,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -75,7 +75,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
 
   const QuicTagValueMap& tag_value_map() const { return tag_value_map_; }
 
-  void SetStringPiece(QuicTag tag, QuicStringPiece value);
+  void SetStringPiece(QuicTag tag, quiche::QuicheStringPiece value);
 
   // Erase removes a tag/value, if present, from the message.
   void Erase(QuicTag tag);
@@ -96,7 +96,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   // Otherwise it populates |out| with the label and returns QUIC_NO_ERROR.
   QuicErrorCode GetVersionLabel(QuicTag tag, QuicVersionLabel* out) const;
 
-  bool GetStringPiece(QuicTag tag, QuicStringPiece* out) const;
+  bool GetStringPiece(QuicTag tag, quiche::QuicheStringPiece* out) const;
   bool HasStringPiece(QuicTag tag) const;
 
   // GetNthValue24 interprets the value with the given tag to be a series of
@@ -104,7 +104,7 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   // index.
   QuicErrorCode GetNthValue24(QuicTag tag,
                               unsigned index,
-                              QuicStringPiece* out) const;
+                              quiche::QuicheStringPiece* out) const;
   QuicErrorCode GetUint32(QuicTag tag, uint32_t* out) const;
   QuicErrorCode GetUint64(QuicTag tag, uint64_t* out) const;
   QuicErrorCode GetUint128(QuicTag tag, QuicUint128* out) const;

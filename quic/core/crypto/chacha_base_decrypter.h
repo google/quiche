@@ -9,7 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/aead_base_decrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -17,7 +17,7 @@ class QUIC_EXPORT_PRIVATE ChaChaBaseDecrypter : public AeadBaseDecrypter {
  public:
   using AeadBaseDecrypter::AeadBaseDecrypter;
 
-  bool SetHeaderProtectionKey(QuicStringPiece key) override;
+  bool SetHeaderProtectionKey(quiche::QuicheStringPiece key) override;
   std::string GenerateHeaderProtectionMask(
       QuicDataReader* sample_reader) override;
 

@@ -12,7 +12,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using std::cerr;
 using std::cout;
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
   quic::CryptoFramer framer;
   framer.set_visitor(&printer);
   framer.set_process_truncated_messages(true);
-  std::string input = quic::QuicTextUtils::HexDecode(messages[0]);
+  std::string input = quiche::QuicheTextUtils::HexDecode(messages[0]);
   if (!framer.ProcessInput(input)) {
     return 1;
   }

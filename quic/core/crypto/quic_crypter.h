@@ -7,7 +7,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -24,7 +24,7 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   //
   // NOTE: The key is the client_write_key or server_write_key derived from
   // the master secret.
-  virtual bool SetKey(QuicStringPiece key) = 0;
+  virtual bool SetKey(quiche::QuicheStringPiece key) = 0;
 
   // Sets the fixed initial bytes of the nonce. Returns true on success,
   // false on failure. This method must only be used with Google QUIC crypters.
@@ -41,7 +41,7 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   //
   // The security of the nonce format requires that QUIC never reuse a
   // packet number, even when retransmitting a lost packet.
-  virtual bool SetNoncePrefix(QuicStringPiece nonce_prefix) = 0;
+  virtual bool SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) = 0;
 
   // Sets |iv| as the initialization vector to use when constructing the nonce.
   // Returns true on success, false on failure. This method must only be used
@@ -68,15 +68,15 @@ class QUIC_EXPORT_PRIVATE QuicCrypter {
   //
   // The security of the nonce format requires that QUIC never reuse a
   // packet number, even when retransmitting a lost packet.
-  virtual bool SetIV(QuicStringPiece iv) = 0;
+  virtual bool SetIV(quiche::QuicheStringPiece iv) = 0;
 
   // Calls SetNoncePrefix or SetIV depending on whether |version| uses the
   // Google QUIC crypto or IETF QUIC nonce construction.
   virtual bool SetNoncePrefixOrIV(const ParsedQuicVersion& version,
-                                  QuicStringPiece nonce_prefix_or_iv);
+                                  quiche::QuicheStringPiece nonce_prefix_or_iv);
 
   // Sets the key to use for header protection.
-  virtual bool SetHeaderProtectionKey(QuicStringPiece key) = 0;
+  virtual bool SetHeaderProtectionKey(quiche::QuicheStringPiece key) = 0;
 
   // GetKeySize, GetIVSize, and GetNoncePrefixSize are used to know how many
   // bytes of key material needs to be derived from the master secret.

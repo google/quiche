@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -116,7 +116,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
                         const std::string& hostname,
                         const std::string& server_config,
                         QuicTransportVersion transport_version,
-                        QuicStringPiece chlo_hash,
+                        quiche::QuicheStringPiece chlo_hash,
                         std::unique_ptr<Callback> callback) = 0;
 
   // Returns the certificate chain for |hostname| in leaf-first order.
@@ -136,7 +136,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
       const QuicSocketAddress& server_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      QuicStringPiece in,
+      quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) = 0;
 };
 

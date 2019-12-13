@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypter.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-bool QuicCrypter::SetNoncePrefixOrIV(const ParsedQuicVersion& version,
-                                     QuicStringPiece nonce_prefix_or_iv) {
+bool QuicCrypter::SetNoncePrefixOrIV(
+    const ParsedQuicVersion& version,
+    quiche::QuicheStringPiece nonce_prefix_or_iv) {
   if (version.UsesInitialObfuscators()) {
     return SetIV(nonce_prefix_or_iv);
   }

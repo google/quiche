@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -68,7 +69,7 @@ AeadBaseDecrypter::AeadBaseDecrypter(const EVP_AEAD* (*aead_getter)(),
 
 AeadBaseDecrypter::~AeadBaseDecrypter() {}
 
-bool AeadBaseDecrypter::SetKey(QuicStringPiece key) {
+bool AeadBaseDecrypter::SetKey(quiche::QuicheStringPiece key) {
   DCHECK_EQ(key.size(), key_size_);
   if (key.size() != key_size_) {
     return false;
@@ -85,7 +86,7 @@ bool AeadBaseDecrypter::SetKey(QuicStringPiece key) {
   return true;
 }
 
-bool AeadBaseDecrypter::SetNoncePrefix(QuicStringPiece nonce_prefix) {
+bool AeadBaseDecrypter::SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) {
   if (use_ietf_nonce_construction_) {
     QUIC_BUG << "Attempted to set nonce prefix on IETF QUIC crypter";
     return false;
@@ -98,7 +99,7 @@ bool AeadBaseDecrypter::SetNoncePrefix(QuicStringPiece nonce_prefix) {
   return true;
 }
 
-bool AeadBaseDecrypter::SetIV(QuicStringPiece iv) {
+bool AeadBaseDecrypter::SetIV(quiche::QuicheStringPiece iv) {
   if (!use_ietf_nonce_construction_) {
     QUIC_BUG << "Attempted to set IV on Google QUIC crypter";
     return false;
@@ -111,7 +112,7 @@ bool AeadBaseDecrypter::SetIV(QuicStringPiece iv) {
   return true;
 }
 
-bool AeadBaseDecrypter::SetPreliminaryKey(QuicStringPiece key) {
+bool AeadBaseDecrypter::SetPreliminaryKey(quiche::QuicheStringPiece key) {
   DCHECK(!have_preliminary_key_);
   SetKey(key);
   have_preliminary_key_ = true;
@@ -131,9 +132,10 @@ bool AeadBaseDecrypter::SetDiversificationNonce(
     prefix_size -= sizeof(QuicPacketNumber);
   }
   DiversifyPreliminaryKey(
-      QuicStringPiece(reinterpret_cast<const char*>(key_), key_size_),
-      QuicStringPiece(reinterpret_cast<const char*>(iv_), prefix_size), nonce,
-      key_size_, prefix_size, &key, &nonce_prefix);
+      quiche::QuicheStringPiece(reinterpret_cast<const char*>(key_), key_size_),
+      quiche::QuicheStringPiece(reinterpret_cast<const char*>(iv_),
+                                prefix_size),
+      nonce, key_size_, prefix_size, &key, &nonce_prefix);
 
   if (!SetKey(key) ||
       (!use_ietf_nonce_construction_ && !SetNoncePrefix(nonce_prefix)) ||
@@ -147,8 +149,8 @@ bool AeadBaseDecrypter::SetDiversificationNonce(
 }
 
 bool AeadBaseDecrypter::DecryptPacket(uint64_t packet_number,
-                                      QuicStringPiece associated_data,
-                                      QuicStringPiece ciphertext,
+                                      quiche::QuicheStringPiece associated_data,
+                                      quiche::QuicheStringPiece ciphertext,
                                       char* output,
                                       size_t* output_length,
                                       size_t max_output_length) {
@@ -199,13 +201,14 @@ size_t AeadBaseDecrypter::GetIVSize() const {
   return nonce_size_;
 }
 
-QuicStringPiece AeadBaseDecrypter::GetKey() const {
-  return QuicStringPiece(reinterpret_cast<const char*>(key_), key_size_);
+quiche::QuicheStringPiece AeadBaseDecrypter::GetKey() const {
+  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(key_),
+                                   key_size_);
 }
 
-QuicStringPiece AeadBaseDecrypter::GetNoncePrefix() const {
-  return QuicStringPiece(reinterpret_cast<const char*>(iv_),
-                         nonce_size_ - sizeof(QuicPacketNumber));
+quiche::QuicheStringPiece AeadBaseDecrypter::GetNoncePrefix() const {
+  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(iv_),
+                                   nonce_size_ - sizeof(QuicPacketNumber));
 }
 
 }  // namespace quic

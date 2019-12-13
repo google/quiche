@@ -10,8 +10,8 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace {
 
@@ -158,9 +158,9 @@ namespace test {
 // EncryptWithNonce wraps the |Encrypt| method of |encrypter| to allow passing
 // in an nonce and also to allocate the buffer needed for the ciphertext.
 QuicData* EncryptWithNonce(Aes128GcmEncrypter* encrypter,
-                           QuicStringPiece nonce,
-                           QuicStringPiece associated_data,
-                           QuicStringPiece plaintext) {
+                           quiche::QuicheStringPiece nonce,
+                           quiche::QuicheStringPiece associated_data,
+                           quiche::QuicheStringPiece plaintext) {
   size_t ciphertext_size = encrypter->GetCiphertextSize(plaintext.length());
   std::unique_ptr<char[]> ciphertext(new char[ciphertext_size]);
 
@@ -181,12 +181,12 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
     const TestGroupInfo& test_info = test_group_info[i];
     for (size_t j = 0; test_vectors[j].key != nullptr; j++) {
       // Decode the test vector.
-      std::string key = QuicTextUtils::HexDecode(test_vectors[j].key);
-      std::string iv = QuicTextUtils::HexDecode(test_vectors[j].iv);
-      std::string pt = QuicTextUtils::HexDecode(test_vectors[j].pt);
-      std::string aad = QuicTextUtils::HexDecode(test_vectors[j].aad);
-      std::string ct = QuicTextUtils::HexDecode(test_vectors[j].ct);
-      std::string tag = QuicTextUtils::HexDecode(test_vectors[j].tag);
+      std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[j].key);
+      std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[j].iv);
+      std::string pt = quiche::QuicheTextUtils::HexDecode(test_vectors[j].pt);
+      std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[j].aad);
+      std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[j].ct);
+      std::string tag = quiche::QuicheTextUtils::HexDecode(test_vectors[j].tag);
 
       // The test vector's lengths should look sane. Note that the lengths
       // in |test_info| are in bits.
@@ -199,12 +199,12 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
 
       Aes128GcmEncrypter encrypter;
       ASSERT_TRUE(encrypter.SetKey(key));
-      std::unique_ptr<QuicData> encrypted(
-          EncryptWithNonce(&encrypter, iv,
-                           // This deliberately tests that the encrypter can
-                           // handle an AAD that is set to nullptr, as opposed
-                           // to a zero-length, non-nullptr pointer.
-                           aad.length() ? aad : QuicStringPiece(), pt));
+      std::unique_ptr<QuicData> encrypted(EncryptWithNonce(
+          &encrypter, iv,
+          // This deliberately tests that the encrypter can
+          // handle an AAD that is set to nullptr, as opposed
+          // to a zero-length, non-nullptr pointer.
+          aad.length() ? aad : quiche::QuicheStringPiece(), pt));
       ASSERT_TRUE(encrypted.get());
 
       ASSERT_EQ(ct.length() + tag.length(), encrypted->length());
@@ -219,13 +219,15 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
 
 TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
   std::string key =
-      QuicTextUtils::HexDecode("d95a145250826c25a77b6a84fd4d34fc");
-  std::string iv = QuicTextUtils::HexDecode("50c4431ebb18283448e276e2");
+      quiche::QuicheTextUtils::HexDecode("d95a145250826c25a77b6a84fd4d34fc");
+  std::string iv =
+      quiche::QuicheTextUtils::HexDecode("50c4431ebb18283448e276e2");
   uint64_t packet_num = 0x13278f44;
   std::string aad =
-      QuicTextUtils::HexDecode("875d49f64a70c9cbe713278f44ff000005");
-  std::string pt = QuicTextUtils::HexDecode("aa0003a250bd000000000001");
-  std::string ct = QuicTextUtils::HexDecode(
+      quiche::QuicheTextUtils::HexDecode("875d49f64a70c9cbe713278f44ff000005");
+  std::string pt =
+      quiche::QuicheTextUtils::HexDecode("aa0003a250bd000000000001");
+  std::string ct = quiche::QuicheTextUtils::HexDecode(
       "7dd4708b989ee7d38a013e3656e9b37beefd05808fe1ab41e3b4f2c0");
 
   std::vector<char> out(ct.size());
@@ -258,13 +260,13 @@ TEST_F(Aes128GcmEncrypterTest, GetCiphertextSize) {
 TEST_F(Aes128GcmEncrypterTest, GenerateHeaderProtectionMask) {
   Aes128GcmEncrypter encrypter;
   std::string key =
-      QuicTextUtils::HexDecode("d9132370cb18476ab833649cf080d970");
+      quiche::QuicheTextUtils::HexDecode("d9132370cb18476ab833649cf080d970");
   std::string sample =
-      QuicTextUtils::HexDecode("d1d7998068517adb769b48b924a32c47");
+      quiche::QuicheTextUtils::HexDecode("d1d7998068517adb769b48b924a32c47");
   ASSERT_TRUE(encrypter.SetHeaderProtectionKey(key));
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
   std::string expected_mask =
-      QuicTextUtils::HexDecode("b132c37d6164da4ea4dc9b763aceec27");
+      quiche::QuicheTextUtils::HexDecode("b132c37d6164da4ea4dc9b763aceec27");
   test::CompareCharArraysWithHexError("header protection mask", mask.data(),
                                       mask.size(), expected_mask.data(),
                                       expected_mask.size());

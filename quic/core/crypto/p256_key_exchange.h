@@ -11,7 +11,7 @@
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -26,7 +26,8 @@ class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
 
   // New creates a new key-exchange object from a private key. If |private_key|
   // is invalid, nullptr is returned.
-  static std::unique_ptr<P256KeyExchange> New(QuicStringPiece private_key);
+  static std::unique_ptr<P256KeyExchange> New(
+      quiche::QuicheStringPiece private_key);
 
   // NewPrivateKey returns a private key, suitable for passing to |New|.
   // If |NewPrivateKey| can't generate a private key, it returns an empty
@@ -34,9 +35,9 @@ class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
   static std::string NewPrivateKey();
 
   // SynchronousKeyExchange interface.
-  bool CalculateSharedKeySync(QuicStringPiece peer_public_value,
+  bool CalculateSharedKeySync(quiche::QuicheStringPiece peer_public_value,
                               std::string* shared_key) const override;
-  QuicStringPiece public_value() const override;
+  quiche::QuicheStringPiece public_value() const override;
   QuicTag type() const override { return kP256; }
 
  private:

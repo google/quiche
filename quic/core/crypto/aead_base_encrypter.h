@@ -10,7 +10,7 @@
 #include "third_party/boringssl/src/include/openssl/aead.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,12 +29,12 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   ~AeadBaseEncrypter() override;
 
   // QuicEncrypter implementation
-  bool SetKey(QuicStringPiece key) override;
-  bool SetNoncePrefix(QuicStringPiece nonce_prefix) override;
-  bool SetIV(QuicStringPiece iv) override;
+  bool SetKey(quiche::QuicheStringPiece key) override;
+  bool SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) override;
+  bool SetIV(quiche::QuicheStringPiece iv) override;
   bool EncryptPacket(uint64_t packet_number,
-                     QuicStringPiece associated_data,
-                     QuicStringPiece plaintext,
+                     quiche::QuicheStringPiece associated_data,
+                     quiche::QuicheStringPiece plaintext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
@@ -43,14 +43,14 @@ class QUIC_EXPORT_PRIVATE AeadBaseEncrypter : public QuicEncrypter {
   size_t GetIVSize() const override;
   size_t GetMaxPlaintextSize(size_t ciphertext_size) const override;
   size_t GetCiphertextSize(size_t plaintext_size) const override;
-  QuicStringPiece GetKey() const override;
-  QuicStringPiece GetNoncePrefix() const override;
+  quiche::QuicheStringPiece GetKey() const override;
+  quiche::QuicheStringPiece GetNoncePrefix() const override;
 
   // Necessary so unit tests can explicitly specify a nonce, instead of an IV
   // (or nonce prefix) and packet number.
-  bool Encrypt(QuicStringPiece nonce,
-               QuicStringPiece associated_data,
-               QuicStringPiece plaintext,
+  bool Encrypt(quiche::QuicheStringPiece nonce,
+               quiche::QuicheStringPiece associated_data,
+               quiche::QuicheStringPiece plaintext,
                unsigned char* output);
 
  protected:

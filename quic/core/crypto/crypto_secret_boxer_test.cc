@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -15,7 +16,7 @@ namespace test {
 class CryptoSecretBoxerTest : public QuicTest {};
 
 TEST_F(CryptoSecretBoxerTest, BoxAndUnbox) {
-  QuicStringPiece message("hello world");
+  quiche::QuicheStringPiece message("hello world");
 
   CryptoSecretBoxer boxer;
   boxer.SetKeys({std::string(CryptoSecretBoxer::GetKeySize(), 0x11)});
@@ -23,7 +24,7 @@ TEST_F(CryptoSecretBoxerTest, BoxAndUnbox) {
   const std::string box = boxer.Box(QuicRandom::GetInstance(), message);
 
   std::string storage;
-  QuicStringPiece result;
+  quiche::QuicheStringPiece result;
   EXPECT_TRUE(boxer.Unbox(box, &storage, &result));
   EXPECT_EQ(result, message);
 
@@ -39,10 +40,10 @@ TEST_F(CryptoSecretBoxerTest, BoxAndUnbox) {
 // Helper function to test whether one boxer can decode the output of another.
 static bool CanDecode(const CryptoSecretBoxer& decoder,
                       const CryptoSecretBoxer& encoder) {
-  QuicStringPiece message("hello world");
+  quiche::QuicheStringPiece message("hello world");
   const std::string boxed = encoder.Box(QuicRandom::GetInstance(), message);
   std::string storage;
-  QuicStringPiece result;
+  quiche::QuicheStringPiece result;
   bool ok = decoder.Unbox(boxed, &storage, &result);
   if (ok) {
     EXPECT_EQ(result, message);

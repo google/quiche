@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
 #include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -41,11 +42,12 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     // ssl_private_key_failure is returned. Otherwise, ssl_private_key_success
     // is returned with the signature put in |*out| and the length in
     // |*out_len|.
-    virtual ssl_private_key_result_t PrivateKeySign(uint8_t* out,
-                                                    size_t* out_len,
-                                                    size_t max_out,
-                                                    uint16_t sig_alg,
-                                                    QuicStringPiece in) = 0;
+    virtual ssl_private_key_result_t PrivateKeySign(
+        uint8_t* out,
+        size_t* out_len,
+        size_t max_out,
+        uint16_t sig_alg,
+        quiche::QuicheStringPiece in) = 0;
 
     // When PrivateKeySign returns ssl_private_key_retry, PrivateKeyComplete
     // will be called after the async sign operation has completed.

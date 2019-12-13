@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   //
   // If this function is called, neither |SetKey| nor |SetNoncePrefix| may be
   // called.
-  virtual bool SetPreliminaryKey(QuicStringPiece key) = 0;
+  virtual bool SetPreliminaryKey(quiche::QuicheStringPiece key) = 0;
 
   // SetDiversificationNonce uses |nonce| to derive final keys based on the
   // input keying material given by calling |SetPreliminaryKey|.
@@ -56,8 +56,8 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   // TODO(wtc): add a way for DecryptPacket to report decryption failure due
   // to non-authentic inputs, as opposed to other reasons for failure.
   virtual bool DecryptPacket(uint64_t packet_number,
-                             QuicStringPiece associated_data,
-                             QuicStringPiece ciphertext,
+                             quiche::QuicheStringPiece associated_data,
+                             quiche::QuicheStringPiece ciphertext,
                              char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;
@@ -74,11 +74,11 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   virtual uint32_t cipher_id() const = 0;
 
   // For use by unit tests only.
-  virtual QuicStringPiece GetKey() const = 0;
-  virtual QuicStringPiece GetNoncePrefix() const = 0;
+  virtual quiche::QuicheStringPiece GetKey() const = 0;
+  virtual quiche::QuicheStringPiece GetNoncePrefix() const = 0;
 
-  static void DiversifyPreliminaryKey(QuicStringPiece preliminary_key,
-                                      QuicStringPiece nonce_prefix,
+  static void DiversifyPreliminaryKey(quiche::QuicheStringPiece preliminary_key,
+                                      quiche::QuicheStringPiece nonce_prefix,
                                       const DiversificationNonce& nonce,
                                       size_t key_size,
                                       size_t nonce_prefix_size,

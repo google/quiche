@@ -20,7 +20,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -125,7 +125,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // SetServerConfig checks that |server_config| parses correctly and stores
     // it in |server_config_|. |now| is used to judge whether |server_config|
     // has expired.
-    ServerConfigState SetServerConfig(QuicStringPiece server_config,
+    ServerConfigState SetServerConfig(quiche::QuicheStringPiece server_config,
                                       QuicWallTime now,
                                       QuicWallTime expiry_time,
                                       std::string* error_details);
@@ -135,9 +135,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
     // SetProof stores a cert chain, cert signed timestamp and signature.
     void SetProof(const std::vector<std::string>& certs,
-                  QuicStringPiece cert_sct,
-                  QuicStringPiece chlo_hash,
-                  QuicStringPiece signature);
+                  quiche::QuicheStringPiece cert_sct,
+                  quiche::QuicheStringPiece chlo_hash,
+                  quiche::QuicheStringPiece signature);
 
     // Clears all the data.
     void Clear();
@@ -165,9 +165,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     uint64_t generation_counter() const;
     const ProofVerifyDetails* proof_verify_details() const;
 
-    void set_source_address_token(QuicStringPiece token);
+    void set_source_address_token(quiche::QuicheStringPiece token);
 
-    void set_cert_sct(QuicStringPiece cert_sct);
+    void set_cert_sct(quiche::QuicheStringPiece cert_sct);
 
     // Adds the connection ID to the queue of server-designated connection-ids.
     void add_server_designated_connection_id(QuicConnectionId connection_id);
@@ -206,12 +206,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
     // Initializes this cached state based on the arguments provided.
     // Returns false if there is a problem parsing the server config.
-    bool Initialize(QuicStringPiece server_config,
-                    QuicStringPiece source_address_token,
+    bool Initialize(quiche::QuicheStringPiece server_config,
+                    quiche::QuicheStringPiece source_address_token,
                     const std::vector<std::string>& certs,
                     const std::string& cert_sct,
-                    QuicStringPiece chlo_hash,
-                    QuicStringPiece signature,
+                    quiche::QuicheStringPiece chlo_hash,
+                    quiche::QuicheStringPiece signature,
                     QuicWallTime now,
                     QuicWallTime expiration_time);
 
@@ -323,7 +323,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& rej,
       QuicWallTime now,
       QuicTransportVersion version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       std::string* error_details);
@@ -355,7 +355,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& server_update,
       QuicWallTime now,
       const QuicTransportVersion version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       CachedState* cached,
       QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
       std::string* error_details);
@@ -389,7 +389,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // Saves the |alpn| that will be passed in QUIC's CHLO message.
   void set_alpn(const std::string& alpn) { alpn_ = alpn; }
 
-  void set_pre_shared_key(QuicStringPiece psk) {
+  void set_pre_shared_key(quiche::QuicheStringPiece psk) {
     pre_shared_key_ = std::string(psk);
   }
 
@@ -413,7 +413,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
       const CryptoHandshakeMessage& message,
       QuicWallTime now,
       QuicTransportVersion version,
-      QuicStringPiece chlo_hash,
+      quiche::QuicheStringPiece chlo_hash,
       const std::vector<std::string>& cached_certs,
       CachedState* cached,
       std::string* error_details);

@@ -6,12 +6,13 @@
 #include "net/third_party/quiche/src/quic/core/crypto/curve25519_key_exchange.h"
 #include "net/third_party/quiche/src/quic/core/crypto/p256_key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 std::unique_ptr<SynchronousKeyExchange> CreateLocalSynchronousKeyExchange(
     QuicTag type,
-    QuicStringPiece private_key) {
+    quiche::QuicheStringPiece private_key) {
   switch (type) {
     case kC255:
       return Curve25519KeyExchange::New(private_key);

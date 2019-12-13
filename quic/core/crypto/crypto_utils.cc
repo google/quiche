@@ -29,8 +29,9 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -100,12 +101,12 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
       HkdfExpandLabel(prf, pp_secret, "quic iv", crypter->GetIVSize());
   std::vector<uint8_t> pn =
       HkdfExpandLabel(prf, pp_secret, "quic hp", crypter->GetKeySize());
-  crypter->SetKey(
-      QuicStringPiece(reinterpret_cast<char*>(key.data()), key.size()));
+  crypter->SetKey(quiche::QuicheStringPiece(reinterpret_cast<char*>(key.data()),
+                                            key.size()));
   crypter->SetIV(
-      QuicStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
+      quiche::QuicheStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
   crypter->SetHeaderProtectionKey(
-      QuicStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
+      quiche::QuicheStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
 }
 
 namespace {
@@ -240,7 +241,7 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
 // static
 void CryptoUtils::GenerateNonce(QuicWallTime now,
                                 QuicRandom* random_generator,
-                                QuicStringPiece orbit,
+                                quiche::QuicheStringPiece orbit,
                                 std::string* nonce) {
   // a 4-byte timestamp + 28 random bytes.
   nonce->reserve(kNonceSize);
@@ -266,11 +267,11 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
 
 // static
 bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
-                             QuicStringPiece premaster_secret,
+                             quiche::QuicheStringPiece premaster_secret,
                              QuicTag aead,
-                             QuicStringPiece client_nonce,
-                             QuicStringPiece server_nonce,
-                             QuicStringPiece pre_shared_key,
+                             quiche::QuicheStringPiece client_nonce,
+                             quiche::QuicheStringPiece server_nonce,
+                             quiche::QuicheStringPiece pre_shared_key,
                              const std::string& hkdf_input,
                              Perspective perspective,
                              Diversification diversification,
@@ -279,7 +280,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
   // If the connection is using PSK, concatenate it with the pre-master secret.
   std::unique_ptr<char[]> psk_premaster_secret;
   if (!pre_shared_key.empty()) {
-    const QuicStringPiece label(kPreSharedKeyLabel);
+    const quiche::QuicheStringPiece label(kPreSharedKeyLabel);
     const size_t psk_premaster_secret_size = label.size() + 1 +
                                              pre_shared_key.size() + 8 +
                                              premaster_secret.size() + 8;
@@ -297,8 +298,8 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
       return false;
     }
 
-    premaster_secret =
-        QuicStringPiece(psk_premaster_secret.get(), psk_premaster_secret_size);
+    premaster_secret = quiche::QuicheStringPiece(psk_premaster_secret.get(),
+                                                 psk_premaster_secret_size);
   }
 
   crypters->encrypter = QuicEncrypter::Create(version, aead);
@@ -312,7 +313,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
   size_t subkey_secret_bytes =
       subkey_secret == nullptr ? 0 : premaster_secret.length();
 
-  QuicStringPiece nonce = client_nonce;
+  quiche::QuicheStringPiece nonce = client_nonce;
   std::string nonce_storage;
   if (!server_nonce.empty()) {
     nonce_storage = std::string(client_nonce) + std::string(server_nonce);
@@ -409,9 +410,9 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
 }
 
 // static
-bool CryptoUtils::ExportKeyingMaterial(QuicStringPiece subkey_secret,
-                                       QuicStringPiece label,
-                                       QuicStringPiece context,
+bool CryptoUtils::ExportKeyingMaterial(quiche::QuicheStringPiece subkey_secret,
+                                       quiche::QuicheStringPiece label,
+                                       quiche::QuicheStringPiece context,
                                        size_t result_len,
                                        std::string* result) {
   for (size_t i = 0; i < label.length(); i++) {
@@ -431,14 +432,14 @@ bool CryptoUtils::ExportKeyingMaterial(QuicStringPiece subkey_secret,
   info.append(reinterpret_cast<char*>(&context_length), sizeof(context_length));
   info.append(context.data(), context.length());
 
-  QuicHKDF hkdf(subkey_secret, QuicStringPiece() /* no salt */, info,
+  QuicHKDF hkdf(subkey_secret, quiche::QuicheStringPiece() /* no salt */, info,
                 result_len, 0 /* no fixed IV */, 0 /* no subkey secret */);
   *result = std::string(hkdf.client_write_key());
   return true;
 }
 
 // static
-uint64_t CryptoUtils::ComputeLeafCertHash(QuicStringPiece cert) {
+uint64_t CryptoUtils::ComputeLeafCertHash(quiche::QuicheStringPiece cert) {
   return QuicUtils::FNV1a_64_Hash(cert);
 }
 
@@ -478,7 +479,7 @@ QuicErrorCode CryptoUtils::ValidateServerHelloVersions(
     // reports that there was a version negotiation during the handshake.
     // Ensure that these two lists are identical.
     if (mismatch) {
-      *error_details = QuicStrCat(
+      *error_details = quiche::QuicheStrCat(
           "Downgrade attack detected: ServerVersions(", server_versions.size(),
           ")[", QuicVersionLabelVectorToString(server_versions, ",", 30),
           "] NegotiatedVersions(", negotiated_versions.size(), ")[",
@@ -524,7 +525,7 @@ QuicErrorCode CryptoUtils::ValidateClientHelloVersion(
     // downgrade attack.
     for (size_t i = 0; i < supported_versions.size(); ++i) {
       if (client_version == CreateQuicVersionLabel(supported_versions[i])) {
-        *error_details = QuicStrCat(
+        *error_details = quiche::QuicheStrCat(
             "Downgrade attack detected: ClientVersion[",
             QuicVersionLabelToString(client_version), "] SupportedVersions(",
             supported_versions.size(), ")[",

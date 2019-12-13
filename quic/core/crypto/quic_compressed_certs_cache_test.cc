@@ -8,8 +8,8 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -17,7 +17,7 @@ namespace test {
 
 namespace {
 
-class QuicCompressedCertsCacheTest : public testing::Test {
+class QuicCompressedCertsCacheTest : public QuicTest {
  public:
   QuicCompressedCertsCacheTest()
       : certs_cache_(QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {}
@@ -85,8 +85,8 @@ TEST_F(QuicCompressedCertsCacheTest, CacheMissDueToEviction) {
   for (unsigned int i = 0;
        i < QuicCompressedCertsCache::kQuicCompressedCertsCacheSize; i++) {
     EXPECT_EQ(certs_cache_.Size(), i + 1);
-    certs_cache_.Insert(chain, QuicTextUtils::Uint64ToString(i), "",
-                        QuicTextUtils::Uint64ToString(i));
+    certs_cache_.Insert(chain, quiche::QuicheTextUtils::Uint64ToString(i), "",
+                        quiche::QuicheTextUtils::Uint64ToString(i));
   }
   EXPECT_EQ(certs_cache_.MaxSize(), certs_cache_.Size());
 
