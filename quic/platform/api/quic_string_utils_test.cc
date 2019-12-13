@@ -6,69 +6,70 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
 namespace {
 
-TEST(QuicStringUtilsTest, QuicStrCat) {
+TEST(QuicStringUtilsTest, QuicheStrCat) {
   // No arguments.
-  EXPECT_EQ("", QuicStrCat());
+  EXPECT_EQ("", quiche::QuicheStrCat());
 
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const QuicStringPiece stringpiece_foo(string_foo);
-  EXPECT_EQ("foo", QuicStrCat(kFoo));
-  EXPECT_EQ("foo", QuicStrCat(string_foo));
-  EXPECT_EQ("foo", QuicStrCat(stringpiece_foo));
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
+  EXPECT_EQ("foo", quiche::QuicheStrCat(kFoo));
+  EXPECT_EQ("foo", quiche::QuicheStrCat(string_foo));
+  EXPECT_EQ("foo", quiche::QuicheStrCat(stringpiece_foo));
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const QuicStringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
-  EXPECT_EQ("foobar", QuicStrCat(kFoo, kBar));
-  EXPECT_EQ("foobar", QuicStrCat(kFoo, string_bar));
-  EXPECT_EQ("foobar", QuicStrCat(kFoo, stringpiece_bar));
-  EXPECT_EQ("foobar", QuicStrCat(string_foo, kBar));
-  EXPECT_EQ("foobar", QuicStrCat(string_foo, string_bar));
-  EXPECT_EQ("foobar", QuicStrCat(string_foo, stringpiece_bar));
-  EXPECT_EQ("foobar", QuicStrCat(stringpiece_foo, kBar));
-  EXPECT_EQ("foobar", QuicStrCat(stringpiece_foo, string_bar));
-  EXPECT_EQ("foobar", QuicStrCat(stringpiece_foo, stringpiece_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(kFoo, kBar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(kFoo, string_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(kFoo, stringpiece_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(string_foo, kBar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(string_foo, string_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(string_foo, stringpiece_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(stringpiece_foo, kBar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(stringpiece_foo, string_bar));
+  EXPECT_EQ("foobar", quiche::QuicheStrCat(stringpiece_foo, stringpiece_bar));
 
   // Many-many arguments.
-  EXPECT_EQ(
-      "foobarbazquxquuxquuzcorgegraultgarplywaldofredplughxyzzythud",
-      QuicStrCat("foo", "bar", "baz", "qux", "quux", "quuz", "corge", "grault",
-                 "garply", "waldo", "fred", "plugh", "xyzzy", "thud"));
+  EXPECT_EQ("foobarbazquxquuxquuzcorgegraultgarplywaldofredplughxyzzythud",
+            quiche::QuicheStrCat("foo", "bar", "baz", "qux", "quux", "quuz",
+                                 "corge", "grault", "garply", "waldo", "fred",
+                                 "plugh", "xyzzy", "thud"));
 
   // Numerical arguments.
   const int16_t i = 1;
   const uint64_t u = 8;
   const double d = 3.1415;
 
-  EXPECT_EQ("1 8", QuicStrCat(i, " ", u));
-  EXPECT_EQ("3.14151181", QuicStrCat(d, i, i, u, i));
+  EXPECT_EQ("1 8", quiche::QuicheStrCat(i, " ", u));
+  EXPECT_EQ("3.14151181", quiche::QuicheStrCat(d, i, i, u, i));
   EXPECT_EQ("i: 1, u: 8, d: 3.1415",
-            QuicStrCat("i: ", i, ", u: ", u, ", d: ", d));
+            quiche::QuicheStrCat("i: ", i, ", u: ", u, ", d: ", d));
 
   // Boolean arguments.
   const bool t = true;
   const bool f = false;
 
-  EXPECT_EQ("1", QuicStrCat(t));
-  EXPECT_EQ("0", QuicStrCat(f));
-  EXPECT_EQ("0110", QuicStrCat(f, t, t, f));
+  EXPECT_EQ("1", quiche::QuicheStrCat(t));
+  EXPECT_EQ("0", quiche::QuicheStrCat(f));
+  EXPECT_EQ("0110", quiche::QuicheStrCat(f, t, t, f));
 
   // Mixed string-like, numerical, and Boolean arguments.
   EXPECT_EQ("foo1foo081bar3.14151",
-            QuicStrCat(kFoo, i, string_foo, f, u, t, stringpiece_bar, d, t));
+            quiche::QuicheStrCat(kFoo, i, string_foo, f, u, t, stringpiece_bar,
+                                 d, t));
   EXPECT_EQ("3.141511bar18bar13.14150",
-            QuicStrCat(d, t, t, string_bar, i, u, kBar, t, d, f));
+            quiche::QuicheStrCat(d, t, t, string_bar, i, u, kBar, t, d, f));
 }
 
 TEST(QuicStringUtilsTest, QuicStrAppend) {
@@ -80,7 +81,7 @@ TEST(QuicStringUtilsTest, QuicStrAppend) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const QuicStringPiece stringpiece_foo(string_foo);
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
   QuicStrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
   QuicStrAppend(&output, string_foo);
@@ -96,7 +97,7 @@ TEST(QuicStringUtilsTest, QuicStrAppend) {
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const QuicStringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   QuicStrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);
@@ -167,10 +168,11 @@ TEST(QuicStringUtilsTest, QuicStrAppend) {
 }
 
 TEST(QuicStringUtilsTest, QuicStringPrintf) {
-  EXPECT_EQ("", QuicStringPrintf("%s", ""));
-  EXPECT_EQ("foobar", QuicStringPrintf("%sbar", "foo"));
-  EXPECT_EQ("foobar", QuicStringPrintf("%s%s", "foo", "bar"));
-  EXPECT_EQ("foo: 1, bar: 2.0", QuicStringPrintf("foo: %d, bar: %.1f", 1, 2.0));
+  EXPECT_EQ("", quiche::QuicheStringPrintf("%s", ""));
+  EXPECT_EQ("foobar", quiche::QuicheStringPrintf("%sbar", "foo"));
+  EXPECT_EQ("foobar", quiche::QuicheStringPrintf("%s%s", "foo", "bar"));
+  EXPECT_EQ("foo: 1, bar: 2.0",
+            quiche::QuicheStringPrintf("foo: %d, bar: %.1f", 1, 2.0));
 }
 
 }  // namespace

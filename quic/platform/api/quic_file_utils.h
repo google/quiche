@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -18,7 +18,7 @@ QUIC_EXPORT_PRIVATE std::vector<std::string> ReadFileContents(
     const std::string& dirname);
 
 // Reads the contents of |filename| as a string into |contents|.
-QUIC_EXPORT_PRIVATE void ReadFileContents(QuicStringPiece filename,
+QUIC_EXPORT_PRIVATE void ReadFileContents(quiche::QuicheStringPiece filename,
                                           std::string* contents);
 
 }  // namespace quic

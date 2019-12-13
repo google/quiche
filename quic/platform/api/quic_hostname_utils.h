@@ -8,8 +8,8 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/quic/platform/impl/quic_hostname_utils_impl.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -21,12 +21,12 @@ class QUIC_EXPORT_PRIVATE QuicHostnameUtils {
   //  (1) disallow IP addresses;
   //  (2) check that the hostname contains valid characters only; and
   //  (3) contains at least one dot.
-  static bool IsValidSNI(QuicStringPiece sni);
+  static bool IsValidSNI(quiche::QuicheStringPiece sni);
 
   // Canonicalizes the specified hostname.  This involves a wide variety of
   // transformations, including lowercasing, removing trailing dots and IDNA
   // conversion.
-  static std::string NormalizeHostname(QuicStringPiece hostname);
+  static std::string NormalizeHostname(quiche::QuicheStringPiece hostname);
 };
 
 }  // namespace quic

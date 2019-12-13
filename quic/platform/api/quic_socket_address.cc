@@ -10,7 +10,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address_family.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -69,9 +69,9 @@ bool QuicSocketAddress::IsInitialized() const {
 std::string QuicSocketAddress::ToString() const {
   switch (host_.address_family()) {
     case IpAddressFamily::IP_V4:
-      return QuicStrCat(host_.ToString(), ":", port_);
+      return quiche::QuicheStrCat(host_.ToString(), ":", port_);
     case IpAddressFamily::IP_V6:
-      return QuicStrCat("[", host_.ToString(), "]:", port_);
+      return quiche::QuicheStrCat("[", host_.ToString(), "]:", port_);
     default:
       return "";
   }

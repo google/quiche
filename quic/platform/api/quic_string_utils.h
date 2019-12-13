@@ -8,7 +8,6 @@
 #include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
 #include "net/quic/platform/impl/quic_string_utils_impl.h"
 
 namespace quic {
