@@ -22,7 +22,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -76,7 +76,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
                              HpackDecoderStringBuffer* name_buffer,
                              HpackDecoderStringBuffer* value_buffer) override;
   void OnDynamicTableSizeUpdate(size_t size) override;
-  void OnHpackDecodeError(Http2StringPiece error_message) override;
+  void OnHpackDecodeError(quiche::QuicheStringPiece error_message) override;
 
   // OnHeaderBlockEnd notifies this object that an entire HPACK block has been
   // decoded, which might have extended into CONTINUATION blocks.
@@ -94,7 +94,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
   friend class test::HpackDecoderStatePeer;
 
   // Reports an error to the listener IF this is the first error detected.
-  void ReportError(Http2StringPiece error_message);
+  void ReportError(quiche::QuicheStringPiece error_message);
 
   // The static and dynamic HPACK tables.
   HpackDecoderTables decoder_tables_;

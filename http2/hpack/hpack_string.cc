@@ -12,32 +12,33 @@
 namespace http2 {
 
 HpackString::HpackString(const char* data) : str_(data) {}
-HpackString::HpackString(Http2StringPiece str) : str_(std::string(str)) {}
+HpackString::HpackString(quiche::QuicheStringPiece str)
+    : str_(std::string(str)) {}
 HpackString::HpackString(std::string str) : str_(std::move(str)) {}
 HpackString::HpackString(const HpackString& other) = default;
 HpackString::~HpackString() = default;
 
-Http2StringPiece HpackString::ToStringPiece() const {
+quiche::QuicheStringPiece HpackString::ToStringPiece() const {
   return str_;
 }
 
 bool HpackString::operator==(const HpackString& other) const {
   return str_ == other.str_;
 }
-bool HpackString::operator==(Http2StringPiece str) const {
+bool HpackString::operator==(quiche::QuicheStringPiece str) const {
   return str == str_;
 }
 
-bool operator==(Http2StringPiece a, const HpackString& b) {
+bool operator==(quiche::QuicheStringPiece a, const HpackString& b) {
   return b == a;
 }
-bool operator!=(Http2StringPiece a, const HpackString& b) {
+bool operator!=(quiche::QuicheStringPiece a, const HpackString& b) {
   return !(b == a);
 }
 bool operator!=(const HpackString& a, const HpackString& b) {
   return !(a == b);
 }
-bool operator!=(const HpackString& a, Http2StringPiece b) {
+bool operator!=(const HpackString& a, quiche::QuicheStringPiece b) {
   return !(a == b);
 }
 std::ostream& operator<<(std::ostream& out, const HpackString& v) {
@@ -50,7 +51,8 @@ HpackStringPair::HpackStringPair(const HpackString& name,
   HTTP2_DVLOG(3) << DebugString() << " ctor";
 }
 
-HpackStringPair::HpackStringPair(Http2StringPiece name, Http2StringPiece value)
+HpackStringPair::HpackStringPair(quiche::QuicheStringPiece name,
+                                 quiche::QuicheStringPiece value)
     : name(name), value(value) {
   HTTP2_DVLOG(3) << DebugString() << " ctor";
 }

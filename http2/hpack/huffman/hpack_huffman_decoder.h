@@ -19,7 +19,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -47,7 +47,7 @@ class HTTP2_EXPORT_PRIVATE HuffmanBitBuffer {
 
   // Add as many whole bytes to the accumulator (accumulator_) as possible,
   // returning the number of bytes added.
-  size_t AppendBytes(Http2StringPiece input);
+  size_t AppendBytes(quiche::QuicheStringPiece input);
 
   // Get the bits of the accumulator.
   HuffmanAccumulator value() const { return accumulator_; }
@@ -109,7 +109,7 @@ class HTTP2_EXPORT_PRIVATE HpackHuffmanDecoder {
   // will contain the leading bits of the code for that symbol, but not the
   // final bits of that code.
   // Note that output should be empty, but that it is not cleared by Decode().
-  bool Decode(Http2StringPiece input, std::string* output);
+  bool Decode(quiche::QuicheStringPiece input, std::string* output);
 
   // Is what remains in the bit_buffer_ valid at the end of an encoded string?
   // Call after passing the the final portion of a Huffman string to Decode,

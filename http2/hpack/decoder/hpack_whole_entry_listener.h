@@ -14,7 +14,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -51,7 +51,7 @@ class HTTP2_EXPORT_PRIVATE HpackWholeEntryListener {
 
   // OnHpackDecodeError is called if an error is detected while decoding.
   // error_message may be used in a GOAWAY frame as the Opaque Data.
-  virtual void OnHpackDecodeError(Http2StringPiece error_message) = 0;
+  virtual void OnHpackDecodeError(quiche::QuicheStringPiece error_message) = 0;
 };
 
 // A no-op implementation of HpackWholeEntryDecoderListener, useful for ignoring
@@ -69,7 +69,7 @@ class HpackWholeEntryNoOpListener : public HpackWholeEntryListener {
                              HpackDecoderStringBuffer* name_buffer,
                              HpackDecoderStringBuffer* value_buffer) override;
   void OnDynamicTableSizeUpdate(size_t size) override;
-  void OnHpackDecodeError(Http2StringPiece error_message) override;
+  void OnHpackDecodeError(quiche::QuicheStringPiece error_message) override;
 
   // Returns a listener that ignores all the calls.
   static HpackWholeEntryNoOpListener* NoOpListener();

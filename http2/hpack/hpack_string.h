@@ -16,14 +16,14 @@
 #include <string>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
 class HTTP2_EXPORT_PRIVATE HpackString {
  public:
   explicit HpackString(const char* data);
-  explicit HpackString(Http2StringPiece str);
+  explicit HpackString(quiche::QuicheStringPiece str);
   explicit HpackString(std::string str);
   HpackString(const HpackString& other);
 
@@ -34,27 +34,31 @@ class HTTP2_EXPORT_PRIVATE HpackString {
 
   size_t size() const { return str_.size(); }
   const std::string& ToString() const { return str_; }
-  Http2StringPiece ToStringPiece() const;
+  quiche::QuicheStringPiece ToStringPiece() const;
 
   bool operator==(const HpackString& other) const;
 
-  bool operator==(Http2StringPiece str) const;
+  bool operator==(quiche::QuicheStringPiece str) const;
 
  private:
   std::string str_;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(Http2StringPiece a, const HpackString& b);
-HTTP2_EXPORT_PRIVATE bool operator!=(Http2StringPiece a, const HpackString& b);
+HTTP2_EXPORT_PRIVATE bool operator==(quiche::QuicheStringPiece a,
+                                     const HpackString& b);
+HTTP2_EXPORT_PRIVATE bool operator!=(quiche::QuicheStringPiece a,
+                                     const HpackString& b);
 HTTP2_EXPORT_PRIVATE bool operator!=(const HpackString& a,
                                      const HpackString& b);
-HTTP2_EXPORT_PRIVATE bool operator!=(const HpackString& a, Http2StringPiece b);
+HTTP2_EXPORT_PRIVATE bool operator!=(const HpackString& a,
+                                     quiche::QuicheStringPiece b);
 HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
                                               const HpackString& v);
 
 struct HTTP2_EXPORT_PRIVATE HpackStringPair {
   HpackStringPair(const HpackString& name, const HpackString& value);
-  HpackStringPair(Http2StringPiece name, Http2StringPiece value);
+  HpackStringPair(quiche::QuicheStringPiece name,
+                  quiche::QuicheStringPiece value);
   ~HpackStringPair();
 
   // Returns the size of a header entry with this name and value, per the RFC:

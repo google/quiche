@@ -21,7 +21,7 @@ void HpackWholeEntryNoOpListener::OnLiteralNameAndValue(
     HpackDecoderStringBuffer* value_buffer) {}
 void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t size) {}
 void HpackWholeEntryNoOpListener::OnHpackDecodeError(
-    Http2StringPiece error_message) {}
+    quiche::QuicheStringPiece error_message) {}
 
 // static
 HpackWholeEntryNoOpListener* HpackWholeEntryNoOpListener::NoOpListener() {

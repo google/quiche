@@ -36,7 +36,7 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
-  Http2StringPiece sp(s);
+  quiche::QuicheStringPiece sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -85,7 +85,7 @@ TEST(HuffmanBitBufferTest, ConsumeBits) {
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
-  Http2StringPiece sp(s);
+  quiche::QuicheStringPiece sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -117,7 +117,7 @@ TEST(HuffmanBitBufferTest, AppendBytesUnaligned) {
   s.push_back('\xbb');
   s.push_back('\xcc');
   s.push_back('\xdd');
-  Http2StringPiece sp(s);
+  quiche::QuicheStringPiece sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -161,10 +161,10 @@ class HpackHuffmanDecoderTest : public RandomDecoderTest {
 
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
     input_bytes_seen_ += b->Remaining();
-    Http2StringPiece sp(b->cursor(), b->Remaining());
+    quiche::QuicheStringPiece sp(b->cursor(), b->Remaining());
     if (decoder_.Decode(sp, &output_buffer_)) {
       b->AdvanceCursor(b->Remaining());
-      // Successfully decoded (or buffered) the bytes in Http2StringPiece.
+      // Successfully decoded (or buffered) the bytes in QuicheStringPiece.
       EXPECT_LE(input_bytes_seen_, input_bytes_expected_);
       // Have we reached the end of the encoded string?
       if (input_bytes_expected_ == input_bytes_seen_) {

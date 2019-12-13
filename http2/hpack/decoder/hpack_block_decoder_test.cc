@@ -15,10 +15,10 @@
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_example.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionSuccess;
 
@@ -66,7 +66,7 @@ class HpackBlockDecoderTest : public RandomDecoderTest {
   }
 
   AssertionResult DecodeHpackExampleAndValidateSeveralWays(
-      Http2StringPiece hpack_example,
+      quiche::QuicheStringPiece hpack_example,
       Validator validator) {
     std::string input = HpackExampleToStringOrDie(hpack_example);
     DecodeBuffer db(input);

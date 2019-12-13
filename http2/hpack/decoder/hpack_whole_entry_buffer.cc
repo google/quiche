@@ -67,7 +67,7 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(Http2StringPiece(data, len));
+                 << Http2HexDump(quiche::QuicheStringPiece(data, len));
   DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
     ReportError("Error decoding HPACK entry name.");
@@ -100,7 +100,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(Http2StringPiece(data, len));
+                 << Http2HexDump(quiche::QuicheStringPiece(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
     ReportError("Error decoding HPACK entry value.");
   }
@@ -131,7 +131,8 @@ void HpackWholeEntryBuffer::OnDynamicTableSizeUpdate(size_t size) {
   listener_->OnDynamicTableSizeUpdate(size);
 }
 
-void HpackWholeEntryBuffer::ReportError(Http2StringPiece error_message) {
+void HpackWholeEntryBuffer::ReportError(
+    quiche::QuicheStringPiece error_message) {
   if (!error_detected_) {
     HTTP2_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: " << error_message;
     error_detected_ = true;

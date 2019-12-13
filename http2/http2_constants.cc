@@ -5,8 +5,8 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -46,7 +46,8 @@ std::string Http2FrameFlagsToString(Http2FrameType type, uint8_t flags) {
   std::string s;
   // Closure to append flag name |v| to the std::string |s|,
   // and to clear |bit| from |flags|.
-  auto append_and_clear = [&s, &flags](Http2StringPiece v, uint8_t bit) {
+  auto append_and_clear = [&s, &flags](quiche::QuicheStringPiece v,
+                                       uint8_t bit) {
     if (!s.empty()) {
       s.push_back('|');
     }

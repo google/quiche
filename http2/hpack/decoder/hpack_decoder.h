@@ -30,7 +30,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_buffer.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -102,7 +102,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoder {
   friend class test::HpackDecoderPeer;
 
   // Reports an error to the listener IF this is the first error detected.
-  void ReportError(Http2StringPiece error_message);
+  void ReportError(quiche::QuicheStringPiece error_message);
 
   // The decompressor state, as defined by HPACK (i.e. the static and dynamic
   // tables).

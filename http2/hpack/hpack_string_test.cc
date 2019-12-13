@@ -28,7 +28,7 @@ class HpackStringTest : public ::testing::Test {
   AssertionResult VerifyNotEqual(HpackString* actual,
                                  const std::string& not_expected_str) {
     const char* not_expected_ptr = not_expected_str.c_str();
-    Http2StringPiece not_expected_sp(not_expected_str);
+    quiche::QuicheStringPiece not_expected_sp(not_expected_str);
 
     VERIFY_NE(*actual, not_expected_ptr);
     VERIFY_NE(*actual, not_expected_sp);
@@ -56,7 +56,7 @@ class HpackStringTest : public ::testing::Test {
     VERIFY_EQ(actual->size(), expected_str.size());
 
     const char* expected_ptr = expected_str.c_str();
-    const Http2StringPiece expected_sp(expected_str);
+    const quiche::QuicheStringPiece expected_sp(expected_str);
 
     VERIFY_EQ(*actual, expected_ptr);
     VERIFY_EQ(*actual, expected_sp);
@@ -91,12 +91,12 @@ TEST_F(HpackStringTest, CharArrayConstructor) {
 }
 
 TEST_F(HpackStringTest, StringPieceConstructor) {
-  Http2StringPiece sp0(kStr0);
+  quiche::QuicheStringPiece sp0(kStr0);
   HpackString hs0(sp0);
   EXPECT_TRUE(VerifyEqual(&hs0, kStr0));
   EXPECT_TRUE(VerifyNotEqual(&hs0, kStr1));
 
-  Http2StringPiece sp1(kStr1);
+  quiche::QuicheStringPiece sp1(kStr1);
   HpackString hs1(sp1);
   EXPECT_TRUE(VerifyEqual(&hs1, kStr1));
   EXPECT_TRUE(VerifyNotEqual(&hs1, kStr0));
@@ -115,7 +115,7 @@ TEST_F(HpackStringTest, MoveStringConstructor) {
 }
 
 TEST_F(HpackStringTest, CopyConstructor) {
-  Http2StringPiece sp0(kStr0);
+  quiche::QuicheStringPiece sp0(kStr0);
   HpackString hs0(sp0);
   HpackString hs1(hs0);
   EXPECT_EQ(hs0, hs1);
@@ -128,7 +128,7 @@ TEST_F(HpackStringTest, CopyConstructor) {
 }
 
 TEST_F(HpackStringTest, MoveConstructor) {
-  Http2StringPiece sp0(kStr0);
+  quiche::QuicheStringPiece sp0(kStr0);
   HpackString hs0(sp0);
   EXPECT_TRUE(VerifyEqual(&hs0, kStr0));
   EXPECT_TRUE(VerifyNotEqual(&hs0, ""));

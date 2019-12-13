@@ -11,9 +11,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_arraysize.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;
@@ -31,7 +31,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
         suffix_(Http2HexDecode(::testing::get<1>(GetParam()))),
         prefix_length_(0) {}
 
-  void DecodeExpectSuccess(Http2StringPiece data,
+  void DecodeExpectSuccess(quiche::QuicheStringPiece data,
                            uint32_t prefix_length,
                            uint64_t expected_value) {
     Validator validator = [expected_value, this](
@@ -52,7 +52,8 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
     EXPECT_EQ(expected_value, decoder_.value());
   }
 
-  void DecodeExpectError(Http2StringPiece data, uint32_t prefix_length) {
+  void DecodeExpectError(quiche::QuicheStringPiece data,
+                         uint32_t prefix_length) {
     Validator validator = [](const DecodeBuffer& db,
                              DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(DecodeStatus::kDecodeError, status);
@@ -63,7 +64,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
   }
 
  private:
-  AssertionResult Decode(Http2StringPiece data,
+  AssertionResult Decode(quiche::QuicheStringPiece data,
                          uint32_t prefix_length,
                          const Validator validator) {
     prefix_length_ = prefix_length;

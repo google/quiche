@@ -22,14 +22,14 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
 
 class HpackBlockBuilder {
  public:
-  explicit HpackBlockBuilder(Http2StringPiece initial_contents)
+  explicit HpackBlockBuilder(quiche::QuicheStringPiece initial_contents)
       : buffer_(initial_contents.data(), initial_contents.size()) {}
   HpackBlockBuilder() {}
   ~HpackBlockBuilder() {}
@@ -51,7 +51,7 @@ class HpackBlockBuilder {
   void AppendNameIndexAndLiteralValue(HpackEntryType entry_type,
                                       uint64_t name_index,
                                       bool value_is_huffman_encoded,
-                                      Http2StringPiece value) {
+                                      quiche::QuicheStringPiece value) {
     // name_index==0 would indicate that the entry includes a literal name.
     // Call AppendLiteralNameAndValue in that case.
     EXPECT_NE(0u, name_index);
@@ -61,9 +61,9 @@ class HpackBlockBuilder {
 
   void AppendLiteralNameAndValue(HpackEntryType entry_type,
                                  bool name_is_huffman_encoded,
-                                 Http2StringPiece name,
+                                 quiche::QuicheStringPiece name,
                                  bool value_is_huffman_encoded,
-                                 Http2StringPiece value) {
+                                 quiche::QuicheStringPiece value) {
     AppendEntryTypeAndVarint(entry_type, 0);
     AppendString(name_is_huffman_encoded, name);
     AppendString(value_is_huffman_encoded, value);
@@ -84,7 +84,7 @@ class HpackBlockBuilder {
 
   // Append a header string (i.e. a header name or value) in HPACK format.
   // Does NOT perform Huffman encoding.
-  void AppendString(bool is_huffman_encoded, Http2StringPiece str);
+  void AppendString(bool is_huffman_encoded, quiche::QuicheStringPiece str);
 
  private:
   std::string buffer_;

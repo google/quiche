@@ -37,7 +37,8 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
                     HpackDecoderStringBuffer* name_buffer,
                     HpackDecoderStringBuffer* value_buffer));
   MOCK_METHOD1(OnDynamicTableSizeUpdate, void(size_t size));
-  MOCK_METHOD1(OnHpackDecodeError, void(Http2StringPiece error_message));
+  MOCK_METHOD1(OnHpackDecodeError,
+               void(quiche::QuicheStringPiece error_message));
 };
 
 class HpackWholeEntryBufferTest : public ::testing::Test {

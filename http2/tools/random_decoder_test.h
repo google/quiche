@@ -21,9 +21,9 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -31,8 +31,9 @@ namespace test {
 // Some helpers.
 
 template <typename T, size_t N>
-Http2StringPiece ToStringPiece(T (&data)[N]) {
-  return Http2StringPiece(reinterpret_cast<const char*>(data), N * sizeof(T));
+quiche::QuicheStringPiece ToStringPiece(T (&data)[N]) {
+  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(data),
+                                   N * sizeof(T));
 }
 
 // Overwrite the enum with some random value, probably not a valid value for

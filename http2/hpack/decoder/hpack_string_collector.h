@@ -14,7 +14,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -40,7 +40,7 @@ struct HpackStringCollector : public HpackStringDecoderListener {
   void OnStringData(const char* data, size_t length) override;
   void OnStringEnd() override;
 
-  ::testing::AssertionResult Collected(Http2StringPiece str,
+  ::testing::AssertionResult Collected(quiche::QuicheStringPiece str,
                                        bool is_huffman_encoded) const;
 
   std::string ToString() const;

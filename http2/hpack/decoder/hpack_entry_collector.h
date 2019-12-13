@@ -20,7 +20,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_collector.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -85,16 +85,16 @@ class HpackEntryCollector : public HpackEntryDecoderListener {
       HpackEntryType expected_type,
       size_t expected_index,
       bool expected_value_huffman,
-      Http2StringPiece expected_value) const;
+      quiche::QuicheStringPiece expected_value) const;
 
   // Returns success if collected a Header with an literal name and literal
   // value.
   ::testing::AssertionResult ValidateLiteralNameValueHeader(
       HpackEntryType expected_type,
       bool expected_name_huffman,
-      Http2StringPiece expected_name,
+      quiche::QuicheStringPiece expected_name,
       bool expected_value_huffman,
-      Http2StringPiece expected_value) const;
+      quiche::QuicheStringPiece expected_value) const;
 
   // Returns success if collected a Dynamic Table Size Update,
   // with the specified size.

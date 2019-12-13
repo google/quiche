@@ -11,7 +11,7 @@
 
 namespace http2 {
 
-size_t ExactHuffmanSize(Http2StringPiece plain) {
+size_t ExactHuffmanSize(quiche::QuicheStringPiece plain) {
   size_t bits = 0;
   for (const uint8_t c : plain) {
     bits += HuffmanSpecTables::kCodeLengths[c];
@@ -19,7 +19,7 @@ size_t ExactHuffmanSize(Http2StringPiece plain) {
   return (bits + 7) / 8;
 }
 
-size_t BoundedHuffmanSize(Http2StringPiece plain) {
+size_t BoundedHuffmanSize(quiche::QuicheStringPiece plain) {
   // TODO(jamessynge): Determine whether we should set the min size for Huffman
   // encoding much higher (i.e. if less than N, then the savings isn't worth
   // the cost of encoding and decoding). Of course, we need to decide on a
@@ -61,7 +61,7 @@ size_t BoundedHuffmanSize(Http2StringPiece plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(Http2StringPiece plain, std::string* huffman) {
+void HuffmanEncode(quiche::QuicheStringPiece plain, std::string* huffman) {
   DCHECK(huffman != nullptr);
   huffman->clear();         // Note that this doesn't release memory.
   uint64_t bit_buffer = 0;  // High-bit is next bit to output. Not clear if that

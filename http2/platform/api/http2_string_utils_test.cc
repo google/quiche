@@ -7,7 +7,7 @@
 #include <cstdint>
 
 #include "testing/gtest/include/gtest/gtest.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -20,14 +20,14 @@ TEST(Http2StringUtilsTest, Http2StrCat) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const Http2StringPiece stringpiece_foo(string_foo);
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
   EXPECT_EQ("foo", Http2StrCat(kFoo));
   EXPECT_EQ("foo", Http2StrCat(string_foo));
   EXPECT_EQ("foo", Http2StrCat(stringpiece_foo));
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const Http2StringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   EXPECT_EQ("foobar", Http2StrCat(kFoo, kBar));
   EXPECT_EQ("foobar", Http2StrCat(kFoo, string_bar));
@@ -79,7 +79,7 @@ TEST(Http2StringUtilsTest, Http2StrAppend) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const Http2StringPiece stringpiece_foo(string_foo);
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
   Http2StrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
   Http2StrAppend(&output, string_foo);
@@ -95,7 +95,7 @@ TEST(Http2StringUtilsTest, Http2StrAppend) {
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const Http2StringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   Http2StrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);

@@ -70,7 +70,8 @@ class MockHpackDecoderListener : public HpackDecoderListener {
                     const HpackString& name,
                     const HpackString& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
-  MOCK_METHOD1(OnHeaderErrorDetected, void(Http2StringPiece error_message));
+  MOCK_METHOD1(OnHeaderErrorDetected,
+               void(quiche::QuicheStringPiece error_message));
 };
 
 class HpackDecoderTest : public ::testing::TestWithParam<bool>,
@@ -119,7 +120,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
 
   // OnHeaderErrorDetected is called if an error is detected while decoding.
   // error_message may be used in a GOAWAY frame as the Opaque Data.
-  void OnHeaderErrorDetected(Http2StringPiece error_message) override {
+  void OnHeaderErrorDetected(quiche::QuicheStringPiece error_message) override {
     ASSERT_TRUE(saw_start_);
     error_messages_.push_back(std::string(error_message));
     // No further callbacks should be made at this point, so replace 'this' as
@@ -129,7 +130,7 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
         HpackDecoderPeer::GetDecoderState(&decoder_), &mock_listener_);
   }
 
-  AssertionResult DecodeBlock(Http2StringPiece block) {
+  AssertionResult DecodeBlock(quiche::QuicheStringPiece block) {
     HTTP2_VLOG(1) << "HpackDecoderTest::DecodeBlock";
 
     VERIFY_FALSE(decoder_.error_detected());

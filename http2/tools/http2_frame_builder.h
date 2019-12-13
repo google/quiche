@@ -20,7 +20,7 @@
 
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -39,7 +39,7 @@ class Http2FrameBuilder {
   // Methods for appending to the end of the buffer.
 
   // Append a sequence of bytes from various sources.
-  void Append(Http2StringPiece s);
+  void Append(quiche::QuicheStringPiece s);
   void AppendBytes(const void* data, uint32_t num_bytes);
 
   // Append an array of type T[N] to the string. Intended for tests with arrays
@@ -80,7 +80,7 @@ class Http2FrameBuilder {
   // Methods for changing existing buffer contents (mostly focused on updating
   // the payload length).
 
-  void WriteAt(Http2StringPiece s, size_t offset);
+  void WriteAt(quiche::QuicheStringPiece s, size_t offset);
   void WriteBytesAt(const void* data, uint32_t num_bytes, size_t offset);
   void WriteUInt24At(uint32_t value, size_t offset);
 

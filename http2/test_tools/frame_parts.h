@@ -22,7 +22,7 @@
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -34,12 +34,12 @@ class FrameParts : public Http2FrameDecoderListener {
   explicit FrameParts(const Http2FrameHeader& header);
 
   // For use in tests where the expected frame has a variable size payload.
-  FrameParts(const Http2FrameHeader& header, Http2StringPiece payload);
+  FrameParts(const Http2FrameHeader& header, quiche::QuicheStringPiece payload);
 
   // For use in tests where the expected frame has a variable size payload
   // and may be padded.
   FrameParts(const Http2FrameHeader& header,
-             Http2StringPiece payload,
+             quiche::QuicheStringPiece payload,
              size_t total_pad_length);
 
   // Copy constructor.
@@ -58,7 +58,8 @@ class FrameParts : public Http2FrameDecoderListener {
   void SetTotalPadLength(size_t total_pad_length);
 
   // Set the origin and value expected in an ALTSVC frame.
-  void SetAltSvcExpected(Http2StringPiece origin, Http2StringPiece value);
+  void SetAltSvcExpected(quiche::QuicheStringPiece origin,
+                         quiche::QuicheStringPiece value);
 
   // Http2FrameDecoderListener methods:
   bool OnFrameHeader(const Http2FrameHeader& header) override;
@@ -207,7 +208,7 @@ class FrameParts : public Http2FrameDecoderListener {
   // Append source to target. If opt_length is not nullptr, then verifies that
   // the optional has a value (i.e. that the necessary On*Start method has been
   // called), and that target is not longer than opt_length->value().
-  ::testing::AssertionResult AppendString(Http2StringPiece source,
+  ::testing::AssertionResult AppendString(quiche::QuicheStringPiece source,
                                           std::string* target,
                                           Http2Optional<size_t>* opt_length);
 

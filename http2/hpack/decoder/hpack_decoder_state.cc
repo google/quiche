@@ -185,7 +185,8 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
   lowest_header_table_size_ = final_header_table_size_;
 }
 
-void HpackDecoderState::OnHpackDecodeError(Http2StringPiece error_message) {
+void HpackDecoderState::OnHpackDecodeError(
+    quiche::QuicheStringPiece error_message) {
   HTTP2_DVLOG(2) << "HpackDecoderState::OnHpackDecodeError " << error_message;
   if (!error_detected_) {
     ReportError(error_message);
@@ -206,7 +207,7 @@ void HpackDecoderState::OnHeaderBlockEnd() {
   }
 }
 
-void HpackDecoderState::ReportError(Http2StringPiece error_message) {
+void HpackDecoderState::ReportError(quiche::QuicheStringPiece error_message) {
   HTTP2_DVLOG(2) << "HpackDecoderState::ReportError is new="
                  << (!error_detected_ ? "true" : "false")
                  << ", error_message: " << error_message;

@@ -11,9 +11,9 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -52,10 +52,10 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
 
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
     input_bytes_seen_ += b->Remaining();
-    Http2StringPiece sp(b->cursor(), b->Remaining());
+    quiche::QuicheStringPiece sp(b->cursor(), b->Remaining());
     if (decoder_.Decode(sp, &output_buffer_)) {
       b->AdvanceCursor(b->Remaining());
-      // Successfully decoded (or buffered) the bytes in Http2StringPiece.
+      // Successfully decoded (or buffered) the bytes in QuicheStringPiece.
       EXPECT_LE(input_bytes_seen_, input_bytes_expected_);
       // Have we reached the end of the encoded string?
       if (input_bytes_expected_ == input_bytes_seen_) {
@@ -71,8 +71,8 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
   }
 
   AssertionResult TranscodeAndValidateSeveralWays(
-      Http2StringPiece plain,
-      Http2StringPiece expected_huffman) {
+      quiche::QuicheStringPiece plain,
+      quiche::QuicheStringPiece expected_huffman) {
     std::string encoded;
     HuffmanEncode(plain, &encoded);
     if (expected_huffman.size() > 0 || plain.empty()) {
@@ -90,7 +90,8 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
                                         ValidateDoneAndEmpty(validator));
   }
 
-  AssertionResult TranscodeAndValidateSeveralWays(Http2StringPiece plain) {
+  AssertionResult TranscodeAndValidateSeveralWays(
+      quiche::QuicheStringPiece plain) {
     return TranscodeAndValidateSeveralWays(plain, "");
   }
 

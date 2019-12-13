@@ -10,10 +10,10 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_collector.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionResult;
 
@@ -43,13 +43,13 @@ class HpackStringDecoderTest : public RandomDecoderTest {
     return decoder_.Resume(b, &listener_);
   }
 
-  AssertionResult Collected(Http2StringPiece s, bool huffman_encoded) {
+  AssertionResult Collected(quiche::QuicheStringPiece s, bool huffman_encoded) {
     HTTP2_VLOG(1) << collector_;
     return collector_.Collected(s, huffman_encoded);
   }
 
   // expected_str is a std::string rather than a const std::string& or
-  // Http2StringPiece so that the lambda makes a copy of the string, and thus
+  // QuicheStringPiece so that the lambda makes a copy of the string, and thus
   // the string to be passed to Collected outlives the call to MakeValidator.
   Validator MakeValidator(const std::string& expected_str,
                           bool expected_huffman) {
@@ -111,7 +111,7 @@ TEST_F(HpackStringDecoderTest, DecodeShortString) {
   {
     Validator validator =
         ValidateDoneAndOffset(11, MakeValidator("start end.", kUncompressed));
-    Http2StringPiece data("\x0astart end.");
+    quiche::QuicheStringPiece data("\x0astart end.");
     DecodeBuffer b(data);
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(&b, kMayReturnZeroOnFirst, validator));

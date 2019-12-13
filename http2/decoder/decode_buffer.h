@@ -19,7 +19,7 @@
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 class DecodeBufferSubset;
@@ -35,7 +35,7 @@ class HTTP2_EXPORT_PRIVATE DecodeBuffer {
     const size_t kMaxDecodeBufferLength = 1 << 25;
     DCHECK_LE(len, kMaxDecodeBufferLength);
   }
-  explicit DecodeBuffer(Http2StringPiece s)
+  explicit DecodeBuffer(quiche::QuicheStringPiece s)
       : DecodeBuffer(s.data(), s.size()) {}
   // Constructor for character arrays, typically in tests. For example:
   //    const char input[] = { 0x11 };

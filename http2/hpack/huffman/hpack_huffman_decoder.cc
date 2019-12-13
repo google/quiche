@@ -356,7 +356,7 @@ void HuffmanBitBuffer::Reset() {
   count_ = 0;
 }
 
-size_t HuffmanBitBuffer::AppendBytes(Http2StringPiece input) {
+size_t HuffmanBitBuffer::AppendBytes(quiche::QuicheStringPiece input) {
   HuffmanAccumulatorBitCount free_cnt = free_count();
   size_t bytes_available = input.size();
   if (free_cnt < 8 || bytes_available == 0) {
@@ -414,7 +414,8 @@ HpackHuffmanDecoder::HpackHuffmanDecoder() = default;
 
 HpackHuffmanDecoder::~HpackHuffmanDecoder() = default;
 
-bool HpackHuffmanDecoder::Decode(Http2StringPiece input, std::string* output) {
+bool HpackHuffmanDecoder::Decode(quiche::QuicheStringPiece input,
+                                 std::string* output) {
   HTTP2_DVLOG(1) << "HpackHuffmanDecoder::Decode";
 
   // Fill bit_buffer_ from input.

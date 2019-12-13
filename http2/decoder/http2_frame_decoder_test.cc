@@ -13,12 +13,12 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector_listener.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -120,8 +120,9 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     VERIFY_AND_RETURN_SUCCESS(expected.VerifyEquals(*collector_.frame(0)));
   }
 
-  AssertionResult DecodePayloadAndValidateSeveralWays(Http2StringPiece payload,
-                                                      Validator validator) {
+  AssertionResult DecodePayloadAndValidateSeveralWays(
+      quiche::QuicheStringPiece payload,
+      Validator validator) {
     DecodeBuffer db(payload);
     bool start_decoding_requires_non_empty = false;
     return DecodeAndValidateSeveralWays(&db, start_decoding_requires_non_empty,
@@ -133,7 +134,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   // payload will be decoded several times with different partitionings
   // of the payload, and after each the validator will be called.
   AssertionResult DecodePayloadAndValidateSeveralWays(
-      Http2StringPiece payload,
+      quiche::QuicheStringPiece payload,
       const FrameParts& expected) {
     auto validator = [&expected, this](const DecodeBuffer& input,
                                        DecodeStatus status) -> AssertionResult {
@@ -164,16 +165,16 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   AssertionResult DecodePayloadAndValidateSeveralWays(
       const char (&buf)[N],
       const FrameParts& expected) {
-    return DecodePayloadAndValidateSeveralWays(Http2StringPiece(buf, N),
-                                               expected);
+    return DecodePayloadAndValidateSeveralWays(
+        quiche::QuicheStringPiece(buf, N), expected);
   }
 
   template <size_t N>
   AssertionResult DecodePayloadAndValidateSeveralWays(
       const char (&buf)[N],
       const Http2FrameHeader& header) {
-    return DecodePayloadAndValidateSeveralWays(Http2StringPiece(buf, N),
-                                               FrameParts(header));
+    return DecodePayloadAndValidateSeveralWays(
+        quiche::QuicheStringPiece(buf, N), FrameParts(header));
   }
 
   template <size_t N>

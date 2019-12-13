@@ -120,7 +120,8 @@ TEST(HpackBlockBuilderTest, ExamplesFromSpecC4) {
                                           '\xab', '\x90', '\xf4', '\xff'};
     b.AppendNameIndexAndLiteralValue(
         HpackEntryType::kIndexedLiteralHeader, 1, kCompressed,
-        Http2StringPiece(kHuffmanWwwExampleCom, sizeof kHuffmanWwwExampleCom));
+        quiche::QuicheStringPiece(kHuffmanWwwExampleCom,
+                                  sizeof kHuffmanWwwExampleCom));
     EXPECT_EQ(17u, b.size());
 
     // Hex dump of encoded data (copied from RFC):
@@ -140,7 +141,7 @@ TEST(HpackBlockBuilderTest, DynamicTableSizeUpdate) {
     EXPECT_EQ(1u, b.size());
 
     const char kData[] = {'\x20'};
-    Http2StringPiece expected(kData, sizeof kData);
+    quiche::QuicheStringPiece expected(kData, sizeof kData);
     EXPECT_EQ(expected, b.buffer());
   }
   {
@@ -149,7 +150,7 @@ TEST(HpackBlockBuilderTest, DynamicTableSizeUpdate) {
     EXPECT_EQ(3u, b.size());
 
     const char kData[] = {'\x3f', '\xe1', '\x1f'};
-    Http2StringPiece expected(kData, sizeof kData);
+    quiche::QuicheStringPiece expected(kData, sizeof kData);
     EXPECT_EQ(expected, b.buffer());
   }
   {
@@ -159,7 +160,7 @@ TEST(HpackBlockBuilderTest, DynamicTableSizeUpdate) {
 
     const char kData[] = {'\x3f', '\xe1', '\x9f', '\x94',
                           '\xa5', '\x8d', '\x1d'};
-    Http2StringPiece expected(kData, sizeof kData);
+    quiche::QuicheStringPiece expected(kData, sizeof kData);
     EXPECT_EQ(expected, b.buffer());
   }
 }

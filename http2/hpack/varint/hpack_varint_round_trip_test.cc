@@ -16,9 +16,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionSuccess;
@@ -291,7 +291,7 @@ TEST_F(HpackVarintRoundTripTest, Encode) {
 }
 
 TEST_F(HpackVarintRoundTripTest, FromSpec1337) {
-  DecodeBuffer b(Http2StringPiece("\x1f\x9a\x0a"));
+  DecodeBuffer b(quiche::QuicheStringPiece("\x1f\x9a\x0a"));
   uint32_t prefix_length = 5;
   uint8_t p = b.DecodeUInt8();
   EXPECT_EQ(1u, b.Offset());

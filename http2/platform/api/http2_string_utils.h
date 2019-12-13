@@ -9,8 +9,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_piece.h"
 #include "net/http2/platform/impl/http2_string_utils_impl.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -33,15 +33,15 @@ inline std::string Http2HexEncode(const void* bytes, size_t size) {
   return Http2HexEncodeImpl(bytes, size);
 }
 
-inline std::string Http2HexDecode(Http2StringPiece data) {
+inline std::string Http2HexDecode(quiche::QuicheStringPiece data) {
   return Http2HexDecodeImpl(data);
 }
 
-inline std::string Http2HexDump(Http2StringPiece data) {
+inline std::string Http2HexDump(quiche::QuicheStringPiece data) {
   return Http2HexDumpImpl(data);
 }
 
-inline std::string Http2HexEscape(Http2StringPiece data) {
+inline std::string Http2HexEscape(quiche::QuicheStringPiece data) {
   return Http2HexEscapeImpl(data);
 }
 

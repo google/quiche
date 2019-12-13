@@ -109,7 +109,7 @@ size_t HpackDecoder::EstimateMemoryUsage() const {
   return Http2EstimateMemoryUsage(entry_buffer_);
 }
 
-void HpackDecoder::ReportError(Http2StringPiece error_message) {
+void HpackDecoder::ReportError(quiche::QuicheStringPiece error_message) {
   HTTP2_DVLOG(3) << "HpackDecoder::ReportError is new="
                  << (!error_detected_ ? "true" : "false")
                  << ", error_message: " << error_message;

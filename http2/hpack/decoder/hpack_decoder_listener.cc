@@ -18,7 +18,7 @@ void HpackDecoderNoOpListener::OnHeader(HpackEntryType entry_type,
                                         const HpackString& value) {}
 void HpackDecoderNoOpListener::OnHeaderListEnd() {}
 void HpackDecoderNoOpListener::OnHeaderErrorDetected(
-    Http2StringPiece error_message) {}
+    quiche::QuicheStringPiece error_message) {}
 
 // static
 HpackDecoderNoOpListener* HpackDecoderNoOpListener::NoOpListener() {
