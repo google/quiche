@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_UBER_QUIC_STREAM_ID_MANAGER_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_stream_id_manager.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
 
@@ -30,10 +31,12 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
       QuicStreamCount max_open_incoming_unidirectional_streams);
 
   // Sets the limits to max_open_streams.
-  void SetMaxOpenOutgoingBidirectionalStreams(size_t max_open_streams);
-  void SetMaxOpenOutgoingUnidirectionalStreams(size_t max_open_streams);
-  void SetMaxOpenIncomingBidirectionalStreams(size_t max_open_streams);
-  void SetMaxOpenIncomingUnidirectionalStreams(size_t max_open_streams);
+  void SetMaxOpenOutgoingBidirectionalStreams(QuicStreamCount max_open_streams);
+  void SetMaxOpenOutgoingUnidirectionalStreams(
+      QuicStreamCount max_open_streams);
+  void SetMaxOpenIncomingBidirectionalStreams(QuicStreamCount max_open_streams);
+  void SetMaxOpenIncomingUnidirectionalStreams(
+      QuicStreamCount max_open_streams);
 
   // Returns true if next outgoing bidirectional stream ID can be allocated.
   bool CanOpenNextOutgoingBidirectionalStream();
@@ -65,9 +68,9 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 
-  size_t GetMaxAllowdIncomingBidirectionalStreams() const;
+  QuicStreamCount GetMaxAllowdIncomingBidirectionalStreams() const;
 
-  size_t GetMaxAllowdIncomingUnidirectionalStreams() const;
+  QuicStreamCount GetMaxAllowdIncomingUnidirectionalStreams() const;
 
   void SetLargestPeerCreatedStreamId(
       QuicStreamId largest_peer_created_stream_id);
@@ -77,8 +80,8 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   QuicStreamId next_outgoing_bidirectional_stream_id() const;
   QuicStreamId next_outgoing_unidirectional_stream_id() const;
 
-  size_t max_outgoing_bidirectional_streams() const;
-  size_t max_outgoing_unidirectional_streams() const;
+  QuicStreamCount max_outgoing_bidirectional_streams() const;
+  QuicStreamCount max_outgoing_unidirectional_streams() const;
 
   QuicStreamCount max_incoming_bidirectional_streams() const;
   QuicStreamCount max_incoming_unidirectional_streams() const;

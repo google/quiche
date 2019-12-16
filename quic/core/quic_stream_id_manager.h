@@ -111,14 +111,14 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // allocates a stream ID past the peer specified limit.
   QuicStreamId GetNextOutgoingStreamId();
 
-  void SetMaxOpenIncomingStreams(size_t max_open_streams);
+  void SetMaxOpenIncomingStreams(QuicStreamCount max_open_streams);
 
   // Sets the maximum number of outgoing streams to max_open_streams.
   // Used when configuration has been done and we have an initial
   // maximum stream count from the peer. Note that if the stream count is such
   // that it would result in stream ID values that are greater than the
   // implementation limit, it pegs the count at the implementation limit.
-  bool SetMaxOpenOutgoingStreams(size_t max_open_streams);
+  bool SetMaxOpenOutgoingStreams(QuicStreamCount max_open_streams);
 
   // Checks if the incoming stream ID exceeds the MAX_STREAMS limit.  If the
   // limit is exceeded, closes the connection and returns false.  Uses the
@@ -134,7 +134,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Return true if given stream is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
 
-  size_t incoming_initial_max_open_streams() const {
+  QuicStreamCount incoming_initial_max_open_streams() const {
     return incoming_initial_max_open_streams_;
   }
 
@@ -145,7 +145,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   }
 
   // Number of streams that the peer believes that it can still create.
-  size_t available_incoming_streams();
+  QuicStreamCount available_incoming_streams();
 
   void set_largest_peer_created_stream_id(
       QuicStreamId largest_peer_created_stream_id) {

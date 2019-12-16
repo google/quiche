@@ -89,7 +89,8 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
 
 // Used when configuration has been done and we have an initial
 // maximum stream count from the peer.
-bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
+bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(
+    QuicStreamCount max_open_streams) {
   if (using_default_max_streams_) {
     // This is the first MAX_STREAMS/transport negotiation we've received. Treat
     // this a bit differently than later ones. The difference is that
@@ -114,9 +115,9 @@ bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
 
   // This implementation only supports 32 bit Stream IDs, so limit max streams
   // if it would exceed the max 32 bits can express.
-  outgoing_max_streams_ = std::min<size_t>(
-      max_open_streams,
-      QuicUtils::GetMaxStreamCount(unidirectional_, perspective_));
+  outgoing_max_streams_ =
+      std::min(max_open_streams,
+               QuicUtils::GetMaxStreamCount(unidirectional_, perspective_));
 
   // Inform the higher layers that the stream limit has increased and that
   // new streams may be created.
@@ -125,11 +126,11 @@ bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(size_t max_open_streams) {
   return true;
 }
 
-void QuicStreamIdManager::SetMaxOpenIncomingStreams(size_t max_open_streams) {
+void QuicStreamIdManager::SetMaxOpenIncomingStreams(
+    QuicStreamCount max_open_streams) {
   QuicStreamCount implementation_max =
       QuicUtils::GetMaxStreamCount(unidirectional_, perspective());
-  QuicStreamCount new_max = std::min(
-      implementation_max, static_cast<QuicStreamCount>(max_open_streams));
+  QuicStreamCount new_max = std::min(implementation_max, max_open_streams);
   if (new_max < incoming_stream_count_) {
     delegate_->OnError(QUIC_MAX_STREAMS_ERROR,
                        "Stream limit less than existing stream count");
@@ -138,7 +139,7 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(size_t max_open_streams) {
   incoming_actual_max_streams_ = new_max;
   incoming_advertised_max_streams_ = new_max;
   incoming_initial_max_open_streams_ =
-      std::min(max_open_streams, static_cast<size_t>(implementation_max));
+      std::min(max_open_streams, implementation_max);
   CalculateIncomingMaxStreamsWindow();
 }
 
@@ -327,7 +328,7 @@ Perspective QuicStreamIdManager::peer_perspective() const {
   return QuicUtils::InvertPerspective(perspective());
 }
 
-size_t QuicStreamIdManager::available_incoming_streams() {
+QuicStreamCount QuicStreamIdManager::available_incoming_streams() {
   return incoming_advertised_max_streams_ - incoming_stream_count_;
 }
 

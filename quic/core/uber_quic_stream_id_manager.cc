@@ -32,19 +32,19 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
           max_open_incoming_unidirectional_streams) {}
 
 void UberQuicStreamIdManager::SetMaxOpenOutgoingBidirectionalStreams(
-    size_t max_open_streams) {
+    QuicStreamCount max_open_streams) {
   bidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
 }
 void UberQuicStreamIdManager::SetMaxOpenOutgoingUnidirectionalStreams(
-    size_t max_open_streams) {
+    QuicStreamCount max_open_streams) {
   unidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
 }
 void UberQuicStreamIdManager::SetMaxOpenIncomingBidirectionalStreams(
-    size_t max_open_streams) {
+    QuicStreamCount max_open_streams) {
   bidirectional_stream_id_manager_.SetMaxOpenIncomingStreams(max_open_streams);
 }
 void UberQuicStreamIdManager::SetMaxOpenIncomingUnidirectionalStreams(
-    size_t max_open_streams) {
+    QuicStreamCount max_open_streams) {
   unidirectional_stream_id_manager_.SetMaxOpenIncomingStreams(max_open_streams);
 }
 
@@ -111,13 +111,13 @@ bool UberQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   return unidirectional_stream_id_manager_.IsAvailableStream(id);
 }
 
-size_t UberQuicStreamIdManager::GetMaxAllowdIncomingBidirectionalStreams()
-    const {
+QuicStreamCount
+UberQuicStreamIdManager::GetMaxAllowdIncomingBidirectionalStreams() const {
   return bidirectional_stream_id_manager_.incoming_initial_max_open_streams();
 }
 
-size_t UberQuicStreamIdManager::GetMaxAllowdIncomingUnidirectionalStreams()
-    const {
+QuicStreamCount
+UberQuicStreamIdManager::GetMaxAllowdIncomingUnidirectionalStreams() const {
   return unidirectional_stream_id_manager_.incoming_initial_max_open_streams();
 }
 
@@ -150,11 +150,13 @@ QuicStreamId UberQuicStreamIdManager::next_outgoing_unidirectional_stream_id()
   return unidirectional_stream_id_manager_.next_outgoing_stream_id();
 }
 
-size_t UberQuicStreamIdManager::max_outgoing_bidirectional_streams() const {
+QuicStreamCount UberQuicStreamIdManager::max_outgoing_bidirectional_streams()
+    const {
   return bidirectional_stream_id_manager_.outgoing_max_streams();
 }
 
-size_t UberQuicStreamIdManager::max_outgoing_unidirectional_streams() const {
+QuicStreamCount UberQuicStreamIdManager::max_outgoing_unidirectional_streams()
+    const {
   return unidirectional_stream_id_manager_.outgoing_max_streams();
 }
 
