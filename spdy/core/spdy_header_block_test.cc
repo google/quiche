@@ -189,6 +189,27 @@ TEST(SpdyHeaderBlockTest, AppendHeaders) {
   EXPECT_EQ("singleton", block["h4"]);
 }
 
+TEST(SpdyHeaderBlockTest, CompareValueToSpdyStringPiece) {
+  SpdyHeaderBlock block;
+  block["foo"] = "foo";
+  block.AppendValueOrAddHeader("foo", "bar");
+  const auto& val = block["foo"];
+  const char expected[] = "foo\0bar";
+  EXPECT_TRUE(SpdyStringPiece(expected, 7) == val);
+  EXPECT_TRUE(val == SpdyStringPiece(expected, 7));
+  EXPECT_FALSE(SpdyStringPiece(expected, 3) == val);
+  EXPECT_FALSE(val == SpdyStringPiece(expected, 3));
+  const char not_expected[] = "foo\0barextra";
+  EXPECT_FALSE(SpdyStringPiece(not_expected, 12) == val);
+  EXPECT_FALSE(val == SpdyStringPiece(not_expected, 12));
+
+  const auto& val2 = block["foo2"];
+  EXPECT_FALSE(SpdyStringPiece(expected, 7) == val2);
+  EXPECT_FALSE(val2 == SpdyStringPiece(expected, 7));
+  EXPECT_FALSE(SpdyStringPiece("") == val2);
+  EXPECT_FALSE(val2 == SpdyStringPiece(""));
+}
+
 // This test demonstrates that the SpdyHeaderBlock data structure does not place
 // any limitations on the characters present in the header names.
 TEST(SpdyHeaderBlockTest, UpperCaseNames) {

@@ -140,7 +140,7 @@ SpdyHeaderBlock::ValueProxy::~ValueProxy() {
 }
 
 SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
-    const SpdyStringPiece value) {
+    SpdyStringPiece value) {
   *spdy_header_block_value_size_ += value.size();
   SpdyHeaderStorage* storage = &block_->storage_;
   if (lookup_result_ == block_->map_.end()) {
@@ -156,6 +156,14 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
     lookup_result_->second = HeaderValue(storage, key_, storage->Write(value));
   }
   return *this;
+}
+
+bool SpdyHeaderBlock::ValueProxy::operator==(SpdyStringPiece value) const {
+  if (lookup_result_ == block_->map_.end()) {
+    return false;
+  } else {
+    return value == lookup_result_->second.value();
+  }
 }
 
 std::string SpdyHeaderBlock::ValueProxy::as_string() const {

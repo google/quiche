@@ -19,7 +19,7 @@ namespace spdy {
 
 inline bool operator==(SpdyStringPiece x,
                        const SpdyHeaderBlock::ValueProxy& y) {
-  return x == y.as_string();
+  return y.operator==(x);
 }
 
 namespace test {

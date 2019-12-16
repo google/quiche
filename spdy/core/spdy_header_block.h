@@ -194,7 +194,10 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     ValueProxy& operator=(const ValueProxy& other) = delete;
 
     // Assignment modifies the underlying SpdyHeaderBlock.
-    ValueProxy& operator=(const SpdyStringPiece other);
+    ValueProxy& operator=(SpdyStringPiece value);
+
+    // Provides easy comparison against SpdyStringPiece.
+    bool operator==(SpdyStringPiece value) const;
 
     std::string as_string() const;
 
