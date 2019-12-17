@@ -337,7 +337,6 @@ void TlsClientHandshaker::FinishHandshake() {
 
   encryption_established_ = true;
   handshake_confirmed_ = true;
-  delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
@@ -347,6 +346,8 @@ void TlsClientHandshaker::FinishHandshake() {
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
+
+  delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   // TODO(fayang): Replace this with DiscardOldKeys(ENCRYPTION_HANDSHAKE) when
   // handshake key discarding settles down.
   delegate()->NeuterHandshakeData();

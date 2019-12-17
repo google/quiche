@@ -74,7 +74,10 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         QuicCryptoHandshaker(this, session),
         encryption_established_(false),
         handshake_confirmed_(false),
-        params_(new QuicCryptoNegotiatedParameters) {}
+        params_(new QuicCryptoNegotiatedParameters) {
+    // Simulate a negotiated cipher_suite with a fake value.
+    params_->cipher_suite = 1;
+  }
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
     encryption_established_ = true;

@@ -1357,6 +1357,11 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_HANDSHAKE:
       break;
     case ENCRYPTION_FORWARD_SECURE:
+      if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+        QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
+            << ENDPOINT
+            << "Handshake confirmed without cipher suite negotiation.";
+      }
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
       break;
