@@ -26,9 +26,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -70,7 +70,7 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
       !CBB_add_u8_length_prefixed(quic_hkdf_label.get(), &inner_label) ||
       !CBB_add_bytes(&inner_label,
                      reinterpret_cast<const uint8_t*>(label_prefix),
-                     QUIC_ARRAYSIZE(label_prefix) - 1) ||
+                     QUICHE_ARRAYSIZE(label_prefix) - 1) ||
       !CBB_add_bytes(&inner_label,
                      reinterpret_cast<const uint8_t*>(label.data()),
                      label.size()) ||
@@ -135,23 +135,23 @@ const uint8_t kQ099Salt[] = {0xc0, 0xa2, 0xee, 0x20, 0xc7, 0xe1, 0x83,
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync with initial encryption salts");
   switch (version.handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
       switch (version.transport_version) {
         case QUIC_VERSION_50:
-          *out_len = QUIC_ARRAYSIZE(kQ050Salt);
+          *out_len = QUICHE_ARRAYSIZE(kQ050Salt);
           return kQ050Salt;
         case QUIC_VERSION_99:
-          *out_len = QUIC_ARRAYSIZE(kQ099Salt);
+          *out_len = QUICHE_ARRAYSIZE(kQ099Salt);
           return kQ099Salt;
         case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
           // It doesn't matter what salt we use for
           // QUIC_VERSION_RESERVED_FOR_NEGOTIATION, but some tests try to use a
           // QuicFramer with QUIC_VERSION_RESERVED_FOR_NEGOTIATION and will hit
           // the following QUIC_BUG if there isn't a case for it. ):
-          *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
+          *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
           return kDraft23InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
@@ -160,12 +160,12 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
     case PROTOCOL_TLS1_3:
       switch (version.transport_version) {
         case QUIC_VERSION_50:
-          *out_len = QUIC_ARRAYSIZE(kT050Salt);
+          *out_len = QUICHE_ARRAYSIZE(kT050Salt);
           return kT050Salt;
         case QUIC_VERSION_99:
           // ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99) uses the IETF
           // salt.
-          *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
+          *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
           return kDraft23InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
@@ -175,7 +175,7 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
     default:
       QUIC_BUG << "No initial obfuscation salt for version " << version;
   }
-  *out_len = QUIC_ARRAYSIZE(kDraft23InitialSalt);
+  *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
   return kDraft23InitialSalt;
 }
 

@@ -10,11 +10,11 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -267,7 +267,7 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
   char big_endian[] = {
       0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
-  EXPECT_EQ(connection_id.length(), QUIC_ARRAYSIZE(big_endian));
+  EXPECT_EQ(connection_id.length(), QUICHE_ARRAYSIZE(big_endian));
   ASSERT_LE(connection_id.length(), 255);
   char buffer[255];
   QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
@@ -278,8 +278,8 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
 
   QuicConnectionId read_connection_id;
   QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
-  EXPECT_TRUE(
-      reader.ReadConnectionId(&read_connection_id, QUIC_ARRAYSIZE(big_endian)));
+  EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id,
+                                      QUICHE_ARRAYSIZE(big_endian)));
   EXPECT_EQ(connection_id, read_connection_id);
 }
 
@@ -289,35 +289,35 @@ TEST_P(QuicDataWriterTest, LengthPrefixedConnectionId) {
   char length_prefixed_connection_id[] = {
       0x08, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
-  EXPECT_EQ(QUIC_ARRAYSIZE(length_prefixed_connection_id),
+  EXPECT_EQ(QUICHE_ARRAYSIZE(length_prefixed_connection_id),
             kConnectionIdLengthSize + connection_id.length());
   char buffer[kConnectionIdLengthSize + 255] = {};
-  QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer);
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer);
   EXPECT_TRUE(writer.WriteLengthPrefixedConnectionId(connection_id));
   test::CompareCharArraysWithHexError(
       "WriteLengthPrefixedConnectionId", buffer, writer.length(),
       length_prefixed_connection_id,
-      QUIC_ARRAYSIZE(length_prefixed_connection_id));
+      QUICHE_ARRAYSIZE(length_prefixed_connection_id));
 
   // Verify that writing length then connection ID produces the same output.
-  memset(buffer, 0, QUIC_ARRAYSIZE(buffer));
-  QuicDataWriter writer2(QUIC_ARRAYSIZE(buffer), buffer);
+  memset(buffer, 0, QUICHE_ARRAYSIZE(buffer));
+  QuicDataWriter writer2(QUICHE_ARRAYSIZE(buffer), buffer);
   EXPECT_TRUE(writer2.WriteUInt8(connection_id.length()));
   EXPECT_TRUE(writer2.WriteConnectionId(connection_id));
   test::CompareCharArraysWithHexError(
       "Write length then ConnectionId", buffer, writer2.length(),
       length_prefixed_connection_id,
-      QUIC_ARRAYSIZE(length_prefixed_connection_id));
+      QUICHE_ARRAYSIZE(length_prefixed_connection_id));
 
   QuicConnectionId read_connection_id;
-  QuicDataReader reader(buffer, QUIC_ARRAYSIZE(buffer));
+  QuicDataReader reader(buffer, QUICHE_ARRAYSIZE(buffer));
   EXPECT_TRUE(reader.ReadLengthPrefixedConnectionId(&read_connection_id));
   EXPECT_EQ(connection_id, read_connection_id);
 
   // Verify that reading length then connection ID produces the same output.
   uint8_t read_connection_id_length2 = 33;
   QuicConnectionId read_connection_id2;
-  QuicDataReader reader2(buffer, QUIC_ARRAYSIZE(buffer));
+  QuicDataReader reader2(buffer, QUICHE_ARRAYSIZE(buffer));
   ASSERT_TRUE(reader2.ReadUInt8(&read_connection_id_length2));
   EXPECT_EQ(connection_id.length(), read_connection_id_length2);
   EXPECT_TRUE(reader2.ReadConnectionId(&read_connection_id2,
@@ -328,7 +328,8 @@ TEST_P(QuicDataWriterTest, LengthPrefixedConnectionId) {
 TEST_P(QuicDataWriterTest, EmptyConnectionIds) {
   QuicConnectionId empty_connection_id = EmptyQuicConnectionId();
   char buffer[2];
-  QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+                        GetParam().endianness);
   EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
   EXPECT_TRUE(writer.WriteUInt8(1));
   EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
@@ -341,7 +342,8 @@ TEST_P(QuicDataWriterTest, EmptyConnectionIds) {
 
   QuicConnectionId read_connection_id = TestConnectionId();
   uint8_t read_byte;
-  QuicDataReader reader(buffer, QUIC_ARRAYSIZE(buffer), GetParam().endianness);
+  QuicDataReader reader(buffer, QUICHE_ARRAYSIZE(buffer),
+                        GetParam().endianness);
   EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id, 0));
   EXPECT_EQ(read_connection_id, empty_connection_id);
   EXPECT_TRUE(reader.ReadUInt8(&read_byte));
@@ -659,10 +661,10 @@ TEST_P(QuicDataWriterTest, WriteIntegers) {
 
 TEST_P(QuicDataWriterTest, WriteBytes) {
   char bytes[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-  char buf[QUIC_ARRAYSIZE(bytes)];
-  QuicDataWriter writer(QUIC_ARRAYSIZE(buf), buf, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteBytes(bytes, QUIC_ARRAYSIZE(bytes)));
-  for (unsigned int i = 0; i < QUIC_ARRAYSIZE(bytes); ++i) {
+  char buf[QUICHE_ARRAYSIZE(bytes)];
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(buf), buf, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteBytes(bytes, QUICHE_ARRAYSIZE(bytes)));
+  for (unsigned int i = 0; i < QUICHE_ARRAYSIZE(bytes); ++i) {
     EXPECT_EQ(bytes[i], buf[i]);
   }
 }
@@ -1210,13 +1212,14 @@ TEST_P(QuicDataWriterTest, InvalidU32) {
 
 TEST_P(QuicDataWriterTest, Seek) {
   char buffer[3] = {};
-  QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+                        GetParam().endianness);
   EXPECT_TRUE(writer.WriteUInt8(42));
   EXPECT_TRUE(writer.Seek(1));
   EXPECT_TRUE(writer.WriteUInt8(3));
 
   char expected[] = {42, 0, 3};
-  for (size_t i = 0; i < QUIC_ARRAYSIZE(expected); ++i) {
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(expected); ++i) {
     EXPECT_EQ(buffer[i], expected[i]);
   }
 }
@@ -1226,7 +1229,7 @@ TEST_P(QuicDataWriterTest, SeekTooFarFails) {
 
   // Check that one can seek to the end of the writer, but not past.
   {
-    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+    QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
                           GetParam().endianness);
     EXPECT_TRUE(writer.Seek(20));
     EXPECT_FALSE(writer.Seek(1));
@@ -1234,14 +1237,14 @@ TEST_P(QuicDataWriterTest, SeekTooFarFails) {
 
   // Seeking several bytes past the end fails.
   {
-    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+    QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
                           GetParam().endianness);
     EXPECT_FALSE(writer.Seek(100));
   }
 
   // Seeking so far that arithmetic overflow could occur also fails.
   {
-    QuicDataWriter writer(QUIC_ARRAYSIZE(buffer), buffer,
+    QuicDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
                           GetParam().endianness);
     EXPECT_TRUE(writer.Seek(10));
     EXPECT_FALSE(writer.Seek(std::numeric_limits<size_t>::max()));

@@ -21,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
@@ -38,6 +37,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -2123,7 +2123,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  quiche::QuicheStringPiece payload(input, QUIC_ARRAYSIZE(input));
+  quiche::QuicheStringPiece payload(input, QUICHE_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2159,7 +2159,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
 
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  quiche::QuicheStringPiece payload(input, QUIC_ARRAYSIZE(input));
+  quiche::QuicheStringPiece payload(input, QUICHE_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2200,7 +2200,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   char input[] = {0x41, 0x00,      // type (256)
                   'a', 'b', 'c'};  // data
-  quiche::QuicheStringPiece payload(input, QUIC_ARRAYSIZE(input));
+  quiche::QuicheStringPiece payload(input, QUICHE_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(

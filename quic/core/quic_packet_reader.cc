@@ -14,7 +14,6 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -22,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 #ifndef SO_RXQ_OVFL
 #define SO_RXQ_OVFL 40
@@ -201,9 +201,9 @@ bool QuicPacketReader::ReadAndDispatchSinglePacket(
   QuicSocketAddress peer_address;
   QuicIpAddress self_ip;
   QuicWallTime walltimestamp = QuicWallTime::Zero();
-  int bytes_read =
-      QuicSocketUtils::ReadPacket(fd, buf, QUIC_ARRAYSIZE(buf), packets_dropped,
-                                  &self_ip, &walltimestamp, &peer_address);
+  int bytes_read = QuicSocketUtils::ReadPacket(fd, buf, QUICHE_ARRAYSIZE(buf),
+                                               packets_dropped, &self_ip,
+                                               &walltimestamp, &peer_address);
   if (bytes_read < 0) {
     return false;  // ReadPacket failed.
   }

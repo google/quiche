@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -43,10 +43,10 @@ std::string QuicTagToString(QuicTag tag) {
   bool ascii = true;
   const QuicTag orig_tag = tag;
 
-  for (size_t i = 0; i < QUIC_ARRAYSIZE(chars); i++) {
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(chars); i++) {
     chars[i] = static_cast<char>(tag);
     if ((chars[i] == 0 || chars[i] == '\xff') &&
-        i == QUIC_ARRAYSIZE(chars) - 1) {
+        i == QUICHE_ARRAYSIZE(chars) - 1) {
       chars[i] = ' ';
     }
     if (!isprint(static_cast<unsigned char>(chars[i]))) {

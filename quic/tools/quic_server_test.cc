@@ -8,7 +8,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
@@ -20,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_server_peer.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -136,9 +136,9 @@ TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   ASSERT_LT(0, fd);
 
   char buf[1024];
-  memset(buf, 0, QUIC_ARRAYSIZE(buf));
+  memset(buf, 0, QUICHE_ARRAYSIZE(buf));
   sockaddr_storage storage = server_address_.generic_address();
-  int rc = sendto(fd, buf, QUIC_ARRAYSIZE(buf), 0,
+  int rc = sendto(fd, buf, QUICHE_ARRAYSIZE(buf), 0,
                   reinterpret_cast<sockaddr*>(&storage), sizeof(storage));
   if (rc < 0) {
     QUIC_DLOG(INFO) << errno << " " << strerror(errno);
@@ -202,7 +202,7 @@ TEST_F(QuicServerDispatchPacketTest, DispatchPacket) {
   };
   // clang-format on
   QuicReceivedPacket encrypted_valid_packet(
-      reinterpret_cast<char*>(valid_packet), QUIC_ARRAYSIZE(valid_packet),
+      reinterpret_cast<char*>(valid_packet), QUICHE_ARRAYSIZE(valid_packet),
       QuicTime::Zero(), false);
 
   EXPECT_CALL(dispatcher_, ProcessPacket(_, _, _)).Times(1);

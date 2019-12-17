@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -38,7 +38,7 @@ TEST_F(NullDecrypterTest, DecryptClient) {
       '!',
   };
   const char* data = reinterpret_cast<const char*>(expected);
-  size_t len = QUIC_ARRAYSIZE(expected);
+  size_t len = QUICHE_ARRAYSIZE(expected);
   NullDecrypter decrypter(Perspective::IS_SERVER);
   char buffer[256];
   size_t length = 0;
@@ -75,7 +75,7 @@ TEST_F(NullDecrypterTest, DecryptServer) {
       '!',
   };
   const char* data = reinterpret_cast<const char*>(expected);
-  size_t len = QUIC_ARRAYSIZE(expected);
+  size_t len = QUICHE_ARRAYSIZE(expected);
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;
@@ -112,7 +112,7 @@ TEST_F(NullDecrypterTest, BadHash) {
       '!',
   };
   const char* data = reinterpret_cast<const char*>(expected);
-  size_t len = QUIC_ARRAYSIZE(expected);
+  size_t len = QUICHE_ARRAYSIZE(expected);
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;
@@ -127,7 +127,7 @@ TEST_F(NullDecrypterTest, ShortInput) {
       0x46, 0x11, 0xea, 0x5f, 0xcf, 0x1d, 0x66, 0x5b, 0xba, 0xf0, 0xbc,
   };
   const char* data = reinterpret_cast<const char*>(expected);
-  size_t len = QUIC_ARRAYSIZE(expected);
+  size_t len = QUICHE_ARRAYSIZE(expected);
   NullDecrypter decrypter(Perspective::IS_CLIENT);
   char buffer[256];
   size_t length = 0;

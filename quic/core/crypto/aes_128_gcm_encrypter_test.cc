@@ -8,9 +8,9 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace {
@@ -175,7 +175,7 @@ QuicData* EncryptWithNonce(Aes128GcmEncrypter* encrypter,
 class Aes128GcmEncrypterTest : public QuicTest {};
 
 TEST_F(Aes128GcmEncrypterTest, Encrypt) {
-  for (size_t i = 0; i < QUIC_ARRAYSIZE(test_group_array); i++) {
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(test_group_array); i++) {
     SCOPED_TRACE(i);
     const TestVector* test_vectors = test_group_array[i];
     const TestGroupInfo& test_info = test_group_info[i];

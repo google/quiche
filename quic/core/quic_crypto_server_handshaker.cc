@@ -8,7 +8,7 @@
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/sha.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -385,7 +385,8 @@ bool QuicCryptoServerHandshaker::GetBase64SHA256ClientChannelID(
   SHA256(reinterpret_cast<const uint8_t*>(channel_id.data()), channel_id.size(),
          digest);
 
-  quiche::QuicheTextUtils::Base64Encode(digest, QUIC_ARRAYSIZE(digest), output);
+  quiche::QuicheTextUtils::Base64Encode(digest, QUICHE_ARRAYSIZE(digest),
+                                        output);
   return true;
 }
 

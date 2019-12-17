@@ -12,7 +12,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -20,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -113,7 +113,7 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
   const std::string client_indication = DataInStream(client_indication_stream);
   const std::string expected_client_indication{
       kTestOriginClientIndication,
-      QUIC_ARRAYSIZE(kTestOriginClientIndication) - 1};
+      QUICHE_ARRAYSIZE(kTestOriginClientIndication) - 1};
   EXPECT_EQ(client_indication, expected_client_indication);
 }
 
@@ -138,7 +138,7 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnectionWithPath) {
   const std::string client_indication = DataInStream(client_indication_stream);
   const std::string expected_client_indication{
       kTestOriginClientIndication,
-      QUIC_ARRAYSIZE(kTestOriginClientIndication) - 1};
+      QUICHE_ARRAYSIZE(kTestOriginClientIndication) - 1};
   EXPECT_EQ(client_indication, expected_client_indication);
 }
 

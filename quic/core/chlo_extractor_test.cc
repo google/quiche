@@ -10,10 +10,10 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -90,7 +90,7 @@ class ChloExtractorTest : public QuicTest {
     EXPECT_TRUE(packet != nullptr);
     size_t encrypted_length =
         framer.EncryptPayload(ENCRYPTION_INITIAL, header_.packet_number,
-                              *packet, buffer_, QUIC_ARRAYSIZE(buffer_));
+                              *packet, buffer_, QUICHE_ARRAYSIZE(buffer_));
     ASSERT_NE(0u, encrypted_length);
     packet_ = std::make_unique<QuicEncryptedPacket>(buffer_, encrypted_length);
     EXPECT_TRUE(packet_ != nullptr);

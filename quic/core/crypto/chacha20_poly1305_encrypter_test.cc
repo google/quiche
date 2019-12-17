@@ -9,9 +9,9 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -104,12 +104,12 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
   size_t len;
   ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
                                       encrypted, &len,
-                                      QUIC_ARRAYSIZE(encrypted)));
+                                      QUICHE_ARRAYSIZE(encrypted)));
   quiche::QuicheStringPiece ciphertext(encrypted, len);
   char decrypted[1024];
   ASSERT_TRUE(decrypter.DecryptPacket(packet_number, associated_data,
                                       ciphertext, decrypted, &len,
-                                      QUIC_ARRAYSIZE(decrypted)));
+                                      QUICHE_ARRAYSIZE(decrypted)));
 }
 
 TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {

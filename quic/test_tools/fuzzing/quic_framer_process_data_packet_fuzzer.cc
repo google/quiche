@@ -16,9 +16,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 using quic::DiversificationNonce;
 using quic::EncryptionLevel;
@@ -66,7 +66,7 @@ ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   return ParsedQuicVersion(
       quic::PROTOCOL_QUIC_CRYPTO,
       transport_versions[provider->ConsumeIntegralInRange<uint8_t>(
-          0, QUIC_ARRAYSIZE(transport_versions) - 1)]);
+          0, QUICHE_ARRAYSIZE(transport_versions) - 1)]);
 }
 
 // QuicSelfContainedPacketHeader is a QuicPacketHeader with built-in stroage for

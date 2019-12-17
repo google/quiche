@@ -7,12 +7,12 @@
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
@@ -341,10 +341,10 @@ TEST_F(QuicSentPacketManagerTest, IsUnacked) {
   SendDataPacket(1);
 
   uint64_t unacked[] = {1};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   uint64_t retransmittable[] = {1};
   VerifyRetransmittablePackets(retransmittable,
-                               QUIC_ARRAYSIZE(retransmittable));
+                               QUICHE_ARRAYSIZE(retransmittable));
 }
 
 TEST_F(QuicSentPacketManagerTest, IsUnAckedRetransmit) {
@@ -353,7 +353,7 @@ TEST_F(QuicSentPacketManagerTest, IsUnAckedRetransmit) {
 
   EXPECT_TRUE(QuicSentPacketManagerPeer::IsRetransmission(&manager_, 2));
   uint64_t unacked[] = {1, 2};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   std::vector<uint64_t> retransmittable = {1, 2};
   VerifyRetransmittablePackets(&retransmittable[0], retransmittable.size());
 }
@@ -373,7 +373,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAck) {
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   // Packet 1 is unacked, pending, but not retransmittable.
   uint64_t unacked[] = {1};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 }
@@ -396,7 +396,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckBeforeSend) {
 
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   uint64_t unacked[] = {2};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   // We do not know packet 2 is a spurious retransmission until it gets acked.
   VerifyRetransmittablePackets(nullptr, 0);
   EXPECT_EQ(0u, stats_.packets_spuriously_retransmitted);
@@ -411,7 +411,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenStopRetransmittingBeforeSend) {
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
 
   uint64_t unacked[] = {1};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   VerifyRetransmittablePackets(nullptr, 0);
   EXPECT_EQ(0u, stats_.packets_spuriously_retransmitted);
 }
@@ -433,7 +433,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckPrevious) {
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   // 2 remains unacked, but no packets have retransmittable data.
   uint64_t unacked[] = {2};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
   // Ack 2 causes 2 be considered as spurious retransmission.
@@ -513,7 +513,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitThenAckPreviousThenNackRetransmit) {
                                    ENCRYPTION_INITIAL));
 
   uint64_t unacked[] = {2};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   EXPECT_FALSE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
@@ -546,7 +546,7 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Since 2 was marked for retransmit, when 1 is acked, 2 is kept for RTT.
   uint64_t unacked[] = {2};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   EXPECT_FALSE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
@@ -583,7 +583,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
 
   // 2 and 3 remain unacked, but no packets have retransmittable data.
   uint64_t unacked[] = {2, 3};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   EXPECT_TRUE(manager_.HasInFlightPackets());
   VerifyRetransmittablePackets(nullptr, 0);
 
@@ -594,7 +594,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
       .WillOnce(Return(false))
       .WillRepeatedly(Return(true));
   uint64_t acked[] = {3, 4};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
@@ -604,7 +604,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
                                    ENCRYPTION_INITIAL));
 
   uint64_t unacked2[] = {2};
-  VerifyUnackedPackets(unacked2, QUIC_ARRAYSIZE(unacked2));
+  VerifyUnackedPackets(unacked2, QUICHE_ARRAYSIZE(unacked2));
   EXPECT_TRUE(manager_.HasInFlightPackets());
 
   SendDataPacket(5);
@@ -625,7 +625,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
                                    ENCRYPTION_INITIAL));
 
   uint64_t unacked3[] = {2};
-  VerifyUnackedPackets(unacked3, QUIC_ARRAYSIZE(unacked3));
+  VerifyUnackedPackets(unacked3, QUICHE_ARRAYSIZE(unacked3));
   EXPECT_FALSE(manager_.HasInFlightPackets());
   // Spurious retransmission is detected when packet 3 gets acked. We cannot
   // know packet 2 is a spurious until it gets acked.
@@ -671,7 +671,7 @@ TEST_F(QuicSentPacketManagerTest, AckOriginalTransmission) {
   // Ack 3, which causes SpuriousRetransmitDetected to be called.
   {
     uint64_t acked[] = {3};
-    ExpectAcksAndLosses(false, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+    ExpectAcksAndLosses(false, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
     EXPECT_CALL(*loss_algorithm, DetectLosses(_, _, _, _, _, _));
     EXPECT_CALL(*loss_algorithm,
                 SpuriousLossDetected(_, _, _, QuicPacketNumber(3),
@@ -715,7 +715,7 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
 
   // Now ack the ack and expect an RTT update.
   uint64_t acked[] = {1, 2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(2),
                            QuicTime::Delta::FromMilliseconds(5), clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
@@ -728,7 +728,7 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
 
   // Now ack the ack and expect only an RTT update.
   uint64_t acked2[] = {3};
-  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
+  ExpectAcksAndLosses(true, acked2, QUICHE_ARRAYSIZE(acked2), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
@@ -874,8 +874,8 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeTimeout) {
   SendDataPacket(5);
   uint64_t acked[] = {4, 5};
   uint64_t lost[] = {1, 2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), lost,
-                      QUIC_ARRAYSIZE(lost));
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), lost,
+                      QUICHE_ARRAYSIZE(lost));
   // Frames in all packets are acked.
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   // Notify session that stream frame in packets 1 and 2 get lost although
@@ -1005,8 +1005,8 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   // Crypto packets remain in flight, so any that aren't acked will be lost.
   uint64_t acked[] = {3, 4, 5, 8, 9};
   uint64_t lost[] = {1, 2, 6};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), lost,
-                      QUIC_ARRAYSIZE(lost));
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), lost,
+                      QUICHE_ARRAYSIZE(lost));
   EXPECT_CALL(notifier_, OnFrameLost(_)).Times(3);
   EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
   manager_.OnAckFrameStart(QuicPacketNumber(9), QuicTime::Delta::Infinite(),
@@ -1057,7 +1057,7 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
   // Least unacked isn't raised until an ack is received, so ack the
   // crypto packets.
   uint64_t acked[] = {8, 9};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(9), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(8), QuicPacketNumber(10));
@@ -1086,7 +1086,7 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
   // Now ack the second crypto packet, and ensure the first gets removed, but
   // the third does not.
   uint64_t acked[] = {2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
@@ -1098,7 +1098,7 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
 
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {1, 3};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
 }
 
 TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
@@ -1167,14 +1167,14 @@ TEST_F(QuicSentPacketManagerTest,
   manager_.NeuterUnencryptedPackets();
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   uint64_t unacked[] = {1, 2, 3};
-  VerifyUnackedPackets(unacked, QUIC_ARRAYSIZE(unacked));
+  VerifyUnackedPackets(unacked, QUICHE_ARRAYSIZE(unacked));
   VerifyRetransmittablePackets(nullptr, 0);
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
   EXPECT_FALSE(manager_.HasInFlightPackets());
 
   // Ensure both packets get discarded when packet 2 is acked.
   uint64_t acked[] = {3};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
@@ -1636,7 +1636,7 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeSpuriousRTO) {
   // Ack a packet before the first RTO and ensure the RTO timeout returns to the
   // original value and OnRetransmissionTimeout is not called or reverted.
   uint64_t acked[] = {1, 2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Zero(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
@@ -2401,8 +2401,8 @@ TEST_F(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
   // Ack [5, 7), [10, 12), [15, 17).
   uint64_t acked1[] = {5, 6, 10, 11, 15, 16};
   uint64_t lost1[] = {1, 2, 3, 4, 7, 8, 9, 12, 13};
-  ExpectAcksAndLosses(true, acked1, QUIC_ARRAYSIZE(acked1), lost1,
-                      QUIC_ARRAYSIZE(lost1));
+  ExpectAcksAndLosses(true, acked1, QUICHE_ARRAYSIZE(acked1), lost1,
+                      QUICHE_ARRAYSIZE(lost1));
   EXPECT_CALL(notifier_, OnFrameLost(_)).Times(AnyNumber());
   manager_.OnAckFrameStart(QuicPacketNumber(16), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -2417,7 +2417,7 @@ TEST_F(QuicSentPacketManagerTest, OnAckRangeSlowPath) {
 
   // Ack [4, 8), [9, 13), [14, 21).
   uint64_t acked2[] = {4, 7, 9, 12, 14, 17, 18, 19, 20};
-  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
+  ExpectAcksAndLosses(true, acked2, QUICHE_ARRAYSIZE(acked2), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(20), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(14), QuicPacketNumber(21));
@@ -2436,8 +2436,8 @@ TEST_F(QuicSentPacketManagerTest, TolerateReneging) {
   // Ack [5, 7), [10, 12), [15, 17).
   uint64_t acked1[] = {5, 6, 10, 11, 15, 16};
   uint64_t lost1[] = {1, 2, 3, 4, 7, 8, 9, 12, 13};
-  ExpectAcksAndLosses(true, acked1, QUIC_ARRAYSIZE(acked1), lost1,
-                      QUIC_ARRAYSIZE(lost1));
+  ExpectAcksAndLosses(true, acked1, QUICHE_ARRAYSIZE(acked1), lost1,
+                      QUICHE_ARRAYSIZE(lost1));
   EXPECT_CALL(notifier_, OnFrameLost(_)).Times(AnyNumber());
   manager_.OnAckFrameStart(QuicPacketNumber(16), QuicTime::Delta::Infinite(),
                            clock_.Now());
@@ -2450,7 +2450,7 @@ TEST_F(QuicSentPacketManagerTest, TolerateReneging) {
 
   // Making sure reneged ACK does not harm. Ack [4, 8), [9, 13).
   uint64_t acked2[] = {4, 7, 9, 12};
-  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), nullptr, 0);
+  ExpectAcksAndLosses(true, acked2, QUICHE_ARRAYSIZE(acked2), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(12), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(9), QuicPacketNumber(13));
@@ -2558,7 +2558,7 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
             manager_.GetLargestSentPacket(ENCRYPTION_FORWARD_SECURE));
   // Ack all packets.
   uint64_t acked[] = {4, 6, 7, 8};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(8), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(9));
@@ -2628,7 +2628,7 @@ TEST_F(QuicSentPacketManagerTest,
   // Packet 1 gets acked in the wrong packet number space. Since packet 1 has
   // been acked in the correct packet number space, tolerate it.
   uint64_t acked[] = {2, 3};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
@@ -2667,7 +2667,7 @@ TEST_F(QuicSentPacketManagerTest, PacketInLimbo) {
 
   // Received Ack of packets 1, 3 and 4.
   uint64_t acked[] = {1, 3, 4};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
@@ -2680,8 +2680,8 @@ TEST_F(QuicSentPacketManagerTest, PacketInLimbo) {
   uint64_t loss[] = {2};
   // Verify packet 2 is detected lost.
   EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
-  ExpectAcksAndLosses(true, acked2, QUIC_ARRAYSIZE(acked2), loss,
-                      QUIC_ARRAYSIZE(loss));
+  ExpectAcksAndLosses(true, acked2, QUICHE_ARRAYSIZE(acked2), loss,
+                      QUICHE_ARRAYSIZE(loss));
   manager_.OnAckFrameStart(QuicPacketNumber(6), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(7));
@@ -2763,7 +2763,7 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeout) {
 
   // Received ACK for packets 1 and 2.
   uint64_t acked[] = {1, 2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
@@ -2958,7 +2958,7 @@ TEST_F(QuicSentPacketManagerTest, PtoTimeoutIncludesMaxAckDelay) {
 
   // Received ACK for packets 1 and 2.
   uint64_t acked[] = {1, 2};
-  ExpectAcksAndLosses(true, acked, QUIC_ARRAYSIZE(acked), nullptr, 0);
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));

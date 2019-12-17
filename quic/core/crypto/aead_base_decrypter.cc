@@ -11,9 +11,9 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -34,7 +34,7 @@ void DLogOpenSslErrors() {
 #else
   while (uint32_t error = ERR_get_error()) {
     char buf[120];
-    ERR_error_string_n(error, buf, QUIC_ARRAYSIZE(buf));
+    ERR_error_string_n(error, buf, QUICHE_ARRAYSIZE(buf));
     QUIC_DLOG(ERROR) << "OpenSSL error: " << buf;
   }
 #endif

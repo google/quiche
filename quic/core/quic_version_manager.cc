@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_version_manager.h"
 
+#include <algorithm>
+
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-
-#include <algorithm>
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 
@@ -24,7 +24,7 @@ QuicVersionManager::QuicVersionManager(
       disable_version_q046_(GetQuicReloadableFlag(quic_disable_version_q046)),
       disable_version_q043_(GetQuicReloadableFlag(quic_disable_version_q043)),
       allowed_supported_versions_(std::move(supported_versions)) {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   RefilterSupportedVersions();
 }
@@ -43,7 +43,7 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
-  static_assert(QUIC_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   if (enable_version_q099_ != GetQuicReloadableFlag(quic_enable_version_q099) ||
       enable_version_t099_ != GetQuicReloadableFlag(quic_enable_version_t099) ||

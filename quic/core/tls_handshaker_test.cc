@@ -10,7 +10,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -18,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/mock_quic_session_visitor.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -497,7 +497,7 @@ TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
   server_stream_->WriteCryptoData(
       ENCRYPTION_INITIAL,
       quiche::QuicheStringPiece(bogus_handshake_message,
-                                QUIC_ARRAYSIZE(bogus_handshake_message)));
+                                QUICHE_ARRAYSIZE(bogus_handshake_message)));
   server_stream_->SendCryptoMessagesToPeer(client_stream_);
 
   EXPECT_FALSE(client_stream_->handshake_confirmed());
@@ -515,7 +515,7 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   client_stream_->WriteCryptoData(
       ENCRYPTION_INITIAL,
       quiche::QuicheStringPiece(bogus_handshake_message,
-                                QUIC_ARRAYSIZE(bogus_handshake_message)));
+                                QUICHE_ARRAYSIZE(bogus_handshake_message)));
   client_stream_->SendCryptoMessagesToPeer(server_stream_);
 
   EXPECT_FALSE(server_stream_->handshake_confirmed());

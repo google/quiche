@@ -10,7 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -44,7 +44,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   // Send the stream type on so the peer knows about this stream.
   char data[sizeof(kControlStream)];
-  QuicDataWriter writer(QUIC_ARRAYSIZE(data), data);
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(data), data);
   writer.WriteVarInt62(kControlStream);
   WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
                     false, nullptr);

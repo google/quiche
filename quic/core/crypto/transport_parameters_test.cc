@@ -9,10 +9,10 @@
 
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -356,7 +356,7 @@ TEST_F(TransportParametersTest, ParseClientParams) {
   TransportParameters new_params;
   ASSERT_TRUE(
       ParseTransportParameters(kVersion, Perspective::IS_CLIENT, kClientParams,
-                               QUIC_ARRAYSIZE(kClientParams), &new_params));
+                               QUICHE_ARRAYSIZE(kClientParams), &new_params));
 
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -412,7 +412,7 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
 
   EXPECT_FALSE(ParseTransportParameters(
       kVersion, Perspective::IS_CLIENT, kClientParamsWithFullToken,
-      QUIC_ARRAYSIZE(kClientParamsWithFullToken), &out_params));
+      QUICHE_ARRAYSIZE(kClientParamsWithFullToken), &out_params));
 
   // clang-format off
   const uint8_t kClientParamsWithEmptyToken[] = {
@@ -437,7 +437,7 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
 
   EXPECT_FALSE(ParseTransportParameters(
       kVersion, Perspective::IS_CLIENT, kClientParamsWithEmptyToken,
-      QUIC_ARRAYSIZE(kClientParamsWithEmptyToken), &out_params));
+      QUICHE_ARRAYSIZE(kClientParamsWithEmptyToken), &out_params));
 }
 
 TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
@@ -464,7 +464,7 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
   TransportParameters out_params;
   EXPECT_FALSE(ParseTransportParameters(
       kVersion, Perspective::IS_CLIENT, kClientParamsRepeated,
-      QUIC_ARRAYSIZE(kClientParamsRepeated), &out_params));
+      QUICHE_ARRAYSIZE(kClientParamsRepeated), &out_params));
 }
 
 TEST_F(TransportParametersTest, ParseServerParams) {
@@ -552,7 +552,7 @@ TEST_F(TransportParametersTest, ParseServerParams) {
   TransportParameters new_params;
   ASSERT_TRUE(
       ParseTransportParameters(kVersion, Perspective::IS_SERVER, kServerParams,
-                               QUIC_ARRAYSIZE(kServerParams), &new_params));
+                               QUICHE_ARRAYSIZE(kServerParams), &new_params));
 
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
@@ -619,7 +619,7 @@ TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
   TransportParameters out_params;
   EXPECT_FALSE(ParseTransportParameters(
       kVersion, Perspective::IS_SERVER, kServerParamsRepeated,
-      QUIC_ARRAYSIZE(kServerParamsRepeated), &out_params));
+      QUICHE_ARRAYSIZE(kServerParamsRepeated), &out_params));
 }
 
 TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {

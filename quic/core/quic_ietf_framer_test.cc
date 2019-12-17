@@ -31,13 +31,13 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_arraysize.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -733,7 +733,7 @@ TEST_F(QuicIetfFramerTest, StreamFrame) {
       "input and output are the same!";
 
   size_t transmit_packet_data_len = strlen(transmit_packet_data) + 1;
-  for (size_t i = 0; i < QUIC_ARRAYSIZE(stream_frame_to_test); ++i) {
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(stream_frame_to_test); ++i) {
     SCOPED_TRACE(i);
     struct stream_frame_variant* variant = &stream_frame_to_test[i];
     TryStreamFrame(packet_buffer, sizeof(packet_buffer), transmit_packet_data,
@@ -746,7 +746,7 @@ TEST_F(QuicIetfFramerTest, StreamFrame) {
 TEST_F(QuicIetfFramerTest, ZeroLengthStreamFrame) {
   char packet_buffer[kNormalPacketBufferSize];
 
-  for (size_t i = 0; i < QUIC_ARRAYSIZE(stream_frame_to_test); ++i) {
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(stream_frame_to_test); ++i) {
     SCOPED_TRACE(i);
     struct stream_frame_variant* variant = &stream_frame_to_test[i];
     TryStreamFrame(packet_buffer, sizeof(packet_buffer),
@@ -770,7 +770,7 @@ TEST_F(QuicIetfFramerTest, CryptoFrame) {
     QuicCryptoFrame frame(ENCRYPTION_INITIAL, offset, frame_data.length());
     data_producer.SaveCryptoData(ENCRYPTION_INITIAL, offset, frame_data);
 
-    QuicDataWriter writer(QUIC_ARRAYSIZE(packet_buffer), packet_buffer,
+    QuicDataWriter writer(QUICHE_ARRAYSIZE(packet_buffer), packet_buffer,
                           quiche::NETWORK_BYTE_ORDER);
 
     // Write the frame.
