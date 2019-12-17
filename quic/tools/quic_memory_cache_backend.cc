@@ -106,7 +106,12 @@ void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
     quiche::QuicheStringPiece base) {
   DCHECK(base[0] != '/') << base;
   size_t path_start = base.find_first_of('/');
-  DCHECK(path_start != quiche::QuicheStringPiece::npos) << base;
+  if (path_start == quiche::QuicheStringPiece::npos) {
+    host_ = std::string(base);
+    path_ = "";
+    return;
+  }
+
   host_ = std::string(base.substr(0, path_start));
   size_t query_start = base.find_first_of(',');
   if (query_start > 0) {

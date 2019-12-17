@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
@@ -105,6 +106,32 @@ TEST_F(QuicMemoryCacheBackendTest, ReadsCacheDirWithServerPushResources) {
 
 TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrl) {
   cache_.InitializeBackend(CacheDirectory());
+  const Response* response =
+      cache_.GetResponse("test.example.com", "/site_map.html");
+  ASSERT_TRUE(response);
+  ASSERT_TRUE(QuicContainsKey(response->headers(), ":status"));
+  EXPECT_EQ("200", response->headers().find(":status")->second);
+  // Connection headers are not valid in HTTP/2.
+  EXPECT_FALSE(QuicContainsKey(response->headers(), "connection"));
+  EXPECT_LT(0U, response->body().length());
+}
+
+TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrlOnly) {
+  // Tests that if the URL cannot be inferred correctly from the path
+  // because the directory does not include the hostname, that the
+  // X-Original-Url header's value will be used.
+  std::string dir;
+  std::string path = "map.html";
+  for (const std::string& file : ReadFileContents(CacheDirectory())) {
+    if (quiche::QuicheTextUtils::EndsWithIgnoreCase(file, "map.html")) {
+      dir = file;
+      dir.erase(dir.length() - path.length() - 1);
+      break;
+    }
+  }
+  ASSERT_NE("", dir);
+
+  cache_.InitializeBackend(dir);
   const Response* response =
       cache_.GetResponse("test.example.com", "/site_map.html");
   ASSERT_TRUE(response);
