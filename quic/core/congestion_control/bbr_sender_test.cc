@@ -83,7 +83,7 @@ const QuicByteCount kTestBdp = kTestRtt * kTestLinkBandwidth;
 class BbrSenderTest : public QuicTest {
  protected:
   BbrSenderTest()
-      : simulator_(),
+      : simulator_(&random_),
         bbr_sender_(&simulator_,
                     "BBR sender",
                     "Receiver",
@@ -110,7 +110,6 @@ class BbrSenderTest : public QuicTest {
     sender_ = SetupBbrSender(&bbr_sender_);
 
     clock_ = simulator_.GetClock();
-    simulator_.set_random_generator(&random_);
   }
 
   void SetUp() override {
@@ -137,6 +136,8 @@ class BbrSenderTest : public QuicTest {
     }
   }
 
+  uint64_t random_seed_;
+  SimpleRandom random_;
   simulator::Simulator simulator_;
   simulator::QuicEndpoint bbr_sender_;
   simulator::QuicEndpoint competing_sender_;
@@ -147,9 +148,6 @@ class BbrSenderTest : public QuicTest {
   std::unique_ptr<simulator::SymmetricLink> bbr_sender_link_;
   std::unique_ptr<simulator::SymmetricLink> competing_sender_link_;
   std::unique_ptr<simulator::SymmetricLink> receiver_link_;
-
-  uint64_t random_seed_;
-  SimpleRandom random_;
 
   // Owned by different components of the connection.
   const QuicClock* clock_;

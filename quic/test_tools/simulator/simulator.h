@@ -22,6 +22,7 @@ namespace simulator {
 class Simulator : public QuicConnectionHelperInterface {
  public:
   Simulator();
+  explicit Simulator(QuicRandom* random_generator);
   Simulator(const Simulator&) = delete;
   Simulator& operator=(const Simulator&) = delete;
   ~Simulator() override;

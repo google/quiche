@@ -118,7 +118,7 @@ class DefaultTopologyParams {
 
 class Bbr2SimulatorTest : public QuicTest {
  protected:
-  Bbr2SimulatorTest() {
+  Bbr2SimulatorTest() : simulator_(&random_) {
     // Disable Ack Decimation by default, because it can significantly increase
     // srtt. Individual test can enable it via QuicConnectionPeer::SetAckMode().
     SetQuicReloadableFlag(quic_enable_ack_decimation, false);
@@ -151,9 +151,9 @@ class Bbr2SimulatorTest : public QuicTest {
 
   QuicTime SimulatedNow() const { return simulator_.GetClock()->Now(); }
 
-  simulator::Simulator simulator_;
   uint64_t random_seed_;
   SimpleRandom random_;
+  simulator::Simulator simulator_;
 };
 
 class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
@@ -170,8 +170,6 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
                            Perspective::IS_SERVER,
                            TestConnectionId(42)) {
     sender_ = SetupBbr2Sender(&sender_endpoint_);
-
-    simulator_.set_random_generator(&random_);
   }
 
   ~Bbr2DefaultTopologyTest() {
@@ -819,8 +817,6 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
         std::make_unique<simulator::QuicEndpointMultiplexer>(
             "Receiver multiplexer", receiver_endpoint_pointers);
     sender_1_ = SetupBbr2Sender(sender_endpoints_[0].get());
-
-    simulator_.set_random_generator(&random_);
   }
 
   ~Bbr2MultiSenderTest() {

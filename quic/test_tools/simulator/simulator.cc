@@ -10,8 +10,10 @@
 namespace quic {
 namespace simulator {
 
-Simulator::Simulator()
-    : random_generator_(nullptr),
+Simulator::Simulator() : Simulator(nullptr) {}
+
+Simulator::Simulator(QuicRandom* random_generator)
+    : random_generator_(random_generator),
       alarm_factory_(this, "Default Alarm Manager"),
       run_for_should_stop_(false),
       enable_random_delays_(false) {
