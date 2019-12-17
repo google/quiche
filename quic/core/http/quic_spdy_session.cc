@@ -605,8 +605,7 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
-  if (GetQuicReloadableFlag(quic_send_max_push_id_with_settings) &&
-      perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
+  if (perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
     SendMaxPushId();
     http3_max_push_id_sent_ = true;
   }

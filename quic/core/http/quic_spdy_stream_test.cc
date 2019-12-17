@@ -1283,7 +1283,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
 
 TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
   SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
-  SetQuicReloadableFlag(quic_send_max_push_id_with_settings, true);
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
 
   if (UsesHttp3()) {

@@ -3252,7 +3252,6 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
-  SetQuicReloadableFlag(quic_send_max_push_id_with_settings, true);
   // Tests that sending a request which has 4 push resources will trigger server
   // to push those 4 resources and client can handle pushed resources and match
   // them with requests later.
@@ -3360,7 +3359,6 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
-  SetQuicReloadableFlag(quic_send_max_push_id_with_settings, true);
   // Tests that when server tries to send more large resources(large enough to
   // be blocked by flow control window or congestion control window) than max
   // open outgoing streams , server can open upto max number of outgoing
