@@ -214,8 +214,8 @@ void QuicPacketCreator::UpdatePacketNumberLength(
   const uint64_t current_delta =
       packet_.packet_number + 1 - least_packet_awaited_by_peer;
   const uint64_t delta = std::max(current_delta, max_packets_in_flight);
-  packet_.packet_number_length = QuicFramer::GetMinPacketNumberLength(
-      framer_->transport_version(), QuicPacketNumber(delta * 4));
+  packet_.packet_number_length =
+      QuicFramer::GetMinPacketNumberLength(QuicPacketNumber(delta * 4));
 }
 
 void QuicPacketCreator::SkipNPacketNumbers(

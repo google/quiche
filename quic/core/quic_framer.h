@@ -303,7 +303,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicPacketNumberLength largest_observed_length);
   // Size in bytes of a stop waiting frame.
   static size_t GetStopWaitingFrameSize(
-      QuicTransportVersion version,
       QuicPacketNumberLength packet_number_length);
   // Size in bytes of all reset stream frame fields.
   static size_t GetRstStreamFrameSize(QuicTransportVersion version,
@@ -337,8 +336,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Size in bytes required to serialize the stream id.
   static size_t GetStreamIdSize(QuicStreamId stream_id);
   // Size in bytes required to serialize the stream offset.
-  static size_t GetStreamOffsetSize(QuicTransportVersion version,
-                                    QuicStreamOffset offset);
+  static size_t GetStreamOffsetSize(QuicStreamOffset offset);
   // Size in bytes for a serialized new connection id frame
   static size_t GetNewConnectionIdFrameSize(
       const QuicNewConnectionIdFrame& frame);
@@ -541,7 +539,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // The minimum packet number length required to represent |packet_number|.
   static QuicPacketNumberLength GetMinPacketNumberLength(
-      QuicTransportVersion version,
       QuicPacketNumber packet_number);
 
   void SetSupportedVersions(const ParsedQuicVersionVector& versions) {

@@ -166,7 +166,6 @@ QuicPacketNumberLength ReadSequenceNumberLength(uint8_t flags) {
 }
 
 QuicPacketNumberLength ReadAckPacketNumberLength(
-    QuicTransportVersion /*version*/,
     uint8_t flags) {
   switch (flags & PACKET_FLAGS_8BYTE_PACKET) {
     case PACKET_FLAGS_8BYTE_PACKET:
@@ -442,7 +441,7 @@ size_t QuicFramer::GetMinStreamFrameSize(QuicTransportVersion version,
            (offset != 0 ? QuicDataWriter::GetVarInt62Len(offset) : 0);
   }
   return kQuicFrameTypeSize + GetStreamIdSize(stream_id) +
-         GetStreamOffsetSize(version, offset) +
+         GetStreamOffsetSize(offset) +
          (last_frame_in_packet ? 0 : kQuicStreamPayloadLengthSize);
 }
 
@@ -481,7 +480,6 @@ size_t QuicFramer::GetMinAckFrameSize(
 
 // static
 size_t QuicFramer::GetStopWaitingFrameSize(
-    QuicTransportVersion /*version*/,
     QuicPacketNumberLength packet_number_length) {
   size_t min_size = kQuicFrameTypeSize + packet_number_length;
   return min_size;
@@ -686,8 +684,7 @@ size_t QuicFramer::GetStreamIdSize(QuicStreamId stream_id) {
 }
 
 // static
-size_t QuicFramer::GetStreamOffsetSize(QuicTransportVersion /*version*/,
-                                       QuicStreamOffset offset) {
+size_t QuicFramer::GetStreamOffsetSize(QuicStreamOffset offset) {
   // 0 is a special case.
   if (offset == 0) {
     return 0;
@@ -2277,7 +2274,6 @@ bool QuicFramer::ProcessPublicHeader(QuicDataReader* reader,
 
 // static
 QuicPacketNumberLength QuicFramer::GetMinPacketNumberLength(
-    QuicTransportVersion /*version*/,
     QuicPacketNumber packet_number) {
   DCHECK(packet_number.IsInitialized());
   if (packet_number < QuicPacketNumber(1 << (PACKET_1BYTE_PACKET_NUMBER * 8))) {
@@ -3440,11 +3436,9 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
   // Determine the two lengths from the frame type: largest acked length,
   // ack block length.
   const QuicPacketNumberLength ack_block_length = ReadAckPacketNumberLength(
-      version_.transport_version,
       ExtractBits(frame_type, kQuicSequenceNumberLengthNumBits,
                   kActBlockLengthOffset));
   const QuicPacketNumberLength largest_acked_length = ReadAckPacketNumberLength(
-      version_.transport_version,
       ExtractBits(frame_type, kQuicSequenceNumberLengthNumBits,
                   kLargestAckedOffset));
 
@@ -4594,9 +4588,9 @@ size_t QuicFramer::GetAckFrameSize(
   }
   AckFrameInfo ack_info = GetAckFrameInfo(ack);
   QuicPacketNumberLength largest_acked_length =
-      GetMinPacketNumberLength(version_.transport_version, LargestAcked(ack));
-  QuicPacketNumberLength ack_block_length = GetMinPacketNumberLength(
-      version_.transport_version, QuicPacketNumber(ack_info.max_block_length));
+      GetMinPacketNumberLength(LargestAcked(ack));
+  QuicPacketNumberLength ack_block_length =
+      GetMinPacketNumberLength(QuicPacketNumber(ack_info.max_block_length));
 
   ack_size =
       GetMinAckFrameSize(version_.transport_version, largest_acked_length);
@@ -4645,8 +4639,7 @@ size_t QuicFramer::ComputeFrameLength(
       return GetAckFrameSize(*frame.ack_frame, packet_number_length);
     }
     case STOP_WAITING_FRAME:
-      return GetStopWaitingFrameSize(version_.transport_version,
-                                     packet_number_length);
+      return GetStopWaitingFrameSize(packet_number_length);
     case MTU_DISCOVERY_FRAME:
       // MTU discovery frames are serialized as ping frames.
       return kQuicFrameTypeSize;
@@ -4897,9 +4890,8 @@ bool QuicFramer::AppendStreamFrame(const QuicStreamFrame& frame,
     QUIC_BUG << "Writing stream id size failed.";
     return false;
   }
-  if (!AppendStreamOffset(
-          GetStreamOffsetSize(version_.transport_version, frame.offset),
-          frame.offset, writer)) {
+  if (!AppendStreamOffset(GetStreamOffsetSize(frame.offset), frame.offset,
+                          writer)) {
     QUIC_BUG << "Writing offset size failed.";
     return false;
   }
@@ -5057,10 +5049,9 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
   const AckFrameInfo new_ack_info = GetAckFrameInfo(frame);
   QuicPacketNumber largest_acked = LargestAcked(frame);
   QuicPacketNumberLength largest_acked_length =
-      GetMinPacketNumberLength(version_.transport_version, largest_acked);
+      GetMinPacketNumberLength(largest_acked);
   QuicPacketNumberLength ack_block_length =
-      GetMinPacketNumberLength(version_.transport_version,
-                               QuicPacketNumber(new_ack_info.max_block_length));
+      GetMinPacketNumberLength(QuicPacketNumber(new_ack_info.max_block_length));
   // Calculate available bytes for timestamps and ack blocks.
   int32_t available_timestamp_and_ack_block_bytes =
       writer->capacity() - writer->length() - ack_block_length -
@@ -6067,8 +6058,7 @@ uint8_t QuicFramer::GetStreamFrameTypeByte(const QuicStreamFrame& frame,
 
   // Offset 3 bits.
   type_byte <<= kQuicStreamShift;
-  const size_t offset_len =
-      GetStreamOffsetSize(version_.transport_version, frame.offset);
+  const size_t offset_len = GetStreamOffsetSize(frame.offset);
   if (offset_len > 0) {
     type_byte |= offset_len - 1;
   }
