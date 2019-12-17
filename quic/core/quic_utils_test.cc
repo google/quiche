@@ -184,7 +184,8 @@ TEST_F(QuicUtilsTest, ReplacementConnectionIdIsDeterministic) {
 
 TEST_F(QuicUtilsTest, ReplacementConnectionIdLengthIsCorrect) {
   // Verify that all lengths get replaced by kQuicDefaultConnectionIdLength.
-  const char connection_id_bytes[kQuicMaxConnectionIdAllVersionsLength] = {};
+  SetQuicRestartFlag(quic_allow_very_long_connection_ids, true);
+  const char connection_id_bytes[255] = {};
   for (uint8_t i = 0; i < sizeof(connection_id_bytes) - 1; ++i) {
     QuicConnectionId connection_id(connection_id_bytes, i);
     QuicConnectionId replacement_connection_id =

@@ -10472,8 +10472,13 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
       AssemblePacketFromFragments(packet99));
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_NEW_CONNECTION_ID_DATA));
-  EXPECT_EQ("Unable to read new connection ID frame connection id.",
-            framer_.detailed_error());
+  if (!GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
+    EXPECT_EQ("Unable to read new connection ID frame connection id.",
+              framer_.detailed_error());
+  } else {
+    EXPECT_EQ("Invalid new connection ID length for version.",
+              framer_.detailed_error());
+  }
 }
 
 // Verifies that parsing a NEW_CONNECTION_ID frame with an invalid

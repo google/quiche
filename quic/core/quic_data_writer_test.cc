@@ -1166,6 +1166,9 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
 }
 
 TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
+  SetQuicRestartFlag(quic_allow_very_long_connection_ids, false);
+  // TODO(dschinazi) delete this test when we deprecate
+  // quic_allow_very_long_connection_ids.
   static const uint8_t bad_connection_id_length = 200;
   static_assert(
       bad_connection_id_length > kQuicMaxConnectionIdAllVersionsLength,

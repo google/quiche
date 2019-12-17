@@ -545,6 +545,16 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
       static_cast<size_t>(std::numeric_limits<uint8_t>::max())) {
     return false;
   }
+
+  if (GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_allow_very_long_connection_ids, 5, 5);
+    if (transport_version == QUIC_VERSION_UNSUPPORTED ||
+        transport_version == QUIC_VERSION_RESERVED_FOR_NEGOTIATION) {
+      // Unknown versions could allow connection ID lengths up to 255.
+      return true;
+    }
+  }
+
   const uint8_t connection_id_length8 =
       static_cast<uint8_t>(connection_id_length);
   // Versions that do not support variable lengths only support length 8.

@@ -547,6 +547,26 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
 }
 
+TEST_F(QuicDispatcherTest,
+       StatelessVersionNegotiationWithVeryLongConnectionId) {
+  SetQuicRestartFlag(quic_allow_very_long_connection_ids, true);
+  QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(33);
+  CreateTimeWaitListManager();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(connection_id, _, _, _, _, _, _, _))
+      .Times(1);
+  // Pad the CHLO message with enough data to make the packet large enough
+  // to trigger version negotiation.
+  std::string chlo = SerializeCHLO() + std::string(1200, 'a');
+  DCHECK_LE(1200u, chlo.length());
+  ProcessPacket(client_address, connection_id, true,
+                QuicVersionReservedForNegotiation(), chlo, true,
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
+}
+
 TEST_F(QuicDispatcherTest, StatelessVersionNegotiationWithClientConnectionId) {
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
