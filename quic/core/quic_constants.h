@@ -259,6 +259,9 @@ const QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
 // rapidly increasing.
 const QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
 
+// The default alarm granularity assumed by QUIC code.
+const QuicTime::Delta kAlarmGranularity = QuicTime::Delta::FromMilliseconds(1);
+
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.

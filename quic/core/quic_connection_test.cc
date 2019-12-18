@@ -5856,8 +5856,7 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   QuicConnectionPeer::SetFastAckAfterQuiescence(&connection_, true);
 
   // The beginning of the connection counts as quiescence.
-  QuicTime ack_time =
-      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1);
+  QuicTime ack_time = clock_.ApproximateNow() + kAlarmGranularity;
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
   const uint8_t tag = 0x07;
@@ -5915,7 +5914,7 @@ TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
   EXPECT_FALSE(writer_->ack_frames().empty());
   EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
 
-  // Wait 1 second and enesure the ack alarm is set to 1ms in the future.
+  // Wait 1 second and ensure the ack alarm is set to 1ms in the future.
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   ack_time = clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);

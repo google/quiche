@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -2142,7 +2143,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
       return true;
     }
     // Cannot send packet now because delay is too far in the future.
-    send_alarm_->Update(now + delay, QuicTime::Delta::FromMilliseconds(1));
+    send_alarm_->Update(now + delay, kAlarmGranularity);
     QUIC_DVLOG(1) << ENDPOINT << "Delaying sending " << delay.ToMilliseconds()
                   << "ms";
     return false;
@@ -3145,7 +3146,7 @@ void QuicConnection::SetPingAlarm() {
     // Use a shorter timeout if there are open streams, but nothing on the wire.
     ping_alarm_->Update(
         clock_->ApproximateNow() + retransmittable_on_wire_timeout,
-        QuicTime::Delta::FromMilliseconds(1));
+        kAlarmGranularity);
     if (max_aggressive_retransmittable_on_wire_ping_count != 0) {
       consecutive_retransmittable_on_wire_ping_count_++;
     }
@@ -3153,7 +3154,7 @@ void QuicConnection::SetPingAlarm() {
   }
 
   ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
-                      QuicTime::Delta::FromMilliseconds(1));
+                      kAlarmGranularity);
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
@@ -3169,7 +3170,7 @@ void QuicConnection::SetRetransmissionAlarm() {
   }
 
   retransmission_alarm_->Update(sent_packet_manager_.GetRetransmissionTime(),
-                                QuicTime::Delta::FromMilliseconds(1));
+                                kAlarmGranularity);
 }
 
 void QuicConnection::SetPathDegradingAlarm() {
@@ -3178,7 +3179,7 @@ void QuicConnection::SetPathDegradingAlarm() {
   }
   const QuicTime::Delta delay = sent_packet_manager_.GetPathDegradingDelay();
   path_degrading_alarm_->Update(clock_->ApproximateNow() + delay,
-                                QuicTime::Delta::FromMilliseconds(1));
+                                kAlarmGranularity);
 }
 
 void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {

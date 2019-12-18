@@ -25,7 +25,7 @@ PacingSender::PacingSender()
       ideal_next_packet_send_time_(QuicTime::Zero()),
       initial_burst_size_(kInitialUnpacedBurst),
       lumpy_tokens_(0),
-      alarm_granularity_(QuicTime::Delta::FromMilliseconds(1)),
+      alarm_granularity_(kAlarmGranularity),
       pacing_limited_(false) {
   if (GetQuicReloadableFlag(quic_donot_reset_ideal_next_packet_send_time)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_donot_reset_ideal_next_packet_send_time);

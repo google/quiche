@@ -142,11 +142,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   if (config.HasClientSentConnectionOption(kMAD2, perspective)) {
     // Set the minimum to the alarm granularity.
-    min_tlp_timeout_ = QuicTime::Delta::FromMilliseconds(1);
+    min_tlp_timeout_ = kAlarmGranularity;
   }
   if (config.HasClientSentConnectionOption(kMAD3, perspective)) {
     // Set the minimum to the alarm granularity.
-    min_rto_timeout_ = QuicTime::Delta::FromMilliseconds(1);
+    min_rto_timeout_ = kAlarmGranularity;
   }
 
   if (GetQuicReloadableFlag(quic_enable_pto)) {
@@ -1082,7 +1082,7 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
   const QuicTime::Delta pto_delay =
       rtt_stats_.smoothed_rtt() +
       std::max(pto_rttvar_multiplier_ * rtt_stats_.mean_deviation(),
-               QuicTime::Delta::FromMilliseconds(1)) +
+               kAlarmGranularity) +
       (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
   return pto_delay * (1 << (consecutive_pto_count_ -
                             std::min(consecutive_pto_count_,

@@ -250,7 +250,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
       // Ack the first packet out of queiscence faster, because QUIC does
       // not pace the first few packets and commonly these may be handshake
       // or TLP packets, which we'd like to acknowledge quickly.
-      ack_delay = QuicTime::Delta::FromMilliseconds(1);
+      ack_delay = kAlarmGranularity;
     }
     MaybeUpdateAckTimeoutTo(now + ack_delay);
   } else {
@@ -264,7 +264,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
       // Ack the first packet out of queiscence faster, because QUIC does
       // not pace the first few packets and commonly these may be handshake
       // or TLP packets, which we'd like to acknowledge quickly.
-      MaybeUpdateAckTimeoutTo(now + QuicTime::Delta::FromMilliseconds(1));
+      MaybeUpdateAckTimeoutTo(now + kAlarmGranularity);
     } else {
       MaybeUpdateAckTimeoutTo(now + local_max_ack_delay_);
     }

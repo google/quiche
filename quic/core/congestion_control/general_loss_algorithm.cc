@@ -96,7 +96,7 @@ void GeneralLossAlgorithm::DetectLosses(
   QuicTime::Delta max_rtt =
       std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
   if (loss_type_ == kIetfLossDetection) {
-    max_rtt = std::max(QuicTime::Delta::FromMilliseconds(1), max_rtt);
+    max_rtt = std::max(kAlarmGranularity, max_rtt);
   }
   QuicTime::Delta loss_delay = max_rtt + (max_rtt >> reordering_shift_);
   if (loss_type_ != kIetfLossDetection) {
