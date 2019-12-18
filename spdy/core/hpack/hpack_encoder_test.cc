@@ -326,7 +326,7 @@ TEST_P(HpackEncoderTest, SingleStaticIndexTooLarge) {
   headers[static_->name()] = static_->value();
   CompareWithExpectedEncoding(headers);
 
-  EXPECT_EQ(0, peer_.table_peer().dynamic_entries()->size());
+  EXPECT_EQ(0u, peer_.table_peer().dynamic_entries()->size());
 }
 
 TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
