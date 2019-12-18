@@ -11,12 +11,6 @@
 
 namespace quic {
 
-namespace {
-// Sensitivity in response to losses. 0 means no loss response.
-// 0.3 is also used by TCP bbr and cubic.
-const float kBeta = 0.3;
-}  // namespace
-
 RoundTripCounter::RoundTripCounter() : round_trip_count_(0) {}
 
 void RoundTripCounter::OnPacketSent(QuicPacketNumber packet_number) {
@@ -212,12 +206,13 @@ void Bbr2NetworkModel::AdaptLowerBounds(
       inflight_lo_ = congestion_event.prior_cwnd;
     }
 
-    bandwidth_lo_ = std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - kBeta));
+    bandwidth_lo_ =
+        std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
     QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
                   << ", bandwidth_latest_ is " << bandwidth_latest_;
 
-    inflight_lo_ =
-        std::max<QuicByteCount>(inflight_latest_, inflight_lo_ * (1.0 - kBeta));
+    inflight_lo_ = std::max<QuicByteCount>(
+        inflight_latest_, inflight_lo_ * (1.0 - Params().beta));
   }
 }
 

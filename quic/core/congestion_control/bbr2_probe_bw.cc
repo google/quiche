@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -160,7 +161,20 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
 
       if (!send_state.is_app_limited) {
         QuicByteCount inflight_at_send = BytesInFlight(send_state);
-        model_->set_inflight_hi(inflight_at_send);
+        if (GetQuicReloadableFlag(quic_bbr2_cut_inflight_hi_gradually)) {
+          QuicByteCount inflight_target =
+              sender_->GetTargetBytesInflight() * (1.0 - Params().beta);
+          if (inflight_at_send >= inflight_target) {
+            // The new code does not change behavior.
+            QUIC_CODE_COUNT(quic_bbr2_cut_inflight_hi_gradually_noop);
+          } else {
+            // The new code actually cuts inflight_hi slower than before.
+            QUIC_CODE_COUNT(quic_bbr2_cut_inflight_hi_gradually_in_effect);
+          }
+          model_->set_inflight_hi(std::max(inflight_at_send, inflight_target));
+        } else {
+          model_->set_inflight_hi(inflight_at_send);
+        }
       }
 
       QUIC_DVLOG(3) << sender_ << " " << cycle_.phase

@@ -151,6 +151,10 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // Estimate startup/bw probing has gone too far if loss rate exceeds this.
   float loss_threshold = GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold);
 
+  // A common factor for multiplicative decreases. Used for adjusting
+  // bandwidth_lo, inflight_lo and inflight_hi upon losses.
+  float beta = 0.3;
+
   Limits<QuicByteCount> cwnd_limits;
 };
 
