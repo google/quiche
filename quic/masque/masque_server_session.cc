@@ -35,7 +35,7 @@ void MasqueServerSession::OnMessageReceived(quiche::QuicheStringPiece message) {
 
   QuicConnectionId client_connection_id, server_connection_id;
   QuicSocketAddress server_address;
-  std::string packet;
+  std::vector<char> packet;
   bool version_present;
   if (!compression_engine_.DecompressDatagram(
           message, &client_connection_id, &server_connection_id,
@@ -43,7 +43,7 @@ void MasqueServerSession::OnMessageReceived(quiche::QuicheStringPiece message) {
     return;
   }
 
-  QUIC_DVLOG(1) << "Received packet of length " << packet.length() << " for "
+  QUIC_DVLOG(1) << "Received packet of length " << packet.size() << " for "
                 << server_address << " client " << client_connection_id;
 
   if (version_present) {
@@ -57,9 +57,9 @@ void MasqueServerSession::OnMessageReceived(quiche::QuicheStringPiece message) {
   }
 
   WriteResult write_result = connection()->writer()->WritePacket(
-      packet.data(), packet.length(), connection()->self_address().host(),
+      packet.data(), packet.size(), connection()->self_address().host(),
       server_address, nullptr);
-  QUIC_DVLOG(1) << "Got " << write_result << " for " << packet.length()
+  QUIC_DVLOG(1) << "Got " << write_result << " for " << packet.size()
                 << " bytes to " << server_address;
 }
 

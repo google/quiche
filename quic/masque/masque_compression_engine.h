@@ -62,7 +62,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                           QuicConnectionId* client_connection_id,
                           QuicConnectionId* server_connection_id,
                           QuicSocketAddress* server_address,
-                          std::string* packet,
+                          std::vector<char>* packet,
                           bool* version_present);
 
   // Clears all entries referencing |client_connection_id| from the
@@ -113,7 +113,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // Writes decompressed packet to |packet| during decompression.
   bool WriteDecompressedPacket(QuicDataReader* reader,
                                const MasqueCompressionContext& context,
-                               std::string* packet,
+                               std::vector<char>* packet,
                                bool* version_present);
 
   QuicSession* masque_session_;  // Unowned.

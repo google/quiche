@@ -49,7 +49,6 @@ class QUIC_NO_EXPORT MasqueEpollClient : public QuicClient,
   MasqueEpollClient(const MasqueEpollClient&) = delete;
   MasqueEpollClient& operator=(const MasqueEpollClient&) = delete;
 
-  QuicEpollServer* epoll_server_;  // Unowned.
   std::string authority_;
 };
 

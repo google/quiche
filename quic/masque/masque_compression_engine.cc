@@ -398,7 +398,7 @@ bool MasqueCompressionEngine::ParseCompressionContext(
 bool MasqueCompressionEngine::WriteDecompressedPacket(
     QuicDataReader* reader,
     const MasqueCompressionContext& context,
-    std::string* packet,
+    std::vector<char>* packet,
     bool* version_present) {
   QuicConnectionId destination_connection_id, source_connection_id;
   if (masque_session_->perspective() == Perspective::IS_SERVER) {
@@ -420,8 +420,8 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
   if (*version_present) {
     packet_length += sizeof(uint8_t) * 2 + source_connection_id.length();
   }
-  *packet = std::string(packet_length, 0);
-  QuicDataWriter writer(packet->length(), packet->data());
+  *packet = std::vector<char>(packet_length);
+  QuicDataWriter writer(packet->size(), packet->data());
   if (!writer.WriteUInt8(first_byte)) {
     QUIC_BUG << "Failed to write first_byte";
     return false;
@@ -463,7 +463,7 @@ bool MasqueCompressionEngine::DecompressDatagram(
     QuicConnectionId* client_connection_id,
     QuicConnectionId* server_connection_id,
     QuicSocketAddress* server_address,
-    std::string* packet,
+    std::vector<char>* packet,
     bool* version_present) {
   QUIC_DVLOG(1) << "Decompressing DATAGRAM frame of length "
                 << datagram.length();
@@ -512,7 +512,8 @@ bool MasqueCompressionEngine::DecompressDatagram(
 
   QUIC_DVLOG(2) << "Decompressed client " << context.client_connection_id
                 << " server " << context.server_connection_id << "\n"
-                << quiche::QuicheTextUtils::HexDump(*packet);
+                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                       packet->data(), packet->size()));
 
   return true;
 }

@@ -20,7 +20,6 @@ MasqueEpollClient::MasqueEpollClient(
                  MasqueSupportedVersions(),
                  epoll_server,
                  std::move(proof_verifier)),
-      epoll_server_(epoll_server),
       authority_(authority) {}
 
 std::unique_ptr<QuicSession> MasqueEpollClient::CreateQuicClientSession(

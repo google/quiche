@@ -28,7 +28,7 @@ void MasqueClientSession::OnMessageReceived(quiche::QuicheStringPiece message) {
 
   QuicConnectionId client_connection_id, server_connection_id;
   QuicSocketAddress server_address;
-  std::string packet;
+  std::vector<char> packet;
   bool version_present;
   if (!compression_engine_.DecompressDatagram(
           message, &client_connection_id, &server_connection_id,
@@ -45,9 +45,10 @@ void MasqueClientSession::OnMessageReceived(quiche::QuicheStringPiece message) {
   }
   EncapsulatedClientSession* encapsulated_client_session =
       connection_id_registration->second;
-  encapsulated_client_session->ProcessPacket(packet, server_address);
+  encapsulated_client_session->ProcessPacket(
+      quiche::QuicheStringPiece(packet.data(), packet.size()), server_address);
 
-  QUIC_DVLOG(1) << "Sent " << packet.length() << " bytes to connection for "
+  QUIC_DVLOG(1) << "Sent " << packet.size() << " bytes to connection for "
                 << client_connection_id;
 }
 
