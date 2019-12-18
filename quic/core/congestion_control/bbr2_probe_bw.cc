@@ -245,11 +245,9 @@ bool Bbr2ProbeBwMode::IsTimeToProbeForRenoCoexistence(
     const Bbr2CongestionEvent& /*congestion_event*/) const {
   uint64_t rounds = Params().probe_bw_probe_max_rounds;
   if (Params().probe_bw_probe_reno_gain > 0.0) {
-    QuicByteCount bdp = model_->BDP(model_->BandwidthEstimate());
-    QuicByteCount inflight_bytes =
-        std::min(bdp, sender_->GetCongestionWindow());
-    uint64_t reno_rounds =
-        Params().probe_bw_probe_reno_gain * inflight_bytes / kDefaultTCPMSS;
+    QuicByteCount target_bytes_inflight = sender_->GetTargetBytesInflight();
+    uint64_t reno_rounds = Params().probe_bw_probe_reno_gain *
+                           target_bytes_inflight / kDefaultTCPMSS;
     rounds = std::min(rounds, reno_rounds);
   }
   bool result = cycle_.rounds_since_probe >= (rounds * probe_wait_fraction);

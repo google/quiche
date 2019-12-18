@@ -312,6 +312,11 @@ void Bbr2Sender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
                 << ", CWND: " << GetCongestionWindow();
 }
 
+QuicByteCount Bbr2Sender::GetTargetBytesInflight() const {
+  QuicByteCount bdp = model_.BDP(model_.BandwidthEstimate());
+  return std::min(bdp, GetCongestionWindow());
+}
+
 void Bbr2Sender::PopulateConnectionStats(QuicConnectionStats* stats) const {
   stats->num_ack_aggregation_epochs = model_.num_ack_aggregation_epochs();
 }

@@ -97,6 +97,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return cwnd_limits().Min();
   }
 
+  // Returns the min of BDP and congestion window.
+  QuicByteCount GetTargetBytesInflight() const;
+
   struct QUIC_EXPORT_PRIVATE DebugState {
     Bbr2Mode mode;
 
