@@ -672,8 +672,8 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
   return true;
 }
 
-ssize_t QuicTestClient::Send(const void* buffer, size_t size) {
-  return SendData(std::string(static_cast<const char*>(buffer), size), false);
+ssize_t QuicTestClient::Send(absl::string_view data) {
+  return SendData(std::string(data), false);
 }
 
 bool QuicTestClient::response_headers_complete() const {
