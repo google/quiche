@@ -57,6 +57,7 @@ QuicSession::QuicSession(
     const ParsedQuicVersionVector& supported_versions,
     QuicStreamCount num_expected_unidirectional_static_streams)
     : connection_(connection),
+      perspective_(connection->perspective()),
       visitor_(owner),
       write_blocked_streams_(connection->transport_version()),
       config_(config),

@@ -237,5 +237,11 @@ void QuicSessionPeer::set_is_configured(QuicSession* session, bool value) {
   session->is_configured_ = value;
 }
 
+// static
+void QuicSessionPeer::SetPerspective(QuicSession* session,
+                                     Perspective perspective) {
+  session->perspective_ = perspective;
+}
+
 }  // namespace test
 }  // namespace quic

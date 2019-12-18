@@ -390,7 +390,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return on_closed_frame_.application_error_code;
   }
 
-  Perspective perspective() const { return connection_->perspective(); }
+  Perspective perspective() const { return perspective_; }
 
   QuicFlowController* flow_controller() { return &flow_controller_; }
 
@@ -706,6 +706,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
       locally_closed_streams_highest_offset_;
 
   QuicConnection* connection_;
+
+  // Store perspective on QuicSession during the constructor as it may be needed
+  // during our destructor when connection_ may have already been destroyed.
+  Perspective perspective_;
 
   // May be null.
   Visitor* visitor_;
