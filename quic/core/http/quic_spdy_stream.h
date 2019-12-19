@@ -219,6 +219,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
                         bool header_list_size_limit_exceeded) override;
   void OnHeaderDecodingError(quiche::QuicheStringPiece error_message) override;
 
+  QuicSpdySession* spdy_session() const { return spdy_session_; }
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -235,7 +237,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       bool fin,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
-  QuicSpdySession* spdy_session() const { return spdy_session_; }
   Visitor* visitor() { return visitor_; }
 
   void set_headers_decompressed(bool val) { headers_decompressed_ = val; }
