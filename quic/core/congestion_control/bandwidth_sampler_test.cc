@@ -193,6 +193,15 @@ TEST_F(BandwidthSamplerTest, SendTimeState) {
       EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_acked);
       EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_lost);
     }
+    if (sampler_.remove_packets_once_per_congestion_event()) {
+      // This equation works because there is no neutered bytes.
+      EXPECT_EQ(send_time_state.total_bytes_sent -
+                    send_time_state.total_bytes_acked -
+                    send_time_state.total_bytes_lost,
+                send_time_state.bytes_in_flight);
+    } else {
+      EXPECT_EQ(0u, send_time_state.bytes_in_flight);
+    }
     clock_.AdvanceTime(time_between_packets);
   }
 }

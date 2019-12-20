@@ -67,7 +67,7 @@ BandwidthSampler::BandwidthSampler(
       total_bytes_acked_after_last_ack_event_(0) {
   if (remove_packets_once_per_congestion_event_) {
     QUIC_RELOADABLE_FLAG_COUNT(
-        quic_bw_sampler_remove_packets_once_per_congestion_event);
+        quic_bw_sampler_remove_packets_once_per_congestion_event2);
   }
 }
 
@@ -121,7 +121,7 @@ void BandwidthSampler::OnPacketSent(
   }
 
   bool success = connection_state_map_.Emplace(packet_number, sent_time, bytes,
-                                               bytes_in_flight, *this);
+                                               bytes_in_flight + bytes, *this);
   QUIC_BUG_IF(!success) << "BandwidthSampler failed to insert the packet "
                            "into the map, most likely because it's already "
                            "in it.";

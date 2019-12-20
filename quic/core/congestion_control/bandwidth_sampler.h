@@ -64,7 +64,8 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
   // Total number of lost bytes at the time the packet was sent.
   QuicByteCount total_bytes_lost;
 
-  // Total number of inflight bytes right before the time the packet was sent.
+  // Total number of inflight bytes at the time the packet was sent.
+  // Includes the packet itself.
   // It should be equal to |total_bytes_sent| minus the sum of
   // |total_bytes_acked|, |total_bytes_lost| and total neutered bytes.
   QuicByteCount bytes_in_flight;
@@ -339,10 +340,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
     // Snapshot constructor. Records the current state of the bandwidth
     // sampler.
-    // |prior_bytes_in_flight| is the bytes in flight before the packet is sent.
+    // |bytes_in_flight| is the bytes in flight right after the packet is sent.
     ConnectionStateOnSentPacket(QuicTime sent_time,
                                 QuicByteCount size,
-                                QuicByteCount prior_bytes_in_flight,
+                                QuicByteCount bytes_in_flight,
                                 const BandwidthSampler& sampler)
         : sent_time(sent_time),
           size(size),
@@ -355,7 +356,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                           sampler.total_bytes_acked_,
                           sampler.total_bytes_lost_,
                           sampler.remove_packets_once_per_congestion_event()
-                              ? prior_bytes_in_flight
+                              ? bytes_in_flight
                               : 0) {}
 
     // Default constructor.  Required to put this structure into
@@ -426,9 +427,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   MaxAckHeightTracker max_ack_height_tracker_;
   QuicByteCount total_bytes_acked_after_last_ack_event_;
 
-  // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event.
+  // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2.
   const bool remove_packets_once_per_congestion_event_ = GetQuicReloadableFlag(
-      quic_bw_sampler_remove_packets_once_per_congestion_event);
+      quic_bw_sampler_remove_packets_once_per_congestion_event2);
 };
 
 }  // namespace quic
