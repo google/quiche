@@ -121,6 +121,8 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   QuicPacketHeader(const QuicPacketHeader& other);
   ~QuicPacketHeader();
 
+  QuicPacketHeader& operator=(const QuicPacketHeader& other);
+
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
       std::ostream& os,
       const QuicPacketHeader& header);

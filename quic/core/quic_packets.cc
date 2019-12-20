@@ -193,6 +193,9 @@ QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
 
 QuicPacketHeader::~QuicPacketHeader() {}
 
+QuicPacketHeader& QuicPacketHeader::operator=(const QuicPacketHeader& other) =
+    default;
+
 QuicPublicResetPacket::QuicPublicResetPacket()
     : connection_id(EmptyQuicConnectionId()), nonce_proof(0) {}
 
