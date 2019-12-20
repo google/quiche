@@ -672,7 +672,7 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
   return true;
 }
 
-ssize_t QuicTestClient::Send(absl::string_view data) {
+ssize_t QuicTestClient::Send(quiche::QuicheStringPiece data) {
   return SendData(std::string(data), false);
 }
 

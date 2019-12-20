@@ -20,7 +20,7 @@ bool QboneCryptoServerStreamHelper::CanAcceptClientHello(
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& self_address,
     string* error_details) const {
-  absl::string_view alpn;
+  quiche::QuicheStringPiece alpn;
   chlo.GetStringPiece(quic::kALPN, &alpn);
   if (alpn != QboneConstants::kQboneAlpn) {
     *error_details = "ALPN-indicated protocol is not qbone";

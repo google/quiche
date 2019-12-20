@@ -194,8 +194,8 @@ void CreateIfaddrmsg(struct nlmsghdr* nlm,
       family = AF_INET6;
       break;
     default:
-      QUIC_BUG << absl::StrCat("unexpected address family: ",
-                               ip.address_family());
+      QUIC_BUG << quiche::QuicheStrCat("unexpected address family: ",
+                                       ip.address_family());
       family = AF_UNSPEC;
   }
   auto* msg = reinterpret_cast<struct ifaddrmsg*>(NLMSG_DATA(nlm));

@@ -156,7 +156,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   QuicSocketAddress local_address() const;
   void ClearPerRequestState();
   bool WaitUntil(int timeout_ms, std::function<bool()> trigger);
-  ssize_t Send(absl::string_view data);
+  ssize_t Send(quiche::QuicheStringPiece data);
   bool connected() const;
   bool buffer_body() const;
   void set_buffer_body(bool buffer_body);
