@@ -1270,7 +1270,14 @@ TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(1);
+  if (GetQuicReloadableFlag(quic_drop_small_initial_packets)) {
+    EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(0);
+  } else {
+    EXPECT_CALL(*time_wait_list_manager_, SendPacket(_, _, _)).Times(1);
+  }
+  EXPECT_CALL(*time_wait_list_manager_,
+              AddConnectionIdToTimeWait(_, _, _, _, _))
+      .Times(0);
   ProcessPacket(client_address, TestConnectionId(1), true,
                 CurrentSupportedVersions()[0], SerializeCHLO(), false,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
