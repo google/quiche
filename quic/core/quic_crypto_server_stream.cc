@@ -42,81 +42,81 @@ QuicCryptoServerStream::QuicCryptoServerStream(
 QuicCryptoServerStream::~QuicCryptoServerStream() {}
 
 void QuicCryptoServerStream::CancelOutstandingCallbacks() {
-  if (handshaker()) {
-    handshaker()->CancelOutstandingCallbacks();
+  if (handshaker_) {
+    handshaker_->CancelOutstandingCallbacks();
   }
 }
 
 bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
     std::string* output) const {
-  return handshaker()->GetBase64SHA256ClientChannelID(output);
+  return handshaker_->GetBase64SHA256ClientChannelID(output);
 }
 
 void QuicCryptoServerStream::SendServerConfigUpdate(
     const CachedNetworkParameters* cached_network_params) {
-  handshaker()->SendServerConfigUpdate(cached_network_params);
+  handshaker_->SendServerConfigUpdate(cached_network_params);
 }
 
 uint8_t QuicCryptoServerStream::NumHandshakeMessages() const {
-  return handshaker()->NumHandshakeMessages();
+  return handshaker_->NumHandshakeMessages();
 }
 
 uint8_t QuicCryptoServerStream::NumHandshakeMessagesWithServerNonces() const {
-  return handshaker()->NumHandshakeMessagesWithServerNonces();
+  return handshaker_->NumHandshakeMessagesWithServerNonces();
 }
 
 int QuicCryptoServerStream::NumServerConfigUpdateMessagesSent() const {
-  return handshaker()->NumServerConfigUpdateMessagesSent();
+  return handshaker_->NumServerConfigUpdateMessagesSent();
 }
 
 const CachedNetworkParameters*
 QuicCryptoServerStream::PreviousCachedNetworkParams() const {
-  return handshaker()->PreviousCachedNetworkParams();
+  return handshaker_->PreviousCachedNetworkParams();
 }
 
 bool QuicCryptoServerStream::ZeroRttAttempted() const {
-  return handshaker()->ZeroRttAttempted();
+  return handshaker_->ZeroRttAttempted();
 }
 
 void QuicCryptoServerStream::SetPreviousCachedNetworkParams(
     CachedNetworkParameters cached_network_params) {
-  handshaker()->SetPreviousCachedNetworkParams(cached_network_params);
+  handshaker_->SetPreviousCachedNetworkParams(cached_network_params);
 }
 
 bool QuicCryptoServerStream::ShouldSendExpectCTHeader() const {
-  return handshaker()->ShouldSendExpectCTHeader();
+  return handshaker_->ShouldSendExpectCTHeader();
 }
 
 bool QuicCryptoServerStream::encryption_established() const {
-  if (!handshaker()) {
+  if (!handshaker_) {
     return false;
   }
-  return handshaker()->encryption_established();
+  return handshaker_->encryption_established();
 }
 
 bool QuicCryptoServerStream::handshake_confirmed() const {
-  if (!handshaker()) {
+  if (!handshaker_) {
     return false;
   }
-  return handshaker()->handshake_confirmed();
+  return handshaker_->handshake_confirmed();
 }
 
 const QuicCryptoNegotiatedParameters&
 QuicCryptoServerStream::crypto_negotiated_params() const {
-  return handshaker()->crypto_negotiated_params();
+  return handshaker_->crypto_negotiated_params();
 }
 
 CryptoMessageParser* QuicCryptoServerStream::crypto_message_parser() {
-  return handshaker()->crypto_message_parser();
+  return handshaker_->crypto_message_parser();
 }
 
 void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
-  handshaker()->OnPacketDecrypted(level);
+  handshaker_->OnPacketDecrypted(level);
 }
 
 size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
-  return handshaker()->BufferSizeLimitForLevel(level);
+  return handshaker_->BufferSizeLimitForLevel(level);
 }
 
 void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
@@ -139,9 +139,28 @@ void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
   }
 }
 
+void QuicCryptoServerStream::set_handshaker(
+    std::unique_ptr<QuicCryptoServerStream::HandshakerDelegate> handshaker) {
+  CHECK(!handshaker_);
+  handshaker_ = std::move(handshaker);
+}
+
 QuicCryptoServerStream::HandshakerDelegate* QuicCryptoServerStream::handshaker()
     const {
   return handshaker_.get();
+}
+
+const QuicCryptoServerConfig* QuicCryptoServerStream::crypto_config() const {
+  return crypto_config_;
+}
+
+QuicCompressedCertsCache* QuicCryptoServerStream::compressed_certs_cache()
+    const {
+  return compressed_certs_cache_;
+}
+
+QuicCryptoServerStream::Helper* QuicCryptoServerStream::helper() const {
+  return helper_;
 }
 
 }  // namespace quic

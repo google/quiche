@@ -184,7 +184,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
  protected:
   // Provided so that subclasses can provide their own handshaker.
-  virtual HandshakerDelegate* handshaker() const;
+  // set_handshaker can only be called if this QuicCryptoServerStream's
+  // handshaker hasn't been set yet. If set_handshaker is called outside of
+  // OnSuccessfulVersionNegotiation, then that method must be overridden to not
+  // set a handshaker.
+  void set_handshaker(std::unique_ptr<HandshakerDelegate> handshaker);
+  HandshakerDelegate* handshaker() const;
+
+  const QuicCryptoServerConfig* crypto_config() const;
+  QuicCompressedCertsCache* compressed_certs_cache() const;
+  Helper* helper() const;
 
  private:
   std::unique_ptr<HandshakerDelegate> handshaker_;
