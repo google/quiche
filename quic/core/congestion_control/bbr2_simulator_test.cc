@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
@@ -184,14 +185,17 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
                    << "%, bw_hi:" << debug_state.bandwidth_hi;
   }
 
+  QuicUnackedPacketMap* GetUnackedMap(QuicConnection* connection) {
+    return QuicSentPacketManagerPeer::GetUnackedPacketMap(
+        QuicConnectionPeer::GetSentPacketManager(connection));
+  }
+
   Bbr2Sender* SetupBbr2Sender(simulator::QuicEndpoint* endpoint) {
     // Ownership of the sender will be overtaken by the endpoint.
     Bbr2Sender* sender = new Bbr2Sender(
         endpoint->connection()->clock()->Now(),
         endpoint->connection()->sent_packet_manager().GetRttStats(),
-        QuicSentPacketManagerPeer::GetUnackedPacketMap(
-            QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
-        kDefaultInitialCwndPackets,
+        GetUnackedMap(endpoint->connection()), kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
         QuicConnectionPeer::GetStats(endpoint->connection()));
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
@@ -318,6 +322,10 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
 
   const QuicConnectionStats& sender_connection_stats() {
     return sender_connection()->GetStats();
+  }
+
+  QuicUnackedPacketMap* sender_unacked_map() {
+    return GetUnackedMap(sender_connection());
   }
 
   float sender_loss_rate_in_packets() {
@@ -729,6 +737,59 @@ TEST_F(Bbr2DefaultTopologyTest, StartupStats) {
   EXPECT_EQ(stats.slowstart_duration.GetTotalElapsedTime(),
             QuicConnectionPeer::GetSentPacketManager(sender_connection())
                 ->GetSlowStartDuration());
+}
+
+TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+
+  AckedPacketVector acked_packets;
+  QuicPacketNumber acked_packet_number =
+      sender_unacked_map()->GetLeastUnacked();
+  for (auto& info : *sender_unacked_map()) {
+    acked_packets.emplace_back(acked_packet_number++, info.bytes_sent,
+                               SimulatedNow());
+  }
+
+  // Advance time significantly so the OnCongestionEvent enters PROBE_REFILL.
+  QuicTime now = SimulatedNow() + QuicTime::Delta::FromSeconds(5);
+  auto next_packet_number = sender_unacked_map()->largest_sent_packet() + 1;
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, sender_unacked_map()->bytes_in_flight(), now,
+      acked_packets, {});
+  ASSERT_EQ(CyclePhase::PROBE_REFILL,
+            sender_->ExportDebugState().probe_bw.phase);
+
+  // Send and Ack one packet to exit app limited and enter PROBE_UP.
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)}, {});
+  ASSERT_EQ(CyclePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
+
+  // Send 2 packets and lose the first one(50% loss) to exit PROBE_UP.
+  for (uint64_t i = 0; i < 2; ++i) {
+    sender_->OnPacketSent(now, /*bytes_in_flight=*/i * kDefaultMaxPacketSize,
+                          next_packet_number++, kDefaultMaxPacketSize,
+                          HAS_RETRANSMITTABLE_DATA);
+  }
+  now = now + params.RTT();
+  sender_->OnCongestionEvent(
+      /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)},
+      {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)});
+
+  QuicByteCount inflight_hi = sender_->ExportDebugState().inflight_hi;
+  if (GetQuicReloadableFlag(quic_bbr2_cut_inflight_hi_gradually)) {
+    EXPECT_LT(2 * kDefaultMaxPacketSize, inflight_hi);
+  } else {
+    // Bytes inflight at send.
+    EXPECT_EQ(2 * kDefaultMaxPacketSize, inflight_hi);
+  }
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:
