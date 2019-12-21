@@ -188,6 +188,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // handshaker hasn't been set yet. If set_handshaker is called outside of
   // OnSuccessfulVersionNegotiation, then that method must be overridden to not
   // set a handshaker.
+  QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                         QuicCompressedCertsCache* compressed_certs_cache,
+                         QuicSession* session,
+                         Helper* helper,
+                         std::unique_ptr<HandshakerDelegate> handshaker);
   void set_handshaker(std::unique_ptr<HandshakerDelegate> handshaker);
   HandshakerDelegate* handshaker() const;
 
@@ -197,6 +202,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
  private:
   std::unique_ptr<HandshakerDelegate> handshaker_;
+  // Latched value of quic_create_server_handshaker_in_constructor flag.
+  bool create_handshaker_in_constructor_;
 
   // Arguments from QuicCryptoServerStream constructor that might need to be
   // passed to the HandshakerDelegate constructor in its late construction.

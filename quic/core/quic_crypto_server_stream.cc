@@ -32,11 +32,42 @@ QuicCryptoServerStream::QuicCryptoServerStream(
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
     Helper* helper)
+    : QuicCryptoServerStream(crypto_config,
+                             compressed_certs_cache,
+                             session,
+                             helper,
+                             /*handshaker*/ nullptr) {}
+
+QuicCryptoServerStream::QuicCryptoServerStream(
+    const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    QuicSession* session,
+    Helper* helper,
+    std::unique_ptr<HandshakerDelegate> handshaker)
     : QuicCryptoServerStreamBase(session),
+      handshaker_(std::move(handshaker)),
+      create_handshaker_in_constructor_(
+          GetQuicReloadableFlag(quic_create_server_handshaker_in_constructor)),
       crypto_config_(crypto_config),
       compressed_certs_cache_(compressed_certs_cache),
       helper_(helper) {
   DCHECK_EQ(Perspective::IS_SERVER, session->connection()->perspective());
+  if (create_handshaker_in_constructor_ && !handshaker_) {
+    switch (session->connection()->version().handshake_protocol) {
+      case PROTOCOL_QUIC_CRYPTO:
+        handshaker_ = std::make_unique<QuicCryptoServerHandshaker>(
+            crypto_config_, this, compressed_certs_cache_, session, helper_);
+        break;
+      case PROTOCOL_TLS1_3:
+        handshaker_ = std::make_unique<TlsServerHandshaker>(
+            this, session, crypto_config_->ssl_ctx(),
+            crypto_config_->proof_source());
+        break;
+      case PROTOCOL_UNSUPPORTED:
+        QUIC_BUG << "Attempting to create QuicCryptoServerStream for unknown "
+                    "handshake protocol";
+    }
+  }
 }
 
 QuicCryptoServerStream::~QuicCryptoServerStream() {}
@@ -122,6 +153,9 @@ size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
 void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
     const ParsedQuicVersion& version) {
   DCHECK_EQ(version, session()->connection()->version());
+  if (create_handshaker_in_constructor_) {
+    return;
+  }
   CHECK(!handshaker_);
   switch (session()->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
