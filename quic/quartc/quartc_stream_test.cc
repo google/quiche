@@ -212,10 +212,7 @@ class MockQuartcStreamDelegate : public QuartcStream::Delegate {
 
 class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
  public:
-  QuartcStreamTest() {
-    // Required to correctly handle StopReading().
-    SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
-  }
+  QuartcStreamTest() {}
 
   ~QuartcStreamTest() override = default;
 

@@ -741,15 +741,10 @@ TEST_F(QuicStreamSequencerTest, StopReading) {
 }
 
 TEST_F(QuicStreamSequencerTest, StopReadingWithLevelTriggered) {
-  if (GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)) {
-    EXPECT_CALL(stream_, AddBytesConsumed(0));
-    EXPECT_CALL(stream_, AddBytesConsumed(3)).Times(3);
-    EXPECT_CALL(stream_, OnDataAvailable()).Times(0);
-    EXPECT_CALL(stream_, OnFinRead());
-  } else {
-    EXPECT_CALL(stream_, AddBytesConsumed(0));
-    EXPECT_CALL(stream_, OnDataAvailable()).Times(3);
-  }
+  EXPECT_CALL(stream_, AddBytesConsumed(0));
+  EXPECT_CALL(stream_, AddBytesConsumed(3)).Times(3);
+  EXPECT_CALL(stream_, OnDataAvailable()).Times(0);
+  EXPECT_CALL(stream_, OnFinRead());
 
   sequencer_->set_level_triggered(true);
   sequencer_->StopReading();

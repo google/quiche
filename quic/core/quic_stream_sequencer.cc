@@ -34,14 +34,8 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       num_duplicate_frames_received_(0),
       ignore_read_data_(false),
       level_triggered_(false),
-      stop_reading_when_level_triggered_(
-          GetQuicReloadableFlag(quic_stop_reading_when_level_triggered)),
       close_connection_and_discard_data_on_wrong_offset_(GetQuicReloadableFlag(
-          quic_close_connection_and_discard_data_on_wrong_offset)) {
-  if (stop_reading_when_level_triggered_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_stop_reading_when_level_triggered);
-  }
-}
+          quic_close_connection_and_discard_data_on_wrong_offset)) {}
 
 QuicStreamSequencer::~QuicStreamSequencer() {}
 
@@ -107,8 +101,7 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
     if (buffered_frames_.ReadableBytes() > previous_readable_bytes) {
       // Readable bytes has changed, let stream decide if to inform application
       // or not.
-      if (stop_reading_when_level_triggered_ && ignore_read_data_) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_stop_reading_when_level_triggered);
+      if (ignore_read_data_) {
         FlushBufferedFrames();
       } else {
         stream_->OnDataAvailable();

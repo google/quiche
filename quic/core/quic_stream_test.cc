@@ -581,7 +581,6 @@ TEST_P(QuicStreamTest, StreamSequencerNeverSeesPacketsViolatingFlowControl) {
 // Verify that after the consumer calls StopReading(), the stream still sends
 // flow control updates.
 TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
-  SetQuicReloadableFlag(quic_stop_reading_when_level_triggered, true);
   Initialize();
 
   stream_->StopReading();

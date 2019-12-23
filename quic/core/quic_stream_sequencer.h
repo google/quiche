@@ -207,11 +207,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // Otherwise, call OnDataAvailable() when number of readable bytes changes.
   bool level_triggered_;
 
-  // Latched value of quic_stop_reading_when_level_triggered flag.  When true,
-  // the sequencer will discard incoming data (but not FIN bits) after
-  // StopReading is called, even in level_triggered_ mode.
-  const bool stop_reading_when_level_triggered_;
-
   // Latched value of quic_close_connection_and_discard_data_on_wrong_offset.
   // When true, the sequencer will inform the stream to close connection when
   // wrong offset is received. And the stream frame's data will be discarded.
