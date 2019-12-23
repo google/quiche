@@ -148,7 +148,10 @@ void Bbr2ProbeBwMode::UpdateProbeDown(
 
 Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
     const Bbr2CongestionEvent& congestion_event) {
-  const SendTimeState& send_state = SendStateOfLargestPacket(congestion_event);
+  const SendTimeState& send_state =
+      model_->one_bw_sample_per_ack_event()
+          ? congestion_event.last_packet_send_state
+          : SendStateOfLargestPacket(congestion_event);
   if (!send_state.is_valid) {
     QUIC_DVLOG(3) << sender_ << " " << cycle_.phase
                   << ": NOT_ADAPTED_INVALID_SAMPLE";

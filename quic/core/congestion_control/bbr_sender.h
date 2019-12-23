@@ -190,6 +190,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // Returns true if the current min_rtt should be kept and we should not enter
   // PROBE_RTT immediately.
   bool ShouldExtendMinRttExpiry() const;
+  bool MaybeUpdateMinRtt(QuicTime now, QuicTime::Delta sample_min_rtt);
 
   // Enters the STARTUP mode.
   void EnterStartupMode(QuicTime now);

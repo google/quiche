@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -151,9 +152,46 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // Notifies the sampler that the |packet_number| is acknowledged. Returns a
   // bandwidth sample. If no bandwidth sample is available,
   // QuicBandwidth::Zero() is returned.
+  // TODO(wub): Remove when deprecating --quic_one_bw_sample_per_ack_event.
   virtual BandwidthSample OnPacketAcknowledged(
       QuicTime ack_time,
       QuicPacketNumber packet_number) = 0;
+
+  struct QUIC_NO_EXPORT CongestionEventSample {
+    // The maximum bandwidth sample from all acked packets.
+    // QuicBandwidth::Zero() if no samples are available.
+    QuicBandwidth sample_max_bandwidth = QuicBandwidth::Zero();
+    // Whether |sample_max_bandwidth| is from a app-limited sample.
+    bool sample_is_app_limited = false;
+    // The minimum rtt sample from all acked packets.
+    // QuicTime::Delta::Infinite() if no samples are available.
+    QuicTime::Delta sample_rtt = QuicTime::Delta::Infinite();
+    // For each packet p in acked packets, this is the max value of INFLIGHT(p),
+    // where INFLIGHT(p) is the number of bytes acked while p is inflight.
+    QuicByteCount sample_max_inflight = 0;
+    // The send state of the largest packet in acked_packets, unless it is
+    // empty. If acked_packets is empty, it's the send state of the largest
+    // packet in lost_packets.
+    SendTimeState last_packet_send_state;
+    // The number of extra bytes acked from this ack event, compared to what is
+    // expected from the flow's bandwidth. Larger value means more ack
+    // aggregation.
+    QuicByteCount extra_acked = 0;
+  };
+  // Notifies the sampler that at |ack_time|, all packets in |acked_packets|
+  // have been acked, and all packets in |lost_packets| have been lost.
+  // See the comments in CongestionEventSample for the return value.
+  // |max_bandwidth| is the windowed maximum observed bandwidth.
+  // |est_bandwidth_upper_bound| is an upper bound of estimated bandwidth used
+  // to calculate extra_acked.
+  // Only used when --quic_one_bw_sample_per_ack_event=true.
+  virtual CongestionEventSample OnCongestionEvent(
+      QuicTime ack_time,
+      const AckedPacketVector& acked_packets,
+      const LostPacketVector& lost_packets,
+      QuicBandwidth max_bandwidth,
+      QuicBandwidth est_bandwidth_upper_bound,
+      QuicRoundTripCount round_trip_count) = 0;
 
   // Informs the sampler that a packet is considered lost and it should no
   // longer keep track of it.
@@ -272,6 +310,13 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                     HasRetransmittableData has_retransmittable_data) override;
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
                                        QuicPacketNumber packet_number) override;
+  CongestionEventSample OnCongestionEvent(
+      QuicTime ack_time,
+      const AckedPacketVector& acked_packets,
+      const LostPacketVector& lost_packets,
+      QuicBandwidth max_bandwidth,
+      QuicBandwidth est_bandwidth_upper_bound,
+      QuicRoundTripCount round_trip_count) override;
   QuicByteCount OnAckEventEnd(QuicBandwidth bandwidth_estimate,
                               QuicRoundTripCount round_trip_count);
   SendTimeState OnPacketLost(QuicPacketNumber packet_number,
@@ -306,6 +351,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   bool remove_packets_once_per_congestion_event() const {
     return remove_packets_once_per_congestion_event_;
+  }
+
+  bool one_bw_sample_per_ack_event() const {
+    return one_bw_sample_per_ack_event_;
   }
 
  private:
@@ -430,6 +479,12 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2.
   const bool remove_packets_once_per_congestion_event_ = GetQuicReloadableFlag(
       quic_bw_sampler_remove_packets_once_per_congestion_event2);
+
+  // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2
+  // and quic_one_bw_sample_per_ack_event.
+  const bool one_bw_sample_per_ack_event_ =
+      remove_packets_once_per_congestion_event_ &&
+      GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event);
 };
 
 }  // namespace quic

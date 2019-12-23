@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
+#include <cstdint>
+#include <set>
 
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
@@ -36,7 +38,10 @@ class BandwidthSamplerTest : public QuicTest {
  protected:
   BandwidthSamplerTest()
       : sampler_(nullptr, /*max_height_tracker_window_length=*/0),
-        bytes_in_flight_(0) {
+        bytes_in_flight_(0),
+        max_bandwidth_(QuicBandwidth::Zero()),
+        est_bandwidth_upper_bound_(QuicBandwidth::Infinite()),
+        round_trip_count_(0) {
     // Ensure that the clock does not start at zero.
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
   }
@@ -44,6 +49,9 @@ class BandwidthSamplerTest : public QuicTest {
   MockClock clock_;
   BandwidthSampler sampler_;
   QuicByteCount bytes_in_flight_;
+  QuicBandwidth max_bandwidth_;  // Max observed bandwidth from acks.
+  QuicBandwidth est_bandwidth_upper_bound_;
+  QuicRoundTripCount round_trip_count_;  // Needed to calculate extra_acked.
 
   QuicByteCount PacketsToBytes(QuicPacketCount packet_count) {
     return packet_count * kRegularPacketSize;
@@ -68,8 +76,31 @@ class BandwidthSamplerTest : public QuicTest {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    return sampler_.OnPacketAcknowledged(clock_.Now(),
-                                         QuicPacketNumber(packet_number));
+    if (!sampler_.one_bw_sample_per_ack_event()) {
+      return sampler_.OnPacketAcknowledged(clock_.Now(),
+                                           QuicPacketNumber(packet_number));
+    }
+    BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
+        clock_.Now(), {MakeAckedPacket(packet_number)}, {}, max_bandwidth_,
+        est_bandwidth_upper_bound_, round_trip_count_);
+    max_bandwidth_ = std::max(max_bandwidth_, sample.sample_max_bandwidth);
+    BandwidthSample bandwidth_sample;
+    bandwidth_sample.bandwidth = sample.sample_max_bandwidth;
+    bandwidth_sample.rtt = sample.sample_rtt;
+    bandwidth_sample.state_at_send = sample.last_packet_send_state;
+    return bandwidth_sample;
+  }
+
+  AckedPacket MakeAckedPacket(uint64_t packet_number) const {
+    QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
+        sampler_, QuicPacketNumber(packet_number));
+    return AckedPacket(QuicPacketNumber(packet_number), size, clock_.Now());
+  }
+
+  LostPacket MakeLostPacket(uint64_t packet_number) const {
+    return LostPacket(QuicPacketNumber(packet_number),
+                      BandwidthSamplerPeer::GetPacketSize(
+                          sampler_, QuicPacketNumber(packet_number)));
   }
 
   // Acknowledge receipt of a packet and expect it to be not app-limited.
@@ -80,14 +111,48 @@ class BandwidthSamplerTest : public QuicTest {
     return sample.bandwidth;
   }
 
+  BandwidthSampler::CongestionEventSample OnCongestionEvent(
+      std::set<uint64_t> acked_packet_numbers,
+      std::set<uint64_t> lost_packet_numbers) {
+    AckedPacketVector acked_packets;
+    for (auto it = acked_packet_numbers.begin();
+         it != acked_packet_numbers.end(); ++it) {
+      acked_packets.push_back(MakeAckedPacket(*it));
+      bytes_in_flight_ -= acked_packets.back().bytes_acked;
+    }
+
+    LostPacketVector lost_packets;
+    for (auto it = lost_packet_numbers.begin(); it != lost_packet_numbers.end();
+         ++it) {
+      lost_packets.push_back(MakeLostPacket(*it));
+      bytes_in_flight_ -= lost_packets.back().bytes_lost;
+    }
+
+    BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
+        clock_.Now(), acked_packets, lost_packets, max_bandwidth_,
+        est_bandwidth_upper_bound_, round_trip_count_);
+    max_bandwidth_ = std::max(max_bandwidth_, sample.sample_max_bandwidth);
+    return sample;
+  }
+
   SendTimeState LosePacket(uint64_t packet_number) {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    SendTimeState send_time_state =
-        sampler_.OnPacketLost(QuicPacketNumber(packet_number), size);
-    EXPECT_TRUE(send_time_state.is_valid);
-    return send_time_state;
+    if (!sampler_.one_bw_sample_per_ack_event()) {
+      SendTimeState send_time_state =
+          sampler_.OnPacketLost(QuicPacketNumber(packet_number), size);
+      EXPECT_TRUE(send_time_state.is_valid);
+      return send_time_state;
+    }
+    LostPacket lost_packet(QuicPacketNumber(packet_number), size);
+    BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
+        clock_.Now(), {}, {lost_packet}, max_bandwidth_,
+        est_bandwidth_upper_bound_, round_trip_count_);
+    EXPECT_TRUE(sample.last_packet_send_state.is_valid);
+    EXPECT_EQ(sample.sample_max_bandwidth, QuicBandwidth::Zero());
+    EXPECT_EQ(sample.sample_rtt, QuicTime::Delta::Infinite());
+    return sample.last_packet_send_state;
   }
 
   // Sends one packet and acks it.  Then, send 20 packets.  Finally, send
@@ -498,6 +563,119 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
     sampler_.RemoveObsoletePackets(QuicPacketNumber(6));
   }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
+}
+
+TEST_F(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
+  // Make sure a default constructed CongestionEventSample has the correct
+  // initial values for BandwidthSampler::OnCongestionEvent() to work.
+  BandwidthSampler::CongestionEventSample sample;
+
+  DCHECK_EQ(QuicBandwidth::Zero(), sample.sample_max_bandwidth);
+  DCHECK(!sample.sample_is_app_limited);
+  DCHECK_EQ(QuicTime::Delta::Infinite(), sample.sample_rtt);
+  DCHECK_EQ(0u, sample.sample_max_inflight);
+  DCHECK_EQ(0u, sample.extra_acked);
+}
+
+// 1) Send 2 packets, 2) Ack both in 1 event, 3) Repeat.
+TEST_F(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
+  if (!sampler_.one_bw_sample_per_ack_event()) {
+    return;
+  }
+
+  QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
+  QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
+      kRegularPacketSize, time_between_packets);
+
+  for (uint64_t i = 1; i < 21; i++) {
+    SendPacket(i);
+    clock_.AdvanceTime(time_between_packets);
+    if (i % 2 != 0) {
+      continue;
+    }
+
+    BandwidthSampler::CongestionEventSample sample =
+        OnCongestionEvent({i - 1, i}, {});
+    EXPECT_EQ(sending_rate, sample.sample_max_bandwidth);
+    EXPECT_EQ(time_between_packets, sample.sample_rtt);
+    EXPECT_EQ(2 * kRegularPacketSize, sample.sample_max_inflight);
+    EXPECT_TRUE(sample.last_packet_send_state.is_valid);
+    EXPECT_EQ(2 * kRegularPacketSize,
+              sample.last_packet_send_state.bytes_in_flight);
+    EXPECT_EQ(i * kRegularPacketSize,
+              sample.last_packet_send_state.total_bytes_sent);
+    EXPECT_EQ((i - 2) * kRegularPacketSize,
+              sample.last_packet_send_state.total_bytes_acked);
+    EXPECT_EQ(0u, sample.last_packet_send_state.total_bytes_lost);
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(i - 2));
+  }
+}
+
+TEST_F(BandwidthSamplerTest, LoseEveryOtherPacket) {
+  if (!sampler_.one_bw_sample_per_ack_event()) {
+    return;
+  }
+
+  QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
+  QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
+      kRegularPacketSize, time_between_packets);
+
+  for (uint64_t i = 1; i < 21; i++) {
+    SendPacket(i);
+    clock_.AdvanceTime(time_between_packets);
+    if (i % 2 != 0) {
+      continue;
+    }
+
+    // Ack packet i and lose i-1.
+    BandwidthSampler::CongestionEventSample sample =
+        OnCongestionEvent({i}, {i - 1});
+    // Losing 50% packets means sending rate is twice the bandwidth.
+    EXPECT_EQ(sending_rate, sample.sample_max_bandwidth * 2);
+    EXPECT_EQ(time_between_packets, sample.sample_rtt);
+    EXPECT_EQ(kRegularPacketSize, sample.sample_max_inflight);
+    EXPECT_TRUE(sample.last_packet_send_state.is_valid);
+    EXPECT_EQ(2 * kRegularPacketSize,
+              sample.last_packet_send_state.bytes_in_flight);
+    EXPECT_EQ(i * kRegularPacketSize,
+              sample.last_packet_send_state.total_bytes_sent);
+    EXPECT_EQ((i - 2) * kRegularPacketSize / 2,
+              sample.last_packet_send_state.total_bytes_acked);
+    EXPECT_EQ((i - 2) * kRegularPacketSize / 2,
+              sample.last_packet_send_state.total_bytes_lost);
+    sampler_.RemoveObsoletePackets(QuicPacketNumber(i - 2));
+  }
+}
+
+TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
+  if (!sampler_.one_bw_sample_per_ack_event()) {
+    return;
+  }
+
+  QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
+  QuicBandwidth first_packet_sending_rate =
+      QuicBandwidth::FromBytesAndTimeDelta(kRegularPacketSize,
+                                           time_between_packets);
+
+  // Send and ack packet 1.
+  SendPacket(1);
+  clock_.AdvanceTime(time_between_packets);
+  BandwidthSampler::CongestionEventSample sample = OnCongestionEvent({1}, {});
+  EXPECT_EQ(first_packet_sending_rate, sample.sample_max_bandwidth);
+  EXPECT_EQ(first_packet_sending_rate, max_bandwidth_);
+
+  // Send and ack packet 2, 3 and 4.
+  round_trip_count_++;
+  est_bandwidth_upper_bound_ = first_packet_sending_rate * 0.9;
+  SendPacket(2);
+  SendPacket(3);
+  SendPacket(4);
+  clock_.AdvanceTime(time_between_packets);
+  sample = OnCongestionEvent({2, 3, 4}, {});
+  EXPECT_EQ(first_packet_sending_rate * 3, sample.sample_max_bandwidth);
+  EXPECT_EQ(max_bandwidth_, sample.sample_max_bandwidth);
+
+  EXPECT_LT(2 * kRegularPacketSize, sample.extra_acked);
 }
 
 class MaxAckHeightTrackerTest : public QuicTest {

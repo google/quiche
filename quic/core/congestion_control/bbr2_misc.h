@@ -247,6 +247,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   // Whether acked_packets indicates the end of a round trip.
   bool end_of_round_trip = false;
 
+  // TODO(wub): After deprecating --quic_one_bw_sample_per_ack_event, use
+  // last_packet_send_state.is_app_limited instead of this field.
   // Whether the last bandwidth sample from acked_packets is app limited.
   // false if acked_packets is empty.
   bool last_sample_is_app_limited = false;
@@ -261,6 +263,13 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   // Maximum bandwidth of all bandwidth samples from acked_packets.
   QuicBandwidth sample_max_bandwidth = QuicBandwidth::Zero();
 
+  // The send state of the largest packet in acked_packets, unless it is empty.
+  // If acked_packets is empty, it's the send state of the largest packet in
+  // lost_packets.
+  SendTimeState last_packet_send_state;
+
+  // TODO(wub): Remove |last_acked_sample| and |last_lost_sample| when
+  // deprecating --quic_one_bw_sample_per_ack_event.
   // Send time state of the largest-numbered packet in this event.
   // SendTimeState send_time_state;
   struct {
@@ -276,6 +285,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2CongestionEvent {
   } last_lost_sample;
 };
 
+// TODO(wub): Remove this when deprecating --quic_one_bw_sample_per_ack_event.
 QUIC_EXPORT_PRIVATE const SendTimeState& SendStateOfLargestPacket(
     const Bbr2CongestionEvent& congestion_event);
 
@@ -300,6 +310,12 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
                               const AckedPacketVector& acked_packets,
                               const LostPacketVector& lost_packets,
                               Bbr2CongestionEvent* congestion_event);
+  // The new version of OnCongestionEventStart.
+  // Called only when --quic_one_bw_sample_per_ack_event=true.
+  void OnCongestionEventStartNew(QuicTime event_time,
+                                 const AckedPacketVector& acked_packets,
+                                 const LostPacketVector& lost_packets,
+                                 Bbr2CongestionEvent* congestion_event);
 
   void OnCongestionEventFinish(QuicPacketNumber least_unacked_packet,
                                const Bbr2CongestionEvent& congestion_event);
@@ -415,6 +431,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float pacing_gain() const { return pacing_gain_; }
   void set_pacing_gain(float pacing_gain) { pacing_gain_ = pacing_gain; }
+
+  bool one_bw_sample_per_ack_event() const {
+    return bandwidth_sampler_.one_bw_sample_per_ack_event();
+  }
 
  private:
   const Bbr2Params& Params() const { return *params_; }
