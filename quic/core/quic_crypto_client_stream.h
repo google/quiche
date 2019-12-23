@@ -62,20 +62,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   //     the client a fallback ServerConfig.
   static const int kMaxClientHellos = 4;
 
-  // QuicCryptoClientStream creates a HandshakerDelegate at construction time
+  // QuicCryptoClientStream creates a HandshakerInterface at construction time
   // based on the QuicTransportVersion of the connection. Different
-  // HandshakerDelegates provide implementations of different crypto handshake
+  // HandshakerInterfaces provide implementations of different crypto handshake
   // protocols. Currently QUIC crypto is the only protocol implemented; a future
-  // HandshakerDelegate will use TLS as the handshake protocol.
+  // HandshakerInterface will use TLS as the handshake protocol.
   // QuicCryptoClientStream delegates all of its public methods to its
-  // HandshakerDelegate.
+  // HandshakerInterface.
   //
   // This setup of the crypto stream delegating its implementation to the
   // handshaker results in the handshaker reading and writing bytes on the
   // crypto stream, instead of the handshaker passing the stream bytes to send.
-  class QUIC_EXPORT_PRIVATE HandshakerDelegate {
+  class QUIC_EXPORT_PRIVATE HandshakerInterface {
    public:
-    virtual ~HandshakerDelegate() {}
+    virtual ~HandshakerInterface() {}
 
     // Performs a crypto handshake with the server. Returns true if the
     // connection is still connected.
@@ -167,12 +167,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   std::string chlo_hash() const;
 
  protected:
-  void set_handshaker(std::unique_ptr<HandshakerDelegate> handshaker) {
+  void set_handshaker(std::unique_ptr<HandshakerInterface> handshaker) {
     handshaker_ = std::move(handshaker);
   }
 
  private:
-  std::unique_ptr<HandshakerDelegate> handshaker_;
+  std::unique_ptr<HandshakerInterface> handshaker_;
 };
 
 }  // namespace quic

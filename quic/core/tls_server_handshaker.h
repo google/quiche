@@ -19,12 +19,12 @@
 
 namespace quic {
 
-// An implementation of QuicCryptoServerStream::HandshakerDelegate which uses
+// An implementation of QuicCryptoServerStream::HandshakerInterface which uses
 // TLS 1.3 for the crypto handshake protocol.
 class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     : public TlsHandshaker,
       public TlsServerConnection::Delegate,
-      public QuicCryptoServerStream::HandshakerDelegate {
+      public QuicCryptoServerStream::HandshakerInterface {
  public:
   TlsServerHandshaker(QuicCryptoStream* stream,
                       QuicSession* session,
@@ -35,7 +35,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   ~TlsServerHandshaker() override;
 
-  // From QuicCryptoServerStream::HandshakerDelegate
+  // From QuicCryptoServerStream::HandshakerInterface
   void CancelOutstandingCallbacks() override;
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   void OnPacketDecrypted(EncryptionLevel level) override;
   bool ShouldSendExpectCTHeader() const override;
 
-  // From QuicCryptoServerStream::HandshakerDelegate and TlsHandshaker
+  // From QuicCryptoServerStream::HandshakerInterface and TlsHandshaker
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()

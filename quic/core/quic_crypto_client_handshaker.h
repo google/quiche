@@ -15,10 +15,10 @@
 
 namespace quic {
 
-// An implementation of QuicCryptoClientStream::HandshakerDelegate which uses
+// An implementation of QuicCryptoClientStream::HandshakerInterface which uses
 // QUIC crypto as the crypto handshake protocol.
 class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
-    : public QuicCryptoClientStream::HandshakerDelegate,
+    : public QuicCryptoClientStream::HandshakerInterface,
       public QuicCryptoHandshaker {
  public:
   QuicCryptoClientHandshaker(
@@ -34,7 +34,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
 
   ~QuicCryptoClientHandshaker() override;
 
-  // From QuicCryptoClientStream::HandshakerDelegate
+  // From QuicCryptoClientStream::HandshakerInterface
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
   bool IsResumption() const override;

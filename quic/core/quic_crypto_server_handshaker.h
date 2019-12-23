@@ -21,7 +21,7 @@ class QuicCryptoServerStreamPeer;
 }  // namespace test
 
 class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
-    : public QuicCryptoServerStream::HandshakerDelegate,
+    : public QuicCryptoServerStream::HandshakerInterface,
       public QuicCryptoHandshaker {
  public:
   // |crypto_config| must outlive the stream.
@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
 
   ~QuicCryptoServerHandshaker() override;
 
-  // From HandshakerDelegate
+  // From HandshakerInterface
   void CancelOutstandingCallbacks() override;
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(

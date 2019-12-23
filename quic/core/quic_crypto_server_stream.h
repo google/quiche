@@ -61,20 +61,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
 class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     : public QuicCryptoServerStreamBase {
  public:
-  // QuicCryptoServerStream creates a HandshakerDelegate at construction time
+  // QuicCryptoServerStream creates a HandshakerInterface at construction time
   // based on the QuicTransportVersion of the connection. Different
-  // HandshakerDelegates provide implementations of different crypto handshake
+  // HandshakerInterfaces provide implementations of different crypto handshake
   // protocols. Currently QUIC crypto is the only protocol implemented; a future
-  // HandshakerDelegate will use TLS as the handshake protocol.
+  // HandshakerInterface will use TLS as the handshake protocol.
   // QuicCryptoServerStream delegates all of its public methods to its
-  // HandshakerDelegate.
+  // HandshakerInterface.
   //
   // This setup of the crypto stream delegating its implementation to the
   // handshaker results in the handshaker reading and writing bytes on the
   // crypto stream, instead of the handshake rpassing the stream bytes to send.
-  class QUIC_EXPORT_PRIVATE HandshakerDelegate {
+  class QUIC_EXPORT_PRIVATE HandshakerInterface {
    public:
-    virtual ~HandshakerDelegate() {}
+    virtual ~HandshakerInterface() {}
 
     // Cancel any outstanding callbacks, such as asynchronous validation of
     // client hello.
@@ -192,21 +192,21 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSession* session,
                          Helper* helper,
-                         std::unique_ptr<HandshakerDelegate> handshaker);
-  void set_handshaker(std::unique_ptr<HandshakerDelegate> handshaker);
-  HandshakerDelegate* handshaker() const;
+                         std::unique_ptr<HandshakerInterface> handshaker);
+  void set_handshaker(std::unique_ptr<HandshakerInterface> handshaker);
+  HandshakerInterface* handshaker() const;
 
   const QuicCryptoServerConfig* crypto_config() const;
   QuicCompressedCertsCache* compressed_certs_cache() const;
   Helper* helper() const;
 
  private:
-  std::unique_ptr<HandshakerDelegate> handshaker_;
+  std::unique_ptr<HandshakerInterface> handshaker_;
   // Latched value of quic_create_server_handshaker_in_constructor flag.
   bool create_handshaker_in_constructor_;
 
   // Arguments from QuicCryptoServerStream constructor that might need to be
-  // passed to the HandshakerDelegate constructor in its late construction.
+  // passed to the HandshakerInterface constructor in its late construction.
   const QuicCryptoServerConfig* crypto_config_;
   QuicCompressedCertsCache* compressed_certs_cache_;
   Helper* helper_;

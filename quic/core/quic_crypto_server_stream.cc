@@ -43,7 +43,7 @@ QuicCryptoServerStream::QuicCryptoServerStream(
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
     Helper* helper,
-    std::unique_ptr<HandshakerDelegate> handshaker)
+    std::unique_ptr<HandshakerInterface> handshaker)
     : QuicCryptoServerStreamBase(session),
       handshaker_(std::move(handshaker)),
       create_handshaker_in_constructor_(
@@ -174,13 +174,13 @@ void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
 }
 
 void QuicCryptoServerStream::set_handshaker(
-    std::unique_ptr<QuicCryptoServerStream::HandshakerDelegate> handshaker) {
+    std::unique_ptr<QuicCryptoServerStream::HandshakerInterface> handshaker) {
   CHECK(!handshaker_);
   handshaker_ = std::move(handshaker);
 }
 
-QuicCryptoServerStream::HandshakerDelegate* QuicCryptoServerStream::handshaker()
-    const {
+QuicCryptoServerStream::HandshakerInterface*
+QuicCryptoServerStream::handshaker() const {
   return handshaker_.get();
 }
 
