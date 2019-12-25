@@ -9,6 +9,7 @@
 
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
@@ -139,9 +140,10 @@ void QboneSessionBase::SendPacketToPeer(quiche::QuicheStringPiece packet) {
   }
 
   if (send_packets_as_messages_) {
-    QuicMemSlice slice(connection()->helper()->GetStreamSendBufferAllocator(),
-                       packet.size());
-    memcpy(const_cast<char*>(slice.data()), packet.data(), packet.size());
+    QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
+        connection()->helper()->GetStreamSendBufferAllocator(), packet.size());
+    memcpy(buffer.get(), packet.data(), packet.size());
+    QuicMemSlice slice(std::move(buffer), packet.size());
     switch (SendMessage(QuicMemSliceSpan(&slice), /*flush=*/true).status) {
       case MESSAGE_STATUS_SUCCESS:
         break;

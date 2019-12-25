@@ -15,7 +15,7 @@ class QuicMemSliceTest : public QuicTest {
  public:
   QuicMemSliceTest() {
     size_t length = 1024;
-    slice_ = QuicMemSlice(&allocator_, length);
+    slice_ = QuicMemSlice(MakeUniqueBuffer(&allocator_, length), length);
     orig_data_ = slice_.data();
     orig_length_ = slice_.length();
   }

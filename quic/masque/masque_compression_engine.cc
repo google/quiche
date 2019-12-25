@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
@@ -102,33 +103,32 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
     uint8_t first_byte,
     bool long_header,
     QuicDataReader* reader,
-    QuicMemSlice* slice) {
-  QuicDataWriter writer(slice->length(), const_cast<char*>(slice->data()));
+    QuicDataWriter* writer) {
   if (validated) {
     QUIC_DVLOG(1) << "Compressing using validated flow_id " << flow_id;
-    if (!writer.WriteVarInt62(flow_id)) {
+    if (!writer->WriteVarInt62(flow_id)) {
       QUIC_BUG << "Failed to write flow_id";
       return false;
     }
   } else {
     QUIC_DVLOG(1) << "Compressing using unvalidated flow_id " << flow_id;
-    if (!writer.WriteVarInt62(kFlowId0)) {
+    if (!writer->WriteVarInt62(kFlowId0)) {
       QUIC_BUG << "Failed to write kFlowId0";
       return false;
     }
-    if (!writer.WriteVarInt62(flow_id)) {
+    if (!writer->WriteVarInt62(flow_id)) {
       QUIC_BUG << "Failed to write flow_id";
       return false;
     }
-    if (!writer.WriteLengthPrefixedConnectionId(client_connection_id)) {
+    if (!writer->WriteLengthPrefixedConnectionId(client_connection_id)) {
       QUIC_BUG << "Failed to write client_connection_id";
       return false;
     }
-    if (!writer.WriteLengthPrefixedConnectionId(server_connection_id)) {
+    if (!writer->WriteLengthPrefixedConnectionId(server_connection_id)) {
       QUIC_BUG << "Failed to write server_connection_id";
       return false;
     }
-    if (!writer.WriteUInt16(server_address.port())) {
+    if (!writer->WriteUInt16(server_address.port())) {
       QUIC_BUG << "Failed to write port";
       return false;
     }
@@ -153,16 +153,16 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       QUIC_BUG << "Unexpected server_address " << server_address;
       return false;
     }
-    if (!writer.WriteUInt8(address_id)) {
+    if (!writer->WriteUInt8(address_id)) {
       QUIC_BUG << "Failed to write address_id";
       return false;
     }
-    if (!writer.WriteStringPiece(peer_ip_bytes)) {
+    if (!writer->WriteStringPiece(peer_ip_bytes)) {
       QUIC_BUG << "Failed to write IP address";
       return false;
     }
   }
-  if (!writer.WriteUInt8(first_byte)) {
+  if (!writer->WriteUInt8(first_byte)) {
     QUIC_BUG << "Failed to write first_byte";
     return false;
   }
@@ -172,7 +172,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       QUIC_DLOG(ERROR) << "Failed to read version";
       return false;
     }
-    if (!writer.WriteUInt32(version_label)) {
+    if (!writer->WriteUInt32(version_label)) {
       QUIC_BUG << "Failed to write version";
       return false;
     }
@@ -214,7 +214,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
     }
   }
   quiche::QuicheStringPiece packet_payload = reader->ReadRemainingPayload();
-  if (!writer.WriteStringPiece(packet_payload)) {
+  if (!writer->WriteStringPiece(packet_payload)) {
     QUIC_BUG << "Failed to write packet_payload";
     return false;
   }
@@ -276,17 +276,19 @@ void MasqueCompressionEngine::CompressAndSendPacket(
                     sizeof(server_address.port()) + sizeof(uint8_t) +
                     server_address.host().ToPackedString().length();
   }
-  QuicMemSlice slice(
+  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
       masque_session_->connection()->helper()->GetStreamSendBufferAllocator(),
       slice_length);
+  QuicDataWriter writer(slice_length, buffer.get());
 
-  if (!WriteCompressedPacketToSlice(client_connection_id, server_connection_id,
-                                    server_address, destination_connection_id,
-                                    source_connection_id, flow_id, validated,
-                                    first_byte, long_header, &reader, &slice)) {
+  if (!WriteCompressedPacketToSlice(
+          client_connection_id, server_connection_id, server_address,
+          destination_connection_id, source_connection_id, flow_id, validated,
+          first_byte, long_header, &reader, &writer)) {
     return;
   }
 
+  QuicMemSlice slice(std::move(buffer), slice_length);
   MessageResult message_result =
       masque_session_->SendMessage(QuicMemSliceSpan(&slice));
 

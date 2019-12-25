@@ -39,10 +39,12 @@ class QuicStreamSendBufferTest : public QuicTest {
     iov[0] = MakeIovec(quiche::QuicheStringPiece(data1));
     iov[1] = MakeIovec(quiche::QuicheStringPiece(data2));
 
-    QuicMemSlice slice1(&allocator_, 1024);
-    memset(const_cast<char*>(slice1.data()), 'c', 1024);
-    QuicMemSlice slice2(&allocator_, 768);
-    memset(const_cast<char*>(slice2.data()), 'd', 768);
+    QuicUniqueBufferPtr buffer1 = MakeUniqueBuffer(&allocator_, 1024);
+    memset(buffer1.get(), 'c', 1024);
+    QuicMemSlice slice1(std::move(buffer1), 1024);
+    QuicUniqueBufferPtr buffer2 = MakeUniqueBuffer(&allocator_, 768);
+    memset(buffer2.get(), 'd', 768);
+    QuicMemSlice slice2(std::move(buffer2), 768);
 
     if (!GetQuicReloadableFlag(quic_interval_deque)) {
       // Index starts from not pointing to any slice.
@@ -362,8 +364,9 @@ TEST_F(QuicStreamSendBufferTest, CurrentWriteIndex) {
     // Last offset is end offset of last slice.
     EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   }
-  QuicMemSlice slice(&allocator_, 60);
-  memset(const_cast<char*>(slice.data()), 'e', 60);
+  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(&allocator_, 60);
+  memset(buffer.get(), 'e', 60);
+  QuicMemSlice slice(std::move(buffer), 60);
   send_buffer_.SaveMemSlice(std::move(slice));
   if (!GetQuicReloadableFlag(quic_interval_deque)) {
     // With new data, index points to the new data.

@@ -26,14 +26,12 @@ class QUIC_EXPORT_PRIVATE QuicMemSlice {
   // Constructs a empty QuicMemSlice with no underlying data and 0 reference
   // count.
   QuicMemSlice() = default;
-  // Let |allocator| allocate a data buffer of |length|, then construct
-  // QuicMemSlice with reference count 1 from the allocated data buffer.
-  // Once all of the references to the allocated data buffer are released,
-  // |allocator| is responsible to free the memory. |allocator| must
-  // not be null, and |length| must not be 0. To construct an empty
-  // QuicMemSlice, use the zero-argument constructor instead.
-  QuicMemSlice(QuicBufferAllocator* allocator, size_t length)
-      : impl_(allocator, length) {}
+
+  // Constructs a QuicMemSlice that takes ownership of |buffer|.  |length| must
+  // not be zero.  To construct an empty QuicMemSlice, use the zero-argument
+  // constructor instead.
+  QuicMemSlice(QuicUniqueBufferPtr buffer, size_t length)
+      : impl_(std::move(buffer), length) {}
 
   // Constructs QuicMemSlice from |impl|. It takes the reference away from
   // |impl|.

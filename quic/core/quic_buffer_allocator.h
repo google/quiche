@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 
+#include <memory>
+
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -31,6 +33,28 @@ class QUIC_EXPORT_PRIVATE QuicBufferAllocator {
   // that it should release any resources it's still holding on to.
   virtual void MarkAllocatorIdle() {}
 };
+
+// A deleter that can be used to manage ownership of buffers allocated via
+// QuicBufferAllocator through std::unique_ptr.
+class QUIC_EXPORT_PRIVATE QuicBufferDeleter {
+ public:
+  explicit QuicBufferDeleter(QuicBufferAllocator* allocator)
+      : allocator_(allocator) {}
+
+  QuicBufferAllocator* allocator() { return allocator_; }
+  void operator()(char* buffer) { allocator_->Delete(buffer); }
+
+ private:
+  QuicBufferAllocator* allocator_;
+};
+
+using QuicUniqueBufferPtr = std::unique_ptr<char[], QuicBufferDeleter>;
+
+inline QuicUniqueBufferPtr MakeUniqueBuffer(QuicBufferAllocator* allocator,
+                                            size_t size) {
+  return QuicUniqueBufferPtr(allocator->New(size),
+                             QuicBufferDeleter(allocator));
+}
 
 }  // namespace quic
 

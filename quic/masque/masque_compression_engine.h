@@ -104,7 +104,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                     uint8_t first_byte,
                                     bool long_header,
                                     QuicDataReader* reader,
-                                    QuicMemSlice* slice);
+                                    QuicDataWriter* writer);
 
   // Parses compression context from flow ID 0 during decompression.
   bool ParseCompressionContext(QuicDataReader* reader,

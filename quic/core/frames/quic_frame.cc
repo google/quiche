@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -319,10 +320,11 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
       copy.message_frame->data = frame.message_frame->data;
       copy.message_frame->message_length = frame.message_frame->message_length;
       for (const auto& slice : frame.message_frame->message_data) {
-        QuicMemSlice copy_slice(allocator, slice.length());
-        memcpy(const_cast<char*>(copy_slice.data()), slice.data(),
-               slice.length());
-        copy.message_frame->message_data.push_back(std::move(copy_slice));
+        QuicUniqueBufferPtr buffer =
+            MakeUniqueBuffer(allocator, slice.length());
+        memcpy(buffer.get(), slice.data(), slice.length());
+        copy.message_frame->message_data.push_back(
+            QuicMemSlice(std::move(buffer), slice.length()));
       }
       break;
     case NEW_TOKEN_FRAME:

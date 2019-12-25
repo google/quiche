@@ -67,10 +67,10 @@ void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size);
   while (data_length > 0) {
     size_t slice_len = std::min(data_length, max_data_slice_size);
-    QuicMemSlice slice(allocator_, slice_len);
+    QuicUniqueBufferPtr buffer = MakeUniqueBuffer(allocator_, slice_len);
     QuicUtils::CopyToBuffer(iov, iov_count, iov_offset, slice_len,
-                            const_cast<char*>(slice.data()));
-    SaveMemSlice(std::move(slice));
+                            buffer.get());
+    SaveMemSlice(QuicMemSlice(std::move(buffer), slice_len));
     data_length -= slice_len;
     iov_offset += slice_len;
   }
