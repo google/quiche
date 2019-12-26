@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -50,6 +51,14 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
     default:
       QUIC_BUG << EncryptionLevelToString(level);
       return INVALID_PACKET_TYPE;
+  }
+}
+
+void LogCoalesceStreamFrameStatus(bool success) {
+  if (GetQuicReloadableFlag(quic_log_coalesce_stream_frame_frequency)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_log_coalesce_stream_frame_frequency);
+    QUIC_HISTOGRAM_BOOL("QuicSession.CoalesceStreamFrameStatus", success,
+                        "Success rate of coalesing stream frames attempt.");
   }
 }
 
@@ -1445,10 +1454,14 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   }
 
   if (GetQuicRestartFlag(quic_coalesce_stream_frames_2) &&
-      frame.type == STREAM_FRAME &&
-      MaybeCoalesceStreamFrame(frame.stream_frame)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 1, 3);
-    return true;
+      frame.type == STREAM_FRAME) {
+    if (MaybeCoalesceStreamFrame(frame.stream_frame)) {
+      LogCoalesceStreamFrameStatus(true);
+      QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 1, 3);
+      return true;
+    } else {
+      LogCoalesceStreamFrameStatus(false);
+    }
   }
 
   size_t frame_len = framer_->GetSerializedFrameLength(
