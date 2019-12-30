@@ -319,9 +319,7 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
     enable_ack_aggregation_during_startup_ = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr_slower_startup4) &&
-      config.HasClientRequestedIndependentOption(kBBQ5, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_slower_startup4);
+  if (config.HasClientRequestedIndependentOption(kBBQ5, perspective)) {
     expire_ack_aggregation_in_startup_ = true;
   }
   if (config.HasClientRequestedIndependentOption(kMIN1, perspective)) {
