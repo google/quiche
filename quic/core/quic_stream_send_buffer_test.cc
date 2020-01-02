@@ -143,12 +143,7 @@ TEST_F(QuicStreamSendBufferTest,
   EXPECT_EQ(copy1 + copy2, quiche::QuicheStringPiece(buf + 1024, 2048));
 
   // Write new data.
-  if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2) &&
-      !GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(1, QuicStreamSendBufferPeer::write_index(&send_buffer_));
-    EXPECT_QUIC_DEBUG_DEATH(send_buffer_.WriteStreamData(2048, 50, &writer),
-                            "Tried to write data out of sequence.");
-  } else if (!GetQuicReloadableFlag(quic_interval_deque)) {
+  if (!GetQuicReloadableFlag(quic_interval_deque)) {
     EXPECT_EQ(2, QuicStreamSendBufferPeer::write_index(&send_buffer_));
     ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
     EXPECT_EQ(std::string(50, 'c'),

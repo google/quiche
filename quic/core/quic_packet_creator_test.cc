@@ -316,10 +316,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       frames_.push_back(QuicFrame(
           QuicStreamFrame(stream_id, false, 0u, quiche::QuicheStringPiece())));
-      if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
-        frames_.push_back(QuicFrame(
-            QuicStreamFrame(stream_id, true, 0u, quiche::QuicheStringPiece())));
-      }
     }
     SerializedPacket serialized = SerializeAllFrames(frames_);
     EXPECT_EQ(level, serialized.encryption_level);
@@ -342,9 +338,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
           .WillOnce(Return(true));
       if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
         EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-        if (!GetQuicRestartFlag(quic_coalesce_stream_frames_2)) {
-          EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
-        }
       }
       if (client_framer_.version().HasHeaderProtection()) {
         EXPECT_CALL(framer_visitor_, OnPaddingFrame(_))
@@ -2002,7 +1995,6 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   if (!GetParam().version_serialization) {
     creator_.StopSendingVersion();
   }
-  SetQuicRestartFlag(quic_coalesce_stream_frames_2, true);
   const size_t max_plaintext_size =
       client_framer_.GetMaxPlaintextSize(creator_.max_packet_length());
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -2816,8 +2808,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_BatchOperations) {
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
 
   PacketContents contents;
-  contents.num_stream_frames =
-      GetQuicRestartFlag(quic_coalesce_stream_frames_2) ? 1 : 2;
+  contents.num_stream_frames = 1;
   CheckPacketContains(contents, 0);
 }
 

@@ -1453,11 +1453,9 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     return false;
   }
 
-  if (GetQuicRestartFlag(quic_coalesce_stream_frames_2) &&
-      frame.type == STREAM_FRAME) {
+  if (frame.type == STREAM_FRAME) {
     if (MaybeCoalesceStreamFrame(frame.stream_frame)) {
       LogCoalesceStreamFrameStatus(true);
-      QUIC_RESTART_FLAG_COUNT_N(quic_coalesce_stream_frames_2, 1, 3);
       return true;
     } else {
       LogCoalesceStreamFrameStatus(false);
