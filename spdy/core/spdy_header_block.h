@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <functional>
 #include <list>
 #include <string>
 #include <utility>
@@ -81,7 +82,10 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     size_t separator_size_ = 0;
   };
 
-  typedef SpdyLinkedHashMap<SpdyStringPiece, HeaderValue, SpdyStringPieceHash>
+  typedef SpdyLinkedHashMap<SpdyStringPiece,
+                            HeaderValue,
+                            SpdyStringPieceHash,
+                            std::equal_to<SpdyStringPiece>>
       MapType;
 
  public:

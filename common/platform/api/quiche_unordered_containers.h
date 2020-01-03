@@ -5,6 +5,8 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_UNORDERED_CONTAINERS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_UNORDERED_CONTAINERS_H_
 
+#include <functional>
+
 #include "net/quiche/common/platform/impl/quiche_unordered_containers_impl.h"
 
 namespace quiche {
@@ -16,8 +18,9 @@ using QuicheDefaultHasher = QuicheDefaultHasherImpl<Key>;
 // A general-purpose unordered map.
 template <typename Key,
           typename Value,
-          typename Hash = QuicheDefaultHasher<Key>>
-using QuicheUnorderedMap = QuicheUnorderedMapImpl<Key, Value, Hash>;
+          typename Hash = QuicheDefaultHasher<Key>,
+          typename Eq = std::equal_to<Key>>
+using QuicheUnorderedMap = QuicheUnorderedMapImpl<Key, Value, Hash, Eq>;
 
 }  // namespace quiche
 

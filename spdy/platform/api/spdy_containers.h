@@ -24,8 +24,8 @@ template <typename ElementType, typename Hasher, typename Eq>
 using SpdyHashSet = SpdyHashSetImpl<ElementType, Hasher, Eq>;
 
 // A map which offers insertion-ordered iteration.
-template <typename Key, typename Value, typename Hash = SpdyHash<Key>>
-using SpdyLinkedHashMap = SpdyLinkedHashMapImpl<Key, Value, Hash>;
+template <typename Key, typename Value, typename Hash, typename Eq>
+using SpdyLinkedHashMap = SpdyLinkedHashMapImpl<Key, Value, Hash, Eq>;
 
 // A vector optimized for small sizes. Provides the same APIs as a std::vector.
 template <typename T, size_t N, typename A = std::allocator<T>>

@@ -16,6 +16,7 @@
 #ifndef QUICHE_COMMON_SIMPLE_LINKED_HASH_MAP_H_
 #define QUICHE_COMMON_SIMPLE_LINKED_HASH_MAP_H_
 
+#include <functional>
 #include <list>
 #include <tuple>
 #include <type_traits>
@@ -33,11 +34,15 @@ namespace quiche {
 // We also keep a set<list::iterator> for find.  Since std::list is a
 // doubly-linked list, the iterators should remain stable.
 
-template <class Key, class Value, class Hash = std::hash<Key>>
+template <class Key,
+          class Value,
+          class Hash = std::hash<Key>,
+          class Eq = std::equal_to<Key>>
 class SimpleLinkedHashMap {
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
-  typedef QuicheUnorderedMap<Key, typename ListType::iterator, Hash> MapType;
+  typedef QuicheUnorderedMap<Key, typename ListType::iterator, Hash, Eq>
+      MapType;
 
  public:
   typedef typename ListType::iterator iterator;
