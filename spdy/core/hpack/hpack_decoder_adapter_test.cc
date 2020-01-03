@@ -410,7 +410,7 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
                                            std::string("foo\0baz", 7));
 
   // Other headers are joined on \0. Case matters.
-  decoder_peer_.HandleHeaderRepresentation("joined", "not joined");
+  decoder_peer_.HandleHeaderRepresentation("joined", "joined");
   decoder_peer_.HandleHeaderRepresentation("joineD", "value 1");
   decoder_peer_.HandleHeaderRepresentation("joineD", "value 2");
 
@@ -435,8 +435,8 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
       ElementsAre(
           Pair("cookie", " part 1; part 2 ; part3;  fin!"),
           Pair("passed-through", quiche::QuicheStringPiece("foo\0baz", 7)),
-          Pair("joined", "not joined"),
-          Pair("joineD", quiche::QuicheStringPiece("value 1\0value 2", 15)),
+          Pair("joined",
+               quiche::QuicheStringPiece("joined\0value 1\0value 2", 22)),
           Pair("empty", ""),
           Pair("empty-joined", quiche::QuicheStringPiece("\0foo\0\0", 6))));
 }

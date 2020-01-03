@@ -220,13 +220,14 @@ TEST(SpdyHeaderBlockTest, UpperCaseNames) {
   SpdyHeaderBlock block;
   block["Foo"] = "foo";
   block.AppendValueOrAddHeader("Foo", "bar");
-  EXPECT_EQ(block.end(), block.find("foo"));
+  EXPECT_NE(block.end(), block.find("foo"));
   EXPECT_EQ(Pair("Foo", std::string("foo\0bar", 7)), *block.find("Foo"));
 
-  // The map is case sensitive, so both "Foo" and "foo" can be present.
+  // The map is case insensitive, so updating "foo" modifies the entry
+  // previously added.
   block.AppendValueOrAddHeader("foo", "baz");
-  EXPECT_THAT(block, ElementsAre(Pair("Foo", std::string("foo\0bar", 7)),
-                                 Pair("foo", "baz")));
+  EXPECT_THAT(block,
+              ElementsAre(Pair("Foo", std::string("foo\0bar\0baz", 11))));
 }
 
 namespace {

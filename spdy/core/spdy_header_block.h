@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 
@@ -86,8 +87,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
 
   typedef SpdyLinkedHashMap<quiche::QuicheStringPiece,
                             HeaderValue,
-                            quiche::QuicheStringPieceHash,
-                            std::equal_to<quiche::QuicheStringPiece>>
+                            SpdyStringPieceCaseHash,
+                            SpdyStringPieceCaseEq>
       MapType;
 
  public:
