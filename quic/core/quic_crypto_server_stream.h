@@ -56,6 +56,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
       const = 0;
   virtual void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) = 0;
+
+  // NOTE: Indicating that the Expect-CT header should be sent here presents
+  // a layering violation to some extent. The Expect-CT header only applies to
+  // HTTP connections, while this class can be used for non-HTTP applications.
+  // However, it is exposed here because that is the only place where the
+  // configuration for the certificate used in the connection is accessible.
+  virtual bool ShouldSendExpectCTHeader() const = 0;
 };
 
 class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
@@ -157,13 +164,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   bool ZeroRttAttempted() const override;
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) override;
-
-  // NOTE: Indicating that the Expect-CT header should be sent here presents
-  // a layering violation to some extent. The Expect-CT header only applies to
-  // HTTP connections, while this class can be used for non-HTTP applications.
-  // However, it is exposed here because that is the only place where the
-  // configuration for the certificate used in the connection is accessible.
-  bool ShouldSendExpectCTHeader() const;
+  bool ShouldSendExpectCTHeader() const override;
 
   bool encryption_established() const override;
   bool handshake_confirmed() const override;
@@ -176,7 +177,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
       const ParsedQuicVersion& version) override;
 
  protected:
-  friend std::unique_ptr<QuicCryptoServerStream> CreateCryptoServerStream(
+  friend std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicSession* session,
@@ -219,7 +220,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 // including the version used by |session|. |crypto_config|, |session|, and
 // |helper| must all outlive the stream. The caller takes ownership of the
 // returned object.
-std::unique_ptr<QuicCryptoServerStream> CreateCryptoServerStream(
+std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,

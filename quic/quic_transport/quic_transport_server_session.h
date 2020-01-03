@@ -111,7 +111,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
 
   virtual void OnIncomingDataStream(QuicTransportStream* /*stream*/) {}
 
-  std::unique_ptr<QuicCryptoServerStream> crypto_stream_;
+  std::unique_ptr<QuicCryptoServerStreamBase> crypto_stream_;
   bool ready_ = false;
   ServerVisitor* visitor_;
 };

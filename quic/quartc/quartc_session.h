@@ -331,7 +331,7 @@ class QuartcServerSession : public QuartcSession {
   QuicCryptoServerStream::Helper* const stream_helper_;
 
   // Server perspective crypto stream.
-  std::unique_ptr<QuicCryptoServerStream> crypto_stream_;
+  std::unique_ptr<QuicCryptoServerStreamBase> crypto_stream_;
 };
 
 }  // namespace quic
