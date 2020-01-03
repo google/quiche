@@ -13,11 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_storage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
@@ -30,9 +30,9 @@ class ValueProxyPeer;
 // names and values. This data structure preserves insertion order.
 //
 // Under the hood, this data structure uses large, contiguous blocks of memory
-// to store names and values. Lookups may be performed with SpdyStringPiece
-// keys, and values are returned as SpdyStringPieces (via ValueProxy, below).
-// Value SpdyStringPieces are valid as long as the SpdyHeaderBlock exists;
+// to store names and values. Lookups may be performed with QuicheStringPiece
+// keys, and values are returned as QuicheStringPieces (via ValueProxy, below).
+// Value QuicheStringPieces are valid as long as the SpdyHeaderBlock exists;
 // allocated memory is never freed until SpdyHeaderBlock's destruction.
 //
 // This implementation does not make much of an effort to minimize wasted space.
@@ -44,8 +44,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   class SPDY_EXPORT_PRIVATE HeaderValue {
    public:
     HeaderValue(SpdyHeaderStorage* storage,
-                SpdyStringPiece key,
-                SpdyStringPiece initial_value);
+                quiche::QuicheStringPiece key,
+                quiche::QuicheStringPiece initial_value);
 
     // Moves are allowed.
     HeaderValue(HeaderValue&& other);
@@ -60,10 +60,11 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     ~HeaderValue();
 
     // Consumes at most |fragment.size()| bytes of memory.
-    void Append(SpdyStringPiece fragment);
+    void Append(quiche::QuicheStringPiece fragment);
 
-    SpdyStringPiece value() const { return as_pair().second; }
-    const std::pair<SpdyStringPiece, SpdyStringPiece>& as_pair() const;
+    quiche::QuicheStringPiece value() const { return as_pair().second; }
+    const std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>&
+    as_pair() const;
 
     // Size estimate including separators. Used when keys are erased from
     // SpdyHeaderBlock.
@@ -72,34 +73,37 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
    private:
     // May allocate a large contiguous region of memory to hold the concatenated
     // fragments and separators.
-    SpdyStringPiece ConsolidatedValue() const;
+    quiche::QuicheStringPiece ConsolidatedValue() const;
 
     mutable SpdyHeaderStorage* storage_;
-    mutable std::vector<SpdyStringPiece> fragments_;
+    mutable std::vector<quiche::QuicheStringPiece> fragments_;
     // The first element is the key; the second is the consolidated value.
-    mutable std::pair<SpdyStringPiece, SpdyStringPiece> pair_;
+    mutable std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
+        pair_;
     size_t size_ = 0;
     size_t separator_size_ = 0;
   };
 
-  typedef SpdyLinkedHashMap<SpdyStringPiece,
+  typedef SpdyLinkedHashMap<quiche::QuicheStringPiece,
                             HeaderValue,
-                            SpdyStringPieceHash,
-                            std::equal_to<SpdyStringPiece>>
+                            quiche::QuicheStringPieceHash,
+                            std::equal_to<quiche::QuicheStringPiece>>
       MapType;
 
  public:
-  typedef std::pair<SpdyStringPiece, SpdyStringPiece> value_type;
+  typedef std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
+      value_type;
 
-  // Provides iteration over a sequence of std::pair<SpdyStringPiece,
-  // SpdyStringPiece>, even though the underlying MapType::value_type is
+  // Provides iteration over a sequence of std::pair<QuicheStringPiece,
+  // QuicheStringPiece>, even though the underlying MapType::value_type is
   // different. Dereferencing the iterator will result in memory allocation for
   // multi-value headers.
   class SPDY_EXPORT_PRIVATE iterator {
    public:
     // The following type definitions fulfill the requirements for iterator
     // implementations.
-    typedef std::pair<SpdyStringPiece, SpdyStringPiece> value_type;
+    typedef std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
+        value_type;
     typedef value_type& reference;
     typedef value_type* pointer;
     typedef std::forward_iterator_tag iterator_category;
@@ -159,11 +163,13 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   const_iterator end() const { return const_iterator(map_.end()); }
   bool empty() const { return map_.empty(); }
   size_t size() const { return map_.size(); }
-  iterator find(SpdyStringPiece key) { return iterator(map_.find(key)); }
-  const_iterator find(SpdyStringPiece key) const {
+  iterator find(quiche::QuicheStringPiece key) {
+    return iterator(map_.find(key));
+  }
+  const_iterator find(quiche::QuicheStringPiece key) const {
     return const_iterator(map_.find(key));
   }
-  void erase(SpdyStringPiece key);
+  void erase(quiche::QuicheStringPiece key);
 
   // Clears both our MapType member and the memory used to hold headers.
   void clear();
@@ -178,8 +184,8 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // existing header value, NUL ("\0") separated unless the key is cookie, in
   // which case the separator is "; ".
   // If there is no such key, a new header with the key and value is added.
-  void AppendValueOrAddHeader(const SpdyStringPiece key,
-                              const SpdyStringPiece value);
+  void AppendValueOrAddHeader(const quiche::QuicheStringPiece key,
+                              const quiche::QuicheStringPiece value);
 
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
   // nearly a drop-in replacement for
@@ -198,10 +204,10 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
     ValueProxy& operator=(const ValueProxy& other) = delete;
 
     // Assignment modifies the underlying SpdyHeaderBlock.
-    ValueProxy& operator=(SpdyStringPiece value);
+    ValueProxy& operator=(quiche::QuicheStringPiece value);
 
-    // Provides easy comparison against SpdyStringPiece.
-    bool operator==(SpdyStringPiece value) const;
+    // Provides easy comparison against QuicheStringPiece.
+    bool operator==(quiche::QuicheStringPiece value) const;
 
     std::string as_string() const;
 
@@ -211,18 +217,19 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
 
     ValueProxy(SpdyHeaderBlock* block,
                SpdyHeaderBlock::MapType::iterator lookup_result,
-               const SpdyStringPiece key,
+               const quiche::QuicheStringPiece key,
                size_t* spdy_header_block_value_size);
 
     SpdyHeaderBlock* block_;
     SpdyHeaderBlock::MapType::iterator lookup_result_;
-    SpdyStringPiece key_;
+    quiche::QuicheStringPiece key_;
     size_t* spdy_header_block_value_size_;
     bool valid_;
   };
 
   // Allows either lookup or mutation of the value associated with a key.
-  SPDY_MUST_USE_RESULT ValueProxy operator[](const SpdyStringPiece key);
+  SPDY_MUST_USE_RESULT ValueProxy
+  operator[](const quiche::QuicheStringPiece key);
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
@@ -232,11 +239,12 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
  private:
   friend class test::SpdyHeaderBlockPeer;
 
-  void AppendHeader(const SpdyStringPiece key, const SpdyStringPiece value);
-  SpdyStringPiece WriteKey(const SpdyStringPiece key);
+  void AppendHeader(const quiche::QuicheStringPiece key,
+                    const quiche::QuicheStringPiece value);
+  quiche::QuicheStringPiece WriteKey(const quiche::QuicheStringPiece key);
   size_t bytes_allocated() const;
 
-  // SpdyStringPieces held by |map_| point to memory owned by |storage_|.
+  // QuicheStringPieces held by |map_| point to memory owned by |storage_|.
   MapType map_;
   SpdyHeaderStorage storage_;
 

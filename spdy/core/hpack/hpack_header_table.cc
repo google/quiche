@@ -16,7 +16,7 @@ namespace spdy {
 
 size_t HpackHeaderTable::EntryHasher::operator()(
     const HpackEntry* entry) const {
-  return SpdyHashStringPair(entry->name(), entry->value());
+  return quiche::QuicheHashStringPair(entry->name(), entry->value());
 }
 
 bool HpackHeaderTable::EntriesEq::operator()(const HpackEntry* lhs,
@@ -60,7 +60,7 @@ const HpackEntry* HpackHeaderTable::GetByIndex(size_t index) {
   return nullptr;
 }
 
-const HpackEntry* HpackHeaderTable::GetByName(SpdyStringPiece name) {
+const HpackEntry* HpackHeaderTable::GetByName(quiche::QuicheStringPiece name) {
   {
     auto it = static_name_index_.find(name);
     if (it != static_name_index_.end()) {
@@ -80,8 +80,9 @@ const HpackEntry* HpackHeaderTable::GetByName(SpdyStringPiece name) {
   return nullptr;
 }
 
-const HpackEntry* HpackHeaderTable::GetByNameAndValue(SpdyStringPiece name,
-                                                      SpdyStringPiece value) {
+const HpackEntry* HpackHeaderTable::GetByNameAndValue(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   HpackEntry query(name, value);
   {
     auto it = static_index_.find(&query);
@@ -127,8 +128,8 @@ void HpackHeaderTable::SetSettingsHeaderTableSize(size_t settings_size) {
   SetMaxSize(settings_size_bound_);
 }
 
-void HpackHeaderTable::EvictionSet(SpdyStringPiece name,
-                                   SpdyStringPiece value,
+void HpackHeaderTable::EvictionSet(quiche::QuicheStringPiece name,
+                                   quiche::QuicheStringPiece value,
                                    EntryTable::iterator* begin_out,
                                    EntryTable::iterator* end_out) {
   size_t eviction_count = EvictionCountForEntry(name, value);
@@ -136,8 +137,9 @@ void HpackHeaderTable::EvictionSet(SpdyStringPiece name,
   *end_out = dynamic_entries_.end();
 }
 
-size_t HpackHeaderTable::EvictionCountForEntry(SpdyStringPiece name,
-                                               SpdyStringPiece value) const {
+size_t HpackHeaderTable::EvictionCountForEntry(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) const {
   size_t available_size = max_size_ - size_;
   size_t entry_size = HpackEntry::Size(name, value);
 
@@ -183,8 +185,9 @@ void HpackHeaderTable::Evict(size_t count) {
   }
 }
 
-const HpackEntry* HpackHeaderTable::TryAddEntry(SpdyStringPiece name,
-                                                SpdyStringPiece value) {
+const HpackEntry* HpackHeaderTable::TryAddEntry(
+    quiche::QuicheStringPiece name,
+    quiche::QuicheStringPiece value) {
   Evict(EvictionCountForEntry(name, value));
 
   size_t entry_size = HpackEntry::Size(name, value);

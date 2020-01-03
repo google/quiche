@@ -12,8 +12,8 @@ namespace spdy {
 
 const size_t HpackEntry::kSizeOverhead = 32;
 
-HpackEntry::HpackEntry(SpdyStringPiece name,
-                       SpdyStringPiece value,
+HpackEntry::HpackEntry(quiche::QuicheStringPiece name,
+                       quiche::QuicheStringPiece value,
                        bool is_static,
                        size_t insertion_index)
     : name_(name.data(), name.size()),
@@ -24,7 +24,8 @@ HpackEntry::HpackEntry(SpdyStringPiece name,
       type_(is_static ? STATIC : DYNAMIC),
       time_added_(0) {}
 
-HpackEntry::HpackEntry(SpdyStringPiece name, SpdyStringPiece value)
+HpackEntry::HpackEntry(quiche::QuicheStringPiece name,
+                       quiche::QuicheStringPiece value)
     : name_ref_(name),
       value_ref_(value),
       insertion_index_(0),
@@ -43,8 +44,8 @@ HpackEntry::HpackEntry(const HpackEntry& other)
   } else {
     name_ = other.name_;
     value_ = other.value_;
-    name_ref_ = SpdyStringPiece(name_.data(), name_.size());
-    value_ref_ = SpdyStringPiece(value_.data(), value_.size());
+    name_ref_ = quiche::QuicheStringPiece(name_.data(), name_.size());
+    value_ref_ = quiche::QuicheStringPiece(value_.data(), value_.size());
   }
 }
 
@@ -60,15 +61,16 @@ HpackEntry& HpackEntry::operator=(const HpackEntry& other) {
   }
   name_ = other.name_;
   value_ = other.value_;
-  name_ref_ = SpdyStringPiece(name_.data(), name_.size());
-  value_ref_ = SpdyStringPiece(value_.data(), value_.size());
+  name_ref_ = quiche::QuicheStringPiece(name_.data(), name_.size());
+  value_ref_ = quiche::QuicheStringPiece(value_.data(), value_.size());
   return *this;
 }
 
 HpackEntry::~HpackEntry() = default;
 
 // static
-size_t HpackEntry::Size(SpdyStringPiece name, SpdyStringPiece value) {
+size_t HpackEntry::Size(quiche::QuicheStringPiece name,
+                        quiche::QuicheStringPiece value) {
   return name.size() + value.size() + kSizeOverhead;
 }
 size_t HpackEntry::Size() const {

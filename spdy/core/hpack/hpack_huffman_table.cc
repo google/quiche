@@ -96,7 +96,7 @@ bool HpackHuffmanTable::IsInitialized() const {
   return !code_by_id_.empty();
 }
 
-void HpackHuffmanTable::EncodeString(SpdyStringPiece in,
+void HpackHuffmanTable::EncodeString(quiche::QuicheStringPiece in,
                                      HpackOutputStream* out) const {
   size_t bit_remnant = 0;
   for (size_t i = 0; i != in.size(); i++) {
@@ -129,7 +129,7 @@ void HpackHuffmanTable::EncodeString(SpdyStringPiece in,
   }
 }
 
-size_t HpackHuffmanTable::EncodedSize(SpdyStringPiece in) const {
+size_t HpackHuffmanTable::EncodedSize(quiche::QuicheStringPiece in) const {
   size_t bit_count = 0;
   for (size_t i = 0; i != in.size(); i++) {
     uint16_t symbol_id = static_cast<uint8_t>(in[i]);

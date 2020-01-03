@@ -31,14 +31,16 @@ TEST_F(SpdyPinnableBufferPieceTest, Pin) {
   EXPECT_TRUE(reader.ReadN(6, &piece));
 
   // Piece points to underlying prefix storage.
-  EXPECT_EQ(SpdyStringPiece("foobar"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("foobar"),
+            quiche::QuicheStringPiece(piece));
   EXPECT_FALSE(piece.IsPinned());
   EXPECT_EQ(prefix_.data(), piece.buffer());
 
   piece.Pin();
 
   // Piece now points to allocated storage.
-  EXPECT_EQ(SpdyStringPiece("foobar"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("foobar"),
+            quiche::QuicheStringPiece(piece));
   EXPECT_TRUE(piece.IsPinned());
   EXPECT_NE(prefix_.data(), piece.buffer());
 
@@ -56,22 +58,24 @@ TEST_F(SpdyPinnableBufferPieceTest, Swap) {
 
   piece1.Pin();
 
-  EXPECT_EQ(SpdyStringPiece("foob"), SpdyStringPiece(piece1));
+  EXPECT_EQ(quiche::QuicheStringPiece("foob"),
+            quiche::QuicheStringPiece(piece1));
   EXPECT_TRUE(piece1.IsPinned());
-  EXPECT_EQ(SpdyStringPiece("ar"), SpdyStringPiece(piece2));
+  EXPECT_EQ(quiche::QuicheStringPiece("ar"), quiche::QuicheStringPiece(piece2));
   EXPECT_FALSE(piece2.IsPinned());
 
   piece1.Swap(&piece2);
 
-  EXPECT_EQ(SpdyStringPiece("ar"), SpdyStringPiece(piece1));
+  EXPECT_EQ(quiche::QuicheStringPiece("ar"), quiche::QuicheStringPiece(piece1));
   EXPECT_FALSE(piece1.IsPinned());
-  EXPECT_EQ(SpdyStringPiece("foob"), SpdyStringPiece(piece2));
+  EXPECT_EQ(quiche::QuicheStringPiece("foob"),
+            quiche::QuicheStringPiece(piece2));
   EXPECT_TRUE(piece2.IsPinned());
 
   SpdyPinnableBufferPiece empty;
   piece2.Swap(&empty);
 
-  EXPECT_EQ(SpdyStringPiece(""), SpdyStringPiece(piece2));
+  EXPECT_EQ(quiche::QuicheStringPiece(""), quiche::QuicheStringPiece(piece2));
   EXPECT_FALSE(piece2.IsPinned());
 }
 

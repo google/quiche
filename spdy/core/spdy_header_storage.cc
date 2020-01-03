@@ -12,19 +12,20 @@ const size_t kDefaultStorageBlockSize = 2048;
 
 SpdyHeaderStorage::SpdyHeaderStorage() : arena_(kDefaultStorageBlockSize) {}
 
-SpdyStringPiece SpdyHeaderStorage::Write(const SpdyStringPiece s) {
-  return SpdyStringPiece(arena_.Memdup(s.data(), s.size()), s.size());
+quiche::QuicheStringPiece SpdyHeaderStorage::Write(
+    const quiche::QuicheStringPiece s) {
+  return quiche::QuicheStringPiece(arena_.Memdup(s.data(), s.size()), s.size());
 }
 
-void SpdyHeaderStorage::Rewind(const SpdyStringPiece s) {
+void SpdyHeaderStorage::Rewind(const quiche::QuicheStringPiece s) {
   arena_.Free(const_cast<char*>(s.data()), s.size());
 }
 
-SpdyStringPiece SpdyHeaderStorage::WriteFragments(
-    const std::vector<SpdyStringPiece>& fragments,
-    SpdyStringPiece separator) {
+quiche::QuicheStringPiece SpdyHeaderStorage::WriteFragments(
+    const std::vector<quiche::QuicheStringPiece>& fragments,
+    quiche::QuicheStringPiece separator) {
   if (fragments.empty()) {
-    return SpdyStringPiece();
+    return quiche::QuicheStringPiece();
   }
   size_t total_size = separator.size() * (fragments.size() - 1);
   for (const auto fragment : fragments) {
@@ -33,12 +34,12 @@ SpdyStringPiece SpdyHeaderStorage::WriteFragments(
   char* dst = arena_.Alloc(total_size);
   size_t written = Join(dst, fragments, separator);
   DCHECK_EQ(written, total_size);
-  return SpdyStringPiece(dst, total_size);
+  return quiche::QuicheStringPiece(dst, total_size);
 }
 
 size_t Join(char* dst,
-            const std::vector<SpdyStringPiece>& fragments,
-            SpdyStringPiece separator) {
+            const std::vector<quiche::QuicheStringPiece>& fragments,
+            quiche::QuicheStringPiece separator) {
   if (fragments.empty()) {
     return 0;
   }

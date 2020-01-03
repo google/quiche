@@ -9,7 +9,13 @@
 
 namespace quiche {
 
-using QuicheStringPiece = quiche::QuicheStringPieceImpl;
+using QuicheStringPiece = QuicheStringPieceImpl;
+
+using QuicheStringPieceHash = QuicheStringPieceHashImpl;
+
+inline size_t QuicheHashStringPair(QuicheStringPiece a, QuicheStringPiece b) {
+  return QuicheHashStringPairImpl(a, b);
+}
 
 }  // namespace quiche
 

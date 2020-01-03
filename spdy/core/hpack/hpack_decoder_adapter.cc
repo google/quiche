@@ -171,7 +171,7 @@ void HpackDecoderAdapter::ListenerAdapter::OnHeaderListEnd() {
 }
 
 void HpackDecoderAdapter::ListenerAdapter::OnHeaderErrorDetected(
-    SpdyStringPiece error_message) {
+    quiche::QuicheStringPiece error_message) {
   SPDY_VLOG(1) << error_message;
 }
 

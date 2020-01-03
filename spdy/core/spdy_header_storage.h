@@ -1,15 +1,15 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 #define QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
-// This class provides a backing store for SpdyStringPieces. It previously used
-// custom allocation logic, but now uses an UnsafeArena instead. It has the
-// property that SpdyStringPieces that refer to data in SpdyHeaderStorage are
+// This class provides a backing store for QuicheStringPieces. It previously
+// used custom allocation logic, but now uses an UnsafeArena instead. It has the
+// property that QuicheStringPieces that refer to data in SpdyHeaderStorage are
 // never invalidated until the SpdyHeaderStorage is deleted or Clear() is
 // called.
 //
@@ -26,19 +26,20 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
   SpdyHeaderStorage(SpdyHeaderStorage&& other) = default;
   SpdyHeaderStorage& operator=(SpdyHeaderStorage&& other) = default;
 
-  SpdyStringPiece Write(SpdyStringPiece s);
+  quiche::QuicheStringPiece Write(quiche::QuicheStringPiece s);
 
   // If |s| points to the most recent allocation from arena_, the arena will
   // reclaim the memory. Otherwise, this method is a no-op.
-  void Rewind(SpdyStringPiece s);
+  void Rewind(quiche::QuicheStringPiece s);
 
   void Clear() { arena_.Reset(); }
 
   // Given a list of fragments and a separator, writes the fragments joined by
-  // the separator to a contiguous region of memory. Returns a SpdyStringPiece
+  // the separator to a contiguous region of memory. Returns a QuicheStringPiece
   // pointing to the region of memory.
-  SpdyStringPiece WriteFragments(const std::vector<SpdyStringPiece>& fragments,
-                                 SpdyStringPiece separator);
+  quiche::QuicheStringPiece WriteFragments(
+      const std::vector<quiche::QuicheStringPiece>& fragments,
+      quiche::QuicheStringPiece separator);
 
   size_t bytes_allocated() const { return arena_.status().bytes_allocated(); }
 
@@ -50,9 +51,10 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
 
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
 // enough to hold the result. Returns the number of bytes written.
-SPDY_EXPORT_PRIVATE size_t Join(char* dst,
-                                const std::vector<SpdyStringPiece>& fragments,
-                                SpdyStringPiece separator);
+SPDY_EXPORT_PRIVATE size_t
+Join(char* dst,
+     const std::vector<quiche::QuicheStringPiece>& fragments,
+     quiche::QuicheStringPiece separator);
 
 }  // namespace spdy
 

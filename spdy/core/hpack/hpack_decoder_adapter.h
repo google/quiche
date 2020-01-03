@@ -18,11 +18,11 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 namespace test {
@@ -108,7 +108,8 @@ class SPDY_EXPORT_PRIVATE HpackDecoderAdapter {
     void OnHeader(const http2::HpackString& name,
                   const http2::HpackString& value) override;
     void OnHeaderListEnd() override;
-    void OnHeaderErrorDetected(SpdyStringPiece error_message) override;
+    void OnHeaderErrorDetected(
+        quiche::QuicheStringPiece error_message) override;
 
     // Override the HpackDecoderTablesDebugListener methods:
     int64_t OnEntryInserted(const http2::HpackStringPair& entry,

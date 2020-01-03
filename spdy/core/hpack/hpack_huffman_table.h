@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
@@ -45,10 +45,10 @@ class SPDY_EXPORT_PRIVATE HpackHuffmanTable {
 
   // Encodes the input string to the output stream using the table's Huffman
   // context.
-  void EncodeString(SpdyStringPiece in, HpackOutputStream* out) const;
+  void EncodeString(quiche::QuicheStringPiece in, HpackOutputStream* out) const;
 
   // Returns the encoded size of the input string.
-  size_t EncodedSize(SpdyStringPiece in) const;
+  size_t EncodedSize(quiche::QuicheStringPiece in) const;
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;

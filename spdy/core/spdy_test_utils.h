@@ -9,15 +9,15 @@
 #include <cstdint>
 #include <string>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
-inline bool operator==(SpdyStringPiece x,
+inline bool operator==(quiche::QuicheStringPiece x,
                        const SpdyHeaderBlock::ValueProxy& y) {
   return y.operator==(x);
 }
@@ -49,7 +49,8 @@ class TestHeadersHandler : public SpdyHeadersHandlerInterface {
 
   void OnHeaderBlockStart() override;
 
-  void OnHeader(SpdyStringPiece name, SpdyStringPiece value) override;
+  void OnHeader(quiche::QuicheStringPiece name,
+                quiche::QuicheStringPiece value) override;
 
   void OnHeaderBlockEnd(size_t header_bytes_parsed,
                         size_t compressed_header_bytes_parsed) override;

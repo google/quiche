@@ -16,8 +16,8 @@ namespace spdy {
 namespace {
 
 template <class T>
-bool ParsePositiveIntegerImpl(SpdyStringPiece::const_iterator c,
-                              SpdyStringPiece::const_iterator end,
+bool ParsePositiveIntegerImpl(quiche::QuicheStringPiece::const_iterator c,
+                              quiche::QuicheStringPiece::const_iterator end,
                               T* value) {
   *value = 0;
   for (; c != end && std::isdigit(*c); ++c) {
@@ -56,20 +56,20 @@ SpdyAltSvcWireFormat::AlternativeService::AlternativeService(
 
 // static
 bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
-    SpdyStringPiece value,
+    quiche::QuicheStringPiece value,
     AlternativeServiceVector* altsvc_vector) {
   // Empty value is invalid according to the specification.
   if (value.empty()) {
     return false;
   }
   altsvc_vector->clear();
-  if (value == SpdyStringPiece("clear")) {
+  if (value == quiche::QuicheStringPiece("clear")) {
     return true;
   }
-  SpdyStringPiece::const_iterator c = value.begin();
+  quiche::QuicheStringPiece::const_iterator c = value.begin();
   while (c != value.end()) {
     // Parse protocol-id.
-    SpdyStringPiece::const_iterator percent_encoded_protocol_id_end =
+    quiche::QuicheStringPiece::const_iterator percent_encoded_protocol_id_end =
         std::find(c, value.end(), '=');
     std::string protocol_id;
     if (percent_encoded_protocol_id_end == c ||
@@ -90,7 +90,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
       return false;
     }
     ++c;
-    SpdyStringPiece::const_iterator alt_authority_begin = c;
+    quiche::QuicheStringPiece::const_iterator alt_authority_begin = c;
     for (; c != value.end() && *c != '"'; ++c) {
       // Decode backslash encoding.
       if (*c != '\\') {
@@ -114,7 +114,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     // Parse parameters.
     uint32_t max_age = 86400;
     VersionVector version;
-    SpdyStringPiece::const_iterator parameters_end =
+    quiche::QuicheStringPiece::const_iterator parameters_end =
         std::find(c, value.end(), ',');
     while (c != parameters_end) {
       SkipWhiteSpace(&c, parameters_end);
@@ -139,7 +139,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
       }
       ++c;
       SkipWhiteSpace(&c, parameters_end);
-      SpdyStringPiece::const_iterator parameter_value_begin = c;
+      quiche::QuicheStringPiece::const_iterator parameter_value_begin = c;
       for (; c != parameters_end && *c != ';' && *c != ' ' && *c != '\t'; ++c) {
       }
       if (c == parameter_value_begin) {
@@ -163,9 +163,10 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         }
         ++c;
         parameters_end = std::find(c, value.end(), ',');
-        SpdyStringPiece::const_iterator v_begin = parameter_value_begin + 1;
+        quiche::QuicheStringPiece::const_iterator v_begin =
+            parameter_value_begin + 1;
         while (v_begin < c) {
-          SpdyStringPiece::const_iterator v_end = v_begin;
+          quiche::QuicheStringPiece::const_iterator v_end = v_begin;
           while (v_end < c - 1 && *v_end != ',') {
             ++v_end;
           }
@@ -194,9 +195,10 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         // hq=":443";quic=51303338
         // ... will be stored in |versions| as 0x51303338.
         uint32_t quic_version;
-        if (!SpdyHexDecodeToUInt32(SpdyStringPiece(parameter_value_begin,
-                                                   c - parameter_value_begin),
-                                   &quic_version) ||
+        if (!SpdyHexDecodeToUInt32(
+                quiche::QuicheStringPiece(parameter_value_begin,
+                                          c - parameter_value_begin),
+                &quic_version) ||
             quic_version == 0) {
           return false;
         }
@@ -291,16 +293,18 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
 }
 
 // static
-void SpdyAltSvcWireFormat::SkipWhiteSpace(SpdyStringPiece::const_iterator* c,
-                                          SpdyStringPiece::const_iterator end) {
+void SpdyAltSvcWireFormat::SkipWhiteSpace(
+    quiche::QuicheStringPiece::const_iterator* c,
+    quiche::QuicheStringPiece::const_iterator end) {
   for (; *c != end && (**c == ' ' || **c == '\t'); ++*c) {
   }
 }
 
 // static
-bool SpdyAltSvcWireFormat::PercentDecode(SpdyStringPiece::const_iterator c,
-                                         SpdyStringPiece::const_iterator end,
-                                         std::string* output) {
+bool SpdyAltSvcWireFormat::PercentDecode(
+    quiche::QuicheStringPiece::const_iterator c,
+    quiche::QuicheStringPiece::const_iterator end,
+    std::string* output) {
   output->clear();
   for (; c != end; ++c) {
     if (*c != '%') {
@@ -326,8 +330,8 @@ bool SpdyAltSvcWireFormat::PercentDecode(SpdyStringPiece::const_iterator c,
 
 // static
 bool SpdyAltSvcWireFormat::ParseAltAuthority(
-    SpdyStringPiece::const_iterator c,
-    SpdyStringPiece::const_iterator end,
+    quiche::QuicheStringPiece::const_iterator c,
+    quiche::QuicheStringPiece::const_iterator end,
     std::string* host,
     uint16_t* port) {
   host->clear();
@@ -373,16 +377,16 @@ bool SpdyAltSvcWireFormat::ParseAltAuthority(
 
 // static
 bool SpdyAltSvcWireFormat::ParsePositiveInteger16(
-    SpdyStringPiece::const_iterator c,
-    SpdyStringPiece::const_iterator end,
+    quiche::QuicheStringPiece::const_iterator c,
+    quiche::QuicheStringPiece::const_iterator end,
     uint16_t* value) {
   return ParsePositiveIntegerImpl<uint16_t>(c, end, value);
 }
 
 // static
 bool SpdyAltSvcWireFormat::ParsePositiveInteger32(
-    SpdyStringPiece::const_iterator c,
-    SpdyStringPiece::const_iterator end,
+    quiche::QuicheStringPiece::const_iterator c,
+    quiche::QuicheStringPiece::const_iterator end,
     uint32_t* value) {
   return ParsePositiveIntegerImpl<uint32_t>(c, end, value);
 }

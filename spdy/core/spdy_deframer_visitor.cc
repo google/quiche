@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -138,7 +138,7 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   // alphabetical order for ease of navigation, and are not in same order
   // as in SpdyFramerVisitorInterface.
   void OnAltSvc(SpdyStreamId stream_id,
-                SpdyStringPiece origin,
+                quiche::QuicheStringPiece origin,
                 const SpdyAltSvcWireFormat::AlternativeServiceVector&
                     altsvc_vector) override;
   void OnContinuation(SpdyStreamId stream_id, bool end) override;
@@ -184,7 +184,8 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   // Callbacks defined in SpdyHeadersHandlerInterface.
 
   void OnHeaderBlockStart() override;
-  void OnHeader(SpdyStringPiece key, SpdyStringPiece value) override;
+  void OnHeader(quiche::QuicheStringPiece key,
+                quiche::QuicheStringPiece value) override;
   void OnHeaderBlockEnd(size_t header_bytes_parsed,
                         size_t compressed_header_bytes_parsed) override;
 
@@ -409,7 +410,7 @@ bool SpdyTestDeframerImpl::AtFrameEnd() {
 
 void SpdyTestDeframerImpl::OnAltSvc(
     SpdyStreamId stream_id,
-    SpdyStringPiece origin,
+    quiche::QuicheStringPiece origin,
     const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector) {
   SPDY_DVLOG(1) << "OnAltSvc stream_id: " << stream_id;
   CHECK_EQ(frame_type_, UNSET)
@@ -754,8 +755,8 @@ void SpdyTestDeframerImpl::OnHeaderBlockStart() {
   got_hpack_end_ = false;
 }
 
-void SpdyTestDeframerImpl::OnHeader(SpdyStringPiece key,
-                                    SpdyStringPiece value) {
+void SpdyTestDeframerImpl::OnHeader(quiche::QuicheStringPiece key,
+                                    quiche::QuicheStringPiece value) {
   CHECK(frame_type_ == HEADERS || frame_type_ == CONTINUATION ||
         frame_type_ == PUSH_PROMISE)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);

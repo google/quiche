@@ -104,7 +104,8 @@ void TestHeadersHandler::OnHeaderBlockStart() {
   block_.clear();
 }
 
-void TestHeadersHandler::OnHeader(SpdyStringPiece name, SpdyStringPiece value) {
+void TestHeadersHandler::OnHeader(quiche::QuicheStringPiece name,
+                                  quiche::QuicheStringPiece value) {
   block_.AppendValueOrAddHeader(name, value);
 }
 

@@ -14,7 +14,7 @@
 // non-test code.
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_mem_slice.h"
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/spdy/platform/impl/spdy_string_utils_impl.h"
 
 namespace spdy {
@@ -33,11 +33,12 @@ inline char SpdyHexDigitToInt(char c) {
   return SpdyHexDigitToIntImpl(c);
 }
 
-inline std::string SpdyHexDecode(SpdyStringPiece data) {
+inline std::string SpdyHexDecode(quiche::QuicheStringPiece data) {
   return SpdyHexDecodeImpl(data);
 }
 
-inline bool SpdyHexDecodeToUInt32(SpdyStringPiece data, uint32_t* out) {
+inline bool SpdyHexDecodeToUInt32(quiche::QuicheStringPiece data,
+                                  uint32_t* out) {
   return SpdyHexDecodeToUInt32Impl(data, out);
 }
 
@@ -49,7 +50,7 @@ inline std::string SpdyHexEncodeUInt32AndTrim(uint32_t data) {
   return SpdyHexEncodeUInt32AndTrimImpl(data);
 }
 
-inline std::string SpdyHexDump(SpdyStringPiece data) {
+inline std::string SpdyHexDump(quiche::QuicheStringPiece data) {
   return SpdyHexDumpImpl(data);
 }
 

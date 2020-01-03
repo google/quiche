@@ -109,7 +109,7 @@ bool SpdyFrameReader::ReadUInt24(uint32_t* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadStringPiece16(SpdyStringPiece* result) {
+bool SpdyFrameReader::ReadStringPiece16(quiche::QuicheStringPiece* result) {
   // Read resultant length.
   uint16_t result_len;
   if (!ReadUInt16(&result_len)) {
@@ -124,7 +124,7 @@ bool SpdyFrameReader::ReadStringPiece16(SpdyStringPiece* result) {
   }
 
   // Set result.
-  *result = SpdyStringPiece(data_ + ofs_, result_len);
+  *result = quiche::QuicheStringPiece(data_ + ofs_, result_len);
 
   // Iterate.
   ofs_ += result_len;
@@ -132,7 +132,7 @@ bool SpdyFrameReader::ReadStringPiece16(SpdyStringPiece* result) {
   return true;
 }
 
-bool SpdyFrameReader::ReadStringPiece32(SpdyStringPiece* result) {
+bool SpdyFrameReader::ReadStringPiece32(quiche::QuicheStringPiece* result) {
   // Read resultant length.
   uint32_t result_len;
   if (!ReadUInt32(&result_len)) {
@@ -147,7 +147,7 @@ bool SpdyFrameReader::ReadStringPiece32(SpdyStringPiece* result) {
   }
 
   // Set result.
-  *result = SpdyStringPiece(data_ + ofs_, result_len);
+  *result = quiche::QuicheStringPiece(data_ + ofs_, result_len);
 
   // Iterate.
   ofs_ += result_len;

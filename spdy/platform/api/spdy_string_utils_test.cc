@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -20,14 +20,14 @@ TEST(SpdyStringUtilsTest, SpdyStrCat) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const SpdyStringPiece stringpiece_foo(string_foo);
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
   EXPECT_EQ("foo", SpdyStrCat(kFoo));
   EXPECT_EQ("foo", SpdyStrCat(string_foo));
   EXPECT_EQ("foo", SpdyStrCat(stringpiece_foo));
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const SpdyStringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   EXPECT_EQ("foobar", SpdyStrCat(kFoo, kBar));
   EXPECT_EQ("foobar", SpdyStrCat(kFoo, string_bar));
@@ -79,7 +79,7 @@ TEST(SpdyStringUtilsTest, SpdyStrAppend) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const SpdyStringPiece stringpiece_foo(string_foo);
+  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
   SpdyStrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
   SpdyStrAppend(&output, string_foo);
@@ -95,7 +95,7 @@ TEST(SpdyStringUtilsTest, SpdyStrAppend) {
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const SpdyStringPiece stringpiece_bar(kBar);
+  const quiche::QuicheStringPiece stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   SpdyStrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);

@@ -7,8 +7,8 @@
 #include <set>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -39,7 +39,7 @@ TEST_F(HpackStaticTableTest, Initialize) {
 
   HpackHeaderTable::NameToEntryMap static_name_index =
       table_.GetStaticNameIndex();
-  std::set<SpdyStringPiece> names;
+  std::set<quiche::QuicheStringPiece> names;
   for (auto* entry : static_index) {
     names.insert(entry->name());
   }

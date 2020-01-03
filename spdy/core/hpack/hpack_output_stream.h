@@ -9,9 +9,9 @@
 #include <map>
 #include <string>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 // All section references below are to
 // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08
@@ -37,7 +37,7 @@ class SPDY_EXPORT_PRIVATE HpackOutputStream {
   void AppendPrefix(HpackPrefix prefix);
 
   // Directly appends |buffer|.
-  void AppendBytes(SpdyStringPiece buffer);
+  void AppendBytes(quiche::QuicheStringPiece buffer);
 
   // Appends the given integer using the representation described in
   // 6.1. If the internal buffer ends on a byte boundary, the prefix

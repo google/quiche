@@ -41,7 +41,7 @@ void HpackOutputStream::AppendPrefix(HpackPrefix prefix) {
   AppendBits(prefix.bits, prefix.bit_size);
 }
 
-void HpackOutputStream::AppendBytes(SpdyStringPiece buffer) {
+void HpackOutputStream::AppendBytes(quiche::QuicheStringPiece buffer) {
   DCHECK_EQ(bit_offset_, 0u);
   buffer_.append(buffer.data(), buffer.size());
 }

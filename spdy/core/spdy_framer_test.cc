@@ -287,7 +287,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     SPDY_VLOG(1) << "OnStreamFrameData(" << stream_id << ", data, " << len
                  << ", "
                  << ")   data:\n"
-                 << SpdyHexDump(SpdyStringPiece(data, len));
+                 << SpdyHexDump(quiche::QuicheStringPiece(data, len));
     EXPECT_EQ(header_stream_id_, stream_id);
 
     data_bytes_ += len;
@@ -403,7 +403,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   void OnAltSvc(SpdyStreamId stream_id,
-                SpdyStringPiece origin,
+                quiche::QuicheStringPiece origin,
                 const SpdyAltSvcWireFormat::AlternativeServiceVector&
                     altsvc_vector) override {
     SPDY_VLOG(1) << "OnAltSvc(" << stream_id << ", \"" << origin
@@ -1125,7 +1125,7 @@ TEST_P(SpdyFramerTest, MultiValueHeader) {
       control_frame.size());
 
   EXPECT_THAT(visitor.headers_, testing::ElementsAre(testing::Pair(
-                                    "name", SpdyStringPiece(value))));
+                                    "name", quiche::QuicheStringPiece(value))));
 }
 
 TEST_P(SpdyFramerTest, CompressEmptyHeaders) {
@@ -1315,7 +1315,7 @@ TEST_P(SpdyFramerTest, UnclosedStreamDataCompressorsOneByteAtATime) {
 
   const char bytes[] = "this is a test test test test test!";
   SpdyDataIR data_ir(/* stream_id = */ 1,
-                     SpdyStringPiece(bytes, QUICHE_ARRAYSIZE(bytes)));
+                     quiche::QuicheStringPiece(bytes, QUICHE_ARRAYSIZE(bytes)));
   data_ir.set_fin(true);
   SpdySerializedFrame send_frame(framer_.SerializeData(data_ir));
 
@@ -4298,8 +4298,8 @@ TEST_P(SpdyFramerTest, OnAltSvcWithOrigin) {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
   altsvc_vector.push_back(altsvc1);
   altsvc_vector.push_back(altsvc2);
-  EXPECT_CALL(visitor,
-              OnAltSvc(kStreamId, SpdyStringPiece("o_r|g!n"), altsvc_vector));
+  EXPECT_CALL(visitor, OnAltSvc(kStreamId, quiche::QuicheStringPiece("o_r|g!n"),
+                                altsvc_vector));
 
   SpdyAltSvcIR altsvc_ir(kStreamId);
   altsvc_ir.set_origin("o_r|g!n");
@@ -4333,7 +4333,8 @@ TEST_P(SpdyFramerTest, OnAltSvcNoOrigin) {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector;
   altsvc_vector.push_back(altsvc1);
   altsvc_vector.push_back(altsvc2);
-  EXPECT_CALL(visitor, OnAltSvc(kStreamId, SpdyStringPiece(""), altsvc_vector));
+  EXPECT_CALL(visitor, OnAltSvc(kStreamId, quiche::QuicheStringPiece(""),
+                                altsvc_vector));
 
   SpdyAltSvcIR altsvc_ir(kStreamId);
   altsvc_ir.add_altsvc(altsvc1);
@@ -4769,7 +4770,8 @@ TEST_P(SpdyFramerTest, SpdyFrameIRSize) {
   SpdyFramer framer(SpdyFramer::DISABLE_COMPRESSION);
 
   const char bytes[] = "this is a very short data frame";
-  SpdyDataIR data_ir(1, SpdyStringPiece(bytes, QUICHE_ARRAYSIZE(bytes)));
+  SpdyDataIR data_ir(1,
+                     quiche::QuicheStringPiece(bytes, QUICHE_ARRAYSIZE(bytes)));
   CheckFrameAndIRSize(&data_ir, &framer, &output_);
 
   SpdyRstStreamIR rst_ir(/* stream_id = */ 1, ERROR_CODE_PROTOCOL_ERROR);

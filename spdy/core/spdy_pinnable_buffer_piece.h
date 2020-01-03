@@ -9,8 +9,8 @@
 
 #include <memory>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
@@ -27,8 +27,8 @@ struct SPDY_EXPORT_PRIVATE SpdyPinnableBufferPiece {
 
   const char* buffer() const { return buffer_; }
 
-  explicit operator SpdyStringPiece() const {
-    return SpdyStringPiece(buffer_, length_);
+  explicit operator quiche::QuicheStringPiece() const {
+    return quiche::QuicheStringPiece(buffer_, length_);
   }
 
   // Allocates and copies the buffer to internal storage.

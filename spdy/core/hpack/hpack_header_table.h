@@ -10,11 +10,11 @@
 #include <deque>
 #include <memory>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
@@ -67,8 +67,9 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
   using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;
-  using NameToEntryMap =
-      SpdyHashMap<SpdyStringPiece, const HpackEntry*, SpdyStringPieceHash>;
+  using NameToEntryMap = SpdyHashMap<quiche::QuicheStringPiece,
+                                     const HpackEntry*,
+                                     quiche::QuicheStringPieceHash>;
 
   HpackHeaderTable();
   HpackHeaderTable(const HpackHeaderTable&) = delete;
@@ -88,11 +89,11 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
   const HpackEntry* GetByIndex(size_t index);
 
   // Returns the lowest-value entry having |name|, or NULL.
-  const HpackEntry* GetByName(SpdyStringPiece name);
+  const HpackEntry* GetByName(quiche::QuicheStringPiece name);
 
   // Returns the lowest-index matching entry, or NULL.
-  const HpackEntry* GetByNameAndValue(SpdyStringPiece name,
-                                      SpdyStringPiece value);
+  const HpackEntry* GetByNameAndValue(quiche::QuicheStringPiece name,
+                                      quiche::QuicheStringPiece value);
 
   // Returns the index of an entry within this header table.
   size_t IndexOf(const HpackEntry* entry) const;
@@ -108,8 +109,8 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
   // Determine the set of entries which would be evicted by the insertion
   // of |name| & |value| into the table, as per section 4.4. No eviction
   // actually occurs. The set is returned via range [begin_out, end_out).
-  void EvictionSet(SpdyStringPiece name,
-                   SpdyStringPiece value,
+  void EvictionSet(quiche::QuicheStringPiece name,
+                   quiche::QuicheStringPiece value,
                    EntryTable::iterator* begin_out,
                    EntryTable::iterator* end_out);
 
@@ -117,7 +118,8 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
   // and |value| must not be owned by an entry which could be evicted. The
   // added HpackEntry is returned, or NULL is returned if all entries were
   // evicted and the empty table is of insufficent size for the representation.
-  const HpackEntry* TryAddEntry(SpdyStringPiece name, SpdyStringPiece value);
+  const HpackEntry* TryAddEntry(quiche::QuicheStringPiece name,
+                                quiche::QuicheStringPiece value);
 
   void DebugLogTableState() const SPDY_UNUSED;
 
@@ -130,8 +132,8 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
 
  private:
   // Returns number of evictions required to enter |name| & |value|.
-  size_t EvictionCountForEntry(SpdyStringPiece name,
-                               SpdyStringPiece value) const;
+  size_t EvictionCountForEntry(quiche::QuicheStringPiece name,
+                               quiche::QuicheStringPiece value) const;
 
   // Returns number of evictions required to reclaim |reclaim_size| table size.
   size_t EvictionCountToReclaim(size_t reclaim_size) const;

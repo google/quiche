@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 
 namespace spdy {
 
@@ -60,27 +60,29 @@ class SPDY_EXPORT_PRIVATE SpdyAltSvcWireFormat {
   typedef std::vector<AlternativeService> AlternativeServiceVector;
 
   friend class test::SpdyAltSvcWireFormatPeer;
-  static bool ParseHeaderFieldValue(SpdyStringPiece value,
+  static bool ParseHeaderFieldValue(quiche::QuicheStringPiece value,
                                     AlternativeServiceVector* altsvc_vector);
   static std::string SerializeHeaderFieldValue(
       const AlternativeServiceVector& altsvc_vector);
 
  private:
-  static void SkipWhiteSpace(SpdyStringPiece::const_iterator* c,
-                             SpdyStringPiece::const_iterator end);
-  static bool PercentDecode(SpdyStringPiece::const_iterator c,
-                            SpdyStringPiece::const_iterator end,
+  static void SkipWhiteSpace(quiche::QuicheStringPiece::const_iterator* c,
+                             quiche::QuicheStringPiece::const_iterator end);
+  static bool PercentDecode(quiche::QuicheStringPiece::const_iterator c,
+                            quiche::QuicheStringPiece::const_iterator end,
                             std::string* output);
-  static bool ParseAltAuthority(SpdyStringPiece::const_iterator c,
-                                SpdyStringPiece::const_iterator end,
+  static bool ParseAltAuthority(quiche::QuicheStringPiece::const_iterator c,
+                                quiche::QuicheStringPiece::const_iterator end,
                                 std::string* host,
                                 uint16_t* port);
-  static bool ParsePositiveInteger16(SpdyStringPiece::const_iterator c,
-                                     SpdyStringPiece::const_iterator end,
-                                     uint16_t* value);
-  static bool ParsePositiveInteger32(SpdyStringPiece::const_iterator c,
-                                     SpdyStringPiece::const_iterator end,
-                                     uint32_t* value);
+  static bool ParsePositiveInteger16(
+      quiche::QuicheStringPiece::const_iterator c,
+      quiche::QuicheStringPiece::const_iterator end,
+      uint16_t* value);
+  static bool ParsePositiveInteger32(
+      quiche::QuicheStringPiece::const_iterator c,
+      quiche::QuicheStringPiece::const_iterator end,
+      uint32_t* value);
 };
 
 }  // namespace spdy

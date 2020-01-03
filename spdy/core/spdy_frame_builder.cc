@@ -120,7 +120,8 @@ bool SpdyFrameBuilder::BeginNewFrameInternal(uint8_t raw_frame_type,
   return success;
 }
 
-bool SpdyFrameBuilder::WriteStringPiece32(const SpdyStringPiece value) {
+bool SpdyFrameBuilder::WriteStringPiece32(
+    const quiche::QuicheStringPiece value) {
   if (!WriteUInt32(value.size())) {
     return false;
   }

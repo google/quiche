@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace spdy {
 namespace test {
@@ -47,8 +47,8 @@ namespace test {
   if (expected.data() == nullptr) {
     VERIFY_EQ(nullptr, actual.data());
   } else {
-    VERIFY_EQ(SpdyStringPiece(expected.data(), expected.data_len()),
-              SpdyStringPiece(actual.data(), actual.data_len()));
+    VERIFY_EQ(quiche::QuicheStringPiece(expected.data(), expected.data_len()),
+              quiche::QuicheStringPiece(actual.data(), actual.data_len()));
   }
   VERIFY_SUCCESS(VerifySpdyFrameWithPaddingIREquals(expected, actual));
   return ::testing::AssertionSuccess();

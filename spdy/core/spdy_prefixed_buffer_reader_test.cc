@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -46,7 +46,8 @@ TEST_F(SpdyPrefixedBufferReaderTest, ReadPieceFromPrefix) {
   EXPECT_FALSE(reader.ReadN(10, &piece));  // Not enough buffer.
   EXPECT_TRUE(reader.ReadN(6, &piece));
   EXPECT_FALSE(piece.IsPinned());
-  EXPECT_EQ(SpdyStringPiece("foobar"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("foobar"),
+            quiche::QuicheStringPiece(piece));
   EXPECT_EQ(0u, reader.Available());
 }
 
@@ -69,7 +70,8 @@ TEST_F(SpdyPrefixedBufferReaderTest, ReadPieceFromSuffix) {
   EXPECT_FALSE(reader.ReadN(10, &piece));  // Not enough buffer.
   EXPECT_TRUE(reader.ReadN(6, &piece));
   EXPECT_FALSE(piece.IsPinned());
-  EXPECT_EQ(SpdyStringPiece("foobar"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("foobar"),
+            quiche::QuicheStringPiece(piece));
   EXPECT_EQ(0u, reader.Available());
 }
 
@@ -92,7 +94,8 @@ TEST_F(SpdyPrefixedBufferReaderTest, ReadPieceSpanning) {
   EXPECT_FALSE(reader.ReadN(10, &piece));  // Not enough buffer.
   EXPECT_TRUE(reader.ReadN(6, &piece));
   EXPECT_TRUE(piece.IsPinned());
-  EXPECT_EQ(SpdyStringPiece("foobar"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("foobar"),
+            quiche::QuicheStringPiece(piece));
   EXPECT_EQ(0u, reader.Available());
 }
 
@@ -112,12 +115,12 @@ TEST_F(SpdyPrefixedBufferReaderTest, ReadMixed) {
   EXPECT_EQ(6u, reader.Available());
 
   EXPECT_TRUE(reader.ReadN(3, &piece));
-  EXPECT_EQ(SpdyStringPiece("fhi"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("fhi"), quiche::QuicheStringPiece(piece));
   EXPECT_TRUE(piece.IsPinned());
   EXPECT_EQ(3u, reader.Available());
 
   EXPECT_TRUE(reader.ReadN(2, &piece));
-  EXPECT_EQ(SpdyStringPiece("jk"), SpdyStringPiece(piece));
+  EXPECT_EQ(quiche::QuicheStringPiece("jk"), quiche::QuicheStringPiece(piece));
   EXPECT_FALSE(piece.IsPinned());
   EXPECT_EQ(1u, reader.Available());
 

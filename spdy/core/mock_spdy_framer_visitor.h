@@ -9,9 +9,9 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
@@ -61,7 +61,7 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
   MOCK_METHOD2(OnContinuation, void(SpdyStreamId stream_id, bool end));
   MOCK_METHOD3(OnAltSvc,
                void(SpdyStreamId stream_id,
-                    SpdyStringPiece origin,
+                    quiche::QuicheStringPiece origin,
                     const SpdyAltSvcWireFormat::AlternativeServiceVector&
                         altsvc_vector));
   MOCK_METHOD4(OnPriority,

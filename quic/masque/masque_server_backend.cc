@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/masque/masque_server_backend.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -39,9 +40,9 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
     // This request is missing required headers.
     return false;
   }
-  spdy::SpdyStringPiece path = path_pair->second;
-  spdy::SpdyStringPiece scheme = scheme_pair->second;
-  spdy::SpdyStringPiece method = method_pair->second;
+  quiche::QuicheStringPiece path = path_pair->second;
+  quiche::QuicheStringPiece scheme = scheme_pair->second;
+  quiche::QuicheStringPiece method = method_pair->second;
   if (scheme != "https" || method != "POST" || request_body.empty()) {
     // MASQUE requests MUST be a non-empty https POST.
     return false;
@@ -59,7 +60,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
       // Cannot enforce missing authority.
       return false;
     }
-    spdy::SpdyStringPiece authority = authority_pair->second;
+    quiche::QuicheStringPiece authority = authority_pair->second;
     if (server_authority_ != authority) {
       // This request does not match server_authority.
       return false;

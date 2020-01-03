@@ -65,7 +65,8 @@ class HpackDecoderAdapterPeer {
   explicit HpackDecoderAdapterPeer(HpackDecoderAdapter* decoder)
       : decoder_(decoder) {}
 
-  void HandleHeaderRepresentation(SpdyStringPiece name, SpdyStringPiece value) {
+  void HandleHeaderRepresentation(quiche::QuicheStringPiece name,
+                                  quiche::QuicheStringPiece value) {
     decoder_->listener_adapter_.OnHeader(HpackString(name), HpackString(value));
   }
 
@@ -132,7 +133,7 @@ class HpackDecoderAdapterTest
     }
   }
 
-  bool HandleControlFrameHeadersData(SpdyStringPiece str) {
+  bool HandleControlFrameHeadersData(quiche::QuicheStringPiece str) {
     SPDY_VLOG(3) << "HandleControlFrameHeadersData:\n" << SpdyHexDump(str);
     bytes_passed_in_ += str.size();
     return decoder_.HandleControlFrameHeadersData(str.data(), str.size());
@@ -146,7 +147,8 @@ class HpackDecoderAdapterTest
     return rc;
   }
 
-  bool DecodeHeaderBlock(SpdyStringPiece str, bool check_decoded_size = true) {
+  bool DecodeHeaderBlock(quiche::QuicheStringPiece str,
+                         bool check_decoded_size = true) {
     // Don't call this again if HandleControlFrameHeadersData failed previously.
     EXPECT_FALSE(decode_has_failed_);
     HandleControlFrameHeadersStart();
@@ -223,7 +225,8 @@ class HpackDecoderAdapterTest
     return size;
   }
 
-  const SpdyHeaderBlock& DecodeBlockExpectingSuccess(SpdyStringPiece str) {
+  const SpdyHeaderBlock& DecodeBlockExpectingSuccess(
+      quiche::QuicheStringPiece str) {
     EXPECT_TRUE(DecodeHeaderBlock(str));
     return decoded_block();
   }
@@ -429,12 +432,13 @@ TEST_P(HpackDecoderAdapterTest, HandleHeaderRepresentation) {
   // Resulting decoded headers are in the same order as the inputs.
   EXPECT_THAT(
       decoded_block(),
-      ElementsAre(Pair("cookie", " part 1; part 2 ; part3;  fin!"),
-                  Pair("passed-through", SpdyStringPiece("foo\0baz", 7)),
-                  Pair("joined", "not joined"),
-                  Pair("joineD", SpdyStringPiece("value 1\0value 2", 15)),
-                  Pair("empty", ""),
-                  Pair("empty-joined", SpdyStringPiece("\0foo\0\0", 6))));
+      ElementsAre(
+          Pair("cookie", " part 1; part 2 ; part3;  fin!"),
+          Pair("passed-through", quiche::QuicheStringPiece("foo\0baz", 7)),
+          Pair("joined", "not joined"),
+          Pair("joineD", quiche::QuicheStringPiece("value 1\0value 2", 15)),
+          Pair("empty", ""),
+          Pair("empty-joined", quiche::QuicheStringPiece("\0foo\0\0", 6))));
 }
 
 // Decoding indexed static table field should work.
@@ -499,7 +503,7 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendUint32(126);
 
     output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(126u, decoder_peer_.header_table_size_limit());
   }
   {
@@ -509,7 +513,7 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendUint32(kDefaultHeaderTableSizeSetting);
 
     output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -520,7 +524,7 @@ TEST_P(HpackDecoderAdapterTest, ContextUpdateMaximumSize) {
     output_stream.AppendUint32(kDefaultHeaderTableSizeSetting + 1);
 
     output_stream.TakeString(&input);
-    EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -538,7 +542,7 @@ TEST_P(HpackDecoderAdapterTest, TwoTableSizeUpdates) {
     output_stream.AppendUint32(122);
 
     output_stream.TakeString(&input);
-    EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(122u, decoder_peer_.header_table_size_limit());
   }
 }
@@ -558,7 +562,7 @@ TEST_P(HpackDecoderAdapterTest, ThreeTableSizeUpdatesError) {
 
     output_stream.TakeString(&input);
 
-    EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(10u, decoder_peer_.header_table_size_limit());
   }
 }
@@ -577,7 +581,7 @@ TEST_P(HpackDecoderAdapterTest, TableSizeUpdateSecondError) {
 
     output_stream.TakeString(&input);
 
-    EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(kDefaultHeaderTableSizeSetting,
               decoder_peer_.header_table_size_limit());
   }
@@ -600,7 +604,7 @@ TEST_P(HpackDecoderAdapterTest, TableSizeUpdateFirstThirdError) {
 
     output_stream.TakeString(&input);
 
-    EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece(input)));
+    EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece(input)));
     EXPECT_EQ(60u, decoder_peer_.header_table_size_limit());
   }
 }
@@ -612,7 +616,7 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
   // name.
   const char input[] = "\x04\x0c/sample/path\x00\x06:path2\x0e/sample/path/2";
   const SpdyHeaderBlock& header_set = DecodeBlockExpectingSuccess(
-      SpdyStringPiece(input, QUICHE_ARRAYSIZE(input) - 1));
+      quiche::QuicheStringPiece(input, QUICHE_ARRAYSIZE(input) - 1));
 
   SpdyHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";
@@ -625,7 +629,7 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
 TEST_P(HpackDecoderAdapterTest, LiteralHeaderIncrementalIndexing) {
   const char input[] = "\x44\x0c/sample/path\x40\x06:path2\x0e/sample/path/2";
   const SpdyHeaderBlock& header_set = DecodeBlockExpectingSuccess(
-      SpdyStringPiece(input, QUICHE_ARRAYSIZE(input) - 1));
+      quiche::QuicheStringPiece(input, QUICHE_ARRAYSIZE(input) - 1));
 
   SpdyHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";
@@ -638,23 +642,23 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderWithIndexingInvalidNameIndex) {
   EXPECT_TRUE(EncodeAndDecodeDynamicTableSizeUpdates(0, 0));
 
   // Name is the last static index. Works.
-  EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece("\x7d\x03ooo")));
+  EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x7d\x03ooo")));
   // Name is one beyond the last static index. Fails.
-  EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece("\x7e\x03ooo")));
+  EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x7e\x03ooo")));
 }
 
 TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexingInvalidNameIndex) {
   // Name is the last static index. Works.
-  EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece("\x0f\x2e\x03ooo")));
+  EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x0f\x2e\x03ooo")));
   // Name is one beyond the last static index. Fails.
-  EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece("\x0f\x2f\x03ooo")));
+  EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x0f\x2f\x03ooo")));
 }
 
 TEST_P(HpackDecoderAdapterTest, LiteralHeaderNeverIndexedInvalidNameIndex) {
   // Name is the last static index. Works.
-  EXPECT_TRUE(DecodeHeaderBlock(SpdyStringPiece("\x1f\x2e\x03ooo")));
+  EXPECT_TRUE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x1f\x2e\x03ooo")));
   // Name is one beyond the last static index. Fails.
-  EXPECT_FALSE(DecodeHeaderBlock(SpdyStringPiece("\x1f\x2f\x03ooo")));
+  EXPECT_FALSE(DecodeHeaderBlock(quiche::QuicheStringPiece("\x1f\x2f\x03ooo")));
 }
 
 TEST_P(HpackDecoderAdapterTest, TruncatedIndex) {
@@ -1051,10 +1055,10 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
   hbb.AppendDynamicTableSizeUpdate(0);
   hbb.AppendDynamicTableSizeUpdate(63);
 
-  const SpdyStringPiece name("some-name");
-  const SpdyStringPiece value1("some-value");
-  const SpdyStringPiece value2("another-value");
-  const SpdyStringPiece value3("yet-another-value");
+  const quiche::QuicheStringPiece name("some-name");
+  const quiche::QuicheStringPiece value1("some-value");
+  const quiche::QuicheStringPiece value2("another-value");
+  const quiche::QuicheStringPiece value3("yet-another-value");
 
   // Add an entry that will become the first in the dynamic table, entry 62.
   hbb.AppendLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader, false,

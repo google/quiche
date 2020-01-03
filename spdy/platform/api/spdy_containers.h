@@ -5,7 +5,6 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_CONTAINERS_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_CONTAINERS_H_
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_piece.h"
 #include "net/spdy/platform/impl/spdy_containers_impl.h"
 
 namespace spdy {
@@ -30,12 +29,6 @@ using SpdyLinkedHashMap = SpdyLinkedHashMapImpl<Key, Value, Hash, Eq>;
 // A vector optimized for small sizes. Provides the same APIs as a std::vector.
 template <typename T, size_t N, typename A = std::allocator<T>>
 using SpdyInlinedVector = SpdyInlinedVectorImpl<T, N, A>;
-
-using SpdyStringPieceHash = SpdyStringPieceHashImpl;
-
-inline size_t SpdyHashStringPair(SpdyStringPiece a, SpdyStringPiece b) {
-  return SpdyHashStringPairImpl(a, b);
-}
 
 // Used for maps that are typically small, then it is faster than (for example)
 // hash_map which is optimized for large data sets. SpdySmallMap upgrades itself
