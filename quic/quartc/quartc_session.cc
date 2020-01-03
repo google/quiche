@@ -471,7 +471,7 @@ QuicCryptoStream* QuartcServerSession::GetMutableCryptoStream() {
 }
 
 void QuartcServerSession::StartCryptoHandshake() {
-  crypto_stream_ = std::make_unique<QuicCryptoServerStream>(
+  crypto_stream_ = CreateCryptoServerStream(
       server_crypto_config_, compressed_certs_cache_, this, stream_helper_);
   Initialize();
 }

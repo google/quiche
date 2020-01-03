@@ -94,7 +94,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
       const QuicRstStreamFrame& frame) override;
 
   // QuicServerSessionBaseMethod:
-  QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
 

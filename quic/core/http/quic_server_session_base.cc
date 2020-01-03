@@ -36,8 +36,8 @@ QuicServerSessionBase::QuicServerSessionBase(
 QuicServerSessionBase::~QuicServerSessionBase() {}
 
 void QuicServerSessionBase::Initialize() {
-  crypto_stream_.reset(
-      CreateQuicCryptoServerStream(crypto_config_, compressed_certs_cache_));
+  crypto_stream_ =
+      CreateQuicCryptoServerStream(crypto_config_, compressed_certs_cache_);
   QuicSpdySession::Initialize();
 }
 

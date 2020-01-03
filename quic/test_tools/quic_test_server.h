@@ -54,7 +54,7 @@ class QuicTestServer : public QuicServer {
     virtual ~CryptoStreamFactory() {}
 
     // Returns a new QuicCryptoServerStreamBase owned by the caller
-    virtual QuicCryptoServerStreamBase* CreateCryptoStream(
+    virtual std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoStream(
         const QuicCryptoServerConfig* crypto_config,
         QuicServerSessionBase* session) = 0;
   };

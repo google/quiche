@@ -140,13 +140,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
                                       std::string* error_details) const = 0;
   };
 
-  // |crypto_config| must outlive the stream.
-  // |session| must outlive the stream.
-  // |helper| must outlive the stream.
-  QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
-                         QuicCompressedCertsCache* compressed_certs_cache,
-                         QuicSession* session,
-                         Helper* helper);
   QuicCryptoServerStream(const QuicCryptoServerStream&) = delete;
   QuicCryptoServerStream& operator=(const QuicCryptoServerStream&) = delete;
 
@@ -183,6 +176,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
       const ParsedQuicVersion& version) override;
 
  protected:
+  friend std::unique_ptr<QuicCryptoServerStream> CreateCryptoServerStream(
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QuicSession* session,
+      Helper* helper);
+
+  QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                         QuicCompressedCertsCache* compressed_certs_cache,
+                         QuicSession* session,
+                         Helper* helper);
   // Provided so that subclasses can provide their own handshaker.
   // set_handshaker can only be called if this QuicCryptoServerStream's
   // handshaker hasn't been set yet. If set_handshaker is called outside of
@@ -211,6 +214,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   QuicCompressedCertsCache* compressed_certs_cache_;
   Helper* helper_;
 };
+
+// Creates an appropriate QuicCryptoServerStream for the provided parameters,
+// including the version used by |session|. |crypto_config|, |session|, and
+// |helper| must all outlive the stream. The caller takes ownership of the
+// returned object.
+std::unique_ptr<QuicCryptoServerStream> CreateCryptoServerStream(
+    const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    QuicSession* session,
+    QuicCryptoServerStream::Helper* helper);
 
 }  // namespace quic
 

@@ -86,7 +86,8 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   // possibly closing the connection, and returns false.
   bool ShouldCreateIncomingStream(QuicStreamId id) override;
 
-  virtual QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
+  virtual std::unique_ptr<QuicCryptoServerStreamBase>
+  CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) = 0;
 

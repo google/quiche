@@ -50,9 +50,9 @@ QboneServerSession::QboneServerSession(
 QboneServerSession::~QboneServerSession() {}
 
 std::unique_ptr<QuicCryptoStream> QboneServerSession::CreateCryptoStream() {
-  return std::make_unique<QuicCryptoServerStream>(quic_crypto_server_config_,
-                                                  compressed_certs_cache_, this,
-                                                  &stream_helper_);
+  return CreateCryptoServerStream(quic_crypto_server_config_,
+                                  compressed_certs_cache_, this,
+                                  &stream_helper_);
 }
 
 void QboneServerSession::Initialize() {

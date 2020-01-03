@@ -103,11 +103,11 @@ class TestServerSession : public QuicServerSessionBase {
     return stream;
   }
 
-  QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override {
-    return new QuicCryptoServerStream(crypto_config, compressed_certs_cache,
-                                      this, stream_helper());
+    return CreateCryptoServerStream(crypto_config, compressed_certs_cache, this,
+                                    stream_helper());
   }
 
  private:

@@ -804,7 +804,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   MOCK_CONST_METHOD1(SelectAlpn,
                      std::vector<quiche::QuicheStringPiece>::const_iterator(
                          const std::vector<quiche::QuicheStringPiece>&));
-  QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
 

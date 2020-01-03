@@ -661,12 +661,12 @@ TestQuicSpdyServerSession::~TestQuicSpdyServerSession() {
   DeleteConnection();
 }
 
-QuicCryptoServerStreamBase*
+std::unique_ptr<QuicCryptoServerStreamBase>
 TestQuicSpdyServerSession::CreateQuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache) {
-  return new QuicCryptoServerStream(crypto_config, compressed_certs_cache, this,
-                                    &helper_);
+  return CreateCryptoServerStream(crypto_config, compressed_certs_cache, this,
+                                  &helper_);
 }
 
 void TestQuicSpdyServerSession::OnCryptoHandshakeEvent(

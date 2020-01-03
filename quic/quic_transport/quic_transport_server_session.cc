@@ -55,7 +55,7 @@ QuicTransportServerSession::QuicTransportServerSession(
 
   static QuicTransportServerCryptoHelper* helper =
       new QuicTransportServerCryptoHelper();
-  crypto_stream_ = std::make_unique<QuicCryptoServerStream>(
+  crypto_stream_ = CreateCryptoServerStream(
       crypto_config, compressed_certs_cache, this, helper);
 }
 

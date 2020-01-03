@@ -27,6 +27,15 @@ namespace quic {
 QuicCryptoServerStreamBase::QuicCryptoServerStreamBase(QuicSession* session)
     : QuicCryptoStream(session) {}
 
+std::unique_ptr<QuicCryptoServerStream> CreateCryptoServerStream(
+    const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    QuicSession* session,
+    QuicCryptoServerStream::Helper* helper) {
+  return std::unique_ptr<QuicCryptoServerStream>(new QuicCryptoServerStream(
+      crypto_config, compressed_certs_cache, session, helper));
+}
+
 QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,

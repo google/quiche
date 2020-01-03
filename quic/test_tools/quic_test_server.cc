@@ -55,7 +55,7 @@ class CustomStreamSession : public QuicSimpleServerSession {
     return QuicSimpleServerSession::CreateIncomingStream(id);
   }
 
-  QuicCryptoServerStreamBase* CreateQuicCryptoServerStream(
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override {
     if (crypto_stream_factory_) {
