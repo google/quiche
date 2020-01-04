@@ -50,9 +50,6 @@ class QuicFramerPeer {
                                     const QuicStreamFrame& frame,
                                     bool last_frame_in_packet,
                                     QuicDataWriter* writer);
-  static bool ProcessCryptoFrame(QuicFramer* framer,
-                                 QuicDataReader* reader,
-                                 QuicCryptoFrame* frame);
   static bool AppendCryptoFrame(QuicFramer* framer,
                                 const QuicCryptoFrame& frame,
                                 QuicDataWriter* writer);

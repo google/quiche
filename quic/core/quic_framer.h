@@ -900,7 +900,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                    QuicRstStreamFrame* frame);
   bool ProcessStopSendingFrame(QuicDataReader* reader,
                                QuicStopSendingFrame* stop_sending_frame);
-  bool ProcessCryptoFrame(QuicDataReader* reader, QuicCryptoFrame* frame);
+  bool ProcessCryptoFrame(QuicDataReader* reader,
+                          EncryptionLevel encryption_level,
+                          QuicCryptoFrame* frame);
 
   // IETF frame appending methods.  All methods append the type byte as well.
   bool AppendIetfStreamFrame(const QuicStreamFrame& frame,

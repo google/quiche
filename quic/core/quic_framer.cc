@@ -2907,7 +2907,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
           return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
         QuicCryptoFrame frame;
-        if (!ProcessCryptoFrame(reader, &frame)) {
+        if (!ProcessCryptoFrame(reader, GetEncryptionLevel(header), &frame)) {
           return RaiseError(QUIC_INVALID_FRAME_DATA);
         }
         QUIC_DVLOG(2) << ENDPOINT << "Processing crypto frame " << frame;
@@ -3237,7 +3237,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_CRYPTO: {
           QuicCryptoFrame frame;
-          if (!ProcessCryptoFrame(reader, &frame)) {
+          if (!ProcessCryptoFrame(reader, GetEncryptionLevel(header), &frame)) {
             return RaiseError(QUIC_INVALID_FRAME_DATA);
           }
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF crypto frame " << frame;
@@ -3404,7 +3404,9 @@ bool QuicFramer::ProcessIetfStreamFrame(QuicDataReader* reader,
 }
 
 bool QuicFramer::ProcessCryptoFrame(QuicDataReader* reader,
+                                    EncryptionLevel encryption_level,
                                     QuicCryptoFrame* frame) {
+  frame->level = encryption_level;
   if (!reader->ReadVarInt62(&frame->offset)) {
     set_detailed_error("Unable to read crypto data offset.");
     return false;

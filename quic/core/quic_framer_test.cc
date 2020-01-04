@@ -299,7 +299,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
         new std::string(frame.data_buffer, frame.data_length);
     crypto_data_.push_back(QuicWrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
-        ENCRYPTION_INITIAL, frame.offset, *string_data));
+        frame.level, frame.offset, *string_data));
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_EQ(IETF_CRYPTO, framer_->current_received_frame_type());
     } else {
@@ -6471,7 +6471,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 }
 
 TEST_P(QuicFramerTest, CryptoFrame) {
-  if (framer_.transport_version() < QUIC_VERSION_48) {
+  if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
     // CRYPTO frames aren't supported prior to v48.
     return;
   }
@@ -6546,6 +6546,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
   ASSERT_EQ(1u, visitor_.crypto_frames_.size());
   QuicCryptoFrame* frame = visitor_.crypto_frames_[0].get();
+  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, frame->level);
   EXPECT_EQ(kStreamOffset, frame->offset);
   EXPECT_EQ("hello world!",
             std::string(frame->data_buffer, frame->data_length));
