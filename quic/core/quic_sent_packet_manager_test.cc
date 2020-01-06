@@ -3173,11 +3173,7 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
 
   // Successfully decrypt a forward secure packet.
-  if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
-  }
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
   manager_.SetHandshakeConfirmed();
 
   // 1st TLP.
@@ -3197,19 +3193,10 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   manager_.MaybeRetransmitTailLossProbe();
 
   // RTO retransmits SHLO although it is not in flight.
-  size_t num_rto_packets = 2;
-  if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
-    num_rto_packets = 1;
-  }
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .Times(num_rto_packets)
       .WillOnce(WithArgs<0>(Invoke([&crypto_frame](const QuicFrames& frames) {
         EXPECT_EQ(1u, frames.size());
-        if (GetQuicReloadableFlag(quic_neuter_handshake_packets_once2)) {
-          EXPECT_NE(crypto_frame, frames[0].stream_frame);
-        } else {
-          EXPECT_EQ(crypto_frame, frames[0].stream_frame);
-        }
+        EXPECT_NE(crypto_frame, frames[0].stream_frame);
       })));
   manager_.OnRetransmissionTimeout();
 }
