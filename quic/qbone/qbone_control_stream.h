@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_QBONE_QBONE_CONTROL_STREAM_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_control.pb.h"
 
 namespace quic {
