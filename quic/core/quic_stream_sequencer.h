@@ -206,11 +206,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // If false, only call OnDataAvailable() when it becomes newly unblocked.
   // Otherwise, call OnDataAvailable() when number of readable bytes changes.
   bool level_triggered_;
-
-  // Latched value of quic_close_connection_and_discard_data_on_wrong_offset.
-  // When true, the sequencer will inform the stream to close connection when
-  // wrong offset is received. And the stream frame's data will be discarded.
-  const bool close_connection_and_discard_data_on_wrong_offset_;
 };
 
 }  // namespace quic

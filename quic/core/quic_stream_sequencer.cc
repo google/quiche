@@ -33,9 +33,7 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       num_frames_received_(0),
       num_duplicate_frames_received_(0),
       ignore_read_data_(false),
-      level_triggered_(false),
-      close_connection_and_discard_data_on_wrong_offset_(GetQuicReloadableFlag(
-          quic_close_connection_and_discard_data_on_wrong_offset)) {}
+      level_triggered_(false) {}
 
 QuicStreamSequencer::~QuicStreamSequencer() {}
 
@@ -50,12 +48,8 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
     if (data_len == 0) {
       return;
     }
-    if (close_connection_and_discard_data_on_wrong_offset_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_close_connection_and_discard_data_on_wrong_offset, 1, 3);
-      if (!should_process_data) {
-        return;
-      }
+    if (!should_process_data) {
+      return;
     }
   }
   OnFrameData(byte_offset, data_len, frame.data_buffer);
@@ -126,12 +120,6 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // If there is a scheduled close, the new offset should match it.
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
-    if (!close_connection_and_discard_data_on_wrong_offset_) {
-      stream_->Reset(QUIC_MULTIPLE_TERMINATION_OFFSETS);
-      return false;
-    }
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_close_connection_and_discard_data_on_wrong_offset, 2, 3);
     stream_->CloseConnectionWithDetails(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
         quiche::QuicheStrCat(
@@ -142,10 +130,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // The final offset should be no less than the highest offset that is
   // received.
-  if (close_connection_and_discard_data_on_wrong_offset_ &&
-      offset < highest_offset_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_close_connection_and_discard_data_on_wrong_offset, 3, 3);
+  if (offset < highest_offset_) {
     stream_->CloseConnectionWithDetails(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
         quiche::QuicheStrCat(
