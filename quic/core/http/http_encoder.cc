@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
 
