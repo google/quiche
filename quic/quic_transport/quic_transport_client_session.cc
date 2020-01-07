@@ -7,9 +7,11 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "url/gurl.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -18,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -35,6 +38,9 @@ class DummyProofHandler : public QuicCryptoClientStream::ProofHandler {
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& /*verify_details*/) override {}
 };
+
+constexpr float kIncomingDatagramBufferSizeInCwnds = 2;
+
 }  // namespace
 
 QuicTransportClientSession::QuicTransportClientSession(
@@ -253,6 +259,29 @@ void QuicTransportClientSession::SendClientIndication() {
 
   ready_ = true;
   visitor_->OnSessionReady();
+}
+
+void QuicTransportClientSession::OnMessageReceived(
+    quiche::QuicheStringPiece message) {
+  max_incoming_datagrams_ = std::max<size_t>(
+      max_incoming_datagrams_,
+      kIncomingDatagramBufferSizeInCwnds *
+          connection()->sent_packet_manager().GetCongestionWindowInBytes());
+  if (incoming_datagrams_.size() >= max_incoming_datagrams_) {
+    return;
+  }
+
+  incoming_datagrams_.push_back(std::string(message));
+  visitor_->OnIncomingDatagramAvailable();
+}
+
+QuicOptional<std::string> QuicTransportClientSession::ReadDatagram() {
+  if (incoming_datagrams_.empty()) {
+    return QuicOptional<std::string>();
+  }
+  std::string datagram = std::move(incoming_datagrams_.front());
+  incoming_datagrams_.pop_front();
+  return datagram;
 }
 
 }  // namespace quic

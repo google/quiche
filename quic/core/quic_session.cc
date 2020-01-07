@@ -94,6 +94,7 @@ QuicSession::QuicSession(
       goaway_received_(false),
       control_frame_manager_(this),
       last_message_id_(0),
+      datagram_queue_(this),
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),
@@ -571,6 +572,7 @@ void QuicSession::OnCanWrite() {
                           ? write_blocked_streams_.NumBlockedSpecialStreams()
                           : write_blocked_streams_.NumBlockedStreams();
   if (num_writes == 0 && !control_frame_manager_.WillingToWrite() &&
+      datagram_queue_.empty() &&
       (!QuicVersionUsesCryptoFrames(transport_version()) ||
        !GetCryptoStream()->HasBufferedCryptoFrames())) {
     return;
@@ -590,6 +592,15 @@ void QuicSession::OnCanWrite() {
   }
   if (control_frame_manager_.WillingToWrite()) {
     control_frame_manager_.OnCanWrite();
+  }
+  // TODO(b/147146815): this makes all datagrams go before stream data.  We
+  // should have a better priority scheme for this.
+  if (!datagram_queue_.empty()) {
+    size_t written = datagram_queue_.SendDatagrams();
+    QUIC_DVLOG(1) << ENDPOINT << "Sent " << written << " datagrams";
+    if (!datagram_queue_.empty()) {
+      return;
+    }
   }
   for (size_t i = 0; i < num_writes; ++i) {
     if (!(write_blocked_streams_.HasWriteBlockedSpecialStream() ||

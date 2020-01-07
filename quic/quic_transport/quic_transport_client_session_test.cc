@@ -168,6 +168,17 @@ TEST_F(QuicTransportClientSessionTest, ReceiveNewStreams) {
   EXPECT_EQ(stream->id(), id);
 }
 
+TEST_F(QuicTransportClientSessionTest, ReceiveDatagram) {
+  QuicOptional<std::string> datagram = session_->ReadDatagram();
+  EXPECT_FALSE(datagram.has_value());
+
+  EXPECT_CALL(visitor_, OnIncomingDatagramAvailable());
+  session_->OnMessageReceived("test");
+  datagram = session_->ReadDatagram();
+  ASSERT_TRUE(datagram.has_value());
+  EXPECT_EQ("test", *datagram);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

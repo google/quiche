@@ -51,6 +51,7 @@ class QuicTransportSimpleServerSession
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
   bool CheckOrigin(url::Origin origin) override;
   bool ProcessPath(const GURL& url) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
   void EchoStreamBack(const std::string& data) {
     streams_to_echo_back_.push_back(data);

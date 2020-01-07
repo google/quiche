@@ -1251,6 +1251,10 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
                           quiche::QuicheStringPiece message_data,
                           QuicMemSliceStorage* storage);
 
+// Creates a MemSlice using a singleton trivial buffer allocator.  Performs a
+// copy.
+QuicMemSlice MemSliceFromString(quiche::QuicheStringPiece data);
+
 // Used to compare ReceivedPacketInfo.
 MATCHER_P(ReceivedPacketInfoEquals, info, "") {
   return info.ToString() == arg.ToString();

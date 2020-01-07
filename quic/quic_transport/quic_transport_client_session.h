@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
@@ -46,6 +47,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     // AcceptIncomingUnidirectionalStream().
     virtual void OnIncomingBidirectionalStreamAvailable() = 0;
     virtual void OnIncomingUnidirectionalStreamAvailable() = 0;
+
+    // Notifies the visitor when a new datagram has been received.
+    virtual void OnIncomingDatagramAvailable() = 0;
   };
 
   QuicTransportClientSession(QuicConnection* connection,
@@ -89,6 +93,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
+  void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming
@@ -100,6 +105,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
   QuicTransportStream* OpenOutgoingBidirectionalStream();
   QuicTransportStream* OpenOutgoingUnidirectionalStream();
+
+  using QuicSession::datagram_queue;
+  QuicOptional<std::string> ReadDatagram();
 
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
@@ -140,6 +148,11 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   // before sending MAX_STREAMS.
   QuicDeque<QuicTransportStream*> incoming_bidirectional_streams_;
   QuicDeque<QuicTransportStream*> incoming_unidirectional_streams_;
+
+  // Buffer for the incoming datagrams.
+  QuicDeque<std::string> incoming_datagrams_;
+  // Maximum size of the |incoming_datagrams_| buffer.  Can only go up.
+  size_t max_incoming_datagrams_ = 128;
 };
 
 }  // namespace quic

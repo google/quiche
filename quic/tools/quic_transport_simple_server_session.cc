@@ -8,6 +8,7 @@
 
 #include "url/gurl.h"
 #include "url/origin.h"
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -210,6 +211,18 @@ bool QuicTransportSimpleServerSession::ProcessPath(const GURL& url) {
 
   QUIC_DLOG(WARNING) << "Unknown path requested: " << url.path();
   return false;
+}
+
+void QuicTransportSimpleServerSession::OnMessageReceived(
+    quiche::QuicheStringPiece message) {
+  if (mode_ != ECHO) {
+    return;
+  }
+  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(
+      connection()->helper()->GetStreamSendBufferAllocator(), message.size());
+  memcpy(buffer.get(), message.data(), message.size());
+  datagram_queue()->SendOrQueueDatagram(
+      QuicMemSlice(std::move(buffer), message.size()));
 }
 
 void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {

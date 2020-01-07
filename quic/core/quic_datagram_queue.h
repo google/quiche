@@ -5,12 +5,15 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 #define QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 
 namespace quic {
+
+class QuicSession;
 
 // Provides a way to buffer QUIC datagrams (messages) in case they cannot
 // be sent due to congestion control.  Datagrams are buffered for a limited
@@ -42,6 +45,8 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   }
 
   size_t queue_size() { return queue_.size(); }
+
+  bool empty() { return queue_.empty(); }
 
  private:
   struct QUIC_EXPORT_PRIVATE Datagram {

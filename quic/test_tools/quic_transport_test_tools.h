@@ -17,6 +17,7 @@ class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
   MOCK_METHOD0(OnSessionReady, void());
   MOCK_METHOD0(OnIncomingBidirectionalStreamAvailable, void());
   MOCK_METHOD0(OnIncomingUnidirectionalStreamAvailable, void());
+  MOCK_METHOD0(OnIncomingDatagramAvailable, void());
 };
 
 class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {

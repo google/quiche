@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_control_frame_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_datagram_queue.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -616,6 +617,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return stream_id_manager_;
   }
 
+  QuicDatagramQueue* datagram_queue() { return &datagram_queue_; }
+
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules. Returns true if the pending stream
   // is converted into a normal stream.
@@ -787,6 +790,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Id of latest successfully sent message.
   QuicMessageId last_message_id_;
+
+  // The buffer used to queue the DATAGRAM frames.
+  QuicDatagramQueue datagram_queue_;
 
   // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
   // is not used here.

@@ -17,9 +17,11 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
+#include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -1262,6 +1264,13 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
                       message_data.length()};
   *storage = QuicMemSliceStorage(&iov, 1, allocator, kMaxOutgoingPacketSize);
   return storage->ToSpan();
+}
+
+QuicMemSlice MemSliceFromString(quiche::QuicheStringPiece data) {
+  static SimpleBufferAllocator* allocator = new SimpleBufferAllocator();
+  QuicUniqueBufferPtr buffer = MakeUniqueBuffer(allocator, data.size());
+  memcpy(buffer.get(), data.data(), data.size());
+  return QuicMemSlice(std::move(buffer), data.size());
 }
 
 }  // namespace test

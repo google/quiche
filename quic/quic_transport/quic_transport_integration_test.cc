@@ -12,11 +12,13 @@
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
+#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_client_session.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
@@ -322,6 +324,58 @@ TEST_F(QuicTransportIntegrationTest, EchoUnidirectionalStreams) {
   reply->set_visitor(VisitorExpectingFin());
   EXPECT_GT(reply->Read(&buffer), 0u);
   EXPECT_EQ(buffer, "Stream One");
+}
+
+TEST_F(QuicTransportIntegrationTest, EchoDatagram) {
+  CreateDefaultEndpoints("/echo");
+  WireUpEndpoints();
+  RunHandshake();
+
+  client_->session()->datagram_queue()->SendOrQueueDatagram(
+      MemSliceFromString("test"));
+
+  bool datagram_received = false;
+  EXPECT_CALL(*client_->visitor(), OnIncomingDatagramAvailable())
+      .WillOnce(Assign(&datagram_received, true));
+  ASSERT_TRUE(simulator_.RunUntilOrTimeout(
+      [&datagram_received]() { return datagram_received; }, kDefaultTimeout));
+
+  QuicOptional<std::string> datagram = client_->session()->ReadDatagram();
+  ASSERT_TRUE(datagram.has_value());
+  EXPECT_EQ("test", *datagram);
+}
+
+// This test sets the datagram queue to an nearly-infinte queueing time, and
+// then sends 1000 datagrams.  We expect to receive most of them back, since the
+// datagrams would be paced out by the congestion controller.
+TEST_F(QuicTransportIntegrationTest, EchoALotOfDatagrams) {
+  CreateDefaultEndpoints("/echo");
+  WireUpEndpoints();
+  RunHandshake();
+
+  // Set the datagrams to effectively never expire.
+  client_->session()->datagram_queue()->SetMaxTimeInQueue(10000 * kRtt);
+  for (int i = 0; i < 1000; i++) {
+    client_->session()->datagram_queue()->SendOrQueueDatagram(
+        MemSliceFromString(std::string(
+            client_->session()->GetGuaranteedLargestMessagePayload(), 'a')));
+  }
+
+  size_t received = 0;
+  EXPECT_CALL(*client_->visitor(), OnIncomingDatagramAvailable())
+      .WillRepeatedly([this, &received]() {
+        while (client_->session()->ReadDatagram().has_value()) {
+          received++;
+        }
+      });
+  ASSERT_TRUE(simulator_.RunUntilOrTimeout(
+      [this]() { return client_->session()->datagram_queue()->empty(); },
+      3 * kServerBandwidth.TransferTime(1000 * kMaxOutgoingPacketSize)));
+  // Allow extra round-trips for the final flight of datagrams to arrive back.
+  simulator_.RunFor(2 * kRtt);
+
+  EXPECT_GT(received, 500u);
+  EXPECT_LT(received, 1000u);
 }
 
 }  // namespace
