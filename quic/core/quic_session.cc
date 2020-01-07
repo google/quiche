@@ -1059,13 +1059,10 @@ void QuicSession::OnConfigNegotiated() {
         use_http2_priority_write_scheduler_ =
             write_blocked_streams_.SwitchWriteScheduler(
                 spdy::WriteSchedulerType::HTTP2, transport_version());
-      } else if (GetQuicReloadableFlag(quic_enable_fifo_write_scheduler) &&
-                 ContainsQuicTag(config_.ReceivedConnectionOptions(), kFIFO)) {
+      } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kFIFO)) {
         // Enable FIFO write scheduler.
-        if (write_blocked_streams_.SwitchWriteScheduler(
-                spdy::WriteSchedulerType::FIFO, transport_version())) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_enable_fifo_write_scheduler);
-        }
+        write_blocked_streams_.SwitchWriteScheduler(
+            spdy::WriteSchedulerType::FIFO, transport_version());
       } else if (GetQuicReloadableFlag(quic_enable_lifo_write_scheduler) &&
                  ContainsQuicTag(config_.ReceivedConnectionOptions(), kLIFO)) {
         // Enable LIFO write scheduler.
