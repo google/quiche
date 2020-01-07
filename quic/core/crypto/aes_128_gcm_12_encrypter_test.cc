@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -215,9 +216,9 @@ TEST_F(Aes128Gcm12EncrypterTest, Encrypt) {
       tag.resize(Aes128Gcm12Encrypter::kAuthTagSize);
 
       ASSERT_EQ(ct.length() + tag.length(), encrypted->length());
-      test::CompareCharArraysWithHexError("ciphertext", encrypted->data(),
-                                          ct.length(), ct.data(), ct.length());
-      test::CompareCharArraysWithHexError(
+      quiche::test::CompareCharArraysWithHexError(
+          "ciphertext", encrypted->data(), ct.length(), ct.data(), ct.length());
+      quiche::test::CompareCharArraysWithHexError(
           "authentication tag", encrypted->data() + ct.length(), tag.length(),
           tag.data(), tag.length());
     }

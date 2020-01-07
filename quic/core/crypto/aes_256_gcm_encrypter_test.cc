@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -216,9 +217,9 @@ TEST_F(Aes256GcmEncrypterTest, Encrypt) {
       ASSERT_TRUE(encrypted.get());
 
       ASSERT_EQ(ct.length() + tag.length(), encrypted->length());
-      test::CompareCharArraysWithHexError("ciphertext", encrypted->data(),
-                                          ct.length(), ct.data(), ct.length());
-      test::CompareCharArraysWithHexError(
+      quiche::test::CompareCharArraysWithHexError(
+          "ciphertext", encrypted->data(), ct.length(), ct.data(), ct.length());
+      quiche::test::CompareCharArraysWithHexError(
           "authentication tag", encrypted->data() + ct.length(), tag.length(),
           tag.data(), tag.length());
     }
@@ -249,9 +250,9 @@ TEST_F(Aes256GcmEncrypterTest, GenerateHeaderProtectionMask) {
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
   std::string expected_mask =
       quiche::QuicheTextUtils::HexDecode("db9ed4e6ccd033af2eae01407199c56e");
-  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
-                                      mask.size(), expected_mask.data(),
-                                      expected_mask.size());
+  quiche::test::CompareCharArraysWithHexError(
+      "header protection mask", mask.data(), mask.size(), expected_mask.data(),
+      expected_mask.size());
 }
 
 }  // namespace test

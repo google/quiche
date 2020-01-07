@@ -6,6 +6,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -42,7 +43,7 @@ TEST_F(NullEncrypterTest, EncryptClient) {
   NullEncrypter encrypter(Perspective::IS_CLIENT);
   ASSERT_TRUE(encrypter.EncryptPacket(0, "hello world!", "goodbye!", encrypted,
                                       &encrypted_len, 256));
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "encrypted data", encrypted, encrypted_len,
       reinterpret_cast<const char*>(expected), QUICHE_ARRAYSIZE(expected));
 }
@@ -77,7 +78,7 @@ TEST_F(NullEncrypterTest, EncryptServer) {
   NullEncrypter encrypter(Perspective::IS_SERVER);
   ASSERT_TRUE(encrypter.EncryptPacket(0, "hello world!", "goodbye!", encrypted,
                                       &encrypted_len, 256));
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "encrypted data", encrypted, encrypted_len,
       reinterpret_cast<const char*>(expected), QUICHE_ARRAYSIZE(expected));
 }

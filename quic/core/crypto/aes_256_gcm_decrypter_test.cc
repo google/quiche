@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -270,8 +271,8 @@ TEST_F(Aes256GcmDecrypterTest, Decrypt) {
       EXPECT_TRUE(has_pt);
 
       ASSERT_EQ(pt.length(), decrypted->length());
-      test::CompareCharArraysWithHexError("plaintext", decrypted->data(),
-                                          pt.length(), pt.data(), pt.length());
+      quiche::test::CompareCharArraysWithHexError(
+          "plaintext", decrypted->data(), pt.length(), pt.data(), pt.length());
     }
   }
 }
@@ -287,9 +288,9 @@ TEST_F(Aes256GcmDecrypterTest, GenerateHeaderProtectionMask) {
   std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
   std::string expected_mask =
       quiche::QuicheTextUtils::HexDecode("db9ed4e6ccd033af2eae01407199c56e");
-  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
-                                      mask.size(), expected_mask.data(),
-                                      expected_mask.size());
+  quiche::test::CompareCharArraysWithHexError(
+      "header protection mask", mask.data(), mask.size(), expected_mask.data(),
+      expected_mask.size());
 }
 
 }  // namespace test

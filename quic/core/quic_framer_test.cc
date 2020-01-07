@@ -33,6 +33,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
 using testing::Return;
@@ -5815,7 +5816,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -5931,8 +5932,8 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
@@ -6004,7 +6005,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -6079,7 +6080,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -6154,7 +6155,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -6253,8 +6254,8 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
     p = packet46;
     p_size = QUICHE_ARRAYSIZE(packet46);
   }
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
@@ -6386,8 +6387,8 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
     p = packet46;
     p_size = QUICHE_ARRAYSIZE(packet46);
   }
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
@@ -6465,9 +6466,9 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      packet_size);
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(packet), packet_size);
 }
 
 TEST_P(QuicFramerTest, CryptoFrame) {
@@ -6612,8 +6613,8 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
           framer_.transport_version() > QUIC_VERSION_43,
           framer_.version().HasLengthPrefixedConnectionIds(),
           SupportedVersions(GetParam())));
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
@@ -6647,9 +6648,9 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
       QuicFramer::BuildVersionNegotiationPacket(
           server_connection_id, client_connection_id, true, true,
           SupportedVersions(GetParam())));
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
@@ -6741,8 +6742,8 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
@@ -6834,8 +6835,8 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
@@ -6983,8 +6984,8 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
@@ -7292,8 +7293,8 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildNewStopWaitingPacket) {
@@ -7332,9 +7333,9 @@ TEST_P(QuicFramerTest, BuildNewStopWaitingPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
@@ -7428,8 +7429,8 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildCloseFramePacket) {
@@ -7529,8 +7530,8 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
@@ -7634,8 +7635,8 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
@@ -7819,8 +7820,8 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
@@ -7870,9 +7871,9 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
@@ -7952,9 +7953,9 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildGoAwayPacket) {
@@ -8035,8 +8036,8 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
@@ -8172,8 +8173,8 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
@@ -8256,8 +8257,8 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
     p_size = QUICHE_ARRAYSIZE(packet46);
   }
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
@@ -8300,9 +8301,9 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildMaxDataPacket) {
@@ -8344,9 +8345,9 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildBlockedPacket) {
@@ -8428,8 +8429,8 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
     p_size = QUICHE_ARRAYSIZE(packet46);
   }
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p), p_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildPingPacket) {
@@ -8490,7 +8491,7 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -8562,9 +8563,9 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(p),
-                                      QUICHE_ARRAYSIZE(packet46));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(p),
+      QUICHE_ARRAYSIZE(packet46));
 }
 
 
@@ -8627,7 +8628,7 @@ TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
     p = packet46;
   }
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
@@ -8665,9 +8666,9 @@ TEST_P(QuicFramerTest, BuildPublicResetPacket) {
   std::unique_ptr<QuicEncryptedPacket> data(
       framer_.BuildPublicResetPacket(reset_packet));
   ASSERT_TRUE(data != nullptr);
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildPublicResetPacketWithClientAddress) {
@@ -8714,9 +8715,9 @@ TEST_P(QuicFramerTest, BuildPublicResetPacketWithClientAddress) {
       framer_.BuildPublicResetPacket(reset_packet));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildPublicResetPacketWithEndpointId) {
@@ -8788,11 +8789,11 @@ TEST_P(QuicFramerTest, BuildPublicResetPacketWithEndpointId) {
 
   // Variant 1 ends with char 'd'. Variant 1 ends with char 0xAB.
   if ('d' == data->data()[data->length() - 1]) {
-    test::CompareCharArraysWithHexError(
+    quiche::test::CompareCharArraysWithHexError(
         "constructed packet", data->data(), data->length(),
         AsChars(packet_variant1), QUICHE_ARRAYSIZE(packet_variant1));
   } else {
-    test::CompareCharArraysWithHexError(
+    quiche::test::CompareCharArraysWithHexError(
         "constructed packet", data->data(), data->length(),
         AsChars(packet_variant2), QUICHE_ARRAYSIZE(packet_variant2));
   }
@@ -8816,13 +8817,13 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
                                             kTestStatelessResetToken));
   ASSERT_TRUE(data != nullptr);
   // Skip packet number byte which is random in stateless reset packet.
-  test::CompareCharArraysWithHexError("constructed packet", data->data(), 1,
-                                      AsChars(packet), 1);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), 1, AsChars(packet), 1);
   const size_t random_bytes_length =
       data->length() - kPacketHeaderTypeSize - sizeof(kTestStatelessResetToken);
   EXPECT_EQ(kMinRandomBytesLengthInStatelessReset, random_bytes_length);
   // Verify stateless reset token is correct.
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet",
       data->data() + data->length() - sizeof(kTestStatelessResetToken),
       sizeof(kTestStatelessResetToken),
@@ -9436,9 +9437,9 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
@@ -9524,9 +9525,9 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
@@ -10173,9 +10174,9 @@ TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
@@ -10215,9 +10216,9 @@ TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
@@ -10257,9 +10258,9 @@ TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
@@ -10302,9 +10303,9 @@ TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, NewConnectionIdFrame) {
@@ -10576,9 +10577,9 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, NewTokenFrame) {
@@ -10670,9 +10671,9 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, IetfStopSendingFrame) {
@@ -10758,9 +10759,9 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
@@ -10841,9 +10842,9 @@ TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, IetfPathResponseFrame) {
@@ -10924,9 +10925,9 @@ TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
@@ -11729,9 +11730,9 @@ TEST_P(QuicFramerTest, BuildRetireConnectionIdFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet99),
-                                      QUICHE_ARRAYSIZE(packet99));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet99),
+      QUICHE_ARRAYSIZE(packet99));
 }
 
 TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
@@ -12259,7 +12260,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
   ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
   ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
-  CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
       visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
   if (framer_.version().KnowsWhichDecrypterToUse()) {
@@ -12361,7 +12362,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   ASSERT_EQ(1u, visitor_.undecryptable_packets_.size());
   ASSERT_EQ(1u, visitor_.undecryptable_decryption_levels_.size());
   ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
-  CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
       visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
   if (framer_.version().KnowsWhichDecrypterToUse()) {
@@ -12527,10 +12528,10 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
   ASSERT_EQ(1u, visitor_.undecryptable_has_decryption_keys_.size());
   // Make sure we only receive the first undecryptable packet and not the
   // full packet including the second coalesced packet.
-  CompareCharArraysWithHexError("undecryptable packet",
-                                visitor_.undecryptable_packets_[0]->data(),
-                                visitor_.undecryptable_packets_[0]->length(),
-                                AsChars(p), length_of_first_coalesced_packet);
+  quiche::test::CompareCharArraysWithHexError(
+      "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
+      visitor_.undecryptable_packets_[0]->length(), AsChars(p),
+      length_of_first_coalesced_packet);
   EXPECT_EQ(ENCRYPTION_HANDSHAKE, visitor_.undecryptable_decryption_levels_[0]);
   EXPECT_TRUE(visitor_.undecryptable_has_decryption_keys_[0]);
 
@@ -13254,9 +13255,9 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
   EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
       packet, sizeof(packet), destination_connection_id_bytes,
       sizeof(destination_connection_id_bytes)));
-  test::CompareCharArraysWithHexError("constructed packet", packet,
-                                      sizeof(packet), expected_packet,
-                                      sizeof(expected_packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet", packet,
+                                              sizeof(packet), expected_packet,
+                                              sizeof(expected_packet));
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet), false);
   // Make sure we fail to parse this packet for the version under test.
@@ -13354,9 +13355,9 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {
   EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
       packet, sizeof(packet), destination_connection_id_bytes,
       sizeof(destination_connection_id_bytes)));
-  test::CompareCharArraysWithHexError("constructed packet", packet,
-                                      sizeof(packet), expected_packet,
-                                      sizeof(expected_packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet", packet,
+                                              sizeof(packet), expected_packet,
+                                              sizeof(expected_packet));
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet), false);
   if (!framer_.version().HasLengthPrefixedConnectionIds()) {
@@ -13555,7 +13556,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponseOld) {
       reinterpret_cast<char*>(parsed_probe_payload_bytes),
       &parsed_probe_payload_length, &parse_detailed_error));
   EXPECT_EQ("", parse_detailed_error);
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "parsed probe", parsed_probe_payload_bytes, parsed_probe_payload_length,
       probe_payload_bytes, sizeof(probe_payload_bytes));
 }
@@ -13586,7 +13587,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
       reinterpret_cast<char*>(parsed_probe_payload_bytes),
       &parsed_probe_payload_length, &parse_detailed_error));
   EXPECT_EQ("", parse_detailed_error);
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "parsed probe", parsed_probe_payload_bytes, parsed_probe_payload_length,
       probe_payload_bytes, sizeof(probe_payload_bytes));
 }

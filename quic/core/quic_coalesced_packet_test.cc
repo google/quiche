@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -105,8 +106,8 @@ TEST(QuicCoalescedPacketTest, CopyEncryptedBuffers) {
   char expected[1000];
   memset(expected, 'a', 500);
   memset(expected + 500, 'b', 500);
-  test::CompareCharArraysWithHexError("copied buffers", copy_buffer,
-                                      length_copied, expected, 1000);
+  quiche::test::CompareCharArraysWithHexError("copied buffers", copy_buffer,
+                                              length_copied, expected, 1000);
 }
 
 }  // namespace

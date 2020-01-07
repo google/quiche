@@ -35,6 +35,7 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
 using testing::ByMove;
@@ -1122,7 +1123,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEndOld) {
 
   // The source connection ID of the probe response should match the
   // destination connection ID of the probe request.
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "parsed probe", source_connection_id_bytes, source_connection_id_length,
       destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
 }
@@ -1166,7 +1167,7 @@ TEST_F(QuicDispatcherTest, VersionNegotiationProbeEndToEnd) {
 
   // The source connection ID of the probe response should match the
   // destination connection ID of the probe request.
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "parsed probe", source_connection_id_bytes, source_connection_id_length,
       destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
 }
@@ -1211,7 +1212,7 @@ TEST_F(QuicDispatcherTest, AndroidConformanceTestOld) {
                                              0x75, 0x76, 0x77, 0x78};
   ASSERT_GE((*(saving_writer->packets()))[0]->length(),
             1u + sizeof(connection_id_bytes));
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "response connection ID", &(*(saving_writer->packets()))[0]->data()[1],
       sizeof(connection_id_bytes), connection_id_bytes,
       sizeof(connection_id_bytes));
@@ -1259,7 +1260,7 @@ TEST_F(QuicDispatcherTest, AndroidConformanceTest) {
                                              0x75, 0x76, 0x77, 0x78};
   ASSERT_GE((*(saving_writer->packets()))[0]->length(),
             1u + sizeof(connection_id_bytes));
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "response connection ID", &(*(saving_writer->packets()))[0]->data()[1],
       sizeof(connection_id_bytes), connection_id_bytes,
       sizeof(connection_id_bytes));

@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -70,9 +71,9 @@ TEST_F(CryptoUtilsTest, TestExportKeyingMaterial) {
     EXPECT_EQ(expect_ok, ok);
     if (expect_ok) {
       EXPECT_EQ(result_len, result.length());
-      test::CompareCharArraysWithHexError("HKDF output", result.data(),
-                                          result.length(), expected.data(),
-                                          expected.length());
+      quiche::test::CompareCharArraysWithHexError(
+          "HKDF output", result.data(), result.length(), expected.data(),
+          expected.length());
     }
   }
 }

@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -97,7 +98,7 @@ TEST_F(QuicPacketsTest, CopySerializedPacket) {
   EXPECT_EQ(ACK_FRAME, copy->nonretransmittable_frames[0].type);
   EXPECT_EQ(PADDING_FRAME, copy->nonretransmittable_frames[1].type);
   EXPECT_EQ(1000u, copy->encrypted_length);
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "encrypted_buffer", copy->encrypted_buffer, copy->encrypted_length,
       packet.encrypted_buffer, packet.encrypted_length);
 

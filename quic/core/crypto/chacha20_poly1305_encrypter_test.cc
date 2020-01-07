@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -136,9 +137,9 @@ TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {
     EXPECT_EQ(12u, ct.size() - pt.size());
     EXPECT_EQ(12u, encrypted->length() - pt.size());
 
-    test::CompareCharArraysWithHexError("ciphertext", encrypted->data(),
-                                        encrypted->length(), ct.data(),
-                                        ct.length());
+    quiche::test::CompareCharArraysWithHexError("ciphertext", encrypted->data(),
+                                                encrypted->length(), ct.data(),
+                                                ct.length());
   }
 }
 

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -165,8 +166,8 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
 
     EXPECT_EQ(16u, ct.size() - decrypted->length());
     ASSERT_EQ(pt.length(), decrypted->length());
-    test::CompareCharArraysWithHexError("plaintext", decrypted->data(),
-                                        pt.length(), pt.data(), pt.length());
+    quiche::test::CompareCharArraysWithHexError(
+        "plaintext", decrypted->data(), pt.length(), pt.data(), pt.length());
   }
 }
 
@@ -180,9 +181,9 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, GenerateHeaderProtectionMask) {
   ASSERT_TRUE(decrypter.SetHeaderProtectionKey(key));
   std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
   std::string expected_mask = quiche::QuicheTextUtils::HexDecode("1cc2cd98dc");
-  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
-                                      mask.size(), expected_mask.data(),
-                                      expected_mask.size());
+  quiche::test::CompareCharArraysWithHexError(
+      "header protection mask", mask.data(), mask.size(), expected_mask.data(),
+      expected_mask.size());
 }
 
 }  // namespace test

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -208,9 +209,9 @@ TEST_F(Aes128GcmEncrypterTest, Encrypt) {
       ASSERT_TRUE(encrypted.get());
 
       ASSERT_EQ(ct.length() + tag.length(), encrypted->length());
-      test::CompareCharArraysWithHexError("ciphertext", encrypted->data(),
-                                          ct.length(), ct.data(), ct.length());
-      test::CompareCharArraysWithHexError(
+      quiche::test::CompareCharArraysWithHexError(
+          "ciphertext", encrypted->data(), ct.length(), ct.data(), ct.length());
+      quiche::test::CompareCharArraysWithHexError(
           "authentication tag", encrypted->data() + ct.length(), tag.length(),
           tag.data(), tag.length());
     }
@@ -239,8 +240,8 @@ TEST_F(Aes128GcmEncrypterTest, EncryptPacket) {
   ASSERT_TRUE(encrypter.EncryptPacket(packet_num, aad, pt, out.data(),
                                       &out_size, out.size()));
   EXPECT_EQ(out_size, out.size());
-  test::CompareCharArraysWithHexError("ciphertext", out.data(), out.size(),
-                                      ct.data(), ct.size());
+  quiche::test::CompareCharArraysWithHexError("ciphertext", out.data(),
+                                              out.size(), ct.data(), ct.size());
 }
 
 TEST_F(Aes128GcmEncrypterTest, GetMaxPlaintextSize) {
@@ -267,9 +268,9 @@ TEST_F(Aes128GcmEncrypterTest, GenerateHeaderProtectionMask) {
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
   std::string expected_mask =
       quiche::QuicheTextUtils::HexDecode("b132c37d6164da4ea4dc9b763aceec27");
-  test::CompareCharArraysWithHexError("header protection mask", mask.data(),
-                                      mask.size(), expected_mask.data(),
-                                      expected_mask.size());
+  quiche::test::CompareCharArraysWithHexError(
+      "header protection mask", mask.data(), mask.size(), expected_mask.data(),
+      expected_mask.size());
 }
 
 }  // namespace test

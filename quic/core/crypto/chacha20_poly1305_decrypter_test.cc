@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -170,8 +171,8 @@ TEST_F(ChaCha20Poly1305DecrypterTest, Decrypt) {
 
     EXPECT_EQ(12u, ct.size() - decrypted->length());
     ASSERT_EQ(pt.length(), decrypted->length());
-    test::CompareCharArraysWithHexError("plaintext", decrypted->data(),
-                                        pt.length(), pt.data(), pt.length());
+    quiche::test::CompareCharArraysWithHexError(
+        "plaintext", decrypted->data(), pt.length(), pt.data(), pt.length());
   }
 }
 

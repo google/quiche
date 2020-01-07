@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace {
 
@@ -277,8 +278,8 @@ TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
       EXPECT_TRUE(has_pt);
 
       ASSERT_EQ(pt.length(), decrypted->length());
-      test::CompareCharArraysWithHexError("plaintext", decrypted->data(),
-                                          pt.length(), pt.data(), pt.length());
+      quiche::test::CompareCharArraysWithHexError(
+          "plaintext", decrypted->data(), pt.length(), pt.data(), pt.length());
     }
   }
 }

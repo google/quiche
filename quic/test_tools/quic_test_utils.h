@@ -168,12 +168,6 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     ParsedQuicVersion version,
     Perspective perspective);
 
-void CompareCharArraysWithHexError(const std::string& description,
-                                   const char* actual,
-                                   const int actual_len,
-                                   const char* expected,
-                                   const int expected_len);
-
 // Returns QuicConfig set to default values.
 QuicConfig DefaultQuicConfig();
 

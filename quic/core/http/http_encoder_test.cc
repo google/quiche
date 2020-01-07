@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -20,8 +21,8 @@ TEST(HttpEncoderTest, SerializeDataFrameHeader) {
                    // length
                    0x05};
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("DATA", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("DATA", buffer.get(), length,
+                                              output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
@@ -33,8 +34,8 @@ TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
                    // length
                    0x07};
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("HEADERS", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("HEADERS", buffer.get(), length,
+                                              output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializePriorityFrame) {
@@ -61,8 +62,8 @@ TEST(HttpEncoderTest, SerializePriorityFrame) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializePriorityFrame(priority, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("PRIORITY", buffer.get(), length,
+                                              output, QUICHE_ARRAYSIZE(output));
 
   PriorityFrame priority2;
   priority2.prioritized_type = ROOT_OF_TREE;
@@ -82,8 +83,8 @@ TEST(HttpEncoderTest, SerializePriorityFrame) {
                     0xff};
   length = HttpEncoder::SerializePriorityFrame(priority2, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output2), length);
-  CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output2,
-                                QUICHE_ARRAYSIZE(output2));
+  quiche::test::CompareCharArraysWithHexError(
+      "PRIORITY", buffer.get(), length, output2, QUICHE_ARRAYSIZE(output2));
 
   PriorityFrame priority3;
   priority3.prioritized_type = ROOT_OF_TREE;
@@ -100,8 +101,8 @@ TEST(HttpEncoderTest, SerializePriorityFrame) {
                     0xff};
   length = HttpEncoder::SerializePriorityFrame(priority3, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output3), length);
-  CompareCharArraysWithHexError("PRIORITY", buffer.get(), length, output3,
-                                QUICHE_ARRAYSIZE(output3));
+  quiche::test::CompareCharArraysWithHexError(
+      "PRIORITY", buffer.get(), length, output3, QUICHE_ARRAYSIZE(output3));
 }
 
 TEST(HttpEncoderTest, SerializeCancelPushFrame) {
@@ -116,8 +117,8 @@ TEST(HttpEncoderTest, SerializeCancelPushFrame) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("CANCEL_PUSH", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "CANCEL_PUSH", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeSettingsFrame) {
@@ -144,8 +145,8 @@ TEST(HttpEncoderTest, SerializeSettingsFrame) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeSettingsFrame(settings, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("SETTINGS", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("SETTINGS", buffer.get(), length,
+                                              output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
@@ -162,8 +163,8 @@ TEST(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
   uint64_t length = HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
       push_promise, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("PUSH_PROMISE", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "PUSH_PROMISE", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeGoAwayFrame) {
@@ -178,8 +179,8 @@ TEST(HttpEncoderTest, SerializeGoAwayFrame) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("GOAWAY", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError("GOAWAY", buffer.get(), length,
+                                              output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeMaxPushIdFrame) {
@@ -194,8 +195,8 @@ TEST(HttpEncoderTest, SerializeMaxPushIdFrame) {
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeMaxPushIdFrame(max_push_id, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("MAX_PUSH_ID", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "MAX_PUSH_ID", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
 TEST(HttpEncoderTest, SerializeDuplicatePushFrame) {
@@ -211,8 +212,8 @@ TEST(HttpEncoderTest, SerializeDuplicatePushFrame) {
   uint64_t length =
       HttpEncoder::SerializeDuplicatePushFrame(duplicate_push, &buffer);
   EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  CompareCharArraysWithHexError("DUPLICATE_PUSH", buffer.get(), length, output,
-                                QUICHE_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "DUPLICATE_PUSH", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
 }  // namespace test

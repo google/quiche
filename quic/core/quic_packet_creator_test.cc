@@ -33,6 +33,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
 using testing::DoAll;
@@ -656,7 +657,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
       reinterpret_cast<char*>(packet), QUICHE_ARRAYSIZE(packet));
 }
@@ -734,9 +735,9 @@ TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError("constructed packet", data.data(),
-                                      data.length(), reinterpret_cast<char*>(p),
-                                      packet_size);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data.data(), data.length(),
+      reinterpret_cast<char*>(p), packet_size);
 }
 
 // Several tests that the path response connectivity probing packet is
@@ -783,7 +784,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponseUnpadded) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
       reinterpret_cast<char*>(packet), QUICHE_ARRAYSIZE(packet));
 }
@@ -830,7 +831,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
       reinterpret_cast<char*>(packet), QUICHE_ARRAYSIZE(packet));
 }
@@ -882,7 +883,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
       reinterpret_cast<char*>(packet), QUICHE_ARRAYSIZE(packet));
 }
@@ -936,7 +937,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
       reinterpret_cast<char*>(packet), QUICHE_ARRAYSIZE(packet));
 }
@@ -1968,7 +1969,7 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
   ASSERT_TRUE(header.version_flag);
   ASSERT_EQ(header.long_packet_type, INITIAL);
   ASSERT_EQ(header.retry_token.length(), sizeof(retry_token_bytes));
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "retry token", header.retry_token.data(), header.retry_token.length(),
       retry_token_bytes, sizeof(retry_token_bytes));
   DeleteFrames(&frames_);

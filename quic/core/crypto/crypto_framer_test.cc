@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -82,9 +83,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   CryptoFramer framer;
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
@@ -118,9 +119,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
@@ -145,9 +146,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageTooManyEntries) {
@@ -195,9 +196,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSize) {
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
@@ -231,9 +232,9 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
   std::unique_ptr<QuicData> data = framer.ConstructHandshakeMessage(message);
   ASSERT_TRUE(data != nullptr);
 
-  test::CompareCharArraysWithHexError("constructed packet", data->data(),
-                                      data->length(), AsChars(packet),
-                                      QUICHE_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST(CryptoFramerTest, ProcessInput) {

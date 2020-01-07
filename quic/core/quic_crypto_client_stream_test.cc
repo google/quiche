@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
 
@@ -296,7 +297,7 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
   EXPECT_EQ("xstk", state->source_address_token());
 
   const std::string& cached_scfg = state->server_config();
-  test::CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "scfg", cached_scfg.data(), cached_scfg.length(),
       reinterpret_cast<char*>(scfg), QUICHE_ARRAYSIZE(scfg));
 

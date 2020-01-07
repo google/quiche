@@ -39,6 +39,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -558,12 +559,12 @@ void CompareCrypters(const QuicEncrypter* encrypter,
   quiche::QuicheStringPiece encrypter_iv = encrypter->GetNoncePrefix();
   quiche::QuicheStringPiece decrypter_key = decrypter->GetKey();
   quiche::QuicheStringPiece decrypter_iv = decrypter->GetNoncePrefix();
-  CompareCharArraysWithHexError(label + " key", encrypter_key.data(),
-                                encrypter_key.length(), decrypter_key.data(),
-                                decrypter_key.length());
-  CompareCharArraysWithHexError(label + " iv", encrypter_iv.data(),
-                                encrypter_iv.length(), decrypter_iv.data(),
-                                decrypter_iv.length());
+  quiche::test::CompareCharArraysWithHexError(
+      label + " key", encrypter_key.data(), encrypter_key.length(),
+      decrypter_key.data(), decrypter_key.length());
+  quiche::test::CompareCharArraysWithHexError(
+      label + " iv", encrypter_iv.data(), encrypter_iv.length(),
+      decrypter_iv.data(), decrypter_iv.length());
 }
 
 }  // namespace
@@ -601,10 +602,10 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
       client->crypto_negotiated_params().subkey_secret;
   quiche::QuicheStringPiece server_subkey_secret =
       server->crypto_negotiated_params().subkey_secret;
-  CompareCharArraysWithHexError("subkey secret", client_subkey_secret.data(),
-                                client_subkey_secret.length(),
-                                server_subkey_secret.data(),
-                                server_subkey_secret.length());
+  quiche::test::CompareCharArraysWithHexError(
+      "subkey secret", client_subkey_secret.data(),
+      client_subkey_secret.length(), server_subkey_secret.data(),
+      server_subkey_secret.length());
 
   const char kSampleLabel[] = "label";
   const char kSampleContext[] = "context";
@@ -617,7 +618,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
   EXPECT_TRUE(server->ExportKeyingMaterial(kSampleLabel, kSampleContext,
                                            kSampleOutputLength,
                                            &server_key_extraction));
-  CompareCharArraysWithHexError(
+  quiche::test::CompareCharArraysWithHexError(
       "sample key extraction", client_key_extraction.data(),
       client_key_extraction.length(), server_key_extraction.data(),
       server_key_extraction.length());
