@@ -194,10 +194,10 @@ class QuicSimpleServerSessionTest
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
-    config_.SetMaxIncomingBidirectionalStreamsToSend(kMaxStreamsForTest);
-    QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
-        &config_, kMaxStreamsForTest);
-    config_.SetMaxIncomingUnidirectionalStreamsToSend(kMaxStreamsForTest);
+    config_.SetMaxBidirectionalStreamsToSend(kMaxStreamsForTest);
+    QuicConfigPeer::SetReceivedMaxBidirectionalStreams(&config_,
+                                                       kMaxStreamsForTest);
+    config_.SetMaxUnidirectionalStreamsToSend(kMaxStreamsForTest);
 
     config_.SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
@@ -210,11 +210,11 @@ class QuicSimpleServerSessionTest
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
     if (VersionUsesHttp3(GetParam().transport_version)) {
-      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
           &config_, kMaxStreamsForTest + 3);
     } else {
-      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
-          &config_, kMaxStreamsForTest);
+      QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(&config_,
+                                                          kMaxStreamsForTest);
     }
 
     ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());

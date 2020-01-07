@@ -1732,12 +1732,11 @@ TEST_P(EndToEndTest, Timeout) {
   }
 }
 
-TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
+TEST_P(EndToEndTestWithTls, MaxDynamicStreamsLimitRespected) {
   // Set a limit on maximum number of incoming dynamic streams.
-  // Make sure the limit is respected.
-  const uint32_t kServerMaxIncomingDynamicStreams = 1;
-  server_config_.SetMaxIncomingBidirectionalStreamsToSend(
-      kServerMaxIncomingDynamicStreams);
+  // Make sure the limit is respected by the peer.
+  const uint32_t kServerMaxDynamicStreams = 1;
+  server_config_.SetMaxBidirectionalStreamsToSend(kServerMaxDynamicStreams);
   ASSERT_TRUE(Initialize());
   if (VersionHasIetfQuicFrames(
           GetParam().negotiated_version.transport_version)) {
@@ -1776,18 +1775,14 @@ TEST_P(EndToEndTestWithTls, MaxIncomingDynamicStreamsLimitRespected) {
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
-TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
-  // Each endpoint can set max incoming dynamic streams independently.
-  const uint32_t kClientMaxIncomingDynamicStreams = 4;
-  const uint32_t kServerMaxIncomingDynamicStreams = 3;
-  client_config_.SetMaxIncomingBidirectionalStreamsToSend(
-      kClientMaxIncomingDynamicStreams);
-  server_config_.SetMaxIncomingBidirectionalStreamsToSend(
-      kServerMaxIncomingDynamicStreams);
-  client_config_.SetMaxIncomingUnidirectionalStreamsToSend(
-      kClientMaxIncomingDynamicStreams);
-  server_config_.SetMaxIncomingUnidirectionalStreamsToSend(
-      kServerMaxIncomingDynamicStreams);
+TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
+  // Each endpoint can set max dynamic streams independently.
+  const uint32_t kClientMaxDynamicStreams = 4;
+  const uint32_t kServerMaxDynamicStreams = 3;
+  client_config_.SetMaxBidirectionalStreamsToSend(kClientMaxDynamicStreams);
+  server_config_.SetMaxBidirectionalStreamsToSend(kServerMaxDynamicStreams);
+  client_config_.SetMaxUnidirectionalStreamsToSend(kClientMaxDynamicStreams);
+  server_config_.SetMaxUnidirectionalStreamsToSend(kServerMaxDynamicStreams);
 
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1815,9 +1810,9 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
                 client_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
-  EXPECT_EQ(kServerMaxIncomingDynamicStreams,
+  EXPECT_EQ(kServerMaxDynamicStreams,
             client_max_open_outgoing_bidirectional_streams);
-  EXPECT_EQ(kServerMaxIncomingDynamicStreams,
+  EXPECT_EQ(kServerMaxDynamicStreams,
             client_max_open_outgoing_unidirectional_streams);
   server_thread_->Pause();
   QuicSession* server_session = GetServerSession();
@@ -1836,9 +1831,9 @@ TEST_P(EndToEndTest, SetIndependentMaxIncomingDynamicStreamsLimits) {
                 server_session->num_expected_unidirectional_static_streams()
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
-  EXPECT_EQ(kClientMaxIncomingDynamicStreams,
+  EXPECT_EQ(kClientMaxDynamicStreams,
             server_max_open_outgoing_bidirectional_streams);
-  EXPECT_EQ(kClientMaxIncomingDynamicStreams,
+  EXPECT_EQ(kClientMaxDynamicStreams,
             server_max_open_outgoing_unidirectional_streams);
 
   server_thread_->Resume();
@@ -3142,10 +3137,10 @@ class EndToEndTestServerPush : public EndToEndTest {
   const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
-    client_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
-    server_config_.SetMaxIncomingBidirectionalStreamsToSend(kNumMaxStreams);
-    client_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
-    server_config_.SetMaxIncomingUnidirectionalStreamsToSend(kNumMaxStreams);
+    client_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
+    server_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
+    client_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
+    server_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
     support_server_push_ = true;
   }
 

@@ -404,7 +404,8 @@ QuicConfig::QuicConfig()
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
       idle_network_timeout_seconds_(kICSL, PRESENCE_REQUIRED),
       silent_close_(kSCLS, PRESENCE_OPTIONAL),
-      max_incoming_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
+      max_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
+      max_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
       initial_round_trip_time_us_(kIRTT, PRESENCE_OPTIONAL),
       initial_max_stream_data_bytes_incoming_bidirectional_(0,
@@ -418,7 +419,6 @@ QuicConfig::QuicConfig()
       alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
       support_max_header_list_size_(kSMHL, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
-      max_incoming_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_packet_size_(0, PRESENCE_OPTIONAL),
@@ -515,38 +515,36 @@ bool QuicConfig::SilentClose() const {
   return silent_close_.GetUint32() > 0;
 }
 
-void QuicConfig::SetMaxIncomingBidirectionalStreamsToSend(
-    uint32_t max_streams) {
-  max_incoming_bidirectional_streams_.SetSendValue(max_streams);
+void QuicConfig::SetMaxBidirectionalStreamsToSend(uint32_t max_streams) {
+  max_bidirectional_streams_.SetSendValue(max_streams);
 }
 
-uint32_t QuicConfig::GetMaxIncomingBidirectionalStreamsToSend() const {
-  return max_incoming_bidirectional_streams_.GetSendValue();
+uint32_t QuicConfig::GetMaxBidirectionalStreamsToSend() const {
+  return max_bidirectional_streams_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMaxIncomingBidirectionalStreams() const {
-  return max_incoming_bidirectional_streams_.HasReceivedValue();
+bool QuicConfig::HasReceivedMaxBidirectionalStreams() const {
+  return max_bidirectional_streams_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxIncomingBidirectionalStreams() const {
-  return max_incoming_bidirectional_streams_.GetReceivedValue();
+uint32_t QuicConfig::ReceivedMaxBidirectionalStreams() const {
+  return max_bidirectional_streams_.GetReceivedValue();
 }
 
-void QuicConfig::SetMaxIncomingUnidirectionalStreamsToSend(
-    uint32_t max_streams) {
-  max_incoming_unidirectional_streams_.SetSendValue(max_streams);
+void QuicConfig::SetMaxUnidirectionalStreamsToSend(uint32_t max_streams) {
+  max_unidirectional_streams_.SetSendValue(max_streams);
 }
 
-uint32_t QuicConfig::GetMaxIncomingUnidirectionalStreamsToSend() const {
-  return max_incoming_unidirectional_streams_.GetSendValue();
+uint32_t QuicConfig::GetMaxUnidirectionalStreamsToSend() const {
+  return max_unidirectional_streams_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMaxIncomingUnidirectionalStreams() const {
-  return max_incoming_unidirectional_streams_.HasReceivedValue();
+bool QuicConfig::HasReceivedMaxUnidirectionalStreams() const {
+  return max_unidirectional_streams_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxIncomingUnidirectionalStreams() const {
-  return max_incoming_unidirectional_streams_.GetReceivedValue();
+uint32_t QuicConfig::ReceivedMaxUnidirectionalStreams() const {
+  return max_unidirectional_streams_.GetReceivedValue();
 }
 
 void QuicConfig::SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms) {
@@ -828,8 +826,8 @@ void QuicConfig::SetDefaults() {
   idle_network_timeout_seconds_.set(kMaximumIdleTimeoutSecs,
                                     kDefaultIdleTimeoutSecs);
   silent_close_.set(1, 0);
-  SetMaxIncomingBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
-  SetMaxIncomingUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
+  SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
+  SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =
       QuicTime::Delta::FromSeconds(kMaxTimeForCryptoHandshakeSecs);
   max_idle_time_before_crypto_handshake_ =
@@ -853,9 +851,9 @@ void QuicConfig::ToHandshakeMessage(
   // Do not need a version check here, max...bi... will encode
   // as "MIDS" -- the max initial dynamic streams tag -- if
   // doing some version other than IETF QUIC.
-  max_incoming_bidirectional_streams_.ToHandshakeMessage(out);
+  max_bidirectional_streams_.ToHandshakeMessage(out);
   if (VersionHasIetfQuicFrames(transport_version)) {
-    max_incoming_unidirectional_streams_.ToHandshakeMessage(out);
+    max_unidirectional_streams_.ToHandshakeMessage(out);
     ack_delay_exponent_.ToHandshakeMessage(out);
   }
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
@@ -889,12 +887,12 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
         silent_close_.ProcessPeerHello(peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
-    error = max_incoming_bidirectional_streams_.ProcessPeerHello(
-        peer_hello, hello_type, error_details);
+    error = max_bidirectional_streams_.ProcessPeerHello(peer_hello, hello_type,
+                                                        error_details);
   }
   if (error == QUIC_NO_ERROR) {
-    error = max_incoming_unidirectional_streams_.ProcessPeerHello(
-        peer_hello, hello_type, error_details);
+    error = max_unidirectional_streams_.ProcessPeerHello(peer_hello, hello_type,
+                                                         error_details);
   }
   if (error == QUIC_NO_ERROR) {
     error = bytes_for_connection_id_.ProcessPeerHello(peer_hello, hello_type,
@@ -975,9 +973,9 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_stream_data_uni.set_value(
       GetInitialMaxStreamDataBytesUnidirectionalToSend());
   params->initial_max_streams_bidi.set_value(
-      GetMaxIncomingBidirectionalStreamsToSend());
+      GetMaxBidirectionalStreamsToSend());
   params->initial_max_streams_uni.set_value(
-      GetMaxIncomingUnidirectionalStreamsToSend());
+      GetMaxUnidirectionalStreamsToSend());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 3, 4);
     params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
@@ -1064,10 +1062,10 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   initial_session_flow_control_window_bytes_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_data.value(),
                          std::numeric_limits<uint32_t>::max()));
-  max_incoming_bidirectional_streams_.SetReceivedValue(
+  max_bidirectional_streams_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_streams_bidi.value(),
                          std::numeric_limits<uint32_t>::max()));
-  max_incoming_unidirectional_streams_.SetReceivedValue(
+  max_unidirectional_streams_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_streams_uni.value(),
                          std::numeric_limits<uint32_t>::max()));
 

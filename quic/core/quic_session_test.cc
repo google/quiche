@@ -353,9 +353,9 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialSessionFlowControlWindowForTest);
 
     if (configure_session) {
-      QuicConfigPeer::SetReceivedMaxIncomingBidirectionalStreams(
+      QuicConfigPeer::SetReceivedMaxBidirectionalStreams(
           session_.config(), kDefaultMaxStreamsPerConnection);
-      QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(
+      QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
           session_.config(), kDefaultMaxStreamsPerConnection);
       QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
           session_.config(), kMinimumFlowControlSendWindow);
@@ -2858,8 +2858,7 @@ TEST_P(QuicSessionTestClientUnconfigured, HoldStreamsBlockedFrameXmit) {
       .WillRepeatedly(Invoke(&session_, &TestSession::SaveFrame));
   // Set configuration data so that when the config happens, the stream limit is
   // not increased and another STREAMS-BLOCKED will be needed..
-  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(session_.config(),
-                                                              0);
+  QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 0);
 
   session_.OnConfigNegotiated();
 
@@ -2893,8 +2892,7 @@ TEST_P(QuicSessionTestClientUnconfigured, HoldStreamsBlockedFrameNoXmit) {
 
   // Set configuration data so that when the config happens, the stream limit is
   // increased.
-  QuicConfigPeer::SetReceivedMaxIncomingUnidirectionalStreams(session_.config(),
-                                                              10);
+  QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 10);
 
   // STREAMS_BLOCKED frame should not be sent because streams can now be
   // created.

@@ -305,25 +305,21 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   bool SilentClose() const;
 
-  // Configuration for the Google QUIC and IETF QUIC stream ID managers. Note
-  // that the naming is a bit  weird; it is from the perspective of the node
-  // generating (sending) the configuration and, thus, The "incoming" counts are
-  // the number of streams that the node sending the configuration is willing to
-  // accept and therefore the number that the node receiving the confguration
-  // can create .. the number of outbound streams that may be intiated..
-  // There are two sets, one for unidirectional streams and one for
-  // bidirectional. The bidirectional set also covers Google-QUICs
-  // dynamic stream count (which are bidirectional streams).
-  // TODO(b/142351095) rename these to improve clarity.
-  void SetMaxIncomingBidirectionalStreamsToSend(uint32_t max_streams);
-  uint32_t GetMaxIncomingBidirectionalStreamsToSend() const;
-  bool HasReceivedMaxIncomingBidirectionalStreams() const;
-  uint32_t ReceivedMaxIncomingBidirectionalStreams() const;
+  // Sets the max bidirectional stream count that this endpoint supports.
+  void SetMaxBidirectionalStreamsToSend(uint32_t max_streams);
+  uint32_t GetMaxBidirectionalStreamsToSend() const;
 
-  void SetMaxIncomingUnidirectionalStreamsToSend(uint32_t max_streams);
-  uint32_t GetMaxIncomingUnidirectionalStreamsToSend() const;
-  bool HasReceivedMaxIncomingUnidirectionalStreams() const;
-  uint32_t ReceivedMaxIncomingUnidirectionalStreams() const;
+  bool HasReceivedMaxBidirectionalStreams() const;
+  // Gets the max bidirectional stream limit imposed by the peer.
+  uint32_t ReceivedMaxBidirectionalStreams() const;
+
+  // Sets the max unidirectional stream count that this endpoint supports.
+  void SetMaxUnidirectionalStreamsToSend(uint32_t max_streams);
+  uint32_t GetMaxUnidirectionalStreamsToSend() const;
+
+  bool HasReceivedMaxUnidirectionalStreams() const;
+  // Gets the max unidirectional stream limit imposed by the peer.
+  uint32_t ReceivedMaxUnidirectionalStreams() const;
 
   void set_max_time_before_crypto_handshake(
       QuicTime::Delta max_time_before_crypto_handshake) {
@@ -529,10 +525,21 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicNegotiableUint32 idle_network_timeout_seconds_;
   // Whether to use silent close.  Defaults to 0 (false) and is otherwise true.
   QuicNegotiableUint32 silent_close_;
-  // Maximum number of incoming dynamic streams that a Google QUIC connection
-  // can support or the maximum number of incoming bidirectional streams that
+  // Maximum number of dynamic streams that a Google QUIC connection
+  // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.
-  QuicFixedUint32 max_incoming_bidirectional_streams_;
+  // The SendValue is the limit on peer-created streams that this endpoint is
+  // advertising.
+  // The ReceivedValue is the limit on locally-created streams that
+  // the peer advertised.
+  QuicFixedUint32 max_bidirectional_streams_;
+  // Maximum number of unidirectional streams that the connection can
+  // support.
+  // The SendValue is the limit on peer-created streams that this endpoint is
+  // advertising.
+  // The ReceivedValue is the limit on locally-created streams that the peer
+  // advertised.
+  QuicFixedUint32 max_unidirectional_streams_;
   // The number of bytes required for the connection ID.
   QuicFixedUint32 bytes_for_connection_id_;
   // Initial round trip time estimate in microseconds.
@@ -568,10 +575,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // be created. This allows for CHLOs that are larger than a single
   // packet to be processed.
   QuicTagVector create_session_tag_indicators_;
-
-  // Maximum number of incoming unidirectional streams that the connection can
-  // support.
-  QuicFixedUint32 max_incoming_unidirectional_streams_;
 
   // Maximum ack delay. The sent value is the value used on this node.
   // The received value is the value received from the peer and used by

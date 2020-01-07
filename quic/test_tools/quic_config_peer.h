@@ -45,10 +45,10 @@ class QuicConfigPeer {
 
   static void SetReceivedDisableConnectionMigration(QuicConfig* config);
 
-  static void SetReceivedMaxIncomingBidirectionalStreams(QuicConfig* config,
-                                                         uint32_t max_streams);
-  static void SetReceivedMaxIncomingUnidirectionalStreams(QuicConfig* config,
-                                                          uint32_t max_streams);
+  static void SetReceivedMaxBidirectionalStreams(QuicConfig* config,
+                                                 uint32_t max_streams);
+  static void SetReceivedMaxUnidirectionalStreams(QuicConfig* config,
+                                                  uint32_t max_streams);
 
   static void SetConnectionOptionsToSend(QuicConfig* config,
                                          const QuicTagVector& options);

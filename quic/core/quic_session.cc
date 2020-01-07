@@ -64,15 +64,14 @@ QuicSession::QuicSession(
       stream_id_manager_(perspective(),
                          connection->transport_version(),
                          kDefaultMaxStreamsPerConnection,
-                         config_.GetMaxIncomingBidirectionalStreamsToSend()),
-      v99_streamid_manager_(
-          perspective(),
-          connection->version(),
-          this,
-          kDefaultMaxStreamsPerConnection,
-          kDefaultMaxStreamsPerConnection,
-          config_.GetMaxIncomingBidirectionalStreamsToSend(),
-          config_.GetMaxIncomingUnidirectionalStreamsToSend()),
+                         config_.GetMaxBidirectionalStreamsToSend()),
+      v99_streamid_manager_(perspective(),
+                            connection->version(),
+                            this,
+                            kDefaultMaxStreamsPerConnection,
+                            kDefaultMaxStreamsPerConnection,
+                            config_.GetMaxBidirectionalStreamsToSend(),
+                            config_.GetMaxUnidirectionalStreamsToSend()),
       num_dynamic_incoming_streams_(0),
       num_draining_incoming_streams_(0),
       num_outgoing_static_streams_(0),
@@ -999,8 +998,8 @@ void QuicSession::OnConfigNegotiated() {
 
   if (VersionHasIetfQuicFrames(transport_version())) {
     uint32_t max_streams = 0;
-    if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
-      max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
+    if (config_.HasReceivedMaxBidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxBidirectionalStreams();
     }
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Bidirectional outgoing_max_streams_ to "
@@ -1008,8 +1007,8 @@ void QuicSession::OnConfigNegotiated() {
     v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(max_streams);
 
     max_streams = 0;
-    if (config_.HasReceivedMaxIncomingUnidirectionalStreams()) {
-      max_streams = config_.ReceivedMaxIncomingUnidirectionalStreams();
+    if (config_.HasReceivedMaxUnidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxUnidirectionalStreams();
     }
     if (max_streams < num_expected_unidirectional_static_streams_) {
       // TODO(ianswett): Change this to an application error for HTTP/3.
@@ -1026,8 +1025,8 @@ void QuicSession::OnConfigNegotiated() {
     v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(max_streams);
   } else {
     uint32_t max_streams = 0;
-    if (config_.HasReceivedMaxIncomingBidirectionalStreams()) {
-      max_streams = config_.ReceivedMaxIncomingBidirectionalStreams();
+    if (config_.HasReceivedMaxBidirectionalStreams()) {
+      max_streams = config_.ReceivedMaxBidirectionalStreams();
     }
     QUIC_DVLOG(1) << ENDPOINT << "Setting max_open_outgoing_streams_ to "
                   << max_streams;
@@ -1088,9 +1087,9 @@ void QuicSession::OnConfigNegotiated() {
 
   if (VersionHasIetfQuicFrames(transport_version())) {
     v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
-        config_.GetMaxIncomingBidirectionalStreamsToSend());
+        config_.GetMaxBidirectionalStreamsToSend());
     v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
-        config_.GetMaxIncomingUnidirectionalStreamsToSend());
+        config_.GetMaxUnidirectionalStreamsToSend());
   } else {
     // A small number of additional incoming streams beyond the limit should be
     // allowed. This helps avoid early connection termination when FIN/RSTs for
@@ -1098,7 +1097,7 @@ void QuicSession::OnConfigNegotiated() {
     // Use a minimum number of additional streams, or a percentage increase,
     // whichever is larger.
     uint32_t max_incoming_streams_to_send =
-        config_.GetMaxIncomingBidirectionalStreamsToSend();
+        config_.GetMaxBidirectionalStreamsToSend();
     uint32_t max_incoming_streams =
         std::max(max_incoming_streams_to_send + kMaxStreamsMinimumIncrement,
                  static_cast<uint32_t>(max_incoming_streams_to_send *

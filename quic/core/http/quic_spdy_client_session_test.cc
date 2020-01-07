@@ -156,14 +156,12 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->GetMutableCryptoStream());
     QuicConfig config = DefaultQuicConfig();
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-      config.SetMaxIncomingUnidirectionalStreamsToSend(
+      config.SetMaxUnidirectionalStreamsToSend(
           server_max_incoming_streams +
           session_->num_expected_unidirectional_static_streams());
-      config.SetMaxIncomingBidirectionalStreamsToSend(
-          server_max_incoming_streams);
+      config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     } else {
-      config.SetMaxIncomingBidirectionalStreamsToSend(
-          server_max_incoming_streams);
+      config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     }
     std::unique_ptr<QuicCryptoServerConfig> crypto_config =
         crypto_test_utils::CryptoServerConfigForTesting();

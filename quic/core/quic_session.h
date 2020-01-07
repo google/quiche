@@ -479,8 +479,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Set the number of unidirectional stream that the peer is allowed to open to
   // be |max_stream| + |num_expected_static_streams_|.
-  void ConfigureMaxIncomingDynamicStreamsToSend(QuicStreamCount max_stream) {
-    config_.SetMaxIncomingUnidirectionalStreamsToSend(
+  void ConfigureMaxDynamicStreamsToSend(QuicStreamCount max_stream) {
+    config_.SetMaxUnidirectionalStreamsToSend(
         max_stream + num_expected_unidirectional_static_streams_);
   }
 
