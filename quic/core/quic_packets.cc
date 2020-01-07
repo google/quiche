@@ -237,7 +237,8 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
      << (header.source_connection_id_included == CONNECTION_ID_PRESENT
              ? "present"
              : "absent")
-     << "), packet_number_length: " << header.packet_number_length
+     << "), packet_number_length: "
+     << static_cast<int>(header.packet_number_length)
      << ", reset_flag: " << header.reset_flag
      << ", version_flag: " << header.version_flag;
   if (header.version_flag) {
