@@ -120,6 +120,22 @@ TEST_F(QuicTransportStreamTest, FinReadWithDataPending) {
   ASSERT_EQ(stream_->Read(&buffer), 4u);
 }
 
+TEST_F(QuicTransportStreamTest, WritingTooMuchData) {
+  EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
+  ASSERT_TRUE(stream_->CanWrite());
+
+  std::string a_little_bit_of_data(128, 'A');
+  std::string a_lot_of_data(GetQuicFlag(FLAGS_quic_buffered_data_threshold) * 2,
+                            'a');
+
+  EXPECT_TRUE(stream_->Write(a_little_bit_of_data));
+  EXPECT_TRUE(stream_->Write(a_little_bit_of_data));
+  EXPECT_TRUE(stream_->Write(a_little_bit_of_data));
+
+  EXPECT_TRUE(stream_->Write(a_lot_of_data));
+  EXPECT_FALSE(stream_->Write(a_lot_of_data));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
