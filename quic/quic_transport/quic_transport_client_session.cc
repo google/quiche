@@ -284,4 +284,13 @@ QuicOptional<std::string> QuicTransportClientSession::ReadDatagram() {
   return datagram;
 }
 
+void QuicTransportClientSession::OnCanCreateNewOutgoingStream(
+    bool unidirectional) {
+  if (unidirectional) {
+    visitor_->OnCanCreateNewOutgoingUnidirectionalStream();
+  } else {
+    visitor_->OnCanCreateNewOutgoingBidirectionalStream();
+  }
+}
+
 }  // namespace quic

@@ -50,6 +50,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
     // Notifies the visitor when a new datagram has been received.
     virtual void OnIncomingDatagramAvailable() = 0;
+
+    // Notifies the visitor that a new outgoing stream can now be created.
+    virtual void OnCanCreateNewOutgoingBidirectionalStream() = 0;
+    virtual void OnCanCreateNewOutgoingUnidirectionalStream() = 0;
   };
 
   QuicTransportClientSession(QuicConnection* connection,
@@ -129,6 +133,8 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   std::string SerializeClientIndication();
   // Creates the client indication stream and sends the client indication on it.
   void SendClientIndication();
+
+  void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
   std::unique_ptr<QuicCryptoClientStream> crypto_stream_;
   GURL url_;

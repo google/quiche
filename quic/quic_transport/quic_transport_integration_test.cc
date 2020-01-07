@@ -70,6 +70,7 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
   QuicTransportClientEndpoint(Simulator* simulator,
                               const std::string& name,
                               const std::string& peer_name,
+                              const QuicConfig& config,
                               url::Origin origin,
                               const std::string& path)
       : QuicTransportEndpointBase(simulator,
@@ -79,7 +80,7 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()),
         session_(connection_.get(),
                  nullptr,
-                 DefaultQuicConfig(),
+                 config,
                  GetVersions(),
                  GURL("quic-transport://test.example.com:50000" + path),
                  &crypto_config_,
@@ -102,6 +103,7 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
   QuicTransportServerEndpoint(Simulator* simulator,
                               const std::string& name,
                               const std::string& peer_name,
+                              const QuicConfig& config,
                               std::vector<url::Origin> accepted_origins)
       : QuicTransportEndpointBase(simulator,
                                   name,
@@ -116,7 +118,7 @@ class QuicTransportServerEndpoint : public QuicTransportEndpointBase {
         session_(connection_.get(),
                  /*owns_connection=*/false,
                  nullptr,
-                 DefaultQuicConfig(),
+                 config,
                  GetVersions(),
                  &crypto_config_,
                  &compressed_certs_cache_,
@@ -162,9 +164,9 @@ class QuicTransportIntegrationTest : public QuicTest {
 
   void CreateDefaultEndpoints(const std::string& path) {
     client_ = std::make_unique<QuicTransportClientEndpoint>(
-        &simulator_, "Client", "Server", GetTestOrigin(), path);
+        &simulator_, "Client", "Server", client_config_, GetTestOrigin(), path);
     server_ = std::make_unique<QuicTransportServerEndpoint>(
-        &simulator_, "Server", "Client", accepted_origins_);
+        &simulator_, "Server", "Client", server_config_, accepted_origins_);
   }
 
   void WireUpEndpoints() {
@@ -192,6 +194,9 @@ class QuicTransportIntegrationTest : public QuicTest {
   static bool IsHandshakeDone(const Session* session) {
     return session->IsSessionReady() || session->error() != QUIC_NO_ERROR;
   }
+
+  QuicConfig client_config_ = DefaultQuicConfig();
+  QuicConfig server_config_ = DefaultQuicConfig();
 
   Simulator simulator_;
   simulator::Switch switch_;
@@ -376,6 +381,34 @@ TEST_F(QuicTransportIntegrationTest, EchoALotOfDatagrams) {
 
   EXPECT_GT(received, 500u);
   EXPECT_LT(received, 1000u);
+}
+
+TEST_F(QuicTransportIntegrationTest, OutgoingStreamFlowControlBlocked) {
+  server_config_.SetMaxUnidirectionalStreamsToSend(4);
+  CreateDefaultEndpoints("/discard");
+  WireUpEndpoints();
+  RunHandshake();
+
+  QuicTransportStream* stream;
+  // Note that since we've already used one stream for client indication, we can
+  // only send three streams at once.
+  for (int i = 0; i < 3; i++) {
+    ASSERT_TRUE(client_->session()->CanOpenNextOutgoingUnidirectionalStream());
+    stream = client_->session()->OpenOutgoingUnidirectionalStream();
+    ASSERT_TRUE(stream != nullptr);
+    ASSERT_TRUE(stream->SendFin());
+  }
+  EXPECT_FALSE(client_->session()->CanOpenNextOutgoingUnidirectionalStream());
+
+  // Receiving FINs for the streams we've just opened will cause the server to
+  // let us open more streams.
+  bool can_create_new_stream = false;
+  EXPECT_CALL(*client_->visitor(), OnCanCreateNewOutgoingUnidirectionalStream())
+      .WillOnce(Assign(&can_create_new_stream, true));
+  ASSERT_TRUE(simulator_.RunUntilOrTimeout(
+      [&can_create_new_stream]() { return can_create_new_stream; },
+      kDefaultTimeout));
+  EXPECT_TRUE(client_->session()->CanOpenNextOutgoingUnidirectionalStream());
 }
 
 }  // namespace
