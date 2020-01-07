@@ -105,6 +105,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       always_include_max_ack_delay_for_pto_timeout_(true),
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
+      num_tlp_timeout_ptos_(0),
       sanitize_ack_delay_(GetQuicReloadableFlag(quic_sanitize_ack_delay)) {
   SetSendAlgorithm(congestion_control_type);
 }
@@ -187,6 +188,14 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientSentConnectionOption(kPVS1, perspective)) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_pto, 8, 8);
       pto_rttvar_multiplier_ = 2;
+    }
+    if (config.HasClientSentConnectionOption(kPAG1, perspective)) {
+      QUIC_CODE_COUNT(one_aggressive_pto);
+      num_tlp_timeout_ptos_ = 1;
+    }
+    if (config.HasClientSentConnectionOption(kPAG2, perspective)) {
+      QUIC_CODE_COUNT(two_aggressive_ptos);
+      num_tlp_timeout_ptos_ = 2;
     }
   }
 
@@ -1067,14 +1076,25 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
     }
     return 2 * rtt_stats_.initial_rtt();
   }
-  const QuicTime::Delta pto_delay =
+  QuicTime::Delta pto_delay =
       rtt_stats_.smoothed_rtt() +
       std::max(pto_rttvar_multiplier_ * rtt_stats_.mean_deviation(),
                kAlarmGranularity) +
       (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
-  return pto_delay * (1 << (consecutive_pto_count_ -
-                            std::min(consecutive_pto_count_,
-                                     pto_exponential_backoff_start_point_)));
+  pto_delay =
+      pto_delay * (1 << (consecutive_pto_count_ -
+                         std::min(consecutive_pto_count_,
+                                  pto_exponential_backoff_start_point_)));
+  if (consecutive_pto_count_ < num_tlp_timeout_ptos_) {
+    // Make first n PTOs similar to TLPs.
+    if (pto_delay > 2 * rtt_stats_.smoothed_rtt()) {
+      QUIC_CODE_COUNT(quic_delayed_pto);
+      pto_delay = std::max(kAlarmGranularity, 2 * rtt_stats_.smoothed_rtt());
+    } else {
+      QUIC_CODE_COUNT(quic_faster_pto);
+    }
+  }
+  return pto_delay;
 }
 
 QuicTime::Delta QuicSentPacketManager::GetSlowStartDuration() const {

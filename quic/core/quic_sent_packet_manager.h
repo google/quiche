@@ -652,6 +652,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The multiplier of rttvar when calculating PTO timeout.
   int pto_rttvar_multiplier_;
 
+  // Number of PTOs similar to TLPs.
+  size_t num_tlp_timeout_ptos_;
+
   // Latched value of quic_sanitize_ack_delay.
   const bool sanitize_ack_delay_;
 };
