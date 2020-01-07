@@ -20,6 +20,7 @@ namespace quic {
 namespace test {
 namespace {
 
+using testing::_;
 using testing::Return;
 
 ParsedQuicVersionVector GetVersions() {
@@ -134,6 +135,16 @@ TEST_F(QuicTransportStreamTest, WritingTooMuchData) {
 
   EXPECT_TRUE(stream_->Write(a_lot_of_data));
   EXPECT_FALSE(stream_->Write(a_lot_of_data));
+}
+
+TEST_F(QuicTransportStreamTest, CannotSendFinTwice) {
+  EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
+  ASSERT_TRUE(stream_->CanWrite());
+
+  EXPECT_CALL(session_, WritevData(stream_, stream_->id(), _, _, _))
+      .WillOnce(Return(QuicConsumedData(0, /*fin_consumed=*/true)));
+  EXPECT_TRUE(stream_->SendFin());
+  EXPECT_FALSE(stream_->CanWrite());
 }
 
 }  // namespace

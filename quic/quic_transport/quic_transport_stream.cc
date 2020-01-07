@@ -97,7 +97,8 @@ bool QuicTransportStream::SendFin() {
 }
 
 bool QuicTransportStream::CanWrite() const {
-  return session_interface_->IsSessionReady() && CanWriteNewData();
+  return session_interface_->IsSessionReady() && CanWriteNewData() &&
+         !write_side_closed();
 }
 
 size_t QuicTransportStream::ReadableBytes() const {
