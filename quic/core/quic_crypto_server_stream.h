@@ -220,11 +220,11 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 // including the version used by |session|. |crypto_config|, |session|, and
 // |helper| must all outlive the stream. The caller takes ownership of the
 // returned object.
-std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
-    const QuicCryptoServerConfig* crypto_config,
-    QuicCompressedCertsCache* compressed_certs_cache,
-    QuicSession* session,
-    QuicCryptoServerStream::Helper* helper);
+QUIC_EXPORT_PRIVATE std::unique_ptr<QuicCryptoServerStreamBase>
+CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                         QuicCompressedCertsCache* compressed_certs_cache,
+                         QuicSession* session,
+                         QuicCryptoServerStream::Helper* helper);
 
 }  // namespace quic
 
