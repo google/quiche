@@ -15,7 +15,7 @@
 namespace quic {
 
 QuicDataReader::QuicDataReader(quiche::QuicheStringPiece data)
-    : QuicDataReader(data.data(), data.length(), quiche::NETWORK_BYTE_ORDER) {}
+    : quiche::QuicheDataReader(data) {}
 
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
     : QuicDataReader(data, len, quiche::NETWORK_BYTE_ORDER) {}
@@ -23,58 +23,7 @@ QuicDataReader::QuicDataReader(const char* data, const size_t len)
 QuicDataReader::QuicDataReader(const char* data,
                                const size_t len,
                                quiche::Endianness endianness)
-    : data_(data), len_(len), pos_(0), endianness_(endianness) {}
-
-bool QuicDataReader::ReadUInt8(uint8_t* result) {
-  return ReadBytes(result, sizeof(*result));
-}
-
-bool QuicDataReader::ReadUInt16(uint16_t* result) {
-  if (!ReadBytes(result, sizeof(*result))) {
-    return false;
-  }
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    *result = quiche::QuicheEndian::NetToHost16(*result);
-  }
-  return true;
-}
-
-bool QuicDataReader::ReadUInt32(uint32_t* result) {
-  if (!ReadBytes(result, sizeof(*result))) {
-    return false;
-  }
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    *result = quiche::QuicheEndian::NetToHost32(*result);
-  }
-  return true;
-}
-
-bool QuicDataReader::ReadUInt64(uint64_t* result) {
-  if (!ReadBytes(result, sizeof(*result))) {
-    return false;
-  }
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    *result = quiche::QuicheEndian::NetToHost64(*result);
-  }
-  return true;
-}
-
-bool QuicDataReader::ReadBytesToUInt64(size_t num_bytes, uint64_t* result) {
-  *result = 0u;
-  if (num_bytes > sizeof(*result)) {
-    return false;
-  }
-  if (endianness_ == quiche::HOST_BYTE_ORDER) {
-    return ReadBytes(result, num_bytes);
-  }
-
-  if (!ReadBytes(reinterpret_cast<char*>(result) + sizeof(*result) - num_bytes,
-                 num_bytes)) {
-    return false;
-  }
-  *result = quiche::QuicheEndian::NetToHost64(*result);
-  return true;
-}
+    : quiche::QuicheDataReader(data, len, endianness) {}
 
 bool QuicDataReader::ReadUFloat16(uint64_t* result) {
   uint16_t value;
@@ -106,34 +55,6 @@ bool QuicDataReader::ReadUFloat16(uint64_t* result) {
   DCHECK_GE(*result,
             static_cast<uint64_t>(1 << kUFloat16MantissaEffectiveBits));
   DCHECK_LE(*result, kUFloat16MaxValue);
-  return true;
-}
-
-bool QuicDataReader::ReadStringPiece16(quiche::QuicheStringPiece* result) {
-  // Read resultant length.
-  uint16_t result_len;
-  if (!ReadUInt16(&result_len)) {
-    // OnFailure() already called.
-    return false;
-  }
-
-  return ReadStringPiece(result, result_len);
-}
-
-bool QuicDataReader::ReadStringPiece(quiche::QuicheStringPiece* result,
-                                     size_t size) {
-  // Make sure that we have enough data to read.
-  if (!CanRead(size)) {
-    OnFailure();
-    return false;
-  }
-
-  // Set result.
-  *result = quiche::QuicheStringPiece(data_ + pos_, size);
-
-  // Iterate.
-  pos_ += size;
-
   return true;
 }
 
@@ -180,93 +101,15 @@ bool QuicDataReader::ReadLengthPrefixedConnectionId(
   return ReadConnectionId(connection_id, connection_id_length);
 }
 
-bool QuicDataReader::ReadTag(uint32_t* tag) {
-  return ReadBytes(tag, sizeof(*tag));
-}
-
-quiche::QuicheStringPiece QuicDataReader::ReadRemainingPayload() {
-  quiche::QuicheStringPiece payload = PeekRemainingPayload();
-  pos_ = len_;
-  return payload;
-}
-
-quiche::QuicheStringPiece QuicDataReader::PeekRemainingPayload() const {
-  return quiche::QuicheStringPiece(data_ + pos_, len_ - pos_);
-}
-
-quiche::QuicheStringPiece QuicDataReader::FullPayload() const {
-  return quiche::QuicheStringPiece(data_, len_);
-}
-
-bool QuicDataReader::ReadBytes(void* result, size_t size) {
-  // Make sure that we have enough data to read.
-  if (!CanRead(size)) {
-    OnFailure();
-    return false;
-  }
-
-  // Read into result.
-  memcpy(result, data_ + pos_, size);
-
-  // Iterate.
-  pos_ += size;
-
-  return true;
-}
-
-bool QuicDataReader::Seek(size_t size) {
-  if (!CanRead(size)) {
-    OnFailure();
-    return false;
-  }
-  pos_ += size;
-  return true;
-}
-
-bool QuicDataReader::IsDoneReading() const {
-  return len_ == pos_;
-}
-
 QuicVariableLengthIntegerLength QuicDataReader::PeekVarInt62Length() {
-  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
   const unsigned char* next =
-      reinterpret_cast<const unsigned char*>(data_ + pos_);
+      reinterpret_cast<const unsigned char*>(data() + pos());
   if (BytesRemaining() == 0) {
     return VARIABLE_LENGTH_INTEGER_LENGTH_0;
   }
   return static_cast<QuicVariableLengthIntegerLength>(
       1 << ((*next & 0b11000000) >> 6));
-}
-
-size_t QuicDataReader::BytesRemaining() const {
-  return len_ - pos_;
-}
-
-bool QuicDataReader::TruncateRemaining(size_t truncation_length) {
-  if (truncation_length > BytesRemaining()) {
-    return false;
-  }
-  len_ = pos_ + truncation_length;
-  return true;
-}
-
-bool QuicDataReader::CanRead(size_t bytes) const {
-  return bytes <= (len_ - pos_);
-}
-
-void QuicDataReader::OnFailure() {
-  // Set our iterator to the end of the buffer so that further reads fail
-  // immediately.
-  pos_ = len_;
-}
-
-uint8_t QuicDataReader::PeekByte() const {
-  if (pos_ >= len_) {
-    QUIC_BUG << "Reading is done, cannot peek next byte. Tried to read pos = "
-             << pos_ << " buffer length = " << len_;
-    return 0;
-  }
-  return data_[pos_];
 }
 
 // Read an IETF/QUIC formatted 62-bit Variable Length Integer.
@@ -286,11 +129,11 @@ uint8_t QuicDataReader::PeekByte() const {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataReader::ReadVarInt62(uint64_t* result) {
-  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining = BytesRemaining();
   const unsigned char* next =
-      reinterpret_cast<const unsigned char*>(data_ + pos_);
+      reinterpret_cast<const unsigned char*>(data() + pos());
   if (remaining != 0) {
     switch (*next & 0xc0) {
       case 0xc0:
@@ -304,7 +147,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
                     (static_cast<uint64_t>(*(next + 5)) << 16) +
                     (static_cast<uint64_t>(*(next + 6)) << 8) +
                     (static_cast<uint64_t>(*(next + 7)) << 0);
-          pos_ += 8;
+          AdvancePos(8);
           return true;
         }
         return false;
@@ -314,7 +157,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
         if (remaining >= 4) {
           *result = (((*(next)) & 0x3f) << 24) + (((*(next + 1)) << 16)) +
                     (((*(next + 2)) << 8)) + (((*(next + 3)) << 0));
-          pos_ += 4;
+          AdvancePos(4);
           return true;
         }
         return false;
@@ -323,7 +166,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
         // Leading 0b01...... is 2 byte encoding
         if (remaining >= 2) {
           *result = (((*(next)) & 0x3f) << 8) + (*(next + 1));
-          pos_ += 2;
+          AdvancePos(2);
           return true;
         }
         return false;
@@ -331,7 +174,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
       case 0x00:
         // Leading 0b00...... is 1 byte encoding
         *result = (*next) & 0x3f;
-        pos_++;
+        AdvancePos(1);
         return true;
     }
   }
@@ -350,10 +193,6 @@ bool QuicDataReader::ReadVarIntU32(uint32_t* result) {
   }
   *result = static_cast<uint32_t>(temp_uint64);
   return true;
-}
-
-std::string QuicDataReader::DebugString() const {
-  return quiche::QuicheStrCat(" { length: ", len_, ", position: ", pos_, " }");
 }
 
 #undef ENDPOINT  // undef for jumbo builds

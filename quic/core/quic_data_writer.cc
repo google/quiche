@@ -18,56 +18,14 @@
 namespace quic {
 
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
-    : QuicDataWriter(size, buffer, quiche::NETWORK_BYTE_ORDER) {}
+    : quiche::QuicheDataWriter(size, buffer) {}
 
 QuicDataWriter::QuicDataWriter(size_t size,
                                char* buffer,
                                quiche::Endianness endianness)
-    : buffer_(buffer), capacity_(size), length_(0), endianness_(endianness) {}
+    : quiche::QuicheDataWriter(size, buffer, endianness) {}
 
 QuicDataWriter::~QuicDataWriter() {}
-
-char* QuicDataWriter::data() {
-  return buffer_;
-}
-
-bool QuicDataWriter::WriteUInt8(uint8_t value) {
-  return WriteBytes(&value, sizeof(value));
-}
-
-bool QuicDataWriter::WriteUInt16(uint16_t value) {
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    value = quiche::QuicheEndian::HostToNet16(value);
-  }
-  return WriteBytes(&value, sizeof(value));
-}
-
-bool QuicDataWriter::WriteUInt32(uint32_t value) {
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    value = quiche::QuicheEndian::HostToNet32(value);
-  }
-  return WriteBytes(&value, sizeof(value));
-}
-
-bool QuicDataWriter::WriteUInt64(uint64_t value) {
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
-    value = quiche::QuicheEndian::HostToNet64(value);
-  }
-  return WriteBytes(&value, sizeof(value));
-}
-
-bool QuicDataWriter::WriteBytesToUInt64(size_t num_bytes, uint64_t value) {
-  if (num_bytes > sizeof(value)) {
-    return false;
-  }
-  if (endianness_ == quiche::HOST_BYTE_ORDER) {
-    return WriteBytes(&value, num_bytes);
-  }
-
-  value = quiche::QuicheEndian::HostToNet64(value);
-  return WriteBytes(reinterpret_cast<char*>(&value) + sizeof(value) - num_bytes,
-                    num_bytes);
-}
 
 bool QuicDataWriter::WriteUFloat16(uint64_t value) {
   uint16_t result;
@@ -105,77 +63,10 @@ bool QuicDataWriter::WriteUFloat16(uint64_t value) {
     result = static_cast<uint16_t>(value + (exponent << kUFloat16MantissaBits));
   }
 
-  if (endianness_ == quiche::NETWORK_BYTE_ORDER) {
+  if (endianness() == quiche::NETWORK_BYTE_ORDER) {
     result = quiche::QuicheEndian::HostToNet16(result);
   }
   return WriteBytes(&result, sizeof(result));
-}
-
-bool QuicDataWriter::WriteStringPiece16(quiche::QuicheStringPiece val) {
-  if (val.size() > std::numeric_limits<uint16_t>::max()) {
-    return false;
-  }
-  if (!WriteUInt16(static_cast<uint16_t>(val.size()))) {
-    return false;
-  }
-  return WriteBytes(val.data(), val.size());
-}
-
-bool QuicDataWriter::WriteStringPiece(quiche::QuicheStringPiece val) {
-  return WriteBytes(val.data(), val.size());
-}
-
-char* QuicDataWriter::BeginWrite(size_t length) {
-  if (length_ > capacity_) {
-    return nullptr;
-  }
-
-  if (capacity_ - length_ < length) {
-    return nullptr;
-  }
-
-#ifdef ARCH_CPU_64_BITS
-  DCHECK_LE(length, std::numeric_limits<uint32_t>::max());
-#endif
-
-  return buffer_ + length_;
-}
-
-bool QuicDataWriter::WriteBytes(const void* data, size_t data_len) {
-  char* dest = BeginWrite(data_len);
-  if (!dest) {
-    return false;
-  }
-
-  memcpy(dest, data, data_len);
-
-  length_ += data_len;
-  return true;
-}
-
-bool QuicDataWriter::WriteRepeatedByte(uint8_t byte, size_t count) {
-  char* dest = BeginWrite(count);
-  if (!dest) {
-    return false;
-  }
-
-  memset(dest, byte, count);
-
-  length_ += count;
-  return true;
-}
-
-void QuicDataWriter::WritePadding() {
-  DCHECK_LE(length_, capacity_);
-  if (length_ > capacity_) {
-    return;
-  }
-  memset(buffer_ + length_, 0x00, capacity_ - length_);
-  length_ = capacity_;
-}
-
-bool QuicDataWriter::WritePaddingBytes(size_t count) {
-  return WriteRepeatedByte(0x00, count);
 }
 
 bool QuicDataWriter::WriteConnectionId(QuicConnectionId connection_id) {
@@ -190,10 +81,6 @@ bool QuicDataWriter::WriteLengthPrefixedConnectionId(
   return WriteUInt8(connection_id.length()) && WriteConnectionId(connection_id);
 }
 
-bool QuicDataWriter::WriteTag(uint32_t tag) {
-  return WriteBytes(&tag, sizeof(tag));
-}
-
 bool QuicDataWriter::WriteRandomBytes(QuicRandom* random, size_t length) {
   char* dest = BeginWrite(length);
   if (!dest) {
@@ -201,17 +88,10 @@ bool QuicDataWriter::WriteRandomBytes(QuicRandom* random, size_t length) {
   }
 
   random->RandBytes(dest, length);
-  length_ += length;
+  IncreaseLength(length);
   return true;
 }
 
-bool QuicDataWriter::Seek(size_t length) {
-  if (!BeginWrite(length)) {
-    return false;
-  }
-  length_ += length;
-  return true;
-}
 
 // Converts a uint64_t into an IETF/Quic formatted Variable Length
 // Integer. IETF Variable Length Integers have 62 significant bits, so
@@ -231,10 +111,10 @@ bool QuicDataWriter::Seek(size_t length) {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataWriter::WriteVarInt62(uint64_t value) {
-  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
-  size_t remaining = capacity_ - length_;
-  char* next = buffer_ + length_;
+  size_t remaining_bytes = remaining();
+  char* next = buffer() + length();
 
   if ((value & kVarInt62ErrorMask) == 0) {
     // We know the high 2 bits are 0 so |value| is legal.
@@ -242,7 +122,7 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
     if ((value & kVarInt62Mask8Bytes) != 0) {
       // Someplace in the high-4 bytes is a 1-bit. Do an 8-byte
       // encoding.
-      if (remaining >= 8) {
+      if (remaining_bytes >= 8) {
         *(next + 0) = ((value >> 56) & 0x3f) + 0xc0;
         *(next + 1) = (value >> 48) & 0xff;
         *(next + 2) = (value >> 40) & 0xff;
@@ -251,7 +131,7 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
         *(next + 5) = (value >> 16) & 0xff;
         *(next + 6) = (value >> 8) & 0xff;
         *(next + 7) = value & 0xff;
-        length_ += 8;
+        IncreaseLength(8);
         return true;
       }
       return false;
@@ -261,12 +141,12 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
     if ((value & kVarInt62Mask4Bytes) != 0) {
       // The encoding will not fit into 2 bytes, Do a 4-byte
       // encoding.
-      if (remaining >= 4) {
+      if (remaining_bytes >= 4) {
         *(next + 0) = ((value >> 24) & 0x3f) + 0x80;
         *(next + 1) = (value >> 16) & 0xff;
         *(next + 2) = (value >> 8) & 0xff;
         *(next + 3) = value & 0xff;
-        length_ += 4;
+        IncreaseLength(4);
         return true;
       }
       return false;
@@ -279,18 +159,18 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
     // are not 0)
     if ((value & kVarInt62Mask2Bytes) != 0) {
       // Do 2-byte encoding
-      if (remaining >= 2) {
+      if (remaining_bytes >= 2) {
         *(next + 0) = ((value >> 8) & 0x3f) + 0x40;
         *(next + 1) = (value)&0xff;
-        length_ += 2;
+        IncreaseLength(2);
         return true;
       }
       return false;
     }
-    if (remaining >= 1) {
+    if (remaining_bytes >= 1) {
       // Do 1-byte encoding
       *next = (value & 0x3f);
-      length_ += 1;
+      IncreaseLength(1);
       return true;
     }
     return false;
@@ -302,10 +182,10 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
 bool QuicDataWriter::WriteVarInt62(
     uint64_t value,
     QuicVariableLengthIntegerLength write_length) {
-  DCHECK_EQ(endianness_, quiche::NETWORK_BYTE_ORDER);
+  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
-  size_t remaining = capacity_ - length_;
-  if (remaining < write_length) {
+  size_t remaining_bytes = remaining();
+  if (remaining_bytes < write_length) {
     return false;
   }
 
@@ -364,11 +244,6 @@ bool QuicDataWriter::WriteStringPieceVarInt62(
     }
   }
   return true;
-}
-
-std::string QuicDataWriter::DebugString() const {
-  return quiche::QuicheStrCat(" { capacity: ", capacity_, ", length: ", length_,
-                              " }");
 }
 
 }  // namespace quic
