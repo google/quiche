@@ -1421,5 +1421,39 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
   }
 }
 
+TEST_F(BbrSenderTest, MitigateCwndBootstrappingOvershoot) {
+  SetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample, true);
+  CreateDefaultSetup();
+  bbr_sender_.AddBytesToTransfer(1 * 1024 * 1024);
+
+  // Wait until an ACK comes back.
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return !sender_->ExportDebugState().min_rtt.IsZero(); },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Bootstrap cwnd by a overly large bandwidth sample.
+  bbr_sender_.connection()->AdjustNetworkParameters(
+      SendAlgorithmInterface::NetworkParams(8 * kTestLinkBandwidth,
+                                            QuicTime::Delta::Zero(), false));
+  QuicBandwidth pacing_rate = sender_->PacingRate(0);
+  EXPECT_EQ(8 * kTestLinkBandwidth, pacing_rate);
+
+  // Wait until pacing_rate decreases.
+  simulator_result = simulator_.RunUntilOrTimeout(
+      [this, pacing_rate]() { return sender_->PacingRate(0) < pacing_rate; },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+  EXPECT_EQ(BbrSender::STARTUP, sender_->ExportDebugState().mode);
+  if (GetQuicReloadableFlag(quic_conservative_cwnd_and_pacing_gains)) {
+    EXPECT_APPROX_EQ(2.0f * sender_->BandwidthEstimate(),
+                     sender_->PacingRate(0), 0.01f);
+  } else {
+    EXPECT_APPROX_EQ(2.885f * sender_->BandwidthEstimate(),
+                     sender_->PacingRate(0), 0.01f);
+  }
+}
+
 }  // namespace test
 }  // namespace quic

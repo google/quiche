@@ -233,7 +233,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
                                           QuicByteCount newly_acked_bytes);
 
   // Determines the appropriate pacing rate for the connection.
-  void CalculatePacingRate();
+  void CalculatePacingRate(QuicByteCount bytes_lost);
   // Determines the appropriate congestion window for the connection.
   void CalculateCongestionWindow(QuicByteCount bytes_acked,
                                  QuicByteCount excess_acked);
@@ -392,6 +392,12 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool probe_rtt_disabled_if_app_limited_;
   bool app_limited_since_last_probe_rtt_;
   QuicTime::Delta min_rtt_since_last_probe_rtt_;
+
+  // True if network parameters are adjusted, and this will be reset if
+  // overshooting is detected and pacing rate gets slowed.
+  bool network_parameters_adjusted_;
+  // Bytes lost after network parameters gets adjusted.
+  QuicByteCount bytes_lost_with_network_parameters_adjusted_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

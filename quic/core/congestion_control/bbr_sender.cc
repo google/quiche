@@ -135,7 +135,9 @@ BbrSender::BbrSender(QuicTime now,
       probe_rtt_skipped_if_similar_rtt_(false),
       probe_rtt_disabled_if_app_limited_(false),
       app_limited_since_last_probe_rtt_(false),
-      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()) {
+      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
+      network_parameters_adjusted_(false),
+      bytes_lost_with_network_parameters_adjusted_(0) {
   if (stats_) {
     // Clear some startup stats if |stats_| has been used by another sender,
     // which happens e.g. when QuicConnection switch send algorithms.
@@ -377,6 +379,12 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       QuicBandwidth new_pacing_rate =
           QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
       pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
+      if (GetQuicReloadableFlag(
+              quic_bbr_mitigate_overly_large_bandwidth_sample)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(
+            quic_bbr_mitigate_overly_large_bandwidth_sample, 1, 4);
+        network_parameters_adjusted_ = true;
+      }
     }
   }
 }
@@ -473,7 +481,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
 
   // After the model is updated, recalculate the pacing rate and congestion
   // window.
-  CalculatePacingRate();
+  CalculatePacingRate(bytes_lost);
   CalculateCongestionWindow(bytes_acked, excess_acked);
   CalculateRecoveryWindow(bytes_acked, bytes_lost);
 
@@ -811,7 +819,7 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
   }
 }
 
-void BbrSender::CalculatePacingRate() {
+void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
   if (BandwidthEstimate().IsZero()) {
     return;
   }
@@ -829,6 +837,40 @@ void BbrSender::CalculatePacingRate() {
         initial_congestion_window_, rtt_stats_->min_rtt());
     return;
   }
+
+  if (network_parameters_adjusted_) {
+    bytes_lost_with_network_parameters_adjusted_ += bytes_lost;
+    // Check for overshooting with network parameters adjusted when pacing rate
+    // > target_rate and loss has been detected.
+    if (pacing_rate_ > target_rate &&
+        bytes_lost_with_network_parameters_adjusted_ > 0) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_bbr_mitigate_overly_large_bandwidth_sample, 2, 4);
+      if (has_non_app_limited_sample_ ||
+          bytes_lost_with_network_parameters_adjusted_ * 2 >
+              initial_congestion_window_) {
+        // We are fairly sure overshoot happens if 1) there is at least one
+        // non app-limited bw sample or 2) half of IW gets lost. Slow pacing
+        // rate.
+        if (has_non_app_limited_sample_) {
+          QUIC_RELOADABLE_FLAG_COUNT_N(
+              quic_bbr_mitigate_overly_large_bandwidth_sample, 3, 4);
+        } else {
+          QUIC_RELOADABLE_FLAG_COUNT_N(
+              quic_bbr_mitigate_overly_large_bandwidth_sample, 4, 4);
+        }
+        // Do not let the pacing rate drop below the connection's initial pacing
+        // rate.
+        pacing_rate_ =
+            std::max(target_rate,
+                     QuicBandwidth::FromBytesAndTimeDelta(
+                         initial_congestion_window_, rtt_stats_->min_rtt()));
+        bytes_lost_with_network_parameters_adjusted_ = 0;
+        network_parameters_adjusted_ = false;
+      }
+    }
+  }
+
   // Slow the pacing rate in STARTUP once loss has ever been detected.
   const bool has_ever_detected_loss = end_recovery_at_.IsInitialized();
   if (slower_startup_ && has_ever_detected_loss &&
