@@ -39,13 +39,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // On*FrameStart() methods are called after the frame header is completely
     // processed.  At that point it is safe to consume |header_length| bytes.
 
-    // Called when a PRIORITY frame has been received.
-    // |header_length| contains PRIORITY frame length and payload length.
-    virtual bool OnPriorityFrameStart(QuicByteCount header_length) = 0;
-
-    // Called when a PRIORITY frame has been successfully parsed.
-    virtual bool OnPriorityFrame(const PriorityFrame& frame) = 0;
-
     // Called when a CANCEL_PUSH frame has been successfully parsed.
     virtual bool OnCancelPushFrame(const CancelPushFrame& frame) = 0;
 
@@ -180,9 +173,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
-
-  // Parses the payload of a PRIORITY frame from |reader| into |frame|.
-  bool ParsePriorityFrame(QuicDataReader* reader, PriorityFrame* frame);
 
   // Parses the payload of a SETTINGS frame from |reader| into |frame|.
   bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);

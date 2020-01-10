@@ -38,9 +38,6 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   // Called from HttpDecoderVisitor.
   bool OnSettingsFrameStart(QuicByteCount header_length);
   bool OnSettingsFrame(const SettingsFrame& settings);
-  bool OnPriorityFrameStart(QuicByteCount header_length);
-  // TODO(renjietang): Decode Priority in HTTP/3 style.
-  bool OnPriorityFrame(const PriorityFrame& priority);
 
   // False until a SETTINGS frame is received.
   bool settings_frame_received_;

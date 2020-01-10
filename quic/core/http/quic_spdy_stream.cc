@@ -46,16 +46,6 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
-  bool OnPriorityFrameStart(QuicByteCount /*header_length*/) override {
-    CloseConnectionOnWrongFrame("Priority");
-    return false;
-  }
-
-  bool OnPriorityFrame(const PriorityFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Priority");
-    return false;
-  }
-
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
     CloseConnectionOnWrongFrame("Cancel Push");
     return false;
@@ -1037,13 +1027,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         std::move(ack_listener));
   }
 
-  if (GetQuicFlag(FLAGS_quic_allow_http3_priority) &&
-      session()->perspective() == Perspective::IS_CLIENT && !priority_sent_) {
-    PriorityFrame frame;
-    PopulatePriorityFrame(&frame);
-    spdy_session_->WriteH3Priority(frame);
-    priority_sent_ = true;
-  }
+  // TODO(b/147306124): Send PRIORITY_UPDATE frame.
 
   // Encode header list.
   QuicByteCount encoder_stream_sent_byte_count;
@@ -1079,13 +1063,6 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       header_block.TotalBytesUsed());
 
   return encoded_headers.size() + encoder_stream_sent_byte_count;
-}
-
-void QuicSpdyStream::PopulatePriorityFrame(PriorityFrame* frame) {
-  frame->weight = precedence().spdy3_priority();
-  frame->dependency_type = ROOT_OF_TREE;
-  frame->prioritized_type = REQUEST_STREAM;
-  frame->prioritized_element_id = id();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

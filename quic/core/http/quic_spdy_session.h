@@ -149,9 +149,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                        int weight,
                        bool exclusive);
 
-  // Writes a HTTP/3 PRIORITY frame to the peer.
-  void WriteH3Priority(const PriorityFrame& priority);
-
   // Process received HTTP/3 GOAWAY frame. This method should only be called on
   // the client side.
   virtual void OnHttp3GoAway(QuicStreamId stream_id);

@@ -10,7 +10,6 @@
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -29,26 +28,6 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     stream_->session()->connection()->CloseConnection(
         QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-  }
-
-  bool OnPriorityFrameStart(QuicByteCount header_length) override {
-    if (stream_->session()->perspective() == Perspective::IS_CLIENT) {
-      stream_->session()->connection()->CloseConnection(
-          QUIC_HTTP_DECODER_ERROR, "Server must not send Priority frames.",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-    return stream_->OnPriorityFrameStart(header_length);
-  }
-
-  bool OnPriorityFrame(const PriorityFrame& frame) override {
-    if (stream_->session()->perspective() == Perspective::IS_CLIENT) {
-      stream_->session()->connection()->CloseConnection(
-          QUIC_HTTP_DECODER_ERROR, "Server must not send Priority frames.",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-    return stream_->OnPriorityFrame(frame);
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
@@ -234,28 +213,6 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
   }
   for (const auto& setting : settings.values) {
     spdy_session->OnSetting(setting.first, setting.second);
-  }
-  return true;
-}
-
-bool QuicReceiveControlStream::OnPriorityFrameStart(
-    QuicByteCount /* header_length */) {
-  DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
-  return true;
-}
-
-bool QuicReceiveControlStream::OnPriorityFrame(const PriorityFrame& priority) {
-  DCHECK_EQ(Perspective::IS_SERVER, session()->perspective());
-  if (!GetQuicFlag(FLAGS_quic_allow_http3_priority)) {
-    return true;
-  }
-  QuicStream* stream =
-      session()->GetOrCreateStream(priority.prioritized_element_id);
-  // It's possible that the client sends a Priority frame for a request stream
-  // that the server is not permitted to open. In that case, simply drop the
-  // frame.
-  if (stream) {
-    stream->SetPriority(spdy::SpdyStreamPrecedence(priority.weight));
   }
   return true;
 }

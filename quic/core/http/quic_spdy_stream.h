@@ -246,9 +246,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     ack_listener_ = std::move(ack_listener);
   }
 
-  // Fills in |frame| with appropriate fields.
-  virtual void PopulatePriorityFrame(PriorityFrame* frame);
-
  private:
   friend class test::QuicSpdyStreamPeer;
   friend class test::QuicStreamPeer;

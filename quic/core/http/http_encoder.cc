@@ -11,36 +11,6 @@ namespace quic {
 
 namespace {
 
-// Set the first byte of a PRIORITY frame according to its fields.
-uint8_t SetPriorityFields(uint8_t num,
-                          PriorityElementType type,
-                          bool prioritized) {
-  switch (type) {
-    case REQUEST_STREAM:
-      return num;
-    case PUSH_STREAM:
-      if (prioritized) {
-        return num | (1 << 6);
-      }
-      return num | (1 << 4);
-    case PLACEHOLDER:
-      if (prioritized) {
-        return num | (1 << 7);
-      }
-      return num | (1 << 5);
-    case ROOT_OF_TREE:
-      if (prioritized) {
-        num = num | (1 << 6);
-        return num | (1 << 7);
-      }
-      num = num | (1 << 4);
-      return num | (1 << 5);
-    default:
-      QUIC_NOTREACHED();
-      return num;
-  }
-}
-
 bool WriteFrameHeader(QuicByteCount length,
                       HttpFrameType type,
                       QuicDataWriter* writer) {
@@ -52,29 +22,6 @@ QuicByteCount GetTotalLength(QuicByteCount payload_length, HttpFrameType type) {
   return QuicDataWriter::GetVarInt62Len(payload_length) +
          QuicDataWriter::GetVarInt62Len(static_cast<uint64_t>(type)) +
          payload_length;
-}
-
-// Write prioritized element id and element dependency id if needed.
-bool MaybeWriteIds(const PriorityFrame& priority, QuicDataWriter* writer) {
-  if (priority.prioritized_type != ROOT_OF_TREE) {
-    if (!writer->WriteVarInt62(priority.prioritized_element_id)) {
-      return false;
-    }
-  } else {
-    DCHECK_EQ(0u, priority.prioritized_element_id)
-        << "Prioritized element id should be 0 when prioritized type is "
-           "ROOT_OF_TREE";
-  }
-  if (priority.dependency_type != ROOT_OF_TREE) {
-    if (!writer->WriteVarInt62(priority.element_dependency_id)) {
-      return false;
-    }
-  } else {
-    DCHECK_EQ(0u, priority.element_dependency_id)
-        << "Element dependency id should be 0 when dependency type is "
-           "ROOT_OF_TREE";
-  }
-  return true;
 }
 
 }  // namespace
@@ -118,48 +65,6 @@ QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
   QUIC_DLOG(ERROR)
       << "Http encoder failed when attempting to serialize headers "
          "frame header.";
-  return 0;
-}
-
-// static
-QuicByteCount HttpEncoder::SerializePriorityFrame(
-    const PriorityFrame& priority,
-    std::unique_ptr<char[]>* output) {
-  QuicByteCount payload_length =
-      kPriorityFirstByteLength +
-      (priority.prioritized_type == ROOT_OF_TREE
-           ? 0
-           : QuicDataWriter::GetVarInt62Len(priority.prioritized_element_id)) +
-      (priority.dependency_type == ROOT_OF_TREE
-           ? 0
-           : QuicDataWriter::GetVarInt62Len(priority.element_dependency_id)) +
-      kPriorityWeightLength;
-  QuicByteCount total_length =
-      GetTotalLength(payload_length, HttpFrameType::PRIORITY);
-
-  output->reset(new char[total_length]);
-  QuicDataWriter writer(total_length, output->get());
-
-  if (!WriteFrameHeader(payload_length, HttpFrameType::PRIORITY, &writer)) {
-    QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
-                        "priority frame header.";
-    return 0;
-  }
-
-  // Set the first byte of the payload.
-  uint8_t firstByte = 0;
-  firstByte = SetPriorityFields(firstByte, priority.prioritized_type, true);
-  firstByte = SetPriorityFields(firstByte, priority.dependency_type, false);
-  if (priority.exclusive) {
-    firstByte |= kPriorityExclusiveBit;
-  }
-
-  if (writer.WriteUInt8(firstByte) && MaybeWriteIds(priority, &writer) &&
-      writer.WriteUInt8(priority.weight)) {
-    return total_length;
-  }
-  QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
-                      "priority frame payload.";
   return 0;
 }
 

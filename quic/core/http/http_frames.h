@@ -21,7 +21,6 @@ namespace quic {
 enum class HttpFrameType : uint8_t {
   DATA = 0x0,
   HEADERS = 0x1,
-  PRIORITY = 0X2,
   CANCEL_PUSH = 0X3,
   SETTINGS = 0x4,
   PUSH_PROMISE = 0x5,
@@ -30,7 +29,7 @@ enum class HttpFrameType : uint8_t {
   DUPLICATE_PUSH = 0xE
 };
 
-// 4.2.1.  DATA
+// 7.2.1.  DATA
 //
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
@@ -38,7 +37,7 @@ struct QUIC_EXPORT_PRIVATE DataFrame {
   quiche::QuicheStringPiece data;
 };
 
-// 4.2.2.  HEADERS
+// 7.2.2.  HEADERS
 //
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
@@ -46,58 +45,7 @@ struct QUIC_EXPORT_PRIVATE HeadersFrame {
   quiche::QuicheStringPiece headers;
 };
 
-// 4.2.3.  PRIORITY
-//
-//   The PRIORITY (type=0x02) frame specifies the sender-advised priority
-//   of a stream
-
-// Length of the weight field of a priority frame.
-const QuicByteCount kPriorityWeightLength = 1;
-// Length of a priority frame's first byte.
-const QuicByteCount kPriorityFirstByteLength = 1;
-// The bit that indicates Priority frame is exclusive.
-const uint8_t kPriorityExclusiveBit = 8;
-
-enum PriorityElementType : uint8_t {
-  REQUEST_STREAM = 0,
-  PUSH_STREAM = 1,
-  PLACEHOLDER = 2,
-  ROOT_OF_TREE = 3
-};
-
-struct QUIC_EXPORT_PRIVATE PriorityFrame {
-  PriorityElementType prioritized_type = REQUEST_STREAM;
-  PriorityElementType dependency_type = REQUEST_STREAM;
-  bool exclusive = false;
-  uint64_t prioritized_element_id = 0;
-  uint64_t element_dependency_id = 0;
-  uint8_t weight = 0;
-
-  bool operator==(const PriorityFrame& rhs) const {
-    return prioritized_type == rhs.prioritized_type &&
-           dependency_type == rhs.dependency_type &&
-           exclusive == rhs.exclusive &&
-           prioritized_element_id == rhs.prioritized_element_id &&
-           element_dependency_id == rhs.element_dependency_id &&
-           weight == rhs.weight;
-  }
-  std::string ToString() const {
-    return quiche::QuicheStrCat(
-        "Priority Frame : {prioritized_type: ", prioritized_type,
-        ", dependency_type: ", dependency_type, ", exclusive: ", exclusive,
-        ", prioritized_element_id: ", prioritized_element_id,
-        ", element_dependency_id: ", element_dependency_id,
-        ", weight: ", weight, "}");
-  }
-
-  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                                      const PriorityFrame& s) {
-    os << s.ToString();
-    return os;
-  }
-};
-
-// 4.2.4.  CANCEL_PUSH
+// 7.2.3.  CANCEL_PUSH
 //
 //   The CANCEL_PUSH frame (type=0x3) is used to request cancellation of
 //   server push prior to the push stream being created.
@@ -111,7 +59,7 @@ struct QUIC_EXPORT_PRIVATE CancelPushFrame {
   }
 };
 
-// 4.2.5.  SETTINGS
+// 7.2.4.  SETTINGS
 //
 //   The SETTINGS frame (type=0x4) conveys configuration parameters that
 //   affect how endpoints communicate, such as preferences and constraints
@@ -144,7 +92,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
   }
 };
 
-// 4.2.6.  PUSH_PROMISE
+// 7.2.5.  PUSH_PROMISE
 //
 //   The PUSH_PROMISE frame (type=0x05) is used to carry a request header
 //   set from server to client, as in HTTP/2.
@@ -157,7 +105,7 @@ struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
   }
 };
 
-// 4.2.7.  GOAWAY
+// 7.2.6.  GOAWAY
 //
 //   The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of
 //   a connection by a server.
@@ -169,7 +117,7 @@ struct QUIC_EXPORT_PRIVATE GoAwayFrame {
   }
 };
 
-// 4.2.8.  MAX_PUSH_ID
+// 7.2.7.  MAX_PUSH_ID
 //
 //   The MAX_PUSH_ID frame (type=0xD) is used by clients to control the
 //   number of server pushes that the server can initiate.
@@ -181,7 +129,7 @@ struct QUIC_EXPORT_PRIVATE MaxPushIdFrame {
   }
 };
 
-// 4.2.9.  DUPLICATE_PUSH
+// 7.2.8.  DUPLICATE_PUSH
 //
 //  The DUPLICATE_PUSH frame (type=0xE) is used by servers to indicate
 //  that an existing pushed resource is related to multiple client

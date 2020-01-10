@@ -146,9 +146,6 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::HEADERS):
       continue_processing = visitor_->OnHeadersFrameStart(header_length);
       break;
-    case static_cast<uint64_t>(HttpFrameType::PRIORITY):
-      continue_processing = visitor_->OnPriorityFrameStart(header_length);
-      break;
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
       break;
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):
@@ -208,12 +205,6 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       DCHECK(!payload.empty());
       continue_processing = visitor_->OnHeadersFramePayload(payload);
       remaining_frame_length_ -= payload.length();
-      break;
-    }
-    case static_cast<uint64_t>(HttpFrameType::PRIORITY): {
-      // TODO(rch): avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      BufferFramePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
@@ -330,17 +321,6 @@ bool HttpDecoder::FinishParsing() {
     }
     case static_cast<uint64_t>(HttpFrameType::HEADERS): {
       continue_processing = visitor_->OnHeadersFrameEnd();
-      break;
-    }
-    case static_cast<uint64_t>(HttpFrameType::PRIORITY): {
-      // TODO(rch): avoid buffering if the entire frame is present, and
-      // instead parse directly out of |reader|.
-      PriorityFrame frame;
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
-      if (!ParsePriorityFrame(&reader, &frame)) {
-        return false;
-      }
-      continue_processing = visitor_->OnPriorityFrame(frame);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH): {
@@ -508,51 +488,6 @@ void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {
   visitor_->OnError(this);
 }
 
-bool HttpDecoder::ParsePriorityFrame(QuicDataReader* reader,
-                                     PriorityFrame* frame) {
-  uint8_t flags;
-  if (!reader->ReadUInt8(&flags)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read PRIORITY frame flags.");
-    return false;
-  }
-
-  // Assign two most significant bits to prioritized_type.
-  frame->prioritized_type = static_cast<PriorityElementType>((flags >> 6) & 3);
-  // Assign the next two most significant bits to dependency type.
-  frame->dependency_type = static_cast<PriorityElementType>((flags >> 4) & 3);
-  frame->exclusive = flags & kPriorityExclusiveBit;
-  // TODO(bnc): Close connection with HTTP_MALFORMED_FRAME
-  // if lowest three bits are not all zero.
-
-  if (frame->prioritized_type != ROOT_OF_TREE &&
-      !reader->ReadVarInt62(&frame->prioritized_element_id)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA,
-               "Unable to read prioritized_element_id.");
-    return false;
-  }
-  if (frame->dependency_type != ROOT_OF_TREE &&
-      !reader->ReadVarInt62(&frame->element_dependency_id)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA,
-               "Unable to read element_dependency_id.");
-    return false;
-  }
-  if (!reader->ReadUInt8(&frame->weight)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA,
-               "Unable to read PRIORITY frame weight.");
-    return false;
-  }
-  if (!reader->IsDoneReading()) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA, "Superfluous data in PRIORITY frame.");
-    return false;
-  }
-  return true;
-}
-
 bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
                                      SettingsFrame* frame) {
   while (!reader->IsDoneReading()) {
@@ -582,9 +517,6 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
 
 QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   switch (frame_type) {
-    case static_cast<uint64_t>(HttpFrameType::PRIORITY):
-      return kPriorityFirstByteLength + VARIABLE_LENGTH_INTEGER_LENGTH_8 * 2 +
-             kPriorityWeightLength;
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::SETTINGS):

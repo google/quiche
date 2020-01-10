@@ -157,20 +157,6 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
   send_control_stream_->MaybeSendSettingsFrame();
 }
 
-TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
-  Initialize();
-  testing::InSequence s;
-
-  // The first write will trigger the control stream to write stream type and a
-  // Settings frame before the Priority frame.
-  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _)).Times(3);
-  PriorityFrame frame;
-  send_control_stream_->WritePriority(frame);
-
-  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _));
-  send_control_stream_->WritePriority(frame);
-}
-
 TEST_P(QuicSendControlStreamTest, ResetControlStream) {
   Initialize();
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId,

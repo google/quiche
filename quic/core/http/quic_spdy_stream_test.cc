@@ -1280,37 +1280,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
   EXPECT_TRUE(stream_->fin_sent());
 }
 
-TEST_P(QuicSpdyStreamTest, ClientWritesPriority) {
-  SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
-  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
-
-  if (UsesHttp3()) {
-    // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
-    // Six writes include priority for headers, headers frame header, headers
-    // frame, priority of trailers, trailing headers frame header, and trailers.
-    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
-        .Times(4);
-    auto send_control_stream =
-        QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    // The control stream will write priority for headers as well as
-    // the settings/max_push_id.
-    EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                      send_control_stream->id(), _, _, _))
-        .Times(1);
-  }
-
-  // Write the initial headers, without a FIN.
-  EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
-
-  // Writing trailers implicitly sends a FIN.
-  SpdyHeaderBlock trailers;
-  trailers["trailer key"] = "trailer value";
-  EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  stream_->WriteTrailers(std::move(trailers), nullptr);
-  EXPECT_TRUE(stream_->fin_sent());
-}
-
 // Test that when writing trailers, the trailers that are actually sent to the
 // peer contain the final offset field indicating last byte of data.
 TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {

@@ -72,17 +72,6 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   settings_sent_ = true;
 }
 
-void QuicSendControlStream::WritePriority(const PriorityFrame& priority) {
-  QuicConnection::ScopedPacketFlusher flusher(session()->connection());
-  MaybeSendSettingsFrame();
-  std::unique_ptr<char[]> buffer;
-  QuicByteCount frame_length =
-      HttpEncoder::SerializePriorityFrame(priority, &buffer);
-  QUIC_DVLOG(1) << "Control Stream " << id() << " is writing " << priority;
-  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
-                    false, nullptr);
-}
-
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
 

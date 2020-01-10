@@ -110,13 +110,6 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     return std::string(buffer.get(), settings_frame_length);
   }
 
-  std::string PriorityFrame(const PriorityFrame& frame) {
-    std::unique_ptr<char[]> priority_buffer;
-    QuicByteCount priority_frame_length =
-        HttpEncoder::SerializePriorityFrame(frame, &priority_buffer);
-    return std::string(priority_buffer.get(), priority_frame_length);
-  }
-
   QuicStreamOffset NumBytesConsumed() {
     return QuicStreamPeer::sequencer(receive_control_stream_)
         ->NumBytesConsumed();
@@ -223,25 +216,6 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
   receive_control_stream_->OnStreamFrame(frame);
-}
-
-TEST_P(QuicReceiveControlStreamTest, ReceivePriorityFrame) {
-  if (perspective() == Perspective::IS_CLIENT) {
-    return;
-  }
-  SetQuicFlag(FLAGS_quic_allow_http3_priority, true);
-  struct PriorityFrame frame;
-  frame.prioritized_type = REQUEST_STREAM;
-  frame.dependency_type = ROOT_OF_TREE;
-  frame.prioritized_element_id = stream_->id();
-  frame.weight = 1;
-  std::string serialized_frame = PriorityFrame(frame);
-  QuicStreamFrame data(receive_control_stream_->id(), false, 1,
-                       serialized_frame);
-
-  EXPECT_EQ(3u, stream_->precedence().spdy3_priority());
-  receive_control_stream_->OnStreamFrame(data);
-  EXPECT_EQ(1u, stream_->precedence().spdy3_priority());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
