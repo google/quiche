@@ -12,7 +12,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector_listener.h"
@@ -38,9 +37,9 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
  protected:
   void SetUp() override {
     // On any one run of this suite, we'll always choose the same value for
-    // use_default_reconstruct_ because the random seed is the same for each
+    // use_default_constructor_ because the random seed is the same for each
     // test case, but across runs the random seed changes.
-    use_default_reconstruct_ = Random().OneIn(2);
+    use_default_constructor_ = Random().OneIn(2);
   }
 
   DecodeStatus StartDecoding(DecodeBuffer* db) override {
@@ -48,7 +47,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
     collector_.Reset();
     PrepareDecoder();
 
-    DecodeStatus status = decoder_.DecodeFrame(db);
+    DecodeStatus status = decoder_->DecodeFrame(db);
     if (status != DecodeStatus::kDecodeInProgress) {
       // Keep track of this so that a concrete test can verify that both fast
       // and slow decoding paths have been tested.
@@ -62,7 +61,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
 
   DecodeStatus ResumeDecoding(DecodeBuffer* db) override {
     HTTP2_DVLOG(2) << "ResumeDecoding, db->Remaining=" << db->Remaining();
-    DecodeStatus status = decoder_.DecodeFrame(db);
+    DecodeStatus status = decoder_->DecodeFrame(db);
     if (status != DecodeStatus::kDecodeInProgress) {
       // Keep track of this so that a concrete test can verify that both fast
       // and slow decoding paths have been tested.
@@ -78,35 +77,31 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   // stays there until the remaining bytes of the frame's payload have been
   // skipped over. There are no callbacks for this situation.
   void ConfirmDiscardsRemainingPayload() {
-    ASSERT_TRUE(decoder_.IsDiscardingPayload());
+    ASSERT_TRUE(decoder_->IsDiscardingPayload());
     size_t remaining =
-        Http2FrameDecoderPeer::remaining_total_payload(&decoder_);
+        Http2FrameDecoderPeer::remaining_total_payload(decoder_.get());
     // The decoder will discard the remaining bytes, but not go beyond that,
     // which these conditions verify.
     size_t extra = 10;
     std::string junk(remaining + extra, '0');
     DecodeBuffer tmp(junk);
-    EXPECT_EQ(DecodeStatus::kDecodeDone, decoder_.DecodeFrame(&tmp));
+    EXPECT_EQ(DecodeStatus::kDecodeDone, decoder_->DecodeFrame(&tmp));
     EXPECT_EQ(remaining, tmp.Offset());
     EXPECT_EQ(extra, tmp.Remaining());
-    EXPECT_FALSE(decoder_.IsDiscardingPayload());
+    EXPECT_FALSE(decoder_->IsDiscardingPayload());
   }
 
   void PrepareDecoder() {
-    // Save and restore the maximum_payload_size when reconstructing
-    // the decoder.
-    size_t maximum_payload_size = decoder_.maximum_payload_size();
-
     // Alternate which constructor is used.
-    if (use_default_reconstruct_) {
-      Http2DefaultReconstructObject(&decoder_, RandomPtr());
-      decoder_.set_listener(&collector_);
+    if (use_default_constructor_) {
+      decoder_ = std::make_unique<Http2FrameDecoder>();
+      decoder_->set_listener(&collector_);
     } else {
-      Http2ReconstructObject(&decoder_, RandomPtr(), &collector_);
+      decoder_ = std::make_unique<Http2FrameDecoder>(&collector_);
     }
-    decoder_.set_maximum_payload_size(maximum_payload_size);
+    decoder_->set_maximum_payload_size(maximum_payload_size_);
 
-    use_default_reconstruct_ = !use_default_reconstruct_;
+    use_default_constructor_ = !use_default_constructor_;
   }
 
   void ResetDecodeSpeedCounters() {
@@ -216,9 +211,10 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   // ResumeDecodingPayload.
   size_t slow_decode_count_ = 0;
 
+  uint32_t maximum_payload_size_ = Http2SettingsInfo::DefaultMaxFrameSize();
   FramePartsCollectorListener collector_;
-  Http2FrameDecoder decoder_;
-  bool use_default_reconstruct_;
+  std::unique_ptr<Http2FrameDecoder> decoder_;
+  bool use_default_constructor_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -828,7 +824,7 @@ TEST_F(Http2FrameDecoderTest, AltSvcTruncatedOrigin) {
 // The decoder calls the listener's OnFrameSizeError method if the frame's
 // payload is longer than the currently configured maximum payload size.
 TEST_F(Http2FrameDecoderTest, BeyondMaximum) {
-  decoder_.set_maximum_payload_size(2);
+  maximum_payload_size_ = 2;
   const char kFrameData[] = {
       '\x00', '\x00', '\x07',          // Payload length: 7
       '\x00',                          // DATA

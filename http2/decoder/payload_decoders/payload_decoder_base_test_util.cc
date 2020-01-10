@@ -39,11 +39,11 @@ DecodeStatus PayloadDecoderBaseTest::StartDecoding(DecodeBuffer* db) {
 
   // Reconstruct the FrameDecoderState, prepare the listener, and add it to
   // the FrameDecoderState.
-  Http2DefaultReconstructObject(&frame_decoder_state_, RandomPtr());
-  frame_decoder_state_.set_listener(PrepareListener());
+  frame_decoder_state_ = std::make_unique<FrameDecoderState>();
+  frame_decoder_state_->set_listener(PrepareListener());
 
   // Make sure that a listener was provided.
-  if (frame_decoder_state_.listener() == nullptr) {
+  if (frame_decoder_state_->listener() == nullptr) {
     ADD_FAILURE() << "PrepareListener must return a listener.";
     return DecodeStatus::kDecodeError;
   }
@@ -52,7 +52,8 @@ DecodeStatus PayloadDecoderBaseTest::StartDecoding(DecodeBuffer* db) {
   // Http2FrameHeader whose payload we're about to decode. That header is the
   // only state that a payload decoder should expect is valid when its Start
   // method is called.
-  FrameDecoderStatePeer::set_frame_header(frame_header_, &frame_decoder_state_);
+  FrameDecoderStatePeer::set_frame_header(frame_header_,
+                                          frame_decoder_state_.get());
   DecodeStatus status = StartDecodingPayload(db);
   if (status != DecodeStatus::kDecodeInProgress) {
     // Keep track of this so that a concrete test can verify that both fast

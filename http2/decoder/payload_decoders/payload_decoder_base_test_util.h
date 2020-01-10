@@ -20,7 +20,6 @@
 #include "net/third_party/quiche/src/http2/http2_constants_test_util.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
@@ -62,7 +61,7 @@ class PayloadDecoderBaseTest : public RandomDecoderTest {
     frame_header_is_set_ = true;
   }
 
-  FrameDecoderState* mutable_state() { return &frame_decoder_state_; }
+  FrameDecoderState* mutable_state() { return frame_decoder_state_.get(); }
 
   // Randomize the payload decoder, sets the payload decoder's frame_header_,
   // then start decoding the payload. Called by RandomDecoderTest. This method
@@ -103,7 +102,7 @@ class PayloadDecoderBaseTest : public RandomDecoderTest {
  private:
   bool frame_header_is_set_ = false;
   Http2FrameHeader frame_header_;
-  FrameDecoderState frame_decoder_state_;
+  std::unique_ptr<FrameDecoderState> frame_decoder_state_;
 };
 
 // Base class for payload decoders of type Decoder, with corresponding test
@@ -156,7 +155,7 @@ class AbstractPayloadDecoderTest : public PayloadDecoderBaseTest {
   }
 
   void PreparePayloadDecoder() override {
-    Http2DefaultReconstructObject(&payload_decoder_, RandomPtr());
+    payload_decoder_ = std::make_unique<Decoder>();
   }
 
   Http2FrameDecoderListener* PrepareListener() override {
@@ -176,14 +175,14 @@ class AbstractPayloadDecoderTest : public PayloadDecoderBaseTest {
   // Start decoding the payload.
   DecodeStatus StartDecodingPayload(DecodeBuffer* db) override {
     HTTP2_DVLOG(2) << "StartDecodingPayload, db->Remaining=" << db->Remaining();
-    return payload_decoder_.StartDecodingPayload(mutable_state(), db);
+    return payload_decoder_->StartDecodingPayload(mutable_state(), db);
   }
 
   // Resume decoding the payload.
   DecodeStatus ResumeDecodingPayload(DecodeBuffer* db) override {
     HTTP2_DVLOG(2) << "ResumeDecodingPayload, db->Remaining="
                    << db->Remaining();
-    return payload_decoder_.ResumeDecodingPayload(mutable_state(), db);
+    return payload_decoder_->ResumeDecodingPayload(mutable_state(), db);
   }
 
   // Decode one frame's payload and confirm that the listener recorded the
@@ -318,13 +317,7 @@ class AbstractPayloadDecoderTest : public PayloadDecoderBaseTest {
   }
 
   Listener listener_;
-  union {
-    // Confirm at compile time that Decoder can be in an anonymous union,
-    // i.e. complain loudly if Decoder has members that prevent this, as it
-    // becomes annoying and possibly difficult to deal with non-anonymous
-    // unions and such union members.
-    Decoder payload_decoder_;
-  };
+  std::unique_ptr<Decoder> payload_decoder_;
 };
 
 // A base class for tests parameterized by the total number of bytes of

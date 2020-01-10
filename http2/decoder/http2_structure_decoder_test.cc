@@ -29,7 +29,6 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_reconstruct_object.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
@@ -56,12 +55,12 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   }
 
   DecodeStatus StartDecoding(DecodeBuffer* b) override {
-    // Overwrite the current contents of |structure_|, in to which we'll
+    // Overwrite the current contents of |structure_|, into which we'll
     // decode the buffer, so that we can be confident that we really decoded
     // the structure every time.
-    Http2DefaultReconstructObject(&structure_, RandomPtr());
+    structure_ = std::make_unique<S>();
     uint32_t old_remaining = b->Remaining();
-    if (structure_decoder_.Start(&structure_, b)) {
+    if (structure_decoder_.Start(structure_.get(), b)) {
       EXPECT_EQ(old_remaining - S::EncodedSize(), b->Remaining());
       ++fast_decode_count_;
       return DecodeStatus::kDecodeDone;
@@ -78,7 +77,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     uint32_t old_offset = structure_decoder_.offset();
     EXPECT_LT(old_offset, S::EncodedSize());
     uint32_t avail = b->Remaining();
-    if (structure_decoder_.Resume(&structure_, b)) {
+    if (structure_decoder_.Resume(structure_.get(), b)) {
       EXPECT_LE(S::EncodedSize(), old_offset + avail);
       EXPECT_EQ(b->Remaining(), avail - (S::EncodedSize() - old_offset));
       ++slow_decode_count_;
@@ -106,7 +105,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     if (expected != nullptr) {
       validator = [expected, this](const DecodeBuffer& db,
                                    DecodeStatus status) -> AssertionResult {
-        VERIFY_EQ(*expected, structure_);
+        VERIFY_EQ(*expected, *structure_);
         return AssertionSuccess();
       };
     }
@@ -138,8 +137,8 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     }
     if (expected != nullptr) {
       HTTP2_DVLOG(1) << "DecodeLeadingStructure expected: " << *expected;
-      HTTP2_DVLOG(1) << "DecodeLeadingStructure   actual: " << structure_;
-      VERIFY_EQ(*expected, structure_);
+      HTTP2_DVLOG(1) << "DecodeLeadingStructure   actual: " << *structure_;
+      VERIFY_EQ(*expected, *structure_);
     }
     return AssertionSuccess();
   }
@@ -182,7 +181,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   }
 
   uint32_t decode_offset_ = 0;
-  S structure_;
+  std::unique_ptr<S> structure_;
   Http2StructureDecoder structure_decoder_;
   size_t fast_decode_count_ = 0;
   size_t slow_decode_count_ = 0;
@@ -207,10 +206,10 @@ TEST_F(Http2FrameHeaderDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(5u, structure_.payload_length);
-    EXPECT_EQ(Http2FrameType::HEADERS, structure_.type);
-    EXPECT_EQ(Http2FrameFlag::PADDED, structure_.flags);
-    EXPECT_EQ(1u, structure_.stream_id);
+    EXPECT_EQ(5u, structure_->payload_length);
+    EXPECT_EQ(Http2FrameType::HEADERS, structure_->type);
+    EXPECT_EQ(Http2FrameFlag::PADDED, structure_->flags);
+    EXPECT_EQ(1u, structure_->stream_id);
   }
   {
     // Unlikely input.
@@ -223,10 +222,10 @@ TEST_F(Http2FrameHeaderDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ((1u << 24) - 1u, structure_.payload_length);
-    EXPECT_EQ(static_cast<Http2FrameType>(255), structure_.type);
-    EXPECT_EQ(255, structure_.flags);
-    EXPECT_EQ(0x7FFFFFFFu, structure_.stream_id);
+    EXPECT_EQ((1u << 24) - 1u, structure_->payload_length);
+    EXPECT_EQ(static_cast<Http2FrameType>(255), structure_->type);
+    EXPECT_EQ(255, structure_->flags);
+    EXPECT_EQ(0x7FFFFFFFu, structure_->stream_id);
   }
 }
 
@@ -248,9 +247,9 @@ TEST_F(Http2PriorityFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(5u, structure_.stream_dependency);
-    EXPECT_EQ(256u, structure_.weight);
-    EXPECT_EQ(true, structure_.is_exclusive);
+    EXPECT_EQ(5u, structure_->stream_dependency);
+    EXPECT_EQ(256u, structure_->weight);
+    EXPECT_EQ(true, structure_->is_exclusive);
   }
   {
     // clang-format off
@@ -260,9 +259,9 @@ TEST_F(Http2PriorityFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(StreamIdMask(), structure_.stream_dependency);
-    EXPECT_EQ(1u, structure_.weight);
-    EXPECT_FALSE(structure_.is_exclusive);
+    EXPECT_EQ(StreamIdMask(), structure_->stream_dependency);
+    EXPECT_EQ(1u, structure_->weight);
+    EXPECT_FALSE(structure_->is_exclusive);
   }
 }
 
@@ -283,8 +282,8 @@ TEST_F(Http2RstStreamFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_TRUE(structure_.IsSupportedErrorCode());
-    EXPECT_EQ(Http2ErrorCode::PROTOCOL_ERROR, structure_.error_code);
+    EXPECT_TRUE(structure_->IsSupportedErrorCode());
+    EXPECT_EQ(Http2ErrorCode::PROTOCOL_ERROR, structure_->error_code);
   }
   {
     // clang-format off
@@ -293,8 +292,8 @@ TEST_F(Http2RstStreamFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_FALSE(structure_.IsSupportedErrorCode());
-    EXPECT_EQ(static_cast<Http2ErrorCode>(0xffffffff), structure_.error_code);
+    EXPECT_FALSE(structure_->IsSupportedErrorCode());
+    EXPECT_EQ(static_cast<Http2ErrorCode>(0xffffffff), structure_->error_code);
   }
 }
 
@@ -316,9 +315,9 @@ TEST_F(Http2SettingFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_TRUE(structure_.IsSupportedParameter());
-    EXPECT_EQ(Http2SettingsParameter::HEADER_TABLE_SIZE, structure_.parameter);
-    EXPECT_EQ(1u << 14, structure_.value);
+    EXPECT_TRUE(structure_->IsSupportedParameter());
+    EXPECT_EQ(Http2SettingsParameter::HEADER_TABLE_SIZE, structure_->parameter);
+    EXPECT_EQ(1u << 14, structure_->value);
   }
   {
     // clang-format off
@@ -328,8 +327,8 @@ TEST_F(Http2SettingFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_FALSE(structure_.IsSupportedParameter());
-    EXPECT_EQ(static_cast<Http2SettingsParameter>(0), structure_.parameter);
+    EXPECT_FALSE(structure_->IsSupportedParameter());
+    EXPECT_EQ(static_cast<Http2SettingsParameter>(0), structure_->parameter);
   }
 }
 
@@ -350,7 +349,7 @@ TEST_F(Http2PushPromiseFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(101010u, structure_.promised_stream_id);
+    EXPECT_EQ(101010u, structure_->promised_stream_id);
   }
   {
     // Promised stream id has R-bit (reserved for future use) set, which
@@ -362,7 +361,7 @@ TEST_F(Http2PushPromiseFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(StreamIdMask(), structure_.promised_stream_id);
+    EXPECT_EQ(StreamIdMask(), structure_->promised_stream_id);
   }
 }
 
@@ -382,7 +381,7 @@ TEST_F(Http2PingFieldsDecoderTest, DecodesLiteral) {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
     };
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_.opaque_bytes));
+    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_->opaque_bytes));
   }
   {
     // All zeros, detect problems handling NULs.
@@ -390,14 +389,14 @@ TEST_F(Http2PingFieldsDecoderTest, DecodesLiteral) {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     };
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_.opaque_bytes));
+    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_->opaque_bytes));
   }
   {
     const unsigned char kData[] = {
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
     };
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_.opaque_bytes));
+    EXPECT_EQ(ToStringPiece(kData), ToStringPiece(structure_->opaque_bytes));
   }
 }
 
@@ -419,9 +418,9 @@ TEST_F(Http2GoAwayFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(0u, structure_.last_stream_id);
-    EXPECT_TRUE(structure_.IsSupportedErrorCode());
-    EXPECT_EQ(Http2ErrorCode::HTTP2_NO_ERROR, structure_.error_code);
+    EXPECT_EQ(0u, structure_->last_stream_id);
+    EXPECT_TRUE(structure_->IsSupportedErrorCode());
+    EXPECT_EQ(Http2ErrorCode::HTTP2_NO_ERROR, structure_->error_code);
   }
   {
     // clang-format off
@@ -431,9 +430,9 @@ TEST_F(Http2GoAwayFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(1u, structure_.last_stream_id);
-    EXPECT_TRUE(structure_.IsSupportedErrorCode());
-    EXPECT_EQ(Http2ErrorCode::HTTP_1_1_REQUIRED, structure_.error_code);
+    EXPECT_EQ(1u, structure_->last_stream_id);
+    EXPECT_TRUE(structure_->IsSupportedErrorCode());
+    EXPECT_EQ(Http2ErrorCode::HTTP_1_1_REQUIRED, structure_->error_code);
   }
   {
     // clang-format off
@@ -443,9 +442,9 @@ TEST_F(Http2GoAwayFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(StreamIdMask(), structure_.last_stream_id);  // No high-bit.
-    EXPECT_FALSE(structure_.IsSupportedErrorCode());
-    EXPECT_EQ(static_cast<Http2ErrorCode>(0xffffffff), structure_.error_code);
+    EXPECT_EQ(StreamIdMask(), structure_->last_stream_id);  // No high-bit.
+    EXPECT_FALSE(structure_->IsSupportedErrorCode());
+    EXPECT_EQ(static_cast<Http2ErrorCode>(0xffffffff), structure_->error_code);
   }
 }
 
@@ -466,7 +465,7 @@ TEST_F(Http2WindowUpdateFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(1u << 16, structure_.window_size_increment);
+    EXPECT_EQ(1u << 16, structure_->window_size_increment);
   }
   {
     // Increment must be non-zero, but we need to be able to decode the invalid
@@ -477,7 +476,7 @@ TEST_F(Http2WindowUpdateFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(0u, structure_.window_size_increment);
+    EXPECT_EQ(0u, structure_->window_size_increment);
   }
   {
     // Increment has R-bit (reserved for future use) set, which
@@ -489,7 +488,7 @@ TEST_F(Http2WindowUpdateFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(StreamIdMask(), structure_.window_size_increment);
+    EXPECT_EQ(StreamIdMask(), structure_->window_size_increment);
   }
 }
 
@@ -510,7 +509,7 @@ TEST_F(Http2AltSvcFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(0, structure_.origin_length);
+    EXPECT_EQ(0, structure_->origin_length);
   }
   {
     // clang-format off
@@ -519,7 +518,7 @@ TEST_F(Http2AltSvcFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(20, structure_.origin_length);
+    EXPECT_EQ(20, structure_->origin_length);
   }
   {
     // clang-format off
@@ -528,7 +527,7 @@ TEST_F(Http2AltSvcFieldsDecoderTest, DecodesLiteral) {
     };
     // clang-format on
     ASSERT_TRUE(DecodeLeadingStructure(kData));
-    EXPECT_EQ(65535, structure_.origin_length);
+    EXPECT_EQ(65535, structure_->origin_length);
   }
 }
 
