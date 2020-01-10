@@ -112,6 +112,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of ack aggregation epochs. For the same number of bytes acked, the
   // smaller this value, the more ack aggregation is going on.
   uint64_t num_ack_aggregation_epochs = 0;
+
+  // Whether overshooting is detected (and pacing rate decreases) during start
+  // up with network parameters adjusted.
+  bool overshooting_detected_with_network_parameters_adjusted = false;
 };
 
 }  // namespace quic

@@ -864,6 +864,9 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
             std::max(target_rate,
                      QuicBandwidth::FromBytesAndTimeDelta(
                          initial_congestion_window_, rtt_stats_->min_rtt()));
+        if (stats_) {
+          stats_->overshooting_detected_with_network_parameters_adjusted = true;
+        }
         bytes_lost_with_network_parameters_adjusted_ = 0;
         network_parameters_adjusted_ = false;
       }
