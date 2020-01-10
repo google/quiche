@@ -3313,20 +3313,6 @@ TEST_F(QuicSentPacketManagerTest, Aggressive2Ptos) {
             manager_.GetRetransmissionTime());
 }
 
-TEST_F(QuicSentPacketManagerTest, IW10ForUpAndDown) {
-  SetQuicReloadableFlag(quic_use_ip_bandwidth_module, true);
-  QuicConfig config;
-  QuicTagVector options;
-  options.push_back(kBWS5);
-  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  EXPECT_CALL(*send_algorithm_, SetInitialCongestionWindowInPackets(10));
-  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
-  manager_.SetFromConfig(config);
-
-  EXPECT_EQ(10u, manager_.initial_congestion_window());
-}
-
 }  // namespace
 }  // namespace test
 }  // namespace quic

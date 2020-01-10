@@ -239,11 +239,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       send_algorithm_->SetInitialCongestionWindowInPackets(50);
     }
   }
-  if (GetQuicReloadableFlag(quic_use_ip_bandwidth_module) &&
-      config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
-    initial_congestion_window_ = 10;
-    send_algorithm_->SetInitialCongestionWindowInPackets(10);
-  }
 
   using_pacing_ = !GetQuicFlag(FLAGS_quic_disable_pacing_for_perf_tests);
 
