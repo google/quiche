@@ -147,6 +147,16 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return stream_->OnPushPromiseFrameEnd();
   }
 
+  bool OnPriorityUpdateFrameStart(QuicByteCount /*header_length*/) override {
+    CloseConnectionOnWrongFrame("Priority update");
+    return false;
+  }
+
+  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& /*frame*/) override {
+    CloseConnectionOnWrongFrame("Priority update");
+    return false;
+  }
+
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount header_length) override {
     return stream_->OnUnknownFrameStart(frame_type, header_length);

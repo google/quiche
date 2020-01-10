@@ -122,6 +122,16 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
+  bool OnPriorityUpdateFrameStart(QuicByteCount /*header_length*/) override {
+    // TODO(b/147306124): Implement.
+    return true;
+  }
+
+  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& /*frame*/) override {
+    // TODO(b/147306124): Implement.
+    return true;
+  }
+
   bool OnUnknownFrameStart(uint64_t /* frame_type */,
                            QuicByteCount /* header_length */) override {
     // Ignore unknown frame types.

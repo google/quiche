@@ -166,6 +166,9 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       break;
     case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
       break;
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
+      continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
+      break;
     default:
       continue_processing =
           visitor_->OnUnknownFrameStart(current_frame_type_, header_length);
@@ -289,6 +292,12 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       BufferFramePayload(reader);
       break;
     }
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      BufferFramePayload(reader);
+      break;
+    }
     default: {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
@@ -406,6 +415,17 @@ bool HttpDecoder::FinishParsing() {
       continue_processing = visitor_->OnDuplicatePushFrame(frame);
       break;
     }
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      PriorityUpdateFrame frame;
+      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      if (!ParsePriorityUpdateFrame(&reader, &frame)) {
+        return false;
+      }
+      continue_processing = visitor_->OnPriorityUpdateFrame(frame);
+      break;
+    }
     default: {
       continue_processing = visitor_->OnUnknownFrameEnd();
       break;
@@ -515,6 +535,41 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
   return true;
 }
 
+bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
+                                           PriorityUpdateFrame* frame) {
+  uint8_t prioritized_element_type;
+  if (!reader->ReadUInt8(&prioritized_element_type)) {
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA,
+               "Unable to read prioritized element type.");
+    return false;
+  }
+
+  if (prioritized_element_type != REQUEST_STREAM &&
+      prioritized_element_type != PUSH_STREAM) {
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA, "Invalid prioritized element type.");
+    return false;
+  }
+
+  frame->prioritized_element_type =
+      static_cast<PrioritizedElementType>(prioritized_element_type);
+
+  if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {
+    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
+    RaiseError(QUIC_INVALID_FRAME_DATA,
+               "Unable to read prioritized element id.");
+    return false;
+  }
+
+  quiche::QuicheStringPiece priority_field_value =
+      reader->ReadRemainingPayload();
+  frame->priority_field_value =
+      std::string(priority_field_value.data(), priority_field_value.size());
+
+  return true;
+}
+
 QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
   switch (frame_type) {
     case static_cast<uint64_t>(HttpFrameType::CANCEL_PUSH):
@@ -528,6 +583,9 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
       return sizeof(PushId);
+    case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
+      // This limit is arbitrary.
+      return 1024 * 1024;
     default:
       // Other frames require no data buffering, so it's safe to have no limit.
       return std::numeric_limits<QuicByteCount>::max();

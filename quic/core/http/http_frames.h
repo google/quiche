@@ -26,7 +26,8 @@ enum class HttpFrameType : uint8_t {
   PUSH_PROMISE = 0x5,
   GOAWAY = 0x7,
   MAX_PUSH_ID = 0xD,
-  DUPLICATE_PUSH = 0xE
+  DUPLICATE_PUSH = 0xE,
+  PRIORITY_UPDATE = 0XF,
 };
 
 // 7.2.1.  DATA
@@ -139,6 +140,46 @@ struct QUIC_EXPORT_PRIVATE DuplicatePushFrame {
 
   bool operator==(const DuplicatePushFrame& rhs) const {
     return push_id == rhs.push_id;
+  }
+};
+
+// https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html
+//
+//   The PRIORITY_UPDATE (type=0x0f) frame specifies the sender-advised priority
+//   of a stream
+
+// Length of a priority frame's first byte.
+const QuicByteCount kPriorityFirstByteLength = 1;
+
+enum PrioritizedElementType : uint8_t {
+  REQUEST_STREAM = 0x00,
+  PUSH_STREAM = 0x80,
+};
+
+struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
+  PrioritizedElementType prioritized_element_type = REQUEST_STREAM;
+  uint64_t prioritized_element_id = 0;
+  std::string priority_field_value;
+
+  bool operator==(const PriorityUpdateFrame& rhs) const {
+    return std::tie(prioritized_element_type, prioritized_element_id,
+                    priority_field_value) ==
+           std::tie(rhs.prioritized_element_type, rhs.prioritized_element_id,
+                    rhs.priority_field_value);
+  }
+  std::string ToString() const {
+    return quiche::QuicheStrCat(
+        "Priority Frame : {prioritized_element_type: ",
+        static_cast<int>(prioritized_element_type),
+        ", prioritized_element_id: ", prioritized_element_id,
+        ", priority_field_value: ", priority_field_value, "}");
+  }
+
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+      std::ostream& os,
+      const PriorityUpdateFrame& s) {
+    os << s.ToString();
+    return os;
   }
 };
 

@@ -65,6 +65,12 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
   static QuicByteCount SerializeDuplicatePushFrame(
       const DuplicatePushFrame& duplicate_push,
       std::unique_ptr<char[]>* output);
+
+  // Serializes a PRIORITY_UPDATE frame into a new buffer stored in |output|.
+  // Returns the length of the buffer on success, or 0 otherwise.
+  static QuicByteCount SerializePriorityUpdateFrame(
+      const PriorityUpdateFrame& priority_update,
+      std::unique_ptr<char[]>* output);
 };
 
 }  // namespace quic

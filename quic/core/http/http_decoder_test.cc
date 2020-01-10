@@ -63,6 +63,9 @@ class MockVisitor : public HttpDecoder::Visitor {
                bool(quiche::QuicheStringPiece payload));
   MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
 
+  MOCK_METHOD1(OnPriorityUpdateFrameStart, bool(QuicByteCount header_length));
+  MOCK_METHOD1(OnPriorityUpdateFrame, bool(const PriorityUpdateFrame& frame));
+
   MOCK_METHOD2(OnUnknownFrameStart, bool(uint64_t, QuicByteCount));
   MOCK_METHOD1(OnUnknownFramePayload, bool(quiche::QuicheStringPiece));
   MOCK_METHOD0(OnUnknownFrameEnd, bool());
@@ -88,6 +91,9 @@ class HttpDecoderTest : public QuicTest {
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPriorityUpdateFrameStart(_))
+        .WillByDefault(Return(true));
+    ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
@@ -144,7 +150,7 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
   const QuicByteCount payload_lengths[] = {0, 14, 100};
   const uint64_t frame_types[] = {
       0x21, 0x40, 0x5f, 0x7e, 0x9d,  // some reserved frame types
-      0x06, 0x0f, 0x14               // some unknown, not reserved frame types
+      0x06, 0x6f, 0x14               // some unknown, not reserved frame types
   };
 
   for (auto payload_length : payload_lengths) {
@@ -947,6 +953,124 @@ TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
   EXPECT_EQ(length, decoder_.ProcessInput(buffer.get(), length));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
+  InSequence s;
+  std::string input1 = quiche::QuicheTextUtils::HexDecode(
+      "0f"    // type (PRIORITY_UPDATE)
+      "02"    // length
+      "00"    // prioritized element type: REQUEST_STREAM
+      "03");  // prioritized element id
+
+  PriorityUpdateFrame priority_update1;
+  priority_update1.prioritized_element_type = REQUEST_STREAM;
+  priority_update1.prioritized_element_id = 0x03;
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2)).WillOnce(Return(false));
+  quiche::QuicheStringPiece remaining_input(input1);
+  QuicByteCount processed_bytes =
+      ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(2u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1))
+      .WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1));
+  EXPECT_EQ(input1.size(), ProcessInput(input1));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update1));
+  ProcessInputCharByChar(input1);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  std::string input2 = quiche::QuicheTextUtils::HexDecode(
+      "0f"        // type (PRIORIRTY)
+      "05"        // length
+      "80"        // prioritized element type: PUSH_STREAM
+      "05"        // prioritized element id
+      "666f6f");  // priority field value: "foo"
+
+  PriorityUpdateFrame priority_update2;
+  priority_update2.prioritized_element_type = PUSH_STREAM;
+  priority_update2.prioritized_element_id = 0x05;
+  priority_update2.priority_field_value = "foo";
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2)).WillOnce(Return(false));
+  remaining_input = input2;
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(2u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2))
+      .WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2));
+  EXPECT_EQ(input2.size(), ProcessInput(input2));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2));
+  EXPECT_CALL(visitor_, OnPriorityUpdateFrame(priority_update2));
+  ProcessInputCharByChar(input2);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
+  std::string payload1 = quiche::QuicheTextUtils::HexDecode(
+      "80"      // prioritized element type: PUSH_STREAM
+      "4005");  // prioritized element id
+  std::string payload2 = quiche::QuicheTextUtils::HexDecode(
+      "42");  // invalid prioritized element type
+  struct {
+    const char* const payload;
+    size_t payload_length;
+    const char* const error_message;
+  } kTestData[] = {
+      {payload1.data(), 0, "Unable to read prioritized element type."},
+      {payload1.data(), 1, "Unable to read prioritized element id."},
+      {payload1.data(), 2, "Unable to read prioritized element id."},
+      {payload2.data(), 1, "Invalid prioritized element type."},
+  };
+
+  for (const auto& test_data : kTestData) {
+    std::string input;
+    input.push_back(15u);  // type PRIORITY_UPDATE
+    input.push_back(test_data.payload_length);
+    size_t header_length = input.size();
+    input.append(test_data.payload, test_data.payload_length);
+
+    HttpDecoder decoder(&visitor_);
+    EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(header_length));
+    EXPECT_CALL(visitor_, OnError(&decoder));
+
+    QuicByteCount processed_bytes =
+        decoder.ProcessInput(input.data(), input.size());
+    EXPECT_EQ(input.size(), processed_bytes);
+    EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
+    EXPECT_EQ(test_data.error_message, decoder.error_detail());
+  }
 }
 
 }  // namespace test

@@ -149,5 +149,38 @@ TEST(HttpEncoderTest, SerializeDuplicatePushFrame) {
       "DUPLICATE_PUSH", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
+TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
+  PriorityUpdateFrame priority_update1;
+  priority_update1.prioritized_element_type = REQUEST_STREAM;
+  priority_update1.prioritized_element_id = 0x03;
+  char output1[] = {0x0f,   // type (PRIORITY_UPDATE)
+                    0x02,   // length
+                    0x00,   // prioritized element type: REQUEST_STREAM
+                    0x03};  // prioritized element id
+
+  std::unique_ptr<char[]> buffer;
+  uint64_t length =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update1, &buffer);
+  EXPECT_EQ(QUICHE_ARRAYSIZE(output1), length);
+  quiche::test::CompareCharArraysWithHexError("PRIORITY_UPDATE", buffer.get(),
+                                              length, output1,
+                                              QUICHE_ARRAYSIZE(output1));
+
+  PriorityUpdateFrame priority_update2;
+  priority_update2.prioritized_element_type = PUSH_STREAM;
+  priority_update2.prioritized_element_id = 0x05;
+  priority_update2.priority_field_value = "foo";
+  char output2[] = {0x0f,             // type (PRIORIRTY)
+                    0x05,             // length
+                    0x80,             // prioritized element type: PUSH_STREAM
+                    0x05,             // prioritized element id
+                    'f',  'o', 'o'};  // priority field value
+  length = HttpEncoder::SerializePriorityUpdateFrame(priority_update2, &buffer);
+  EXPECT_EQ(QUICHE_ARRAYSIZE(output2), length);
+  quiche::test::CompareCharArraysWithHexError("PRIORITY_UPDATE", buffer.get(),
+                                              length, output2,
+                                              QUICHE_ARRAYSIZE(output2));
+}
+
 }  // namespace test
 }  // namespace quic

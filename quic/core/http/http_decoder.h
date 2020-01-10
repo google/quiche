@@ -92,6 +92,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a PUSH_PROMISE frame has been completely processed.
     virtual bool OnPushPromiseFrameEnd() = 0;
 
+    // Called when a PRIORITY_UPDATE frame has been received.
+    // |header_length| contains PRIORITY_UPDATE frame length and payload length.
+    virtual bool OnPriorityUpdateFrameStart(QuicByteCount header_length) = 0;
+
+    // Called when a PRIORITY_UPDATE frame has been successfully parsed.
+    virtual bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) = 0;
+
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
     // |header_length| contains frame length and payload length.
@@ -176,6 +183,10 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Parses the payload of a SETTINGS frame from |reader| into |frame|.
   bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);
+
+  // Parses the payload of a PRIORITY_UPDATE frame from |reader| into |frame|.
+  bool ParsePriorityUpdateFrame(QuicDataReader* reader,
+                                PriorityUpdateFrame* frame);
 
   // Returns the max frame size of a given |frame_type|.
   QuicByteCount MaxFrameLength(uint64_t frame_type);

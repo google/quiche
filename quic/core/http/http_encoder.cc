@@ -213,4 +213,32 @@ QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
   return 0;
 }
 
+// static
+QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
+    const PriorityUpdateFrame& priority_update,
+    std::unique_ptr<char[]>* output) {
+  QuicByteCount payload_length =
+      kPriorityFirstByteLength +
+      QuicDataWriter::GetVarInt62Len(priority_update.prioritized_element_id) +
+      priority_update.priority_field_value.size();
+  QuicByteCount total_length =
+      GetTotalLength(payload_length, HttpFrameType::PRIORITY_UPDATE);
+
+  output->reset(new char[total_length]);
+  QuicDataWriter writer(total_length, output->get());
+
+  if (WriteFrameHeader(payload_length, HttpFrameType::PRIORITY_UPDATE,
+                       &writer) &&
+      writer.WriteUInt8(priority_update.prioritized_element_type) &&
+      writer.WriteVarInt62(priority_update.prioritized_element_id) &&
+      writer.WriteBytes(priority_update.priority_field_value.data(),
+                        priority_update.priority_field_value.size())) {
+    return total_length;
+  }
+
+  QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
+                      "PRIORITY_UPDATE frame.";
+  return 0;
+}
+
 }  // namespace quic
