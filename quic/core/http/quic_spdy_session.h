@@ -141,13 +141,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       const spdy::SpdyStreamPrecedence& precedence,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
-  // Writes a PRIORITY frame the to peer. Returns the size in bytes of the
-  // resulting PRIORITY frame for QUIC_VERSION_43 and above. Otherwise, does
+  // Writes an HTTP/2 PRIORITY frame the to peer. Returns the size in bytes of
+  // the resulting PRIORITY frame for QUIC_VERSION_43 and above. Otherwise, does
   // nothing and returns 0.
   size_t WritePriority(QuicStreamId id,
                        QuicStreamId parent_stream_id,
                        int weight,
                        bool exclusive);
+
+  // Writes an HTTP/3 PRIORITY_UPDATE frame to the peer.
+  void WriteHttp3PriorityUpdate(const PriorityUpdateFrame& priority_update);
 
   // Process received HTTP/3 GOAWAY frame. This method should only be called on
   // the client side.

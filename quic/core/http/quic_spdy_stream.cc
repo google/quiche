@@ -1037,7 +1037,16 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         std::move(ack_listener));
   }
 
-  // TODO(b/147306124): Send PRIORITY_UPDATE frame.
+  if (!priority_sent_) {
+    PriorityUpdateFrame priority_update;
+    priority_update.prioritized_element_type = REQUEST_STREAM;
+    priority_update.prioritized_element_id = id();
+    // Value between 0 and 7, inclusive.  Lower value means higher priority.
+    int urgency = precedence().spdy3_priority();
+    priority_update.priority_field_value = quiche::QuicheStrCat("u=", urgency);
+    spdy_session_->WriteHttp3PriorityUpdate(priority_update);
+    priority_sent_ = true;
+  }
 
   // Encode header list.
   QuicByteCount encoder_stream_sent_byte_count;

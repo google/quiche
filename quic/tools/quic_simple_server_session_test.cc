@@ -38,6 +38,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using testing::_;
+using testing::AnyNumber;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Invoke;
@@ -622,6 +623,14 @@ class QuicSimpleServerSessionServerPushTest
           QuicUtils::GetHeadersStreamId(connection_->transport_version()),
           /*is_static=*/true,
           spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
+    }
+    if (VersionUsesHttp3(transport_version())) {
+      // Ignore writes on the control stream.
+      auto send_control_stream =
+          QuicSpdySessionPeer::GetSendControlStream(session_.get());
+      EXPECT_CALL(*connection_,
+                  SendStreamData(send_control_stream->id(), _, _, NO_FIN))
+          .Times(AnyNumber());
     }
   }
 

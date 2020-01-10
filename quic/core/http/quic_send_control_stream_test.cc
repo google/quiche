@@ -152,9 +152,24 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
   EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _));
   send_control_stream_->MaybeSendSettingsFrame();
 
-  // No data should be written the sencond time MaybeSendSettingsFrame() is
+  // No data should be written the second time MaybeSendSettingsFrame() is
   // called.
   send_control_stream_->MaybeSendSettingsFrame();
+}
+
+// Send stream type and SETTINGS frame if WritePriorityUpdate() is called first.
+TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
+  Initialize();
+  testing::InSequence s;
+
+  // The first write will trigger the control stream to write stream type and a
+  // SETTINGS frame before the PRIORITY_UPDATE frame.
+  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _)).Times(3);
+  PriorityUpdateFrame frame;
+  send_control_stream_->WritePriorityUpdate(frame);
+
+  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _));
+  send_control_stream_->WritePriorityUpdate(frame);
 }
 
 TEST_P(QuicSendControlStreamTest, ResetControlStream) {

@@ -38,10 +38,16 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // first frame sent on this stream.
   void MaybeSendSettingsFrame();
 
-  // Construct a MAX_PUSH_ID frame and send it on this stream.
+  // Send a MAX_PUSH_ID frame on this stream, and a SETTINGS frame beforehand if
+  // one has not been already sent.
   void SendMaxPushIdFrame(PushId max_push_id);
 
-  // Serialize a GOAWAY frame from |stream_id| and send it on this stream.
+  // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
+  // beforehand if one has not been already sent.
+  void WritePriorityUpdate(const PriorityUpdateFrame& priority_update);
+
+  // Send a GOAWAY frame on this stream, and a SETTINGS frame beforehand if one
+  // has not been already sent.
   void SendGoAway(QuicStreamId stream_id);
 
   // The send control stream is write unidirectional, so this method should

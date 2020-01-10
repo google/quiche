@@ -228,19 +228,14 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*connection_, OnCanWrite());
     }
     if (UsesHttp3()) {
-      // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
-      // Six writes include priority for headers, headers frame header, headers
-      // frame, priority of trailers, trailing headers frame header, and
-      // trailers.
-      auto send_control_stream =
-          QuicSpdySessionPeer::GetSendControlStream(session_.get());
-      // The control stream will write 3 times, including stream type, settings
-      // frame and max push id, priority for headers.
+      // The control stream will write the stream type and SETTINGS frame.
       int num_control_stream_writes = 2;
       if (session_->perspective() == Perspective::IS_CLIENT) {
         // The control stream also writes the max push id frame.
         num_control_stream_writes++;
       }
+      auto send_control_stream =
+          QuicSpdySessionPeer::GetSendControlStream(session_.get());
       EXPECT_CALL(*session_, WritevData(send_control_stream,
                                         send_control_stream->id(), _, _, _))
           .Times(num_control_stream_writes);
@@ -1264,9 +1259,44 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
 
   if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+    // Four writes on the request stream: HEADERS frame header and payload both
+    // for headers and trailers.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
-        .Times(AtLeast(1));
+        .Times(4);
+    // PRIORITY_UPDATE frame on the control stream.
+    auto send_control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                      send_control_stream->id(), _, _, _));
   }
+
+  // Write the initial headers, without a FIN.
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+
+  // Writing trailers implicitly sends a FIN.
+  SpdyHeaderBlock trailers;
+  trailers["trailer key"] = "trailer value";
+  EXPECT_CALL(*stream_, WriteHeadersMock(true));
+  stream_->WriteTrailers(std::move(trailers), nullptr);
+  EXPECT_TRUE(stream_->fin_sent());
+}
+
+TEST_P(QuicSpdyStreamTest, SendPriorityUpdate) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+
+  // Four writes on the request stream: HEADERS frame header and payload both
+  // for headers and trailers.
+  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(4);
+  // PRIORITY_UPDATE frame on the control stream.
+  auto send_control_stream =
+      QuicSpdySessionPeer::GetSendControlStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                    send_control_stream->id(), _, _, _));
 
   // Write the initial headers, without a FIN.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -1287,8 +1317,14 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
 
   if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
+    // HEADERS frame header and payload on the request stream.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
-        .Times(AtLeast(1));
+        .Times(2);
+    // PRIORITY_UPDATE frame on the control stream.
+    auto send_control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                      send_control_stream->id(), _, _, _));
   }
 
   // Write the initial headers.
@@ -1333,6 +1369,13 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   // also written on the stream in case of IETF QUIC.
   EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
       .Times(AtLeast(1));
+  if (UsesHttp3()) {
+    // PRIORITY_UPDATE frame.
+    auto send_control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                      send_control_stream->id(), _, _, _));
+  }
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));

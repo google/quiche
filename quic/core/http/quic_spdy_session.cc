@@ -531,6 +531,13 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
   return frame.size();
 }
 
+void QuicSpdySession::WriteHttp3PriorityUpdate(
+    const PriorityUpdateFrame& priority_update) {
+  DCHECK(VersionUsesHttp3(transport_version()));
+
+  send_control_stream_->WritePriorityUpdate(priority_update);
+}
+
 void QuicSpdySession::OnHttp3GoAway(QuicStreamId stream_id) {
   DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
   if (!QuicUtils::IsBidirectionalStreamId(stream_id) ||
