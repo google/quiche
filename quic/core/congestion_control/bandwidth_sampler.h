@@ -481,10 +481,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
       quic_bw_sampler_remove_packets_once_per_congestion_event2);
 
   // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2
-  // and quic_one_bw_sample_per_ack_event.
+  // and quic_one_bw_sample_per_ack_event2.
   const bool one_bw_sample_per_ack_event_ =
       remove_packets_once_per_congestion_event_ &&
-      GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event);
+      GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2);
 };
 
 }  // namespace quic

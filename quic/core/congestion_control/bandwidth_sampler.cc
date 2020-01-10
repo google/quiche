@@ -87,7 +87,7 @@ BandwidthSampler::BandwidthSampler(
         quic_bw_sampler_remove_packets_once_per_congestion_event2);
   }
   if (one_bw_sample_per_ack_event_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_one_bw_sample_per_ack_event);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_one_bw_sample_per_ack_event2);
   }
 }
 

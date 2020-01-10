@@ -443,8 +443,8 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
     if (!sample.sample_rtt.IsInfinite()) {
       min_rtt_expired = MaybeUpdateMinRtt(event_time, sample.sample_rtt);
     }
+    bytes_lost = sampler_.total_bytes_lost() - total_bytes_lost_before;
     if (mode_ == STARTUP) {
-      bytes_lost = sampler_.total_bytes_lost() - total_bytes_lost_before;
       if (stats_) {
         stats_->slowstart_packets_lost += lost_packets.size();
         stats_->slowstart_bytes_lost += bytes_lost;

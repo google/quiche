@@ -11,6 +11,7 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -375,6 +376,54 @@ TEST_F(BbrSenderTest, SimpleTransferEarlyPacketLoss) {
   EXPECT_EQ(BbrSender::DRAIN, sender_->ExportDebugState().mode);
   EXPECT_EQ(1u, bbr_sender_.connection()->GetStats().packets_lost);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+}
+
+TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
+  SetQuicReloadableFlag(quic_bbr_one_mss_conservation, false);
+  // Disable Ack Decimation on the receiver, because it can increase srtt.
+  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
+  CreateDefaultSetup();
+
+  DriveOutOfStartup();
+
+  // Drop a packet to enter recovery.
+  receiver_.DropNextIncomingPacket();
+  ASSERT_TRUE(
+      simulator_.RunUntilOrTimeout([this]() { return sender_->InRecovery(); },
+                                   QuicTime::Delta::FromSeconds(30)));
+
+  QuicUnackedPacketMap* unacked_packets =
+      QuicSentPacketManagerPeer::GetUnackedPacketMap(
+          QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection()));
+  QuicPacketNumber largest_sent =
+      bbr_sender_.connection()->sent_packet_manager().GetLargestSentPacket();
+  // least_inflight is the smallest inflight packet.
+  QuicPacketNumber least_inflight =
+      bbr_sender_.connection()->sent_packet_manager().GetLeastUnacked();
+  while (!unacked_packets->GetTransmissionInfo(least_inflight).in_flight) {
+    ASSERT_LE(least_inflight, largest_sent);
+    least_inflight++;
+  }
+  QuicPacketLength least_inflight_packet_size =
+      unacked_packets->GetTransmissionInfo(least_inflight).bytes_sent;
+  QuicByteCount prior_recovery_window =
+      sender_->ExportDebugState().recovery_window;
+  QuicByteCount prior_inflight = unacked_packets->bytes_in_flight();
+  QUIC_LOG(INFO) << "Recovery window:" << prior_recovery_window
+                 << ", least_inflight_packet_size:"
+                 << least_inflight_packet_size
+                 << ", bytes_in_flight:" << prior_inflight;
+  ASSERT_GT(prior_recovery_window, least_inflight_packet_size);
+
+  // Lose the least inflight packet and expect the recovery window to drop.
+  unacked_packets->RemoveFromInFlight(least_inflight);
+  LostPacketVector lost_packets;
+  lost_packets.emplace_back(least_inflight, least_inflight_packet_size);
+  sender_->OnCongestionEvent(false, prior_inflight, clock_->Now(), {},
+                             lost_packets);
+  EXPECT_EQ(sender_->ExportDebugState().recovery_window,
+            prior_inflight - least_inflight_packet_size);
+  EXPECT_LT(sender_->ExportDebugState().recovery_window, prior_recovery_window);
 }
 
 // Test a simple long data transfer with 2 rtts of aggregation.
