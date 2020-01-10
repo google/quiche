@@ -516,8 +516,10 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   }
 
   if (in->tag() != kSHLO) {
-    stream_->CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-                                        "Expected SHLO or REJ");
+    stream_->CloseConnectionWithDetails(
+        QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+        quiche::QuicheStrCat("Expected SHLO or REJ. Received: ",
+                             QuicTagToString(in->tag())));
     return;
   }
 
