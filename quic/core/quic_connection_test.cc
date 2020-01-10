@@ -9313,7 +9313,6 @@ TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
 }
 
 TEST_P(QuicConnectionTest, ProbeTimeout) {
-  SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
@@ -9341,7 +9340,6 @@ TEST_P(QuicConnectionTest, ProbeTimeout) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
-  SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k1PTO);
@@ -9379,7 +9377,6 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
-  SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
@@ -9416,7 +9413,6 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
-  SetQuicReloadableFlag(quic_enable_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
@@ -9607,7 +9603,6 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
 }
 
 TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
-  SetQuicReloadableFlag(quic_enable_pto, true);
   SetQuicReloadableFlag(quic_skip_packet_number_for_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;

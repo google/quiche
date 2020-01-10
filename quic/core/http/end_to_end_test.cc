@@ -396,9 +396,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       copt.push_back(kTPCC);
     }
     copt.push_back(GetParam().priority_tag);
-    if (GetQuicReloadableFlag(quic_enable_pto)) {
-      copt.push_back(k2PTO);
-    }
+    copt.push_back(k2PTO);
     if (VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
       copt.push_back(kILD0);
     }

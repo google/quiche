@@ -317,7 +317,6 @@ class QuicSentPacketManagerTest : public QuicTest {
   }
 
   void EnablePto(QuicTag tag) {
-    SetQuicReloadableFlag(quic_enable_pto, true);
     QuicConfig config;
     QuicTagVector options;
     options.push_back(tag);
