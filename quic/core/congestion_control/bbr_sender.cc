@@ -709,8 +709,7 @@ void BbrSender::CheckIfFullBandwidthReached() {
   }
 
   rounds_without_bandwidth_gain_++;
-  if ((rounds_without_bandwidth_gain_ >= num_startup_rtts_) ||
-      (exit_startup_on_loss_ && InRecovery())) {
+  if (rounds_without_bandwidth_gain_ >= num_startup_rtts_) {
     DCHECK(has_non_app_limited_sample_);
     is_at_full_bandwidth_ = true;
   }
