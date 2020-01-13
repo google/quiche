@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
 
-#include "net/quic/platform/impl/quic_socket_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
 
 namespace quic {
 
@@ -22,8 +22,11 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
   DCHECK(!write_blocked_);
   DCHECK(nullptr == options)
       << "QuicDefaultPacketWriter does not accept any options.";
-  WriteResult result = QuicSocketUtils::WritePacket(fd_, buffer, buf_len,
-                                                    self_address, peer_address);
+  QuicUdpPacketInfo packet_info;
+  packet_info.SetPeerAddress(peer_address);
+  packet_info.SetSelfIp(self_address);
+  WriteResult result =
+      QuicUdpSocketApi().WritePacket(fd_, buffer, buf_len, packet_info);
   if (IsWriteBlockedStatus(result.status)) {
     write_blocked_ = true;
   }

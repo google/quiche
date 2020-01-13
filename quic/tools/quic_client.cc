@@ -26,12 +26,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/quic/platform/impl/quic_socket_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_session.h"
-
-#ifndef SO_RXQ_OVFL
-#define SO_RXQ_OVFL 40
-#endif
 
 namespace quic {
 

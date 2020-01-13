@@ -19,14 +19,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
-#include "net/quic/platform/impl/quic_socket_utils.h"
-
-#ifndef SO_RXQ_OVFL
-#define SO_RXQ_OVFL 40
-#endif
 
 namespace quic {
 
@@ -200,9 +196,16 @@ void QuicClientEpollNetworkHelper::ProcessPacket(
 int QuicClientEpollNetworkHelper::CreateUDPSocket(
     QuicSocketAddress server_address,
     bool* overflow_supported) {
-  return QuicSocketUtils::CreateUDPSocket(
-      server_address,
-      /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-      /*send_buffer_size =*/kDefaultSocketReceiveBuffer, overflow_supported);
+  QuicUdpSocketApi api;
+  int fd = api.Create(server_address.host().AddressFamilyToInt(),
+                      /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
+                      /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+  if (fd < 0) {
+    return fd;
+  }
+
+  *overflow_supported = api.EnableDroppedPacketCount(fd);
+  api.EnableReceiveTimestamp(fd);
+  return fd;
 }
 }  // namespace quic

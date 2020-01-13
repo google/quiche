@@ -7,7 +7,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <sstream>
 #include <string>
+#include <type_traits>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
@@ -221,6 +223,63 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicStreamCount GetMaxStreamCount(bool unidirectional,
                                            Perspective perspective);
 };
+
+template <typename Mask>
+class QUIC_EXPORT_PRIVATE BitMask {
+ public:
+  // explicit to prevent (incorrect) usage like "BitMask bitmask = 0;".
+  template <typename... Bits>
+  explicit BitMask(Bits... bits) {
+    mask_ = MakeMask(bits...);
+  }
+
+  BitMask() = default;
+  BitMask(const BitMask& other) = default;
+  BitMask& operator=(const BitMask& other) = default;
+
+  template <typename... Bits>
+  void Set(Bits... bits) {
+    mask_ |= MakeMask(bits...);
+  }
+
+  template <typename Bit>
+  bool IsSet(Bit bit) const {
+    return (MakeMask(bit) & mask_) != 0;
+  }
+
+  static constexpr size_t NumBits() { return 8 * sizeof(Mask); }
+
+  friend bool operator==(const BitMask& lhs, const BitMask& rhs) {
+    return lhs.mask_ == rhs.mask_;
+  }
+
+  std::string DebugString() const {
+    std::ostringstream oss;
+    oss << "0x" << std::hex << mask_;
+    return oss.str();
+  }
+
+ private:
+  template <typename Bit>
+  static std::enable_if_t<std::is_enum<Bit>::value, Mask> MakeMask(Bit bit) {
+    using IntType = typename std::underlying_type<Bit>::type;
+    return Mask(1) << static_cast<IntType>(bit);
+  }
+
+  template <typename Bit>
+  static std::enable_if_t<!std::is_enum<Bit>::value, Mask> MakeMask(Bit bit) {
+    return Mask(1) << bit;
+  }
+
+  template <typename Bit, typename... Bits>
+  static Mask MakeMask(Bit first_bit, Bits... other_bits) {
+    return MakeMask(first_bit) | MakeMask(other_bits...);
+  }
+
+  Mask mask_ = 0;
+};
+
+using BitMask64 = BitMask<uint64_t>;
 
 }  // namespace quic
 
