@@ -207,10 +207,11 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   client_options_.only_tls_versions = true;
   supported_versions_.clear();
-  for (QuicTransportVersion transport_version :
-       AllSupportedTransportVersions()) {
-    supported_versions_.push_back(
-        ParsedQuicVersion(PROTOCOL_TLS1_3, transport_version));
+  for (ParsedQuicVersion version : AllSupportedVersions()) {
+    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+      continue;
+    }
+    supported_versions_.push_back(version);
   }
   Initialize();
   CompleteCryptoHandshake();

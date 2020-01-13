@@ -273,10 +273,11 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
   ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   if (options.only_tls_versions) {
     supported_versions.clear();
-    for (QuicTransportVersion transport_version :
-         AllSupportedTransportVersions()) {
-      supported_versions.push_back(
-          ParsedQuicVersion(PROTOCOL_TLS1_3, transport_version));
+    for (ParsedQuicVersion version : AllSupportedVersions()) {
+      if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+        continue;
+      }
+      supported_versions.push_back(version);
     }
   }
   PacketSavingConnection* client_conn = new PacketSavingConnection(

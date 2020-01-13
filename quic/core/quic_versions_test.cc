@@ -48,8 +48,24 @@ TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabel) {
 }
 
 TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabelUnsupported) {
-  EXPECT_QUIC_BUG(QuicVersionToQuicVersionLabel(QUIC_VERSION_UNSUPPORTED),
-                  "Unsupported QuicTransportVersion: 0");
+  EXPECT_QUIC_BUG(CreateQuicVersionLabel(UnsupportedQuicVersion()),
+                  "Invalid HandshakeProtocol: 0");
+}
+
+TEST_F(QuicVersionsTest, KnownAndValid) {
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    EXPECT_TRUE(version.IsKnown());
+    EXPECT_TRUE(ParsedQuicVersionIsValid(version.handshake_protocol,
+                                         version.transport_version));
+  }
+  ParsedQuicVersion unsupported = UnsupportedQuicVersion();
+  EXPECT_FALSE(unsupported.IsKnown());
+  EXPECT_TRUE(ParsedQuicVersionIsValid(unsupported.handshake_protocol,
+                                       unsupported.transport_version));
+  ParsedQuicVersion reserved = QuicVersionReservedForNegotiation();
+  EXPECT_TRUE(reserved.IsKnown());
+  EXPECT_TRUE(ParsedQuicVersionIsValid(reserved.handshake_protocol,
+                                       reserved.transport_version));
 }
 
 TEST_F(QuicVersionsTest, QuicVersionLabelToQuicTransportVersion) {
@@ -99,15 +115,18 @@ TEST_F(QuicVersionsTest, QuicVersionLabelToHandshakeProtocol) {
   EXPECT_QUIC_LOG_CALL(log).Times(0);
   log.StartCapturingLogs();
 
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kSupportedTransportVersions); ++i) {
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
+      continue;
+    }
     QuicVersionLabel version_label =
-        QuicVersionToQuicVersionLabel(kSupportedTransportVersions[i]);
+        QuicVersionToQuicVersionLabel(version.transport_version);
     EXPECT_EQ(PROTOCOL_QUIC_CRYPTO,
               QuicVersionLabelToHandshakeProtocol(version_label));
   }
 
   // Test a TLS version:
-  QuicTag tls_tag = MakeQuicTag('3', '4', '0', 'T');
+  QuicTag tls_tag = MakeQuicTag('0', '5', '0', 'T');
   EXPECT_EQ(PROTOCOL_TLS1_3, QuicVersionLabelToHandshakeProtocol(tls_tag));
 }
 
@@ -120,14 +139,6 @@ TEST_F(QuicVersionsTest, ParseQuicVersionLabel) {
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '4', '8')));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
             ParseQuicVersionLabel(MakeVersionLabel('Q', '0', '5', '0')));
-
-  // Test TLS versions:
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_43),
-            ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '3')));
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_46),
-            ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '6')));
-  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_48),
-            ParseQuicVersionLabel(MakeVersionLabel('T', '0', '4', '8')));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
             ParseQuicVersionLabel(MakeVersionLabel('T', '0', '5', '0')));
 }
@@ -245,11 +256,8 @@ TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
 
   // Make sure that all supported versions are present in
   // ParsedQuicVersionToString.
-  for (QuicTransportVersion transport_version : kSupportedTransportVersions) {
-    for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
-      EXPECT_NE("0", ParsedQuicVersionToString(
-                         ParsedQuicVersion(protocol, transport_version)));
-    }
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    EXPECT_NE("0", ParsedQuicVersionToString(version));
   }
 }
 

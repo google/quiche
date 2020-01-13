@@ -118,6 +118,11 @@ enum QuicTransportVersion {
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
 };
 
+// Helper function which translates from a QuicTransportVersion to a string.
+// Returns strings corresponding to enum names (e.g. QUIC_VERSION_6).
+QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
+    QuicTransportVersion transport_version);
+
 // IETF draft version most closely approximated by TLS + v99.
 static const int kQuicIetfDraftVersion = 24;
 
@@ -127,6 +132,18 @@ enum HandshakeProtocol {
   PROTOCOL_QUIC_CRYPTO,
   PROTOCOL_TLS1_3,
 };
+
+// Helper function which translates from a HandshakeProtocol to a string.
+QUIC_EXPORT_PRIVATE std::string HandshakeProtocolToString(
+    HandshakeProtocol handshake_protocol);
+
+// Returns whether this combination of handshake protocol and transport
+// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_43} is NOT
+// allowed as TLS requires crypto frames which v43 does not support. Note that
+// UnsupportedQuicVersion is a valid version.
+QUIC_EXPORT_PRIVATE bool ParsedQuicVersionIsValid(
+    HandshakeProtocol handshake_protocol,
+    QuicTransportVersion transport_version);
 
 // A parsed QUIC version label which determines that handshake protocol
 // and the transport version.
@@ -160,6 +177,12 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
     return handshake_protocol != other.handshake_protocol ||
            transport_version != other.transport_version;
   }
+
+  // Returns whether our codebase understands this version. This should only be
+  // called on valid versions, see ParsedQuicVersionIsValid. Assuming the
+  // version is valid, IsKnown returns whether the version is not
+  // UnsupportedQuicVersion.
+  bool IsKnown() const;
 
   bool KnowsWhichDecrypterToUse() const;
 
@@ -320,11 +343,6 @@ QuicVersionLabelToQuicVersion(QuicVersionLabel version_label);
 // PROTOCOL_UNSUPPORTED if it is unknown.
 QUIC_EXPORT_PRIVATE HandshakeProtocol
 QuicVersionLabelToHandshakeProtocol(QuicVersionLabel version_label);
-
-// Helper function which translates from a QuicTransportVersion to a string.
-// Returns strings corresponding to enum names (e.g. QUIC_VERSION_6).
-QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
-    QuicTransportVersion transport_version);
 
 // Helper function which translates from a ParsedQuicVersion to a string.
 // Returns strings corresponding to the on-the-wire tag.

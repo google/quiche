@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -39,6 +40,13 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 }
 
 }  // namespace
+
+bool ParsedQuicVersion::IsKnown() const {
+  DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
+      << QuicVersionToString(transport_version) << " "
+      << HandshakeProtocolToString(handshake_protocol);
+  return transport_version != QUIC_VERSION_UNSUPPORTED;
+}
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
   return transport_version > QUIC_VERSION_46 ||
@@ -149,14 +157,9 @@ QuicVersionLabelVector CreateQuicVersionLabelVector(
 }
 
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
-  std::vector<HandshakeProtocol> protocols = {PROTOCOL_QUIC_CRYPTO,
-                                              PROTOCOL_TLS1_3};
-  for (QuicTransportVersion version : kSupportedTransportVersions) {
-    for (HandshakeProtocol handshake : protocols) {
-      if (version_label ==
-          CreateQuicVersionLabel(ParsedQuicVersion(handshake, version))) {
-        return ParsedQuicVersion(handshake, version);
-      }
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version_label == CreateQuicVersionLabel(version)) {
+      return version;
     }
   }
   // Reading from the client so this should not be considered an ERROR.
@@ -177,13 +180,9 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
         PROTOCOL_QUIC_CRYPTO,
         static_cast<QuicTransportVersion>(quic_version_number));
   }
-  for (QuicTransportVersion version : kSupportedTransportVersions) {
-    for (HandshakeProtocol handshake : kSupportedHandshakeProtocols) {
-      const ParsedQuicVersion parsed_version =
-          ParsedQuicVersion(handshake, version);
-      if (version_string == ParsedQuicVersionToString(parsed_version)) {
-        return parsed_version;
-      }
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version_string == ParsedQuicVersionToString(version)) {
+      return version;
     }
   }
   // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
@@ -205,18 +204,30 @@ QuicTransportVersionVector AllSupportedTransportVersions() {
   return supported_versions;
 }
 
+bool ParsedQuicVersionIsValid(HandshakeProtocol handshake_protocol,
+                              QuicTransportVersion transport_version) {
+  switch (handshake_protocol) {
+    case PROTOCOL_UNSUPPORTED:
+      return transport_version == QUIC_VERSION_UNSUPPORTED;
+    case PROTOCOL_QUIC_CRYPTO:
+      return transport_version != QUIC_VERSION_UNSUPPORTED;
+    case PROTOCOL_TLS1_3:
+      // The TLS handshake is only deployable if CRYPTO frames are also used.
+      // We explicitly removed support for T048 and T049 to reduce test load.
+      return QuicVersionUsesCryptoFrames(transport_version) &&
+             transport_version > QUIC_VERSION_49;
+  }
+  return false;
+}
+
 ParsedQuicVersionVector AllSupportedVersions() {
   ParsedQuicVersionVector supported_versions;
-  for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
-    for (QuicTransportVersion version : kSupportedTransportVersions) {
-      if (protocol == PROTOCOL_TLS1_3 &&
-          (!QuicVersionUsesCryptoFrames(version) ||
-           version <= QUIC_VERSION_49)) {
-        // The TLS handshake is only deployable if CRYPTO frames are also used.
-        // We explicitly removed support for T048 and T049 to reduce test load.
-        continue;
+  for (HandshakeProtocol handshake_protocol : kSupportedHandshakeProtocols) {
+    for (QuicTransportVersion transport_version : kSupportedTransportVersions) {
+      if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
+        supported_versions.push_back(
+            ParsedQuicVersion(handshake_protocol, transport_version));
       }
-      supported_versions.push_back(ParsedQuicVersion(protocol, version));
     }
   }
   return supported_versions;
@@ -363,9 +374,21 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_49);
     RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_99);
-    default:
-      return "QUIC_VERSION_UNSUPPORTED";
+    RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
+    RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
+  return quiche::QuicheStrCat("QUIC_VERSION_UNKNOWN(",
+                              static_cast<int>(transport_version), ")");
+}
+
+std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
+  switch (handshake_protocol) {
+    RETURN_STRING_LITERAL(PROTOCOL_UNSUPPORTED);
+    RETURN_STRING_LITERAL(PROTOCOL_QUIC_CRYPTO);
+    RETURN_STRING_LITERAL(PROTOCOL_TLS1_3);
+  }
+  return quiche::QuicheStrCat("PROTOCOL_UNKNOWN(",
+                              static_cast<int>(handshake_protocol), ")");
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
