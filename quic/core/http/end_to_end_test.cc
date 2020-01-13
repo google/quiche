@@ -779,8 +779,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -802,8 +801,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
 }
 
 TEST_P(EndToEndTestWithTls, ZeroConnectionID) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -819,8 +817,7 @@ TEST_P(EndToEndTestWithTls, ZeroConnectionID) {
 }
 
 TEST_P(EndToEndTestWithTls, BadConnectionIdLength) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -838,8 +835,7 @@ TEST_P(EndToEndTestWithTls, BadConnectionIdLength) {
 // Tests a very long (16-byte) initial destination connection ID to make
 // sure the dispatcher properly replaces it with an 8-byte one.
 TEST_P(EndToEndTestWithTls, LongBadConnectionIdLength) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -890,8 +886,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndClientConnectionId) {
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -913,8 +908,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // connection ID.
 TEST_P(EndToEndTestWithTls, ForcedVersNegoAndClientCIDAndLongCID) {
   if (!GetParam().negotiated_version.SupportsClientConnectionIds() ||
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+      !GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -939,8 +933,7 @@ TEST_P(EndToEndTestWithTls, ForcedVersNegoAndClientCIDAndLongCID) {
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1096,8 +1089,7 @@ TEST_P(EndToEndTestWithTls, MultipleRequestResponse) {
 }
 
 TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          GetParam().negotiated_version.transport_version)) {
+  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }

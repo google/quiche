@@ -286,8 +286,8 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
       !should_update_expected_server_connection_id_length_ &&
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          packet_info.version.transport_version)) {
+      packet_info.version.IsKnown() &&
+      !packet_info.version.AllowsVariableLengthConnectionIds()) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
@@ -330,8 +330,7 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   if (server_connection_id.length() == expected_server_connection_id_length_) {
     return server_connection_id;
   }
-  DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-      version.transport_version));
+  DCHECK(version.AllowsVariableLengthConnectionIds());
 
   QuicConnectionId new_connection_id =
       GenerateNewServerConnectionId(version, server_connection_id);
@@ -372,8 +371,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
       server_connection_id.length() < expected_server_connection_id_length_ &&
       !allow_short_initial_server_connection_ids_) {
     DCHECK(packet_info.version_flag);
-    DCHECK(QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-        packet_info.version.transport_version));
+    DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);

@@ -517,18 +517,9 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 }
 
 // static
-bool QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-    QuicTransportVersion version) {
-  // We allow variable length connection IDs for unsupported versions to
-  // ensure that IETF version negotiation works when other implementations
-  // trigger version negotiation with custom connection ID lengths.
-  return version > QUIC_VERSION_46 || version == QUIC_VERSION_UNSUPPORTED;
-}
-
-// static
 QuicConnectionId QuicUtils::CreateZeroConnectionId(
     QuicTransportVersion version) {
-  if (!VariableLengthConnectionIdAllowedForVersion(version)) {
+  if (!VersionAllowsVariableLengthConnectionIds(version)) {
     char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     return QuicConnectionId(static_cast<char*>(connection_id_bytes),
                             QUICHE_ARRAYSIZE(connection_id_bytes));
@@ -558,7 +549,7 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
   const uint8_t connection_id_length8 =
       static_cast<uint8_t>(connection_id_length);
   // Versions that do not support variable lengths only support length 8.
-  if (!VariableLengthConnectionIdAllowedForVersion(transport_version)) {
+  if (!VersionAllowsVariableLengthConnectionIds(transport_version)) {
     return connection_id_length8 == kQuicDefaultConnectionIdLength;
   }
   // Versions that do support variable length but do not have length-prefixed

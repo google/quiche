@@ -423,7 +423,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       current_received_frame_type_(0) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
-  DCHECK(version_.transport_version != QUIC_VERSION_UNSUPPORTED ||
+  DCHECK(version_.IsKnown() ||
          !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet))
       << ParsedQuicVersionVectorToString(supported_versions_);
 }
@@ -2528,10 +2528,7 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
   if (!should_update_expected_server_connection_id_length &&
       (dcil != *destination_connection_id_length ||
        scil != *source_connection_id_length) &&
-      !QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          version.transport_version)) {
-    // TODO(dschinazi): use the framer's version once the
-    // OnProtocolVersionMismatch call is moved to before this is run.
+      version.IsKnown() && !version.AllowsVariableLengthConnectionIds()) {
     QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
                   << ", scil: " << static_cast<uint32_t>(scil);
     *detailed_error = "Invalid ConnectionId length.";
@@ -2626,7 +2623,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       }
       return true;
     }
-    if (!header->version.HasHeaderProtection()) {
+    if (header->version.IsKnown() && !header->version.HasHeaderProtection()) {
       header->packet_number_length =
           GetLongHeaderPacketNumberLength(header->type_byte);
     }

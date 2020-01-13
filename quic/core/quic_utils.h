@@ -186,10 +186,6 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   static QuicConnectionId CreateRandomConnectionId(uint8_t connection_id_length,
                                                    QuicRandom* random);
 
-  // Returns true if the QUIC version allows variable length connection IDs.
-  static bool VariableLengthConnectionIdAllowedForVersion(
-      QuicTransportVersion version);
-
   // Returns true if the connection ID length is valid for this QUIC version.
   static bool IsConnectionIdLengthValidForVersion(
       size_t connection_id_length,

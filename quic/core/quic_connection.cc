@@ -196,8 +196,8 @@ bool PacketCanReplaceConnectionId(const QuicPacketHeader& header,
                                   Perspective perspective) {
   return perspective == Perspective::IS_CLIENT &&
          header.form == IETF_QUIC_LONG_HEADER_PACKET &&
-         QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-             header.version.transport_version) &&
+         header.version.IsKnown() &&
+         header.version.AllowsVariableLengthConnectionIds() &&
          (header.long_packet_type == INITIAL ||
           header.long_packet_type == RETRY);
 }

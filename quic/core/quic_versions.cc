@@ -49,52 +49,106 @@ bool ParsedQuicVersion::IsKnown() const {
 }
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46 ||
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::UsesInitialObfuscators() const {
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_49 ||
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
+  DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_99 &&
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_49;
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }
 
+bool ParsedQuicVersion::AllowsVariableLengthConnectionIds() const {
+  DCHECK(IsKnown());
+  return VersionAllowsVariableLengthConnectionIds(transport_version);
+}
+
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
+  DCHECK(IsKnown() ||
+         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
   return transport_version > QUIC_VERSION_48;
 }
 
 bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
+  DCHECK(IsKnown() ||
+         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
   return VersionHasLengthPrefixedConnectionIds(transport_version);
 }
 
 bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
+  DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_99 &&
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::CanSendCoalescedPackets() const {
+  DCHECK(IsKnown());
   return QuicVersionHasLongHeaderLengths(transport_version) &&
          handshake_protocol == PROTOCOL_TLS1_3;
 }
 
+bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
+  DCHECK(IsKnown());
+  return VersionSupportsGoogleAltSvcFormat(transport_version);
+}
+
+bool ParsedQuicVersion::HasIetfInvariantHeader() const {
+  DCHECK(IsKnown());
+  return VersionHasIetfInvariantHeader(transport_version);
+}
+
+bool ParsedQuicVersion::SupportsMessageFrames() const {
+  DCHECK(IsKnown());
+  return VersionSupportsMessageFrames(transport_version);
+}
+
+bool ParsedQuicVersion::UsesHttp3() const {
+  DCHECK(IsKnown());
+  return VersionUsesHttp3(transport_version);
+}
+
+bool ParsedQuicVersion::HasLongHeaderLengths() const {
+  DCHECK(IsKnown());
+  return QuicVersionHasLongHeaderLengths(transport_version);
+}
+
+bool ParsedQuicVersion::UsesCryptoFrames() const {
+  DCHECK(IsKnown());
+  return QuicVersionUsesCryptoFrames(transport_version);
+}
+
+bool ParsedQuicVersion::HasIetfQuicFrames() const {
+  DCHECK(IsKnown());
+  return VersionHasIetfQuicFrames(transport_version);
+}
+
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
+  DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED ||
+         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
   return transport_version > QUIC_VERSION_48;
 }
 
@@ -430,6 +484,12 @@ std::string ParsedQuicVersionVectorToString(
 
 bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
   return transport_version <= QUIC_VERSION_46;
+}
+
+bool VersionAllowsVariableLengthConnectionIds(
+    QuicTransportVersion transport_version) {
+  DCHECK_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
+  return transport_version > QUIC_VERSION_46;
 }
 
 bool QuicVersionLabelUses4BitConnectionIdLength(

@@ -744,8 +744,7 @@ TEST_F(QuicDispatcherTest,
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
 TEST_F(QuicDispatcherTest, LongConnectionIdLengthReplaced) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          CurrentSupportedVersions()[0].transport_version)) {
+  if (!CurrentSupportedVersions()[0].AllowsVariableLengthConnectionIds()) {
     // When variable length connection IDs are not supported, the connection
     // fails. See StrayPacketTruncatedConnectionId.
     return;
@@ -777,8 +776,7 @@ TEST_F(QuicDispatcherTest, LongConnectionIdLengthReplaced) {
 
 // Makes sure zero-byte connection IDs are replaced by 8-byte ones.
 TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          CurrentSupportedVersions()[0].transport_version)) {
+  if (!CurrentSupportedVersions()[0].AllowsVariableLengthConnectionIds()) {
     // When variable length connection IDs are not supported, the connection
     // fails. See StrayPacketTruncatedConnectionId.
     return;
@@ -816,8 +814,7 @@ TEST_F(QuicDispatcherTest, InvalidShortConnectionIdLengthReplaced) {
 // Makes sure TestConnectionId(1) creates a new connection and
 // TestConnectionIdNineBytesLong(2) gets replaced.
 TEST_F(QuicDispatcherTest, MixGoodAndBadConnectionIdLengthPackets) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          CurrentSupportedVersions()[0].transport_version)) {
+  if (!CurrentSupportedVersions()[0].AllowsVariableLengthConnectionIds()) {
     return;
   }
 

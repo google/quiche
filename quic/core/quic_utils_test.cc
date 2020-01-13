@@ -247,8 +247,7 @@ TEST_F(QuicUtilsTest, RandomConnectionIdVariableLength) {
 }
 
 TEST_F(QuicUtilsTest, VariableLengthConnectionId) {
-  EXPECT_FALSE(
-      QuicUtils::VariableLengthConnectionIdAllowedForVersion(QUIC_VERSION_43));
+  EXPECT_FALSE(VersionAllowsVariableLengthConnectionIds(QUIC_VERSION_43));
   EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(
       QuicUtils::CreateZeroConnectionId(QUIC_VERSION_43), QUIC_VERSION_43));
   EXPECT_TRUE(QuicUtils::IsConnectionIdValidForVersion(

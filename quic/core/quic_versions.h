@@ -154,11 +154,14 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   constexpr ParsedQuicVersion(HandshakeProtocol handshake_protocol,
                               QuicTransportVersion transport_version)
       : handshake_protocol(handshake_protocol),
-        transport_version(transport_version) {}
+        transport_version(transport_version) {
+    DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
+        << QuicVersionToString(transport_version) << " "
+        << HandshakeProtocolToString(handshake_protocol);
+  }
 
   constexpr ParsedQuicVersion(const ParsedQuicVersion& other)
-      : handshake_protocol(other.handshake_protocol),
-        transport_version(other.transport_version) {}
+      : ParsedQuicVersion(other.handshake_protocol, other.transport_version) {}
 
   ParsedQuicVersion& operator=(const ParsedQuicVersion& other) {
     if (this != &other) {
@@ -204,6 +207,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // header.
   bool SendsVariableLengthPacketNumberInLongHeader() const;
 
+  // Returns whether this version allows server connection ID lengths
+  // that are not 64 bits.
+  bool AllowsVariableLengthConnectionIds() const;
+
   // Returns whether this version supports client connection ID.
   bool SupportsClientConnectionIds() const;
 
@@ -219,6 +226,39 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns true if this version can send coalesced packets.
   bool CanSendCoalescedPackets() const;
+
+  // Returns true if this version supports the old Google-style Alt-Svc
+  // advertisement format.
+  bool SupportsGoogleAltSvcFormat() const;
+
+  // Returns true if |transport_version| uses IETF invariant headers.
+  bool HasIetfInvariantHeader() const;
+
+  // Returns true if |transport_version| supports MESSAGE frames.
+  bool SupportsMessageFrames() const;
+
+  // If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.
+  // Notable changes are:
+  // * Headers stream no longer exists.
+  // * PRIORITY, HEADERS are moved from headers stream to HTTP/3 control stream.
+  // * PUSH_PROMISE is moved to request stream.
+  // * Unidirectional streams will have their first byte as a stream type.
+  // * HEADERS frames are compressed using QPACK.
+  // * DATA frame has frame headers.
+  // * GOAWAY is moved to HTTP layer.
+  bool UsesHttp3() const;
+
+  // Returns whether the transport_version supports the variable length integer
+  // length field as defined by IETF QUIC draft-13 and later.
+  bool HasLongHeaderLengths() const;
+
+  // Returns whether |transport_version| uses CRYPTO frames for the handshake
+  // instead of stream 1.
+  bool UsesCryptoFrames() const;
+
+  // Returns whether |transport_version| makes use of IETF QUIC
+  // frames or not.
+  bool HasIetfQuicFrames() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();
@@ -431,6 +471,11 @@ QUIC_EXPORT_PRIVATE bool VersionHasLengthPrefixedConnectionIds(
 // Returns true if this version supports the old Google-style Alt-Svc
 // advertisement format.
 QUIC_EXPORT_PRIVATE bool VersionSupportsGoogleAltSvcFormat(
+    QuicTransportVersion transport_version);
+
+// Returns whether this version allows server connection ID lengths that are
+// not 64 bits.
+QUIC_EXPORT_PRIVATE bool VersionAllowsVariableLengthConnectionIds(
     QuicTransportVersion transport_version);
 
 // Returns whether this version label supports long header 4-bit encoded

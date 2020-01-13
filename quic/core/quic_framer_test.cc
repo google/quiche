@@ -12900,8 +12900,7 @@ TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
 }
 
 TEST_P(QuicFramerTest, PacketHeaderWithVariableLengthConnectionId) {
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          framer_.transport_version())) {
+  if (!framer_.version().AllowsVariableLengthConnectionIds()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -13645,8 +13644,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
   }
   const bool parse_success =
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false));
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          framer_.transport_version())) {
+  if (!framer_.version().AllowsVariableLengthConnectionIds()) {
     EXPECT_FALSE(parse_success);
     EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
@@ -13711,8 +13709,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
   }
   const bool parse_success =
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false));
-  if (!QuicUtils::VariableLengthConnectionIdAllowedForVersion(
-          framer_.transport_version())) {
+  if (!framer_.version().AllowsVariableLengthConnectionIds()) {
     EXPECT_FALSE(parse_success);
     EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
