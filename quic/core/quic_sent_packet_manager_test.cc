@@ -1799,7 +1799,6 @@ TEST_F(QuicSentPacketManagerTest, NegotiateTimeLossDetectionFromOptions) {
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateIetfLossDetectionFromOptions) {
-  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
   if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
     EXPECT_EQ(kIetfLossDetection,
               QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
@@ -1833,7 +1832,6 @@ TEST_F(QuicSentPacketManagerTest, NegotiateIetfLossDetectionFromOptions) {
 
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionOneFourthRttFromOptions) {
-  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
   if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
     EXPECT_EQ(kIetfLossDetection,
               QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
@@ -1868,7 +1866,6 @@ TEST_F(QuicSentPacketManagerTest,
 
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionAdaptiveReorderingThreshold) {
-  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
   if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
     EXPECT_EQ(kIetfLossDetection,
               QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
@@ -1904,7 +1901,6 @@ TEST_F(QuicSentPacketManagerTest,
 
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionAdaptiveReorderingThreshold2) {
-  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
   if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
     EXPECT_EQ(kIetfLossDetection,
               QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
@@ -1940,7 +1936,6 @@ TEST_F(QuicSentPacketManagerTest,
 
 TEST_F(QuicSentPacketManagerTest,
        NegotiateIetfLossDetectionAdaptiveReorderingAndTimeThreshold) {
-  SetQuicReloadableFlag(quic_enable_ietf_loss_detection, true);
   if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
     EXPECT_EQ(kIetfLossDetection,
               QuicSentPacketManagerPeer::GetLossAlgorithm(&manager_)
