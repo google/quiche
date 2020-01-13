@@ -206,7 +206,15 @@ QuicTransportVersionVector AllSupportedTransportVersions() {
 }
 
 ParsedQuicVersionVector AllSupportedVersions() {
-  ParsedQuicVersionVector supported_versions;
+  const auto& supported_versions = SupportedVersions();
+  return ParsedQuicVersionVector(supported_versions.begin(),
+                                 supported_versions.end());
+}
+
+constexpr std::array<ParsedQuicVersion, NumSupportedVersions()>
+SupportedVersions() {
+  std::array<ParsedQuicVersion, NumSupportedVersions()> supported_versions{};
+  size_t index = 0;
   for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
     for (QuicTransportVersion version : kSupportedTransportVersions) {
       if (protocol == PROTOCOL_TLS1_3 &&
@@ -216,7 +224,8 @@ ParsedQuicVersionVector AllSupportedVersions() {
         // We explicitly removed support for T048 and T049 to reduce test load.
         continue;
       }
-      supported_versions.push_back(ParsedQuicVersion(protocol, version));
+      supported_versions[index] = ParsedQuicVersion(protocol, version);
+      index++;
     }
   }
   return supported_versions;

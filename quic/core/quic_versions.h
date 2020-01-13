@@ -15,6 +15,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 #define QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -143,6 +144,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
       : handshake_protocol(other.handshake_protocol),
         transport_version(other.transport_version) {}
 
+  constexpr ParsedQuicVersion()
+      : handshake_protocol(PROTOCOL_UNSUPPORTED),
+        transport_version(QUIC_VERSION_UNSUPPORTED) {}
+
   ParsedQuicVersion& operator=(const ParsedQuicVersion& other) {
     if (this != &other) {
       handshake_protocol = other.handshake_protocol;
@@ -218,13 +223,13 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 // skipped as necessary).
 //
 // See go/new-quic-version for more details on how to roll out new versions.
-static const QuicTransportVersion kSupportedTransportVersions[] = {
+static const constexpr QuicTransportVersion kSupportedTransportVersions[] = {
     QUIC_VERSION_99, QUIC_VERSION_50, QUIC_VERSION_49,
     QUIC_VERSION_48, QUIC_VERSION_46, QUIC_VERSION_43,
 };
 
 // This vector contains all crypto handshake protocols that are supported.
-static const HandshakeProtocol kSupportedHandshakeProtocols[] = {
+static const constexpr HandshakeProtocol kSupportedHandshakeProtocols[] = {
     PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
 
 typedef std::vector<QuicTransportVersion> QuicTransportVersionVector;
@@ -232,9 +237,41 @@ typedef std::vector<QuicTransportVersion> QuicTransportVersionVector;
 // Returns a vector of QUIC versions in kSupportedTransportVersions.
 QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();
 
-// Returns a vector of QUIC versions that is the cartesian product of
-// kSupportedTransportVersions and kSupportedHandshakeProtocols.
+// DEPRECATED: Use SupportedVersions() instead.
+// Returns a vector of all ParsedQuicVersions that are valid.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersions();
+
+// Returns whether |transport_version| uses CRYPTO frames for the handshake
+// instead of stream 1.
+QUIC_EXPORT_PRIVATE inline constexpr bool QuicVersionUsesCryptoFrames(
+    QuicTransportVersion transport_version) {
+  return transport_version >= QUIC_VERSION_48;
+}
+
+// Returns the size of the array/vector for
+// SupportedVersions/AllSupportedVersions.
+constexpr size_t NumSupportedVersions() {
+  size_t count = 0;
+  for (HandshakeProtocol protocol : kSupportedHandshakeProtocols) {
+    for (QuicTransportVersion version : kSupportedTransportVersions) {
+      if (protocol == PROTOCOL_TLS1_3 &&
+          (!QuicVersionUsesCryptoFrames(version) ||
+           version <= QUIC_VERSION_49)) {
+        // The TLS handshake is only deployable if CRYPTO frames are also used.
+        // We explicitly removed support for T048 and T049 to reduce test load.
+        continue;
+      }
+      count++;
+    }
+  }
+  return count;
+}
+
+// Returns an array of all ParsedQuicVersions that are valid. This is a
+// constexpr equivalent of AllSupportedVersions.
+QUIC_EXPORT_PRIVATE constexpr std::array<ParsedQuicVersion,
+                                         NumSupportedVersions()>
+SupportedVersions();
 
 // Returns a vector of QUIC versions that is the cartesian product of
 // kSupportedTransportVersions and kSupportedHandshakeProtocols, with any
@@ -388,13 +425,6 @@ QUIC_EXPORT_PRIVATE inline bool VersionUsesHttp3(
 QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
     QuicTransportVersion transport_version) {
   return transport_version >= QUIC_VERSION_49;
-}
-
-// Returns whether |transport_version| uses CRYPTO frames for the handshake
-// instead of stream 1.
-QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
-    QuicTransportVersion transport_version) {
-  return transport_version >= QUIC_VERSION_48;
 }
 
 // Returns whether |transport_version| makes use of IETF QUIC
