@@ -423,6 +423,9 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       current_received_frame_type_(0) {
   DCHECK(!supported_versions.empty());
   version_ = supported_versions_[0];
+  DCHECK(version_.transport_version != QUIC_VERSION_UNSUPPORTED ||
+         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet))
+      << ParsedQuicVersionVectorToString(supported_versions_);
 }
 
 QuicFramer::~QuicFramer() {}
