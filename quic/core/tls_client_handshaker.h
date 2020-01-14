@@ -45,7 +45,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   // From QuicCryptoClientStream::HandshakerInterface and TlsHandshaker
   bool encryption_established() const override;
-  bool handshake_confirmed() const override;
+  bool one_rtt_keys_available() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
@@ -133,7 +133,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   std::string cert_verify_error_details_;
 
   bool encryption_established_ = false;
-  bool handshake_confirmed_ = false;
+  bool one_rtt_keys_available_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 

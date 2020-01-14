@@ -73,8 +73,8 @@ bool QuicCryptoClientStream::encryption_established() const {
   return handshaker_->encryption_established();
 }
 
-bool QuicCryptoClientStream::handshake_confirmed() const {
-  return handshaker_->handshake_confirmed();
+bool QuicCryptoClientStream::one_rtt_keys_available() const {
+  return handshaker_->one_rtt_keys_available();
 }
 
 const QuicCryptoNegotiatedParameters&

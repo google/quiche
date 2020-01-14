@@ -69,7 +69,7 @@ QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
       validate_client_hello_cb_(nullptr),
       process_client_hello_cb_(nullptr),
       encryption_established_(false),
-      handshake_confirmed_(false),
+      one_rtt_keys_available_(false),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {}
 
 QuicCryptoServerHandshaker::~QuicCryptoServerHandshaker() {
@@ -99,7 +99,7 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
   chlo_packet_size_ = session()->connection()->GetCurrentPacket().length();
 
   // Do not process handshake messages after the handshake is confirmed.
-  if (handshake_confirmed_) {
+  if (one_rtt_keys_available_) {
     stream_->CloseConnectionWithDetails(
         QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
         "Unexpected handshake message from client");
@@ -240,7 +240,7 @@ void QuicCryptoServerHandshaker::
         std::move(
             crypto_negotiated_params_->forward_secure_crypters.encrypter));
     encryption_established_ = true;
-    handshake_confirmed_ = true;
+    one_rtt_keys_available_ = true;
     delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
     return;
@@ -264,13 +264,13 @@ void QuicCryptoServerHandshaker::
   }
 
   encryption_established_ = true;
-  handshake_confirmed_ = true;
+  one_rtt_keys_available_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
 }
 
 void QuicCryptoServerHandshaker::SendServerConfigUpdate(
     const CachedNetworkParameters* cached_network_params) {
-  if (!handshake_confirmed_) {
+  if (!one_rtt_keys_available_) {
     return;
   }
 
@@ -394,8 +394,8 @@ bool QuicCryptoServerHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
-bool QuicCryptoServerHandshaker::handshake_confirmed() const {
-  return handshake_confirmed_;
+bool QuicCryptoServerHandshaker::one_rtt_keys_available() const {
+  return one_rtt_keys_available_;
 }
 
 const QuicCryptoNegotiatedParameters&

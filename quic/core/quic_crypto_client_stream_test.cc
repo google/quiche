@@ -104,13 +104,13 @@ class QuicCryptoClientStreamTest : public QuicTest {
 
 TEST_F(QuicCryptoClientStreamTest, NotInitiallyConected) {
   EXPECT_FALSE(stream()->encryption_established());
-  EXPECT_FALSE(stream()->handshake_confirmed());
+  EXPECT_FALSE(stream()->one_rtt_keys_available());
 }
 
 TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
 }
 
@@ -120,7 +120,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
 }
 
@@ -137,7 +137,7 @@ TEST_F(QuicCryptoClientStreamTest,
       connection_, stream(), AlpnForVersion(connection_->version()));
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
 }
 
 TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
@@ -151,7 +151,7 @@ TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
 
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
 
   // Create a second connection
@@ -160,7 +160,7 @@ TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
 
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->handshake_confirmed());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
 }
 

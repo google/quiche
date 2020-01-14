@@ -134,11 +134,11 @@ bool QuicCryptoServerStream::encryption_established() const {
   return handshaker_->encryption_established();
 }
 
-bool QuicCryptoServerStream::handshake_confirmed() const {
+bool QuicCryptoServerStream::one_rtt_keys_available() const {
   if (!handshaker_) {
     return false;
   }
-  return handshaker_->handshake_confirmed();
+  return handshaker_->one_rtt_keys_available();
 }
 
 const QuicCryptoNegotiatedParameters&

@@ -162,8 +162,8 @@ class TestQuicCryptoStream : public QuicCryptoStream {
     return handshaker()->encryption_established();
   }
 
-  bool handshake_confirmed() const override {
-    return handshaker()->handshake_confirmed();
+  bool one_rtt_keys_available() const override {
+    return handshaker()->one_rtt_keys_available();
   }
 
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
@@ -327,9 +327,9 @@ class TlsHandshakerTest : public QuicTest {
     client_session_.Initialize();
     server_session_.Initialize();
     EXPECT_FALSE(client_stream_->encryption_established());
-    EXPECT_FALSE(client_stream_->handshake_confirmed());
+    EXPECT_FALSE(client_stream_->one_rtt_keys_available());
     EXPECT_FALSE(server_stream_->encryption_established());
-    EXPECT_FALSE(server_stream_->handshake_confirmed());
+    EXPECT_FALSE(server_stream_->one_rtt_keys_available());
     const std::string default_alpn =
         AlpnForVersion(client_session_.connection()->version());
     ON_CALL(client_session_, GetAlpnsToOffer())
@@ -343,9 +343,9 @@ class TlsHandshakerTest : public QuicTest {
   }
 
   void ExpectHandshakeSuccessful() {
-    EXPECT_TRUE(client_stream_->handshake_confirmed());
+    EXPECT_TRUE(client_stream_->one_rtt_keys_available());
     EXPECT_TRUE(client_stream_->encryption_established());
-    EXPECT_TRUE(server_stream_->handshake_confirmed());
+    EXPECT_TRUE(server_stream_->one_rtt_keys_available());
     EXPECT_TRUE(server_stream_->encryption_established());
     EXPECT_TRUE(client_conn_->IsHandshakeComplete());
     EXPECT_TRUE(server_conn_->IsHandshakeComplete());
@@ -500,7 +500,7 @@ TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
                                 QUICHE_ARRAYSIZE(bogus_handshake_message)));
   server_stream_->SendCryptoMessagesToPeer(client_stream_);
 
-  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->one_rtt_keys_available());
 }
 
 TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
@@ -518,7 +518,7 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
                                 QUICHE_ARRAYSIZE(bogus_handshake_message)));
   client_stream_->SendCryptoMessagesToPeer(server_stream_);
 
-  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->one_rtt_keys_available());
 }
 
 TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
@@ -533,9 +533,9 @@ TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->one_rtt_keys_available());
   EXPECT_FALSE(client_stream_->encryption_established());
-  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->one_rtt_keys_available());
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 
@@ -551,9 +551,9 @@ TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->one_rtt_keys_available());
   EXPECT_FALSE(client_stream_->encryption_established());
-  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->one_rtt_keys_available());
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 
@@ -588,9 +588,9 @@ TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
   client_stream_->CryptoConnect();
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
-  EXPECT_FALSE(client_stream_->handshake_confirmed());
+  EXPECT_FALSE(client_stream_->one_rtt_keys_available());
   EXPECT_FALSE(client_stream_->encryption_established());
-  EXPECT_FALSE(server_stream_->handshake_confirmed());
+  EXPECT_FALSE(server_stream_->one_rtt_keys_available());
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 

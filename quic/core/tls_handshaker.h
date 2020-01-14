@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
 
   // From QuicCryptoStream
   virtual bool encryption_established() const = 0;
-  virtual bool handshake_confirmed() const = 0;
+  virtual bool one_rtt_keys_available() const = 0;
   virtual const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const = 0;
   virtual CryptoMessageParser* crypto_message_parser() { return this; }

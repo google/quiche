@@ -128,8 +128,8 @@ bool TlsServerHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
-bool TlsServerHandshaker::handshake_confirmed() const {
-  return handshake_confirmed_;
+bool TlsServerHandshaker::one_rtt_keys_available() const {
+  return one_rtt_keys_available_;
 }
 
 const QuicCryptoNegotiatedParameters&
@@ -264,7 +264,7 @@ void TlsServerHandshaker::FinishHandshake() {
   state_ = STATE_HANDSHAKE_COMPLETE;
 
   encryption_established_ = true;
-  handshake_confirmed_ = true;
+  one_rtt_keys_available_ = true;
 
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());

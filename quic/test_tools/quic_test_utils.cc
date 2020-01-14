@@ -596,7 +596,7 @@ bool MockQuicCryptoStream::encryption_established() const {
   return false;
 }
 
-bool MockQuicCryptoStream::handshake_confirmed() const {
+bool MockQuicCryptoStream::one_rtt_keys_available() const {
   return false;
 }
 

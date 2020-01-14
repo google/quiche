@@ -73,7 +73,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
       : QuicCryptoStream(session),
         QuicCryptoHandshaker(this, session),
         encryption_established_(false),
-        handshake_confirmed_(false),
+        one_rtt_keys_available_(false),
         params_(new QuicCryptoNegotiatedParameters) {
     // Simulate a negotiated cipher_suite with a fake value.
     params_->cipher_suite = 1;
@@ -81,7 +81,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
     encryption_established_ = true;
-    handshake_confirmed_ = true;
+    one_rtt_keys_available_ = true;
     QuicErrorCode error;
     std::string error_details;
     session()->config()->SetInitialStreamFlowControlWindowToSend(
@@ -117,7 +117,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   bool encryption_established() const override {
     return encryption_established_;
   }
-  bool handshake_confirmed() const override { return handshake_confirmed_; }
+  bool one_rtt_keys_available() const override {
+    return one_rtt_keys_available_;
+  }
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override {
     return *params_;
@@ -137,7 +139,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   using QuicCryptoStream::session;
 
   bool encryption_established_;
-  bool handshake_confirmed_;
+  bool one_rtt_keys_available_;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
 };
 

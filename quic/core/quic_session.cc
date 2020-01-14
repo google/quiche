@@ -989,7 +989,7 @@ bool QuicSession::IsCryptoHandshakeConfirmed() const {
   if (GetCryptoStream() == nullptr) {
     return false;
   }
-  return GetCryptoStream()->handshake_confirmed();
+  return GetCryptoStream()->one_rtt_keys_available();
 }
 
 void QuicSession::OnConfigNegotiated() {

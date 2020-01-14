@@ -41,7 +41,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   int num_scup_messages_received() const override;
   std::string chlo_hash() const override;
   bool encryption_established() const override;
-  bool handshake_confirmed() const override;
+  bool one_rtt_keys_available() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
@@ -173,7 +173,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   int num_scup_messages_received_;
 
   bool encryption_established_;
-  bool handshake_confirmed_;
+  bool one_rtt_keys_available_;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 };

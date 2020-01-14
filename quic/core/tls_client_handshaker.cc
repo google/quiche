@@ -208,7 +208,7 @@ int TlsClientHandshaker::num_sent_client_hellos() const {
 }
 
 bool TlsClientHandshaker::IsResumption() const {
-  QUIC_BUG_IF(!handshake_confirmed_);
+  QUIC_BUG_IF(!one_rtt_keys_available_);
   return SSL_session_reused(ssl()) == 1;
 }
 
@@ -225,8 +225,8 @@ bool TlsClientHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
-bool TlsClientHandshaker::handshake_confirmed() const {
-  return handshake_confirmed_;
+bool TlsClientHandshaker::one_rtt_keys_available() const {
+  return one_rtt_keys_available_;
 }
 
 const QuicCryptoNegotiatedParameters&
@@ -336,7 +336,7 @@ void TlsClientHandshaker::FinishHandshake() {
                   << "'";
 
   encryption_established_ = true;
-  handshake_confirmed_ = true;
+  one_rtt_keys_available_ = true;
 
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());

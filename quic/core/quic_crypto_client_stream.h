@@ -104,8 +104,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // for the connection.
     virtual bool encryption_established() const = 0;
 
-    // Returns true once the crypto handshake has completed.
-    virtual bool handshake_confirmed() const = 0;
+    // Returns true once 1RTT keys are available.
+    virtual bool one_rtt_keys_available() const = 0;
 
     // Returns the parameters negotiated in the crypto handshake.
     virtual const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
@@ -157,7 +157,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
 
   // From QuicCryptoStream
   bool encryption_established() const override;
-  bool handshake_confirmed() const override;
+  bool one_rtt_keys_available() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;

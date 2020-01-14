@@ -684,7 +684,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   ~MockQuicCryptoStream() override;
 
   bool encryption_established() const override;
-  bool handshake_confirmed() const override;
+  bool one_rtt_keys_available() const override;
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;

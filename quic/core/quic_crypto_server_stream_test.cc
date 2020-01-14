@@ -190,7 +190,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 TEST_P(QuicCryptoServerStreamTest, NotInitiallyConected) {
   Initialize();
   EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
@@ -201,7 +201,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   Initialize();
   EXPECT_EQ(2, CompleteCryptoHandshake());
   EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
+  EXPECT_TRUE(server_stream()->one_rtt_keys_available());
 }
 
 TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
@@ -217,7 +217,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
   EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
+  EXPECT_TRUE(server_stream()->one_rtt_keys_available());
 }
 
 TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
@@ -228,7 +228,7 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   // information.
   AdvanceHandshakeWithFakeClient();
   EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 
   // Now do another handshake, with the blocking SHLO connection option.
   InitializeServer();
@@ -236,7 +236,7 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
 
   AdvanceHandshakeWithFakeClient();
   EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->handshake_confirmed());
+  EXPECT_TRUE(server_stream()->one_rtt_keys_available());
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
             server_session_->connection()->encryption_level());
 }
@@ -361,7 +361,7 @@ TEST_P(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
   // Regression test for b/31521252, in which a crash would happen here.
   AdvanceHandshakeWithFakeClient();
   EXPECT_FALSE(server_stream()->encryption_established());
-  EXPECT_FALSE(server_stream()->handshake_confirmed());
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
 class QuicCryptoServerStreamTestWithFakeProofSource

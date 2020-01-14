@@ -115,7 +115,7 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
       return;
     }
     sequencer->MarkConsumed(iov.iov_len);
-    if (handshake_confirmed() &&
+    if (one_rtt_keys_available() &&
         crypto_message_parser()->InputBytesRemaining() == 0) {
       // If the handshake is complete and the current message has been fully
       // processed then no more handshake messages are likely to arrive soon
@@ -129,7 +129,7 @@ bool QuicCryptoStream::ExportKeyingMaterial(quiche::QuicheStringPiece label,
                                             quiche::QuicheStringPiece context,
                                             size_t result_len,
                                             std::string* result) const {
-  if (!handshake_confirmed()) {
+  if (!one_rtt_keys_available()) {
     QUIC_DLOG(ERROR) << "ExportKeyingMaterial was called before forward-secure"
                      << "encryption was established.";
     return false;

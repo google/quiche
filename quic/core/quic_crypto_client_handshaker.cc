@@ -69,7 +69,7 @@ QuicCryptoClientHandshaker::QuicCryptoClientHandshaker(
       proof_verify_start_time_(QuicTime::Zero()),
       num_scup_messages_received_(0),
       encryption_established_(false),
-      handshake_confirmed_(false),
+      one_rtt_keys_available_(false),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {}
 
 QuicCryptoClientHandshaker::~QuicCryptoClientHandshaker() {
@@ -82,7 +82,7 @@ void QuicCryptoClientHandshaker::OnHandshakeMessage(
     const CryptoHandshakeMessage& message) {
   QuicCryptoHandshaker::OnHandshakeMessage(message);
   if (message.tag() == kSCUP) {
-    if (!handshake_confirmed()) {
+    if (!one_rtt_keys_available()) {
       stream_->CloseConnectionWithDetails(
           QUIC_CRYPTO_UPDATE_BEFORE_HANDSHAKE_COMPLETE,
           "Early SCUP disallowed");
@@ -97,7 +97,7 @@ void QuicCryptoClientHandshaker::OnHandshakeMessage(
   }
 
   // Do not process handshake messages after the handshake is confirmed.
-  if (handshake_confirmed()) {
+  if (one_rtt_keys_available()) {
     stream_->CloseConnectionWithDetails(
         QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
         "Unexpected handshake message");
@@ -118,7 +118,7 @@ int QuicCryptoClientHandshaker::num_sent_client_hellos() const {
 }
 
 bool QuicCryptoClientHandshaker::IsResumption() const {
-  QUIC_BUG_IF(!handshake_confirmed_);
+  QUIC_BUG_IF(!one_rtt_keys_available_);
   // While 0-RTT handshakes could be considered to be like resumption, QUIC
   // Crypto doesn't have the same notion of a resumption like TLS does.
   return false;
@@ -136,8 +136,8 @@ bool QuicCryptoClientHandshaker::encryption_established() const {
   return encryption_established_;
 }
 
-bool QuicCryptoClientHandshaker::handshake_confirmed() const {
-  return handshake_confirmed_;
+bool QuicCryptoClientHandshaker::one_rtt_keys_available() const {
+  return one_rtt_keys_available_;
 }
 
 const QuicCryptoNegotiatedParameters&
@@ -171,7 +171,7 @@ void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
     return;
   }
 
-  DCHECK(handshake_confirmed());
+  DCHECK(one_rtt_keys_available());
   if (proof_verify_callback_) {
     proof_verify_callback_->Cancel();
   }
@@ -473,7 +473,7 @@ void QuicCryptoClientHandshaker::DoVerifyProofComplete(
     }
     next_state_ = STATE_NONE;
     QUIC_CLIENT_HISTOGRAM_BOOL("QuicVerifyProofFailed.HandshakeConfirmed",
-                               handshake_confirmed(), "");
+                               one_rtt_keys_available(), "");
     stream_->CloseConnectionWithDetails(
         QUIC_PROOF_INVALID, "Proof invalid: " + verify_error_details_);
     return;
@@ -486,7 +486,7 @@ void QuicCryptoClientHandshaker::DoVerifyProofComplete(
   } else {
     SetCachedProofValid(cached);
     cached->SetProofVerifyDetails(verify_details_.release());
-    if (!handshake_confirmed()) {
+    if (!one_rtt_keys_available()) {
       next_state_ = STATE_SEND_CHLO;
     } else {
       // TODO: Enable Expect-Staple. https://crbug.com/631101
@@ -560,7 +560,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
         ENCRYPTION_FORWARD_SECURE, std::move(crypters->decrypter),
         /*set_alternative_decrypter=*/true,
         /*latch_once_used=*/false, std::move(crypters->encrypter));
-    handshake_confirmed_ = true;
+    one_rtt_keys_available_ = true;
     delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
     delegate_->NeuterHandshakeData();
@@ -579,7 +579,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
                                         std::move(crypters->encrypter));
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-  handshake_confirmed_ = true;
+  one_rtt_keys_available_ = true;
   session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
   session()->connection()->OnHandshakeComplete();
 }
