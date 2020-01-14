@@ -156,9 +156,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     max_probe_packets_per_pto_ = 1;
   }
 
-  if (GetQuicReloadableFlag(quic_skip_packet_number_for_pto) &&
-      config.HasClientSentConnectionOption(kPTOS, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_skip_packet_number_for_pto);
+  if (config.HasClientSentConnectionOption(kPTOS, perspective)) {
     if (!pto_enabled_) {
       QUIC_PEER_BUG
           << "PTO is not enabled when receiving PTOS connection option.";

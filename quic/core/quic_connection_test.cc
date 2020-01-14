@@ -9603,7 +9603,6 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
 }
 
 TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
-  SetQuicReloadableFlag(quic_skip_packet_number_for_pto, true);
   QuicConfig config;
   QuicTagVector connection_options;
   connection_options.push_back(k1PTO);
