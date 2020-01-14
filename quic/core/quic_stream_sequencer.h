@@ -91,7 +91,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   // bytes read.  Any buffered data no longer in use will be released.
   // TODO(rch): remove this method and instead implement it as a helper method
   // based on GetReadableRegions and MarkConsumed.
-  int Readv(const struct iovec* iov, size_t iov_len);
+  size_t Readv(const struct iovec* iov, size_t iov_len);
 
   // Consumes |num_bytes| data.  Used in conjunction with |GetReadableRegions|
   // to do zero-copy reads.

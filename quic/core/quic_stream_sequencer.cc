@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <limits>
 #include <string>
 #include <utility>
@@ -13,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer_buffer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
@@ -43,14 +45,9 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   const QuicStreamOffset byte_offset = frame.offset;
   const size_t data_len = frame.data_length;
 
-  if (frame.fin) {
-    bool should_process_data = CloseStreamAtOffset(frame.offset + data_len);
-    if (data_len == 0) {
-      return;
-    }
-    if (!should_process_data) {
-      return;
-    }
+  if (frame.fin &&
+      (!CloseStreamAtOffset(frame.offset + data_len) || data_len == 0)) {
+    return;
   }
   OnFrameData(byte_offset, data_len, frame.data_buffer);
 }
@@ -191,7 +188,7 @@ void QuicStreamSequencer::Read(std::string* buffer) {
   Readv(&iov, 1);
 }
 
-int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
+size_t QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   DCHECK(!blocked_);
   std::string error_details;
   size_t bytes_read;
@@ -201,11 +198,11 @@ int QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
     std::string details =
         quiche::QuicheStrCat("Stream ", stream_->id(), ": ", error_details);
     stream_->CloseConnectionWithDetails(read_error, details);
-    return static_cast<int>(bytes_read);
+    return bytes_read;
   }
 
   stream_->AddBytesConsumed(bytes_read);
-  return static_cast<int>(bytes_read);
+  return bytes_read;
 }
 
 bool QuicStreamSequencer::HasBytesToRead() const {

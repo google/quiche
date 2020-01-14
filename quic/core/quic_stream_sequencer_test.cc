@@ -63,7 +63,7 @@ class QuicStreamSequencerTest : public QuicTest {
     struct iovec iov;
     iov.iov_base = buffer;
     iov.iov_len = num_bytes;
-    ASSERT_EQ(static_cast<int>(num_bytes), sequencer_->Readv(&iov, 1));
+    ASSERT_EQ(num_bytes, sequencer_->Readv(&iov, 1));
   }
 
  protected:
