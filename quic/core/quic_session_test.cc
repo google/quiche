@@ -567,11 +567,11 @@ TEST_P(QuicSessionTestServer, DontCallOnWriteBlockedForDisconnectedConnection) {
   session_.OnWriteBlocked();
 }
 
-TEST_P(QuicSessionTestServer, IsCryptoHandshakeConfirmed) {
-  EXPECT_FALSE(session_.IsCryptoHandshakeConfirmed());
+TEST_P(QuicSessionTestServer, OneRttKeysAvailable) {
+  EXPECT_FALSE(session_.OneRttKeysAvailable());
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
-  EXPECT_TRUE(session_.IsCryptoHandshakeConfirmed());
+  EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
 
 TEST_P(QuicSessionTestServer, IsClosedStreamDefault) {
@@ -2343,7 +2343,7 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
 
 TEST_P(QuicSessionTestServer, SendMessage) {
   // Cannot send message when encryption is not established.
-  EXPECT_FALSE(session_.IsCryptoHandshakeConfirmed());
+  EXPECT_FALSE(session_.OneRttKeysAvailable());
   quic::QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   EXPECT_EQ(MessageResult(MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0),
             session_.SendMessage(
@@ -2353,7 +2353,7 @@ TEST_P(QuicSessionTestServer, SendMessage) {
   // Finish handshake.
   CryptoHandshakeMessage handshake_message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(handshake_message);
-  EXPECT_TRUE(session_.IsCryptoHandshakeConfirmed());
+  EXPECT_TRUE(session_.OneRttKeysAvailable());
 
   quiche::QuicheStringPiece message;
   EXPECT_CALL(*connection_, SendMessage(1, _, false))

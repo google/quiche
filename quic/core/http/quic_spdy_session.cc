@@ -1055,7 +1055,7 @@ void QuicSpdySession::SetMaxAllowedPushId(QuicStreamId max_allowed_push_id) {
   }
 
   DCHECK(perspective() == Perspective::IS_CLIENT);
-  if (IsCryptoHandshakeConfirmed()) {
+  if (OneRttKeysAvailable()) {
     SendMaxPushId();
   }
 }

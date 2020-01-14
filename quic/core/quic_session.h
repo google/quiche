@@ -245,9 +245,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // hasn't confirmed the handshake yet.
   virtual bool IsEncryptionEstablished() const;
 
-  // For a client, returns true if the server has confirmed our handshake. For
-  // a server, returns true if a full, valid client hello has been received.
-  bool IsCryptoHandshakeConfirmed() const;
+  // Returns true if 1RTT keys are available.
+  bool OneRttKeysAvailable() const;
 
   // Called by the QuicCryptoStream when a new QuicConfig has been negotiated.
   virtual void OnConfigNegotiated();

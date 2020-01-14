@@ -375,8 +375,8 @@ class QboneSessionTest : public QuicTest {
   // Test handshake establishment and sending/receiving of data for two
   // directions.
   void TestStreamConnection(bool use_messages) {
-    ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
-    ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
+    ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
+    ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(server_peer_->IsEncryptionEstablished());
     ASSERT_TRUE(client_peer_->IsEncryptionEstablished());
 
@@ -466,10 +466,10 @@ class QboneSessionTest : public QuicTest {
   // Test that client and server are not connected after handshake failure.
   void TestDisconnectAfterFailedHandshake() {
     EXPECT_FALSE(client_peer_->IsEncryptionEstablished());
-    EXPECT_FALSE(client_peer_->IsCryptoHandshakeConfirmed());
+    EXPECT_FALSE(client_peer_->OneRttKeysAvailable());
 
     EXPECT_FALSE(server_peer_->IsEncryptionEstablished());
-    EXPECT_FALSE(server_peer_->IsCryptoHandshakeConfirmed());
+    EXPECT_FALSE(server_peer_->OneRttKeysAvailable());
   }
 
  protected:

@@ -88,7 +88,7 @@ void AttemptResumption(QuicClient* client, std::set<Feature>* features) {
     QUIC_LOG(ERROR) << "Failed to reinitialize client";
     return;
   }
-  if (!client->Connect() || !client->session()->IsCryptoHandshakeConfirmed()) {
+  if (!client->Connect() || !client->session()->OneRttKeysAvailable()) {
     return;
   }
   if (static_cast<QuicCryptoClientStream*>(
@@ -142,7 +142,7 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
                     features_without_version_negotiation.end());
     return features;
   }
-  if (!client->session()->IsCryptoHandshakeConfirmed()) {
+  if (!client->session()->OneRttKeysAvailable()) {
     return features;
   }
   features.insert(Feature::kHandshake);

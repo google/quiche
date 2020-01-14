@@ -985,7 +985,7 @@ bool QuicSession::IsEncryptionEstablished() const {
   return GetCryptoStream()->encryption_established();
 }
 
-bool QuicSession::IsCryptoHandshakeConfirmed() const {
+bool QuicSession::OneRttKeysAvailable() const {
   if (GetCryptoStream() == nullptr) {
     return false;
   }

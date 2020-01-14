@@ -167,7 +167,7 @@ void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
       // On the server, handshake confirmed is the first time when you can start
       // writing packets.
       DCHECK(IsEncryptionEstablished());
-      DCHECK(IsCryptoHandshakeConfirmed());
+      DCHECK(OneRttKeysAvailable());
 
       DCHECK(session_delegate_);
       session_delegate_->OnConnectionWritable();
@@ -194,7 +194,7 @@ void QuartcSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
       // On the server, handshake confirmed is the first time when you can start
       // writing packets.
       DCHECK(IsEncryptionEstablished());
-      DCHECK(IsCryptoHandshakeConfirmed());
+      DCHECK(OneRttKeysAvailable());
 
       DCHECK(session_delegate_);
       session_delegate_->OnConnectionWritable();

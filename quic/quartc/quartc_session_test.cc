@@ -124,16 +124,16 @@ class QuartcSessionTest : public QuicTest {
 
   void AwaitHandshake() {
     simulator_.RunUntil([this] {
-      return client_peer_->IsCryptoHandshakeConfirmed() &&
-             server_peer_->IsCryptoHandshakeConfirmed();
+      return client_peer_->OneRttKeysAvailable() &&
+             server_peer_->OneRttKeysAvailable();
     });
   }
 
   // Test handshake establishment and sending/receiving of data for two
   // directions.
   void TestSendReceiveStreams() {
-    ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
-    ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
+    ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
+    ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(server_peer_->IsEncryptionEstablished());
     ASSERT_TRUE(client_peer_->IsEncryptionEstablished());
 
@@ -310,10 +310,10 @@ class QuartcSessionTest : public QuicTest {
     EXPECT_TRUE(!server_session_delegate_->connected());
 
     EXPECT_FALSE(client_peer_->IsEncryptionEstablished());
-    EXPECT_FALSE(client_peer_->IsCryptoHandshakeConfirmed());
+    EXPECT_FALSE(client_peer_->OneRttKeysAvailable());
 
     EXPECT_FALSE(server_peer_->IsEncryptionEstablished());
-    EXPECT_FALSE(server_peer_->IsCryptoHandshakeConfirmed());
+    EXPECT_FALSE(server_peer_->OneRttKeysAvailable());
   }
 
  protected:
@@ -437,8 +437,8 @@ TEST_F(QuartcSessionTest, CannotCreateDataStreamBeforeHandshake) {
 TEST_F(QuartcSessionTest, CancelQuartcStream) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   QuartcStream* stream = client_peer_->CreateOutgoingBidirectionalStream();
   ASSERT_NE(nullptr, stream);
@@ -459,8 +459,8 @@ TEST_F(QuartcSessionTest, CancelQuartcStream) {
 TEST_F(QuartcSessionTest, WriterGivesPacketNumberToTransport) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   QuartcStream* stream = client_peer_->CreateOutgoingBidirectionalStream();
   stream->SetDelegate(client_stream_delegate_.get());
@@ -478,8 +478,8 @@ TEST_F(QuartcSessionTest, WriterGivesPacketNumberToTransport) {
 TEST_F(QuartcSessionTest, CloseConnection) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   client_peer_->CloseConnection("Connection closed by client");
   EXPECT_FALSE(client_session_delegate_->connected());
@@ -490,8 +490,8 @@ TEST_F(QuartcSessionTest, CloseConnection) {
 TEST_F(QuartcSessionTest, StreamRetransmissionEnabled) {
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   QuartcStream* stream = client_peer_->CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
@@ -521,8 +521,8 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
   client_peer_->connection()->set_fill_up_link_during_probing(false);
 
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   // The client sends an ACK for the crypto handshake next.  This must be
   // flushed before we set the filter to drop the next packet, in order to
@@ -578,8 +578,8 @@ TEST_F(QuartcSessionTest, LostDatagramNotifications) {
   server_peer_->connection()->set_fill_up_link_during_probing(false);
 
   AwaitHandshake();
-  ASSERT_TRUE(client_peer_->IsCryptoHandshakeConfirmed());
-  ASSERT_TRUE(server_peer_->IsCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
+  ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
 
   // The client sends an ACK for the crypto handshake next.  This must be
   // flushed before we set the filter to drop the next packet, in order to

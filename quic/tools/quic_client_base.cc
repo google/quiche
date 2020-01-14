@@ -227,7 +227,7 @@ void QuicClientBase::WaitForStreamToClose(QuicStreamId id) {
 bool QuicClientBase::WaitForCryptoHandshakeConfirmed() {
   DCHECK(connected());
 
-  while (connected() && !session_->IsCryptoHandshakeConfirmed()) {
+  while (connected() && !session_->OneRttKeysAvailable()) {
     WaitForEvents();
   }
 

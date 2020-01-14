@@ -100,7 +100,7 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
     return;
   }
   QuicSession* session = dispatcher->session_map().begin()->second.get();
-  if (session->IsCryptoHandshakeConfirmed()) {
+  if (session->OneRttKeysAvailable()) {
     confirmed_.Notify();
   }
 }

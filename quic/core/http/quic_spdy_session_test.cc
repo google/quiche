@@ -467,7 +467,7 @@ TEST_P(QuicSpdySessionTestServer, SelfAddress) {
   EXPECT_TRUE(session_.self_address().IsInitialized());
 }
 
-TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
+TEST_P(QuicSpdySessionTestServer, OneRttKeysAvailable) {
   if (VersionUsesHttp3(transport_version())) {
     MockPacketWriter* writer = static_cast<MockPacketWriter*>(
         QuicConnectionPeer::GetWriter(session_.connection()));
@@ -475,10 +475,10 @@ TEST_P(QuicSpdySessionTestServer, IsCryptoHandshakeConfirmed) {
         .Times(1)
         .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }
-  EXPECT_FALSE(session_.IsCryptoHandshakeConfirmed());
+  EXPECT_FALSE(session_.OneRttKeysAvailable());
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
-  EXPECT_TRUE(session_.IsCryptoHandshakeConfirmed());
+  EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamDefault) {
