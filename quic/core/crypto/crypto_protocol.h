@@ -241,6 +241,12 @@ const QuicTag kBWS6 = TAG('B', 'W', 'S', '6');  // QUIC Initial CWND - Enabled
 const QuicTag kBWS7 = TAG('B', 'W', 'S', '7');  // QUIC Initial CWND - Enabled
                                                 // with 0.75 * default
                                                 // multiplier.
+const QuicTag kBWM3 = TAG('B', 'W', 'M', '3');  // Consider overshooting if
+                                                // bytes lost after bandwidth
+                                                // resumption * 3 > IW.
+const QuicTag kBWM4 = TAG('B', 'W', 'M', '4');  // Consider overshooting if
+                                                // bytes lost after bandwidth
+                                                // resumption * 4 > IW.
 
 // Enable path MTU discovery experiment.
 const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.

@@ -398,6 +398,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool network_parameters_adjusted_;
   // Bytes lost after network parameters gets adjusted.
   QuicByteCount bytes_lost_with_network_parameters_adjusted_;
+  // Decrease pacing rate after parameters adjusted if
+  // bytes_lost_with_network_parameters_adjusted_ *
+  // bytes_lost_multiplier_with_network_parameters_adjusted_ > IW.
+  uint8_t bytes_lost_multiplier_with_network_parameters_adjusted_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

@@ -137,7 +137,8 @@ BbrSender::BbrSender(QuicTime now,
       app_limited_since_last_probe_rtt_(false),
       min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
       network_parameters_adjusted_(false),
-      bytes_lost_with_network_parameters_adjusted_(0) {
+      bytes_lost_with_network_parameters_adjusted_(0),
+      bytes_lost_multiplier_with_network_parameters_adjusted_(2) {
   if (stats_) {
     // Clear some startup stats if |stats_| has been used by another sender,
     // which happens e.g. when QuicConnection switch send algorithms.
@@ -283,6 +284,14 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     rate_based_startup_ = true;
     // Hits 1.25x pacing multiplier when ~1/3 CWND is lost.
     startup_rate_reduction_multiplier_ = 2;
+  }
+  if (GetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample)) {
+    if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
+      bytes_lost_multiplier_with_network_parameters_adjusted_ = 3;
+    }
+    if (config.HasClientRequestedIndependentOption(kBWM4, perspective)) {
+      bytes_lost_multiplier_with_network_parameters_adjusted_ = 4;
+    }
   }
   if (config.HasClientRequestedIndependentOption(kBBR4, perspective)) {
     sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
@@ -846,7 +855,8 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
       QUIC_RELOADABLE_FLAG_COUNT_N(
           quic_bbr_mitigate_overly_large_bandwidth_sample, 2, 4);
       if (has_non_app_limited_sample_ ||
-          bytes_lost_with_network_parameters_adjusted_ * 2 >
+          bytes_lost_with_network_parameters_adjusted_ *
+                  bytes_lost_multiplier_with_network_parameters_adjusted_ >
               initial_congestion_window_) {
         // We are fairly sure overshoot happens if 1) there is at least one
         // non app-limited bw sample or 2) half of IW gets lost. Slow pacing
