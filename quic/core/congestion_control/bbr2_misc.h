@@ -142,7 +142,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    */
 
   // The initial value of the max ack height filter's window length.
-  QuicRoundTripCount initial_max_ack_height_filter_window = 10;
+  QuicRoundTripCount initial_max_ack_height_filter_window =
+      GetQuicFlag(FLAGS_quic_bbr2_default_initial_ack_height_filter_window);
 
   // Fraction of unutilized headroom to try to leave in path upon high loss.
   float inflight_hi_headroom =
