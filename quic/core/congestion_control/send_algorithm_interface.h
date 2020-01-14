@@ -45,24 +45,30 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
           quic_fix_bbr_cwnd_in_bandwidth_resumption(
               GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption)),
           quic_bbr_fix_pacing_rate(
-              GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {}
+              GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)),
+          quic_bbr_donot_inject_bandwidth(
+              GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {}
 
     bool operator==(const NetworkParams& other) const {
       return bandwidth == other.bandwidth && rtt == other.rtt &&
              allow_cwnd_to_decrease == other.allow_cwnd_to_decrease &&
              quic_fix_bbr_cwnd_in_bandwidth_resumption ==
                  other.quic_fix_bbr_cwnd_in_bandwidth_resumption &&
-             quic_bbr_fix_pacing_rate == other.quic_bbr_fix_pacing_rate;
+             quic_bbr_fix_pacing_rate == other.quic_bbr_fix_pacing_rate &&
+             quic_bbr_donot_inject_bandwidth ==
+                 other.quic_bbr_donot_inject_bandwidth;
     }
 
     QuicBandwidth bandwidth;
     QuicTime::Delta rtt;
     bool allow_cwnd_to_decrease;
     // Code changes that are controlled by flags.
-    // TODO(b/131899599): Remove when impact of fix is measured.
+    // TODO(b/131899599): Remove after impact of fix is measured.
     bool quic_fix_bbr_cwnd_in_bandwidth_resumption;
-    // TODO(b/143540157): Remove when impact of fix is measured.
+    // TODO(b/143540157): Remove after impact of fix is measured.
     bool quic_bbr_fix_pacing_rate;
+    // TODO(b/72089315, b/143891040): Remove after impact of fix is measured.
+    bool quic_bbr_donot_inject_bandwidth;
   };
 
   static SendAlgorithmInterface* Create(
