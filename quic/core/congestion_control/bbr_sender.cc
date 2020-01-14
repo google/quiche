@@ -93,6 +93,8 @@ BbrSender::BbrSender(QuicTime now,
       mode_(STARTUP),
       sampler_(unacked_packets, kBandwidthWindowSize),
       round_trip_count_(0),
+      num_loss_events_in_round_(0),
+      bytes_lost_in_round_(0),
       max_bandwidth_(kBandwidthWindowSize, QuicBandwidth::Zero(), 0),
       min_rtt_(QuicTime::Delta::Zero()),
       min_rtt_timestamp_(QuicTime::Zero()),
@@ -138,7 +140,13 @@ BbrSender::BbrSender(QuicTime now,
       min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
       network_parameters_adjusted_(false),
       bytes_lost_with_network_parameters_adjusted_(0),
-      bytes_lost_multiplier_with_network_parameters_adjusted_(2) {
+      bytes_lost_multiplier_with_network_parameters_adjusted_(2),
+      loss_based_startup_exit_(
+          GetQuicReloadableFlag(quic_bbr_loss_based_startup_exit) &&
+          sampler_.one_bw_sample_per_ack_event()) {
+  if (loss_based_startup_exit_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_loss_based_startup_exit, 1, 2);
+  }
   if (stats_) {
     // Clear some startup stats if |stats_| has been used by another sender,
     // which happens e.g. when QuicConnection switch send algorithms.
@@ -253,8 +261,10 @@ bool BbrSender::IsPipeSufficientlyFull() const {
 
 void BbrSender::SetFromConfig(const QuicConfig& config,
                               Perspective perspective) {
-  if (config.HasClientRequestedIndependentOption(kLRTT, perspective)) {
+  if (loss_based_startup_exit_ &&
+      config.HasClientRequestedIndependentOption(kLRTT, perspective)) {
     exit_startup_on_loss_ = true;
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_loss_based_startup_exit, 2, 2);
   }
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
     num_startup_rtts_ = 1;
@@ -410,6 +420,11 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
   QuicByteCount excess_acked = 0;
   QuicByteCount bytes_lost = 0;
 
+  // The send state of the largest packet in acked_packets, unless it is
+  // empty. If acked_packets is empty, it's the send state of the largest
+  // packet in lost_packets.
+  SendTimeState last_packet_send_state;
+
   if (!sampler_.one_bw_sample_per_ack_event()) {
     DiscardLostPackets(lost_packets);
 
@@ -462,6 +477,12 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
       }
     }
     excess_acked = sample.extra_acked;
+    last_packet_send_state = sample.last_packet_send_state;
+
+    if (loss_based_startup_exit_ && !lost_packets.empty()) {
+      ++num_loss_events_in_round_;
+      bytes_lost_in_round_ += bytes_lost;
+    }
   }
 
   // Handle logic specific to PROBE_BW mode.
@@ -471,7 +492,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
 
   // Handle logic specific to STARTUP and DRAIN modes.
   if (is_round_start && !is_at_full_bandwidth_) {
-    CheckIfFullBandwidthReached();
+    CheckIfFullBandwidthReached(last_packet_send_state);
   }
   MaybeExitStartupOrDrain(event_time);
 
@@ -495,6 +516,10 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
 
   // Cleanup internal state.
   sampler_.RemoveObsoletePackets(unacked_packets_->GetLeastUnacked());
+  if (loss_based_startup_exit_ && is_round_start) {
+    num_loss_events_in_round_ = 0;
+    bytes_lost_in_round_ = 0;
+  }
 }
 
 CongestionControlType BbrSender::GetCongestionControlType() const {
@@ -700,7 +725,8 @@ void BbrSender::UpdateGainCyclePhase(QuicTime now,
   }
 }
 
-void BbrSender::CheckIfFullBandwidthReached() {
+void BbrSender::CheckIfFullBandwidthReached(
+    const SendTimeState& last_packet_send_state) {
   if (last_sample_is_app_limited_) {
     return;
   }
@@ -717,7 +743,8 @@ void BbrSender::CheckIfFullBandwidthReached() {
   }
 
   rounds_without_bandwidth_gain_++;
-  if (rounds_without_bandwidth_gain_ >= num_startup_rtts_) {
+  if ((rounds_without_bandwidth_gain_ >= num_startup_rtts_) ||
+      ShouldExitStartupDueToLoss(last_packet_send_state)) {
     DCHECK(has_non_app_limited_sample_);
     is_at_full_bandwidth_ = true;
   }
@@ -741,6 +768,29 @@ void BbrSender::OnExitStartup(QuicTime now) {
   if (stats_) {
     stats_->slowstart_duration.Stop(now);
   }
+}
+
+bool BbrSender::ShouldExitStartupDueToLoss(
+    const SendTimeState& last_packet_send_state) const {
+  if (!exit_startup_on_loss_) {
+    return false;
+  }
+
+  if (num_loss_events_in_round_ <
+          GetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count) ||
+      !last_packet_send_state.is_valid) {
+    return false;
+  }
+
+  const QuicByteCount inflight_at_send = last_packet_send_state.bytes_in_flight;
+
+  if (inflight_at_send > 0 && bytes_lost_in_round_ > 0) {
+    return bytes_lost_in_round_ >
+           inflight_at_send *
+               GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold);
+  }
+
+  return false;
 }
 
 void BbrSender::MaybeEnterOrExitProbeRtt(QuicTime now,
@@ -791,6 +841,11 @@ void BbrSender::MaybeEnterOrExitProbeRtt(QuicTime now,
 void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
                                     bool has_losses,
                                     bool is_round_start) {
+  // Disable recovery in startup, if loss-based exit is enabled.
+  if (exit_startup_on_loss_ && !is_at_full_bandwidth_) {
+    return;
+  }
+
   // Exit recovery when there are no losses for a round.
   if (has_losses) {
     end_recovery_at_ = last_sent_packet_;

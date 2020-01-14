@@ -212,7 +212,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
                             bool has_losses);
   // Tracks for how many round-trips the bandwidth has not increased
   // significantly.
-  void CheckIfFullBandwidthReached();
+  void CheckIfFullBandwidthReached(const SendTimeState& last_packet_send_state);
   // Transitions from STARTUP to DRAIN and from DRAIN to PROBE_BW if
   // appropriate.
   void MaybeExitStartupOrDrain(QuicTime now);
@@ -249,6 +249,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // Called right before exiting STARTUP.
   void OnExitStartup(QuicTime now);
 
+  // Return whether we should exit STARTUP due to excessive loss.
+  bool ShouldExitStartupDueToLoss(
+      const SendTimeState& last_packet_send_state) const;
+
   const RttStats* rtt_stats_;
   const QuicUnackedPacketMap* unacked_packets_;
   QuicRandom* random_;
@@ -268,6 +272,12 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // Acknowledgement of any packet after |current_round_trip_end_| will cause
   // the round trip counter to advance.
   QuicPacketNumber current_round_trip_end_;
+
+  // Number of congestion events with some losses, in the current round.
+  int64_t num_loss_events_in_round_;
+
+  // Number of total bytes lost in the current round.
+  QuicByteCount bytes_lost_in_round_;
 
   // The filter that tracks the maximum bandwidth over the multiple recent
   // round-trips.
@@ -313,8 +323,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   const float congestion_window_gain_constant_;
   // The number of RTTs to stay in STARTUP mode.  Defaults to 3.
   QuicRoundTripCount num_startup_rtts_;
-  // If true, exit startup if 1RTT has passed with no bandwidth increase and
-  // the connection is in recovery.
+  // If true, exit startup if all of the following conditions are met:
+  // - 1RTT has passed with no bandwidth increase,
+  // - Some number of congestion events happened with loss, in the last round.
+  // - Some amount of inflight bytes (at the start of the last round) are lost.
   bool exit_startup_on_loss_;
 
   // Number of round-trips in PROBE_BW mode, used for determining the current
@@ -402,6 +414,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // bytes_lost_with_network_parameters_adjusted_ *
   // bytes_lost_multiplier_with_network_parameters_adjusted_ > IW.
   uint8_t bytes_lost_multiplier_with_network_parameters_adjusted_;
+
+  // Latched value of --quic_bbr_loss_based_startup_exit &&
+  // sampler_.one_bw_sample_per_ack_event().
+  const bool loss_based_startup_exit_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

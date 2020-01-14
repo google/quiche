@@ -990,7 +990,13 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTStartup) {
 }
 
 // Test exiting STARTUP earlier upon loss due to the LRTT connection option.
-TEST_F(BbrSenderTest, DISABLED_SimpleTransferLRTTStartup) {
+TEST_F(BbrSenderTest, SimpleTransferLRTTStartup) {
+  if (!GetQuicReloadableFlag(
+          quic_bw_sampler_remove_packets_once_per_congestion_event2) ||
+      !GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2) ||
+      !GetQuicReloadableFlag(quic_bbr_loss_based_startup_exit)) {
+    return;
+  }
   CreateDefaultSetup();
 
   SetConnectionOption(kLRTT);
@@ -1018,7 +1024,13 @@ TEST_F(BbrSenderTest, DISABLED_SimpleTransferLRTTStartup) {
 }
 
 // Test exiting STARTUP earlier upon loss due to the LRTT connection option.
-TEST_F(BbrSenderTest, DISABLED_SimpleTransferLRTTStartupSmallBuffer) {
+TEST_F(BbrSenderTest, SimpleTransferLRTTStartupSmallBuffer) {
+  if (!GetQuicReloadableFlag(
+          quic_bw_sampler_remove_packets_once_per_congestion_event2) ||
+      !GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2) ||
+      !GetQuicReloadableFlag(quic_bbr_loss_based_startup_exit)) {
+    return;
+  }
   CreateSmallBufferSetup();
 
   SetConnectionOption(kLRTT);
