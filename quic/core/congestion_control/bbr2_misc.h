@@ -119,6 +119,10 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
       QuicTime::Delta::FromMilliseconds(
           GetQuicFlag(FLAGS_quic_bbr2_default_probe_bw_max_rand_duration_ms));
 
+  // The minimum number of loss marking events to exit the PROBE_UP phase.
+  int64_t probe_bw_full_loss_count =
+      GetQuicFlag(FLAGS_quic_bbr2_default_probe_bw_full_loss_count);
+
   // Multiplier to get target inflight (as multiple of BDP) for PROBE_UP phase.
   float probe_bw_probe_inflight_gain = 1.25;
 
@@ -372,6 +376,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool IsCongestionWindowLimited(
       const Bbr2CongestionEvent& congestion_event) const;
 
+  // TODO(wub): Replace this by a new version which takes two thresholds, one
+  // is the number of loss events, the other is the percentage of bytes lost.
   bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event) const;
 
   QuicPacketNumber last_sent_packet() const {
@@ -394,6 +400,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     DCHECK(!bandwidth_sampler_.remove_packets_once_per_congestion_event());
     return total_bytes_sent() - total_bytes_acked() - total_bytes_lost();
   }
+
+  int64_t loss_events_in_round() const { return loss_events_in_round_; }
+
+  bool always_count_loss_events() const { return always_count_loss_events_; }
 
   QuicPacketNumber end_of_app_limited_phase() const {
     return bandwidth_sampler_.end_of_app_limited_phase();
@@ -452,6 +462,11 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   // Bytes lost in the current round. Updated once per congestion event.
   QuicByteCount bytes_lost_in_round_ = 0;
+  // Number of loss marking events in the current round.
+  int64_t loss_events_in_round_ = 0;
+  // Latched value of --quic_bbr2_always_count_loss_events.
+  const bool always_count_loss_events_ =
+      GetQuicReloadableFlag(quic_bbr2_always_count_loss_events);
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();

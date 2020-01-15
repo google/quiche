@@ -59,6 +59,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
   QuicRoundTripCount rounds_without_bandwidth_growth_;
 
   // Number of loss events in the current round trip.
+  // TODO(wub): Remove when deprecating --quic_bbr2_always_count_loss_events.
   int64_t loss_events_in_round_;
 };
 
