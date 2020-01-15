@@ -21,7 +21,7 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_optional.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
@@ -115,70 +115,78 @@ class FrameParts : public Http2FrameDecoderListener {
 
   const Http2FrameHeader& GetFrameHeader() const { return frame_header_; }
 
-  Http2Optional<Http2PriorityFields> GetOptPriority() const {
+  quiche::QuicheOptional<Http2PriorityFields> GetOptPriority() const {
     return opt_priority_;
   }
-  Http2Optional<Http2ErrorCode> GetOptRstStreamErrorCode() const {
+  quiche::QuicheOptional<Http2ErrorCode> GetOptRstStreamErrorCode() const {
     return opt_rst_stream_error_code_;
   }
-  Http2Optional<Http2PushPromiseFields> GetOptPushPromise() const {
+  quiche::QuicheOptional<Http2PushPromiseFields> GetOptPushPromise() const {
     return opt_push_promise_;
   }
-  Http2Optional<Http2PingFields> GetOptPing() const { return opt_ping_; }
-  Http2Optional<Http2GoAwayFields> GetOptGoaway() const { return opt_goaway_; }
-  Http2Optional<size_t> GetOptPadLength() const { return opt_pad_length_; }
-  Http2Optional<size_t> GetOptPayloadLength() const {
+  quiche::QuicheOptional<Http2PingFields> GetOptPing() const {
+    return opt_ping_;
+  }
+  quiche::QuicheOptional<Http2GoAwayFields> GetOptGoaway() const {
+    return opt_goaway_;
+  }
+  quiche::QuicheOptional<size_t> GetOptPadLength() const {
+    return opt_pad_length_;
+  }
+  quiche::QuicheOptional<size_t> GetOptPayloadLength() const {
     return opt_payload_length_;
   }
-  Http2Optional<size_t> GetOptMissingLength() const {
+  quiche::QuicheOptional<size_t> GetOptMissingLength() const {
     return opt_missing_length_;
   }
-  Http2Optional<size_t> GetOptAltsvcOriginLength() const {
+  quiche::QuicheOptional<size_t> GetOptAltsvcOriginLength() const {
     return opt_altsvc_origin_length_;
   }
-  Http2Optional<size_t> GetOptAltsvcValueLength() const {
+  quiche::QuicheOptional<size_t> GetOptAltsvcValueLength() const {
     return opt_altsvc_value_length_;
   }
-  Http2Optional<size_t> GetOptWindowUpdateIncrement() const {
+  quiche::QuicheOptional<size_t> GetOptWindowUpdateIncrement() const {
     return opt_window_update_increment_;
   }
   bool GetHasFrameSizeError() const { return has_frame_size_error_; }
 
-  void SetOptPriority(Http2Optional<Http2PriorityFields> opt_priority) {
+  void SetOptPriority(
+      quiche::QuicheOptional<Http2PriorityFields> opt_priority) {
     opt_priority_ = opt_priority;
   }
   void SetOptRstStreamErrorCode(
-      Http2Optional<Http2ErrorCode> opt_rst_stream_error_code) {
+      quiche::QuicheOptional<Http2ErrorCode> opt_rst_stream_error_code) {
     opt_rst_stream_error_code_ = opt_rst_stream_error_code;
   }
   void SetOptPushPromise(
-      Http2Optional<Http2PushPromiseFields> opt_push_promise) {
+      quiche::QuicheOptional<Http2PushPromiseFields> opt_push_promise) {
     opt_push_promise_ = opt_push_promise;
   }
-  void SetOptPing(Http2Optional<Http2PingFields> opt_ping) {
+  void SetOptPing(quiche::QuicheOptional<Http2PingFields> opt_ping) {
     opt_ping_ = opt_ping;
   }
-  void SetOptGoaway(Http2Optional<Http2GoAwayFields> opt_goaway) {
+  void SetOptGoaway(quiche::QuicheOptional<Http2GoAwayFields> opt_goaway) {
     opt_goaway_ = opt_goaway;
   }
-  void SetOptPadLength(Http2Optional<size_t> opt_pad_length) {
+  void SetOptPadLength(quiche::QuicheOptional<size_t> opt_pad_length) {
     opt_pad_length_ = opt_pad_length;
   }
-  void SetOptPayloadLength(Http2Optional<size_t> opt_payload_length) {
+  void SetOptPayloadLength(quiche::QuicheOptional<size_t> opt_payload_length) {
     opt_payload_length_ = opt_payload_length;
   }
-  void SetOptMissingLength(Http2Optional<size_t> opt_missing_length) {
+  void SetOptMissingLength(quiche::QuicheOptional<size_t> opt_missing_length) {
     opt_missing_length_ = opt_missing_length;
   }
   void SetOptAltsvcOriginLength(
-      Http2Optional<size_t> opt_altsvc_origin_length) {
+      quiche::QuicheOptional<size_t> opt_altsvc_origin_length) {
     opt_altsvc_origin_length_ = opt_altsvc_origin_length;
   }
-  void SetOptAltsvcValueLength(Http2Optional<size_t> opt_altsvc_value_length) {
+  void SetOptAltsvcValueLength(
+      quiche::QuicheOptional<size_t> opt_altsvc_value_length) {
     opt_altsvc_value_length_ = opt_altsvc_value_length;
   }
   void SetOptWindowUpdateIncrement(
-      Http2Optional<size_t> opt_window_update_increment) {
+      quiche::QuicheOptional<size_t> opt_window_update_increment) {
     opt_window_update_increment_ = opt_window_update_increment;
   }
 
@@ -208,9 +216,10 @@ class FrameParts : public Http2FrameDecoderListener {
   // Append source to target. If opt_length is not nullptr, then verifies that
   // the optional has a value (i.e. that the necessary On*Start method has been
   // called), and that target is not longer than opt_length->value().
-  ::testing::AssertionResult AppendString(quiche::QuicheStringPiece source,
-                                          std::string* target,
-                                          Http2Optional<size_t>* opt_length);
+  ::testing::AssertionResult AppendString(
+      quiche::QuicheStringPiece source,
+      std::string* target,
+      quiche::QuicheOptional<size_t>* opt_length);
 
   const Http2FrameHeader frame_header_;
 
@@ -219,19 +228,19 @@ class FrameParts : public Http2FrameDecoderListener {
   std::string altsvc_origin_;
   std::string altsvc_value_;
 
-  Http2Optional<Http2PriorityFields> opt_priority_;
-  Http2Optional<Http2ErrorCode> opt_rst_stream_error_code_;
-  Http2Optional<Http2PushPromiseFields> opt_push_promise_;
-  Http2Optional<Http2PingFields> opt_ping_;
-  Http2Optional<Http2GoAwayFields> opt_goaway_;
+  quiche::QuicheOptional<Http2PriorityFields> opt_priority_;
+  quiche::QuicheOptional<Http2ErrorCode> opt_rst_stream_error_code_;
+  quiche::QuicheOptional<Http2PushPromiseFields> opt_push_promise_;
+  quiche::QuicheOptional<Http2PingFields> opt_ping_;
+  quiche::QuicheOptional<Http2GoAwayFields> opt_goaway_;
 
-  Http2Optional<size_t> opt_pad_length_;
-  Http2Optional<size_t> opt_payload_length_;
-  Http2Optional<size_t> opt_missing_length_;
-  Http2Optional<size_t> opt_altsvc_origin_length_;
-  Http2Optional<size_t> opt_altsvc_value_length_;
+  quiche::QuicheOptional<size_t> opt_pad_length_;
+  quiche::QuicheOptional<size_t> opt_payload_length_;
+  quiche::QuicheOptional<size_t> opt_missing_length_;
+  quiche::QuicheOptional<size_t> opt_altsvc_origin_length_;
+  quiche::QuicheOptional<size_t> opt_altsvc_value_length_;
 
-  Http2Optional<size_t> opt_window_update_increment_;
+  quiche::QuicheOptional<size_t> opt_window_update_increment_;
 
   bool has_frame_size_error_ = false;
 
