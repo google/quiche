@@ -7,11 +7,12 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
 std::string HpackEntryTypeDecoder::DebugString() const {
-  return Http2StrCat(
+  return quiche::QuicheStrCat(
       "HpackEntryTypeDecoder(varint_decoder=", varint_decoder_.DebugString(),
       ", entry_type=", entry_type_, ")");
 }

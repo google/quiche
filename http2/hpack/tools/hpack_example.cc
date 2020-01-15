@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 namespace test {
@@ -41,7 +42,7 @@ void HpackExampleToStringOrDie(quiche::QuicheStringPiece example,
       continue;
     }
     HTTP2_BUG << "Can't parse byte " << static_cast<int>(c0)
-              << Http2StrCat(" (0x", Http2Hex(c0), ")")
+              << quiche::QuicheStrCat(" (0x", Http2Hex(c0), ")")
               << "\nExample: " << example;
   }
   CHECK_LT(0u, output->size()) << "Example is empty.";

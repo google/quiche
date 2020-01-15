@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
@@ -121,8 +122,8 @@ void HpackVarintDecoder::set_value(uint64_t v) {
 }
 
 std::string HpackVarintDecoder::DebugString() const {
-  return Http2StrCat("HpackVarintDecoder(value=", value_, ", offset=", offset_,
-                     ")");
+  return quiche::QuicheStrCat("HpackVarintDecoder(value=", value_,
+                              ", offset=", offset_, ")");
 }
 
 DecodeStatus HpackVarintDecoder::StartForTest(uint8_t prefix_value,

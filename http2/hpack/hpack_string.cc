@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
@@ -62,8 +62,8 @@ HpackStringPair::~HpackStringPair() {
 }
 
 std::string HpackStringPair::DebugString() const {
-  return Http2StrCat("HpackStringPair(name=", name.ToString(),
-                     ", value=", value.ToString(), ")");
+  return quiche::QuicheStrCat("HpackStringPair(name=", name.ToString(),
+                              ", value=", value.ToString(), ")");
 }
 
 std::ostream& operator<<(std::ostream& os, const HpackStringPair& p) {

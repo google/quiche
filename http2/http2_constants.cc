@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
@@ -35,7 +36,7 @@ std::string Http2FrameTypeToString(Http2FrameType v) {
     case Http2FrameType::ALTSVC:
       return "ALTSVC";
   }
-  return Http2StrCat("UnknownFrameType(", static_cast<int>(v), ")");
+  return quiche::QuicheStrCat("UnknownFrameType(", static_cast<int>(v), ")");
 }
 
 std::string Http2FrameTypeToString(uint8_t v) {
@@ -121,7 +122,7 @@ std::string Http2ErrorCodeToString(uint32_t v) {
     case 0xd:
       return "HTTP_1_1_REQUIRED";
   }
-  return Http2StrCat("UnknownErrorCode(0x", Http2Hex(v), ")");
+  return quiche::QuicheStrCat("UnknownErrorCode(0x", Http2Hex(v), ")");
 }
 std::string Http2ErrorCodeToString(Http2ErrorCode v) {
   return Http2ErrorCodeToString(static_cast<uint32_t>(v));
@@ -142,7 +143,7 @@ std::string Http2SettingsParameterToString(uint32_t v) {
     case 0x6:
       return "MAX_HEADER_LIST_SIZE";
   }
-  return Http2StrCat("UnknownSettingsParameter(0x", Http2Hex(v), ")");
+  return quiche::QuicheStrCat("UnknownSettingsParameter(0x", Http2Hex(v), ")");
 }
 std::string Http2SettingsParameterToString(Http2SettingsParameter v) {
   return Http2SettingsParameterToString(static_cast<uint32_t>(v));

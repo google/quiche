@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionFailure;
@@ -161,10 +162,10 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
     for (const uint64_t value : values) {
       Encode(value, prefix_length);  // Sets buffer_.
 
-      std::string msg = Http2StrCat("value=", value, " (0x", Http2Hex(value),
-                                    "), prefix_length=", prefix_length,
-                                    ", expected_bytes=", expected_bytes, "\n",
-                                    Http2HexDump(buffer_));
+      std::string msg = quiche::QuicheStrCat(
+          "value=", value, " (0x", Http2Hex(value),
+          "), prefix_length=", prefix_length,
+          ", expected_bytes=", expected_bytes, "\n", Http2HexDump(buffer_));
 
       if (value == minimum) {
         HTTP2_LOG(INFO) << "Checking minimum; " << msg;

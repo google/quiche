@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
@@ -49,10 +50,10 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
 }
 
 std::string HpackBlockDecoder::DebugString() const {
-  return Http2StrCat("HpackBlockDecoder(", entry_decoder_.DebugString(),
-                     ", listener@",
-                     Http2Hex(reinterpret_cast<intptr_t>(listener_)),
-                     (before_entry_ ? ", between entries)" : ", in an entry)"));
+  return quiche::QuicheStrCat(
+      "HpackBlockDecoder(", entry_decoder_.DebugString(), ", listener@",
+      Http2Hex(reinterpret_cast<intptr_t>(listener_)),
+      (before_entry_ ? ", between entries)" : ", in an entry)"));
 }
 
 std::ostream& operator<<(std::ostream& out, const HpackBlockDecoder& v) {

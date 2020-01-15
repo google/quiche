@@ -15,11 +15,6 @@
 namespace http2 {
 
 template <typename... Args>
-inline std::string Http2StrCat(const Args&... args) {
-  return Http2StrCatImpl(std::forward<const Args&>(args)...);
-}
-
-template <typename... Args>
 inline void Http2StrAppend(std::string* output, const Args&... args) {
   Http2StrAppendImpl(output, std::forward<const Args&>(args)...);
 }

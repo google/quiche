@@ -4,15 +4,15 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder.h"
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
 std::string HpackStringDecoder::DebugString() const {
-  return Http2StrCat("HpackStringDecoder(state=", StateToString(state_),
-                     ", length=", length_decoder_.DebugString(),
-                     ", remaining=", remaining_,
-                     ", huffman=", huffman_encoded_ ? "true)" : "false)");
+  return quiche::QuicheStrCat(
+      "HpackStringDecoder(state=", StateToString(state_),
+      ", length=", length_decoder_.DebugString(), ", remaining=", remaining_,
+      ", huffman=", huffman_encoded_ ? "true)" : "false)");
 }
 
 // static
@@ -25,7 +25,7 @@ std::string HpackStringDecoder::StateToString(StringDecoderState v) {
     case kResumeDecodingLength:
       return "kResumeDecodingLength";
   }
-  return Http2StrCat("UNKNOWN_STATE(", static_cast<uint32_t>(v), ")");
+  return quiche::QuicheStrCat("UNKNOWN_STATE(", static_cast<uint32_t>(v), ")");
 }
 
 std::ostream& operator<<(std::ostream& out, const HpackStringDecoder& v) {
