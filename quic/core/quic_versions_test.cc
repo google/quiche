@@ -478,6 +478,21 @@ TEST_F(QuicVersionsTest, ReservedForNegotiation) {
   }
 }
 
+TEST_F(QuicVersionsTest, SupportedVersionsHasCorrectList) {
+  size_t index = 0;
+  for (HandshakeProtocol handshake_protocol : kSupportedHandshakeProtocols) {
+    for (QuicTransportVersion transport_version : kSupportedTransportVersions) {
+      SCOPED_TRACE(index);
+      if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
+        EXPECT_EQ(kSupportedVersions[index],
+                  ParsedQuicVersion(handshake_protocol, transport_version));
+        index++;
+      }
+    }
+  }
+  EXPECT_EQ(kSupportedVersions.size(), index);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

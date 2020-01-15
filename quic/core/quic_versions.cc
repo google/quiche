@@ -275,16 +275,8 @@ bool ParsedQuicVersionIsValid(HandshakeProtocol handshake_protocol,
 }
 
 ParsedQuicVersionVector AllSupportedVersions() {
-  ParsedQuicVersionVector supported_versions;
-  for (HandshakeProtocol handshake_protocol : kSupportedHandshakeProtocols) {
-    for (QuicTransportVersion transport_version : kSupportedTransportVersions) {
-      if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
-        supported_versions.push_back(
-            ParsedQuicVersion(handshake_protocol, transport_version));
-      }
-    }
-  }
-  return supported_versions;
+  return ParsedQuicVersionVector(kSupportedVersions.begin(),
+                                 kSupportedVersions.end());
 }
 
 ParsedQuicVersionVector CurrentSupportedVersions() {

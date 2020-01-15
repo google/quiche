@@ -290,6 +290,17 @@ static const QuicTransportVersion kSupportedTransportVersions[] = {
 static const HandshakeProtocol kSupportedHandshakeProtocols[] = {
     PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
 
+static const std::array<ParsedQuicVersion, 8> kSupportedVersions = {
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99),
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
+    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
+    ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99),
+    ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
+};
+
 typedef std::vector<QuicTransportVersion> QuicTransportVersionVector;
 
 // Returns a vector of QUIC versions in kSupportedTransportVersions.
