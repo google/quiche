@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -414,12 +414,12 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
   switch (frame_ir->frame_type()) {
     case SpdyFrameType::HEADERS: {
       return std::make_unique<SpdyHeaderFrameIterator>(
-          framer,
-          SpdyWrapUnique(static_cast<const SpdyHeadersIR*>(frame_ir.release())));
+          framer, quiche::QuicheWrapUnique(
+                      static_cast<const SpdyHeadersIR*>(frame_ir.release())));
     }
     case SpdyFrameType::PUSH_PROMISE: {
       return std::make_unique<SpdyPushPromiseFrameIterator>(
-          framer, SpdyWrapUnique(
+          framer, quiche::QuicheWrapUnique(
                       static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
