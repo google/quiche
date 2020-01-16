@@ -94,7 +94,8 @@ class QuicReceivedPacketManagerTest : public QuicTestWithParam<TestParams> {
   }
 
   void CheckAckTimeout(QuicTime time) {
-    DCHECK(HasPendingAck() && received_manager_.ack_timeout() == time);
+    DCHECK(HasPendingAck());
+    DCHECK_EQ(received_manager_.ack_timeout(), time);
     if (time <= clock_.ApproximateNow()) {
       // ACK timeout expires, send an ACK.
       received_manager_.ResetAckStates();

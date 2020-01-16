@@ -5257,8 +5257,8 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
                                         const QuicStopWaitingFrame& frame,
                                         QuicDataWriter* writer) {
   DCHECK(!VersionHasIetfInvariantHeader(version_.transport_version));
-  DCHECK(frame.least_unacked.IsInitialized() &&
-         header.packet_number >= frame.least_unacked);
+  DCHECK(frame.least_unacked.IsInitialized());
+  DCHECK_GE(header.packet_number, frame.least_unacked);
   const uint64_t least_unacked_delta =
       header.packet_number - frame.least_unacked;
   const uint64_t length_shift = header.packet_number_length * 8;
@@ -6093,8 +6093,8 @@ uint8_t QuicFramer::GetIetfStreamFrameTypeByte(
 void QuicFramer::InferPacketHeaderTypeFromVersion() {
   // This function should only be called when server connection negotiates the
   // version.
-  DCHECK(perspective_ == Perspective::IS_SERVER &&
-         !infer_packet_header_type_from_version_);
+  DCHECK_EQ(perspective_, Perspective::IS_SERVER);
+  DCHECK(!infer_packet_header_type_from_version_);
   infer_packet_header_type_from_version_ = true;
 }
 
