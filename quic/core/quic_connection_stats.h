@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
+
 // Structure to hold stats for a QuicConnection.
 struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
@@ -59,6 +60,14 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QuicByteCount slowstart_bytes_lost = 0;
   // Time spent in slow start. Populated for BBRv1 and BBRv2.
   QuicTimeAccumulator slowstart_duration;
+
+  // Number of PROBE_BW cycles. Populated for BBRv1 and BBRv2.
+  uint32_t bbr_num_cycles = 0;
+  // Number of PROBE_BW cycles shortened for reno coexistence. BBRv2 only.
+  uint32_t bbr_num_short_cycles_for_reno_coexistence = 0;
+  // Whether BBR exited STARTUP due to excessive loss. Populated for BBRv1 and
+  // BBRv2.
+  bool bbr_exit_startup_due_to_loss = false;
 
   QuicPacketCount packets_dropped = 0;  // Duplicate or less than least unacked.
 

@@ -217,8 +217,15 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
 
 bool Bbr2ProbeBwMode::IsTimeToProbeBandwidth(
     const Bbr2CongestionEvent& congestion_event) const {
-  return HasCycleLasted(cycle_.probe_wait_time, congestion_event) ||
-         IsTimeToProbeForRenoCoexistence(1.0, congestion_event);
+  if (HasCycleLasted(cycle_.probe_wait_time, congestion_event)) {
+    return true;
+  }
+
+  if (IsTimeToProbeForRenoCoexistence(1.0, congestion_event)) {
+    ++sender_->connection_stats_->bbr_num_short_cycles_for_reno_coexistence;
+    return true;
+  }
+  return false;
 }
 
 // QUIC only. Used to prevent a Bbr2 flow from staying in PROBE_DOWN for too
@@ -429,6 +436,7 @@ void Bbr2ProbeBwMode::EnterProbeDown(
   cycle_.phase = CyclePhase::PROBE_DOWN;
   cycle_.rounds_in_phase = 0;
   cycle_.phase_start_time = congestion_event.event_time;
+  ++sender_->connection_stats_->bbr_num_cycles;
 
   // Pick probe wait time.
   cycle_.rounds_since_probe =

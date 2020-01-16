@@ -130,6 +130,7 @@ void Bbr2StartupMode::CheckExcessiveLosses(
     model_->set_inflight_hi(bdp);
 
     full_bandwidth_reached_ = true;
+    sender_->connection_stats_->bbr_exit_startup_due_to_loss = true;
   }
 
   loss_events_in_round_ = 0;

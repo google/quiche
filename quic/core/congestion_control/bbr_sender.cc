@@ -713,6 +713,9 @@ void BbrSender::UpdateGainCyclePhase(QuicTime now,
 
   if (should_advance_gain_cycling) {
     cycle_current_offset_ = (cycle_current_offset_ + 1) % kGainCycleLength;
+    if (cycle_current_offset_ == 0) {
+      ++stats_->bbr_num_cycles;
+    }
     last_cycle_start_ = now;
     // Stay in low gain mode until the target BDP is hit.
     // Low gain mode will be exited immediately when the target BDP is achieved.
@@ -785,9 +788,13 @@ bool BbrSender::ShouldExitStartupDueToLoss(
   const QuicByteCount inflight_at_send = last_packet_send_state.bytes_in_flight;
 
   if (inflight_at_send > 0 && bytes_lost_in_round_ > 0) {
-    return bytes_lost_in_round_ >
-           inflight_at_send *
-               GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold);
+    if (bytes_lost_in_round_ >
+        inflight_at_send *
+            GetQuicFlag(FLAGS_quic_bbr2_default_loss_threshold)) {
+      stats_->bbr_exit_startup_due_to_loss = true;
+      return true;
+    }
+    return false;
   }
 
   return false;
