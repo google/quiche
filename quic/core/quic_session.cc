@@ -1970,6 +1970,10 @@ bool QuicSession::HasUnackedStreamData() const {
   return !streams_waiting_for_acks_.empty();
 }
 
+HandshakeState QuicSession::GetHandshakeState() const {
+  return GetCryptoStream()->GetHandshakeState();
+}
+
 WriteStreamDataResult QuicSession::WriteStreamData(QuicStreamId id,
                                                    QuicStreamOffset offset,
                                                    QuicByteCount data_length,

@@ -57,6 +57,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
     return QuicCryptoHandshaker::crypto_message_parser();
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
 
  private:
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;

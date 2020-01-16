@@ -70,6 +70,7 @@ QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
       process_client_hello_cb_(nullptr),
       encryption_established_(false),
       one_rtt_keys_available_(false),
+      one_rtt_packet_decrypted_(false),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {}
 
 QuicCryptoServerHandshaker::~QuicCryptoServerHandshaker() {
@@ -365,6 +366,7 @@ void QuicCryptoServerHandshaker::SetPreviousCachedNetworkParams(
 
 void QuicCryptoServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
   if (level == ENCRYPTION_FORWARD_SECURE) {
+    one_rtt_packet_decrypted_ = true;
     delegate_->NeuterHandshakeData();
   }
 }
@@ -405,6 +407,10 @@ QuicCryptoServerHandshaker::crypto_negotiated_params() const {
 
 CryptoMessageParser* QuicCryptoServerHandshaker::crypto_message_parser() {
   return QuicCryptoHandshaker::crypto_message_parser();
+}
+
+HandshakeState QuicCryptoServerHandshaker::GetHandshakeState() const {
+  return one_rtt_packet_decrypted_ ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
 }
 
 size_t QuicCryptoServerHandshaker::BufferSizeLimitForLevel(

@@ -86,6 +86,10 @@ CryptoMessageParser* QuicCryptoClientStream::crypto_message_parser() {
   return handshaker_->crypto_message_parser();
 }
 
+HandshakeState QuicCryptoClientStream::GetHandshakeState() const {
+  return handshaker_->GetHandshakeState();
+}
+
 size_t QuicCryptoClientStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return handshaker_->BufferSizeLimitForLevel(level);

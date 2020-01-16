@@ -862,8 +862,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Whether the handshake completes from this connection's perspective.
   bool IsHandshakeComplete() const {
-    return sent_packet_manager_.handshake_state() >=
-           QuicSentPacketManager::HANDSHAKE_COMPLETE;
+    return sent_packet_manager_.handshake_state() >= HANDSHAKE_COMPLETE;
   }
 
   // Returns the largest received packet number sent by peer.

@@ -98,6 +98,7 @@ class QuicEndpoint : public QuicEndpointBase,
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
+  HandshakeState GetHandshakeState() const override;
   // End SessionNotifierInterface implementation.
 
  private:

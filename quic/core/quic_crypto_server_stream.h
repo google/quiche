@@ -128,6 +128,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     // Used by QuicCryptoStream to parse data received on this stream.
     virtual CryptoMessageParser* crypto_message_parser() = 0;
 
+    // Get current handshake state.
+    virtual HandshakeState GetHandshakeState() const = 0;
+
     // Used by QuicCryptoStream to know how much unprocessed data can be
     // buffered at each encryption level.
     virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
@@ -172,6 +175,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel level) override;
+  HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) override;

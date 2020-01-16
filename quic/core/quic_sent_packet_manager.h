@@ -107,25 +107,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     PTO_MODE,
   };
 
-  // Handshake state of this connection.
-  enum HandshakeState {
-    // Initial state.
-    HANDSHAKE_START,
-    // Only used in IETF QUIC with TLS handshake. State proceeds to
-    // HANDSHAKE_PROCESSED after a packet of HANDSHAKE packet number space
-    // gets successfully processed, and the initial key can be dropped.
-    HANDSHAKE_PROCESSED,
-    // In QUIC crypto, state proceeds to HANDSHAKE_COMPLETE if client receives
-    // SHLO or server successfully processes an ENCRYPTION_FORWARD_SECURE
-    // packet, such that the handshake packets can be neutered. In IETF QUIC
-    // with TLS handshake, state proceeds to HANDSHAKE_COMPLETE once the
-    // endpoint has both 1-RTT send and receive keys.
-    HANDSHAKE_COMPLETE,
-    // Only used in IETF QUIC with TLS handshake. State proceeds to
-    // HANDSHAKE_CONFIRMED if a 1-RTT packet gets acknowledged.
-    HANDSHAKE_CONFIRMED,
-  };
-
   QuicSentPacketManager(Perspective perspective,
                         const QuicClock* clock,
                         QuicRandom* random,
@@ -596,6 +577,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   PacingSender pacing_sender_;
 
   // Indicates current handshake state.
+  // TODO(fayang): Stop inferring handshake state, instead, retrieve handshake
+  // state from SessionNotifier::GetHandshakeState and use this variable purely
+  // for performance purpose.
   HandshakeState handshake_state_;
 
   // Records bandwidth from server to client in normal operation, over periods

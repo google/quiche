@@ -199,6 +199,10 @@ bool QuicEndpoint::HasUnackedStreamData() const {
   return false;
 }
 
+HandshakeState QuicEndpoint::GetHandshakeState() const {
+  return HANDSHAKE_COMPLETE;
+}
+
 WriteStreamDataResult QuicEndpoint::DataProducer::WriteStreamData(
     QuicStreamId /*id*/,
     QuicStreamOffset /*offset*/,

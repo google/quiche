@@ -149,6 +149,10 @@ CryptoMessageParser* QuicCryptoClientHandshaker::crypto_message_parser() {
   return QuicCryptoHandshaker::crypto_message_parser();
 }
 
+HandshakeState QuicCryptoClientHandshaker::GetHandshakeState() const {
+  return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
+}
+
 size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);

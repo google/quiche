@@ -120,6 +120,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   bool one_rtt_keys_available() const override {
     return one_rtt_keys_available_;
   }
+  HandshakeState GetHandshakeState() const override {
+    return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
+  }
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override {
     return *params_;

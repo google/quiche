@@ -52,6 +52,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   virtual const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const = 0;
   virtual CryptoMessageParser* crypto_message_parser() { return this; }
+  virtual HandshakeState GetHandshakeState() const = 0;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
 
  protected:

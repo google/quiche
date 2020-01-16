@@ -117,6 +117,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // Used by QuicCryptoStream to know how much unprocessed data can be
     // buffered at each encryption level.
     virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
+
+    // Returns current handshake state.
+    virtual HandshakeState GetHandshakeState() const = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -162,6 +165,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   std::string chlo_hash() const;

@@ -182,6 +182,10 @@ class TestQuicCryptoStream : public QuicCryptoStream {
 
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
 
+  HandshakeState GetHandshakeState() const override {
+    return handshaker()->GetHandshakeState();
+  }
+
   const std::vector<std::pair<std::string, EncryptionLevel>>& pending_writes() {
     return pending_writes_;
   }

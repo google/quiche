@@ -453,6 +453,10 @@ bool SimpleSessionNotifier::HasUnackedStreamData() const {
   return false;
 }
 
+HandshakeState SimpleSessionNotifier::GetHandshakeState() const {
+  return HANDSHAKE_COMPLETE;
+}
+
 bool SimpleSessionNotifier::OnControlFrameAcked(const QuicFrame& frame) {
   QuicControlFrameId id = GetControlFrameId(frame);
   if (id == kInvalidControlFrameId) {

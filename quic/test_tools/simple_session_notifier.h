@@ -77,6 +77,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
+  HandshakeState GetHandshakeState() const override;
 
  private:
   struct StreamState {

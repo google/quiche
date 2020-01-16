@@ -59,6 +59,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override;
   CryptoMessageParser* crypto_message_parser() override;
+  HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   // From QuicCryptoHandshaker
@@ -228,6 +229,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
 
   bool encryption_established_;
   bool one_rtt_keys_available_;
+  bool one_rtt_packet_decrypted_;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 };

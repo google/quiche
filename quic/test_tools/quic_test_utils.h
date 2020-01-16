@@ -689,6 +689,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
 
  private:
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
@@ -1122,6 +1123,7 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MOCK_CONST_METHOD1(IsFrameOutstanding, bool(const QuicFrame&));
   MOCK_CONST_METHOD0(HasUnackedCryptoData, bool());
   MOCK_CONST_METHOD0(HasUnackedStreamData, bool());
+  MOCK_CONST_METHOD0(GetHandshakeState, HandshakeState());
 };
 
 // Creates a client session for testing.

@@ -141,6 +141,16 @@ CryptoMessageParser* TlsServerHandshaker::crypto_message_parser() {
   return TlsHandshaker::crypto_message_parser();
 }
 
+HandshakeState TlsServerHandshaker::GetHandshakeState() const {
+  if (one_rtt_keys_available_) {
+    return HANDSHAKE_COMPLETE;
+  }
+  if (state_ >= STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED) {
+    return HANDSHAKE_PROCESSED;
+  }
+  return HANDSHAKE_START;
+}
+
 size_t TlsServerHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return TlsHandshaker::BufferSizeLimitForLevel(level);

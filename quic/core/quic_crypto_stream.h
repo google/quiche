@@ -85,6 +85,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Called when a packet of encryption |level| has been successfully decrypted.
   virtual void OnPacketDecrypted(EncryptionLevel level) = 0;
 
+  // Returns current handshake state.
+  virtual HandshakeState GetHandshakeState() const = 0;
+
   // Returns the maximum number of bytes that can be buffered at a particular
   // encryption level |level|.
   virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const;

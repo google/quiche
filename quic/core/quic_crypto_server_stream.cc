@@ -154,6 +154,10 @@ void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
   handshaker_->OnPacketDecrypted(level);
 }
 
+HandshakeState QuicCryptoServerStream::GetHandshakeState() const {
+  return handshaker_->GetHandshakeState();
+}
+
 size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return handshaker_->BufferSizeLimitForLevel(level);

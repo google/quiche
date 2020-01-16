@@ -155,6 +155,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
+  HandshakeState GetHandshakeState() const override;
 
   // QuicStreamIdManager::DelegateInterface methods:
   void OnError(QuicErrorCode error_code, std::string error_details) override;
