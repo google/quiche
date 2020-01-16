@@ -58,7 +58,6 @@ namespace {
 // the parameters. These come from the "Transport Parameter Definitions"
 // section of draft-ietf-quic-transport.
 const uint64_t kMinMaxPacketSizeTransportParam = 1200;
-const uint64_t kDefaultMaxPacketSizeTransportParam = 65527;
 const uint64_t kMaxAckDelayExponentTransportParam = 20;
 const uint64_t kDefaultAckDelayExponentTransportParam = 3;
 const uint64_t kMaxMaxAckDelayTransportParam = 16383;

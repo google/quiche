@@ -1046,11 +1046,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (params.max_packet_size.IsValid()) {
     max_packet_size_.SetReceivedValue(params.max_packet_size.value());
-    if (ReceivedMaxPacketSize() < kMaxOutgoingPacketSize) {
-      // TODO(dschinazi) act on this.
-      QUIC_DLOG(ERROR) << "Ignoring peer's requested max packet size of "
-                       << ReceivedMaxPacketSize();
-    }
   }
 
   if (params.max_datagram_frame_size.IsValid()) {

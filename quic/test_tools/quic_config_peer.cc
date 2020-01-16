@@ -91,5 +91,11 @@ void QuicConfigPeer::SetReceivedStatelessResetToken(QuicConfig* config,
   config->stateless_reset_token_.SetReceivedValue(token);
 }
 
+// static
+void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
+                                              uint32_t max_packet_size) {
+  config->max_packet_size_.SetReceivedValue(max_packet_size);
+}
+
 }  // namespace test
 }  // namespace quic

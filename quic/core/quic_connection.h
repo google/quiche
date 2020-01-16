@@ -1401,6 +1401,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // different.
   QuicByteCount long_term_mtu_;
 
+  // The maximum UDP payload size that our peer has advertised support for.
+  // Defaults to kDefaultMaxPacketSizeTransportParam until received from peer.
+  QuicByteCount peer_max_packet_size_;
+
   // The size of the largest packet received from peer.
   QuicByteCount largest_received_packet_size_;
 

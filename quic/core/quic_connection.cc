@@ -311,6 +311,7 @@ QuicConnection::QuicConnection(
       connected_(true),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
       mtu_probe_count_(0),
+      peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
       no_stop_waiting_frames_(
@@ -468,6 +469,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_send_timestamps);
     framer_.set_process_timestamps(true);
     uber_received_packet_manager_.set_save_timestamps(true);
+  }
+  if (config.HasReceivedMaxPacketSize()) {
+    peer_max_packet_size_ = config.ReceivedMaxPacketSize();
+    packet_creator_.SetMaxPacketLength(
+        GetLimitedMaxPacketSize(peer_max_packet_size_));
   }
 
   supports_release_time_ =
@@ -3344,6 +3350,9 @@ QuicByteCount QuicConnection::GetLimitedMaxPacketSize(
   QuicByteCount max_packet_size = suggested_max_packet_size;
   if (max_packet_size > writer_limit) {
     max_packet_size = writer_limit;
+  }
+  if (max_packet_size > peer_max_packet_size_) {
+    max_packet_size = peer_max_packet_size_;
   }
   if (max_packet_size > kMaxOutgoingPacketSize) {
     max_packet_size = kMaxOutgoingPacketSize;

@@ -55,6 +55,9 @@ class QuicConfigPeer {
 
   static void SetReceivedStatelessResetToken(QuicConfig* config,
                                              QuicUint128 token);
+
+  static void SetReceivedMaxPacketSize(QuicConfig* config,
+                                       uint32_t max_packet_size);
 };
 
 }  // namespace test
