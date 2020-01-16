@@ -463,6 +463,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return connection_->transport_version();
   }
 
+  inline ParsedQuicVersion version() const { return connection_->version(); }
+
   bool use_http2_priority_write_scheduler() const {
     return use_http2_priority_write_scheduler_;
   }
