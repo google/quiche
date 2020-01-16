@@ -99,11 +99,6 @@ const QuicTag kBBR3 = TAG('B', 'B', 'R', '3');   // Fully drain the queue once
                                                  // per cycle
 const QuicTag kBBR4 = TAG('B', 'B', 'R', '4');   // 20 RTT ack aggregation
 const QuicTag kBBR5 = TAG('B', 'B', 'R', '5');   // 40 RTT ack aggregation
-const QuicTag kBBR6 = TAG('B', 'B', 'R', '6');   // PROBE_RTT with 0.75 * BDP
-const QuicTag kBBR7 = TAG('B', 'B', 'R', '7');   // Skip PROBE_RTT if rtt has
-                                                 // not changed 12.5%
-const QuicTag kBBR8 = TAG('B', 'B', 'R', '8');   // Disable PROBE_RTT when
-                                                 // recently app-limited
 const QuicTag kBBR9 = TAG('B', 'B', 'R', '9');   // Ignore app-limited calls in
                                                  // BBR if enough inflight.
 const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // Use 1.5x pacing in startup

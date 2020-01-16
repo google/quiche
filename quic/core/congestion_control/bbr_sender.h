@@ -392,19 +392,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // or it's time for high gain mode.
   bool drain_to_target_;
 
-  // If true, use a CWND of 0.75*BDP during probe_rtt instead of 4 packets.
-  bool probe_rtt_based_on_bdp_;
-  // If true, skip probe_rtt and update the timestamp of the existing min_rtt to
-  // now if min_rtt over the last cycle is within 12.5% of the current min_rtt.
-  // Even if the min_rtt is 12.5% too low, the 25% gain cycling and 2x CWND gain
-  // should overcome an overly small min_rtt.
-  bool probe_rtt_skipped_if_similar_rtt_;
-  // If true, disable PROBE_RTT entirely as long as the connection was recently
-  // app limited.
-  bool probe_rtt_disabled_if_app_limited_;
-  bool app_limited_since_last_probe_rtt_;
-  QuicTime::Delta min_rtt_since_last_probe_rtt_;
-
   // True if network parameters are adjusted, and this will be reset if
   // overshooting is detected and pacing rate gets slowed.
   bool network_parameters_adjusted_;

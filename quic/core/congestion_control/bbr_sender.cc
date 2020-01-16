@@ -133,11 +133,6 @@ BbrSender::BbrSender(QuicTime now,
       enable_ack_aggregation_during_startup_(false),
       expire_ack_aggregation_in_startup_(false),
       drain_to_target_(false),
-      probe_rtt_based_on_bdp_(false),
-      probe_rtt_skipped_if_similar_rtt_(false),
-      probe_rtt_disabled_if_app_limited_(false),
-      app_limited_since_last_probe_rtt_(false),
-      min_rtt_since_last_probe_rtt_(QuicTime::Delta::Infinite()),
       network_parameters_adjusted_(false),
       bytes_lost_with_network_parameters_adjusted_(0),
       bytes_lost_multiplier_with_network_parameters_adjusted_(2),
@@ -308,21 +303,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
   if (config.HasClientRequestedIndependentOption(kBBR5, perspective)) {
     sampler_.SetMaxAckHeightTrackerWindowLength(4 * kBandwidthWindowSize);
-  }
-  if (GetQuicReloadableFlag(quic_bbr_less_probe_rtt) &&
-      config.HasClientRequestedIndependentOption(kBBR6, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_less_probe_rtt, 1, 3);
-    probe_rtt_based_on_bdp_ = true;
-  }
-  if (GetQuicReloadableFlag(quic_bbr_less_probe_rtt) &&
-      config.HasClientRequestedIndependentOption(kBBR7, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_less_probe_rtt, 2, 3);
-    probe_rtt_skipped_if_similar_rtt_ = true;
-  }
-  if (GetQuicReloadableFlag(quic_bbr_less_probe_rtt) &&
-      config.HasClientRequestedIndependentOption(kBBR8, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_less_probe_rtt, 3, 3);
-    probe_rtt_disabled_if_app_limited_ = true;
   }
   if (GetQuicReloadableFlag(quic_bbr_flexible_app_limited) &&
       config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
@@ -543,9 +523,6 @@ QuicByteCount BbrSender::GetTargetCongestionWindow(float gain) const {
 }
 
 QuicByteCount BbrSender::ProbeRttCongestionWindow() const {
-  if (probe_rtt_based_on_bdp_) {
-    return GetTargetCongestionWindow(kModerateProbeRttMultiplier);
-  }
   return min_congestion_window_;
 }
 
@@ -642,9 +619,6 @@ bool BbrSender::UpdateBandwidthAndMinRtt(
 
 bool BbrSender::MaybeUpdateMinRtt(QuicTime now,
                                   QuicTime::Delta sample_min_rtt) {
-  min_rtt_since_last_probe_rtt_ =
-      std::min(min_rtt_since_last_probe_rtt_, sample_min_rtt);
-
   // Do not expire min_rtt if none was ever available.
   bool min_rtt_expired =
       !min_rtt_.IsZero() && (now > (min_rtt_timestamp_ + kMinRttExpiry));
@@ -654,36 +628,12 @@ bool BbrSender::MaybeUpdateMinRtt(QuicTime now,
                   << ", new value: " << sample_min_rtt
                   << ", current time: " << now.ToDebuggingValue();
 
-    if (min_rtt_expired && ShouldExtendMinRttExpiry()) {
-      min_rtt_expired = false;
-    } else {
-      min_rtt_ = sample_min_rtt;
-    }
+    min_rtt_ = sample_min_rtt;
     min_rtt_timestamp_ = now;
-    // Reset since_last_probe_rtt fields.
-    min_rtt_since_last_probe_rtt_ = QuicTime::Delta::Infinite();
-    app_limited_since_last_probe_rtt_ = false;
   }
   DCHECK(!min_rtt_.IsZero());
 
   return min_rtt_expired;
-}
-
-bool BbrSender::ShouldExtendMinRttExpiry() const {
-  if (probe_rtt_disabled_if_app_limited_ && app_limited_since_last_probe_rtt_) {
-    // Extend the current min_rtt if we've been app limited recently.
-    return true;
-  }
-  const bool min_rtt_increased_since_last_probe =
-      min_rtt_since_last_probe_rtt_ > min_rtt_ * kSimilarMinRttThreshold;
-  if (probe_rtt_skipped_if_similar_rtt_ && app_limited_since_last_probe_rtt_ &&
-      !min_rtt_increased_since_last_probe) {
-    // Extend the current min_rtt if we've been app limited recently and an rtt
-    // has been measured in that time that's less than 12.5% more than the
-    // current min_rtt.
-    return true;
-  }
-  return false;
 }
 
 void BbrSender::UpdateGainCyclePhase(QuicTime now,
@@ -1065,7 +1015,6 @@ void BbrSender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
     return;
   }
 
-  app_limited_since_last_probe_rtt_ = true;
   sampler_.OnAppLimited();
   QUIC_DVLOG(2) << "Becoming application limited. Last sent packet: "
                 << last_sent_packet_ << ", CWND: " << GetCongestionWindow();

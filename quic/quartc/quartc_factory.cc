@@ -75,7 +75,6 @@ void ConfigureGlobalQuicSettings() {
 
   // Note: flag settings have no effect for Exoblaze builds since
   // SetQuicReloadableFlag() gets stubbed out.
-  SetQuicReloadableFlag(quic_bbr_less_probe_rtt, true);  // Enable BBR6,7,8.
   SetQuicReloadableFlag(quic_unified_iw_options, true);  // Enable IWXX opts.
   SetQuicReloadableFlag(quic_bbr_flexible_app_limited, true);  // Enable BBR9.
 }
@@ -106,8 +105,6 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
 
   copt.push_back(kBBR3);  // Stay in low-gain until in-flight < BDP.
   copt.push_back(kBBR5);  // 40 RTT ack aggregation.
-  copt.push_back(kBBR6);  // Use a 0.75 * BDP cwnd during PROBE_RTT.
-  copt.push_back(kBBR8);  // Skip PROBE_RTT if app-limited.
   copt.push_back(kBBR9);  // Ignore app-limited if enough data is in flight.
   copt.push_back(kBBQ1);  // 2.773 pacing gain in STARTUP.
   copt.push_back(kBBQ2);  // 2.0 CWND gain in STARTUP.
