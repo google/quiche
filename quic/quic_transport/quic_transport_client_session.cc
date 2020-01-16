@@ -39,8 +39,6 @@ class DummyProofHandler : public QuicCryptoClientStream::ProofHandler {
       const ProofVerifyDetails& /*verify_details*/) override {}
 };
 
-constexpr float kIncomingDatagramBufferSizeInCwnds = 2;
-
 }  // namespace
 
 QuicTransportClientSession::QuicTransportClientSession(
