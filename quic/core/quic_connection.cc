@@ -473,7 +473,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     packet_creator_.SetMaxPacketLength(
-        GetLimitedMaxPacketSize(peer_max_packet_size_));
+        GetLimitedMaxPacketSize(packet_creator_.max_packet_length()));
   }
 
   supports_release_time_ =

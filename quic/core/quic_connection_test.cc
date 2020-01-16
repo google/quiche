@@ -2396,6 +2396,19 @@ TEST_P(QuicConnectionTest, PeerLowersMaxPacketSize) {
   EXPECT_EQ(kTestMaxPacketSize, connection_.max_packet_length());
 }
 
+TEST_P(QuicConnectionTest, PeerCannotRaiseMaxPacketSize) {
+  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+
+  // SetFromConfig is always called after construction from InitializeSession.
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  constexpr uint32_t kTestMaxPacketSize = 1450u;
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMaxPacketSize(&config, kTestMaxPacketSize);
+  connection_.SetFromConfig(config);
+
+  EXPECT_EQ(kDefaultMaxPacketSize, connection_.max_packet_length());
+}
+
 TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
   TestConnection connection(TestConnectionId(), kPeerAddress, helper_.get(),
                             alarm_factory_.get(), writer_.get(),
