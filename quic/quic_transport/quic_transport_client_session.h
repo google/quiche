@@ -49,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     virtual void OnIncomingUnidirectionalStreamAvailable() = 0;
 
     // Notifies the visitor when a new datagram has been received.
-    virtual void OnIncomingDatagramAvailable() = 0;
+    virtual void OnDatagramReceived(quiche::QuicheStringPiece datagram) = 0;
 
     // Notifies the visitor that a new outgoing stream can now be created.
     virtual void OnCanCreateNewOutgoingBidirectionalStream() = 0;
@@ -111,7 +111,6 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   QuicTransportStream* OpenOutgoingUnidirectionalStream();
 
   using QuicSession::datagram_queue;
-  QuicOptional<std::string> ReadDatagram();
 
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
@@ -154,11 +153,6 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   // before sending MAX_STREAMS.
   QuicDeque<QuicTransportStream*> incoming_bidirectional_streams_;
   QuicDeque<QuicTransportStream*> incoming_unidirectional_streams_;
-
-  // Buffer for the incoming datagrams.
-  QuicDeque<std::string> incoming_datagrams_;
-  // Maximum size of the |incoming_datagrams_| buffer.  Can only go up.
-  size_t max_incoming_datagrams_ = 128;
 };
 
 }  // namespace quic

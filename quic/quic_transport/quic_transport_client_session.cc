@@ -263,25 +263,7 @@ void QuicTransportClientSession::SendClientIndication() {
 
 void QuicTransportClientSession::OnMessageReceived(
     quiche::QuicheStringPiece message) {
-  max_incoming_datagrams_ = std::max<size_t>(
-      max_incoming_datagrams_,
-      kIncomingDatagramBufferSizeInCwnds *
-          connection()->sent_packet_manager().GetCongestionWindowInBytes());
-  if (incoming_datagrams_.size() >= max_incoming_datagrams_) {
-    return;
-  }
-
-  incoming_datagrams_.push_back(std::string(message));
-  visitor_->OnIncomingDatagramAvailable();
-}
-
-QuicOptional<std::string> QuicTransportClientSession::ReadDatagram() {
-  if (incoming_datagrams_.empty()) {
-    return QuicOptional<std::string>();
-  }
-  std::string datagram = std::move(incoming_datagrams_.front());
-  incoming_datagrams_.pop_front();
-  return datagram;
+  visitor_->OnDatagramReceived(message);
 }
 
 void QuicTransportClientSession::OnCanCreateNewOutgoingStream(

@@ -31,6 +31,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -38,7 +39,9 @@ namespace {
 
 using simulator::QuicEndpointBase;
 using simulator::Simulator;
+using testing::_;
 using testing::Assign;
+using testing::Eq;
 
 url::Origin GetTestOrigin() {
   constexpr char kTestOrigin[] = "https://test-origin.test";
@@ -340,14 +343,10 @@ TEST_F(QuicTransportIntegrationTest, EchoDatagram) {
       MemSliceFromString("test"));
 
   bool datagram_received = false;
-  EXPECT_CALL(*client_->visitor(), OnIncomingDatagramAvailable())
+  EXPECT_CALL(*client_->visitor(), OnDatagramReceived(Eq("test")))
       .WillOnce(Assign(&datagram_received, true));
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
       [&datagram_received]() { return datagram_received; }, kDefaultTimeout));
-
-  QuicOptional<std::string> datagram = client_->session()->ReadDatagram();
-  ASSERT_TRUE(datagram.has_value());
-  EXPECT_EQ("test", *datagram);
 }
 
 // This test sets the datagram queue to an nearly-infinte queueing time, and
@@ -367,12 +366,9 @@ TEST_F(QuicTransportIntegrationTest, EchoALotOfDatagrams) {
   }
 
   size_t received = 0;
-  EXPECT_CALL(*client_->visitor(), OnIncomingDatagramAvailable())
-      .WillRepeatedly([this, &received]() {
-        while (client_->session()->ReadDatagram().has_value()) {
-          received++;
-        }
-      });
+  EXPECT_CALL(*client_->visitor(), OnDatagramReceived(_))
+      .WillRepeatedly(
+          [&received](quiche::QuicheStringPiece /*datagram*/) { received++; });
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
       [this]() { return client_->session()->datagram_queue()->empty(); },
       3 * kServerBandwidth.TransferTime(1000 * kMaxOutgoingPacketSize)));

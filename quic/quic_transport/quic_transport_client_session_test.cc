@@ -27,6 +27,7 @@ namespace {
 
 using testing::_;
 using testing::ElementsAre;
+using testing::Eq;
 
 const char* kTestOrigin = "https://test-origin.test";
 url::Origin GetTestOrigin() {
@@ -169,14 +170,8 @@ TEST_F(QuicTransportClientSessionTest, ReceiveNewStreams) {
 }
 
 TEST_F(QuicTransportClientSessionTest, ReceiveDatagram) {
-  QuicOptional<std::string> datagram = session_->ReadDatagram();
-  EXPECT_FALSE(datagram.has_value());
-
-  EXPECT_CALL(visitor_, OnIncomingDatagramAvailable());
+  EXPECT_CALL(visitor_, OnDatagramReceived(Eq("test")));
   session_->OnMessageReceived("test");
-  datagram = session_->ReadDatagram();
-  ASSERT_TRUE(datagram.has_value());
-  EXPECT_EQ("test", *datagram);
 }
 
 }  // namespace
