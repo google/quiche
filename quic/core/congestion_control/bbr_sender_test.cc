@@ -427,7 +427,9 @@ TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
 }
 
 // Test a simple long data transfer with 2 rtts of aggregation.
-TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
+// Flaky in Chromium: https://crbug.com/1042575
+TEST_F(BbrSenderTest,
+       QUIC_TEST_DISABLED_IN_CHROME(SimpleTransfer2RTTAggregationBytes)) {
   CreateDefaultSetup();
   // 2 RTTs of aggregation, with a max of 10kb.
   EnableAggregation(10 * 1024, 2 * kTestRtt);
