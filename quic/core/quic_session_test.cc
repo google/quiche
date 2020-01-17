@@ -96,7 +96,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     } else {
       session()->connection()->SetDefaultEncryptionLevel(
           ENCRYPTION_FORWARD_SECURE);
-      session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+      session()->OnCryptoHandshakeEvent(QuicSession::EVENT_HANDSHAKE_CONFIRMED);
     }
   }
 

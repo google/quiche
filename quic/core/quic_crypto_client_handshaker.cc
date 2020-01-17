@@ -584,7 +584,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   one_rtt_keys_available_ = true;
-  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+  session()->OnCryptoHandshakeEvent(QuicSession::EVENT_HANDSHAKE_CONFIRMED);
   session()->connection()->OnHandshakeComplete();
 }
 

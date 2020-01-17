@@ -100,7 +100,7 @@ QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
 void QuicTransportClientSession::OnCryptoHandshakeEvent(
     CryptoHandshakeEvent event) {
   QuicSession::OnCryptoHandshakeEvent(event);
-  if (event != HANDSHAKE_CONFIRMED) {
+  if (event != EVENT_HANDSHAKE_CONFIRMED) {
     return;
   }
 

@@ -1311,7 +1311,7 @@ void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
       OnCanWrite();
       break;
 
-    case HANDSHAKE_CONFIRMED:
+    case EVENT_HANDSHAKE_CONFIRMED:
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
       // Discard originally encrypted packets, since they can't be decrypted by

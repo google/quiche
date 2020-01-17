@@ -163,7 +163,7 @@ void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
       DCHECK(session_delegate_);
       session_delegate_->OnConnectionWritable();
       break;
-    case HANDSHAKE_CONFIRMED:
+    case EVENT_HANDSHAKE_CONFIRMED:
       // On the server, handshake confirmed is the first time when you can start
       // writing packets.
       DCHECK(IsEncryptionEstablished());

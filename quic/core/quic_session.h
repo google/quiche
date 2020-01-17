@@ -82,10 +82,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
     // ENCRYPTION_ESTABLISHED indicates that a client hello has been sent and
     // subsequent packets will be encrypted. (Client only.)
     ENCRYPTION_ESTABLISHED,
-    // HANDSHAKE_CONFIRMED, in a client, indicates the server has accepted
+    // EVENT_HANDSHAKE_CONFIRMED, in a client, indicates the server has accepted
     // our handshake. In a server it indicates that a full, valid client hello
     // has been received. (Client and server.)
-    HANDSHAKE_CONFIRMED,
+    EVENT_HANDSHAKE_CONFIRMED,
   };
 
   // Does not take ownership of |connection| or |visitor|.
@@ -256,9 +256,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   //
   // Clients will call this function in the order:
   //   zero or more ENCRYPTION_ESTABLISHED
-  //   HANDSHAKE_CONFIRMED
+  //   EVENT_HANDSHAKE_CONFIRMED
   //
-  // Servers will simply call it once with HANDSHAKE_CONFIRMED.
+  // Servers will simply call it once with EVENT_HANDSHAKE_CONFIRMED.
   virtual void OnCryptoHandshakeEvent(CryptoHandshakeEvent event);
 
   // From HandshakerDelegateInterface

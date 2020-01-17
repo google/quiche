@@ -266,7 +266,7 @@ void QuicCryptoServerHandshaker::
 
   encryption_established_ = true;
   one_rtt_keys_available_ = true;
-  session()->OnCryptoHandshakeEvent(QuicSession::HANDSHAKE_CONFIRMED);
+  session()->OnCryptoHandshakeEvent(QuicSession::EVENT_HANDSHAKE_CONFIRMED);
 }
 
 void QuicCryptoServerHandshaker::SendServerConfigUpdate(
