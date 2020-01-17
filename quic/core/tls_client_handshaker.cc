@@ -50,7 +50,7 @@ TlsClientHandshaker::TlsClientHandshaker(
     std::unique_ptr<ProofVerifyContext> verify_context,
     QuicCryptoClientConfig* crypto_config,
     QuicCryptoClientStream::ProofHandler* proof_handler)
-    : TlsHandshaker(stream, session, crypto_config->ssl_ctx()),
+    : TlsHandshaker(stream, session),
       server_id_(server_id),
       proof_verifier_(crypto_config->proof_verifier()),
       verify_context_(std::move(verify_context)),

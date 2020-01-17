@@ -14,11 +14,8 @@
 
 namespace quic {
 
-TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream,
-                             QuicSession* session,
-                             SSL_CTX* /*ssl_ctx*/)
-    : stream_(stream), session_(session), delegate_(session) {
-}
+TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream, QuicSession* session)
+    : stream_(stream), session_(session), delegate_(session) {}
 
 TlsHandshaker::~TlsHandshaker() {}
 

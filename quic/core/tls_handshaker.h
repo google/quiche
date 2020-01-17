@@ -29,9 +29,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
  public:
   // TlsHandshaker does not take ownership of any of its arguments; they must
   // outlive the TlsHandshaker.
-  TlsHandshaker(QuicCryptoStream* stream,
-                QuicSession* session,
-                SSL_CTX* ssl_ctx);
+  TlsHandshaker(QuicCryptoStream* stream, QuicSession* session);
   TlsHandshaker(const TlsHandshaker&) = delete;
   TlsHandshaker& operator=(const TlsHandshaker&) = delete;
 

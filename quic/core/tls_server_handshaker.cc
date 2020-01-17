@@ -45,7 +45,7 @@ TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
                                          QuicSession* session,
                                          SSL_CTX* ssl_ctx,
                                          ProofSource* proof_source)
-    : TlsHandshaker(stream, session, ssl_ctx),
+    : TlsHandshaker(stream, session),
       proof_source_(proof_source),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(ssl_ctx, this) {
