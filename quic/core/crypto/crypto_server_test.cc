@@ -1049,14 +1049,21 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDIsHashOfServerConfig) {
   EXPECT_EQ(0, memcmp(digest, scid_str.c_str(), scid.size()));
 }
 
+// Those tests were declared incorrectly and thus never ran in first place.
+// TODO(b/147891553): figure out if we should fix or delete those.
+#if 0
+
 class CryptoServerTestNoConfig : public CryptoServerTest {
  public:
   void SetUp() override {
     // Deliberately don't add a config so that we can test this situation.
   }
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    CryptoServerTestNoConfig);  // TODO(b/139702016) go/are-your-tests-running
+
+INSTANTIATE_TEST_SUITE_P(CryptoServerTestsNoConfig,
+                         CryptoServerTestNoConfig,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(CryptoServerTestNoConfig, DontCrash) {
   CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
@@ -1078,8 +1085,11 @@ class CryptoServerTestOldVersion : public CryptoServerTest {
     CryptoServerTest::SetUp();
   }
 };
-GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
-    CryptoServerTestOldVersion);  // TODO(b/139702016) go/are-your-tests-running
+
+INSTANTIATE_TEST_SUITE_P(CryptoServerTestsOldVersion,
+                         CryptoServerTestOldVersion,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
 
 TEST_P(CryptoServerTestOldVersion, ServerIgnoresXlct) {
   CryptoHandshakeMessage msg =
@@ -1123,6 +1133,8 @@ TEST_P(CryptoServerTestOldVersion, XlctNotRequired) {
   ShouldSucceed(msg);
   EXPECT_EQ(kSHLO, out_.tag());
 }
+
+#endif  // 0
 
 }  // namespace test
 }  // namespace quic
