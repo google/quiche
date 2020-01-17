@@ -444,12 +444,10 @@ TEST_F(BbrSenderTest,
   // overestimating bandwidth with aggregation. b/36022633
   EXPECT_GE(kTestLinkBandwidth * 1.5f,
             sender_->ExportDebugState().max_bandwidth);
-  // TODO(ianswett): Expect 0 packets are lost once BBR no longer measures
-  // bandwidth higher than the link rate.
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
   EXPECT_GE(kTestRtt * 4, rtt_stats_->smoothed_rtt());
-  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.2f);
+  EXPECT_APPROX_EQ(kTestRtt, rtt_stats_->min_rtt(), 0.5f);
 }
 
 // Test a simple long data transfer with 2 rtts of aggregation.
