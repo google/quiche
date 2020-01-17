@@ -1055,6 +1055,8 @@ class CryptoServerTestNoConfig : public CryptoServerTest {
     // Deliberately don't add a config so that we can test this situation.
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    CryptoServerTestNoConfig);  // TODO(b/139702016) go/are-your-tests-running
 
 TEST_P(CryptoServerTestNoConfig, DontCrash) {
   CryptoHandshakeMessage msg = crypto_test_utils::CreateCHLO(
@@ -1076,6 +1078,8 @@ class CryptoServerTestOldVersion : public CryptoServerTest {
     CryptoServerTest::SetUp();
   }
 };
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    CryptoServerTestOldVersion);  // TODO(b/139702016) go/are-your-tests-running
 
 TEST_P(CryptoServerTestOldVersion, ServerIgnoresXlct) {
   CryptoHandshakeMessage msg =
