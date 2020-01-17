@@ -258,22 +258,6 @@ QuicTransportVersionVector AllSupportedTransportVersions() {
   return supported_versions;
 }
 
-bool ParsedQuicVersionIsValid(HandshakeProtocol handshake_protocol,
-                              QuicTransportVersion transport_version) {
-  switch (handshake_protocol) {
-    case PROTOCOL_UNSUPPORTED:
-      return transport_version == QUIC_VERSION_UNSUPPORTED;
-    case PROTOCOL_QUIC_CRYPTO:
-      return transport_version != QUIC_VERSION_UNSUPPORTED;
-    case PROTOCOL_TLS1_3:
-      // The TLS handshake is only deployable if CRYPTO frames are also used.
-      // We explicitly removed support for T048 and T049 to reduce test load.
-      return QuicVersionUsesCryptoFrames(transport_version) &&
-             transport_version > QUIC_VERSION_49;
-  }
-  return false;
-}
-
 ParsedQuicVersionVector AllSupportedVersions() {
   return ParsedQuicVersionVector(kSupportedVersions.begin(),
                                  kSupportedVersions.end());
