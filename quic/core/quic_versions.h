@@ -137,13 +137,33 @@ enum HandshakeProtocol {
 QUIC_EXPORT_PRIVATE std::string HandshakeProtocolToString(
     HandshakeProtocol handshake_protocol);
 
+// Returns whether |transport_version| uses CRYPTO frames for the handshake
+// instead of stream 1.
+QUIC_EXPORT_PRIVATE constexpr bool QuicVersionUsesCryptoFrames(
+    QuicTransportVersion transport_version) {
+  return transport_version >= QUIC_VERSION_48;
+}
+
 // Returns whether this combination of handshake protocol and transport
 // version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_43} is NOT
 // allowed as TLS requires crypto frames which v43 does not support. Note that
 // UnsupportedQuicVersion is a valid version.
-QUIC_EXPORT_PRIVATE bool ParsedQuicVersionIsValid(
+QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     HandshakeProtocol handshake_protocol,
-    QuicTransportVersion transport_version);
+    QuicTransportVersion transport_version) {
+  switch (handshake_protocol) {
+    case PROTOCOL_UNSUPPORTED:
+      return transport_version == QUIC_VERSION_UNSUPPORTED;
+    case PROTOCOL_QUIC_CRYPTO:
+      return transport_version != QUIC_VERSION_UNSUPPORTED;
+    case PROTOCOL_TLS1_3:
+      // The TLS handshake is only deployable if CRYPTO frames are also used.
+      // We explicitly removed support for T048 and T049 to reduce test load.
+      return QuicVersionUsesCryptoFrames(transport_version) &&
+             transport_version > QUIC_VERSION_49;
+  }
+  return false;
+}
 
 // A parsed QUIC version label which determines that handshake protocol
 // and the transport version.
@@ -457,13 +477,6 @@ QUIC_EXPORT_PRIVATE inline bool VersionUsesHttp3(
 QUIC_EXPORT_PRIVATE inline bool QuicVersionHasLongHeaderLengths(
     QuicTransportVersion transport_version) {
   return transport_version >= QUIC_VERSION_49;
-}
-
-// Returns whether |transport_version| uses CRYPTO frames for the handshake
-// instead of stream 1.
-QUIC_EXPORT_PRIVATE inline bool QuicVersionUsesCryptoFrames(
-    QuicTransportVersion transport_version) {
-  return transport_version >= QUIC_VERSION_48;
 }
 
 // Returns whether |transport_version| makes use of IETF QUIC
