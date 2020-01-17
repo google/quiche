@@ -11,7 +11,9 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 
@@ -389,6 +391,43 @@ TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
   // The ack time should be based on min_rtt * 1/4, since it's less than the
   // default delayed ack time.
   QuicTime ack_time = clock_.ApproximateNow() + kMinRttMs * 0.25;
+
+  // Process all the packets in order so there aren't missing packets.
+  uint64_t kFirstDecimatedPacket = 101;
+  for (uint64_t i = 1; i < kFirstDecimatedPacket; ++i) {
+    RecordPacketReceipt(i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, i);
+    if (i % 2 == 0) {
+      // Ack every 2 packets by default.
+      CheckAckTimeout(clock_.ApproximateNow());
+    } else {
+      CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+    }
+  }
+
+  RecordPacketReceipt(kFirstDecimatedPacket, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket);
+  CheckAckTimeout(ack_time);
+
+  // The 10th received packet causes an ack to be sent.
+  for (uint64_t i = 1; i < 10; ++i) {
+    RecordPacketReceipt(kFirstDecimatedPacket + i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + i);
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
+  if (!GetQuicReloadableFlag(quic_ack_delay_alarm_granularity)) {
+    return;
+  }
+  EXPECT_FALSE(HasPendingAck());
+  QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_, ACK_DECIMATION);
+  // Seed the min_rtt with a kAlarmGranularity signal.
+  rtt_stats_.UpdateRtt(kAlarmGranularity, QuicTime::Delta::Zero(),
+                       clock_.ApproximateNow());
+  // The ack time should be based on kAlarmGranularity, since the RTT is 1ms.
+  QuicTime ack_time = clock_.ApproximateNow() + kAlarmGranularity;
 
   // Process all the packets in order so there aren't missing packets.
   uint64_t kFirstDecimatedPacket = 101;

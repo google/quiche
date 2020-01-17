@@ -245,6 +245,10 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     // before sending an ack.
     QuicTime::Delta ack_delay = std::min(
         local_max_ack_delay_, rtt_stats->min_rtt() * ack_decimation_delay_);
+    if (GetQuicReloadableFlag(quic_ack_delay_alarm_granularity)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_ack_delay_alarm_granularity);
+      ack_delay = std::max(ack_delay, kAlarmGranularity);
+    }
     if (fast_ack_after_quiescence_ && now - time_of_previous_received_packet_ >
                                           rtt_stats->SmoothedOrInitialRtt()) {
       // Ack the first packet out of queiscence faster, because QUIC does
