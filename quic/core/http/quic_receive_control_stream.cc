@@ -24,9 +24,9 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   HttpDecoderVisitor(const HttpDecoderVisitor&) = delete;
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
-  void OnError(HttpDecoder* /*decoder*/) override {
+  void OnError(HttpDecoder* decoder) override {
     stream_->session()->connection()->CloseConnection(
-        QUIC_HTTP_DECODER_ERROR, "Http decoder internal error",
+        decoder->error(), decoder->error_detail(),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 
@@ -150,9 +150,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
  private:
   void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    // TODO(renjietang): Change to HTTP/3 error type.
     stream_->session()->connection()->CloseConnection(
-        QUIC_HTTP_DECODER_ERROR,
+        QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
         quiche::QuicheStrCat(frame_type, " frame received on control stream"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }

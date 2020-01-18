@@ -214,7 +214,9 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
   std::string data = std::string(buffer.get(), header_length);
 
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
   receive_control_stream_->OnStreamFrame(frame);
 }
 
@@ -231,7 +233,9 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   EXPECT_FALSE(session_.http3_goaway_received());
 
   if (perspective() == Perspective::IS_SERVER) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
   }
 
   receive_control_stream_->OnStreamFrame(frame);
@@ -249,8 +253,9 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
       push_promise, &buffer);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, buffer.get(),
                         length);
-  // TODO(lassey) Check for HTTP_WRONG_STREAM error code.
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));

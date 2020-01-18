@@ -353,8 +353,14 @@ enum QuicErrorCode {
   // Received multiple close offset.
   QUIC_STREAM_MULTIPLE_OFFSET = 130,
 
+  // Internal error codes for HTTP/3 errors.
+  QUIC_HTTP_FRAME_TOO_LARGE = 131,
+  QUIC_HTTP_FRAME_ERROR = 132,
+  QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM = 133,
+  QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM = 134,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 131,
+  QUIC_LAST_ERROR = 135,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -369,6 +375,27 @@ QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
 
 // Returns the name of the QuicErrorCode as a char*
 QUIC_EXPORT_PRIVATE const char* QuicErrorCodeToString(QuicErrorCode error);
+
+// Wire values for HTTP/3 errors.
+// https://quicwg.org/base-drafts/draft-ietf-quic-http.html#http-error-codes
+enum class QuicHttp3ErrorCode {
+  IETF_QUIC_HTTP3_NO_ERROR = 0x100,
+  IETF_QUIC_HTTP3_GENERAL_PROTOCOL_ERROR = 0x101,
+  IETF_QUIC_HTTP3_INTERNAL_ERROR = 0x102,
+  IETF_QUIC_HTTP3_STREAM_CREATION_ERROR = 0x103,
+  IETF_QUIC_HTTP3_CLOSED_CRITICAL_STREAM = 0x104,
+  IETF_QUIC_HTTP3_FRAME_UNEXPECTED = 0x105,
+  IETF_QUIC_HTTP3_FRAME_ERROR = 0x106,
+  IETF_QUIC_HTTP3_EXCESSIVE_LOAD = 0x107,
+  IETF_QUIC_HTTP3_ID_ERROR = 0x108,
+  IETF_QUIC_HTTP3_SETTINGS_ERROR = 0x109,
+  IETF_QUIC_HTTP3_MISSING_SETTINGS = 0x10A,
+  IETF_QUIC_HTTP3_REQUEST_REJECTED = 0x10B,
+  IETF_QUIC_HTTP3_REQUEST_CANCELLED = 0x10C,
+  IETF_QUIC_HTTP3_REQUEST_INCOMPLETE = 0x10D,
+  IETF_QUIC_HTTP3_CONNECT_ERROR = 0x10F,
+  IETF_QUIC_HTTP3_VERSION_FALLBACK = 0x110,
+};
 
 // Wire values for QPACK errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#error-code-registration

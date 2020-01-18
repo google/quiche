@@ -303,8 +303,8 @@ TEST_F(HttpDecoderTest, CorruptPushPromiseFrame) {
 
     decoder.ProcessInput(input.data(), input.size());
 
-    EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
-    EXPECT_EQ("PUSH_PROMISE frame malformed.", decoder.error_detail());
+    EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+    EXPECT_EQ("Unable to read PUSH_PROMISE push_id.", decoder.error_detail());
   }
   {
     HttpDecoder decoder(&visitor_);
@@ -315,8 +315,8 @@ TEST_F(HttpDecoderTest, CorruptPushPromiseFrame) {
       decoder.ProcessInput(&c, 1);
     }
 
-    EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
-    EXPECT_EQ("PUSH_PROMISE frame malformed.", decoder.error_detail());
+    EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+    EXPECT_EQ("Unable to read PUSH_PROMISE push_id.", decoder.error_detail());
   }
 }
 
@@ -430,10 +430,10 @@ TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
     size_t payload_length;
     const char* const error_message;
   } kTestData[] = {
-      {1, "Unable to read settings frame identifier"},
-      {5, "Unable to read settings frame content"},
-      {7, "Unable to read settings frame identifier"},
-      {12, "Unable to read settings frame content"},
+      {1, "Unable to read setting identifier."},
+      {5, "Unable to read setting value."},
+      {7, "Unable to read setting identifier."},
+      {12, "Unable to read setting value."},
   };
 
   for (const auto& test_data : kTestData) {
@@ -450,7 +450,7 @@ TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
     QuicByteCount processed_bytes =
         decoder.ProcessInput(input.data(), input.size());
     EXPECT_EQ(input.size(), processed_bytes);
-    EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
+    EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
     EXPECT_EQ(test_data.error_message, decoder.error_detail());
   }
 }
@@ -469,8 +469,8 @@ TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
 
   EXPECT_EQ(input.size(), ProcessInput(input));
 
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Duplicate SETTINGS identifier.", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("Duplicate setting identifier.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, DataFrame) {
@@ -753,8 +753,8 @@ TEST_F(HttpDecoderTest, MalformedFrameWithOverlyLargePayload) {
   // Process the full frame.
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(2u, ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Frame is too large", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
+  EXPECT_EQ("Frame is too large.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
@@ -768,8 +768,8 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   writer.WriteStringPiece("Malformed payload");
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(5u, decoder_.ProcessInput(input, QUICHE_ARRAYSIZE(input)));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Frame is too large", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
+  EXPECT_EQ("Frame is too large.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, HeadersPausedThenData) {
@@ -814,7 +814,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
   } kTestData[] = {{"\x03"   // type (CANCEL_PUSH)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
-                    "Unable to read push_id"},
+                    "Unable to read CANCEL_PUSH push_id."},
                    {"\x03"  // type (CANCEL_PUSH)
                     "\x04"  // length
                     "\x05"  // valid push id
@@ -823,7 +823,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                    {"\x0D"   // type (MAX_PUSH_ID)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
-                    "Unable to read push_id"},
+                    "Unable to read MAX_PUSH_ID push_id."},
                    {"\x0D"  // type (MAX_PUSH_ID)
                     "\x04"  // length
                     "\x05"  // valid push id
@@ -832,7 +832,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                    {"\x0E"   // type (DUPLICATE_PUSH)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint push id
-                    "Unable to read push_id"},
+                    "Unable to read DUPLICATE_PUSH push_id."},
                    {"\x0E"  // type (DUPLICATE_PUSH)
                     "\x04"  // length
                     "\x05"  // valid push id
@@ -841,7 +841,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                    {"\x07"   // type (GOAWAY)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint stream id
-                    "Unable to read GOAWAY stream_id"},
+                    "Unable to read GOAWAY stream_id."},
                    {"\x07"  // type (GOAWAY)
                     "\x04"  // length
                     "\x05"  // valid stream id
@@ -855,7 +855,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
 
       quiche::QuicheStringPiece input(test_data.input);
       decoder.ProcessInput(input.data(), input.size());
-      EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
+      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
     }
     {
@@ -866,7 +866,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
       for (auto c : input) {
         decoder.ProcessInput(&c, 1);
       }
-      EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
+      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
     }
   }
@@ -879,8 +879,8 @@ TEST_F(HttpDecoderTest, EmptyCancelPushFrame) {
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("Unable to read CANCEL_PUSH push_id.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, EmptySettingsFrame) {
@@ -906,8 +906,8 @@ TEST_F(HttpDecoderTest, EmptyPushPromiseFrame) {
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Corrupt PUSH_PROMISE frame.", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("PUSH_PROMISE frame with empty payload.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
@@ -917,8 +917,8 @@ TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Unable to read GOAWAY stream_id", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("Unable to read GOAWAY stream_id.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
@@ -928,8 +928,8 @@ TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("Unable to read MAX_PUSH_ID push_id.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
@@ -939,8 +939,8 @@ TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
 
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_INVALID_FRAME_DATA));
-  EXPECT_EQ("Unable to read push_id", decoder_.error_detail());
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_EQ("Unable to read DUPLICATE_PUSH push_id.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
@@ -1068,7 +1068,7 @@ TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
     QuicByteCount processed_bytes =
         decoder.ProcessInput(input.data(), input.size());
     EXPECT_EQ(input.size(), processed_bytes);
-    EXPECT_THAT(decoder.error(), IsError(QUIC_INVALID_FRAME_DATA));
+    EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
     EXPECT_EQ(test_data.error_message, decoder.error_detail());
   }
 }

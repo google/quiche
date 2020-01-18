@@ -497,7 +497,8 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
   QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         quiche::QuicheStringPiece(data));
 
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _))
       .WillOnce(
           (Invoke([this](QuicErrorCode error, const std::string& error_details,
                          ConnectionCloseBehavior connection_close_behavior) {
@@ -514,6 +515,39 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
 
   stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicSpdyStreamTest, Http3FrameError) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // PUSH_PROMISE frame with empty payload is considered invalid.
+  std::string invalid_http3_frame = quiche::QuicheTextUtils::HexDecode("0500");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, invalid_http3_frame);
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_FRAME_ERROR, _, _));
+  stream_->OnStreamFrame(stream_frame);
+}
+
+TEST_P(QuicSpdyStreamTest, UnexpectedHttp3Frame) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  // SETTINGS frame with empty payload.
+  std::string settings = quiche::QuicheTextUtils::HexDecode("0400");
+  QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
+                               /* offset = */ 0, settings);
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _));
+  stream_->OnStreamFrame(stream_frame);
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBody) {
@@ -2553,7 +2587,8 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
 
   EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
 
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_DECODER_ERROR, _, _))
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));

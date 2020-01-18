@@ -128,8 +128,7 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
   }
 
   if (current_frame_length_ > MaxFrameLength(current_frame_type_)) {
-    // TODO(b/124216424): Use HTTP_EXCESSIVE_LOAD.
-    RaiseError(QUIC_INVALID_FRAME_DATA, "Frame is too large");
+    RaiseError(QUIC_HTTP_FRAME_TOO_LARGE, "Frame is too large.");
     return false;
   }
 
@@ -155,7 +154,8 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       // This edge case needs to be handled here, because ReadFramePayload()
       // does not get called if |current_frame_length_| is zero.
       if (current_frame_length_ == 0) {
-        RaiseError(QUIC_INVALID_FRAME_DATA, "Corrupt PUSH_PROMISE frame.");
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "PUSH_PROMISE frame with empty payload.");
         return false;
       }
       continue_processing = visitor_->OnPushPromiseFrameStart(header_length);
@@ -225,7 +225,8 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
         DCHECK_EQ(0u, current_push_id_length_);
         current_push_id_length_ = reader->PeekVarInt62Length();
         if (current_push_id_length_ > remaining_frame_length_) {
-          RaiseError(QUIC_INVALID_FRAME_DATA, "PUSH_PROMISE frame malformed.");
+          RaiseError(QUIC_HTTP_FRAME_ERROR,
+                     "Unable to read PUSH_PROMISE push_id.");
           return false;
         }
         if (current_push_id_length_ > reader->BytesRemaining()) {
@@ -336,12 +337,12 @@ bool HttpDecoder::FinishParsing() {
       CancelPushFrame frame;
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to read CANCEL_PUSH push_id.");
         return false;
       }
       if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_INVALID_FRAME_DATA,
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
                    "Superfluous data in CANCEL_PUSH frame.");
         return false;
       }
@@ -370,13 +371,11 @@ bool HttpDecoder::FinishParsing() {
                     "QuicStreamId from uint32_t to uint64_t.");
       uint64_t stream_id;
       if (!reader.ReadVarInt62(&stream_id)) {
-        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read GOAWAY stream_id");
+        RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY stream_id.");
         return false;
       }
       if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_INVALID_FRAME_DATA,
-                   "Superfluous data in GOAWAY frame.");
+        RaiseError(QUIC_HTTP_FRAME_ERROR, "Superfluous data in GOAWAY frame.");
         return false;
       }
       frame.stream_id = static_cast<QuicStreamId>(stream_id);
@@ -387,12 +386,12 @@ bool HttpDecoder::FinishParsing() {
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       MaxPushIdFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to read MAX_PUSH_ID push_id.");
         return false;
       }
       if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_INVALID_FRAME_DATA,
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
                    "Superfluous data in MAX_PUSH_ID frame.");
         return false;
       }
@@ -403,12 +402,12 @@ bool HttpDecoder::FinishParsing() {
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       DuplicatePushFrame frame;
       if (!reader.ReadVarInt62(&frame.push_id)) {
-        // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-        RaiseError(QUIC_INVALID_FRAME_DATA, "Unable to read push_id");
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
+                   "Unable to read DUPLICATE_PUSH push_id.");
         return false;
       }
       if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_INVALID_FRAME_DATA,
+        RaiseError(QUIC_HTTP_FRAME_ERROR,
                    "Superfluous data in DUPLICATE_PUSH frame.");
         return false;
       }
@@ -513,22 +512,17 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
   while (!reader->IsDoneReading()) {
     uint64_t id;
     if (!reader->ReadVarInt62(&id)) {
-      // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-      RaiseError(QUIC_INVALID_FRAME_DATA,
-                 "Unable to read settings frame identifier");
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read setting identifier.");
       return false;
     }
     uint64_t content;
     if (!reader->ReadVarInt62(&content)) {
-      // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-      RaiseError(QUIC_INVALID_FRAME_DATA,
-                 "Unable to read settings frame content");
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read setting value.");
       return false;
     }
     auto result = frame->values.insert({id, content});
     if (!result.second) {
-      // TODO(b/124216424): Use HTTP_SETTINGS_ERROR.
-      RaiseError(QUIC_INVALID_FRAME_DATA, "Duplicate SETTINGS identifier.");
+      RaiseError(QUIC_HTTP_FRAME_ERROR, "Duplicate setting identifier.");
       return false;
     }
   }
@@ -539,16 +533,14 @@ bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
                                            PriorityUpdateFrame* frame) {
   uint8_t prioritized_element_type;
   if (!reader->ReadUInt8(&prioritized_element_type)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA,
+    RaiseError(QUIC_HTTP_FRAME_ERROR,
                "Unable to read prioritized element type.");
     return false;
   }
 
   if (prioritized_element_type != REQUEST_STREAM &&
       prioritized_element_type != PUSH_STREAM) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA, "Invalid prioritized element type.");
+    RaiseError(QUIC_HTTP_FRAME_ERROR, "Invalid prioritized element type.");
     return false;
   }
 
@@ -556,9 +548,7 @@ bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
       static_cast<PrioritizedElementType>(prioritized_element_type);
 
   if (!reader->ReadVarInt62(&frame->prioritized_element_id)) {
-    // TODO(b/124216424): Use HTTP_MALFORMED_FRAME.
-    RaiseError(QUIC_INVALID_FRAME_DATA,
-               "Unable to read prioritized element id.");
+    RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read prioritized element id.");
     return false;
   }
 
