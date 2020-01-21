@@ -18,7 +18,6 @@ class QuicVersionManagerTest : public QuicTest {};
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
   SetQuicReloadableFlag(quic_enable_version_t099, false);
   SetQuicReloadableFlag(quic_enable_version_t050, false);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
@@ -42,14 +41,6 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
 
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
 
-  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
-            manager.GetSupportedVersions());
-
-  SetQuicReloadableFlag(quic_enable_version_q099, true);
-  expected_parsed_versions.insert(
-      expected_parsed_versions.begin(),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
-  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
 

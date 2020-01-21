@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -942,15 +943,15 @@ TEST_F(QuicDispatcherTest, VersionsChangeInFlight) {
   VerifyVersionSupported(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
                                            QuicVersionMax().transport_version));
 
-  // Turn off version Q099.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
+  // Turn off version Q050.
+  SetQuicReloadableFlag(quic_disable_version_q050, true);
   VerifyVersionNotSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
 
-  // Turn on version Q099.
-  SetQuicReloadableFlag(quic_enable_version_q099, true);
+  // Turn on version Q050.
+  SetQuicReloadableFlag(quic_disable_version_q050, false);
   VerifyVersionSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99));
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
 }
 
 TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
@@ -1282,7 +1283,7 @@ TEST_F(QuicDispatcherTest, DoNotProcessSmallPacket) {
 }
 
 TEST_F(QuicDispatcherTest, ProcessSmallCoalescedPacket) {
-  SetQuicReloadableFlag(quic_enable_version_q099, true);
+  SetQuicReloadableFlag(quic_enable_version_t099, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
@@ -1677,14 +1678,24 @@ class BufferedPacketStoreTest : public QuicDispatcherTest {
     QuicDispatcherTest::SetUp();
     clock_ = QuicDispatcherPeer::GetHelper(dispatcher_.get())->GetClock();
 
-    QuicTransportVersion version = AllSupportedTransportVersions().front();
+    // The methods below use a PROTOCOL_QUIC_CRYPTO version so we pick the
+    // first one from the list of supported versions.
+    QuicTransportVersion transport_version = QUIC_VERSION_UNSUPPORTED;
+    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+      if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+        transport_version = version.transport_version;
+        break;
+      }
+    }
+    ASSERT_NE(QUIC_VERSION_UNSUPPORTED, transport_version);
+
     CryptoHandshakeMessage chlo =
-        crypto_test_utils::GenerateDefaultInchoateCHLO(clock_, version,
-                                                       &crypto_config_);
+        crypto_test_utils::GenerateDefaultInchoateCHLO(
+            clock_, transport_version, &crypto_config_);
     // Pass an inchoate CHLO.
     crypto_test_utils::GenerateFullCHLO(
-        chlo, &crypto_config_, server_addr_, client_addr_, version, clock_,
-        signed_config_, QuicDispatcherPeer::GetCache(dispatcher_.get()),
+        chlo, &crypto_config_, server_addr_, client_addr_, transport_version,
+        clock_, signed_config_, QuicDispatcherPeer::GetCache(dispatcher_.get()),
         &full_chlo_);
   }
 
@@ -2100,9 +2111,8 @@ TEST_F(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
 
 // Regression test for b/117874922.
 TEST_F(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
-  // Turn off versions Q099 and T099, such that the preferred version is not
-  // supported by the server.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
+  // Turn off version T099, so the preferred version is not supported by the
+  // server.
   SetQuicReloadableFlag(quic_enable_version_t099, false);
   uint64_t last_connection_id = kMaxNumSessionsToCreate + 5;
   ParsedQuicVersionVector supported_versions = CurrentSupportedVersions();

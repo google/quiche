@@ -188,7 +188,8 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
         return MakeVersionLabel(0xff, 0x00, 0x00, kQuicIetfDraftVersion);
       }
-      return MakeVersionLabel(proto, '0', '9', '9');
+      QUIC_BUG << "Invalid ParsedQuicVersion: Q099";
+      return 0;
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
       return CreateRandomVersionLabelForNegotiation();
     default:
@@ -273,14 +274,9 @@ ParsedQuicVersionVector FilterSupportedVersions(
   filtered_versions.reserve(versions.size());
   for (ParsedQuicVersion version : versions) {
     if (version.transport_version == QUIC_VERSION_99) {
-      if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-        if (GetQuicReloadableFlag(quic_enable_version_q099)) {
-          filtered_versions.push_back(version);
-        }
-      } else {
-        if (GetQuicReloadableFlag(quic_enable_version_t099)) {
-          filtered_versions.push_back(version);
-        }
+      if (version.handshake_protocol == PROTOCOL_TLS1_3 &&
+          GetQuicReloadableFlag(quic_enable_version_t099)) {
+        filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_50) {
       if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
@@ -522,9 +518,7 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
                 "Supported versions out of sync");
   if (parsed_version.transport_version == QUIC_VERSION_99) {
-    if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-      SetQuicReloadableFlag(quic_enable_version_q099, true);
-    } else {
+    if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
       SetQuicReloadableFlag(quic_enable_version_t099, true);
     }
   } else if (parsed_version.transport_version == QUIC_VERSION_50) {

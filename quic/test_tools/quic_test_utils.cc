@@ -894,6 +894,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   if (!versions) {
     versions = &supported_versions;
   }
+  EXPECT_FALSE(versions->empty());
   ParsedQuicVersion version = (*versions)[0];
   if (QuicVersionHasLongHeaderLengths(version.transport_version) &&
       version_flag) {

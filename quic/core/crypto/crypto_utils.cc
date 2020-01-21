@@ -128,10 +128,6 @@ const uint8_t kQ050Salt[] = {0x50, 0x45, 0x74, 0xef, 0xd0, 0x66, 0xfe,
 const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
                              0x91, 0x55, 0x80, 0x30, 0x4c, 0x43, 0xa2,
                              0x36, 0x7c, 0x60, 0x48, 0x83, 0x10};
-// Salt to use for initial obfuscators in version Q099.
-const uint8_t kQ099Salt[] = {0xc0, 0xa2, 0xee, 0x20, 0xc7, 0xe1, 0x83,
-                             0x74, 0xc8, 0xa1, 0xa0, 0xc8, 0xa5, 0x21,
-                             0xb5, 0x31, 0xee, 0x04, 0x7e, 0xc8};
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
@@ -143,9 +139,6 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
         case QUIC_VERSION_50:
           *out_len = QUICHE_ARRAYSIZE(kQ050Salt);
           return kQ050Salt;
-        case QUIC_VERSION_99:
-          *out_len = QUICHE_ARRAYSIZE(kQ099Salt);
-          return kQ099Salt;
         case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
           // It doesn't matter what salt we use for
           // QUIC_VERSION_RESERVED_FOR_NEGOTIATION, but some tests try to use a

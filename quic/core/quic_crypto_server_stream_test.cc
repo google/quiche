@@ -394,11 +394,21 @@ TEST_P(QuicCryptoServerStreamTestWithFakeProofSource, MultipleChlo) {
   EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
       .WillOnce(testing::Return(true));
 
+  // The methods below use a PROTOCOL_QUIC_CRYPTO version so we pick the
+  // first one from the list of supported versions.
+  QuicTransportVersion transport_version = QUIC_VERSION_UNSUPPORTED;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      transport_version = version.transport_version;
+      break;
+    }
+  }
+  ASSERT_NE(QUIC_VERSION_UNSUPPORTED, transport_version);
+
   // Create a minimal CHLO
   MockClock clock;
-  QuicTransportVersion version = AllSupportedTransportVersions().front();
   CryptoHandshakeMessage chlo = crypto_test_utils::GenerateDefaultInchoateCHLO(
-      &clock, version, &server_crypto_config_);
+      &clock, transport_version, &server_crypto_config_);
 
   // Send in the CHLO, and check that a callback is now pending in the
   // ProofSource.

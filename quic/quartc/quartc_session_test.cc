@@ -56,7 +56,6 @@ class QuartcSessionTest : public QuicTest {
   void Init(bool create_client_endpoint = true) {
     quic::test::QuicEnableDefaultEnabledVersions();
     // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-    SetQuicReloadableFlag(quic_enable_version_q099, false);
     SetQuicReloadableFlag(quic_enable_version_t099, false);
 
     client_transport_ =
@@ -344,7 +343,6 @@ TEST_F(QuartcSessionTest, SendReceiveStreams) {
 
 TEST_F(QuartcSessionTest, SendReceiveMessages) {
   // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
   SetQuicReloadableFlag(quic_enable_version_t099, false);
 
   CreateClientAndServerSessions(QuartcSessionConfig());
@@ -354,7 +352,6 @@ TEST_F(QuartcSessionTest, SendReceiveMessages) {
 
 TEST_F(QuartcSessionTest, SendReceiveQueuedMessages) {
   // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
   SetQuicReloadableFlag(quic_enable_version_t099, false);
 
   CreateClientAndServerSessions(QuartcSessionConfig());
@@ -416,7 +413,6 @@ TEST_F(QuartcSessionTest, TestCryptoHandshakeCanWriteTriggers) {
 
 TEST_F(QuartcSessionTest, PreSharedKeyHandshake) {
   // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
   SetQuicReloadableFlag(quic_enable_version_t099, false);
 
   QuartcSessionConfig config;
@@ -563,7 +559,6 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
 
 TEST_F(QuartcSessionTest, LostDatagramNotifications) {
   // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_q099, false);
   SetQuicReloadableFlag(quic_enable_version_t099, false);
 
   // Disable tail loss probe, otherwise test maybe flaky because dropped

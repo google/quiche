@@ -155,7 +155,9 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     case PROTOCOL_UNSUPPORTED:
       return transport_version == QUIC_VERSION_UNSUPPORTED;
     case PROTOCOL_QUIC_CRYPTO:
-      return transport_version != QUIC_VERSION_UNSUPPORTED;
+      return transport_version != QUIC_VERSION_UNSUPPORTED &&
+             // We explicitly removed support for Q099 to reduce test load.
+             transport_version != QUIC_VERSION_99;
     case PROTOCOL_TLS1_3:
       // The TLS handshake is only deployable if CRYPTO frames are also used.
       // We explicitly removed support for T048 and T049 to reduce test load.
@@ -314,8 +316,7 @@ static const QuicTransportVersion kSupportedTransportVersions[] = {
 static const HandshakeProtocol kSupportedHandshakeProtocols[] = {
     PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
 
-static const std::array<ParsedQuicVersion, 8> kSupportedVersions = {
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_99),
+static const std::array<ParsedQuicVersion, 7> kSupportedVersions = {
     ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
     ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
     ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
