@@ -9,7 +9,7 @@
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
@@ -17,17 +17,17 @@ namespace http2 {
 // to end, advancing the cursor by STRUCTURE::EncodedSize(). The decode buffer
 // must be large enough (i.e. b->Remaining() >= STRUCTURE::EncodedSize()).
 
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2FrameHeader* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2PriorityFields* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2RstStreamFields* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2SettingFields* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2PushPromiseFields* out,
-                                   DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2PingFields* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2GoAwayFields* out, DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2WindowUpdateFields* out,
-                                   DecodeBuffer* b);
-HTTP2_EXPORT_PRIVATE void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2FrameHeader* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2PriorityFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2RstStreamFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2SettingFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2PushPromiseFields* out,
+                                    DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2PingFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2GoAwayFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2WindowUpdateFields* out,
+                                    DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b);
 
 }  // namespace http2
 

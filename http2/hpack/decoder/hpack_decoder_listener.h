@@ -10,12 +10,12 @@
 
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE HpackDecoderListener {
+class QUICHE_EXPORT_PRIVATE HpackDecoderListener {
  public:
   HpackDecoderListener();
   virtual ~HpackDecoderListener();
@@ -43,7 +43,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderListener {
 
 // A no-op implementation of HpackDecoderListener, useful for ignoring
 // callbacks once an error is detected.
-class HTTP2_EXPORT_PRIVATE HpackDecoderNoOpListener
+class QUICHE_EXPORT_PRIVATE HpackDecoderNoOpListener
     : public HpackDecoderListener {
  public:
   HpackDecoderNoOpListener();

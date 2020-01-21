@@ -21,7 +21,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
@@ -29,7 +29,7 @@ namespace test {
 class HpackDecoderStatePeer;
 }  // namespace test
 
-class HTTP2_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
+class QUICHE_EXPORT_PRIVATE HpackDecoderState : public HpackWholeEntryListener {
  public:
   explicit HpackDecoderState(HpackDecoderListener* listener);
   ~HpackDecoderState() override;

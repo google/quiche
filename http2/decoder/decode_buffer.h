@@ -17,14 +17,14 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 class DecodeBufferSubset;
 
-class HTTP2_EXPORT_PRIVATE DecodeBuffer {
+class QUICHE_EXPORT_PRIVATE DecodeBuffer {
  public:
   DecodeBuffer(const char* buffer, size_t len)
       : buffer_(buffer), cursor_(buffer), beyond_(buffer + len) {
@@ -129,7 +129,7 @@ class HTTP2_EXPORT_PRIVATE DecodeBuffer {
 // DecodeBuffer, though they can be nested (i.e. a DecodeBufferSubset's
 // base may itself be a DecodeBufferSubset). This avoids the AdvanceCursor
 // being called erroneously.
-class HTTP2_EXPORT_PRIVATE DecodeBufferSubset : public DecodeBuffer {
+class QUICHE_EXPORT_PRIVATE DecodeBufferSubset : public DecodeBuffer {
  public:
   DecodeBufferSubset(DecodeBuffer* base, size_t subset_len)
       : DecodeBuffer(base->cursor(), base->MinLengthRemaining(subset_len)),

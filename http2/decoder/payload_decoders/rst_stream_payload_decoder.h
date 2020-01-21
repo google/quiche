@@ -11,14 +11,14 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 class RstStreamPayloadDecoderPeer;
 }  // namespace test
 
-class HTTP2_EXPORT_PRIVATE RstStreamPayloadDecoder {
+class QUICHE_EXPORT_PRIVATE RstStreamPayloadDecoder {
  public:
   // Starts the decoding of a RST_STREAM frame's payload, and completes it if
   // the entire payload is in the provided decode buffer.

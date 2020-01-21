@@ -9,14 +9,14 @@
 #include <cstdint>
 #include <string>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
 // HPACK integer encoder class with single static method implementing variable
 // length integer representation defined in RFC7541, Section 5.1:
 // https://httpwg.org/specs/rfc7541.html#integer.representation
-class HTTP2_EXPORT_PRIVATE HpackVarintEncoder {
+class QUICHE_EXPORT_PRIVATE HpackVarintEncoder {
  public:
   // Encode |varint|, appending encoded data to |*output|.
   // Appends between 1 and 11 bytes in total.

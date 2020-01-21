@@ -19,15 +19,15 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_http2_structures.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 class Http2StructureDecoderPeer;
 }  // namespace test
 
-class HTTP2_EXPORT_PRIVATE Http2StructureDecoder {
+class QUICHE_EXPORT_PRIVATE Http2StructureDecoder {
  public:
   // The caller needs to keep track of whether to call Start or Resume.
   //

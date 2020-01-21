@@ -13,12 +13,12 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE HpackWholeEntryListener {
+class QUICHE_EXPORT_PRIVATE HpackWholeEntryListener {
  public:
   virtual ~HpackWholeEntryListener();
 

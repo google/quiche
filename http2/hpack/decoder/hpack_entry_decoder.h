@@ -18,12 +18,12 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_type_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE HpackEntryDecoder {
+class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
  public:
   enum class EntryDecoderState {
     // Have started decoding the type/varint, but didn't finish on the previous
@@ -75,9 +75,9 @@ class HTTP2_EXPORT_PRIVATE HpackEntryDecoder {
   EntryDecoderState state_ = EntryDecoderState();
 };
 
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const HpackEntryDecoder& v);
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const HpackEntryDecoder& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& out,
     HpackEntryDecoder::EntryDecoderState state);
 

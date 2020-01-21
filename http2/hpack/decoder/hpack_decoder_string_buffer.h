@@ -15,12 +15,12 @@
 #include <string>
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE HpackDecoderStringBuffer {
+class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
  public:
   enum class State : uint8_t { RESET, COLLECTING, COMPLETE };
   enum class Backing : uint8_t { RESET, UNBUFFERED, BUFFERED, STATIC };
@@ -93,7 +93,7 @@ class HTTP2_EXPORT_PRIVATE HpackDecoderStringBuffer {
   Backing backing_;
 };
 
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& out,
     const HpackDecoderStringBuffer& v);
 

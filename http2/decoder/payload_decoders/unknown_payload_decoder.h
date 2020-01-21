@@ -13,11 +13,11 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE UnknownPayloadDecoder {
+class QUICHE_EXPORT_PRIVATE UnknownPayloadDecoder {
  public:
   // Starts decoding a payload of unknown type; just passes it to the listener.
   DecodeStatus StartDecodingPayload(FrameDecoderState* state, DecodeBuffer* db);

@@ -18,7 +18,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
@@ -38,7 +38,7 @@ typedef size_t HuffmanAccumulatorBitCount;
 
 // HuffmanBitBuffer stores the leading edge of bits to be decoded. The high
 // order bit of accumulator_ is the next bit to be decoded.
-class HTTP2_EXPORT_PRIVATE HuffmanBitBuffer {
+class QUICHE_EXPORT_PRIVATE HuffmanBitBuffer {
  public:
   HuffmanBitBuffer();
 
@@ -85,7 +85,7 @@ inline std::ostream& operator<<(std::ostream& out, const HuffmanBitBuffer& v) {
   return out << v.DebugString();
 }
 
-class HTTP2_EXPORT_PRIVATE HpackHuffmanDecoder {
+class QUICHE_EXPORT_PRIVATE HpackHuffmanDecoder {
  public:
   HpackHuffmanDecoder();
   ~HpackHuffmanDecoder();

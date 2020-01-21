@@ -16,14 +16,14 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
 // TODO(jamessynge): Consider renaming HpackEntryDecoderListener to
 // HpackEntryPartsListener or HpackEntryFragmentsListener.
-class HTTP2_EXPORT_PRIVATE HpackWholeEntryBuffer
+class QUICHE_EXPORT_PRIVATE HpackWholeEntryBuffer
     : public HpackEntryDecoderListener {
  public:
   // max_string_size specifies the maximum size of an on-the-wire string (name

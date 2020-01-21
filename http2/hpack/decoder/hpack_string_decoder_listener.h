@@ -12,7 +12,7 @@
 
 #include <stddef.h>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
@@ -20,7 +20,7 @@ namespace test {
 // HpackStringDecoder methods require a listener that implements the methods
 // below, but it is NOT necessary to extend this class because the methods
 // are templates.
-class HTTP2_EXPORT_PRIVATE HpackStringDecoderListener {
+class QUICHE_EXPORT_PRIVATE HpackStringDecoderListener {
  public:
   virtual ~HpackStringDecoderListener() {}
 
@@ -39,7 +39,7 @@ class HTTP2_EXPORT_PRIVATE HpackStringDecoderListener {
   virtual void OnStringEnd() = 0;
 };
 
-class HTTP2_EXPORT_PRIVATE HpackStringDecoderVLoggingListener
+class QUICHE_EXPORT_PRIVATE HpackStringDecoderVLoggingListener
     : public HpackStringDecoderListener {
  public:
   HpackStringDecoderVLoggingListener() : wrapped_(nullptr) {}

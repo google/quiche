@@ -13,7 +13,7 @@
 #include <ostream>
 #include <string>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
@@ -52,11 +52,11 @@ enum class HpackEntryType {
 };
 
 // Returns the name of the enum member.
-HTTP2_EXPORT_PRIVATE std::string HpackEntryTypeToString(HpackEntryType v);
+QUICHE_EXPORT_PRIVATE std::string HpackEntryTypeToString(HpackEntryType v);
 
 // Inserts the name of the enum member into |out|.
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              HpackEntryType v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               HpackEntryType v);
 
 }  // namespace http2
 

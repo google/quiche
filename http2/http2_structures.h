@@ -32,12 +32,12 @@
 #include <string>
 
 #include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
-struct HTTP2_EXPORT_PRIVATE Http2FrameHeader {
+struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
   Http2FrameHeader() {}
   Http2FrameHeader(uint32_t payload_length,
                    Http2FrameType type,
@@ -128,18 +128,18 @@ struct HTTP2_EXPORT_PRIVATE Http2FrameHeader {
   Http2FrameFlag flags;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2FrameHeader& a,
-                                     const Http2FrameHeader& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2FrameHeader& a,
-                                            const Http2FrameHeader& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2FrameHeader& a,
+                                      const Http2FrameHeader& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2FrameHeader& a,
+                                             const Http2FrameHeader& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2FrameHeader& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2FrameHeader& v);
 
 // Http2PriorityFields:
 
-struct HTTP2_EXPORT_PRIVATE Http2PriorityFields {
+struct QUICHE_EXPORT_PRIVATE Http2PriorityFields {
   Http2PriorityFields() {}
   Http2PriorityFields(uint32_t stream_dependency,
                       uint32_t weight,
@@ -172,14 +172,14 @@ struct HTTP2_EXPORT_PRIVATE Http2PriorityFields {
   bool is_exclusive;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2PriorityFields& a,
-                                     const Http2PriorityFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2PriorityFields& a,
-                                            const Http2PriorityFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2PriorityFields& a,
+                                      const Http2PriorityFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2PriorityFields& a,
+                                             const Http2PriorityFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2PriorityFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2PriorityFields& v);
 
 // Http2RstStreamFields:
 
@@ -192,14 +192,14 @@ struct Http2RstStreamFields {
   Http2ErrorCode error_code;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2RstStreamFields& a,
-                                     const Http2RstStreamFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2RstStreamFields& a,
-                                            const Http2RstStreamFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2RstStreamFields& a,
+                                      const Http2RstStreamFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2RstStreamFields& a,
+                                             const Http2RstStreamFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2RstStreamFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2RstStreamFields& v);
 
 // Http2SettingFields:
 
@@ -216,14 +216,14 @@ struct Http2SettingFields {
   uint32_t value;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2SettingFields& a,
-                                     const Http2SettingFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2SettingFields& a,
-                                            const Http2SettingFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2SettingFields& a,
+                                      const Http2SettingFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2SettingFields& a,
+                                             const Http2SettingFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2SettingFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2SettingFields& v);
 
 // Http2PushPromiseFields:
 
@@ -233,14 +233,14 @@ struct Http2PushPromiseFields {
   uint32_t promised_stream_id;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2PushPromiseFields& a,
-                                     const Http2PushPromiseFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2PushPromiseFields& a,
-                                            const Http2PushPromiseFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2PushPromiseFields& a,
+                                      const Http2PushPromiseFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2PushPromiseFields& a,
+                                             const Http2PushPromiseFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2PushPromiseFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2PushPromiseFields& v);
 
 // Http2PingFields:
 
@@ -250,14 +250,14 @@ struct Http2PingFields {
   uint8_t opaque_bytes[8];
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2PingFields& a,
-                                     const Http2PingFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2PingFields& a,
-                                            const Http2PingFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2PingFields& a,
+                                      const Http2PingFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2PingFields& a,
+                                             const Http2PingFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2PingFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2PingFields& v);
 
 // Http2GoAwayFields:
 
@@ -274,14 +274,14 @@ struct Http2GoAwayFields {
   Http2ErrorCode error_code;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2GoAwayFields& a,
-                                     const Http2GoAwayFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2GoAwayFields& a,
-                                            const Http2GoAwayFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2GoAwayFields& a,
+                                      const Http2GoAwayFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2GoAwayFields& a,
+                                             const Http2GoAwayFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2GoAwayFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2GoAwayFields& v);
 
 // Http2WindowUpdateFields:
 
@@ -293,14 +293,15 @@ struct Http2WindowUpdateFields {
   uint32_t window_size_increment;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2WindowUpdateFields& a,
-                                     const Http2WindowUpdateFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2WindowUpdateFields& a,
-                                            const Http2WindowUpdateFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2WindowUpdateFields& a,
+                                      const Http2WindowUpdateFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2WindowUpdateFields& a,
+                                             const Http2WindowUpdateFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2WindowUpdateFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& out,
+    const Http2WindowUpdateFields& v);
 
 // Http2AltSvcFields:
 
@@ -311,14 +312,14 @@ struct Http2AltSvcFields {
   uint16_t origin_length;
 };
 
-HTTP2_EXPORT_PRIVATE bool operator==(const Http2AltSvcFields& a,
-                                     const Http2AltSvcFields& b);
-HTTP2_EXPORT_PRIVATE inline bool operator!=(const Http2AltSvcFields& a,
-                                            const Http2AltSvcFields& b) {
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2AltSvcFields& a,
+                                      const Http2AltSvcFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2AltSvcFields& a,
+                                             const Http2AltSvcFields& b) {
   return !(a == b);
 }
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const Http2AltSvcFields& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const Http2AltSvcFields& v);
 
 }  // namespace http2
 

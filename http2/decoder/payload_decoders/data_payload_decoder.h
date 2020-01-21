@@ -10,14 +10,14 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {
 class DataPayloadDecoderPeer;
 }  // namespace test
 
-class HTTP2_EXPORT_PRIVATE DataPayloadDecoder {
+class QUICHE_EXPORT_PRIVATE DataPayloadDecoder {
  public:
   // States during decoding of a DATA frame.
   enum class PayloadState {

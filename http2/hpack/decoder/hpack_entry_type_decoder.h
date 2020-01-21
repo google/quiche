@@ -17,12 +17,12 @@
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_export.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace http2 {
 
-class HTTP2_EXPORT_PRIVATE HpackEntryTypeDecoder {
+class QUICHE_EXPORT_PRIVATE HpackEntryTypeDecoder {
  public:
   // Only call when the decode buffer has data (i.e. HpackEntryDecoder must
   // not call until there is data).
@@ -50,8 +50,8 @@ class HTTP2_EXPORT_PRIVATE HpackEntryTypeDecoder {
   HpackEntryType entry_type_ = HpackEntryType::kIndexedHeader;
 };
 
-HTTP2_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                              const HpackEntryTypeDecoder& v);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               const HpackEntryTypeDecoder& v);
 
 }  // namespace http2
 #endif  // QUICHE_HTTP2_HPACK_DECODER_HPACK_ENTRY_TYPE_DECODER_H_
