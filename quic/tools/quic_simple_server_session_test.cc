@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -59,7 +60,7 @@ const QuicByteCount kHeadersFramePayloadLength = 9;
 class QuicSimpleServerSessionPeer {
  public:
   static void SetCryptoStream(QuicSimpleServerSession* s,
-                              QuicCryptoServerStream* crypto_stream) {
+                              QuicCryptoServerStreamBase* crypto_stream) {
     s->crypto_stream_.reset(crypto_stream);
   }
 
@@ -83,7 +84,7 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
   explicit MockQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
-      QuicServerSessionBase* session,
+      QuicSession* session,
       QuicCryptoServerStream::Helper* helper)
       : QuicCryptoServerStream(crypto_config,
                                compressed_certs_cache,
@@ -97,18 +98,45 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
   MOCK_METHOD1(SendServerConfigUpdate,
                void(const CachedNetworkParameters* cached_network_parameters));
 
-  void set_encryption_established(bool has_established) {
-    encryption_established_override_ = has_established;
-  }
-
-  bool encryption_established() const override {
-    return QuicCryptoServerStream::encryption_established() ||
-           encryption_established_override_;
-  }
-
- private:
-  bool encryption_established_override_ = false;
+  bool encryption_established() const override { return true; }
 };
+
+class MockTlsServerHandshaker : public TlsServerHandshaker {
+ public:
+  explicit MockTlsServerHandshaker(QuicSession* session,
+                                   SSL_CTX* ssl_ctx,
+                                   ProofSource* proof_source)
+      : TlsServerHandshaker(session, ssl_ctx, proof_source) {}
+  MockTlsServerHandshaker(const MockTlsServerHandshaker&) = delete;
+  MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
+  ~MockTlsServerHandshaker() override {}
+
+  MOCK_METHOD1(SendServerConfigUpdate,
+               void(const CachedNetworkParameters* cached_network_parameters));
+
+  bool encryption_established() const override { return true; }
+};
+
+QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
+    const QuicCryptoServerConfig* crypto_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    QuicSession* session,
+    QuicCryptoServerStream::Helper* helper) {
+  switch (session->connection()->version().handshake_protocol) {
+    case PROTOCOL_QUIC_CRYPTO:
+      return new MockQuicCryptoServerStream(
+          crypto_config, compressed_certs_cache, session, helper);
+    case PROTOCOL_TLS1_3:
+      return new MockTlsServerHandshaker(session, crypto_config->ssl_ctx(),
+                                         crypto_config->proof_source());
+    case PROTOCOL_UNSUPPORTED:
+      break;
+  }
+  QUIC_BUG << "Unknown handshake protocol: "
+           << static_cast<int>(
+                  session->connection()->version().handshake_protocol);
+  return nullptr;
+}
 
 class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
  public:
@@ -491,10 +519,9 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   }
   // Assume encryption already established.
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
-  MockQuicCryptoServerStream* crypto_stream =
-      new MockQuicCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
-                                     session_.get(), &stream_helper_);
-  crypto_stream->set_encryption_established(true);
+  QuicCryptoServerStreamBase* crypto_stream =
+      CreateMockCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
+                                   session_.get(), &stream_helper_);
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
   if (!VersionUsesHttp3(connection_->transport_version())) {
     session_->RegisterStreamPriority(
@@ -612,11 +639,10 @@ class QuicSimpleServerSessionServerPushTest
     }
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
     // Assume encryption already established.
-    MockQuicCryptoServerStream* crypto_stream = new MockQuicCryptoServerStream(
-        &crypto_config_, &compressed_certs_cache_, session_.get(),
-        &stream_helper_);
+    QuicCryptoServerStreamBase* crypto_stream =
+        CreateMockCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
+                                     session_.get(), &stream_helper_);
 
-    crypto_stream->set_encryption_established(true);
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
     if (!VersionUsesHttp3(connection_->transport_version())) {
       session_->RegisterStreamPriority(

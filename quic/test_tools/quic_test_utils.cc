@@ -676,15 +676,14 @@ void TestQuicSpdyServerSession::OnCryptoHandshakeEvent(
   QuicSession::OnCryptoHandshakeEvent(event);
 }
 
-QuicCryptoServerStream* TestQuicSpdyServerSession::GetMutableCryptoStream() {
-  return static_cast<QuicCryptoServerStream*>(
-      QuicServerSessionBase::GetMutableCryptoStream());
+QuicCryptoServerStreamBase*
+TestQuicSpdyServerSession::GetMutableCryptoStream() {
+  return QuicServerSessionBase::GetMutableCryptoStream();
 }
 
-const QuicCryptoServerStream* TestQuicSpdyServerSession::GetCryptoStream()
+const QuicCryptoServerStreamBase* TestQuicSpdyServerSession::GetCryptoStream()
     const {
-  return static_cast<const QuicCryptoServerStream*>(
-      QuicServerSessionBase::GetCryptoStream());
+  return QuicServerSessionBase::GetCryptoStream();
 }
 
 TestQuicSpdyClientSession::TestQuicSpdyClientSession(

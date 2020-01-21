@@ -32,8 +32,20 @@ std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
     QuicCryptoServerStream::Helper* helper) {
-  return std::unique_ptr<QuicCryptoServerStream>(new QuicCryptoServerStream(
-      crypto_config, compressed_certs_cache, session, helper));
+  switch (session->connection()->version().handshake_protocol) {
+    case PROTOCOL_QUIC_CRYPTO:
+      return std::unique_ptr<QuicCryptoServerStream>(new QuicCryptoServerStream(
+          crypto_config, compressed_certs_cache, session, helper));
+    case PROTOCOL_TLS1_3:
+      return std::unique_ptr<TlsServerHandshaker>(new TlsServerHandshaker(
+          session, crypto_config->ssl_ctx(), crypto_config->proof_source()));
+    case PROTOCOL_UNSUPPORTED:
+      break;
+  }
+  QUIC_BUG << "Unknown handshake protocol: "
+           << static_cast<int>(
+                  session->connection()->version().handshake_protocol);
+  return nullptr;
 }
 
 QuicCryptoServerStream::QuicCryptoServerStream(
@@ -68,9 +80,8 @@ QuicCryptoServerStream::QuicCryptoServerStream(
             crypto_config_, this, compressed_certs_cache_, session, helper_);
         break;
       case PROTOCOL_TLS1_3:
-        handshaker_ = std::make_unique<TlsServerHandshaker>(
-            this, session, crypto_config_->ssl_ctx(),
-            crypto_config_->proof_source());
+        QUIC_BUG
+            << "Attempting to create QuicCryptoServerStream for TLS version";
         break;
       case PROTOCOL_UNSUPPORTED:
         QUIC_BUG << "Attempting to create QuicCryptoServerStream for unknown "
@@ -176,9 +187,7 @@ void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
           crypto_config_, this, compressed_certs_cache_, session(), helper_);
       break;
     case PROTOCOL_TLS1_3:
-      handshaker_ = std::make_unique<TlsServerHandshaker>(
-          this, session(), crypto_config_->ssl_ctx(),
-          crypto_config_->proof_source());
+      QUIC_BUG << "Attempting to use QuicCryptoServerStream with TLS";
       break;
     case PROTOCOL_UNSUPPORTED:
       QUIC_BUG << "Attempting to create QuicCryptoServerStream for unknown "

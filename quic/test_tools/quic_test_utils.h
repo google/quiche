@@ -806,9 +806,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   // Override to not send max header list size.
   void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
 
-  QuicCryptoServerStream* GetMutableCryptoStream() override;
+  QuicCryptoServerStreamBase* GetMutableCryptoStream() override;
 
-  const QuicCryptoServerStream* GetCryptoStream() const override;
+  const QuicCryptoServerStreamBase* GetCryptoStream() const override;
 
   MockQuicCryptoServerStreamHelper* helper() { return &helper_; }
 

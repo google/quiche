@@ -28,7 +28,7 @@ class QuicClock;
 class QuicConfig;
 class QuicCryptoClientStream;
 class QuicCryptoServerConfig;
-class QuicCryptoServerStream;
+class QuicCryptoServerStreamBase;
 class QuicCryptoStream;
 class QuicRandom;
 class QuicServerId;
@@ -81,7 +81,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
 int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                             MockAlarmFactory* alarm_factory,
                             PacketSavingConnection* server_conn,
-                            QuicCryptoServerStream* server,
+                            QuicCryptoServerStreamBase* server,
                             const QuicServerId& server_id,
                             const FakeClientOptions& options,
                             std::string alpn);
@@ -192,7 +192,7 @@ void GenerateFullCHLO(
     CryptoHandshakeMessage* out);
 
 void CompareClientAndServerKeys(QuicCryptoClientStream* client,
-                                QuicCryptoServerStream* server);
+                                QuicCryptoServerStreamBase* server);
 
 // Return a CHLO nonce in hexadecimal.
 std::string GenerateClientNonceHex(const QuicClock* clock,

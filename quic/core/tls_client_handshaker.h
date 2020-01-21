@@ -108,6 +108,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   void InsertSession(bssl::UniquePtr<SSL_SESSION> session) override;
 
+  QuicSession* session() { return session_; }
+  QuicSession* session_;
+
   QuicServerId server_id_;
 
   // Objects used for verifying the server's certificate chain.

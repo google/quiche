@@ -267,6 +267,24 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
   std::unique_ptr<TlsClientHandshaker> handshaker_;
 };
 
+class TestTlsServerHandshaker : public TlsServerHandshaker {
+ public:
+  TestTlsServerHandshaker(QuicSession* session,
+                          SSL_CTX* ssl_ctx,
+                          ProofSource* proof_source,
+                          TestQuicCryptoStream* test_stream)
+      : TlsServerHandshaker(session, ssl_ctx, proof_source),
+        test_stream_(test_stream) {}
+
+  void WriteCryptoData(EncryptionLevel level,
+                       quiche::QuicheStringPiece data) override {
+    test_stream_->WriteCryptoData(level, data);
+  }
+
+ private:
+  TestQuicCryptoStream* test_stream_;
+};
+
 class TestQuicCryptoServerStream : public TestQuicCryptoStream {
  public:
   TestQuicCryptoServerStream(QuicSession* session,
@@ -274,10 +292,10 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
       : TestQuicCryptoStream(session),
         proof_source_(proof_source),
         ssl_ctx_(TlsServerConnection::CreateSslCtx()),
-        handshaker_(new TlsServerHandshaker(this,
-                                            session,
-                                            ssl_ctx_.get(),
-                                            proof_source_)) {}
+        handshaker_(new TestTlsServerHandshaker(session,
+                                                ssl_ctx_.get(),
+                                                proof_source_,
+                                                this)) {}
 
   ~TestQuicCryptoServerStream() override = default;
 
@@ -300,7 +318,7 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
 };
 
 void ExchangeHandshakeMessages(TestQuicCryptoStream* client,
-                               TestQuicCryptoStream* server) {
+                               TestQuicCryptoServerStream* server) {
   while (!client->pending_writes().empty() ||
          !server->pending_writes().empty()) {
     client->SendCryptoMessagesToPeer(server);

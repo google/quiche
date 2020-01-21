@@ -108,7 +108,7 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
     }
   }
 
-  QuicCryptoServerStream* server_stream() {
+  QuicCryptoServerStreamBase* server_stream() {
     return server_session_->GetMutableCryptoStream();
   }
 

@@ -41,11 +41,11 @@ void TlsServerHandshaker::SignatureCallback::Cancel() {
   handshaker_ = nullptr;
 }
 
-TlsServerHandshaker::TlsServerHandshaker(QuicCryptoStream* stream,
-                                         QuicSession* session,
+TlsServerHandshaker::TlsServerHandshaker(QuicSession* session,
                                          SSL_CTX* ssl_ctx,
                                          ProofSource* proof_source)
-    : TlsHandshaker(stream, session),
+    : TlsHandshaker(this, session),
+      QuicCryptoServerStreamBase(session),
       proof_source_(proof_source),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(ssl_ctx, this) {

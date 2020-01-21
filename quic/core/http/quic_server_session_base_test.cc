@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -479,6 +480,20 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
                void(const CachedNetworkParameters* cached_network_parameters));
 };
 
+class MockTlsServerHandshaker : public TlsServerHandshaker {
+ public:
+  explicit MockTlsServerHandshaker(QuicServerSessionBase* session,
+                                   SSL_CTX* ssl_ctx,
+                                   ProofSource* proof_source)
+      : TlsServerHandshaker(session, ssl_ctx, proof_source) {}
+  MockTlsServerHandshaker(const MockTlsServerHandshaker&) = delete;
+  MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
+  ~MockTlsServerHandshaker() override {}
+
+  MOCK_METHOD1(SendServerConfigUpdate,
+               void(const CachedNetworkParameters* cached_network_parameters));
+};
+
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   // Test that bandwidth estimate updates are sent to the client, only when
   // bandwidth resumption is enabled, the bandwidth estimate has changed
@@ -505,10 +520,22 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
         /*is_static=*/true);
   }
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
-  MockQuicCryptoServerStream* crypto_stream =
-      new MockQuicCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
-                                     session_.get(), &stream_helper_);
-  QuicServerSessionBasePeer::SetCryptoStream(session_.get(), crypto_stream);
+  MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
+  MockTlsServerHandshaker* tls_server_stream = nullptr;
+  if (session_->connection()->version().handshake_protocol ==
+      PROTOCOL_QUIC_CRYPTO) {
+    quic_crypto_stream = new MockQuicCryptoServerStream(
+        &crypto_config_, &compressed_certs_cache_, session_.get(),
+        &stream_helper_);
+    QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
+                                               quic_crypto_stream);
+  } else {
+    tls_server_stream =
+        new MockTlsServerHandshaker(session_.get(), crypto_config_.ssl_ctx(),
+                                    crypto_config_.proof_source());
+    QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
+                                               tls_server_stream);
+  }
   if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(connection_->transport_version()),
@@ -592,9 +619,15 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       session_->connection()->clock()->WallNow().ToUNIXSeconds());
   expected_network_params.set_serving_region(serving_region);
 
-  EXPECT_CALL(*crypto_stream,
-              SendServerConfigUpdate(EqualsProto(expected_network_params)))
-      .Times(1);
+  if (quic_crypto_stream) {
+    EXPECT_CALL(*quic_crypto_stream,
+                SendServerConfigUpdate(EqualsProto(expected_network_params)))
+        .Times(1);
+  } else {
+    EXPECT_CALL(*tls_server_stream,
+                SendServerConfigUpdate(EqualsProto(expected_network_params)))
+        .Times(1);
+  }
   EXPECT_CALL(*connection_, OnSendConnectionState(_)).Times(1);
   session_->OnCongestionWindowChange(now);
 }

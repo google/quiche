@@ -67,7 +67,6 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   SSL* ssl() const { return tls_connection()->ssl(); }
 
   QuicCryptoStream* stream() { return stream_; }
-  QuicSession* session() { return session_; }
   HandshakerDelegateInterface* delegate() { return delegate_; }
 
   // SetEncryptionSecret provides the encryption secret to use at a particular
@@ -97,7 +96,6 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
 
  private:
   QuicCryptoStream* stream_;
-  QuicSession* session_;
   HandshakerDelegateInterface* delegate_;
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
