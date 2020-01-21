@@ -471,7 +471,6 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
     return 0;
   }
 
-  size_t num_good_packets = 0;
   for (int i = 0; i < packets_read; ++i) {
     if (hdrs[i].msg_len == 0) {
       continue;
@@ -493,7 +492,6 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
       continue;
     }
 
-    ++num_good_packets;
     (*results)[i].ok = true;
     (*results)[i].packet_buffer.buffer_len = hdrs[i].msg_len;
 
@@ -511,15 +509,16 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
       }
     }
   }
-  return num_good_packets;
+  return packets_read;
 #else
   size_t num_packets = 0;
   for (ReadPacketResult& result : *results) {
     result.ok = false;
   }
   for (ReadPacketResult& result : *results) {
+    errno = 0;
     ReadPacket(fd, packet_info_interested, &result);
-    if (!result.ok) {
+    if (!result.ok && errno == EAGAIN) {
       break;
     }
     ++num_packets;

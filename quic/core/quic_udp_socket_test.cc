@@ -9,6 +9,13 @@
 
 namespace quic {
 namespace test {
+namespace {
+// Used by ReadMultiplePackets tests.
+struct ReadBuffers {
+  char control_buffer[512];
+  char packet_buffer[1536];
+};
+}  // namespace
 
 class QuicUdpSocketTest : public QuicTest {
  protected:
@@ -93,6 +100,17 @@ class QuicUdpSocketTest : public QuicTest {
 
   int ComparePacketBuffers(size_t packet_size) {
     return memcmp(client_packet_buffer_, server_packet_buffer_, packet_size);
+  }
+
+  bool VerifyBufferIsFilledWith(const char* buffer,
+                                size_t buffer_length,
+                                char c) {
+    for (size_t i = 0; i < buffer_length; ++i) {
+      if (buffer[i] != c) {
+        return false;
+      }
+    }
+    return true;
   }
 
   QuicUdpSocketApi api_;
@@ -248,6 +266,123 @@ TEST_F(QuicUdpSocketTest, Ttl) {
   ASSERT_EQ(0, ComparePacketBuffers(kPacketSize));
   ASSERT_TRUE(read_result.packet_info.HasValue(QuicUdpPacketInfoBit::TTL));
   EXPECT_EQ(13, read_result.packet_info.ttl());
+}
+
+TEST_F(QuicUdpSocketTest, ReadMultiplePackets) {
+  const QuicUdpPacketInfoBit self_ip_bit =
+      (address_family_ == AF_INET) ? QuicUdpPacketInfoBit::V4_SELF_IP
+                                   : QuicUdpPacketInfoBit::V6_SELF_IP;
+  const size_t kPacketSize = kDefaultMaxPacketSize;
+  const size_t kNumPackets = 90;
+  for (size_t i = 0; i < kNumPackets; ++i) {
+    memset(client_packet_buffer_, ' ' + i, kPacketSize);
+    ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
+              SendPacketFromClient(kPacketSize));
+  }
+
+  const size_t kNumPacketsPerRead = 16;
+  size_t total_packets_read = 0;
+  while (total_packets_read < kNumPackets) {
+    std::unique_ptr<ReadBuffers[]> read_buffers =
+        std::make_unique<ReadBuffers[]>(kNumPacketsPerRead);
+    QuicUdpSocketApi::ReadPacketResults results(kNumPacketsPerRead);
+    for (size_t i = 0; i < kNumPacketsPerRead; ++i) {
+      results[i].packet_buffer.buffer = read_buffers[i].packet_buffer;
+      results[i].packet_buffer.buffer_len =
+          sizeof(read_buffers[i].packet_buffer);
+
+      results[i].control_buffer.buffer = read_buffers[i].control_buffer;
+      results[i].control_buffer.buffer_len =
+          sizeof(read_buffers[i].control_buffer);
+    }
+    size_t packets_read =
+        api_.ReadMultiplePackets(fd_server_, BitMask64(self_ip_bit), &results);
+    if (packets_read == 0) {
+      ASSERT_TRUE(
+          api_.WaitUntilReadable(fd_server_, QuicTime::Delta::FromSeconds(5)));
+      packets_read = api_.ReadMultiplePackets(fd_server_,
+                                              BitMask64(self_ip_bit), &results);
+      ASSERT_GT(packets_read, 0u);
+    }
+
+    for (size_t i = 0; i < packets_read; ++i) {
+      const auto& result = results[i];
+      ASSERT_TRUE(result.ok);
+      ASSERT_EQ(kPacketSize, result.packet_buffer.buffer_len);
+      ASSERT_TRUE(VerifyBufferIsFilledWith(result.packet_buffer.buffer,
+                                           result.packet_buffer.buffer_len,
+                                           ' ' + total_packets_read));
+      ASSERT_TRUE(result.packet_info.HasValue(self_ip_bit));
+      EXPECT_EQ(Loopback(), (address_family_ == AF_INET)
+                                ? result.packet_info.self_v4_ip()
+                                : result.packet_info.self_v6_ip());
+      total_packets_read++;
+    }
+  }
+}
+
+TEST_F(QuicUdpSocketTest, ReadMultiplePacketsSomeTruncated) {
+  const QuicUdpPacketInfoBit self_ip_bit =
+      (address_family_ == AF_INET) ? QuicUdpPacketInfoBit::V4_SELF_IP
+                                   : QuicUdpPacketInfoBit::V6_SELF_IP;
+  const size_t kPacketSize = kDefaultMaxPacketSize;
+  const size_t kNumPackets = 90;
+  for (size_t i = 0; i < kNumPackets; ++i) {
+    memset(client_packet_buffer_, ' ' + i, kPacketSize);
+    ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
+              SendPacketFromClient(kPacketSize));
+  }
+
+  const size_t kNumPacketsPerRead = 16;
+  size_t total_packets_read = 0;  // Including truncated packets.
+  while (total_packets_read < kNumPackets) {
+    std::unique_ptr<ReadBuffers[]> read_buffers =
+        std::make_unique<ReadBuffers[]>(kNumPacketsPerRead);
+    QuicUdpSocketApi::ReadPacketResults results(kNumPacketsPerRead);
+    // Use small packet buffer for all even-numbered packets and expect them to
+    // be truncated.
+    auto is_truncated = [total_packets_read](size_t i) {
+      return ((total_packets_read + i) % 2) == 1;
+    };
+
+    for (size_t i = 0; i < kNumPacketsPerRead; ++i) {
+      results[i].packet_buffer.buffer = read_buffers[i].packet_buffer;
+      results[i].packet_buffer.buffer_len =
+          is_truncated(i) ? kPacketSize - 1
+                          : sizeof(read_buffers[i].packet_buffer);
+
+      results[i].control_buffer.buffer = read_buffers[i].control_buffer;
+      results[i].control_buffer.buffer_len =
+          sizeof(read_buffers[i].control_buffer);
+    }
+    size_t packets_read =
+        api_.ReadMultiplePackets(fd_server_, BitMask64(self_ip_bit), &results);
+    if (packets_read == 0) {
+      ASSERT_TRUE(
+          api_.WaitUntilReadable(fd_server_, QuicTime::Delta::FromSeconds(5)));
+      packets_read = api_.ReadMultiplePackets(fd_server_,
+                                              BitMask64(self_ip_bit), &results);
+      ASSERT_GT(packets_read, 0u);
+    }
+
+    for (size_t i = 0; i < packets_read; ++i) {
+      const auto& result = results[i];
+      if (is_truncated(i)) {
+        ASSERT_FALSE(result.ok);
+      } else {
+        ASSERT_TRUE(result.ok);
+        ASSERT_EQ(kPacketSize, result.packet_buffer.buffer_len);
+        ASSERT_TRUE(VerifyBufferIsFilledWith(result.packet_buffer.buffer,
+                                             result.packet_buffer.buffer_len,
+                                             ' ' + total_packets_read));
+        ASSERT_TRUE(result.packet_info.HasValue(self_ip_bit));
+        EXPECT_EQ(Loopback(), (address_family_ == AF_INET)
+                                  ? result.packet_info.self_v4_ip()
+                                  : result.packet_info.self_v6_ip());
+      }
+      total_packets_read++;
+    }
+  }
 }
 
 }  // namespace test

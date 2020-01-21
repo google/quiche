@@ -199,6 +199,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   using ReadPacketResults = std::vector<ReadPacketResult>;
   // Read up to |results->size()| packets from |fd|. The meaning of each element
   // in |*results| has been documented on top of |ReadPacket|.
+  // Return the number of elements populated into |*results|, note it is
+  // possible for some of the populated elements to have ok=false.
   size_t ReadMultiplePackets(QuicUdpSocketFd fd,
                              BitMask64 packet_info_interested,
                              ReadPacketResults* results);
