@@ -31,6 +31,11 @@ class QuicReceivedPacketManagerPeer {
     manager->fast_ack_after_quiescence_ = fast_ack_after_quiescence;
   }
 
+  static void SetOneImmediateAck(QuicReceivedPacketManager* manager,
+                                 bool one_immediate_ack) {
+    manager->one_immediate_ack_ = one_immediate_ack;
+  }
+
   static void SetAckDecimationDelay(QuicReceivedPacketManager* manager,
                                     float ack_decimation_delay) {
     manager->ack_decimation_delay_ = ack_decimation_delay;
@@ -247,6 +252,16 @@ TEST_P(QuicReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent) {
   // Delayed ack is scheduled.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  // Immediate ack is sent.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(6, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 6);
+  // Immediate ack is scheduled, because 4 is still missing.
+  CheckAckTimeout(clock_.ApproximateNow());
+
   RecordPacketReceipt(2, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 2);
   CheckAckTimeout(clock_.ApproximateNow());
@@ -256,9 +271,43 @@ TEST_P(QuicReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent) {
   // Should ack immediately, since this fills the last hole.
   CheckAckTimeout(clock_.ApproximateNow());
 
-  RecordPacketReceipt(4, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  RecordPacketReceipt(7, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 7);
+  // Immediate ack is scheduled, because 4 is still missing.
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_P(QuicReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent1Ack) {
+  QuicReceivedPacketManagerPeer::SetOneImmediateAck(&received_manager_, true);
+  EXPECT_FALSE(HasPendingAck());
+
+  RecordPacketReceipt(3, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
   // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  // Immediate ack is sent.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(6, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 6);
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 1);
+  // Should ack immediately, since this fills the last hole.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(7, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 7);
+  // Delayed ack is scheduled, even though 4 is still missing.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 }
 

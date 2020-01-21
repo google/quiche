@@ -138,6 +138,7 @@ const QuicTag kMAD2 = TAG('M', 'A', 'D', '2');   // No min TLP
 const QuicTag kMAD3 = TAG('M', 'A', 'D', '3');   // No min RTO
 const QuicTag kMAD4 = TAG('M', 'A', 'D', '4');   // IETF style TLP
 const QuicTag kMAD5 = TAG('M', 'A', 'D', '5');   // IETF style TLP with 2x mult
+const QuicTag k1ACK = TAG('1', 'A', 'C', 'K');   // 1 fast ack for reordering
 const QuicTag kACD0 = TAG('A', 'D', 'D', '0');   // Disable ack decimation
 const QuicTag kACKD = TAG('A', 'C', 'K', 'D');   // Ack decimation style acking.
 const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // Ack decimation tolerating

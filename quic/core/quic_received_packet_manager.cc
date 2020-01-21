@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -50,6 +51,7 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
       fast_ack_after_quiescence_(false),
+      one_immediate_ack_(false),
       local_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       ack_timeout_(QuicTime::Zero()),
@@ -87,6 +89,11 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
   }
   if (config.HasClientSentConnectionOption(kACKQ, perspective)) {
     fast_ack_after_quiescence_ = true;
+  }
+  if (GetQuicReloadableFlag(quic_one_immediate_ack) &&
+      config.HasClientSentConnectionOption(k1ACK, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_one_immediate_ack);
+    one_immediate_ack_ = true;
   }
 }
 
@@ -315,6 +322,9 @@ bool QuicReceivedPacketManager::HasMissingPackets() const {
 }
 
 bool QuicReceivedPacketManager::HasNewMissingPackets() const {
+  if (one_immediate_ack_) {
+    return HasMissingPackets() && ack_frame_.packets.LastIntervalLength() == 1;
+  }
   return HasMissingPackets() &&
          ack_frame_.packets.LastIntervalLength() <= kMaxPacketsAfterNewMissing;
 }
