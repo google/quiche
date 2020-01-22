@@ -127,6 +127,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   virtual void OnPriorityFrame(QuicStreamId stream_id,
                                const spdy::SpdyStreamPrecedence& precedence);
 
+  // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a request
+  // stream.  Returns false and closes connection if |stream_id| is invalid.
+  bool OnPriorityUpdateForRequestStream(QuicStreamId stream_id, int urgency);
+
+  // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a push
+  // stream.  Returns false and closes connection if |push_id| is invalid.
+  bool OnPriorityUpdateForPushStream(QuicStreamId push_id, int urgency);
+
   // Sends contents of |iov| to h2_deframer_, returns number of bytes processed.
   size_t ProcessHeaderData(const struct iovec& iov);
 

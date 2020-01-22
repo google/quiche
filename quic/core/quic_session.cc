@@ -1644,6 +1644,18 @@ void QuicSession::DeleteConnection() {
   }
 }
 
+bool QuicSession::MaybeSetStreamPriority(
+    QuicStreamId stream_id,
+    const spdy::SpdyStreamPrecedence& precedence) {
+  auto active_stream = stream_map_.find(stream_id);
+  if (active_stream != stream_map_.end()) {
+    active_stream->second->SetPriority(precedence);
+    return true;
+  }
+
+  return false;
+}
+
 bool QuicSession::IsClosedStream(QuicStreamId id) {
   DCHECK_NE(QuicUtils::GetInvalidStreamId(transport_version()), id);
   if (IsOpenStream(id)) {

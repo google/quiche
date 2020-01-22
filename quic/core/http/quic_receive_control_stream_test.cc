@@ -110,6 +110,15 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
     return std::string(buffer.get(), settings_frame_length);
   }
 
+  std::string SerializePriorityUpdateFrame(
+      const PriorityUpdateFrame& priority_update) {
+    std::unique_ptr<char[]> priority_buffer;
+    QuicByteCount priority_frame_length =
+        HttpEncoder::SerializePriorityUpdateFrame(priority_update,
+                                                  &priority_buffer);
+    return std::string(priority_buffer.get(), priority_frame_length);
+  }
+
   QuicStreamOffset NumBytesConsumed() {
     return QuicStreamPeer::sequencer(receive_control_stream_)
         ->NumBytesConsumed();
@@ -218,6 +227,24 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
       *connection_,
       CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
   receive_control_stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicReceiveControlStreamTest,
+       ReceivePriorityUpdateFrameBeforeSettingsFrame) {
+  std::string serialized_frame = SerializePriorityUpdateFrame({});
+  QuicStreamFrame data(receive_control_stream_->id(), /* fin = */ false,
+                       /* offset = */ 1, serialized_frame);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_STREAM_ID,
+                      "PRIORITY_UPDATE frame received before SETTINGS.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(session_, OnConnectionClosed(_, _));
+
+  receive_control_stream_->OnStreamFrame(data);
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {

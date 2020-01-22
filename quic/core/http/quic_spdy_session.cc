@@ -496,6 +496,29 @@ void QuicSpdySession::OnPriorityFrame(
   stream->OnPriorityFrame(precedence);
 }
 
+bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
+                                                       int urgency) {
+  if (perspective() == Perspective::IS_CLIENT ||
+      !QuicUtils::IsBidirectionalStreamId(stream_id) ||
+      !QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
+    return true;
+  }
+
+  // TODO(b/147306124): Signal error on invalid stream_id.
+
+  MaybeSetStreamPriority(stream_id, spdy::SpdyStreamPrecedence(urgency));
+
+  // TODO(b/147306124): Buffer |urgency| for streams not open yet.
+
+  return true;
+}
+
+bool QuicSpdySession::OnPriorityUpdateForPushStream(QuicStreamId /*push_id*/,
+                                                    int /*urgency*/) {
+  // TODO(b/147306124): Implement PRIORITY_UPDATE frames for pushed streams.
+  return true;
+}
+
 size_t QuicSpdySession::ProcessHeaderData(const struct iovec& iov) {
   QUIC_BUG_IF(destruction_indicator_ != 123456789)
       << "QuicSpdyStream use after free. " << destruction_indicator_
@@ -941,7 +964,8 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         CloseConnectionOnDuplicateHttp3UnidirectionalStreams("Control");
         return false;
       }
-      auto receive_stream = std::make_unique<QuicReceiveControlStream>(pending);
+      auto receive_stream =
+          std::make_unique<QuicReceiveControlStream>(pending, this);
       receive_control_stream_ = receive_stream.get();
       ActivateStream(std::move(receive_stream));
       receive_control_stream_->SetUnblocked();

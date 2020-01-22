@@ -636,6 +636,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // times is safe.
   void DeleteConnection();
 
+  // Call SetPriority() on stream id |id| and return true if stream is active.
+  bool MaybeSetStreamPriority(QuicStreamId stream_id,
+                              const spdy::SpdyStreamPrecedence& precedence);
+
  private:
   friend class test::QuicSessionPeer;
 

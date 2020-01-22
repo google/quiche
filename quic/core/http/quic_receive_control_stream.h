@@ -18,7 +18,8 @@ class QuicSpdySession;
 // The receive control stream is peer initiated and is read only.
 class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
  public:
-  explicit QuicReceiveControlStream(PendingStream* pending);
+  explicit QuicReceiveControlStream(PendingStream* pending,
+                                    QuicSpdySession* spdy_session);
   QuicReceiveControlStream(const QuicReceiveControlStream&) = delete;
   QuicReceiveControlStream& operator=(const QuicReceiveControlStream&) = delete;
   ~QuicReceiveControlStream() override;
@@ -31,6 +32,8 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   void OnDataAvailable() override;
 
   void SetUnblocked() { sequencer()->SetUnblocked(); }
+
+  QuicSpdySession* spdy_session() { return spdy_session_; }
 
  private:
   class HttpDecoderVisitor;
@@ -47,6 +50,8 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   // HttpDecoder and its visitor.
   std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   HttpDecoder decoder_;
+
+  QuicSpdySession* const spdy_session_;
 };
 
 }  // namespace quic
