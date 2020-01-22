@@ -1,9 +1,9 @@
 #ifndef QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 #define QUICHE_SPDY_CORE_SPDY_HEADER_STORAGE_H_
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -16,7 +16,7 @@ namespace spdy {
 // Write operations always append to the last block. If there is not enough
 // space to perform the write, a new block is allocated, and any unused space
 // is wasted.
-class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
+class QUICHE_EXPORT_PRIVATE SpdyHeaderStorage {
  public:
   SpdyHeaderStorage();
 
@@ -51,7 +51,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderStorage {
 
 // Writes |fragments| to |dst|, joined by |separator|. |dst| must be large
 // enough to hold the result. Returns the number of bytes written.
-SPDY_EXPORT_PRIVATE size_t
+QUICHE_EXPORT_PRIVATE size_t
 Join(char* dst,
      const std::vector<quiche::QuicheStringPiece>& fragments,
      quiche::QuicheStringPiece separator);

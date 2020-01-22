@@ -7,14 +7,14 @@
 
 #include <stddef.h>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
 // This interface defines how an object that accepts header data should behave.
 // It is used by both SpdyHeadersBlockParser and HpackDecoder.
-class SPDY_EXPORT_PRIVATE SpdyHeadersHandlerInterface {
+class QUICHE_EXPORT_PRIVATE SpdyHeadersHandlerInterface {
  public:
   virtual ~SpdyHeadersHandlerInterface() {}
 

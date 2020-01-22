@@ -9,9 +9,9 @@
 #include <cstdint>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -24,7 +24,7 @@ class HpackOutputStream;
 // HpackHuffmanTable encodes string literals using a constructed canonical
 // Huffman code. Once initialized, an instance is read only and may be accessed
 // only through its const interface.
-class SPDY_EXPORT_PRIVATE HpackHuffmanTable {
+class QUICHE_EXPORT_PRIVATE HpackHuffmanTable {
  public:
   friend class test::HpackHuffmanTablePeer;
 

@@ -7,14 +7,14 @@
 
 #include <stddef.h>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_pinnable_buffer_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
 // Reader class which simplifies reading contiguously from
 // from a disjoint buffer prefix & suffix.
-class SPDY_EXPORT_PRIVATE SpdyPrefixedBufferReader {
+class QUICHE_EXPORT_PRIVATE SpdyPrefixedBufferReader {
  public:
   SpdyPrefixedBufferReader(const char* prefix,
                            size_t prefix_length,

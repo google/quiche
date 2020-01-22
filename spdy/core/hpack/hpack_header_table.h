@@ -10,10 +10,10 @@
 #include <deque>
 #include <memory>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
@@ -25,7 +25,7 @@ class HpackHeaderTablePeer;
 }  // namespace test
 
 // A data structure for the static table (2.3.1) and the dynamic table (2.3.2).
-class SPDY_EXPORT_PRIVATE HpackHeaderTable {
+class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
  public:
   friend class test::HpackHeaderTablePeer;
 
@@ -60,10 +60,10 @@ class SPDY_EXPORT_PRIVATE HpackHeaderTable {
   // which case |*_index_| can be trivially extended to map to list iterators.
   using EntryTable = std::deque<HpackEntry>;
 
-  struct SPDY_EXPORT_PRIVATE EntryHasher {
+  struct QUICHE_EXPORT_PRIVATE EntryHasher {
     size_t operator()(const HpackEntry* entry) const;
   };
-  struct SPDY_EXPORT_PRIVATE EntriesEq {
+  struct QUICHE_EXPORT_PRIVATE EntriesEq {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
   using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;

@@ -5,8 +5,8 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -16,7 +16,7 @@ struct HpackStaticEntry;
 // encoding and decoding contexts.  Once initialized, an instance is read only
 // and may be accessed only through its const interface.  Such an instance may
 // be shared accross multiple HPACK contexts.
-class SPDY_EXPORT_PRIVATE HpackStaticTable {
+class QUICHE_EXPORT_PRIVATE HpackStaticTable {
  public:
   HpackStaticTable();
   ~HpackStaticTable();

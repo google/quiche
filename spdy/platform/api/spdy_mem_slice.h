@@ -7,7 +7,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/spdy/platform/impl/spdy_mem_slice_impl.h"
 
 namespace spdy {
@@ -16,7 +16,7 @@ namespace spdy {
 // source buffers for write operations. SpdyMemSlice implicitly maintains a
 // reference count and will free the underlying data buffer when the reference
 // count reaches zero.
-class SPDY_EXPORT_PRIVATE SpdyMemSlice {
+class QUICHE_EXPORT_PRIVATE SpdyMemSlice {
  public:
   // Constructs an empty SpdyMemSlice with no underlying data and 0 reference
   // count.

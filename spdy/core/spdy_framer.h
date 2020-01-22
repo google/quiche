@@ -13,6 +13,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -32,7 +32,7 @@ class SpdyFramerTest_PushPromiseFramesWithIterator_Test;
 
 }  // namespace test
 
-class SPDY_EXPORT_PRIVATE SpdyFrameSequence {
+class QUICHE_EXPORT_PRIVATE SpdyFrameSequence {
  public:
   virtual ~SpdyFrameSequence() {}
 
@@ -47,7 +47,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameSequence {
   virtual const SpdyFrameIR& GetIR() const = 0;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyFramer {
+class QUICHE_EXPORT_PRIVATE SpdyFramer {
  public:
   enum CompressionOption {
     ENABLE_COMPRESSION,
@@ -237,7 +237,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
   //     // Write failed;
   //   }
   // }
-  class SPDY_EXPORT_PRIVATE SpdyFrameIterator : public SpdyFrameSequence {
+  class QUICHE_EXPORT_PRIVATE SpdyFrameIterator : public SpdyFrameSequence {
    public:
     // Creates an iterator with the provided framer.
     // Does not take ownership of |framer|.
@@ -280,7 +280,8 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
   // Iteratively converts a SpdyHeadersIR (with a possibly huge
   // SpdyHeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
   // write to the output.
-  class SPDY_EXPORT_PRIVATE SpdyHeaderFrameIterator : public SpdyFrameIterator {
+  class QUICHE_EXPORT_PRIVATE SpdyHeaderFrameIterator
+      : public SpdyFrameIterator {
    public:
     // Does not take ownership of |framer|. Take ownership of |headers_ir|.
     SpdyHeaderFrameIterator(SpdyFramer* framer,
@@ -300,7 +301,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
   // Iteratively converts a SpdyPushPromiseIR (with a possibly huge
   // SpdyHeaderBlock) into an appropriate sequence of SpdySerializedFrames, and
   // write to the output.
-  class SPDY_EXPORT_PRIVATE SpdyPushPromiseFrameIterator
+  class QUICHE_EXPORT_PRIVATE SpdyPushPromiseFrameIterator
       : public SpdyFrameIterator {
    public:
     // Does not take ownership of |framer|. Take ownership of |push_promise_ir|.
@@ -321,7 +322,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramer {
 
   // Converts a SpdyFrameIR into one Spdy frame (a sequence of length 1), and
   // write it to the output.
-  class SPDY_EXPORT_PRIVATE SpdyControlFrameIterator
+  class QUICHE_EXPORT_PRIVATE SpdyControlFrameIterator
       : public SpdyFrameSequence {
    public:
     SpdyControlFrameIterator(SpdyFramer* framer,

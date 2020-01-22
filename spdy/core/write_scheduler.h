@@ -10,8 +10,8 @@
 #include <tuple>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -40,7 +40,7 @@ namespace spdy {
 // returned by PopNextReadyStream(); when returned by that method, the stream's
 // state changes to not ready.
 template <typename StreamIdType>
-class SPDY_EXPORT_PRIVATE WriteScheduler {
+class QUICHE_EXPORT_PRIVATE WriteScheduler {
  public:
   typedef StreamPrecedence<StreamIdType> StreamPrecedenceType;
 

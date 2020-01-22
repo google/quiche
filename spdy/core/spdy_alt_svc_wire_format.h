@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -24,11 +24,11 @@ namespace test {
 class SpdyAltSvcWireFormatPeer;
 }  // namespace test
 
-class SPDY_EXPORT_PRIVATE SpdyAltSvcWireFormat {
+class QUICHE_EXPORT_PRIVATE SpdyAltSvcWireFormat {
  public:
   using VersionVector = SpdyInlinedVector<uint32_t, 8>;
 
-  struct SPDY_EXPORT_PRIVATE AlternativeService {
+  struct QUICHE_EXPORT_PRIVATE AlternativeService {
     std::string protocol_id;
     std::string host;
 

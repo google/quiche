@@ -9,8 +9,8 @@
 #include <cstdint>
 #include <string>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 // All section references below are to
 // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08
@@ -19,7 +19,7 @@ namespace spdy {
 
 // A structure for an entry in the static table (3.3.1)
 // and the header table (3.3.2).
-class SPDY_EXPORT_PRIVATE HpackEntry {
+class QUICHE_EXPORT_PRIVATE HpackEntry {
  public:
   // The constant amount added to name().size() and value().size() to
   // get the size of an HpackEntry as defined in 5.1.

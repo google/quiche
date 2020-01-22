@@ -8,13 +8,13 @@
 #include <memory>
 #include <vector>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 namespace spdy {
 
 // Allocates large blocks of memory, and doles them out in smaller chunks.
 // Not thread-safe.
-class SPDY_EXPORT_PRIVATE SpdySimpleArena {
+class QUICHE_EXPORT_PRIVATE SpdySimpleArena {
  public:
   class Status {
    private:

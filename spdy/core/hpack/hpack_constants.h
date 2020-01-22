@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 
 // All section references below are to
 // https://httpwg.org/specs/rfc7540.html and
@@ -71,22 +71,22 @@ const HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 const HpackPrefix kHeaderTableSizeUpdateOpcode = {0b001, 3};
 
 // RFC 7541, Appendix B: Huffman Code.
-SPDY_EXPORT_PRIVATE const std::vector<HpackHuffmanSymbol>&
+QUICHE_EXPORT_PRIVATE const std::vector<HpackHuffmanSymbol>&
 HpackHuffmanCodeVector();
 
 // RFC 7541, Appendix A: Static Table Definition.
-SPDY_EXPORT_PRIVATE const std::vector<HpackStaticEntry>&
+QUICHE_EXPORT_PRIVATE const std::vector<HpackStaticEntry>&
 HpackStaticTableVector();
 
 // Returns a HpackHuffmanTable instance initialized with |kHpackHuffmanCode|.
 // The instance is read-only, has static lifetime, and is safe to share amoung
 // threads. This function is thread-safe.
-SPDY_EXPORT_PRIVATE const HpackHuffmanTable& ObtainHpackHuffmanTable();
+QUICHE_EXPORT_PRIVATE const HpackHuffmanTable& ObtainHpackHuffmanTable();
 
 // Returns a HpackStaticTable instance initialized with |kHpackStaticTable|.
 // The instance is read-only, has static lifetime, and is safe to share amoung
 // threads. This function is thread-safe.
-SPDY_EXPORT_PRIVATE const HpackStaticTable& ObtainHpackStaticTable();
+QUICHE_EXPORT_PRIVATE const HpackStaticTable& ObtainHpackStaticTable();
 
 // RFC 7541, 8.1.2.1: Pseudo-headers start with a colon.
 const char kPseudoHeaderPrefix = ':';

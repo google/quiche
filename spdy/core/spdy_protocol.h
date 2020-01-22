@@ -19,12 +19,12 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
@@ -82,7 +82,7 @@ const int32_t kPaddingSizePerFrame = 256;
 // defined as a string literal with a null terminator, the actual connection
 // preface is only the first |kHttp2ConnectionHeaderPrefixSize| bytes, which
 // excludes the null terminator.
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2ConnectionHeaderPrefix;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2ConnectionHeaderPrefix;
 const int kHttp2ConnectionHeaderPrefixSize = 24;
 
 // Wire values for HTTP2 frame types.
@@ -166,13 +166,13 @@ enum SpdyKnownSettingsId : SpdySettingsId {
 
 // This explicit operator is needed, otherwise compiler finds
 // overloaded operator to be ambiguous.
-SPDY_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                             SpdyKnownSettingsId id);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               SpdyKnownSettingsId id);
 
 // This operator is needed, because SpdyFrameType is an enum class,
 // therefore implicit conversion to underlying integer type is not allowed.
-SPDY_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                             SpdyFrameType frame_type);
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
+                                               SpdyFrameType frame_type);
 
 using SettingsMap = std::map<SpdySettingsId, uint32_t>;
 
@@ -214,7 +214,7 @@ const SpdyPriority kV3HighestPriority = 0;
 const SpdyPriority kV3LowestPriority = 7;
 
 // Returns SPDY 3.x priority value clamped to the valid range of [0, 7].
-SPDY_EXPORT_PRIVATE SpdyPriority ClampSpdy3Priority(SpdyPriority priority);
+QUICHE_EXPORT_PRIVATE SpdyPriority ClampSpdy3Priority(SpdyPriority priority);
 
 // HTTP/2 stream weights are integers in range [1, 256], as specified in RFC
 // 7540 section 5.3.2. Default stream weight is defined in section 5.3.5.
@@ -223,19 +223,19 @@ const int kHttp2MaxStreamWeight = 256;
 const int kHttp2DefaultStreamWeight = 16;
 
 // Returns HTTP/2 weight clamped to the valid range of [1, 256].
-SPDY_EXPORT_PRIVATE int ClampHttp2Weight(int weight);
+QUICHE_EXPORT_PRIVATE int ClampHttp2Weight(int weight);
 
 // Maps SPDY 3.x priority value in range [0, 7] to HTTP/2 weight value in range
 // [1, 256], where priority 0 (i.e. highest precedence) corresponds to maximum
 // weight 256 and priority 7 (lowest precedence) corresponds to minimum weight
 // 1.
-SPDY_EXPORT_PRIVATE int Spdy3PriorityToHttp2Weight(SpdyPriority priority);
+QUICHE_EXPORT_PRIVATE int Spdy3PriorityToHttp2Weight(SpdyPriority priority);
 
 // Maps HTTP/2 weight value in range [1, 256] to SPDY 3.x priority value in
 // range [0, 7], where minimum weight 1 corresponds to priority 7 (lowest
 // precedence) and maximum weight 256 corresponds to priority 0 (highest
 // precedence).
-SPDY_EXPORT_PRIVATE SpdyPriority Http2WeightToSpdy3Priority(int weight);
+QUICHE_EXPORT_PRIVATE SpdyPriority Http2WeightToSpdy3Priority(int weight);
 
 // Reserved ID for root stream of HTTP/2 stream dependency tree, as specified
 // in RFC 7540 section 5.3.1.
@@ -245,20 +245,20 @@ typedef uint64_t SpdyPingId;
 
 // Returns true if a given on-the-wire enumeration of a frame type is defined
 // in a standardized HTTP/2 specification, false otherwise.
-SPDY_EXPORT_PRIVATE bool IsDefinedFrameType(uint8_t frame_type_field);
+QUICHE_EXPORT_PRIVATE bool IsDefinedFrameType(uint8_t frame_type_field);
 
 // Parses a frame type from an on-the-wire enumeration.
 // Behavior is undefined for invalid frame type fields; consumers should first
 // use IsValidFrameType() to verify validity of frame type fields.
-SPDY_EXPORT_PRIVATE SpdyFrameType ParseFrameType(uint8_t frame_type_field);
+QUICHE_EXPORT_PRIVATE SpdyFrameType ParseFrameType(uint8_t frame_type_field);
 
 // Serializes a frame type to the on-the-wire value.
-SPDY_EXPORT_PRIVATE uint8_t SerializeFrameType(SpdyFrameType frame_type);
+QUICHE_EXPORT_PRIVATE uint8_t SerializeFrameType(SpdyFrameType frame_type);
 
 // (HTTP/2) All standard frame types except WINDOW_UPDATE are
 // (stream-specific xor connection-level). Returns false iff we know
 // the given frame type does not align with the given streamID.
-SPDY_EXPORT_PRIVATE bool IsValidHTTP2FrameStreamId(
+QUICHE_EXPORT_PRIVATE bool IsValidHTTP2FrameStreamId(
     SpdyStreamId current_frame_stream_id,
     SpdyFrameType frame_type_field);
 
@@ -267,25 +267,25 @@ const char* FrameTypeToString(SpdyFrameType frame_type);
 
 // If |wire_setting_id| is the on-the-wire representation of a defined SETTINGS
 // parameter, parse it to |*setting_id| and return true.
-SPDY_EXPORT_PRIVATE bool ParseSettingsId(SpdySettingsId wire_setting_id,
-                                         SpdyKnownSettingsId* setting_id);
+QUICHE_EXPORT_PRIVATE bool ParseSettingsId(SpdySettingsId wire_setting_id,
+                                           SpdyKnownSettingsId* setting_id);
 
 // Returns a string representation of the |id| for logging/debugging. Returns
 // the |id| prefixed with "SETTINGS_UNKNOWN_" for unknown SETTINGS IDs. To parse
 // the |id| into a SpdyKnownSettingsId (if applicable), use ParseSettingsId().
-SPDY_EXPORT_PRIVATE std::string SettingsIdToString(SpdySettingsId id);
+QUICHE_EXPORT_PRIVATE std::string SettingsIdToString(SpdySettingsId id);
 
 // Parse |wire_error_code| to a SpdyErrorCode.
 // Treat unrecognized error codes as INTERNAL_ERROR
 // as recommended by the HTTP/2 specification.
-SPDY_EXPORT_PRIVATE SpdyErrorCode ParseErrorCode(uint32_t wire_error_code);
+QUICHE_EXPORT_PRIVATE SpdyErrorCode ParseErrorCode(uint32_t wire_error_code);
 
 // Serialize RST_STREAM or GOAWAY frame error code to string
 // for logging/debugging.
 const char* ErrorCodeToString(SpdyErrorCode error_code);
 
 // Serialize |type| to string for logging/debugging.
-SPDY_EXPORT_PRIVATE const char* WriteSchedulerTypeToString(
+QUICHE_EXPORT_PRIVATE const char* WriteSchedulerTypeToString(
     WriteSchedulerType type);
 
 // Minimum size of a frame, in octets.
@@ -333,16 +333,16 @@ extern const char* const kHttp2Npn;
 const size_t kPerHeaderHpackOverhead = 4;
 
 // Names of pseudo-headers defined for HTTP/2 requests.
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2AuthorityHeader;
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2MethodHeader;
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2PathHeader;
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2SchemeHeader;
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2ProtocolHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2AuthorityHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2MethodHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2PathHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2SchemeHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2ProtocolHeader;
 
 // Name of pseudo-header defined for HTTP/2 responses.
-SPDY_EXPORT_PRIVATE extern const char* const kHttp2StatusHeader;
+QUICHE_EXPORT_PRIVATE extern const char* const kHttp2StatusHeader;
 
-SPDY_EXPORT_PRIVATE size_t GetNumberRequiredContinuationFrames(size_t size);
+QUICHE_EXPORT_PRIVATE size_t GetNumberRequiredContinuationFrames(size_t size);
 
 // Variant type (i.e. tagged union) that is either a SPDY 3.x priority value,
 // or else an HTTP/2 stream dependency tuple {parent stream ID, weight,
@@ -443,7 +443,7 @@ typedef StreamPrecedence<SpdyStreamId> SpdyStreamPrecedence;
 class SpdyFrameVisitor;
 
 // Intermediate representation for HTTP2 frames.
-class SPDY_EXPORT_PRIVATE SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyFrameIR {
  public:
   virtual ~SpdyFrameIR() {}
 
@@ -471,7 +471,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameIR {
 
 // Abstract class intended to be inherited by IRs that have the option of a FIN
 // flag.
-class SPDY_EXPORT_PRIVATE SpdyFrameWithFinIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyFrameWithFinIR : public SpdyFrameIR {
  public:
   ~SpdyFrameWithFinIR() override {}
   bool fin() const override;
@@ -489,7 +489,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameWithFinIR : public SpdyFrameIR {
 
 // Abstract class intended to be inherited by IRs that contain a header
 // block. Implies SpdyFrameWithFinIR.
-class SPDY_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
+class QUICHE_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
     : public SpdyFrameWithFinIR {
  public:
   ~SpdyFrameWithHeaderBlockIR() override;
@@ -515,7 +515,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
   SpdyHeaderBlock header_block_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
+class QUICHE_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
  public:
   // Performs a deep copy on data.
   SpdyDataIR(SpdyStreamId stream_id, quiche::QuicheStringPiece data);
@@ -589,7 +589,7 @@ class SPDY_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
   int padding_payload_len_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyRstStreamIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyRstStreamIR : public SpdyFrameIR {
  public:
   SpdyRstStreamIR(SpdyStreamId stream_id, SpdyErrorCode error_code);
   SpdyRstStreamIR(const SpdyRstStreamIR&) = delete;
@@ -610,7 +610,7 @@ class SPDY_EXPORT_PRIVATE SpdyRstStreamIR : public SpdyFrameIR {
   SpdyErrorCode error_code_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdySettingsIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdySettingsIR : public SpdyFrameIR {
  public:
   SpdySettingsIR();
   SpdySettingsIR(const SpdySettingsIR&) = delete;
@@ -635,7 +635,7 @@ class SPDY_EXPORT_PRIVATE SpdySettingsIR : public SpdyFrameIR {
   bool is_ack_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyPingIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyPingIR : public SpdyFrameIR {
  public:
   explicit SpdyPingIR(SpdyPingId id) : id_(id), is_ack_(false) {}
   SpdyPingIR(const SpdyPingIR&) = delete;
@@ -656,7 +656,7 @@ class SPDY_EXPORT_PRIVATE SpdyPingIR : public SpdyFrameIR {
   bool is_ack_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
  public:
   // References description, doesn't copy it, so description must outlast
   // this SpdyGoAwayIR.
@@ -706,7 +706,7 @@ class SPDY_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
   const quiche::QuicheStringPiece description_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
+class QUICHE_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdyHeadersIR(SpdyStreamId stream_id)
       : SpdyHeadersIR(stream_id, SpdyHeaderBlock()) {}
@@ -748,7 +748,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
   int padding_payload_len_ = 0;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameIR {
  public:
   SpdyWindowUpdateIR(SpdyStreamId stream_id, int32_t delta)
       : SpdyFrameIR(stream_id) {
@@ -774,7 +774,7 @@ class SPDY_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameIR {
   int32_t delta_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyPushPromiseIR
+class QUICHE_EXPORT_PRIVATE SpdyPushPromiseIR
     : public SpdyFrameWithHeaderBlockIR {
  public:
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id)
@@ -813,7 +813,7 @@ class SPDY_EXPORT_PRIVATE SpdyPushPromiseIR
   int padding_payload_len_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyContinuationIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyContinuationIR : public SpdyFrameIR {
  public:
   explicit SpdyContinuationIR(SpdyStreamId stream_id);
   SpdyContinuationIR(const SpdyContinuationIR&) = delete;
@@ -837,7 +837,7 @@ class SPDY_EXPORT_PRIVATE SpdyContinuationIR : public SpdyFrameIR {
   bool end_headers_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
  public:
   explicit SpdyAltSvcIR(SpdyStreamId stream_id);
   SpdyAltSvcIR(const SpdyAltSvcIR&) = delete;
@@ -865,7 +865,7 @@ class SPDY_EXPORT_PRIVATE SpdyAltSvcIR : public SpdyFrameIR {
   SpdyAltSvcWireFormat::AlternativeServiceVector altsvc_vector_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameIR {
  public:
   SpdyPriorityIR(SpdyStreamId stream_id,
                  SpdyStreamId parent_stream_id,
@@ -894,7 +894,7 @@ class SPDY_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameIR {
 };
 
 // Represents a frame of unrecognized type.
-class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
+class QUICHE_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
  public:
   SpdyUnknownIR(SpdyStreamId stream_id,
                 uint8_t type,
@@ -931,7 +931,7 @@ class SPDY_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
   const std::string payload_;
 };
 
-class SPDY_EXPORT_PRIVATE SpdySerializedFrame {
+class QUICHE_EXPORT_PRIVATE SpdySerializedFrame {
  public:
   SpdySerializedFrame()
       : frame_(const_cast<char*>("")), size_(0), owns_buffer_(false) {}
@@ -1014,7 +1014,7 @@ class SPDY_EXPORT_PRIVATE SpdySerializedFrame {
 // having to know what type they are.  An instance of this interface can be
 // passed to a SpdyFrameIR's Visit method, and the appropriate type-specific
 // method of this class will be called.
-class SPDY_EXPORT_PRIVATE SpdyFrameVisitor {
+class QUICHE_EXPORT_PRIVATE SpdyFrameVisitor {
  public:
   virtual void VisitRstStream(const SpdyRstStreamIR& rst_stream) = 0;
   virtual void VisitSettings(const SpdySettingsIR& settings) = 0;
@@ -1044,7 +1044,7 @@ class SPDY_EXPORT_PRIVATE SpdyFrameVisitor {
 // operates.
 //
 // Most HTTP2 implementations need not bother with this interface at all.
-class SPDY_EXPORT_PRIVATE SpdyFramerDebugVisitorInterface {
+class QUICHE_EXPORT_PRIVATE SpdyFramerDebugVisitorInterface {
  public:
   virtual ~SpdyFramerDebugVisitorInterface() {}
 

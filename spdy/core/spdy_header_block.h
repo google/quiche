@@ -13,10 +13,10 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_storage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
@@ -38,11 +38,11 @@ class ValueProxyPeer;
 //
 // This implementation does not make much of an effort to minimize wasted space.
 // It's expected that keys are rarely deleted from a SpdyHeaderBlock.
-class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
+class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
  private:
   // Stores a list of value fragments that can be joined later with a
   // key-dependent separator.
-  class SPDY_EXPORT_PRIVATE HeaderValue {
+  class QUICHE_EXPORT_PRIVATE HeaderValue {
    public:
     HeaderValue(SpdyHeaderStorage* storage,
                 quiche::QuicheStringPiece key,
@@ -99,7 +99,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // QuicheStringPiece>, even though the underlying MapType::value_type is
   // different. Dereferencing the iterator will result in memory allocation for
   // multi-value headers.
-  class SPDY_EXPORT_PRIVATE iterator {
+  class QUICHE_EXPORT_PRIVATE iterator {
    public:
     // The following type definitions fulfill the requirements for iterator
     // implementations.
@@ -192,7 +192,7 @@ class SPDY_EXPORT_PRIVATE SpdyHeaderBlock {
   // nearly a drop-in replacement for
   // SpdyLinkedHashMap<std::string, std::string>.
   // It reads data from or writes data to a SpdyHeaderStorage.
-  class SPDY_EXPORT_PRIVATE ValueProxy {
+  class QUICHE_EXPORT_PRIVATE ValueProxy {
    public:
     ~ValueProxy();
 

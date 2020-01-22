@@ -9,9 +9,9 @@
 #include <map>
 #include <string>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 // All section references below are to
 // http://tools.ietf.org/html/draft-ietf-httpbis-header-compression-08
@@ -20,7 +20,7 @@ namespace spdy {
 
 // An HpackOutputStream handles all the low-level details of encoding
 // header fields.
-class SPDY_EXPORT_PRIVATE HpackOutputStream {
+class QUICHE_EXPORT_PRIVATE HpackOutputStream {
  public:
   HpackOutputStream();
   HpackOutputStream(const HpackOutputStream&) = delete;

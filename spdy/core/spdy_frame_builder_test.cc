@@ -6,17 +6,17 @@
 
 #include <memory>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 
 namespace test {
 
-class SPDY_EXPORT_PRIVATE SpdyFrameBuilderPeer {
+class QUICHE_EXPORT_PRIVATE SpdyFrameBuilderPeer {
  public:
   static char* GetWritableBuffer(SpdyFrameBuilder* builder, size_t length) {
     return builder->GetWritableBuffer(length);

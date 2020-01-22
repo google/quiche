@@ -14,11 +14,11 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 // An HpackEncoder encodes header sets as outlined in
 // http://tools.ietf.org/html/rfc7541.
@@ -31,7 +31,7 @@ namespace test {
 class HpackEncoderPeer;
 }  // namespace test
 
-class SPDY_EXPORT_PRIVATE HpackEncoder {
+class QUICHE_EXPORT_PRIVATE HpackEncoder {
  public:
   using Representation =
       std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>;
@@ -58,7 +58,7 @@ class SPDY_EXPORT_PRIVATE HpackEncoder {
   // whether or not the encoding was successful.
   bool EncodeHeaderSet(const SpdyHeaderBlock& header_set, std::string* output);
 
-  class SPDY_EXPORT_PRIVATE ProgressiveEncoder {
+  class QUICHE_EXPORT_PRIVATE ProgressiveEncoder {
    public:
     virtual ~ProgressiveEncoder() {}
 

@@ -9,8 +9,8 @@
 
 #include <memory>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_export.h"
 
 namespace spdy {
 
@@ -20,7 +20,7 @@ class SpdyPrefixedBufferReader;
 // Represents a piece of consumed buffer which may (or may not) own its
 // underlying storage. Users may "pin" the buffer at a later time to ensure
 // a SpdyPinnableBufferPiece owns and retains storage of the buffer.
-struct SPDY_EXPORT_PRIVATE SpdyPinnableBufferPiece {
+struct QUICHE_EXPORT_PRIVATE SpdyPinnableBufferPiece {
  public:
   SpdyPinnableBufferPiece();
   ~SpdyPinnableBufferPiece();

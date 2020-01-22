@@ -12,6 +12,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
@@ -32,7 +33,7 @@ class ExtensionVisitorInterface;
 namespace http2 {
 
 // Adapts SpdyFramer interface to use Http2FrameDecoder.
-class SPDY_EXPORT_PRIVATE Http2DecoderAdapter
+class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
     : public http2::Http2FrameDecoderListener {
  public:
   // HTTP2 states.
@@ -344,7 +345,7 @@ namespace spdy {
 //      been delivered for the control frame.
 // During step 2, if the visitor is not interested in accepting the header data,
 // it should return a no-op implementation of SpdyHeadersHandlerInterface.
-class SPDY_EXPORT_PRIVATE SpdyFramerVisitorInterface {
+class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
  public:
   virtual ~SpdyFramerVisitorInterface() {}
 
@@ -495,7 +496,7 @@ class SPDY_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   virtual bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) = 0;
 };
 
-class SPDY_EXPORT_PRIVATE ExtensionVisitorInterface {
+class QUICHE_EXPORT_PRIVATE ExtensionVisitorInterface {
  public:
   virtual ~ExtensionVisitorInterface() {}
 
