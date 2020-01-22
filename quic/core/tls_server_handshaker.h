@@ -47,6 +47,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) override;
   void OnPacketDecrypted(EncryptionLevel level) override;
+  void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker

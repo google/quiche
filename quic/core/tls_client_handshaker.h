@@ -51,6 +51,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+  void OnHandshakeDoneReceived() override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
   void WriteMessage(EncryptionLevel level,
@@ -138,6 +139,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   bool encryption_established_ = false;
   bool one_rtt_keys_available_ = false;
+  bool handshake_confirmed_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 

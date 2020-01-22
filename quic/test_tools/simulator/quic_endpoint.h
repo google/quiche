@@ -60,6 +60,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
   void OnMessageReceived(quiche::QuicheStringPiece /*message*/) override {}
+  void OnHandshakeDoneReceived() override {}
   void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {}
   void OnWriteBlocked() override {}

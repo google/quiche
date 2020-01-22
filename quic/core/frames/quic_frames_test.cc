@@ -234,6 +234,17 @@ TEST_F(QuicFramesTest, PingFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
+TEST_F(QuicFramesTest, HandshakeDoneFrameToString) {
+  QuicHandshakeDoneFrame handshake_done;
+  QuicFrame frame(handshake_done);
+  SetControlFrameId(6, &frame);
+  EXPECT_EQ(6u, GetControlFrameId(frame));
+  std::ostringstream stream;
+  stream << frame.handshake_done_frame;
+  EXPECT_EQ("{ control_frame_id: 6 }\n", stream.str());
+  EXPECT_TRUE(IsControlFrame(frame.type));
+}
+
 TEST_F(QuicFramesTest, StreamFrameToString) {
   QuicStreamFrame frame;
   frame.stream_id = 1;
@@ -545,6 +556,9 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         break;
       case RETIRE_CONNECTION_ID_FRAME:
         frames.push_back(QuicFrame(new QuicRetireConnectionIdFrame()));
+        break;
+      case HANDSHAKE_DONE_FRAME:
+        frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
         break;
       default:
         ASSERT_TRUE(false)

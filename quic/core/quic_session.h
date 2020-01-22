@@ -107,6 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
   void OnMessageReceived(quiche::QuicheStringPiece message) override;
+  void OnHandshakeDoneReceived() override;
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,

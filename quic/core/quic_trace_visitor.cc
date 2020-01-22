@@ -62,6 +62,7 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
       case WINDOW_UPDATE_FRAME:
       case BLOCKED_FRAME:
       case PING_FRAME:
+      case HANDSHAKE_DONE_FRAME:
         PopulateFrameInfo(frame, event->add_frames());
         break;
 
@@ -193,6 +194,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
 
     case PING_FRAME:
     case MTU_DISCOVERY_FRAME:
+    case HANDSHAKE_DONE_FRAME:
       frame_record->set_frame_type(quic_trace::PING);
       break;
 

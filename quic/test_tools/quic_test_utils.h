@@ -305,6 +305,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnWindowUpdateFrame, bool(const QuicWindowUpdateFrame& frame));
   MOCK_METHOD1(OnBlockedFrame, bool(const QuicBlockedFrame& frame));
   MOCK_METHOD1(OnMessageFrame, bool(const QuicMessageFrame& frame));
+  MOCK_METHOD1(OnHandshakeDoneFrame, bool(const QuicHandshakeDoneFrame& frame));
   MOCK_METHOD0(OnPacketComplete, void());
   MOCK_CONST_METHOD1(IsValidStatelessResetToken, bool(QuicUint128));
   MOCK_METHOD1(OnAuthenticatedIetfStatelessResetPacket,
@@ -360,6 +361,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
+  bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
@@ -381,6 +383,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD1(OnRstStream, void(const QuicRstStreamFrame& frame));
   MOCK_METHOD1(OnGoAway, void(const QuicGoAwayFrame& frame));
   MOCK_METHOD1(OnMessageReceived, void(quiche::QuicheStringPiece message));
+  MOCK_METHOD0(OnHandshakeDoneReceived, void());
   MOCK_METHOD2(OnConnectionClosed,
                void(const QuicConnectionCloseFrame& frame,
                     ConnectionCloseSource source));
@@ -686,6 +689,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
 
  private:

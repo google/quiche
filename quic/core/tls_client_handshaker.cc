@@ -240,6 +240,9 @@ CryptoMessageParser* TlsClientHandshaker::crypto_message_parser() {
 }
 
 HandshakeState TlsClientHandshaker::GetHandshakeState() const {
+  if (handshake_confirmed_) {
+    return HANDSHAKE_CONFIRMED;
+  }
   if (one_rtt_keys_available_) {
     return HANDSHAKE_COMPLETE;
   }
@@ -252,6 +255,20 @@ HandshakeState TlsClientHandshaker::GetHandshakeState() const {
 size_t TlsClientHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return TlsHandshaker::BufferSizeLimitForLevel(level);
+}
+
+void TlsClientHandshaker::OnHandshakeDoneReceived() {
+  if (!one_rtt_keys_available_) {
+    CloseConnection(QUIC_HANDSHAKE_FAILED,
+                    "Unexpected handshake done received");
+    return;
+  }
+  if (handshake_confirmed_) {
+    return;
+  }
+  handshake_confirmed_ = true;
+  delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
+  delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
 
 void TlsClientHandshaker::AdvanceHandshake() {
@@ -359,9 +376,6 @@ void TlsClientHandshaker::FinishHandshake() {
       SSL_get_peer_signature_algorithm(ssl());
 
   delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // TODO(fayang): Replace this with DiscardOldKeys(ENCRYPTION_HANDSHAKE) when
-  // handshake key discarding settles down.
-  delegate()->NeuterHandshakeData();
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {

@@ -131,6 +131,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return QuicCryptoHandshaker::crypto_message_parser();
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnHandshakeDoneReceived() override {}
 
   MOCK_METHOD0(OnCanWrite, void());
 
@@ -479,6 +480,9 @@ TEST_P(QuicSpdySessionTestServer, OneRttKeysAvailable) {
         .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }
   EXPECT_FALSE(session_.OneRttKeysAvailable());
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
   EXPECT_TRUE(session_.OneRttKeysAvailable());
@@ -742,7 +746,10 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
         .WillRepeatedly(Invoke(
             this, &QuicSpdySessionTestServer::ClearMaxStreamsControlFrame));
   }
-
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillRepeatedly(Invoke(&ClearControlFrame));
+  }
   // Encryption needs to be established before data can be sent.
   CryptoHandshakeMessage msg;
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
@@ -1084,6 +1091,9 @@ TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
   }
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
   CryptoHandshakeMessage msg;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
   EXPECT_EQ(kMaximumIdleTimeoutSecs + 3,

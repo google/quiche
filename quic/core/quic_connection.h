@@ -89,6 +89,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when |message| has been received.
   virtual void OnMessageReceived(quiche::QuicheStringPiece message) = 0;
 
+  // Called when a HANDSHAKE_DONE frame has been received.
+  virtual void OnHandshakeDoneReceived() = 0;
+
   // Called when a MAX_STREAMS frame has been received from the peer.
   virtual bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) = 0;
 
@@ -260,6 +263,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a MessageFrame has been parsed.
   virtual void OnMessageFrame(const QuicMessageFrame& /*frame*/) {}
+
+  // Called when a HandshakeDoneFrame has been parsed.
+  virtual void OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) {}
 
   // Called when a public reset packet has been received.
   virtual void OnPublicResetPacket(const QuicPublicResetPacket& /*packet*/) {}
@@ -516,6 +522,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const QuicRetireConnectionIdFrame& frame) override;
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
+  bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   void OnPacketComplete() override;
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(

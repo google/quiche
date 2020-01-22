@@ -99,4 +99,8 @@ std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }
 
+void QuicCryptoClientStream::OnHandshakeDoneReceived() {
+  handshaker_->OnHandshakeDoneReceived();
+}
+
 }  // namespace quic

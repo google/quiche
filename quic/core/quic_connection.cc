@@ -1360,6 +1360,28 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
   return connected_;
 }
 
+bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
+  DCHECK(connected_ && VersionHasIetfQuicFrames(transport_version()));
+
+  if (perspective_ == Perspective::IS_SERVER) {
+    CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
+                    "Server received handshake done frame.",
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+
+  // Since a handshake done frame was received, this is not a connectivity
+  // probe. A probe only contains a PING and full padding.
+  UpdatePacketContent(NOT_PADDED_PING);
+
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnHandshakeDoneFrame(frame);
+  }
+  visitor_->OnHandshakeDoneReceived();
+  should_last_packet_instigate_acks_ = true;
+  return connected_;
+}
+
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
   DCHECK(connected_);
 

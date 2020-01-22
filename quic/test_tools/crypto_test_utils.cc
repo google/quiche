@@ -585,7 +585,8 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
     const QuicDecrypter* server_decrypter(
         QuicFramerPeer::GetDecrypter(server_framer, level));
     if (level == ENCRYPTION_FORWARD_SECURE ||
-        !(client_encrypter == nullptr && server_decrypter == nullptr)) {
+        !((level == ENCRYPTION_HANDSHAKE || client_encrypter == nullptr) &&
+          server_decrypter == nullptr)) {
       CompareCrypters(client_encrypter, server_decrypter,
                       "client " + EncryptionLevelString(level) + " write");
     }
@@ -594,7 +595,8 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
     const QuicDecrypter* client_decrypter(
         QuicFramerPeer::GetDecrypter(client_framer, level));
     if (level == ENCRYPTION_FORWARD_SECURE ||
-        !(server_encrypter == nullptr && client_decrypter == nullptr)) {
+        !(server_encrypter == nullptr &&
+          (level == ENCRYPTION_HANDSHAKE || client_decrypter == nullptr))) {
       CompareCrypters(server_encrypter, client_decrypter,
                       "server " + EncryptionLevelString(level) + " write");
     }

@@ -386,6 +386,11 @@ bool NoOpFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
   return true;
 }
 
+bool NoOpFramerVisitor::OnHandshakeDoneFrame(
+    const QuicHandshakeDoneFrame& /*frame*/) {
+  return true;
+}
+
 bool NoOpFramerVisitor::IsValidStatelessResetToken(
     QuicUint128 /*token*/) const {
   return false;

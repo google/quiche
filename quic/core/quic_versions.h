@@ -285,6 +285,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns whether |transport_version| makes use of IETF QUIC
   // frames or not.
   bool HasIetfQuicFrames() const;
+
+  // Returns true if this parsed version supports handshake done.
+  bool HasHandshakeDone() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

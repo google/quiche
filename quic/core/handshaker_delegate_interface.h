@@ -38,13 +38,10 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // Called to neuter ENCRYPTION_INITIAL data (without discarding initial keys).
   virtual void NeuterUnencryptedData() = 0;
 
-  // Called to neuter data of HANDSHAKE_DATA packet number space. In QUIC
-  // crypto, this is called 1) when a client switches to forward secure
+  // Called to neuter data of HANDSHAKE_DATA packet number space. Only used in
+  // QUIC crypto. This is called 1) when a client switches to forward secure
   // encryption level and 2) a server successfully processes a forward secure
-  // packet. Temporarily use this method in TLS handshake when both endpoints
-  // switch to forward secure encryption level.
-  // TODO(fayang): use DiscardOldEncryptionKey instead of this method in TLS
-  // handshake when handshake key discarding settles down.
+  // packet.
   virtual void NeuterHandshakeData() = 0;
 };
 

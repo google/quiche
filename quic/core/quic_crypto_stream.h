@@ -85,6 +85,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Called when a packet of encryption |level| has been successfully decrypted.
   virtual void OnPacketDecrypted(EncryptionLevel level) = 0;
 
+  // Called when a handshake done frame has been received.
+  virtual void OnHandshakeDoneReceived() = 0;
+
   // Returns current handshake state.
   virtual HandshakeState GetHandshakeState() const = 0;
 

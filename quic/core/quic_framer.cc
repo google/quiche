@@ -655,6 +655,9 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
       return GetPathChallengeFrameSize(*frame.path_challenge_frame);
     case STOP_SENDING_FRAME:
       return GetStopSendingFrameSize(*frame.stop_sending_frame);
+    case HANDSHAKE_DONE_FRAME:
+      // HANDSHAKE_DONE has no payload.
+      return kQuicFrameTypeSize;
 
     case STREAM_FRAME:
     case ACK_FRAME:
@@ -1157,6 +1160,9 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
           QUIC_BUG << "AppendCryptoFrame failed: " << detailed_error();
           return 0;
         }
+        break;
+      case HANDSHAKE_DONE_FRAME:
+        // HANDSHAKE_DONE has no payload.
         break;
       default:
         set_detailed_error("Tried to append unknown frame type.");
@@ -3248,6 +3254,19 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
+        case IETF_HANDSHAKE_DONE: {
+          // HANDSHAKE_DONE has no payload.
+          QuicHandshakeDoneFrame handshake_done_frame;
+          if (!visitor_->OnHandshakeDoneFrame(handshake_done_frame)) {
+            QUIC_DVLOG(1) << ENDPOINT
+                          << "Visitor asked to stop further processing.";
+            // Returning true since there was no parsing error.
+            return true;
+          }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing handshake done frame "
+                        << handshake_done_frame;
+          break;
+        }
 
         default:
           set_detailed_error("Illegal frame type.");
@@ -4819,6 +4838,9 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
       return true;
     case CRYPTO_FRAME:
       type_byte = IETF_CRYPTO;
+      break;
+    case HANDSHAKE_DONE_FRAME:
+      type_byte = IETF_HANDSHAKE_DONE;
       break;
     default:
       QUIC_BUG << "Attempt to generate a frame type for an unsupported value: "

@@ -120,6 +120,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
 
     // Returns current handshake state.
     virtual HandshakeState GetHandshakeState() const = 0;
+
+    // Called when handshake done has been received.
+    virtual void OnHandshakeDoneReceived() = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -165,6 +168,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 

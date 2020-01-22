@@ -110,6 +110,12 @@ void QuicControlFrameManager::WriteOrBufferStopSending(uint16_t code,
       new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));
 }
 
+void QuicControlFrameManager::WriteOrBufferHandshakeDone() {
+  QUIC_DVLOG(1) << "Writing HANDSHAKE_DONE";
+  WriteOrBufferQuicFrame(
+      QuicFrame(QuicHandshakeDoneFrame(++last_control_frame_id_)));
+}
+
 void QuicControlFrameManager::WritePing() {
   QUIC_DVLOG(1) << "Writing PING_FRAME";
   if (HasBufferedFrames()) {

@@ -389,6 +389,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override {
+    ++frame_count_;
+    handshake_done_frames_.push_back(
+        std::make_unique<QuicHandshakeDoneFrame>(frame));
+    DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_EQ(IETF_HANDSHAKE_DONE, framer_->current_received_frame_type());
+    return true;
+  }
+
   void OnPacketComplete() override { ++complete_packets_; }
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
@@ -553,6 +562,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicPaddingFrame>> padding_frames_;
   std::vector<std::unique_ptr<QuicPingFrame>> ping_frames_;
   std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
+  std::vector<std::unique_ptr<QuicHandshakeDoneFrame>> handshake_done_frames_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
   std::vector<EncryptionLevel> undecryptable_decryption_levels_;
@@ -5104,6 +5114,39 @@ TEST_P(QuicFramerTest, PingFrame) {
   // No need to check the PING frame boundaries because it has no payload.
 }
 
+TEST_P(QuicFramerTest, HandshakeDoneFrame) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // frame type (Handshake done frame)
+     0x1e,
+    };
+  // clang-format on
+
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUICHE_ARRAYSIZE(packet),
+                                false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  EXPECT_EQ(1u, visitor_.handshake_done_frames_.size());
+}
+
 TEST_P(QuicFramerTest, MessageFrame) {
   if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
@@ -8495,6 +8538,40 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
       "constructed packet", data->data(), data->length(), AsChars(p),
       framer_.transport_version() > QUIC_VERSION_43 ? QUICHE_ARRAYSIZE(packet46)
                                                     : QUICHE_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicFramerTest, BuildHandshakeDonePacket) {
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicHandshakeDoneFrame())};
+
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (Handshake done frame)
+    0x1e,
+  };
+  // clang-format on
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
 }
 
 TEST_P(QuicFramerTest, BuildMessagePacket) {

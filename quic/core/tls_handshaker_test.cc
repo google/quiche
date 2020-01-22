@@ -254,6 +254,7 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
   TlsClientHandshaker* client_handshaker() const { return handshaker_.get(); }
   const MockProofHandler& proof_handler() { return proof_handler_; }
+  void OnHandshakeDoneReceived() override {}
 
   bool CryptoConnect() { return handshaker_->CryptoConnect(); }
 
@@ -306,6 +307,7 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
   void OnPacketDecrypted(EncryptionLevel level) override {
     handshaker_->OnPacketDecrypted(level);
   }
+  void OnHandshakeDoneReceived() override { DCHECK(false); }
 
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
 
@@ -369,8 +371,8 @@ class TlsHandshakerTest : public QuicTest {
     EXPECT_TRUE(client_stream_->encryption_established());
     EXPECT_TRUE(server_stream_->one_rtt_keys_available());
     EXPECT_TRUE(server_stream_->encryption_established());
-    EXPECT_TRUE(client_conn_->IsHandshakeComplete());
-    EXPECT_TRUE(server_conn_->IsHandshakeComplete());
+    EXPECT_EQ(HANDSHAKE_COMPLETE, client_stream_->GetHandshakeState());
+    EXPECT_EQ(HANDSHAKE_CONFIRMED, server_stream_->GetHandshakeState());
 
     const auto& client_crypto_params =
         client_stream_->crypto_negotiated_params();

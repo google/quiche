@@ -196,6 +196,11 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override {
+    handshake_done_frames_.push_back(frame);
+    return true;
+  }
+
   void OnPacketComplete() override {}
 
   bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
@@ -286,6 +291,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicRetireConnectionIdFrame> retire_connection_id_frames_;
   std::vector<QuicNewTokenFrame> new_token_frames_;
   std::vector<QuicMessageFrame> message_frames_;
+  std::vector<QuicHandshakeDoneFrame> handshake_done_frames_;
   std::vector<std::unique_ptr<std::string>> stream_data_;
   std::vector<std::unique_ptr<std::string>> crypto_data_;
   EncryptionLevel last_decrypted_level_;

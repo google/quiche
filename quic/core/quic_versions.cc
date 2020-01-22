@@ -145,6 +145,11 @@ bool ParsedQuicVersion::HasIetfQuicFrames() const {
   return VersionHasIetfQuicFrames(transport_version);
 }
 
+bool ParsedQuicVersion::HasHandshakeDone() const {
+  DCHECK(IsKnown());
+  return HasIetfQuicFrames() && handshake_protocol == PROTOCOL_TLS1_3;
+}
+
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED ||

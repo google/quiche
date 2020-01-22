@@ -67,6 +67,10 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // can not be sent immediately.
   void WriteOrBufferStopSending(uint16_t code, QuicStreamId stream_id);
 
+  // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it can not
+  // be sent immediately.
+  void WriteOrBufferHandshakeDone();
+
   // Sends a PING_FRAME. Do not send PING if there is buffered frames.
   void WritePing();
 

@@ -115,6 +115,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return QuicCryptoHandshaker::crypto_message_parser();
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override {
     return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
   }
@@ -573,6 +574,9 @@ TEST_P(QuicSessionTestServer, DontCallOnWriteBlockedForDisconnectedConnection) {
 TEST_P(QuicSessionTestServer, OneRttKeysAvailable) {
   EXPECT_FALSE(session_.OneRttKeysAvailable());
   CryptoHandshakeMessage message;
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
@@ -1097,6 +1101,10 @@ TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
 
 TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   // Encryption needs to be established before data can be sent.
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_))
+        .WillRepeatedly(Invoke(&ClearControlFrame));
+  }
   CryptoHandshakeMessage msg;
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
@@ -1439,6 +1447,9 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
 TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
   CryptoHandshakeMessage msg;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
   EXPECT_EQ(kMaximumIdleTimeoutSecs + 3,
@@ -2354,6 +2365,9 @@ TEST_P(QuicSessionTestServer, SendMessage) {
                          "", &storage)));
 
   // Finish handshake.
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
   CryptoHandshakeMessage handshake_message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(handshake_message);
   EXPECT_TRUE(session_.OneRttKeysAvailable());

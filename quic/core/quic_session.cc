@@ -374,6 +374,11 @@ void QuicSession::OnMessageReceived(quiche::QuicheStringPiece message) {
                 << ", " << message;
 }
 
+void QuicSession::OnHandshakeDoneReceived() {
+  QUIC_DVLOG(1) << ENDPOINT << "OnHandshakeDoneReceived";
+  GetMutableCryptoStream()->OnHandshakeDoneReceived();
+}
+
 // static
 void QuicSession::RecordConnectionCloseAtServer(QuicErrorCode error,
                                                 ConnectionCloseSource source) {
@@ -1372,6 +1377,12 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
       }
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
+      if (connection()->version().HasHandshakeDone() &&
+          perspective_ == Perspective::IS_SERVER) {
+        // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
+        // to the client.
+        control_frame_manager_.WriteOrBufferHandshakeDone();
+      }
       break;
     default:
       QUIC_BUG << "Unknown encryption level: "
@@ -1398,9 +1409,7 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
       NeuterUnencryptedData();
       break;
     case ENCRYPTION_HANDSHAKE:
-      DCHECK(false);
-      // TODO(fayang): implement this when handshake keys discarding settles
-      // down.
+      NeuterHandshakeData();
       break;
     case ENCRYPTION_ZERO_RTT:
       break;

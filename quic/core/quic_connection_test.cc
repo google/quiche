@@ -1191,6 +1191,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   size_t ProcessFramePacketAtLevel(uint64_t number,
                                    QuicFrame frame,
                                    EncryptionLevel level) {
+    QuicFrames frames;
+    frames.push_back(frame);
+    return ProcessFramesPacketAtLevel(number, frames, level);
+  }
+
+  size_t ProcessFramesPacketAtLevel(uint64_t number,
+                                    const QuicFrames& frames,
+                                    EncryptionLevel level) {
     QuicPacketHeader header;
     header.destination_connection_id = connection_id_;
     header.packet_number_length = packet_number_length_;
@@ -1212,8 +1220,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       header.source_connection_id_included = CONNECTION_ID_PRESENT;
     }
     header.packet_number = QuicPacketNumber(number);
-    QuicFrames frames;
-    frames.push_back(frame);
     std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
     // Set the correct encryption level and encrypter on peer_creator and
     // peer_framer, respectively.
@@ -9689,6 +9695,34 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   EXPECT_EQ(0u, writer_->stream_frames().size());
   // Verify there is coalesced packet.
   EXPECT_NE(nullptr, writer_->coalesced_packet());
+}
+
+TEST_P(QuicConnectionTest, ClientReceivedHandshakeDone) {
+  if (!connection_.version().HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnHandshakeDoneReceived());
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, ServerReceivedHandshakeDone) {
+  if (!connection_.version().HasHandshakeDone()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(visitor_, OnHandshakeDoneReceived()).Times(0);
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(1, connection_close_frame_count_);
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(IETF_QUIC_PROTOCOL_VIOLATION));
 }
 
 }  // namespace

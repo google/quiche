@@ -220,6 +220,7 @@ enum QuicFrameType : uint8_t {
   MESSAGE_FRAME,
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
+  HANDSHAKE_DONE_FRAME,
 
   NUM_FRAME_TYPES
 };
@@ -269,6 +270,8 @@ enum QuicIetfFrameType : uint8_t {
   // errors.
   IETF_CONNECTION_CLOSE = 0x1c,
   IETF_APPLICATION_CLOSE = 0x1d,
+
+  IETF_HANDSHAKE_DONE = 0x1e,
 
   // The MESSAGE frame type has not yet been fully standardized.
   // QUIC versions starting with 46 and before 99 use 0x20-0x21.
@@ -729,13 +732,14 @@ enum HandshakeState {
   // In QUIC crypto, state proceeds to HANDSHAKE_COMPLETE if client receives
   // SHLO or server successfully processes an ENCRYPTION_FORWARD_SECURE
   // packet, such that the handshake packets can be neutered. In IETF QUIC
-  // with TLS handshake, state proceeds to HANDSHAKE_COMPLETE once the
-  // endpoint has both 1-RTT send and receive keys.
+  // with TLS handshake, state proceeds to HANDSHAKE_COMPLETE once the client
+  // has both 1-RTT send and receive keys.
   HANDSHAKE_COMPLETE,
   // Only used in IETF QUIC with TLS handshake. State proceeds to
-  // HANDSHAKE_CONFIRMED if a 1-RTT packet gets acknowledged.
-  // TODO(fayang): implement HANDSHAKE_DONE frame to drive handshake to
-  // confirmation according to https://github.com/quicwg/base-drafts/pull/3145.
+  // HANDSHAKE_CONFIRMED if a client receives HANDSHAKE_DONE frame or server has
+  // 1-RTT send and receive keys.
+  // TODO(fayang): on the client side, proceed state to HANDSHAKE_CONFIRMED once
+  // 1-RTT packet gets acknowledged..
   HANDSHAKE_CONFIRMED,
 };
 

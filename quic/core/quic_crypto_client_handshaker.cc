@@ -153,6 +153,10 @@ HandshakeState QuicCryptoClientHandshaker::GetHandshakeState() const {
   return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
 }
 
+void QuicCryptoClientHandshaker::OnHandshakeDoneReceived() {
+  DCHECK(false);
+}
+
 size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);

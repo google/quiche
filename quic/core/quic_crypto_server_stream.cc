@@ -165,6 +165,10 @@ void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
   handshaker_->OnPacketDecrypted(level);
 }
 
+void QuicCryptoServerStream::OnHandshakeDoneReceived() {
+  DCHECK(false);
+}
+
 HandshakeState QuicCryptoServerStream::GetHandshakeState() const {
   return handshaker_->GetHandshakeState();
 }

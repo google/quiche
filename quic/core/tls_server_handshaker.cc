@@ -120,6 +120,10 @@ void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
   }
 }
 
+void TlsServerHandshaker::OnHandshakeDoneReceived() {
+  DCHECK(false);
+}
+
 bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;
 }
@@ -143,7 +147,7 @@ CryptoMessageParser* TlsServerHandshaker::crypto_message_parser() {
 
 HandshakeState TlsServerHandshaker::GetHandshakeState() const {
   if (one_rtt_keys_available_) {
-    return HANDSHAKE_COMPLETE;
+    return HANDSHAKE_CONFIRMED;
   }
   if (state_ >= STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED) {
     return HANDSHAKE_PROCESSED;
@@ -284,9 +288,8 @@ void TlsServerHandshaker::FinishHandshake() {
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
 
   delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // TODO(fayang): Replace this with DiscardOldKeys(ENCRYPTION_HANDSHAKE) when
-  // handshake key discarding settles down.
-  delegate()->NeuterHandshakeData();
+  delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
+  delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(

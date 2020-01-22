@@ -204,6 +204,9 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a message frame has been parsed.
   virtual bool OnMessageFrame(const QuicMessageFrame& frame) = 0;
 
+  // Called when a handshake done frame has been parsed.
+  virtual bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) = 0;
+
   // Called when a packet has been completely processed.
   virtual void OnPacketComplete() = 0;
 
