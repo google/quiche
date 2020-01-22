@@ -54,7 +54,6 @@ class QuartcSessionTest : public QuicTest {
   ~QuartcSessionTest() override {}
 
   void Init(bool create_client_endpoint = true) {
-    quic::test::QuicEnableDefaultEnabledVersions();
     // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
     SetQuicReloadableFlag(quic_enable_version_t099, false);
 
