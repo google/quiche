@@ -376,7 +376,7 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   hdr.msg_control = control_buffer.buffer;
   hdr.msg_controllen = control_buffer.buffer_len;
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(__linux__)
   // If MSG_TRUNC is set on Linux, recvmsg will return the real packet size even
   // if |packet_buffer| is too small to receive it.
   int flags = MSG_TRUNC;
@@ -399,7 +399,10 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
     return;
   }
 
-  if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC)) {
+  if (QUIC_PREDICT_FALSE(hdr.msg_flags & MSG_TRUNC) ||
+      // Normally "bytes_read > packet_buffer.buffer_len" implies the MSG_TRUNC
+      // bit is set, but it is not the case if tested with config=android_arm64.
+      static_cast<size_t>(bytes_read) > packet_buffer.buffer_len) {
     QUIC_LOG_FIRST_N(WARNING, 100)
         << "Received truncated QUIC packet: buffer size:"
         << packet_buffer.buffer_len << " packet size:" << bytes_read;
