@@ -504,7 +504,19 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
     return true;
   }
 
-  // TODO(b/147306124): Signal error on invalid stream_id.
+  QuicStreamCount advertised_max_incoming_bidirectional_streams =
+      GetAdvertisedMaxIncomingBidirectionalStreams();
+  if (advertised_max_incoming_bidirectional_streams == 0 ||
+      stream_id > QuicUtils::GetFirstBidirectionalStreamId(
+                      transport_version(), Perspective::IS_CLIENT) +
+                      QuicUtils::StreamIdDelta(transport_version()) *
+                          (advertised_max_incoming_bidirectional_streams - 1)) {
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID,
+        "PRIORITY_UPDATE frame received for invalid stream.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
 
   MaybeSetStreamPriority(stream_id, spdy::SpdyStreamPrecedence(urgency));
 

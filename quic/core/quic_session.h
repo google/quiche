@@ -544,6 +544,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Returns the number of open dynamic streams.
   uint64_t GetNumOpenDynamicStreams() const;
 
+  // Returns the maximum bidirectional streams parameter sent with the handshake
+  // as a transport parameter, or in the most recent MAX_STREAMS frame.
+  QuicStreamCount GetAdvertisedMaxIncomingBidirectionalStreams() const;
+
   // Performs the work required to close |stream_id|.  If |locally_reset|
   // then the stream has been reset by this endpoint, not by the peer.
   virtual void CloseStreamInner(QuicStreamId stream_id, bool locally_reset);

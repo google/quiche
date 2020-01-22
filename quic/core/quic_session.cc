@@ -1509,6 +1509,12 @@ bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
       GetNumOpenOutgoingStreams());
 }
 
+QuicStreamCount QuicSession::GetAdvertisedMaxIncomingBidirectionalStreams()
+    const {
+  DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  return v99_streamid_manager_.advertised_max_incoming_bidirectional_streams();
+}
+
 QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
   DCHECK(!QuicContainsKey(pending_stream_map_, stream_id));
   if (QuicUtils::IsCryptoStreamId(transport_version(), stream_id)) {
