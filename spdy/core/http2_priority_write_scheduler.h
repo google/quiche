@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_intrusive_list.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
@@ -713,9 +714,9 @@ size_t Http2PriorityWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 
 template <typename StreamIdType>
 std::string Http2PriorityWriteScheduler<StreamIdType>::DebugString() const {
-  return SpdyStrCat("Http2PriorityWriteScheduler {num_registered_streams=",
-                    NumRegisteredStreams(),
-                    " num_ready_streams=", NumReadyStreams(), "}");
+  return quiche::QuicheStrCat(
+      "Http2PriorityWriteScheduler {num_registered_streams=",
+      NumRegisteredStreams(), " num_ready_streams=", NumReadyStreams(), "}");
 }
 
 template <typename StreamIdType>

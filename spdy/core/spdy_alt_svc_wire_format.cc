@@ -8,6 +8,7 @@
 #include <cctype>
 #include <limits>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
@@ -266,9 +267,9 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
       }
       value.push_back(c);
     }
-    value.append(SpdyStrCat(":", altsvc.port, "\""));
+    value.append(quiche::QuicheStrCat(":", altsvc.port, "\""));
     if (altsvc.max_age != 86400) {
-      value.append(SpdyStrCat("; ma=", altsvc.max_age));
+      value.append(quiche::QuicheStrCat("; ma=", altsvc.max_age));
     }
     if (!altsvc.version.empty()) {
       if (is_ietf_format_quic) {
@@ -283,7 +284,7 @@ std::string SpdyAltSvcWireFormat::SerializeHeaderFieldValue(
           if (it != altsvc.version.begin()) {
             value.append(",");
           }
-          value.append(SpdyStrCat(*it));
+          value.append(quiche::QuicheStrCat(*it));
         }
         value.append("\"");
       }

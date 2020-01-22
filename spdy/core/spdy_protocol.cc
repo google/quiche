@@ -7,6 +7,7 @@
 #include <limits>
 #include <ostream>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
@@ -159,8 +160,8 @@ bool ParseSettingsId(SpdySettingsId wire_setting_id,
 std::string SettingsIdToString(SpdySettingsId id) {
   SpdyKnownSettingsId known_id;
   if (!ParseSettingsId(id, &known_id)) {
-    return SpdyStrCat("SETTINGS_UNKNOWN_",
-                      SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
+    return quiche::QuicheStrCat("SETTINGS_UNKNOWN_",
+                                SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
   }
 
   switch (known_id) {
@@ -182,8 +183,8 @@ std::string SettingsIdToString(SpdySettingsId id) {
       return "SETTINGS_EXPERIMENT_SCHEDULER";
   }
 
-  return SpdyStrCat("SETTINGS_UNKNOWN_",
-                    SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
+  return quiche::QuicheStrCat("SETTINGS_UNKNOWN_",
+                              SpdyHexEncodeUInt32AndTrim(uint32_t{id}));
 }
 
 SpdyErrorCode ParseErrorCode(uint32_t wire_error_code) {

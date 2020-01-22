@@ -13,63 +13,6 @@ namespace spdy {
 namespace test {
 namespace {
 
-TEST(SpdyStringUtilsTest, SpdyStrCat) {
-  // No arguments.
-  EXPECT_EQ("", SpdyStrCat());
-
-  // Single string-like argument.
-  const char kFoo[] = "foo";
-  const std::string string_foo(kFoo);
-  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
-  EXPECT_EQ("foo", SpdyStrCat(kFoo));
-  EXPECT_EQ("foo", SpdyStrCat(string_foo));
-  EXPECT_EQ("foo", SpdyStrCat(stringpiece_foo));
-
-  // Two string-like arguments.
-  const char kBar[] = "bar";
-  const quiche::QuicheStringPiece stringpiece_bar(kBar);
-  const std::string string_bar(kBar);
-  EXPECT_EQ("foobar", SpdyStrCat(kFoo, kBar));
-  EXPECT_EQ("foobar", SpdyStrCat(kFoo, string_bar));
-  EXPECT_EQ("foobar", SpdyStrCat(kFoo, stringpiece_bar));
-  EXPECT_EQ("foobar", SpdyStrCat(string_foo, kBar));
-  EXPECT_EQ("foobar", SpdyStrCat(string_foo, string_bar));
-  EXPECT_EQ("foobar", SpdyStrCat(string_foo, stringpiece_bar));
-  EXPECT_EQ("foobar", SpdyStrCat(stringpiece_foo, kBar));
-  EXPECT_EQ("foobar", SpdyStrCat(stringpiece_foo, string_bar));
-  EXPECT_EQ("foobar", SpdyStrCat(stringpiece_foo, stringpiece_bar));
-
-  // Many-many arguments.
-  EXPECT_EQ(
-      "foobarbazquxquuxquuzcorgegraultgarplywaldofredplughxyzzythud",
-      SpdyStrCat("foo", "bar", "baz", "qux", "quux", "quuz", "corge", "grault",
-                 "garply", "waldo", "fred", "plugh", "xyzzy", "thud"));
-
-  // Numerical arguments.
-  const int16_t i = 1;
-  const uint64_t u = 8;
-  const double d = 3.1415;
-
-  EXPECT_EQ("1 8", SpdyStrCat(i, " ", u));
-  EXPECT_EQ("3.14151181", SpdyStrCat(d, i, i, u, i));
-  EXPECT_EQ("i: 1, u: 8, d: 3.1415",
-            SpdyStrCat("i: ", i, ", u: ", u, ", d: ", d));
-
-  // Boolean arguments.
-  const bool t = true;
-  const bool f = false;
-
-  EXPECT_EQ("1", SpdyStrCat(t));
-  EXPECT_EQ("0", SpdyStrCat(f));
-  EXPECT_EQ("0110", SpdyStrCat(f, t, t, f));
-
-  // Mixed string-like, numerical, and Boolean arguments.
-  EXPECT_EQ("foo1foo081bar3.14151",
-            SpdyStrCat(kFoo, i, string_foo, f, u, t, stringpiece_bar, d, t));
-  EXPECT_EQ("3.141511bar18bar13.14150",
-            SpdyStrCat(d, t, t, string_bar, i, u, kBar, t, d, f));
-}
-
 TEST(SpdyStringUtilsTest, SpdyStrAppend) {
   // No arguments on empty string.
   std::string output;

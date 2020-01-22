@@ -15,12 +15,12 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_containers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 
@@ -261,7 +261,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumRegisteredStreams() const override { return stream_infos_.size(); }
 
   std::string DebugString() const override {
-    return SpdyStrCat(
+    return quiche::QuicheStrCat(
         "PriorityWriteScheduler {num_streams=", stream_infos_.size(),
         " num_ready_streams=", NumReadyStreams(), "}");
   }

@@ -20,11 +20,6 @@
 namespace spdy {
 
 template <typename... Args>
-inline std::string SpdyStrCat(const Args&... args) {
-  return SpdyStrCatImpl(std::forward<const Args&>(args)...);
-}
-
-template <typename... Args>
 inline void SpdyStrAppend(std::string* output, const Args&... args) {
   SpdyStrAppendImpl(output, std::forward<const Args&>(args)...);
 }

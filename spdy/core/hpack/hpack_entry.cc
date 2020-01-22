@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 
@@ -78,7 +78,7 @@ size_t HpackEntry::Size() const {
 }
 
 std::string HpackEntry::GetDebugString() const {
-  return SpdyStrCat(
+  return quiche::QuicheStrCat(
       "{ name: \"", name_ref_, "\", value: \"", value_ref_,
       "\", index: ", insertion_index_, " ",
       (IsStatic() ? " static" : (IsLookup() ? " lookup" : " dynamic")), " }");
