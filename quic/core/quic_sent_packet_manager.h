@@ -577,9 +577,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   PacingSender pacing_sender_;
 
   // Indicates current handshake state.
-  // TODO(fayang): Stop inferring handshake state, instead, retrieve handshake
-  // state from SessionNotifier::GetHandshakeState and use this variable purely
-  // for performance purpose.
+  // TODO(fayang): Change this to a bool.
   HandshakeState handshake_state_;
 
   // Records bandwidth from server to client in normal operation, over periods

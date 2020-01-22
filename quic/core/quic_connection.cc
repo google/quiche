@@ -2480,8 +2480,7 @@ void QuicConnection::OnWriteError(int error_code) {
 }
 
 char* QuicConnection::GetPacketBuffer() {
-  if (version().CanSendCoalescedPackets() &&
-      sent_packet_manager_.handshake_state() < HANDSHAKE_CONFIRMED) {
+  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
     // Do not use writer's packet buffer for coalesced packets which may contain
     // multiple QUIC packets.
     return nullptr;
@@ -4025,8 +4024,7 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
 
 SerializedPacketFate QuicConnection::DeterminePacketFate(
     bool is_mtu_discovery) {
-  if (version().CanSendCoalescedPackets() &&
-      sent_packet_manager_.handshake_state() < HANDSHAKE_CONFIRMED &&
+  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed() &&
       !is_mtu_discovery) {
     // Before receiving ACK for any 1-RTT packets, always try to coalesce
     // packet (except MTU discovery packet).
@@ -4040,6 +4038,11 @@ SerializedPacketFate QuicConnection::DeterminePacketFate(
     return BUFFER;
   }
   return SEND_TO_WRITER;
+}
+
+bool QuicConnection::IsHandshakeConfirmed() const {
+  DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
+  return visitor_->GetHandshakeState() == HANDSHAKE_CONFIRMED;
 }
 
 size_t QuicConnection::min_received_before_ack_decimation() const {

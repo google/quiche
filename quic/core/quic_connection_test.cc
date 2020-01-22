@@ -1076,7 +1076,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .WillRepeatedly(Return(QuicTime::Zero()));
     EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
         .Times(AnyNumber());
-
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_START));
     if (connection_.version().KnowsWhichDecrypterToUse()) {
       connection_.InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,

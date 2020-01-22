@@ -1233,9 +1233,6 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       return PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE;
     }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
-    if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
-      handshake_state_ = HANDSHAKE_CONFIRMED;
-    }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {
       largest_packets_peer_knows_is_acked_[packet_number_space].UpdateMax(

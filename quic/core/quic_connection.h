@@ -875,6 +875,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return sent_packet_manager_.handshake_state() >= HANDSHAKE_COMPLETE;
   }
 
+  // Whether peer completes handshake. Only used with TLS handshake.
+  bool IsHandshakeConfirmed() const;
+
   // Returns the largest received packet number sent by peer.
   QuicPacketNumber GetLargestReceivedPacket() const;
 
