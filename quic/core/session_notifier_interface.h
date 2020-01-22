@@ -40,9 +40,6 @@ class QUIC_EXPORT_PRIVATE SessionNotifierInterface {
 
   // Returns true if any stream is waiting for acks.
   virtual bool HasUnackedStreamData() const = 0;
-
-  // Returns current handshake state.
-  virtual HandshakeState GetHandshakeState() const = 0;
 };
 
 }  // namespace quic

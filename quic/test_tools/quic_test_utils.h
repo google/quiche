@@ -406,6 +406,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD0(OnAckNeedsRetransmittableFrame, void());
   MOCK_METHOD0(SendPing, void());
   MOCK_CONST_METHOD0(AllowSelfAddressChange, bool());
+  MOCK_CONST_METHOD0(GetHandshakeState, HandshakeState());
   MOCK_METHOD0(OnForwardProgressConfirmed, void());
   MOCK_METHOD1(OnMaxStreamsFrame, bool(const QuicMaxStreamsFrame& frame));
   MOCK_METHOD1(OnStreamsBlockedFrame,
@@ -1124,7 +1125,6 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MOCK_CONST_METHOD1(IsFrameOutstanding, bool(const QuicFrame&));
   MOCK_CONST_METHOD0(HasUnackedCryptoData, bool());
   MOCK_CONST_METHOD0(HasUnackedStreamData, bool());
-  MOCK_CONST_METHOD0(GetHandshakeState, HandshakeState());
 };
 
 // Creates a client session for testing.

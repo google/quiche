@@ -75,6 +75,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnAckNeedsRetransmittableFrame() override {}
   void SendPing() override {}
   bool AllowSelfAddressChange() const override;
+  HandshakeState GetHandshakeState() const override;
   void OnForwardProgressConfirmed() override {}
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) override {
     return true;
@@ -99,7 +100,6 @@ class QuicEndpoint : public QuicEndpointBase,
   bool IsFrameOutstanding(const QuicFrame& frame) const override;
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
-  HandshakeState GetHandshakeState() const override;
   // End SessionNotifierInterface implementation.
 
  private:

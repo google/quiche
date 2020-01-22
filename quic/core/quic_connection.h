@@ -163,6 +163,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // change is allowed.
   virtual bool AllowSelfAddressChange() const = 0;
 
+  // Called to get current handshake state.
+  virtual HandshakeState GetHandshakeState() const = 0;
+
   // Called when an ACK is received with a larger |largest_acked| than
   // previously observed.
   virtual void OnForwardProgressConfirmed() = 0;
