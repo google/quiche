@@ -51,10 +51,10 @@ class QUIC_EXPORT_PRIVATE QuicTransportServerSession
 
   bool ShouldKeepConnectionAlive() const override { return true; }
 
-  QuicCryptoStream* GetMutableCryptoStream() override {
+  QuicCryptoServerStreamBase* GetMutableCryptoStream() override {
     return crypto_stream_.get();
   }
-  const QuicCryptoStream* GetCryptoStream() const override {
+  const QuicCryptoServerStreamBase* GetCryptoStream() const override {
     return crypto_stream_.get();
   }
 

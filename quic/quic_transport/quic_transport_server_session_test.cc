@@ -74,8 +74,7 @@ class QuicTransportServerSessionTest : public QuicTest {
         &connection_, nullptr, DefaultQuicConfig(), GetVersions(),
         &crypto_config_, &compressed_certs_cache_, &visitor_);
     session_->Initialize();
-    crypto_stream_ = static_cast<QuicCryptoServerStream*>(
-        session_->GetMutableCryptoStream());
+    crypto_stream_ = session_->GetMutableCryptoStream();
     if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
       crypto_stream_->OnSuccessfulVersionNegotiation(GetVersions()[0]);
     }
@@ -130,7 +129,7 @@ class QuicTransportServerSessionTest : public QuicTest {
   std::unique_ptr<QuicTransportServerSession> session_;
   QuicCompressedCertsCache compressed_certs_cache_;
   testing::NiceMock<MockServerVisitor> visitor_;
-  QuicCryptoServerStream* crypto_stream_;
+  QuicCryptoServerStreamBase* crypto_stream_;
   GURL path_;
 };
 
