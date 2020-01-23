@@ -77,7 +77,10 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
   sockaddr_storage addr = client_address.generic_address();
   int rc = bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
   if (rc < 0) {
-    QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno);
+    QUIC_LOG(ERROR) << "Bind failed: " << strerror(errno)
+                    << " bind_to_address:" << bind_to_address
+                    << ", bind_to_port:" << bind_to_port
+                    << ", client_address:" << client_address;
     return false;
   }
 
