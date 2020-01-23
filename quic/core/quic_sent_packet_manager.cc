@@ -92,7 +92,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       min_rto_timeout_(
           QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs)),
       largest_mtu_acked_(0),
-      handshake_state_(HANDSHAKE_START),
+      handshake_finished_(false),
       peer_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
@@ -344,8 +344,8 @@ void QuicSentPacketManager::AdjustNetworkParameters(
 }
 
 void QuicSentPacketManager::SetHandshakeConfirmed() {
-  if (handshake_state_ < HANDSHAKE_COMPLETE) {
-    handshake_state_ = HANDSHAKE_COMPLETE;
+  if (!handshake_finished_) {
+    handshake_finished_ = true;
     NeuterHandshakePackets();
   }
 }
@@ -668,7 +668,7 @@ bool QuicSentPacketManager::OnPacketSent(
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::OnRetransmissionTimeout() {
   DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE));
+         (handshake_mode_disabled_ && !handshake_finished_));
   DCHECK_EQ(0u, pending_timer_transmission_count_);
   // Handshake retransmission, timer based loss detection, TLP, and RTO are
   // implemented with a single alarm. The handshake alarm is set when the
@@ -846,8 +846,8 @@ void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
   DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE));
-  if (!handshake_mode_disabled_ && handshake_state_ < HANDSHAKE_COMPLETE &&
+         (handshake_mode_disabled_ && !handshake_finished_));
+  if (!handshake_mode_disabled_ && !handshake_finished_ &&
       unacked_packets_.HasPendingCryptoPackets()) {
     return HANDSHAKE_MODE;
   }
@@ -932,7 +932,7 @@ QuicTime::Delta QuicSentPacketManager::TimeUntilSend(QuicTime now) const {
 
 const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
   if (!unacked_packets_.HasInFlightPackets() &&
-      (!handshake_mode_disabled_ || handshake_state_ >= HANDSHAKE_COMPLETE ||
+      (!handshake_mode_disabled_ || handshake_finished_ ||
        unacked_packets_.perspective() == Perspective::IS_SERVER)) {
     // Do not set the timer if there is nothing in flight. However, to avoid
     // handshake deadlock due to anti-amplification limit, client needs to set

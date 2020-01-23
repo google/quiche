@@ -345,7 +345,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return largest_packet_peer_knows_is_acked_;
   }
 
-  HandshakeState handshake_state() const { return handshake_state_; }
+  // TODO(fayang): Stop exposing this when deprecating
+  // quic_use_get_handshake_state.
+  bool handshake_finished() const { return handshake_finished_; }
 
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
@@ -576,9 +578,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Calls into |send_algorithm_| for the underlying congestion control.
   PacingSender pacing_sender_;
 
-  // Indicates current handshake state.
-  // TODO(fayang): Change this to a bool.
-  HandshakeState handshake_state_;
+  // Indicates whether handshake is finished. This is purely used to determine
+  // retransmission mode. DONOT use this to infer handshake state.
+  bool handshake_finished_;
 
   // Records bandwidth from server to client in normal operation, over periods
   // of time with no loss events.

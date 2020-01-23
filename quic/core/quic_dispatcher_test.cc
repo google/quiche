@@ -68,8 +68,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
                               nullptr,
                               nullptr,
                               crypto_config,
-                              compressed_certs_cache),
-        crypto_stream_(QuicServerSessionBase::GetMutableCryptoStream()) {}
+                              compressed_certs_cache) {
+    Initialize();
+  }
   TestQuicSpdyServerSession(const TestQuicSpdyServerSession&) = delete;
   TestQuicSpdyServerSession& operator=(const TestQuicSpdyServerSession&) =
       delete;
@@ -91,24 +92,9 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
                                     stream_helper());
   }
 
-  void SetCryptoStream(QuicCryptoServerStream* crypto_stream) {
-    crypto_stream_ = crypto_stream;
-  }
-
-  QuicCryptoServerStreamBase* GetMutableCryptoStream() override {
-    return crypto_stream_;
-  }
-
-  const QuicCryptoServerStreamBase* GetCryptoStream() const override {
-    return crypto_stream_;
-  }
-
   QuicCryptoServerStream::Helper* stream_helper() {
     return QuicServerSessionBase::stream_helper();
   }
-
- private:
-  QuicCryptoServerStreamBase* crypto_stream_;
 };
 
 class TestDispatcher : public QuicDispatcher {

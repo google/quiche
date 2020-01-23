@@ -4040,6 +4040,15 @@ SerializedPacketFate QuicConnection::DeterminePacketFate(
   return SEND_TO_WRITER;
 }
 
+bool QuicConnection::IsHandshakeComplete() const {
+  if (use_handshake_delegate_ &&
+      GetQuicReloadableFlag(quic_use_get_handshake_state)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_get_handshake_state);
+    return visitor_->GetHandshakeState() >= HANDSHAKE_COMPLETE;
+  }
+  return sent_packet_manager_.handshake_finished();
+}
+
 bool QuicConnection::IsHandshakeConfirmed() const {
   DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
   return visitor_->GetHandshakeState() == HANDSHAKE_CONFIRMED;

@@ -871,9 +871,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   };
 
   // Whether the handshake completes from this connection's perspective.
-  bool IsHandshakeComplete() const {
-    return sent_packet_manager_.handshake_state() >= HANDSHAKE_COMPLETE;
-  }
+  bool IsHandshakeComplete() const;
 
   // Whether peer completes handshake. Only used with TLS handshake.
   bool IsHandshakeConfirmed() const;
