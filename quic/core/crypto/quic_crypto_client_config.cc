@@ -859,6 +859,15 @@ SessionCache* QuicCryptoClientConfig::session_cache() const {
   return session_cache_.get();
 }
 
+ProofSource* QuicCryptoClientConfig::proof_source() const {
+  return proof_source_.get();
+}
+
+void QuicCryptoClientConfig::set_proof_source(
+    std::unique_ptr<ProofSource> proof_source) {
+  proof_source_ = std::move(proof_source);
+}
+
 SSL_CTX* QuicCryptoClientConfig::ssl_ctx() const {
   return ssl_ctx_.get();
 }
