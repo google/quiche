@@ -434,6 +434,15 @@ inline bool EncryptionLevelIsValid(EncryptionLevel level) {
 
 QUIC_EXPORT_PRIVATE std::string EncryptionLevelToString(EncryptionLevel level);
 
+// Enumeration of whether a server endpoint will request a client certificate,
+// and whether that endpoint requires a valid client certificate to establish a
+// connection.
+enum class ClientCertMode {
+  kNone,     // Do not request a client certificate.  Default server behavior.
+  kRequest,  // Request a certificate, but allow unauthenticated connections.
+  kRequire,  // Require clients to provide a valid certificate.
+};
+
 enum AddressChangeType : uint8_t {
   // IP address and port remain unchanged.
   NO_CHANGE,
