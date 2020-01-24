@@ -736,10 +736,9 @@ enum HandshakeState {
   // has both 1-RTT send and receive keys.
   HANDSHAKE_COMPLETE,
   // Only used in IETF QUIC with TLS handshake. State proceeds to
-  // HANDSHAKE_CONFIRMED if a client receives HANDSHAKE_DONE frame or server has
+  // HANDSHAKE_CONFIRMED if 1) a client receives HANDSHAKE_DONE frame or
+  // acknowledgment for 1-RTT packet or 2) server has
   // 1-RTT send and receive keys.
-  // TODO(fayang): on the client side, proceed state to HANDSHAKE_CONFIRMED once
-  // 1-RTT packet gets acknowledged..
   HANDSHAKE_CONFIRMED,
 };
 

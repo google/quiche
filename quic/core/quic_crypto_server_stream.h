@@ -175,6 +175,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel level) override;
+  void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;

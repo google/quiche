@@ -1032,6 +1032,8 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an old ack frame: ignoring";
     return true;
   }
+  const bool one_rtt_packet_was_acked =
+      sent_packet_manager_.one_rtt_packet_acked();
   const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
       time_of_last_received_packet_, last_header_.packet_number,
       last_decrypted_packet_level_);
@@ -1043,6 +1045,10 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
                      << "Error occurred when processing an ACK frame: "
                      << QuicUtils::AckResultToString(ack_result);
     return false;
+  }
+  if (SupportsMultiplePacketNumberSpaces() && !one_rtt_packet_was_acked &&
+      sent_packet_manager_.one_rtt_packet_acked()) {
+    visitor_->OnOneRttPacketAcknowledged();
   }
   // Cancel the send alarm because new packets likely have been acked, which
   // may change the congestion window and/or pacing rate.  Canceling the alarm

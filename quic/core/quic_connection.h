@@ -175,6 +175,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when a packet of encryption |level| has been successfully decrypted.
   virtual void OnPacketDecrypted(EncryptionLevel level) = 0;
+
+  // Called when a 1RTT packet has been acknowledged.
+  virtual void OnOneRttPacketAcknowledged() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

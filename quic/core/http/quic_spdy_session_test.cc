@@ -131,6 +131,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return QuicCryptoHandshaker::crypto_message_parser();
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override {}
 
   MOCK_METHOD0(OnCanWrite, void());

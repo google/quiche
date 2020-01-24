@@ -181,6 +181,7 @@ class TestQuicCryptoStream : public QuicCryptoStream {
   }
 
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
 
   HandshakeState GetHandshakeState() const override {
     return handshaker()->GetHandshakeState();

@@ -47,6 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+  void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override;
 
   // From QuicCryptoHandshaker

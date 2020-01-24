@@ -106,6 +106,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
       num_tlp_timeout_ptos_(0),
+      one_rtt_packet_acked_(false),
       sanitize_ack_delay_(GetQuicReloadableFlag(quic_sanitize_ack_delay)) {
   SetSendAlgorithm(congestion_control_type);
 }
@@ -1233,6 +1234,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       return PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE;
     }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
+    if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+      one_rtt_packet_acked_ = true;
+    }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {
       largest_packets_peer_knows_is_acked_[packet_number_space].UpdateMax(

@@ -402,6 +402,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return skip_packet_number_for_pto_;
   }
 
+  bool one_rtt_packet_acked() const { return one_rtt_packet_acked_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -638,6 +640,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Number of PTOs similar to TLPs.
   size_t num_tlp_timeout_ptos_;
+
+  // True if any 1-RTT packet gets acknowledged.
+  bool one_rtt_packet_acked_;
 
   // Latched value of quic_sanitize_ack_delay.
   const bool sanitize_ack_delay_;

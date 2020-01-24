@@ -51,6 +51,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+  void OnOneRttPacketAcknowledged() override;
   void OnHandshakeDoneReceived() override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
@@ -106,6 +107,10 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
+
+  // Called when server completes handshake (i.e., either handshake done is
+  // received or 1-RTT packet gets acknowledged).
+  void OnHandshakeConfirmed();
 
   void InsertSession(bssl::UniquePtr<SSL_SESSION> session) override;
 

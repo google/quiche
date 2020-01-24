@@ -257,12 +257,21 @@ size_t TlsClientHandshaker::BufferSizeLimitForLevel(
   return TlsHandshaker::BufferSizeLimitForLevel(level);
 }
 
+void TlsClientHandshaker::OnOneRttPacketAcknowledged() {
+  OnHandshakeConfirmed();
+}
+
 void TlsClientHandshaker::OnHandshakeDoneReceived() {
   if (!one_rtt_keys_available_) {
     CloseConnection(QUIC_HANDSHAKE_FAILED,
                     "Unexpected handshake done received");
     return;
   }
+  OnHandshakeConfirmed();
+}
+
+void TlsClientHandshaker::OnHandshakeConfirmed() {
+  DCHECK(one_rtt_keys_available_);
   if (handshake_confirmed_) {
     return;
   }

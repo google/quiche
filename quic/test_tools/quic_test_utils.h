@@ -413,6 +413,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
                bool(const QuicStreamsBlockedFrame& frame));
   MOCK_METHOD1(OnStopSendingFrame, void(const QuicStopSendingFrame& frame));
   MOCK_METHOD1(OnPacketDecrypted, void(EncryptionLevel));
+  MOCK_METHOD0(OnOneRttPacketAcknowledged, void());
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -690,6 +691,7 @@ class MockQuicCryptoStream : public QuicCryptoStream {
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
 

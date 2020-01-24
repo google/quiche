@@ -1071,7 +1071,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
-
+    EXPECT_CALL(visitor_, OnOneRttPacketAcknowledged())
+        .Times(testing::AtMost(1));
     EXPECT_CALL(*loss_algorithm_, GetLossTimeout())
         .WillRepeatedly(Return(QuicTime::Zero()));
     EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
@@ -2669,10 +2670,16 @@ TEST_P(QuicConnectionTest, OutOfOrderAckReceiptCausesNoAck) {
   QuicAckFrame ack1 = InitAckFrame(1);
   QuicAckFrame ack2 = InitAckFrame(2);
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    EXPECT_CALL(visitor_, OnOneRttPacketAcknowledged()).Times(1);
+  }
   ProcessAckPacket(2, &ack2);
   // Should ack immediately since we have missing packets.
   EXPECT_EQ(2u, writer_->packets_write_attempts());
 
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    EXPECT_CALL(visitor_, OnOneRttPacketAcknowledged()).Times(0);
+  }
   ProcessAckPacket(1, &ack1);
   // Should not ack an ack filling a missing packet.
   EXPECT_EQ(2u, writer_->packets_write_attempts());

@@ -115,6 +115,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return QuicCryptoHandshaker::crypto_message_parser();
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override {
     return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;

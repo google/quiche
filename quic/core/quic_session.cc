@@ -299,6 +299,10 @@ void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
   GetMutableCryptoStream()->OnPacketDecrypted(level);
 }
 
+void QuicSession::OnOneRttPacketAcknowledged() {
+  GetMutableCryptoStream()->OnOneRttPacketAcknowledged();
+}
+
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
