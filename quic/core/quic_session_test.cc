@@ -2926,6 +2926,7 @@ TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
   }
   // Create a stream before negotiating the config and verify it starts off
   // blocked.
+  QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(&session_, 10);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_TRUE(stream2->flow_controller()->IsBlocked());
   EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());

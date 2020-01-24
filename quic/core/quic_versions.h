@@ -477,7 +477,7 @@ QUIC_EXPORT_PRIVATE constexpr bool VersionSupportsMessageFrames(
 // * GOAWAY is moved to HTTP layer.
 QUIC_EXPORT_PRIVATE constexpr bool VersionUsesHttp3(
     QuicTransportVersion transport_version) {
-  return transport_version == QUIC_VERSION_99;
+  return transport_version >= QUIC_VERSION_99;
 }
 
 // Returns whether the transport_version supports the variable length integer
