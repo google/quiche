@@ -281,6 +281,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
            (qpack_decoder_ && qpack_decoder_->dynamic_table_entry_referenced());
   }
 
+  void OnStreamCreated(QuicSpdyStream* stream);
+
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
@@ -451,6 +453,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // If the endpoint has sent the initial HTTP/3 MAX_PUSH_ID frame.
   bool http3_max_push_id_sent_;
+
+  // Priority values received in PRIORITY_UPDATE frames for streams that are not
+  // open yet.
+  QuicUnorderedMap<QuicStreamId, int> buffered_stream_priorities_;
 };
 
 }  // namespace quic

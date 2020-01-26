@@ -518,9 +518,32 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
     return false;
   }
 
-  MaybeSetStreamPriority(stream_id, spdy::SpdyStreamPrecedence(urgency));
+  if (MaybeSetStreamPriority(stream_id, spdy::SpdyStreamPrecedence(urgency))) {
+    return true;
+  }
 
-  // TODO(b/147306124): Buffer |urgency| for streams not open yet.
+  if (IsClosedStream(stream_id)) {
+    return true;
+  }
+
+  buffered_stream_priorities_[stream_id] = urgency;
+
+  if (buffered_stream_priorities_.size() >
+      10 * max_open_incoming_bidirectional_streams()) {
+    // This should never happen, because |buffered_stream_priorities_| should
+    // only contain entries for streams that are allowed to be open by the peer
+    // but have not been opened yet.
+    std::string error_message = quiche::QuicheStrCat(
+        "Too many stream priority values buffered: ",
+        buffered_stream_priorities_.size(),
+        ", which should not exceed the incoming stream limit of ",
+        max_open_incoming_bidirectional_streams());
+    QUIC_BUG << error_message;
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR, error_message,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
 
   return true;
 }
@@ -655,6 +678,16 @@ QpackDecoder* QuicSpdySession::qpack_decoder() {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   return qpack_decoder_.get();
+}
+
+void QuicSpdySession::OnStreamCreated(QuicSpdyStream* stream) {
+  auto it = buffered_stream_priorities_.find(stream->id());
+  if (it == buffered_stream_priorities_.end()) {
+    return;
+  }
+
+  stream->SetPriority(spdy::SpdyStreamPrecedence(it->second));
+  buffered_stream_priorities_.erase(it);
 }
 
 QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(

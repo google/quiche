@@ -217,6 +217,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
   if (VersionUsesHttp3(transport_version())) {
     sequencer()->set_level_triggered(true);
   }
+
+  spdy_session_->OnStreamCreated(this);
 }
 
 QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
@@ -251,6 +253,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
   if (VersionUsesHttp3(transport_version())) {
     sequencer()->set_level_triggered(true);
   }
+
+  spdy_session_->OnStreamCreated(this);
 }
 
 QuicSpdyStream::~QuicSpdyStream() {}
