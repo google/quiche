@@ -232,20 +232,11 @@ bool Bbr2ProbeBwMode::IsTimeToProbeBandwidth(
 // long, as seen in some multi-sender simulator tests.
 bool Bbr2ProbeBwMode::HasStayedLongEnoughInProbeDown(
     const Bbr2CongestionEvent& congestion_event) const {
-  if (exit_probe_down_after_one_rtt_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_exit_probe_bw_down_after_one_rtt);
-    // Stay in PROBE_DOWN for at most the time of a min rtt, as it is done in
-    // BBRv1. The intention here is to figure out whether the performance
-    // regression in BBRv2 is because it stays in PROBE_DOWN for too long.
-    // TODO(wub): Consider exit after a full round instead, which typically
-    // indicates most(if not all) packets sent during PROBE_UP have been acked.
-    return HasPhaseLasted(model_->MinRtt(), congestion_event);
-  }
-  // The amount of time to stay in PROBE_DOWN, as a fraction of probe wait time.
-  const double kProbeWaitFraction = 0.2;
-  return HasCycleLasted(cycle_.probe_wait_time * kProbeWaitFraction,
-                        congestion_event) ||
-         IsTimeToProbeForRenoCoexistence(kProbeWaitFraction, congestion_event);
+  // Stay in PROBE_DOWN for at most the time of a min rtt, as it is done in
+  // BBRv1.
+  // TODO(wub): Consider exit after a full round instead, which typically
+  // indicates most(if not all) packets sent during PROBE_UP have been acked.
+  return HasPhaseLasted(model_->MinRtt(), congestion_event);
 }
 
 bool Bbr2ProbeBwMode::HasCycleLasted(
