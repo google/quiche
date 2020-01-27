@@ -455,36 +455,11 @@ void QuicSentPacketManager::RetransmitUnackedPackets(
 }
 
 void QuicSentPacketManager::NeuterUnencryptedPackets() {
-  QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
-       it != unacked_packets_.end(); ++it, ++packet_number) {
-    if (!it->retransmittable_frames.empty() &&
-        it->encryption_level == ENCRYPTION_INITIAL) {
-      // Once the connection swithes to forward secure, no unencrypted packets
-      // will be sent. The data has been abandoned in the cryto stream. Remove
-      // it from in flight.
-      unacked_packets_.RemoveFromInFlight(packet_number);
-      it->state = NEUTERED;
-      DCHECK(!unacked_packets_.HasRetransmittableFrames(*it));
-    }
-  }
+  unacked_packets_.NeuterUnencryptedPackets();
 }
 
 void QuicSentPacketManager::NeuterHandshakePackets() {
-  QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
-       it != unacked_packets_.end(); ++it, ++packet_number) {
-    if (!it->retransmittable_frames.empty() &&
-        unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
-            HANDSHAKE_DATA) {
-      unacked_packets_.RemoveFromInFlight(packet_number);
-      // Notify session that the data has been delivered (but do not notify
-      // send algorithm).
-      it->state = NEUTERED;
-      unacked_packets_.NotifyFramesAcked(*it, QuicTime::Delta::Zero(),
-                                         QuicTime::Zero());
-    }
-  }
+  unacked_packets_.NeuterHandshakePackets();
 }
 
 bool QuicSentPacketManager::ShouldAddMaxAckDelay() const {

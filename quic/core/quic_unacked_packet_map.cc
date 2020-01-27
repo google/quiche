@@ -208,6 +208,37 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicPacketNumber packet_number) {
   RemoveFromInFlight(info);
 }
 
+void QuicUnackedPacketMap::NeuterUnencryptedPackets() {
+  QuicPacketNumber packet_number = GetLeastUnacked();
+  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
+       it != unacked_packets_.end(); ++it, ++packet_number) {
+    if (!it->retransmittable_frames.empty() &&
+        it->encryption_level == ENCRYPTION_INITIAL) {
+      // Once the connection swithes to forward secure, no unencrypted packets
+      // will be sent. The data has been abandoned in the cryto stream. Remove
+      // it from in flight.
+      RemoveFromInFlight(packet_number);
+      it->state = NEUTERED;
+      DCHECK(!HasRetransmittableFrames(*it));
+    }
+  }
+}
+
+void QuicUnackedPacketMap::NeuterHandshakePackets() {
+  QuicPacketNumber packet_number = GetLeastUnacked();
+  for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
+       it != unacked_packets_.end(); ++it, ++packet_number) {
+    if (!it->retransmittable_frames.empty() &&
+        GetPacketNumberSpace(it->encryption_level) == HANDSHAKE_DATA) {
+      RemoveFromInFlight(packet_number);
+      // Notify session that the data has been delivered (but do not notify
+      // send algorithm).
+      it->state = NEUTERED;
+      NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
+    }
+  }
+}
+
 bool QuicUnackedPacketMap::HasInFlightPackets() const {
   return bytes_in_flight_ > 0;
 }

@@ -65,6 +65,15 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // Marks |packet_number| as no longer in flight.
   void RemoveFromInFlight(QuicPacketNumber packet_number);
 
+  // Called to neuter all unencrypted packets to ensure they do not get
+  // retransmitted.
+  void NeuterUnencryptedPackets();
+
+  // Called to neuter packets in handshake packet number space to ensure they do
+  // not get retransmitted.
+  // TODO(fayang): Consider to combine this with NeuterUnencryptedPackets.
+  void NeuterHandshakePackets();
+
   // Returns true if |packet_number| has retransmittable frames. This will
   // return false if all frames of this packet are either non-retransmittable or
   // have been acked.

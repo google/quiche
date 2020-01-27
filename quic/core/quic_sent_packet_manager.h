@@ -161,7 +161,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Removes the retransmittable frames from all unencrypted packets to ensure
   // they don't get retransmitted.
-  // TODO(fayang): Consider replace this function with NeuterHandshakePackets.
   void NeuterUnencryptedPackets();
 
   // Returns true if there's outstanding crypto data.
@@ -509,8 +508,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Called when handshake is confirmed to remove the retransmittable frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't
   // get retransmitted and will eventually be removed from unacked packets map.
-  // Please note, this only applies to QUIC Crypto and needs to be changed when
-  // switches to IETF QUIC with QUIC TLS.
   void NeuterHandshakePackets();
 
   // Indicates whether including peer_max_ack_delay_ when calculating PTO
