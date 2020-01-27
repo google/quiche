@@ -1727,10 +1727,7 @@ const QuicConnectionStats& QuicConnection::GetStats() {
   stats_.srtt_us = srtt.ToMicroseconds();
 
   stats_.estimated_bandwidth = sent_packet_manager_.BandwidthEstimate();
-  if (GetQuicReloadableFlag(quic_log_ack_aggregation_stats)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_log_ack_aggregation_stats);
-    sent_packet_manager_.GetSendAlgorithm()->PopulateConnectionStats(&stats_);
-  }
+  sent_packet_manager_.GetSendAlgorithm()->PopulateConnectionStats(&stats_);
   stats_.max_packet_size = packet_creator_.max_packet_length();
   stats_.max_received_packet_size = largest_received_packet_size_;
   return stats_;
