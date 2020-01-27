@@ -333,8 +333,6 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      quic_version_negotiated_by_default_at_server_(
-          GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)),
       use_handshake_delegate_(
           GetQuicReloadableFlag(quic_use_handshaker_delegate2) ||
           version().handshake_protocol == PROTOCOL_TLS1_3) {
@@ -375,9 +373,9 @@ QuicConnection::QuicConnection(
          supported_versions.size() == 1);
   InstallInitialCrypters(server_connection_id_);
 
-  if (quic_version_negotiated_by_default_at_server() &&
-      perspective_ == Perspective::IS_SERVER) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_version_negotiated_by_default_at_server);
+  // On the server side, version negotiation has been done by the dispatcher,
+  // and the server connection is created with the right version.
+  if (perspective_ == Perspective::IS_SERVER) {
     version_negotiated_ = true;
     framer_.InferPacketHeaderTypeFromVersion();
   }
@@ -762,31 +760,6 @@ bool QuicConnection::OnUnauthenticatedHeader(const QuicPacketHeader& header) {
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
-  }
-
-  if (!quic_version_negotiated_by_default_at_server()) {
-    if (!version_negotiated_ && perspective_ == Perspective::IS_SERVER) {
-      if (!header.version_flag) {
-        // Packets should have the version flag till version negotiation is
-        // done.
-        std::string error_details = quiche::QuicheStrCat(
-            ENDPOINT, "Packet ", header.packet_number.ToUint64(),
-            " without version flag before version negotiated.");
-        QUIC_DLOG(WARNING) << error_details;
-        CloseConnection(QUIC_INVALID_VERSION, error_details,
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return false;
-      } else {
-        DCHECK_EQ(header.version, version());
-        version_negotiated_ = true;
-        framer_.InferPacketHeaderTypeFromVersion();
-        visitor_->OnSuccessfulVersionNegotiation(version());
-        if (debug_visitor_ != nullptr) {
-          debug_visitor_->OnSuccessfulVersionNegotiation(version());
-        }
-      }
-      DCHECK(version_negotiated_);
-    }
   }
 
   return true;

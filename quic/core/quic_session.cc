@@ -118,8 +118,7 @@ void QuicSession::Initialize() {
 
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.
-  if (connection_->quic_version_negotiated_by_default_at_server() &&
-      perspective() == Perspective::IS_SERVER) {
+  if (perspective() == Perspective::IS_SERVER) {
     connection_->OnSuccessfulVersionNegotiation();
   }
 

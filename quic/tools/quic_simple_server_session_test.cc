@@ -258,10 +258,6 @@ class QuicSimpleServerSessionTest
         QuicRandom::GetInstance(), &clock,
         QuicCryptoServerConfig::ConfigOptions());
     session_->Initialize();
-    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-      QuicSessionPeer::GetMutableCryptoStream(session_.get())
-          ->OnSuccessfulVersionNegotiation(supported_versions.front());
-    }
 
     if (VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -619,10 +615,6 @@ class QuicSimpleServerSessionServerPushTest
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
     session_->Initialize();
-    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-      QuicSessionPeer::GetMutableCryptoStream(session_.get())
-          ->OnSuccessfulVersionNegotiation(supported_versions.front());
-    }
     // Needed to make new session flow control window and server push work.
 
     if (VersionHasIetfQuicFrames(transport_version())) {

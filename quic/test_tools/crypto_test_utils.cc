@@ -237,10 +237,6 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
       server_conn, *server_quic_config, client_conn->supported_versions(),
       crypto_config, &compressed_certs_cache);
   server_session.Initialize();
-  if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-    server_session.OnSuccessfulVersionNegotiation(
-        client_conn->supported_versions().front());
-  }
   EXPECT_CALL(*server_session.helper(),
               CanAcceptClientHello(testing::_, testing::_, testing::_,
                                    testing::_, testing::_))

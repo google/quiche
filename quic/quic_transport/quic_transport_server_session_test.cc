@@ -75,9 +75,6 @@ class QuicTransportServerSessionTest : public QuicTest {
         &crypto_config_, &compressed_certs_cache_, &visitor_);
     session_->Initialize();
     crypto_stream_ = session_->GetMutableCryptoStream();
-    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-      crypto_stream_->OnSuccessfulVersionNegotiation(GetVersions()[0]);
-    }
     ON_CALL(visitor_, ProcessPath(_))
         .WillByDefault(DoAll(SaveArg<0>(&path_), Return(true)));
   }

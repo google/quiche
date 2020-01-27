@@ -905,10 +905,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Called when version is considered negotiated.
   void OnSuccessfulVersionNegotiation();
 
-  bool quic_version_negotiated_by_default_at_server() const {
-    return quic_version_negotiated_by_default_at_server_;
-  }
-
   bool use_handshake_delegate() const { return use_handshake_delegate_; }
 
  protected:
@@ -1519,9 +1515,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicCoalescedPacket coalesced_packet_;
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
-
-  // Latched value of quic_version_negotiated_by_default_at_server.
-  const bool quic_version_negotiated_by_default_at_server_;
 
   // Latched value of quic_use_handshaker_delegate2.
   const bool use_handshake_delegate_;

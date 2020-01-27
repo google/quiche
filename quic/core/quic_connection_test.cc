@@ -1584,9 +1584,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     if (perspective == Perspective::IS_SERVER) {
       connection_.set_can_truncate_connection_ids(true);
       QuicConnectionPeer::SetNegotiatedVersion(&connection_);
-      if (GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-        connection_.OnSuccessfulVersionNegotiation();
-      }
+      connection_.OnSuccessfulVersionNegotiation();
     }
     QuicFramerPeer::SetPerspective(&peer_framer_,
                                    QuicUtils::InvertPerspective(perspective));

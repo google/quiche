@@ -153,10 +153,6 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
         QuicRandom::GetInstance(), &clock,
         QuicCryptoServerConfig::ConfigOptions());
     session_->Initialize();
-    if (!GetQuicReloadableFlag(quic_version_negotiated_by_default_at_server)) {
-      QuicSessionPeer::GetMutableCryptoStream(session_.get())
-          ->OnSuccessfulVersionNegotiation(supported_versions.front());
-    }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     session_->OnConfigNegotiated();
