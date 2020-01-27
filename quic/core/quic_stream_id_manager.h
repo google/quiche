@@ -72,7 +72,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
         ", outgoing_max_streams_: ", outgoing_max_streams_,
         ", next_outgoing_stream_id_: ", next_outgoing_stream_id_,
         ", outgoing_stream_count_: ", outgoing_stream_count_,
-        ", using_default_max_streams_: ", using_default_max_streams_,
         ", incoming_actual_max_streams_: ", incoming_actual_max_streams_,
         ", incoming_advertised_max_streams_: ",
         incoming_advertised_max_streams_,
@@ -227,17 +226,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // that have been closed. This number must never be larger than
   // outgoing_max_streams_.
   QuicStreamCount outgoing_stream_count_;
-
-  // Set to true while the default (from the constructor) outgoing stream limit
-  // is in use. It is set to false when either a MAX STREAMS frame is received
-  // or the transport negotiation completes and sets the stream limit (this is
-  // equivalent to a MAX_STREAMS frame).
-  // Necessary because outgoing_max_streams_ is a "best guess"
-  // until we receive an authoritative value from the peer.
-  // outgoing_max_streams_ is initialized in the constructor
-  // to some hard-coded value, which may or may not be consistent
-  // with what the peer wants.
-  bool using_default_max_streams_;
 
   // FOR INCOMING STREAMS
 

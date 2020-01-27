@@ -34,7 +34,6 @@ QuicStreamIdManager::QuicStreamIdManager(
       outgoing_max_streams_(max_allowed_outgoing_streams),
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
       outgoing_stream_count_(0),
-      using_default_max_streams_(true),
       incoming_actual_max_streams_(max_allowed_incoming_streams),
       // Advertised max starts at actual because it's communicated in the
       // handshake.
@@ -91,22 +90,7 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
 // maximum stream count from the peer.
 bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(
     QuicStreamCount max_open_streams) {
-  if (using_default_max_streams_) {
-    // This is the first MAX_STREAMS/transport negotiation we've received. Treat
-    // this a bit differently than later ones. The difference is that
-    // outgoing_max_streams_ is currently an estimate. The MAX_STREAMS frame or
-    // transport negotiation is authoritative and can reduce
-    // outgoing_max_streams_ -- so long as outgoing_max_streams_ is not set to
-    // be less than the number of existing outgoing streams. If that happens,
-    // close the connection.
-    if (max_open_streams < outgoing_stream_count_) {
-      delegate_->OnError(QUIC_MAX_STREAMS_ERROR,
-                         "Stream limit less than existing stream count");
-      return false;
-    }
-    using_default_max_streams_ = false;
-  } else if (max_open_streams <= outgoing_max_streams_) {
-    // Is not the 1st MAX_STREAMS or negotiation.
+  if (max_open_streams <= outgoing_max_streams_) {
     // Only update the stream count if it would increase the limit.
     // If it decreases the limit, or doesn't change it, then do not update.
     // Note that this handles the case of receiving a count of 0 in the frame

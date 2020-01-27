@@ -33,8 +33,8 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
       : manager_(perspective(),
                  version(),
                  &delegate_,
-                 kDefaultMaxStreamsPerConnection,
-                 kDefaultMaxStreamsPerConnection,
+                 0,
+                 0,
                  kDefaultMaxStreamsPerConnection,
                  kDefaultMaxStreamsPerConnection) {}
 
@@ -182,6 +182,9 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, GetNextOutgoingStreamId) {
+  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(_)).Times(2);
+  manager_.SetMaxOpenOutgoingBidirectionalStreams(10);
+  manager_.SetMaxOpenOutgoingUnidirectionalStreams(10);
   EXPECT_EQ(GetNthSelfInitiatedBidirectionalStreamId(0),
             manager_.GetNextOutgoingBidirectionalStreamId());
   EXPECT_EQ(GetNthSelfInitiatedBidirectionalStreamId(1),
@@ -247,7 +250,6 @@ TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamsFrame) {
   QuicMaxStreamsFrame frame(kInvalidControlFrameId,
                             max_outgoing_bidirectional_stream_count,
                             /*unidirectional=*/false);
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(frame.unidirectional));
   EXPECT_TRUE(manager_.OnMaxStreamsFrame(frame));
   EXPECT_EQ(max_outgoing_bidirectional_stream_count,
             manager_.max_outgoing_bidirectional_streams());
@@ -255,7 +257,6 @@ TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamsFrame) {
   // Now try the unidirectioanl manager
   frame.stream_count = max_outgoing_unidirectional_stream_count;
   frame.unidirectional = true;
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(frame.unidirectional));
   EXPECT_TRUE(manager_.OnMaxStreamsFrame(frame));
   EXPECT_EQ(max_outgoing_unidirectional_stream_count,
             manager_.max_outgoing_unidirectional_streams());
