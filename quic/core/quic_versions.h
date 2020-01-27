@@ -124,7 +124,7 @@ QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
     QuicTransportVersion transport_version);
 
 // IETF draft version most closely approximated by TLS + v99.
-static const int kQuicIetfDraftVersion = 24;
+static const int kQuicIetfDraftVersion = 25;
 
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {

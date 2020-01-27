@@ -111,9 +111,9 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 
 namespace {
 
-static_assert(kQuicIetfDraftVersion == 24, "Salts do not match draft version");
-// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-24#section-5.2
-const uint8_t kDraft23InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
+static_assert(kQuicIetfDraftVersion == 25, "Salts do not match draft version");
+// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-25#section-5.2
+const uint8_t kDraft25InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
                                        0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
                                        0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
 
@@ -144,8 +144,8 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
           // QUIC_VERSION_RESERVED_FOR_NEGOTIATION, but some tests try to use a
           // QuicFramer with QUIC_VERSION_RESERVED_FOR_NEGOTIATION and will hit
           // the following QUIC_BUG if there isn't a case for it. ):
-          *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
-          return kDraft23InitialSalt;
+          *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
+          return kDraft25InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
       }
@@ -158,8 +158,8 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
         case QUIC_VERSION_99:
           // ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99) uses the IETF
           // salt.
-          *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
-          return kDraft23InitialSalt;
+          *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
+          return kDraft25InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
       }
@@ -168,8 +168,8 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
     default:
       QUIC_BUG << "No initial obfuscation salt for version " << version;
   }
-  *out_len = QUICHE_ARRAYSIZE(kDraft23InitialSalt);
-  return kDraft23InitialSalt;
+  *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
+  return kDraft25InitialSalt;
 }
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
