@@ -734,11 +734,6 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame) {
 void QuicSession::SendRstStream(QuicStreamId id,
                                 QuicRstStreamErrorCode error,
                                 QuicStreamOffset bytes_written) {
-  if (!GetQuicReloadableFlag(quic_delete_send_rst_stream_inner)) {
-    SendRstStreamInner(id, error, bytes_written, false);
-    return;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT(quic_delete_send_rst_stream_inner);
   if (connection()->connected()) {
     QuicConnection::ScopedPacketFlusher flusher(connection());
     MaybeSendRstStreamFrame(id, error, bytes_written);
@@ -752,42 +747,6 @@ void QuicSession::SendRstStream(QuicStreamId id,
     return;
   }
   CloseStreamInner(id, true);
-}
-
-void QuicSession::SendRstStreamInner(QuicStreamId id,
-                                     QuicRstStreamErrorCode error,
-                                     QuicStreamOffset bytes_written,
-                                     bool close_write_side_only) {
-  if (connection()->connected()) {
-    // Only send if still connected.
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      // Send a RST_STREAM frame plus, if version 99, an IETF
-      // QUIC STOP_SENDING frame. Both sre sent to emulate
-      // the two-way close that Google QUIC's RST_STREAM does.
-      QuicConnection::ScopedPacketFlusher flusher(connection());
-      if (QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
-          READ_UNIDIRECTIONAL) {
-        control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
-      }
-      if (!close_write_side_only &&
-          QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
-              WRITE_UNIDIRECTIONAL) {
-        control_frame_manager_.WriteOrBufferStopSending(error, id);
-      }
-    } else {
-      DCHECK(!close_write_side_only);
-      control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
-    }
-    connection_->OnStreamReset(id, error);
-  }
-  if (error != QUIC_STREAM_NO_ERROR && QuicContainsKey(zombie_streams_, id)) {
-    OnStreamDoneWaitingForAcks(id);
-    return;
-  }
-
-  if (!close_write_side_only) {
-    CloseStreamInner(id, true);
-  }
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,

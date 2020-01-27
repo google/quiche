@@ -444,17 +444,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return num_locally_closed_incoming_streams_highest_offset_;
   }
 
-  // Does actual work of sending reset-stream or reset-stream&stop-sending
-  // If the connection is not version 99/IETF QUIC, will always send a
-  // RESET_STREAM and close_write_side_only is ignored. If the connection is
-  // IETF QUIC/Version 99 then will send a RESET_STREAM and STOP_SENDING if
-  // close_write_side_only is false, just a RESET_STREAM if
-  // close_write_side_only is true.
-  virtual void SendRstStreamInner(QuicStreamId id,
-                                  QuicRstStreamErrorCode error,
-                                  QuicStreamOffset bytes_written,
-                                  bool close_write_side_only);
-
   // Record errors when a connection is closed at the server side, should only
   // be called from server's perspective.
   // Noop if |error| is QUIC_NO_ERROR.
