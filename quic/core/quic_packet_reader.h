@@ -14,7 +14,10 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
+#include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
 
@@ -64,6 +67,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
                                           ProcessPacketInterface* processor,
                                           QuicPacketCount* packets_dropped);
 
+  // Return the self ip from |packet_info|.
+  // For dual stack sockets, |packet_info| may contain both a v4 and a v6 ip, in
+  // that case, |prefer_v6_ip| is used to determine which one is used as the
+  // return value. If neither v4 nor v6 ip exists, return an uninitialized ip.
+  static QuicIpAddress GetSelfIpFromPacketInfo(
+      const QuicUdpPacketInfo& packet_info,
+      bool prefer_v6_ip);
+
 #if MMSG_MORE
   // Storage only used when recvmmsg is available.
   // TODO(danzh): change it to be a pointer to avoid the allocation on the stack
@@ -83,6 +94,17 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
   PacketData packets_[kNumPacketsPerReadMmsgCall];
   mmsghdr mmsg_hdr_[kNumPacketsPerReadMmsgCall];
 #endif
+  struct QUIC_EXPORT_PRIVATE ReadBuffer {
+    QUIC_CACHELINE_ALIGNED char
+        control_buffer[kCmsgSpaceForReadPacket];  // For ancillary data.
+    QUIC_CACHELINE_ALIGNED char packet_buffer[kMaxIncomingPacketSize];
+  };
+  // Latched value of --quic_remove_quic_socket_utils_from_packet_reader.
+  const bool remove_quic_socket_utils_from_packet_reader_ =
+      GetQuicRestartFlag(quic_remove_quic_socket_utils_from_packet_reader);
+  QuicUdpSocketApi socket_api_;
+  std::vector<ReadBuffer> read_buffers_;
+  QuicUdpSocketApi::ReadPacketResults read_results_;
 };
 
 }  // namespace quic

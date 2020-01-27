@@ -243,6 +243,8 @@ class QUIC_EXPORT_PRIVATE BitMask {
     return (MakeMask(bit) & mask_) != 0;
   }
 
+  void ClearAll() { mask_ = 0; }
+
   static constexpr size_t NumBits() { return 8 * sizeof(Mask); }
 
   friend bool operator==(const BitMask& lhs, const BitMask& rhs) {

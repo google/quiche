@@ -288,6 +288,11 @@ TEST(QuicBitMaskTest, EnumClass) {
   EXPECT_TRUE(mask.IsSet(TestEnumClassBit::BIT_ZERO));
   EXPECT_FALSE(mask.IsSet(TestEnumClassBit::BIT_ONE));
   EXPECT_TRUE(mask.IsSet(TestEnumClassBit::BIT_TWO));
+
+  mask.ClearAll();
+  EXPECT_FALSE(mask.IsSet(TestEnumClassBit::BIT_ZERO));
+  EXPECT_FALSE(mask.IsSet(TestEnumClassBit::BIT_ONE));
+  EXPECT_FALSE(mask.IsSet(TestEnumClassBit::BIT_TWO));
 }
 
 TEST(QuicBitMaskTest, Enum) {
@@ -295,6 +300,11 @@ TEST(QuicBitMaskTest, Enum) {
   EXPECT_FALSE(mask.IsSet(TEST_BIT_0));
   EXPECT_TRUE(mask.IsSet(TEST_BIT_1));
   EXPECT_TRUE(mask.IsSet(TEST_BIT_2));
+
+  mask.ClearAll();
+  EXPECT_FALSE(mask.IsSet(TEST_BIT_0));
+  EXPECT_FALSE(mask.IsSet(TEST_BIT_1));
+  EXPECT_FALSE(mask.IsSet(TEST_BIT_2));
 }
 
 TEST(QuicBitMaskTest, Integer) {

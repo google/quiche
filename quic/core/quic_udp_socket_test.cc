@@ -123,6 +123,20 @@ class QuicUdpSocketTest : public QuicTest {
   char server_control_buffer_[512] = {0};
 };
 
+TEST_F(QuicUdpSocketTest, ReadPacketResultReset) {
+  QuicUdpSocketApi::ReadPacketResult result;
+  result.packet_info.SetDroppedPackets(100);
+  result.packet_buffer.buffer_len = 100;
+  result.ok = true;
+
+  result.Reset(/*packet_buffer_length=*/200);
+
+  EXPECT_FALSE(result.ok);
+  EXPECT_FALSE(
+      result.packet_info.HasValue(QuicUdpPacketInfoBit::DROPPED_PACKETS));
+  EXPECT_EQ(200u, result.packet_buffer.buffer_len);
+}
+
 TEST_F(QuicUdpSocketTest, ReadPacketOnly) {
   const size_t kPacketSize = 512;
   memset(client_packet_buffer_, '-', kPacketSize);

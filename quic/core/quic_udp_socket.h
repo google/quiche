@@ -59,6 +59,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
  public:
   BitMask64 bitmask() const { return bitmask_; }
 
+  void Reset() { bitmask_.ClearAll(); }
+
   bool HasValue(QuicUdpPacketInfoBit bit) const { return bitmask_.IsSet(bit); }
 
   QuicPacketCount dropped_packets() const {
@@ -129,6 +131,11 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
     bitmask_.Set(QuicUdpPacketInfoBit::TTL);
   }
 
+  BufferSpan google_packet_headers() const {
+    DCHECK(HasValue(QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER));
+    return google_packet_headers_;
+  }
+
   void SetGooglePacketHeaders(BufferSpan google_packet_headers) {
     google_packet_headers_ = google_packet_headers;
     bitmask_.Set(QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER);
@@ -183,15 +190,26 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
     QuicUdpPacketInfo packet_info;
     BufferSpan packet_buffer;
     BufferSpan control_buffer;
+
+    void Reset(size_t packet_buffer_length) {
+      ok = false;
+      packet_info.Reset();
+      packet_buffer.buffer_len = packet_buffer_length;
+    }
   };
   // Read a packet from |fd|:
   // packet_info_interested: Bitmask indicating what information caller wants to
   //                         receive into |result->packet_info|.
   // result->packet_info:    Received per packet information.
   // result->packet_buffer:  The packet buffer, to be filled with packet data.
+  //                         |result->packet_buffer.buffer_len| is set to the
+  //                         packet length on a successful return.
   // result->control_buffer: The control buffer, used by ReadPacket internally.
   //                         It is recommended to be at least 512 bytes.
   // result->ok:             True iff a packet is successfully received.
+  //
+  // If |*result| is reused for subsequent ReadPacket() calls, caller needs to
+  // call result->Reset() before each ReadPacket().
   void ReadPacket(QuicUdpSocketFd fd,
                   BitMask64 packet_info_interested,
                   ReadPacketResult* result);
