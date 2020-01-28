@@ -300,6 +300,8 @@ void SimpleSessionNotifier::RetransmitFrames(const QuicFrames& frames,
   for (const QuicFrame& frame : frames) {
     if (frame.type == CRYPTO_FRAME) {
       const StreamState& state = crypto_state_[frame.crypto_frame->level];
+      const EncryptionLevel current_encryption_level =
+          connection_->encryption_level();
       QuicIntervalSet<QuicStreamOffset> retransmission(
           frame.crypto_frame->offset,
           frame.crypto_frame->offset + frame.crypto_frame->data_length);
@@ -307,11 +309,13 @@ void SimpleSessionNotifier::RetransmitFrames(const QuicFrames& frames,
       for (const auto& interval : retransmission) {
         QuicStreamOffset offset = interval.min();
         QuicByteCount length = interval.max() - interval.min();
+        connection_->SetDefaultEncryptionLevel(frame.crypto_frame->level);
         size_t consumed = connection_->SendCryptoData(frame.crypto_frame->level,
                                                       length, offset);
         // CRYPTO frames should never be write blocked.
         DCHECK_EQ(consumed, length);
       }
+      connection_->SetDefaultEncryptionLevel(current_encryption_level);
     }
     if (frame.type != STREAM_FRAME) {
       if (GetControlFrameId(frame) == kInvalidControlFrameId) {

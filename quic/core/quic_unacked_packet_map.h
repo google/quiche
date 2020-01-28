@@ -212,6 +212,10 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber GetLargestSentPacketOfPacketNumberSpace(
       EncryptionLevel encryption_level) const;
 
+  // Returns last in flight packet sent time of |packet_number_space|.
+  QuicTime GetLastInFlightPacketSentTime(
+      PacketNumberSpace packet_number_space) const;
+
   void SetSessionNotifier(SessionNotifierInterface* session_notifier);
 
   void EnableMultiplePacketNumberSpacesSupport();
@@ -273,6 +277,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   // Time that the last inflight packet was sent.
   QuicTime last_inflight_packet_sent_time_;
+  // Time that the last in flight packet was sent per packet number space.
+  QuicTime last_inflight_packets_sent_time_[NUM_PACKET_NUMBER_SPACES];
 
   // Time that the last unacked crypto packet was sent.
   QuicTime last_crypto_packet_sent_time_;

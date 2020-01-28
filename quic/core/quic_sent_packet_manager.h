@@ -511,6 +511,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // timeout.
   bool ShouldAddMaxAckDelay() const;
 
+  // Gets the earliest in flight packet sent time to calculate PTO. Also
+  // updates |packet_number_space| if a PTO timer should be armed.
+  QuicTime GetEarliestPacketSentTimeForPto(
+      PacketNumberSpace* packet_number_space) const;
+
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new

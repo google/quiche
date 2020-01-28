@@ -30,6 +30,9 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       bytes_in_flight_(0),
       packets_in_flight_(0),
       last_inflight_packet_sent_time_(QuicTime::Zero()),
+      last_inflight_packets_sent_time_{{QuicTime::Zero()},
+                                       {QuicTime::Zero()},
+                                       {QuicTime::Zero()}},
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
       supports_multiple_packet_number_spaces_(false) {}
@@ -66,14 +69,14 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
 
   largest_sent_packet_ = packet_number;
   if (set_in_flight) {
+    const PacketNumberSpace packet_number_space =
+        GetPacketNumberSpace(info.encryption_level);
     bytes_in_flight_ += bytes_sent;
     ++packets_in_flight_;
     info.in_flight = true;
-    largest_sent_retransmittable_packets_[GetPacketNumberSpace(
-        info.encryption_level)] = packet_number;
-    // TODO(ianswett): Should this field be per packet number space or should
-    // GetInFlightPacketSentTime() use largest_sent_retransmittable_packets_?
+    largest_sent_retransmittable_packets_[packet_number_space] = packet_number;
     last_inflight_packet_sent_time_ = sent_time;
+    last_inflight_packets_sent_time_[packet_number_space] = sent_time;
   }
   unacked_packets_.push_back(info);
   // Swap the retransmittable frames to avoid allocations.
@@ -218,6 +221,9 @@ void QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       DCHECK(!HasRetransmittableFrames(*it));
     }
   }
+  if (supports_multiple_packet_number_spaces_) {
+    last_inflight_packets_sent_time_[INITIAL_DATA] = QuicTime::Zero();
+  }
 }
 
 void QuicUnackedPacketMap::NeuterHandshakePackets() {
@@ -232,6 +238,9 @@ void QuicUnackedPacketMap::NeuterHandshakePackets() {
       it->state = NEUTERED;
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
     }
+  }
+  if (supports_multiple_packet_number_spaces()) {
+    last_inflight_packets_sent_time_[HANDSHAKE_DATA] = QuicTime::Zero();
   }
 }
 
@@ -426,6 +435,15 @@ QuicPacketNumber QuicUnackedPacketMap::GetLargestAckedOfPacketNumberSpace(
     return QuicPacketNumber();
   }
   return largest_acked_packets_[packet_number_space];
+}
+
+QuicTime QuicUnackedPacketMap::GetLastInFlightPacketSentTime(
+    PacketNumberSpace packet_number_space) const {
+  if (packet_number_space >= NUM_PACKET_NUMBER_SPACES) {
+    QUIC_BUG << "Invalid packet number space: " << packet_number_space;
+    return QuicTime::Zero();
+  }
+  return last_inflight_packets_sent_time_[packet_number_space];
 }
 
 QuicPacketNumber

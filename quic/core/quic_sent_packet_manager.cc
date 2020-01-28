@@ -493,6 +493,31 @@ bool QuicSentPacketManager::ShouldAddMaxAckDelay() const {
   return true;
 }
 
+QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
+    PacketNumberSpace* packet_number_space) const {
+  DCHECK(supports_multiple_packet_number_spaces());
+  QuicTime earliest_sent_time = QuicTime::Zero();
+  for (int8_t i = 0; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+    const QuicTime sent_time = unacked_packets_.GetLastInFlightPacketSentTime(
+        static_cast<PacketNumberSpace>(i));
+    if (!earliest_sent_time.IsInitialized()) {
+      earliest_sent_time = sent_time;
+      *packet_number_space = static_cast<PacketNumberSpace>(i);
+      continue;
+    }
+    if (i == APPLICATION_DATA) {
+      // Not arming PTO for application data to prioritize the completion of
+      // handshake.
+      break;
+    }
+    if (sent_time.IsInitialized()) {
+      earliest_sent_time = std::min(earliest_sent_time, sent_time);
+      *packet_number_space = static_cast<PacketNumberSpace>(i);
+    }
+  }
+  return earliest_sent_time;
+}
+
 void QuicSentPacketManager::MarkForRetransmission(
     QuicPacketNumber packet_number,
     TransmissionType transmission_type) {
@@ -776,12 +801,25 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
   if (pending_timer_transmission_count_ == 0) {
     return;
   }
+  PacketNumberSpace packet_number_space;
+  if (supports_multiple_packet_number_spaces()) {
+    // Find out the packet number space to send probe packets.
+    if (!GetEarliestPacketSentTimeForPto(&packet_number_space)
+             .IsInitialized()) {
+      QUIC_BUG << "earlist_sent_time not initialized when trying to send PTO "
+                  "retransmissions";
+      return;
+    }
+  }
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
   std::vector<QuicPacketNumber> probing_packets;
   for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (it->state == OUTSTANDING &&
-        unacked_packets_.HasRetransmittableFrames(*it)) {
+        unacked_packets_.HasRetransmittableFrames(*it) &&
+        (!supports_multiple_packet_number_spaces() ||
+         unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
+             packet_number_space)) {
       DCHECK(it->in_flight);
       probing_packets.push_back(packet_number);
       if (probing_packets.size() == pending_timer_transmission_count_) {
@@ -948,9 +986,16 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(tlp_time, rto_time);
     }
     case PTO_MODE: {
-      // Ensure PTO never gets set to a time in the past.
+      if (!supports_multiple_packet_number_spaces()) {
+        // Ensure PTO never gets set to a time in the past.
+        return std::max(clock_->ApproximateNow(),
+                        unacked_packets_.GetLastInFlightPacketSentTime() +
+                            GetProbeTimeoutDelay());
+      }
+
+      PacketNumberSpace packet_number_space;
       return std::max(clock_->ApproximateNow(),
-                      unacked_packets_.GetLastInFlightPacketSentTime() +
+                      GetEarliestPacketSentTimeForPto(&packet_number_space) +
                           GetProbeTimeoutDelay());
     }
   }
@@ -1267,6 +1312,7 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
 }
 
 void QuicSentPacketManager::EnableMultiplePacketNumberSpacesSupport() {
+  EnableIetfPtoAndLossDetection();
   unacked_packets_.EnableMultiplePacketNumberSpacesSupport();
 }
 

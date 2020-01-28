@@ -383,6 +383,8 @@ class TestPacketWriter : public QuicPacketWriter {
         framer_.framer()->InstallDecrypter(
             ENCRYPTION_INITIAL, std::make_unique<TaggingDecrypter>());
         framer_.framer()->InstallDecrypter(
+            ENCRYPTION_HANDSHAKE, std::make_unique<TaggingDecrypter>());
+        framer_.framer()->InstallDecrypter(
             ENCRYPTION_ZERO_RTT, std::make_unique<TaggingDecrypter>());
         framer_.framer()->InstallDecrypter(
             ENCRYPTION_FORWARD_SECURE, std::make_unique<TaggingDecrypter>());
@@ -763,18 +765,24 @@ class TestConnection : public QuicConnection {
 
   QuicConsumedData SendCryptoDataWithString(quiche::QuicheStringPiece data,
                                             QuicStreamOffset offset) {
+    return SendCryptoDataWithString(data, offset, ENCRYPTION_INITIAL);
+  }
+
+  QuicConsumedData SendCryptoDataWithString(quiche::QuicheStringPiece data,
+                                            QuicStreamOffset offset,
+                                            EncryptionLevel encryption_level) {
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendStreamDataWithString(
           QuicUtils::GetCryptoStreamId(transport_version()), data, offset,
           NO_FIN);
     }
-    producer_.SaveCryptoData(ENCRYPTION_INITIAL, offset, data);
+    producer_.SaveCryptoData(encryption_level, offset, data);
     size_t bytes_written;
     if (notifier_) {
       bytes_written =
-          notifier_->WriteCryptoData(ENCRYPTION_INITIAL, data.length(), offset);
+          notifier_->WriteCryptoData(encryption_level, data.length(), offset);
     } else {
-      bytes_written = QuicConnection::SendCryptoData(ENCRYPTION_INITIAL,
+      bytes_written = QuicConnection::SendCryptoData(encryption_level,
                                                      data.length(), offset);
     }
     return QuicConsumedData(bytes_written, /*fin_consumed*/ false);
@@ -872,7 +880,7 @@ class TestConnection : public QuicConnection {
     if (QuicConnectionPeer::GetSentPacketManager(this)->pto_enabled()) {
       // PTO mode is default enabled for T099. And TLP/RTO related tests are
       // stale.
-      DCHECK_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99), version());
+      DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
       return true;
     }
     return false;
@@ -9734,6 +9742,57 @@ TEST_P(QuicConnectionTest, ServerReceivedHandshakeDone) {
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+}
+
+TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  // Send handshake packet.
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Send application data.
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_FORWARD_SECURE, 5, "data",
+                                         0, NO_FIN);
+  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
+  QuicTime retransmission_time =
+      connection_.GetRetransmissionAlarm()->deadline();
+  EXPECT_NE(QuicTime::Zero(), retransmission_time);
+
+  // Retransmit handshake data.
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Send application data.
+  connection_.SendApplicationDataAtLevel(ENCRYPTION_FORWARD_SECURE, 5, "data",
+                                         4, NO_FIN);
+  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
+  retransmission_time = connection_.GetRetransmissionAlarm()->deadline();
+  EXPECT_NE(QuicTime::Zero(), retransmission_time);
+
+  // Retransmit handshake data again.
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(5), _, _));
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+
+  // Discard handshake key.
+  connection_.OnHandshakeComplete();
+  retransmission_time = connection_.GetRetransmissionAlarm()->deadline();
+  EXPECT_NE(QuicTime::Zero(), retransmission_time);
+
+  // Retransmit application data.
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(6), _, _));
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
 
 }  // namespace
