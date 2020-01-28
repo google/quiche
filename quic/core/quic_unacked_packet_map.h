@@ -245,8 +245,6 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   const Perspective perspective_;
 
   QuicPacketNumber largest_sent_packet_;
-  // Only used when supports_multiple_packet_number_spaces_ is true.
-  QuicPacketNumber largest_sent_packets_[NUM_PACKET_NUMBER_SPACES];
   // The largest sent packet we expect to receive an ack for per packet number
   // space.
   QuicPacketNumber

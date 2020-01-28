@@ -2457,16 +2457,23 @@ TEST_F(QuicSentPacketManagerTest, TolerateReneging) {
 
 TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   manager_.EnableMultiplePacketNumberSpacesSupport();
+  const QuicUnackedPacketMap* unacked_packets =
+      QuicSentPacketManagerPeer::GetUnackedPacketMap(&manager_);
   EXPECT_FALSE(
-      manager_.GetLargestSentPacket(ENCRYPTION_INITIAL).IsInitialized());
+      unacked_packets
+          ->GetLargestSentRetransmittableOfPacketNumberSpace(INITIAL_DATA)
+          .IsInitialized());
   EXPECT_FALSE(
       manager_.GetLargestAckedPacket(ENCRYPTION_INITIAL).IsInitialized());
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
   EXPECT_EQ(QuicPacketNumber(1),
-            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_FALSE(
-      manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE).IsInitialized());
+      unacked_packets
+          ->GetLargestSentRetransmittableOfPacketNumberSpace(HANDSHAKE_DATA)
+          .IsInitialized());
   // Ack packet 1.
   ExpectAck(1);
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
@@ -2483,11 +2490,15 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(2, ENCRYPTION_HANDSHAKE);
   SendDataPacket(3, ENCRYPTION_HANDSHAKE);
   EXPECT_EQ(QuicPacketNumber(1),
-            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
   EXPECT_FALSE(
-      manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT).IsInitialized());
+      unacked_packets
+          ->GetLargestSentRetransmittableOfPacketNumberSpace(APPLICATION_DATA)
+          .IsInitialized());
   // Ack packet 2.
   ExpectAck(2);
   manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
@@ -2516,13 +2527,14 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(4, ENCRYPTION_ZERO_RTT);
   SendDataPacket(5, ENCRYPTION_ZERO_RTT);
   EXPECT_EQ(QuicPacketNumber(1),
-            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(5),
-            manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT));
-  EXPECT_EQ(QuicPacketNumber(5),
-            manager_.GetLargestSentPacket(ENCRYPTION_FORWARD_SECURE));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
   // Ack packet 5.
   ExpectAck(5);
   manager_.OnAckFrameStart(QuicPacketNumber(5), QuicTime::Delta::Infinite(),
@@ -2543,13 +2555,14 @@ TEST_F(QuicSentPacketManagerTest, MultiplePacketNumberSpaces) {
   SendDataPacket(7, ENCRYPTION_FORWARD_SECURE);
   SendDataPacket(8, ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(QuicPacketNumber(1),
-            manager_.GetLargestSentPacket(ENCRYPTION_INITIAL));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            manager_.GetLargestSentPacket(ENCRYPTION_HANDSHAKE));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(8),
-            manager_.GetLargestSentPacket(ENCRYPTION_ZERO_RTT));
-  EXPECT_EQ(QuicPacketNumber(8),
-            manager_.GetLargestSentPacket(ENCRYPTION_FORWARD_SECURE));
+            unacked_packets->GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
   // Ack all packets.
   uint64_t acked[] = {4, 6, 7, 8};
   ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);

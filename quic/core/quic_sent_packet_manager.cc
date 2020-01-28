@@ -1277,13 +1277,6 @@ QuicPacketNumber QuicSentPacketManager::GetLargestAckedPacket(
       QuicUtils::GetPacketNumberSpace(decrypted_packet_level));
 }
 
-QuicPacketNumber QuicSentPacketManager::GetLargestSentPacket(
-    EncryptionLevel decrypted_packet_level) const {
-  DCHECK(supports_multiple_packet_number_spaces());
-  return unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-      decrypted_packet_level);
-}
-
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
   DCHECK(supports_multiple_packet_number_spaces());

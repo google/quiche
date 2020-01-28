@@ -3586,7 +3586,13 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
   }
 
   // Done processing the ACK frame.
-  return visitor_->OnAckFrameEnd(QuicPacketNumber(first_received));
+  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(first_received))) {
+    set_detailed_error(
+        "Error occurs when visitor finishes processing the ACK frame.");
+    return false;
+  }
+
+  return true;
 }
 
 bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
@@ -3817,7 +3823,13 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     ack_block_count--;
   }
 
-  return visitor_->OnAckFrameEnd(QuicPacketNumber(block_low));
+  if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low))) {
+    set_detailed_error(
+        "Error occurs when visitor finishes processing the ACK frame.");
+    return false;
+  }
+
+  return true;
 }
 
 bool QuicFramer::ProcessStopWaitingFrame(QuicDataReader* reader,

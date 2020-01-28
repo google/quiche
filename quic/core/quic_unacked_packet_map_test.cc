@@ -564,20 +564,21 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
 
 TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
   unacked_packets_.EnableMultiplePacketNumberSpacesSupport();
-  EXPECT_FALSE(unacked_packets_
-                   .GetLargestSentPacketOfPacketNumberSpace(ENCRYPTION_INITIAL)
-                   .IsInitialized());
+  EXPECT_FALSE(
+      unacked_packets_
+          .GetLargestSentRetransmittableOfPacketNumberSpace(INITIAL_DATA)
+          .IsInitialized());
   // Send packet 1.
   SerializedPacket packet1(CreateRetransmittablePacket(1));
   packet1.encryption_level = ENCRYPTION_INITIAL;
   unacked_packets_.AddSentPacket(&packet1, NOT_RETRANSMISSION, now_, true);
   EXPECT_EQ(QuicPacketNumber(1u), unacked_packets_.largest_sent_packet());
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_INITIAL));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_FALSE(
       unacked_packets_
-          .GetLargestSentPacketOfPacketNumberSpace(ENCRYPTION_HANDSHAKE)
+          .GetLargestSentRetransmittableOfPacketNumberSpace(HANDSHAKE_DATA)
           .IsInitialized());
   // Send packet 2.
   SerializedPacket packet2(CreateRetransmittablePacket(2));
@@ -585,33 +586,34 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
   unacked_packets_.AddSentPacket(&packet2, NOT_RETRANSMISSION, now_, true);
   EXPECT_EQ(QuicPacketNumber(2u), unacked_packets_.largest_sent_packet());
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_INITIAL));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(2),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_HANDSHAKE));
-  EXPECT_FALSE(unacked_packets_
-                   .GetLargestSentPacketOfPacketNumberSpace(ENCRYPTION_ZERO_RTT)
-                   .IsInitialized());
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
+  EXPECT_FALSE(
+      unacked_packets_
+          .GetLargestSentRetransmittableOfPacketNumberSpace(APPLICATION_DATA)
+          .IsInitialized());
   // Send packet 3.
   SerializedPacket packet3(CreateRetransmittablePacket(3));
   packet3.encryption_level = ENCRYPTION_ZERO_RTT;
   unacked_packets_.AddSentPacket(&packet3, NOT_RETRANSMISSION, now_, true);
   EXPECT_EQ(QuicPacketNumber(3u), unacked_packets_.largest_sent_packet());
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_INITIAL));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(2),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_HANDSHAKE));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(3),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_ZERO_RTT));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
   // Verify forward secure belongs to the same packet number space as encryption
   // zero rtt.
   EXPECT_EQ(QuicPacketNumber(3),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_FORWARD_SECURE));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
 
   // Send packet 4.
   SerializedPacket packet4(CreateRetransmittablePacket(4));
@@ -619,19 +621,19 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
   unacked_packets_.AddSentPacket(&packet4, NOT_RETRANSMISSION, now_, true);
   EXPECT_EQ(QuicPacketNumber(4u), unacked_packets_.largest_sent_packet());
   EXPECT_EQ(QuicPacketNumber(1),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_INITIAL));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                INITIAL_DATA));
   EXPECT_EQ(QuicPacketNumber(2),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_HANDSHAKE));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                HANDSHAKE_DATA));
   EXPECT_EQ(QuicPacketNumber(4),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_ZERO_RTT));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
   // Verify forward secure belongs to the same packet number space as encryption
   // zero rtt.
   EXPECT_EQ(QuicPacketNumber(4),
-            unacked_packets_.GetLargestSentPacketOfPacketNumberSpace(
-                ENCRYPTION_FORWARD_SECURE));
+            unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
+                APPLICATION_DATA));
 }
 
 }  // namespace

@@ -941,11 +941,11 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
     return true;
   }
 
-  if (!GetLargestSentPacket().IsInitialized() ||
-      largest_acked > GetLargestSentPacket()) {
+  if (!sent_packet_manager_.GetLargestSentPacket().IsInitialized() ||
+      largest_acked > sent_packet_manager_.GetLargestSentPacket()) {
     QUIC_DLOG(WARNING) << ENDPOINT
                        << "Peer's observed unsent packet:" << largest_acked
-                       << " vs " << GetLargestSentPacket()
+                       << " vs " << sent_packet_manager_.GetLargestSentPacket()
                        << ". SupportsMultiplePacketNumberSpaces():"
                        << SupportsMultiplePacketNumberSpaces()
                        << ", last_decrypted_packet_level_:"
@@ -3963,14 +3963,6 @@ QuicPacketNumber QuicConnection::GetLargestReceivedPacketWithAck() const {
         last_decrypted_packet_level_)];
   }
   return largest_seen_packet_with_ack_;
-}
-
-QuicPacketNumber QuicConnection::GetLargestSentPacket() const {
-  if (SupportsMultiplePacketNumberSpaces()) {
-    return sent_packet_manager_.GetLargestSentPacket(
-        last_decrypted_packet_level_);
-  }
-  return sent_packet_manager_.GetLargestSentPacket();
 }
 
 QuicPacketNumber QuicConnection::GetLargestAckedPacket() const {

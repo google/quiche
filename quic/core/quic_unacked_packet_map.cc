@@ -65,10 +65,6 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   largest_sent_largest_acked_.UpdateMax(packet->largest_acked);
 
   largest_sent_packet_ = packet_number;
-  if (supports_multiple_packet_number_spaces_) {
-    largest_sent_packets_[GetPacketNumberSpace(packet->encryption_level)] =
-        packet_number;
-  }
   if (set_in_flight) {
     bytes_in_flight_ += bytes_sent;
     ++packets_in_flight_;
@@ -454,12 +450,6 @@ void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
   }
 
   supports_multiple_packet_number_spaces_ = true;
-}
-
-QuicPacketNumber QuicUnackedPacketMap::GetLargestSentPacketOfPacketNumberSpace(
-    EncryptionLevel encryption_level) const {
-  DCHECK(supports_multiple_packet_number_spaces_);
-  return largest_sent_packets_[GetPacketNumberSpace(encryption_level)];
 }
 
 }  // namespace quic

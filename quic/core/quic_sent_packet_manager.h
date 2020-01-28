@@ -303,9 +303,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.largest_sent_packet();
   }
 
-  QuicPacketNumber GetLargestSentPacket(
-      EncryptionLevel decrypted_packet_level) const;
-
   QuicPacketNumber GetLargestPacketPeerKnowsIsAcked(
       EncryptionLevel decrypted_packet_level) const;
 
