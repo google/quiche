@@ -1121,6 +1121,18 @@ std::string QuicSentPacketManager::GetDebugState() const {
 
 void QuicSentPacketManager::SetSendAlgorithm(
     CongestionControlType congestion_control_type) {
+  if (GetQuicReloadableFlag(
+          quic_set_send_algorithm_noop_if_cc_type_unchanged)) {
+    if (send_algorithm_ && send_algorithm_->GetCongestionControlType() ==
+                               congestion_control_type) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_set_send_algorithm_noop_if_cc_type_unchanged, 1, 2);
+      return;
+    }
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_set_send_algorithm_noop_if_cc_type_unchanged, 2, 2);
+    // Fallthrough to change the send algorithm.
+  }
   SetSendAlgorithm(SendAlgorithmInterface::Create(
       clock_, &rtt_stats_, &unacked_packets_, congestion_control_type, random_,
       stats_, initial_congestion_window_));

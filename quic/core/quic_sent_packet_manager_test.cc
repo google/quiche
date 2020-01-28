@@ -85,12 +85,13 @@ class QuicSentPacketManagerTest : public QuicTest {
   }
 
  protected:
+  const CongestionControlType kInitialCongestionControlType = kCubicBytes;
   QuicSentPacketManagerTest()
       : manager_(Perspective::IS_SERVER,
                  &clock_,
                  QuicRandom::GetInstance(),
                  &stats_,
-                 kCubicBytes,
+                 kInitialCongestionControlType,
                  GetDefaultLossDetectionType()),
         send_algorithm_(new StrictMock<MockSendAlgorithm>),
         network_change_visitor_(new StrictMock<MockNetworkChangeVisitor>) {
@@ -102,6 +103,8 @@ class QuicSentPacketManagerTest : public QuicTest {
     manager_.SetNetworkChangeVisitor(network_change_visitor_.get());
     manager_.SetSessionNotifier(&notifier_);
 
+    EXPECT_CALL(*send_algorithm_, GetCongestionControlType())
+        .WillRepeatedly(Return(kInitialCongestionControlType));
     EXPECT_CALL(*send_algorithm_, HasReliableBandwidthEstimate())
         .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, BandwidthEstimate())
