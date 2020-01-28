@@ -9,6 +9,9 @@
 
 namespace quic {
 
+const size_t kCmsgSpaceForGooglePacketHeader =
+    kCmsgSpaceForGooglePacketHeaderImpl;
+
 inline bool GetGooglePacketHeadersFromControlMessage(
     struct ::cmsghdr* cmsg,
     char** packet_headers,

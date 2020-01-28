@@ -94,7 +94,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
 #endif
   struct QUIC_EXPORT_PRIVATE ReadBuffer {
     QUIC_CACHELINE_ALIGNED char
-        control_buffer[kCmsgSpaceForReadPacket];  // For ancillary data.
+        control_buffer[kDefaultUdpPacketControlBufferSize];  // For ancillary
+                                                             // data.
     QUIC_CACHELINE_ALIGNED char packet_buffer[kMaxIncomingPacketSize];
   };
   // Latched value of --quic_remove_quic_socket_utils_from_packet_reader.

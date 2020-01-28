@@ -29,6 +29,34 @@
 
 namespace quic {
 namespace {
+
+#if defined(__linux__) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21)
+#define QUIC_UDP_SOCKET_SUPPORT_LINUX_TIMESTAMPING 1
+// This is the structure that SO_TIMESTAMPING fills into the cmsg header.
+// It is well-defined, but does not have a definition in a public header.
+// See https://www.kernel.org/doc/Documentation/networking/timestamping.txt
+// for more information.
+struct LinuxSoTimestamping {
+  // The converted system time of the timestamp.
+  struct timespec systime;
+  // Deprecated; serves only as padding.
+  struct timespec hwtimetrans;
+  // The raw hardware timestamp.
+  struct timespec hwtimeraw;
+};
+const size_t kCmsgSpaceForRecvTimestamp =
+    CMSG_SPACE(sizeof(LinuxSoTimestamping));
+#else
+const size_t kCmsgSpaceForRecvTimestamp = 0;
+#endif
+
+const size_t kMinCmsgSpaceForRead =
+    CMSG_SPACE(sizeof(uint32_t))       // Dropped packet count
+    + CMSG_SPACE(sizeof(in_pktinfo))   // V4 Self IP
+    + CMSG_SPACE(sizeof(in6_pktinfo))  // V6 Self IP
+    + kCmsgSpaceForRecvTimestamp + CMSG_SPACE(sizeof(int))  // TTL
+    + kCmsgSpaceForGooglePacketHeader;
+
 QuicUdpSocketFd CreateNonblockingSocket(int address_family) {
 #if defined(__linux__) && defined(SOCK_NONBLOCK)
 
@@ -109,24 +137,11 @@ void PopulatePacketInfoFromControlMessage(struct cmsghdr* cmsg,
   }
 #endif
 
-#if defined(__linux__) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21)
+#if defined(QUIC_UDP_SOCKET_SUPPORT_LINUX_TIMESTAMPING)
   if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SO_TIMESTAMPING) {
-    // This is the structure that SO_TIMESTAMPING fills into the cmsg header.
-    // It is well-defined, but does not have a definition in a public header.
-    // See https://www.kernel.org/doc/Documentation/networking/timestamping.txt
-    // for more information.
-    struct LinuxTimestamping {
-      // The converted system time of the timestamp.
-      struct timespec systime;
-      // Deprecated; serves only as padding.
-      struct timespec hwtimetrans;
-      // The raw hardware timestamp.
-      struct timespec hwtimeraw;
-    };
-
     if (packet_info_interested.IsSet(QuicUdpPacketInfoBit::RECV_TIMESTAMP)) {
-      LinuxTimestamping* linux_ts =
-          reinterpret_cast<LinuxTimestamping*>(CMSG_DATA(cmsg));
+      LinuxSoTimestamping* linux_ts =
+          reinterpret_cast<LinuxSoTimestamping*>(CMSG_DATA(cmsg));
       timespec* ts = &linux_ts->systime;
       int64_t usec = (static_cast<int64_t>(ts->tv_sec) * 1000 * 1000) +
                      (static_cast<int64_t>(ts->tv_nsec) / 1000);
@@ -225,6 +240,10 @@ bool NextCmsg(msghdr* hdr,
 QuicUdpSocketFd QuicUdpSocketApi::Create(int address_family,
                                          int receive_buffer_size,
                                          int send_buffer_size) {
+  // DCHECK here so the program exits early(before reading packets) in debug
+  // mode. This should have been a static_assert, however it can't be done on
+  // ios/osx because CMSG_SPACE isn't a constant expression there.
+  DCHECK_GE(kDefaultUdpPacketControlBufferSize, kMinCmsgSpaceForRead);
   QuicUdpSocketFd fd = CreateNonblockingSocket(address_family);
 
   if (fd == kQuicInvalidSocketFd) {
@@ -359,6 +378,8 @@ void QuicUdpSocketApi::ReadPacket(QuicUdpSocketFd fd,
   BufferSpan& control_buffer = result->control_buffer;
   QuicUdpPacketInfo* packet_info = &result->packet_info;
 
+  DCHECK_GE(control_buffer.buffer_len, kMinCmsgSpaceForRead);
+
   struct iovec iov = {packet_buffer.buffer, packet_buffer.buffer_len};
   struct sockaddr_storage raw_peer_address;
 
@@ -461,6 +482,8 @@ size_t QuicUdpSocketApi::ReadMultiplePackets(QuicUdpSocketFd fd,
     hdr->msg_flags = 0;
     hdr->msg_control = (*results)[i].control_buffer.buffer;
     hdr->msg_controllen = (*results)[i].control_buffer.buffer_len;
+
+    DCHECK_GE(hdr->msg_controllen, kMinCmsgSpaceForRead);
   }
   // If MSG_TRUNC is set on Linux, recvmmsg will return the real packet size in
   // |hdrs[i].msg_len| even if packet buffer is too small to receive it.

@@ -25,6 +25,8 @@ using QuicUdpSocketFd = int;
 const QuicUdpSocketFd kQuicInvalidSocketFd = -1;
 #endif
 
+const size_t kDefaultUdpPacketControlBufferSize = 512;
+
 enum class QuicUdpPacketInfoBit : uint8_t {
   DROPPED_PACKETS = 0,   // Read
   V4_SELF_IP,            // Read
@@ -205,7 +207,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   //                         |result->packet_buffer.buffer_len| is set to the
   //                         packet length on a successful return.
   // result->control_buffer: The control buffer, used by ReadPacket internally.
-  //                         It is recommended to be at least 512 bytes.
+  //                         It is recommended to be
+  //                         |kDefaultUdpPacketControlBufferSize| bytes.
   // result->ok:             True iff a packet is successfully received.
   //
   // If |*result| is reused for subsequent ReadPacket() calls, caller needs to
