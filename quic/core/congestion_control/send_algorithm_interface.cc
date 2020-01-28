@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 
+#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bbr2_sender.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -36,9 +36,9 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
                            initial_congestion_window, max_congestion_window,
                            random, stats);
     case kBBRv2:
-      return new QuicBbr2Sender(clock->ApproximateNow(), rtt_stats,
-                                unacked_packets, initial_congestion_window,
-                                max_congestion_window, random, stats);
+      return new Bbr2Sender(clock->ApproximateNow(), rtt_stats, unacked_packets,
+                            initial_congestion_window, max_congestion_window,
+                            random, stats);
     case kPCC:
       if (GetQuicReloadableFlag(quic_enable_pcc3)) {
         return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,
