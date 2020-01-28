@@ -23,10 +23,8 @@
 
 namespace quic {
 
-#if MMSG_MORE
 // Read in larger batches to minimize recvmmsg overhead.
 const int kNumPacketsPerReadMmsgCall = 16;
-#endif
 
 class QUIC_EXPORT_PRIVATE QuicPacketReader {
  public:
