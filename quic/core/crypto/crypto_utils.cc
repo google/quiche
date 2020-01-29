@@ -10,6 +10,7 @@
 
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
+#include "third_party/boringssl/src/include/openssl/mem.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_encrypter.h"
@@ -23,9 +24,12 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
@@ -174,6 +178,54 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
 
+// Retry Integrity Protection Keys and Nonces.
+// https://tools.ietf.org/html/draft-ietf-quic-tls-25#section-5.8
+static_assert(kQuicIetfDraftVersion == 25, "Keys do not match draft version");
+const uint8_t kDraft25RetryIntegrityKey[] = {0x4d, 0x32, 0xec, 0xdb, 0x2a, 0x21,
+                                             0x33, 0xc8, 0x41, 0xe4, 0x04, 0x3d,
+                                             0xf2, 0x7d, 0x44, 0x30};
+const uint8_t kDraft25RetryIntegrityNonce[] = {
+    0x4d, 0x16, 0x11, 0xd0, 0x55, 0x13, 0xa5, 0x52, 0xc5, 0x87, 0xd5, 0x75};
+// Keys used by Google versions of QUIC. When introducing a new version,
+// generate a new key by running `openssl rand -hex 16`.
+const uint8_t kT050RetryIntegrityKey[] = {0xc9, 0x2d, 0x32, 0x3d, 0x9c, 0xe3,
+                                          0x0d, 0xa0, 0x88, 0xb9, 0xb7, 0xbb,
+                                          0xdc, 0xcd, 0x50, 0xc8};
+// Nonces used by Google versions of QUIC. When introducing a new version,
+// generate a new nonce by running `openssl rand -hex 12`.
+const uint8_t kT050RetryIntegrityNonce[] = {0x26, 0xe4, 0xd6, 0x23, 0x83, 0xd5,
+                                            0xc7, 0x60, 0xea, 0x02, 0xb4, 0x1f};
+
+bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
+                                  quiche::QuicheStringPiece* key,
+                                  quiche::QuicheStringPiece* nonce) {
+  if (!version.HasRetryIntegrityTag()) {
+    QUIC_BUG << "Attempted to get retry integrity keys for invalid version "
+             << version;
+    return false;
+  }
+  if (version == ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50)) {
+    *key = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kT050RetryIntegrityKey),
+        QUICHE_ARRAYSIZE(kT050RetryIntegrityKey));
+    *nonce = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kT050RetryIntegrityNonce),
+        QUICHE_ARRAYSIZE(kT050RetryIntegrityNonce));
+    return true;
+  }
+  if (version == ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)) {
+    *key = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kDraft25RetryIntegrityKey),
+        QUICHE_ARRAYSIZE(kDraft25RetryIntegrityKey));
+    *nonce = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kDraft25RetryIntegrityNonce),
+        QUICHE_ARRAYSIZE(kDraft25RetryIntegrityNonce));
+    return true;
+  }
+  QUIC_BUG << "Attempted to get retry integrity keys for version " << version;
+  return false;
+}
+
 }  // namespace
 
 // static
@@ -229,6 +281,51 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
       hash, handshake_secret, decryption_label, EVP_MD_size(hash));
   crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
   SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
+}
+
+// static
+bool CryptoUtils::ValidateRetryIntegrityTag(
+    ParsedQuicVersion version,
+    QuicConnectionId original_connection_id,
+    quiche::QuicheStringPiece retry_without_tag,
+    quiche::QuicheStringPiece integrity_tag) {
+  unsigned char computed_integrity_tag[kRetryIntegrityTagLength];
+  if (integrity_tag.length() != QUICHE_ARRAYSIZE(computed_integrity_tag)) {
+    QUIC_BUG << "Invalid retry integrity tag length " << integrity_tag.length();
+    return false;
+  }
+  char retry_pseudo_packet[kMaxIncomingPacketSize + 256];
+  QuicDataWriter writer(QUICHE_ARRAYSIZE(retry_pseudo_packet),
+                        retry_pseudo_packet);
+  if (!writer.WriteLengthPrefixedConnectionId(original_connection_id)) {
+    QUIC_BUG << "Failed to write original connection ID in retry pseudo packet";
+    return false;
+  }
+  if (!writer.WriteStringPiece(retry_without_tag)) {
+    QUIC_BUG << "Failed to write retry without tag in retry pseudo packet";
+    return false;
+  }
+  quiche::QuicheStringPiece key;
+  quiche::QuicheStringPiece nonce;
+  if (!RetryIntegrityKeysForVersion(version, &key, &nonce)) {
+    // RetryIntegrityKeysForVersion already logs failures.
+    return false;
+  }
+  Aes128GcmEncrypter crypter;
+  crypter.SetKey(key);
+  quiche::QuicheStringPiece associated_data(writer.data(), writer.length());
+  quiche::QuicheStringPiece plaintext;  // Plaintext is empty.
+  if (!crypter.Encrypt(nonce, associated_data, plaintext,
+                       computed_integrity_tag)) {
+    QUIC_BUG << "Failed to compute retry integrity tag";
+    return false;
+  }
+  if (CRYPTO_memcmp(computed_integrity_tag, integrity_tag.data(),
+                    QUICHE_ARRAYSIZE(computed_integrity_tag)) != 0) {
+    QUIC_DLOG(ERROR) << "Failed to validate retry integrity tag";
+    return false;
+  }
+  return true;
 }
 
 // static

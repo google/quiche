@@ -76,6 +76,11 @@ bool ParsedQuicVersion::SupportsRetry() const {
   return transport_version > QUIC_VERSION_46;
 }
 
+bool ParsedQuicVersion::HasRetryIntegrityTag() const {
+  DCHECK(IsKnown());
+  return handshake_protocol == PROTOCOL_TLS1_3;
+}
+
 bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
   DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;

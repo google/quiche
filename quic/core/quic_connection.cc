@@ -328,7 +328,7 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      retry_has_been_parsed_(false),
+      drop_incoming_retry_packets_(false),
       max_consecutive_ptos_(0),
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
@@ -634,23 +634,35 @@ void QuicConnection::OnVersionNegotiationPacket(
 }
 
 // Handles retry for client connection.
-void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
-                                   QuicConnectionId new_connection_id,
-                                   quiche::QuicheStringPiece retry_token) {
+void QuicConnection::OnRetryPacket(
+    QuicConnectionId original_connection_id,
+    QuicConnectionId new_connection_id,
+    quiche::QuicheStringPiece retry_token,
+    quiche::QuicheStringPiece retry_integrity_tag,
+    quiche::QuicheStringPiece retry_without_tag) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-  if (original_connection_id != server_connection_id_) {
-    QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
-                     << original_connection_id << " not matching expected "
-                     << server_connection_id_ << " token "
+  if (version().HasRetryIntegrityTag()) {
+    if (!CryptoUtils::ValidateRetryIntegrityTag(
+            version(), server_connection_id_, retry_without_tag,
+            retry_integrity_tag)) {
+      QUIC_DLOG(ERROR) << "Ignoring RETRY with invalid integrity tag";
+      return;
+    }
+  } else {
+    if (original_connection_id != server_connection_id_) {
+      QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
+                       << original_connection_id << " not matching expected "
+                       << server_connection_id_ << " token "
+                       << quiche::QuicheTextUtils::HexEncode(retry_token);
+      return;
+    }
+  }
+  if (drop_incoming_retry_packets_) {
+    QUIC_DLOG(ERROR) << "Ignoring RETRY with token "
                      << quiche::QuicheTextUtils::HexEncode(retry_token);
     return;
   }
-  if (retry_has_been_parsed_) {
-    QUIC_DLOG(ERROR) << "Ignoring non-first RETRY with token "
-                     << quiche::QuicheTextUtils::HexEncode(retry_token);
-    return;
-  }
-  retry_has_been_parsed_ = true;
+  drop_incoming_retry_packets_ = true;
   stats_.retry_packet_processed = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
                   << server_connection_id_ << " with " << new_connection_id
@@ -683,6 +695,11 @@ void QuicConnection::AddIncomingConnectionId(QuicConnectionId connection_id) {
 
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
+  // As soon as we receive an initial we start ignoring subsequent retries.
+  if (header.version_flag && header.long_packet_type == INITIAL) {
+    drop_incoming_retry_packets_ = true;
+  }
+
   QuicConnectionId server_connection_id =
       GetServerConnectionIdAsRecipient(header, perspective_);
 

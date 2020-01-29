@@ -120,6 +120,10 @@ quiche::QuicheStringPiece QuicheDataReader::FullPayload() const {
   return quiche::QuicheStringPiece(data_, len_);
 }
 
+quiche::QuicheStringPiece QuicheDataReader::PreviouslyReadPayload() const {
+  return quiche::QuicheStringPiece(data_, pos_);
+}
+
 bool QuicheDataReader::ReadBytes(void* result, size_t size) {
   // Make sure that we have enough data to read.
   if (!CanRead(size)) {

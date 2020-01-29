@@ -58,6 +58,7 @@ class QuicPacketCreatorPeer {
 
   static EncryptionLevel GetEncryptionLevel(QuicPacketCreator* creator);
   static QuicFramer* framer(QuicPacketCreator* creator);
+  static std::string GetRetryToken(QuicPacketCreator* creator);
 };
 
 }  // namespace test

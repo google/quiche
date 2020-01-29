@@ -105,6 +105,10 @@ const size_t kPublicFlagsSize = 1;
 // Number of bytes reserved for version number in the packet header.
 const size_t kQuicVersionSize = 4;
 
+// Length of the retry integrity tag in bytes.
+// https://tools.ietf.org/html/draft-ietf-quic-transport-25#section-17.2.5
+const size_t kRetryIntegrityTagLength = 16;
+
 // Signifies that the QuicPacket will contain version of the protocol.
 const bool kIncludeVersion = true;
 // Signifies that the QuicPacket will include a diversification nonce.

@@ -262,10 +262,12 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD1(OnPublicResetPacket, void(const QuicPublicResetPacket& header));
   MOCK_METHOD1(OnVersionNegotiationPacket,
                void(const QuicVersionNegotiationPacket& packet));
-  MOCK_METHOD3(OnRetryPacket,
+  MOCK_METHOD5(OnRetryPacket,
                void(QuicConnectionId original_connection_id,
                     QuicConnectionId new_connection_id,
-                    quiche::QuicheStringPiece retry_token));
+                    quiche::QuicheStringPiece retry_token,
+                    quiche::QuicheStringPiece retry_integrity_tag,
+                    quiche::QuicheStringPiece retry_without_tag));
   // The constructor sets this up to return true by default.
   MOCK_METHOD1(OnUnauthenticatedHeader, bool(const QuicPacketHeader& header));
   // The constructor sets this up to return true by default.
@@ -325,7 +327,10 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/) override {}
+                     quiche::QuicheStringPiece /*retry_token*/,
+                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
+                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
+  }
   bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
@@ -1076,9 +1081,11 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
   MOCK_METHOD1(OnVersionNegotiationPacket,
                void(const QuicVersionNegotiationPacket&));
 
-  MOCK_METHOD3(OnRetryPacket,
+  MOCK_METHOD5(OnRetryPacket,
                void(QuicConnectionId,
                     QuicConnectionId,
+                    quiche::QuicheStringPiece,
+                    quiche::QuicheStringPiece,
                     quiche::QuicheStringPiece));
 };
 

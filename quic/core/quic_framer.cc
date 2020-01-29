@@ -1495,6 +1495,31 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
                                     const QuicPacketHeader& header) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
 
+  if (version_.HasRetryIntegrityTag()) {
+    DCHECK(version_.HasLengthPrefixedConnectionIds()) << version_;
+    const size_t bytes_remaining = reader->BytesRemaining();
+    if (bytes_remaining <= kRetryIntegrityTagLength) {
+      set_detailed_error("Retry packet too short to parse integrity tag.");
+      return false;
+    }
+    const size_t retry_token_length =
+        bytes_remaining - kRetryIntegrityTagLength;
+    DCHECK_GT(retry_token_length, 0u);
+    quiche::QuicheStringPiece retry_token;
+    if (!reader->ReadStringPiece(&retry_token, retry_token_length)) {
+      set_detailed_error("Failed to read retry token.");
+      return false;
+    }
+    quiche::QuicheStringPiece retry_without_tag =
+        reader->PreviouslyReadPayload();
+    quiche::QuicheStringPiece integrity_tag = reader->ReadRemainingPayload();
+    DCHECK_EQ(integrity_tag.length(), kRetryIntegrityTagLength);
+    visitor_->OnRetryPacket(EmptyQuicConnectionId(),
+                            header.source_connection_id, retry_token,
+                            integrity_tag, retry_without_tag);
+    return true;
+  }
+
   QuicConnectionId original_destination_connection_id;
   if (version_.HasLengthPrefixedConnectionIds()) {
     // Parse Original Destination Connection ID.
@@ -1526,7 +1551,9 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
 
   quiche::QuicheStringPiece retry_token = reader->ReadRemainingPayload();
   visitor_->OnRetryPacket(original_destination_connection_id,
-                          header.source_connection_id, retry_token);
+                          header.source_connection_id, retry_token,
+                          /*retry_integrity_tag=*/quiche::QuicheStringPiece(),
+                          /*retry_without_tag=*/quiche::QuicheStringPiece());
   return true;
 }
 

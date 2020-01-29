@@ -386,6 +386,9 @@ TEST_P(QuicheDataWriterTest, PayloadReads) {
   char expected_first_read[4] = {1, 2, 3, 4};
   char expected_remaining[12] = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
   QuicheDataReader reader(buffer, sizeof(buffer));
+  quiche::QuicheStringPiece previously_read_payload1 =
+      reader.PreviouslyReadPayload();
+  EXPECT_TRUE(previously_read_payload1.empty());
   char first_read_buffer[4] = {};
   EXPECT_TRUE(reader.ReadBytes(first_read_buffer, sizeof(first_read_buffer)));
   test::CompareCharArraysWithHexError(
@@ -401,6 +404,12 @@ TEST_P(QuicheDataWriterTest, PayloadReads) {
   test::CompareCharArraysWithHexError("full_payload", full_payload.data(),
                                       full_payload.length(), buffer,
                                       sizeof(buffer));
+  quiche::QuicheStringPiece previously_read_payload2 =
+      reader.PreviouslyReadPayload();
+  test::CompareCharArraysWithHexError(
+      "previously_read_payload2", previously_read_payload2.data(),
+      previously_read_payload2.length(), first_read_buffer,
+      sizeof(first_read_buffer));
   quiche::QuicheStringPiece read_remaining_payload =
       reader.ReadRemainingPayload();
   test::CompareCharArraysWithHexError(
@@ -412,6 +421,11 @@ TEST_P(QuicheDataWriterTest, PayloadReads) {
   test::CompareCharArraysWithHexError("full_payload2", full_payload2.data(),
                                       full_payload2.length(), buffer,
                                       sizeof(buffer));
+  quiche::QuicheStringPiece previously_read_payload3 =
+      reader.PreviouslyReadPayload();
+  test::CompareCharArraysWithHexError(
+      "previously_read_payload3", previously_read_payload3.data(),
+      previously_read_payload3.length(), buffer, sizeof(buffer));
 }
 
 }  // namespace

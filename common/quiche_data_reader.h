@@ -101,6 +101,15 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   // DOES NOT forward the internal iterator.
   quiche::QuicheStringPiece FullPayload() const;
 
+  // Returns the part of the payload that has been already read as a
+  // quiche::QuicheStringPiece.
+  //
+  // NOTE: Does not copy but rather references strings in the underlying buffer.
+  // This should be kept in mind when handling memory management!
+  //
+  // DOES NOT forward the internal iterator.
+  quiche::QuicheStringPiece PreviouslyReadPayload() const;
+
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.
   // Forwards the internal iterator on success.

@@ -38,7 +38,10 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/) override {}
+                     quiche::QuicheStringPiece /*retry_token*/,
+                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
+                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
+  }
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel /*level*/) override {}

@@ -41,7 +41,10 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
 
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/) override {}
+                     quiche::QuicheStringPiece /*retry_token*/,
+                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
+                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
+  }
 
   bool OnUnauthenticatedPublicHeader(
       const QuicPacketHeader& /*header*/) override {

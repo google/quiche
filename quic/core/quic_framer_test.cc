@@ -225,12 +225,18 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   void OnRetryPacket(QuicConnectionId original_connection_id,
                      QuicConnectionId new_connection_id,
-                     quiche::QuicheStringPiece retry_token) override {
+                     quiche::QuicheStringPiece retry_token,
+                     quiche::QuicheStringPiece retry_integrity_tag,
+                     quiche::QuicheStringPiece retry_without_tag) override {
     retry_original_connection_id_ =
         std::make_unique<QuicConnectionId>(original_connection_id);
     retry_new_connection_id_ =
         std::make_unique<QuicConnectionId>(new_connection_id);
     retry_token_ = std::make_unique<std::string>(std::string(retry_token));
+    retry_token_integrity_tag_ =
+        std::make_unique<std::string>(std::string(retry_integrity_tag));
+    retry_without_tag_ =
+        std::make_unique<std::string>(std::string(retry_without_tag));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -555,6 +561,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::unique_ptr<QuicConnectionId> retry_original_connection_id_;
   std::unique_ptr<QuicConnectionId> retry_new_connection_id_;
   std::unique_ptr<std::string> retry_token_;
+  std::unique_ptr<std::string> retry_token_integrity_tag_;
+  std::unique_ptr<std::string> retry_without_tag_;
   std::vector<std::unique_ptr<QuicStreamFrame>> stream_frames_;
   std::vector<std::unique_ptr<QuicCryptoFrame>> crypto_frames_;
   std::vector<std::unique_ptr<QuicAckFrame>> ack_frames_;
@@ -5734,11 +5742,32 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
       'H', 'e', 'l', 'l', 'o', ' ', 't', 'h', 'i', 's',
       ' ', 'i', 's', ' ', 'R', 'E', 'T', 'R', 'Y', '!',
   };
+  unsigned char packet_with_tag[] = {
+      // public flags (long header with packet type RETRY)
+      0xF0,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x00,
+      // source connection ID length
+      0x08,
+      // source connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
+      // retry token
+      'H', 'e', 'l', 'l', 'o', ' ', 't', 'h', 'i', 's',
+      ' ', 'i', 's', ' ', 'R', 'E', 'T', 'R', 'Y', '!',
+      // retry token integrity tag
+      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+  };
   // clang-format on
 
   unsigned char* p = packet;
   size_t p_length = QUICHE_ARRAYSIZE(packet);
-  if (framer_.transport_version() >= QUIC_VERSION_49) {
+  if (framer_.version().HasRetryIntegrityTag()) {
+    p = packet_with_tag;
+    p_length = QUICHE_ARRAYSIZE(packet_with_tag);
+  } else if (framer_.transport_version() >= QUIC_VERSION_49) {
     p = packet49;
     p_length = QUICHE_ARRAYSIZE(packet49);
   }
@@ -5748,12 +5777,31 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
 
-  ASSERT_TRUE(visitor_.retry_original_connection_id_.get());
   ASSERT_TRUE(visitor_.retry_new_connection_id_.get());
   ASSERT_TRUE(visitor_.retry_token_.get());
 
-  EXPECT_EQ(FramerTestConnectionId(),
-            *visitor_.retry_original_connection_id_.get());
+  if (framer_.version().HasRetryIntegrityTag()) {
+    ASSERT_TRUE(visitor_.retry_token_integrity_tag_.get());
+    static const unsigned char expected_integrity_tag[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    };
+    quiche::test::CompareCharArraysWithHexError(
+        "retry integrity tag", visitor_.retry_token_integrity_tag_->data(),
+        visitor_.retry_token_integrity_tag_->length(),
+        reinterpret_cast<const char*>(expected_integrity_tag),
+        QUICHE_ARRAYSIZE(expected_integrity_tag));
+    ASSERT_TRUE(visitor_.retry_without_tag_.get());
+    quiche::test::CompareCharArraysWithHexError(
+        "retry without tag", visitor_.retry_without_tag_->data(),
+        visitor_.retry_without_tag_->length(),
+        reinterpret_cast<const char*>(packet_with_tag), 35);
+  } else {
+    ASSERT_TRUE(visitor_.retry_original_connection_id_.get());
+    EXPECT_EQ(FramerTestConnectionId(),
+              *visitor_.retry_original_connection_id_.get());
+  }
+
   EXPECT_EQ(FramerTestConnectionIdPlusOne(),
             *visitor_.retry_new_connection_id_.get());
   EXPECT_EQ("Hello this is RETRY!", *visitor_.retry_token_.get());

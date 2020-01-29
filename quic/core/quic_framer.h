@@ -94,10 +94,21 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
       const QuicVersionNegotiationPacket& packet) = 0;
 
   // Called only when |perspective_| is IS_CLIENT and a retry packet has been
-  // parsed.
+  // parsed. |new_connection_id| contains the value of the Source Connection
+  // ID field, and |retry_token| contains the value of the Retry Token field.
+  // On versions where HasRetryIntegrityTag() is false,
+  // |original_connection_id| contains the value of the Original Destination
+  // Connection ID field, and both |retry_integrity_tag| and
+  // |retry_without_tag| are empty.
+  // On versions where HasRetryIntegrityTag() is true,
+  // |original_connection_id| is empty, |retry_integrity_tag| contains the
+  // value of the Retry Integrity Tag field, and |retry_without_tag| contains
+  // the entire RETRY packet except the Retry Integrity Tag field.
   virtual void OnRetryPacket(QuicConnectionId original_connection_id,
                              QuicConnectionId new_connection_id,
-                             quiche::QuicheStringPiece retry_token) = 0;
+                             quiche::QuicheStringPiece retry_token,
+                             quiche::QuicheStringPiece retry_integrity_tag,
+                             quiche::QuicheStringPiece retry_without_tag) = 0;
 
   // Called when all fields except packet number has been parsed, but has not
   // been authenticated. If it returns false, framing for this packet will

@@ -16,8 +16,10 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypter.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -94,6 +96,15 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
                                        ParsedQuicVersion version,
                                        QuicConnectionId connection_id,
                                        CrypterPair* crypters);
+
+  // IETF QUIC Retry packets carry a retry integrity tag to detect packet
+  // corruption and make it harder for an attacker to spoof. This function
+  // checks whether a given retry packet is valid.
+  static bool ValidateRetryIntegrityTag(
+      ParsedQuicVersion version,
+      QuicConnectionId original_connection_id,
+      quiche::QuicheStringPiece retry_without_tag,
+      quiche::QuicheStringPiece integrity_tag);
 
   // Generates the connection nonce. The nonce is formed as:
   //   <4 bytes> current time

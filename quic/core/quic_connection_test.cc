@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_error_code_wrappers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -39,6 +40,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -9793,6 +9795,75 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(6), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetry) {
+  if (!version().HasRetryIntegrityTag()) {
+    return;
+  }
+  if (version() != ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)) {
+    // TODO(dschinazi) generate retry packets for all versions once we have
+    // server-side support for generating these programmatically.
+    return;
+  }
+
+  // These values come from draft-ietf-quic-tls Appendix A.4.
+  char retry_packet[] = {0xff, 0xff, 0x00, 0x00, 0x19, 0x00, 0x08, 0xf0, 0x67,
+                         0xa5, 0x50, 0x2a, 0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b,
+                         0x65, 0x6e, 0x1e, 0x5e, 0xc5, 0xb0, 0x14, 0xcb, 0xb1,
+                         0xf0, 0xfd, 0x93, 0xdf, 0x40, 0x48, 0xc4, 0x46, 0xa6};
+  char original_connection_id_bytes[] = {0x83, 0x94, 0xc8, 0xf0,
+                                         0x3e, 0x51, 0x57, 0x08};
+  char new_connection_id_bytes[] = {0xf0, 0x67, 0xa5, 0x50,
+                                    0x2a, 0x42, 0x62, 0xb5};
+  char retry_token_bytes[] = {0x74, 0x6f, 0x6b, 0x65, 0x6e};
+
+  QuicConnectionId original_connection_id(
+      original_connection_id_bytes,
+      QUICHE_ARRAYSIZE(original_connection_id_bytes));
+  QuicConnectionId new_connection_id(new_connection_id_bytes,
+                                     QUICHE_ARRAYSIZE(new_connection_id_bytes));
+
+  std::string retry_token(retry_token_bytes,
+                          QUICHE_ARRAYSIZE(retry_token_bytes));
+
+  {
+    TestConnection connection1(
+        original_connection_id, kPeerAddress, helper_.get(),
+        alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT, version());
+    connection1.set_visitor(&visitor_);
+
+    connection1.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(retry_packet, QUICHE_ARRAYSIZE(retry_packet),
+                           clock_.Now()));
+    EXPECT_TRUE(connection1.GetStats().retry_packet_processed);
+    EXPECT_EQ(connection1.connection_id(), new_connection_id);
+    EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
+                  QuicConnectionPeer::GetPacketCreator(&connection1)),
+              retry_token);
+  }
+
+  // Now flip the last bit of the retry packet to prevent the integrity tag
+  // from validating correctly.
+  retry_packet[QUICHE_ARRAYSIZE(retry_packet) - 1] ^= 1;
+
+  {
+    TestConnection connection2(
+        original_connection_id, kPeerAddress, helper_.get(),
+        alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT, version());
+    connection2.set_visitor(&visitor_);
+
+    connection2.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(retry_packet, QUICHE_ARRAYSIZE(retry_packet),
+                           clock_.Now()));
+    EXPECT_FALSE(connection2.GetStats().retry_packet_processed);
+    EXPECT_EQ(connection2.connection_id(), original_connection_id);
+    EXPECT_TRUE(QuicPacketCreatorPeer::GetRetryToken(
+                    QuicConnectionPeer::GetPacketCreator(&connection2))
+                    .empty());
+  }
 }
 
 }  // namespace
