@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/quic_send_control_stream.h"
+#include <cstdint>
 #include <memory>
 
+#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -57,6 +59,18 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
       qpack_maximum_blocked_streams_;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
       max_inbound_header_list_size_;
+  // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.4.1
+  // specifies that setting identifiers of 0x1f * N + 0x21 are reserved and
+  // greasing should be attempted.
+  if (GetQuicFlag(FLAGS_quic_disable_http3_settings_grease_randomness)) {
+    settings.values[0x40] = 20;
+  } else {
+    uint32_t result;
+    QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));
+    uint64_t setting_id = 0x1fULL * static_cast<uint64_t>(result) + 0x21ULL;
+    QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));
+    settings.values[setting_id] = result;
+  }
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =

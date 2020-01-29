@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -102,6 +103,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicSendControlStreamTest, WriteSettings) {
+  SetQuicFlag(FLAGS_quic_disable_http3_settings_grease_randomness, true);
   session_.set_qpack_maximum_dynamic_table_capacity(255);
   session_.set_qpack_maximum_blocked_streams(16);
   session_.set_max_inbound_header_list_size(1024);
@@ -112,13 +114,15 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
   std::string expected_write_data = quiche::QuicheTextUtils::HexDecode(
       "00"    // stream type: control stream
       "04"    // frame type: SETTINGS frame
-      "08"    // frame length
+      "0b"    // frame length
       "01"    // SETTINGS_QPACK_MAX_TABLE_CAPACITY
       "40ff"  // 255
       "06"    // SETTINGS_MAX_HEADER_LIST_SIZE
       "4400"  // 1024
       "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
-      "10");  // 16
+      "10"    // 16
+      "4040"  // 0x40 as the reserved settings id
+      "14");  // 20
 
   auto buffer = std::make_unique<char[]>(expected_write_data.size());
   QuicDataWriter writer(expected_write_data.size(), buffer.get());
