@@ -228,6 +228,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                      quiche::QuicheStringPiece retry_token,
                      quiche::QuicheStringPiece retry_integrity_tag,
                      quiche::QuicheStringPiece retry_without_tag) override {
+    on_retry_packet_called_ = true;
     retry_original_connection_id_ =
         std::make_unique<QuicConnectionId>(original_connection_id);
     retry_new_connection_id_ =
@@ -563,6 +564,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::unique_ptr<std::string> retry_token_;
   std::unique_ptr<std::string> retry_token_integrity_tag_;
   std::unique_ptr<std::string> retry_without_tag_;
+  bool on_retry_packet_called_ = false;
   std::vector<std::unique_ptr<QuicStreamFrame>> stream_frames_;
   std::vector<std::unique_ptr<QuicCryptoFrame>> crypto_frames_;
   std::vector<std::unique_ptr<QuicAckFrame>> ack_frames_;
@@ -5777,6 +5779,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
 
+  ASSERT_TRUE(visitor_.on_retry_packet_called_);
   ASSERT_TRUE(visitor_.retry_new_connection_id_.get());
   ASSERT_TRUE(visitor_.retry_token_.get());
 
@@ -5805,38 +5808,28 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   EXPECT_EQ(FramerTestConnectionIdPlusOne(),
             *visitor_.retry_new_connection_id_.get());
   EXPECT_EQ("Hello this is RETRY!", *visitor_.retry_token_.get());
-}
 
-TEST_P(QuicFramerTest, RejectIetfRetryPacketAsServer) {
-  if (!framer_.version().SupportsRetry()) {
-    return;
-  }
-  // IETF RETRY is only sent from client to server.
+  // IETF RETRY is only sent from client to server, the rest of this test
+  // ensures that the server correctly drops them without acting on them.
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
-  // clang-format off
-  unsigned char packet[] = {
-      // public flags (long header with packet type RETRY and ODCIL=8)
-      0xF5,
-      // version
-      QUIC_VERSION_BYTES,
-      // connection ID lengths
-      0x00, 0x08,
-      // source connection ID
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x11,
-      // original destination connection ID
-      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
-      // retry token
-      'H', 'e', 'l', 'l', 'o', ' ', 't', 'h', 'i', 's',
-      ' ', 'i', 's', ' ', 'R', 'E', 'T', 'R', 'Y', '!',
-  };
-  // clang-format on
+  // Reset our visitor state to default settings.
+  visitor_.retry_original_connection_id_.reset();
+  visitor_.retry_new_connection_id_.reset();
+  visitor_.retry_token_.reset();
+  visitor_.retry_token_integrity_tag_.reset();
+  visitor_.retry_without_tag_.reset();
+  visitor_.on_retry_packet_called_ = false;
 
-  QuicEncryptedPacket encrypted(AsChars(packet), QUICHE_ARRAYSIZE(packet),
-                                false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
   EXPECT_EQ("Client-initiated RETRY is invalid.", framer_.detailed_error());
+
+  EXPECT_FALSE(visitor_.on_retry_packet_called_);
+  EXPECT_FALSE(visitor_.retry_new_connection_id_.get());
+  EXPECT_FALSE(visitor_.retry_token_.get());
+  EXPECT_FALSE(visitor_.retry_token_integrity_tag_.get());
+  EXPECT_FALSE(visitor_.retry_without_tag_.get());
 }
 
 TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
@@ -8692,7 +8685,6 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
       "constructed packet", data->data(), data->length(), AsChars(p),
       QUICHE_ARRAYSIZE(packet46));
 }
-
 
 // Test that the MTU discovery packet is serialized correctly as a PING packet.
 TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
