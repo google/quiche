@@ -3207,12 +3207,6 @@ void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
   mtu_discovery_alarm_->Set(clock_->ApproximateNow());
 }
 
-void QuicConnection::MaybeSetAckAlarmTo(QuicTime time) {
-  if (!ack_alarm_->IsSet() || ack_alarm_->deadline() > time) {
-    ack_alarm_->Update(time, QuicTime::Delta::Zero());
-  }
-}
-
 QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
     QuicConnection* connection)
     : connection_(connection),
@@ -3241,8 +3235,9 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
         // Cancel ACK alarm if connection is write blocked, and ACK will be
         // sent when connection gets unblocked.
         connection_->ack_alarm_->Cancel();
-      } else {
-        connection_->MaybeSetAckAlarmTo(ack_timeout);
+      } else if (!connection_->ack_alarm_->IsSet() ||
+                 connection_->ack_alarm_->deadline() > ack_timeout) {
+        connection_->ack_alarm_->Update(ack_timeout, QuicTime::Delta::Zero());
       }
     }
     if (connection_->ack_alarm_->IsSet() &&

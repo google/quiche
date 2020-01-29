@@ -1089,9 +1089,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |sent_packet_number| is the recently sent packet number.
   void MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number);
 
-  // Sets ack alarm to |time| if ack alarm is not set or the deadline > time.
-  void MaybeSetAckAlarmTo(QuicTime time);
-
   HasRetransmittableData IsRetransmittable(const SerializedPacket& packet);
   bool IsTerminationPacket(const SerializedPacket& packet);
 
