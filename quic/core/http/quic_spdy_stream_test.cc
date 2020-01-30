@@ -1297,11 +1297,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
     // for headers and trailers.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
         .Times(4);
-    // PRIORITY_UPDATE frame on the control stream.
-    auto send_control_stream =
-        QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                      send_control_stream->id(), _, _, _));
   }
 
   // Write the initial headers, without a FIN.
@@ -1354,11 +1349,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
     // HEADERS frame header and payload on the request stream.
     EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
         .Times(2);
-    // PRIORITY_UPDATE frame on the control stream.
-    auto send_control_stream =
-        QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                      send_control_stream->id(), _, _, _));
   }
 
   // Write the initial headers.
@@ -1403,13 +1393,6 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
   // also written on the stream in case of IETF QUIC.
   EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
       .Times(AtLeast(1));
-  if (UsesHttp3()) {
-    // PRIORITY_UPDATE frame.
-    auto send_control_stream =
-        QuicSpdySessionPeer::GetSendControlStream(session_.get());
-    EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                      send_control_stream->id(), _, _, _));
-  }
 
   // Write the initial headers.
   EXPECT_CALL(*stream_, WriteHeadersMock(false));

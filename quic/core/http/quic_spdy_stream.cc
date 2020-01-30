@@ -1041,7 +1041,7 @@ size_t QuicSpdyStream::WriteHeadersImpl(
         std::move(ack_listener));
   }
 
-  if (!priority_sent_) {
+  if (!priority_sent_ && session()->perspective() == Perspective::IS_CLIENT) {
     PriorityUpdateFrame priority_update;
     priority_update.prioritized_element_type = REQUEST_STREAM;
     priority_update.prioritized_element_id = id();
