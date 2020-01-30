@@ -3073,7 +3073,9 @@ void QuicConnection::CheckForTimeout() {
                 << " idle_network_timeout: "
                 << idle_network_timeout_.ToMicroseconds();
   if (idle_duration >= idle_network_timeout_) {
-    const std::string error_details = "No recent network activity.";
+    const std::string error_details = quiche::QuicheStrCat(
+        "No recent network activity after ", idle_duration.ToDebuggingValue(),
+        ". Timeout:", idle_network_timeout_.ToDebuggingValue());
     QUIC_DVLOG(1) << ENDPOINT << error_details;
     if ((sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
          sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
@@ -3094,7 +3096,10 @@ void QuicConnection::CheckForTimeout() {
                   << " handshake timeout: "
                   << handshake_timeout_.ToMicroseconds();
     if (connected_duration >= handshake_timeout_) {
-      const std::string error_details = "Handshake timeout expired.";
+      const std::string error_details = quiche::QuicheStrCat(
+          "Handshake timeout expired after ",
+          connected_duration.ToDebuggingValue(),
+          ". Timeout:", handshake_timeout_.ToDebuggingValue());
       QUIC_DVLOG(1) << ENDPOINT << error_details;
       CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
