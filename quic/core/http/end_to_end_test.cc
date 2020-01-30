@@ -679,28 +679,11 @@ TEST_P(EndToEndTestWithTls, SimpleRequestResponse) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-class HandshakeDoneObserver : public QuicConnectionDebugVisitor {
- public:
-  HandshakeDoneObserver() : handshake_done_received_(false) {}
-
-  size_t handshake_done_received() const { return handshake_done_received_; }
-
-  void OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) override {
-    handshake_done_received_ = true;
-  }
-
- private:
-  bool handshake_done_received_;
-};
-
-TEST_P(EndToEndTestWithTls, HandshakeDone) {
+TEST_P(EndToEndTestWithTls, HandshakeConfirmed) {
   ASSERT_TRUE(Initialize());
   if (!GetParam().negotiated_version.HasHandshakeDone()) {
     return;
   }
-  HandshakeDoneObserver observer;
-  QuicConnection* client_connection = GetClientConnection();
-  client_connection->set_debug_visitor(&observer);
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   // Verify handshake state.
@@ -709,8 +692,6 @@ TEST_P(EndToEndTestWithTls, HandshakeDone) {
   EXPECT_EQ(HANDSHAKE_CONFIRMED, GetServerSession()->GetHandshakeState());
   server_thread_->Resume();
   client_->Disconnect();
-  // Verify handshake done frame has been receveid by client.
-  EXPECT_TRUE(observer.handshake_done_received());
 }
 
 TEST_P(EndToEndTestWithTls, SendAndReceiveCoalescedPackets) {
