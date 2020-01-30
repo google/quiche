@@ -198,7 +198,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
-      priority_sent_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(0),
@@ -235,7 +234,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
-      priority_sent_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
@@ -280,6 +278,9 @@ size_t QuicSpdyStream::WriteHeaders(
     WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
                       false, nullptr);
   }
+
+  MaybeSendPriorityUpdateFrame();
+
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
   if (!VersionUsesHttp3(transport_version()) && fin) {
@@ -580,6 +581,22 @@ void QuicSpdyStream::OnHeaderDecodingError(
       " on stream ", id(), ": ", error_message);
   CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED,
                              connection_close_error_message);
+}
+
+void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
+  if (!VersionUsesHttp3(transport_version()) ||
+      session()->perspective() != Perspective::IS_CLIENT) {
+    return;
+  }
+
+  // Value between 0 and 7, inclusive.  Lower value means higher priority.
+  int urgency = precedence().spdy3_priority();
+
+  PriorityUpdateFrame priority_update;
+  priority_update.prioritized_element_type = REQUEST_STREAM;
+  priority_update.prioritized_element_id = id();
+  priority_update.priority_field_value = quiche::QuicheStrCat("u=", urgency);
+  spdy_session_->WriteHttp3PriorityUpdate(priority_update);
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
@@ -1039,17 +1056,6 @@ size_t QuicSpdyStream::WriteHeadersImpl(
     return spdy_session_->WriteHeadersOnHeadersStream(
         id(), std::move(header_block), fin, precedence(),
         std::move(ack_listener));
-  }
-
-  if (!priority_sent_ && session()->perspective() == Perspective::IS_CLIENT) {
-    PriorityUpdateFrame priority_update;
-    priority_update.prioritized_element_type = REQUEST_STREAM;
-    priority_update.prioritized_element_id = id();
-    // Value between 0 and 7, inclusive.  Lower value means higher priority.
-    int urgency = precedence().spdy3_priority();
-    priority_update.priority_field_value = quiche::QuicheStrCat("u=", urgency);
-    spdy_session_->WriteHttp3PriorityUpdate(priority_update);
-    priority_sent_ = true;
   }
 
   // Encode header list.

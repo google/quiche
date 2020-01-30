@@ -221,6 +221,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   QuicSpdySession* spdy_session() const { return spdy_session_; }
 
+  // Send PRIORITY_UPDATE frame and update |last_sent_urgency_| if
+  // |last_sent_urgency_| is different from current priority.
+  void MaybeSendPriorityUpdateFrame();
+
  protected:
   // Called when the received headers are too large. By default this will
   // reset the stream.
@@ -298,9 +302,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   bool trailers_decompressed_;
   // True if the trailers have been consumed.
   bool trailers_consumed_;
-
-  // True if the stream has already sent an priority frame.
-  bool priority_sent_;
 
   // The parsed trailers received from the peer.
   spdy::SpdyHeaderBlock received_trailers_;
