@@ -1517,6 +1517,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Latched value of quic_use_handshaker_delegate2.
   const bool use_handshake_delegate_;
+
+  // Latched value of quic_check_handshake_timeout_before_idle_timeout.
+  const bool check_handshake_timeout_before_idle_timeout_;
 };
 
 }  // namespace quic

@@ -335,7 +335,9 @@ QuicConnection::QuicConnection(
       address_validated_(false),
       use_handshake_delegate_(
           GetQuicReloadableFlag(quic_use_handshaker_delegate2) ||
-          version().handshake_protocol == PROTOCOL_TLS1_3) {
+          version().handshake_protocol == PROTOCOL_TLS1_3),
+      check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
+          quic_check_handshake_timeout_before_idle_timeout)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -347,6 +349,11 @@ QuicConnection::QuicConnection(
       << QuicVersionToString(transport_version());
   if (use_handshake_delegate_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_handshaker_delegate2);
+  }
+
+  if (check_handshake_timeout_before_idle_timeout_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_check_handshake_timeout_before_idle_timeout);
   }
 
   framer_.set_visitor(this);
@@ -3058,6 +3065,25 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 
 void QuicConnection::CheckForTimeout() {
   QuicTime now = clock_->ApproximateNow();
+  if (check_handshake_timeout_before_idle_timeout_ &&
+      !handshake_timeout_.IsInfinite()) {
+    QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "connection time: " << connected_duration.ToMicroseconds()
+                  << " handshake timeout: "
+                  << handshake_timeout_.ToMicroseconds();
+    if (connected_duration >= handshake_timeout_) {
+      const std::string error_details = quiche::QuicheStrCat(
+          "Handshake timeout expired after ",
+          connected_duration.ToDebuggingValue(),
+          ". Timeout:", handshake_timeout_.ToDebuggingValue());
+      QUIC_DVLOG(1) << ENDPOINT << error_details;
+      CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+  }
+
   QuicTime time_of_last_packet =
       std::max(time_of_last_received_packet_,
                time_of_first_packet_sent_after_receiving_);
@@ -3089,7 +3115,8 @@ void QuicConnection::CheckForTimeout() {
     return;
   }
 
-  if (!handshake_timeout_.IsInfinite()) {
+  if (!check_handshake_timeout_before_idle_timeout_ &&
+      !handshake_timeout_.IsInfinite()) {
     QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
     QUIC_DVLOG(1) << ENDPOINT
                   << "connection time: " << connected_duration.ToMicroseconds()
