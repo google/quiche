@@ -202,7 +202,8 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
-      ack_listener_(nullptr) {
+      ack_listener_(nullptr),
+      last_sent_urgency_(kDefaultUrgency) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
   DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
@@ -238,7 +239,8 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       decoder_(http_decoder_visitor_.get()),
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
-      ack_listener_(nullptr) {
+      ack_listener_(nullptr),
+      last_sent_urgency_(kDefaultUrgency) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
   DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id()));
@@ -591,6 +593,10 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
 
   // Value between 0 and 7, inclusive.  Lower value means higher priority.
   int urgency = precedence().spdy3_priority();
+  if (last_sent_urgency_ == urgency) {
+    return;
+  }
+  last_sent_urgency_ = urgency;
 
   PriorityUpdateFrame priority_update;
   priority_update.prioritized_element_type = REQUEST_STREAM;
