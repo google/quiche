@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
@@ -25,6 +26,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
         DCHECK_EQ(0u, db->Remaining());
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
+        HTTP2_CODE_COUNT_N(decompress_failure_3, 1, 23);
         return DecodeStatus::kDecodeError;
     }
   }
@@ -41,6 +43,7 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
         before_entry_ = false;
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
+        HTTP2_CODE_COUNT_N(decompress_failure_3, 2, 23);
         return DecodeStatus::kDecodeError;
     }
     DCHECK(false);

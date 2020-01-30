@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
@@ -353,6 +354,7 @@ DecodeStatus HpackEntryTypeDecoder::Start(DecodeBuffer* db) {
       return varint_decoder_.StartExtended(7, db);
   }
   HTTP2_BUG << "Unreachable, byte=" << std::hex << static_cast<uint32_t>(byte);
+  HTTP2_CODE_COUNT_N(decompress_failure_3, 17, 23);
   return DecodeStatus::kDecodeError;
 }
 

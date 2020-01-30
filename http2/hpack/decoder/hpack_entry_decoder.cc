@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 
@@ -78,6 +79,7 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
       state_ = EntryDecoderState::kResumeDecodingType;
       return status;
     case DecodeStatus::kDecodeError:
+      HTTP2_CODE_COUNT_N(decompress_failure_3, 11, 23);
       // The varint must have been invalid (too long).
       return status;
   }
@@ -100,6 +102,9 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         HTTP2_DVLOG(1) << "kResumeDecodingType: db->Remaining="
                        << db->Remaining();
         status = entry_type_decoder_.Resume(db);
+        if (status == DecodeStatus::kDecodeError) {
+          HTTP2_CODE_COUNT_N(decompress_failure_3, 12, 23);
+        }
         if (status != DecodeStatus::kDecodeDone) {
           return status;
         }
@@ -129,6 +134,9 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           // that will only happen if the varint encoding the name's length
           // is too long.
           state_ = EntryDecoderState::kResumeDecodingName;
+          if (status == DecodeStatus::kDecodeError) {
+            HTTP2_CODE_COUNT_N(decompress_failure_3, 13, 23);
+          }
           return status;
         }
         state_ = EntryDecoderState::kStartDecodingValue;
@@ -140,6 +148,9 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         {
           ValueDecoderListener vcb(listener);
           status = string_decoder_.Start(db, &vcb);
+        }
+        if (status == DecodeStatus::kDecodeError) {
+          HTTP2_CODE_COUNT_N(decompress_failure_3, 14, 23);
         }
         if (status == DecodeStatus::kDecodeDone) {
           // Done with decoding the literal value, so we've reached the
@@ -167,6 +178,9 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           // that will only happen if the varint encoding the name's length
           // is too long.
           state_ = EntryDecoderState::kResumeDecodingName;
+          if (status == DecodeStatus::kDecodeError) {
+            HTTP2_CODE_COUNT_N(decompress_failure_3, 15, 23);
+          }
           return status;
         }
         state_ = EntryDecoderState::kStartDecodingValue;
@@ -179,6 +193,9 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         {
           ValueDecoderListener vcb(listener);
           status = string_decoder_.Resume(db, &vcb);
+        }
+        if (status == DecodeStatus::kDecodeError) {
+          HTTP2_CODE_COUNT_N(decompress_failure_3, 16, 23);
         }
         if (status == DecodeStatus::kDecodeDone) {
           // Done with decoding the value, therefore the entry as a whole.

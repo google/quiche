@@ -11,4 +11,6 @@
 #define SetHttp2ReloadableFlag(flag, value) \
   SetHttp2ReloadableFlagImpl(flag, value)
 
+#define HTTP2_CODE_COUNT_N HTTP2_CODE_COUNT_N_IMPL
+
 #endif  // QUICHE_HTTP2_PLATFORM_API_HTTP2_FLAGS_H_
