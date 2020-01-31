@@ -340,24 +340,7 @@ class TestPacketWriter : public QuicPacketWriter {
   TestPacketWriter(ParsedQuicVersion version, MockClock* clock)
       : version_(version),
         framer_(SupportedVersions(version_), Perspective::IS_SERVER),
-        last_packet_size_(0),
-        write_blocked_(false),
-        write_should_fail_(false),
-        block_on_next_flush_(false),
-        block_on_next_write_(false),
-        next_packet_too_large_(false),
-        always_get_packet_too_large_(false),
-        is_write_blocked_data_buffered_(false),
-        is_batch_mode_(false),
-        final_bytes_of_last_packet_(0),
-        final_bytes_of_previous_packet_(0),
-        use_tagging_decrypter_(false),
-        packets_write_attempts_(0),
-        connection_close_packets_(0),
-        clock_(clock),
-        write_pause_time_delta_(QuicTime::Delta::Zero()),
-        max_packet_size_(kMaxOutgoingPacketSize),
-        supports_release_time_(false) {
+        clock_(clock) {
     QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
                                                         TestConnectionId());
     framer_.framer()->SetInitialObfuscators(TestConnectionId());
@@ -430,6 +413,10 @@ class TestPacketWriter : public QuicPacketWriter {
     if (!write_pause_time_delta_.IsZero()) {
       clock_->AdvanceTime(write_pause_time_delta_);
     }
+    if (is_batch_mode_) {
+      bytes_buffered_ += last_packet_size_;
+      return WriteResult(WRITE_STATUS_OK, 0);
+    }
     return WriteResult(WRITE_STATUS_OK, last_packet_size_);
   }
 
@@ -459,12 +446,15 @@ class TestPacketWriter : public QuicPacketWriter {
   }
 
   WriteResult Flush() override {
+    flush_attempts_++;
     if (block_on_next_flush_) {
       block_on_next_flush_ = false;
       SetWriteBlocked();
       return WriteResult(WRITE_STATUS_BLOCKED, /*errno*/ -1);
     }
-    return WriteResult(WRITE_STATUS_OK, 0);
+    int bytes_flushed = bytes_buffered_;
+    bytes_buffered_ = 0;
+    return WriteResult(WRITE_STATUS_OK, bytes_flushed);
   }
 
   void BlockOnNextFlush() { block_on_next_flush_ = true; }
@@ -572,7 +562,9 @@ class TestPacketWriter : public QuicPacketWriter {
 
   void use_tagging_decrypter() { use_tagging_decrypter_ = true; }
 
-  uint32_t packets_write_attempts() { return packets_write_attempts_; }
+  uint32_t packets_write_attempts() const { return packets_write_attempts_; }
+
+  uint32_t flush_attempts() const { return flush_attempts_; }
 
   uint32_t connection_close_packets() const {
     return connection_close_packets_;
@@ -597,27 +589,32 @@ class TestPacketWriter : public QuicPacketWriter {
  private:
   ParsedQuicVersion version_;
   SimpleQuicFramer framer_;
-  size_t last_packet_size_;
+  size_t last_packet_size_ = 0;
   QuicPacketHeader last_packet_header_;
-  bool write_blocked_;
-  bool write_should_fail_;
-  bool block_on_next_flush_;
-  bool block_on_next_write_;
-  bool next_packet_too_large_;
-  bool always_get_packet_too_large_;
-  bool is_write_blocked_data_buffered_;
-  bool is_batch_mode_;
-  uint32_t final_bytes_of_last_packet_;
-  uint32_t final_bytes_of_previous_packet_;
-  bool use_tagging_decrypter_;
-  uint32_t packets_write_attempts_;
-  uint32_t connection_close_packets_;
-  MockClock* clock_;
+  bool write_blocked_ = false;
+  bool write_should_fail_ = false;
+  bool block_on_next_flush_ = false;
+  bool block_on_next_write_ = false;
+  bool next_packet_too_large_ = false;
+  bool always_get_packet_too_large_ = false;
+  bool is_write_blocked_data_buffered_ = false;
+  bool is_batch_mode_ = false;
+  // Number of times Flush() was called.
+  uint32_t flush_attempts_ = 0;
+  // (Batch mode only) Number of bytes buffered in writer. It is used as the
+  // return value of a successful Flush().
+  uint32_t bytes_buffered_ = 0;
+  uint32_t final_bytes_of_last_packet_ = 0;
+  uint32_t final_bytes_of_previous_packet_ = 0;
+  bool use_tagging_decrypter_ = false;
+  uint32_t packets_write_attempts_ = 0;
+  uint32_t connection_close_packets_ = 0;
+  MockClock* clock_ = nullptr;
   // If non-zero, the clock will pause during WritePacket for this amount of
   // time.
-  QuicTime::Delta write_pause_time_delta_;
-  QuicByteCount max_packet_size_;
-  bool supports_release_time_;
+  QuicTime::Delta write_pause_time_delta_ = QuicTime::Delta::Zero();
+  QuicByteCount max_packet_size_ = kMaxOutgoingPacketSize;
+  bool supports_release_time_ = false;
 };
 
 class TestConnection : public QuicConnection {
@@ -4834,6 +4831,25 @@ TEST_P(QuicConnectionTest, SendMtuDiscoveryPacket) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.SendStreamDataWithString(3, data, 0, FIN);
   EXPECT_EQ(QuicPacketNumber(4u), creator_->packet_number());
+}
+
+// Verifies that when a MTU probe packet is sent and buffered in a batch writer,
+// the writer is flushed immediately.
+TEST_P(QuicConnectionTest, BatchWriterFlushedAfterMtuDiscoveryPacket) {
+  writer_->SetBatchMode(true);
+  MtuDiscoveryTestInit();
+
+  // Send an MTU probe.
+  const size_t target_mtu = kDefaultMaxPacketSize + 100;
+  QuicByteCount mtu_probe_size;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(SaveArg<3>(&mtu_probe_size));
+  const uint32_t prior_flush_attempts = writer_->flush_attempts();
+  connection_.SendMtuDiscoveryPacket(target_mtu);
+  EXPECT_EQ(target_mtu, mtu_probe_size);
+  if (GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
+    EXPECT_EQ(writer_->flush_attempts(), prior_flush_attempts + 1);
+  }
 }
 
 // Tests whether MTU discovery does not happen when it is not explicitly enabled

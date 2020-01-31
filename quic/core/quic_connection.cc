@@ -337,7 +337,9 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_use_handshaker_delegate2) ||
           version().handshake_protocol == PROTOCOL_TLS1_3),
       check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
-          quic_check_handshake_timeout_before_idle_timeout)) {
+          quic_check_handshake_timeout_before_idle_timeout)),
+      batch_writer_flush_after_mtu_probe_(
+          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -2192,8 +2194,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
   }
-  SerializedPacketFate fate = DeterminePacketFate(
-      /*is_mtu_discovery=*/packet->encrypted_length > long_term_mtu_);
+  const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
+                                    packet->encrypted_length > long_term_mtu_;
+  SerializedPacketFate fate = DeterminePacketFate(looks_like_mtu_probe);
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   QuicPacketNumber packet_number = packet->packet_number;
@@ -2211,8 +2214,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
   }
 
-  const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
-                                    packet->encrypted_length > long_term_mtu_;
   DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
   if (!looks_like_mtu_probe) {
     DCHECK_LE(encrypted_length, packet_creator_.max_packet_length());
@@ -2285,6 +2286,18 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       result = writer_->WritePacket(packet->encrypted_buffer, encrypted_length,
                                     self_address().host(), peer_address(),
                                     per_packet_options_);
+      // This is a work around for an issue with linux UDP GSO batch writers.
+      // When sending a GSO packet with 2 segments, if the first segment is
+      // larger than the path MTU, instead of EMSGSIZE, the linux kernel returns
+      // EINVAL, which translates to WRITE_STATUS_ERROR and causes conneciton to
+      // be closed. By manually flush the writer here, the MTU probe is sent in
+      // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
+      // not close the connection.
+      if (batch_writer_flush_after_mtu_probe_ && looks_like_mtu_probe &&
+          writer_->IsBatchMode()) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_batch_writer_flush_after_mtu_probe);
+        result = writer_->Flush();
+      }
       break;
     case FAILED_TO_WRITE_COALESCED_PACKET:
       // Failed to send existing coalesced packet when determining packet fate,
