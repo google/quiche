@@ -321,6 +321,17 @@ bool QuicUtils::IsHandshakeFrame(const QuicFrame& frame,
 }
 
 // static
+bool QuicUtils::ContainsFrameType(const QuicFrames& frames,
+                                  QuicFrameType type) {
+  for (const QuicFrame& frame : frames) {
+    if (frame.type == type) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// static
 SentPacketState QuicUtils::RetransmissionTypeToPacketState(
     TransmissionType retransmission_type) {
   switch (retransmission_type) {

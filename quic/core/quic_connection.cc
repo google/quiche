@@ -339,7 +339,9 @@ QuicConnection::QuicConnection(
       check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
           quic_check_handshake_timeout_before_idle_timeout)),
       batch_writer_flush_after_mtu_probe_(
-          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
+          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)),
+      better_mtu_packet_check_(
+          GetQuicReloadableFlag(quic_better_mtu_packet_check)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -356,6 +358,10 @@ QuicConnection::QuicConnection(
   if (check_handshake_timeout_before_idle_timeout_) {
     QUIC_RELOADABLE_FLAG_COUNT(
         quic_check_handshake_timeout_before_idle_timeout);
+  }
+
+  if (better_mtu_packet_check_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_better_mtu_packet_check);
   }
 
   framer_.set_visitor(this);
@@ -2196,7 +2202,14 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
   const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
                                     packet->encrypted_length > long_term_mtu_;
-  SerializedPacketFate fate = DeterminePacketFate(looks_like_mtu_probe);
+  const bool is_mtu_discovery =
+      better_mtu_packet_check_
+          ? QuicUtils::ContainsFrameType(packet->nonretransmittable_frames,
+                                         MTU_DISCOVERY_FRAME)
+          : looks_like_mtu_probe;
+  DCHECK_EQ(looks_like_mtu_probe, is_mtu_discovery);
+
+  SerializedPacketFate fate = DeterminePacketFate(is_mtu_discovery);
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   QuicPacketNumber packet_number = packet->packet_number;
@@ -2215,7 +2228,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
-  if (!looks_like_mtu_probe) {
+  if (!is_mtu_discovery) {
     DCHECK_LE(encrypted_length, packet_creator_.max_packet_length());
   }
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
@@ -2293,7 +2306,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // be closed. By manually flush the writer here, the MTU probe is sent in
       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
       // not close the connection.
-      if (batch_writer_flush_after_mtu_probe_ && looks_like_mtu_probe &&
+      if (batch_writer_flush_after_mtu_probe_ && is_mtu_discovery &&
           writer_->IsBatchMode()) {
         QUIC_RELOADABLE_FLAG_COUNT(quic_batch_writer_flush_after_mtu_probe);
         result = writer_->Flush();
@@ -2332,7 +2345,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   // In some cases, an MTU probe can cause EMSGSIZE. This indicates that the
   // MTU discovery is permanently unsuccessful.
-  if (IsMsgTooBig(result) && looks_like_mtu_probe) {
+  if (IsMsgTooBig(result) && is_mtu_discovery) {
     // When MSG_TOO_BIG is returned, the system typically knows what the
     // actual MTU is, so there is no need to probe further.
     // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
