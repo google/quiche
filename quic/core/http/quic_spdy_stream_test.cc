@@ -1372,6 +1372,54 @@ TEST_P(QuicSpdyStreamTest, DoNotSendPriorityUpdateWithDefaultUrgency) {
   EXPECT_TRUE(stream_->fin_sent());
 }
 
+TEST_P(QuicSpdyStreamTest, ChangePriority) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+
+  // Two writes on the request stream: HEADERS frame header and payload.
+  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(2);
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  // PRIORITY_UPDATE frame on the control stream.
+  auto send_control_stream =
+      QuicSpdySessionPeer::GetSendControlStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                    send_control_stream->id(), _, _, _));
+  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
+  testing::Mock::VerifyAndClearExpectations(session_.get());
+
+  // Another PRIORITY_UPDATE frame.
+  EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                    send_control_stream->id(), _, _, _));
+  stream_->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+}
+
+TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+
+  // PRIORITY_UPDATE frame sent on the control stream as soon as SetPriority()
+  // is called, before HEADERS frame is sent.
+  auto send_control_stream =
+      QuicSpdySessionPeer::GetSendControlStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(send_control_stream,
+                                    send_control_stream->id(), _, _, _));
+
+  stream_->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  testing::Mock::VerifyAndClearExpectations(session_.get());
+
+  // Two writes on the request stream: HEADERS frame header and payload.
+  // PRIORITY_UPDATE frame is not sent this time, because one is already sent.
+  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(2);
+  EXPECT_CALL(*stream_, WriteHeadersMock(true));
+  stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/true, nullptr);
+}
+
 // Test that when writing trailers, the trailers that are actually sent to the
 // peer contain the final offset field indicating last byte of data.
 TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {

@@ -229,7 +229,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Send PRIORITY_UPDATE frame and update |last_sent_urgency_| if
   // |last_sent_urgency_| is different from current priority.
-  void MaybeSendPriorityUpdateFrame();
+  void MaybeSendPriorityUpdateFrame() override;
 
  protected:
   // Called when the received headers are too large. By default this will

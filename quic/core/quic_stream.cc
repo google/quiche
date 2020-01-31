@@ -562,6 +562,9 @@ const spdy::SpdyStreamPrecedence& QuicStream::precedence() const {
 
 void QuicStream::SetPriority(const spdy::SpdyStreamPrecedence& precedence) {
   precedence_ = precedence;
+
+  MaybeSendPriorityUpdateFrame();
+
   session_->UpdateStreamPriority(id(), precedence);
 }
 

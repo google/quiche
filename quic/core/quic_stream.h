@@ -179,8 +179,14 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   const spdy::SpdyStreamPrecedence& precedence() const;
 
-  // Sets priority_ to priority.  This should only be called before bytes are
-  // written to the server.
+  // Send PRIORITY_UPDATE frame if application protocol supports it.
+  virtual void MaybeSendPriorityUpdateFrame() {}
+
+  // Sets |priority_| to priority.  This should only be called before bytes are
+  // written to the server.  For a server stream, this is called when a
+  // PRIORITY_UPDATE frame is received.  This calls
+  // MaybeSendPriorityUpdateFrame(), which for a client stream might send a
+  // PRIORITY_UPDATE frame.
   void SetPriority(const spdy::SpdyStreamPrecedence& precedence);
 
   // Returns true if this stream is still waiting for acks of sent data.
