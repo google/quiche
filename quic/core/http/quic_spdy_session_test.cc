@@ -2172,7 +2172,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   struct PriorityUpdateFrame priority_update1;
   priority_update1.prioritized_element_type = REQUEST_STREAM;
   priority_update1.prioritized_element_id = stream_id1;
-  priority_update1.priority_field_value = "u=1";
+  priority_update1.priority_field_value = "u=2";
   std::string serialized_priority_update1 =
       SerializePriorityUpdateFrame(priority_update1);
   QuicStreamFrame data3(receive_control_stream_id,
@@ -2181,9 +2181,10 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives after stream creation.
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
-  EXPECT_EQ(3u, stream1->precedence().spdy3_priority());
+  EXPECT_EQ(QuicStream::kDefaultUrgency,
+            stream1->precedence().spdy3_priority());
   session_.OnStreamFrame(data3);
-  EXPECT_EQ(1u, stream1->precedence().spdy3_priority());
+  EXPECT_EQ(2u, stream1->precedence().spdy3_priority());
 
   // PRIORITY_UPDATE frame for second request stream.
   const QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);

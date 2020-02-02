@@ -106,6 +106,9 @@ size_t GetReceivedFlowControlWindow(QuicSession* session,
 // static
 const SpdyPriority QuicStream::kDefaultPriority;
 
+// static
+const int QuicStream::kDefaultUrgency;
+
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
       session_(session),
@@ -334,12 +337,7 @@ QuicStream::QuicStream(QuicStreamId id,
     : sequencer_(std::move(sequencer)),
       id_(id),
       session_(session),
-      precedence_(
-          session->use_http2_priority_write_scheduler()
-              ? spdy::SpdyStreamPrecedence(0,
-                                           spdy::kHttp2DefaultStreamWeight,
-                                           false)
-              : spdy::SpdyStreamPrecedence(kDefaultPriority)),
+      precedence_(CalculateDefaultPriority(session)),
       stream_bytes_read_(stream_bytes_read),
       stream_error_(QUIC_STREAM_NO_ERROR),
       connection_error_(QUIC_NO_ERROR),
@@ -1191,6 +1189,21 @@ void QuicStream::SendStopSending(uint16_t code) {
     return;
   }
   session_->SendStopSending(code, id_);
+}
+
+// static
+spdy::SpdyStreamPrecedence QuicStream::CalculateDefaultPriority(
+    const QuicSession* session) {
+  if (VersionUsesHttp3(session->transport_version())) {
+    return spdy::SpdyStreamPrecedence(QuicStream::kDefaultUrgency);
+  }
+
+  if (session->use_http2_priority_write_scheduler()) {
+    return spdy::SpdyStreamPrecedence(0, spdy::kHttp2DefaultStreamWeight,
+                                      false);
+  }
+
+  return spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority);
 }
 
 }  // namespace quic

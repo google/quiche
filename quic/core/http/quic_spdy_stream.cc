@@ -281,8 +281,6 @@ size_t QuicSpdyStream::WriteHeaders(
                       false, nullptr);
   }
 
-  MaybeSendPriorityUpdateFrame();
-
   size_t bytes_written =
       WriteHeadersImpl(std::move(header_block), fin, std::move(ack_listener));
   if (!VersionUsesHttp3(transport_version()) && fin) {

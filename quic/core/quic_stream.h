@@ -114,11 +114,15 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // This is somewhat arbitrary.  It's possible, but unlikely, we will either
   // fail to set a priority client-side, or cancel a stream before stripping the
   // priority from the wire server-side.  In either case, start out with a
-  // priority in the middle.
+  // priority in the middle in case of Google QUIC.
   static const spdy::SpdyPriority kDefaultPriority = 3;
   static_assert(kDefaultPriority ==
                     (spdy::kV3LowestPriority + spdy::kV3HighestPriority) / 2,
                 "Unexpected value of kDefaultPriority");
+  // On the other hand, when using IETF QUIC, use the default value defined by
+  // the priority extension at
+  // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html#default.
+  static const int kDefaultUrgency = 1;
 
   // Creates a new stream with stream_id |id| associated with |session|. If
   // |is_static| is true, then the stream will be given precedence
@@ -352,6 +356,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }
+
+  static spdy::SpdyStreamPrecedence CalculateDefaultPriority(
+      const QuicSession* session);
 
  protected:
   // Close the read side of the socket.  May cause the stream to be closed.

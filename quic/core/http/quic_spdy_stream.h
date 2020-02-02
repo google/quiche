@@ -43,12 +43,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
     : public QuicStream,
       public QpackDecodedHeadersAccumulator::Visitor {
  public:
-  // The default value of urgency when using the priority extension defined at
-  // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html#default.
-  // This is not the default priority of a stream, rather the default priority a
-  // server thinks a stream has until it receives a PRIORITY_UPDATE frame.
-  static const int kDefaultUrgency = 1;
-
   // Visitor receives callbacks from the stream.
   class QUIC_EXPORT_PRIVATE Visitor {
    public:
