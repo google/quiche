@@ -9881,6 +9881,46 @@ TEST_P(QuicConnectionTest, ClientParsesRetry) {
   }
 }
 
+// Regression test for http://crbug/1047977
+TEST_P(QuicConnectionTest, MaxStreamsFrameCausesConnectionClose) {
+  if (!VersionHasIetfQuicFrames(connection_.transport_version())) {
+    return;
+  }
+  // Received frame causes connection close.
+  EXPECT_CALL(visitor_, OnMaxStreamsFrame(_))
+      .WillOnce(InvokeWithoutArgs([this]() {
+        EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+        connection_.CloseConnection(
+            QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
+            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return true;
+      }));
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicMaxStreamsFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, StreamsBlockedFrameCausesConnectionClose) {
+  if (!VersionHasIetfQuicFrames(connection_.transport_version())) {
+    return;
+  }
+  // Received frame causes connection close.
+  EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_))
+      .WillOnce(InvokeWithoutArgs([this]() {
+        EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+        connection_.CloseConnection(
+            QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
+            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return true;
+      }));
+  QuicFrames frames;
+  frames.push_back(
+      QuicFrame(QuicStreamsBlockedFrame(kInvalidControlFrameId, 10, false)));
+  frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

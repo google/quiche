@@ -1268,7 +1268,7 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
   }
-  return visitor_->OnMaxStreamsFrame(frame);
+  return visitor_->OnMaxStreamsFrame(frame) && connected_;
 }
 
 bool QuicConnection::OnStreamsBlockedFrame(
@@ -1276,7 +1276,7 @@ bool QuicConnection::OnStreamsBlockedFrame(
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
   }
-  return visitor_->OnStreamsBlockedFrame(frame);
+  return visitor_->OnStreamsBlockedFrame(frame) && connected_;
 }
 
 bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
