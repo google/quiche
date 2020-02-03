@@ -223,8 +223,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_->config(), 10);
     session_->OnConfigNegotiated();
-    if (!session_->use_handshake_delegate() ||
-        session_->perspective() == Perspective::IS_CLIENT) {
+    if (session_->perspective() == Perspective::IS_CLIENT) {
       EXPECT_CALL(*connection_, OnCanWrite());
     }
     if (UsesHttp3()) {
@@ -248,13 +247,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
                                         qpack_encoder_stream->id(), 1, 0, _));
     }
-    if (session_->use_handshake_delegate()) {
-      static_cast<QuicSession*>(session_.get())
-          ->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-    } else {
-      static_cast<QuicSession*>(session_.get())
-          ->OnCryptoHandshakeEvent(QuicSession::ENCRYPTION_ESTABLISHED);
-    }
+    static_cast<QuicSession*>(session_.get())
+        ->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   }
 
   QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {

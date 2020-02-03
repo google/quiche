@@ -103,14 +103,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     }
     EXPECT_THAT(error, IsQuicNoError());
     session()->OnConfigNegotiated();
-    if (session()->use_handshake_delegate()) {
-      session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-      session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
-    } else {
-      session()->connection()->SetDefaultEncryptionLevel(
-          ENCRYPTION_FORWARD_SECURE);
-      session()->OnCryptoHandshakeEvent(QuicSession::EVENT_HANDSHAKE_CONFIRMED);
-    }
+    session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
   }
 
   // QuicCryptoStream implementation

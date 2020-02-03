@@ -95,7 +95,6 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     return nullptr;
   }
 
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnMessageReceived(quiche::QuicheStringPiece message) override;
 

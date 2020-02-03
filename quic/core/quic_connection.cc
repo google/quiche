@@ -333,9 +333,6 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      use_handshake_delegate_(
-          GetQuicReloadableFlag(quic_use_handshaker_delegate2) ||
-          version().handshake_protocol == PROTOCOL_TLS1_3),
       check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
           quic_check_handshake_timeout_before_idle_timeout)),
       batch_writer_flush_after_mtu_probe_(
@@ -351,10 +348,6 @@ QuicConnection::QuicConnection(
       << "QuicConnection: attempted to use server connection ID "
       << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
-  if (use_handshake_delegate_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_handshaker_delegate2);
-  }
-
   if (check_handshake_timeout_before_idle_timeout_) {
     QUIC_RELOADABLE_FLAG_COUNT(
         quic_check_handshake_timeout_before_idle_timeout);
@@ -813,17 +806,7 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
     address_validated_ = true;
   }
 
-  if (use_handshake_delegate_) {
-    visitor_->OnPacketDecrypted(level);
-    return;
-  }
-
-  // Once the server receives a forward secure packet, the handshake is
-  // confirmed.
-  if (level == ENCRYPTION_FORWARD_SECURE &&
-      perspective_ == Perspective::IS_SERVER) {
-    OnHandshakeComplete();
-  }
+  visitor_->OnPacketDecrypted(level);
 }
 
 QuicSocketAddress QuicConnection::GetEffectivePeerAddressFromCurrentPacket()
@@ -4079,8 +4062,7 @@ SerializedPacketFate QuicConnection::DeterminePacketFate(
 }
 
 bool QuicConnection::IsHandshakeComplete() const {
-  if (use_handshake_delegate_ &&
-      GetQuicReloadableFlag(quic_use_get_handshake_state)) {
+  if (GetQuicReloadableFlag(quic_use_get_handshake_state)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_get_handshake_state);
     return visitor_->GetHandshakeState() >= HANDSHAKE_COMPLETE;
   }

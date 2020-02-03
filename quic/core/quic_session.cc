@@ -1264,36 +1264,11 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   flow_controller_.UpdateSendWindowOffset(new_window);
 }
 
-void QuicSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
-  DCHECK(!use_handshake_delegate());
-  switch (event) {
-    case ENCRYPTION_ESTABLISHED:
-      // Retransmit originally packets that were sent, since they can't be
-      // decrypted by the peer.
-      connection_->RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
-      // Given any streams blocked by encryption a chance to write.
-      OnCanWrite();
-      break;
-
-    case EVENT_HANDSHAKE_CONFIRMED:
-      QUIC_BUG_IF(!config_.negotiated())
-          << ENDPOINT << "Handshake confirmed without parameter negotiation.";
-      // Discard originally encrypted packets, since they can't be decrypted by
-      // the peer.
-      NeuterUnencryptedData();
-      break;
-
-    default:
-      QUIC_LOG(ERROR) << ENDPOINT << "Got unknown handshake event: " << event;
-  }
-}
-
 void QuicSession::OnNewKeysAvailable(EncryptionLevel level,
                                      std::unique_ptr<QuicDecrypter> decrypter,
                                      bool set_alternative_decrypter,
                                      bool latch_once_used,
                                      std::unique_ptr<QuicEncrypter> encrypter) {
-  DCHECK(use_handshake_delegate());
   // Install new keys.
   connection()->SetEncrypter(level, std::move(encrypter));
   if (connection()->version().KnowsWhichDecrypterToUse()) {
@@ -1309,7 +1284,6 @@ void QuicSession::OnNewKeysAvailable(EncryptionLevel level,
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
-  DCHECK(use_handshake_delegate());
   QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
                 << EncryptionLevelToString(level);
   connection()->SetDefaultEncryptionLevel(level);
@@ -1350,7 +1324,6 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 }
 
 void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
-  DCHECK(use_handshake_delegate());
   if (!connection()->version().KnowsWhichDecrypterToUse()) {
     // TODO(fayang): actually discard keys.
     return;
@@ -1359,7 +1332,6 @@ void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
 }
 
 void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
-  DCHECK(use_handshake_delegate());
   QUIC_DVLOG(1) << ENDPOINT << "Discard keys of "
                 << EncryptionLevelToString(level);
   // TODO(fayang): actually discard keys.
@@ -1382,7 +1354,6 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
 }
 
 void QuicSession::NeuterHandshakeData() {
-  DCHECK(use_handshake_delegate());
   connection()->OnHandshakeComplete();
 }
 

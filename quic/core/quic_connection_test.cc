@@ -8015,8 +8015,7 @@ TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
   EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(0);
   ASSERT_EQ(0u, connection_.GetStats().packets_sent);
   connection_.set_fill_up_link_during_probing(true);
-  if (GetQuicReloadableFlag(quic_use_handshaker_delegate2) &&
-      GetQuicReloadableFlag(quic_use_get_handshake_state)) {
+  if (GetQuicReloadableFlag(quic_use_get_handshake_state)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }

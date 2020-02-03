@@ -907,8 +907,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Called when version is considered negotiated.
   void OnSuccessfulVersionNegotiation();
 
-  bool use_handshake_delegate() const { return use_handshake_delegate_; }
-
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1514,9 +1512,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicCoalescedPacket coalesced_packet_;
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
-
-  // Latched value of quic_use_handshaker_delegate2.
-  const bool use_handshake_delegate_;
 
   // Latched value of quic_check_handshake_timeout_before_idle_timeout.
   const bool check_handshake_timeout_before_idle_timeout_;

@@ -657,7 +657,6 @@ class MockQuicSession : public QuicSession {
                void(QuicStreamId stream_id, bool fin, size_t frame_len));
   MOCK_CONST_METHOD0(ShouldKeepConnectionAlive, bool());
   MOCK_METHOD2(SendStopSending, void(uint16_t code, QuicStreamId stream_id));
-  MOCK_METHOD1(OnCryptoHandshakeEvent, void(QuicSession::CryptoHandshakeEvent));
   MOCK_CONST_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
   MOCK_CONST_METHOD1(SelectAlpn,
                      std::vector<quiche::QuicheStringPiece>::const_iterator(
@@ -812,9 +811,6 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
 
-  // Override to not send max header list size.
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
-
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;
 
   const QuicCryptoServerStreamBase* GetCryptoStream() const override;
@@ -878,8 +874,6 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
   MOCK_CONST_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
 
-  // Override to not send max header list size.
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;
 

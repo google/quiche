@@ -676,11 +676,6 @@ TestQuicSpdyServerSession::CreateQuicCryptoServerStream(
                                   &helper_);
 }
 
-void TestQuicSpdyServerSession::OnCryptoHandshakeEvent(
-    CryptoHandshakeEvent event) {
-  QuicSession::OnCryptoHandshakeEvent(event);
-}
-
 QuicCryptoServerStreamBase*
 TestQuicSpdyServerSession::GetMutableCryptoStream() {
   return QuicServerSessionBase::GetMutableCryptoStream();
@@ -711,11 +706,6 @@ TestQuicSpdyClientSession::~TestQuicSpdyClientSession() {}
 
 bool TestQuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {
   return true;
-}
-
-void TestQuicSpdyClientSession::OnCryptoHandshakeEvent(
-    CryptoHandshakeEvent event) {
-  QuicSession::OnCryptoHandshakeEvent(event);
 }
 
 QuicCryptoClientStream* TestQuicSpdyClientSession::GetMutableCryptoStream() {

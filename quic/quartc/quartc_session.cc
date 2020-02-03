@@ -155,27 +155,6 @@ bool QuartcSession::SendProbingData() {
   return true;
 }
 
-void QuartcSession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
-  QuicSession::OnCryptoHandshakeEvent(event);
-  switch (event) {
-    case ENCRYPTION_ESTABLISHED:
-      DCHECK(IsEncryptionEstablished());
-      DCHECK(session_delegate_);
-      session_delegate_->OnConnectionWritable();
-      break;
-    case EVENT_HANDSHAKE_CONFIRMED:
-      // On the server, handshake confirmed is the first time when you can start
-      // writing packets.
-      DCHECK(IsEncryptionEstablished());
-      DCHECK(OneRttKeysAvailable());
-
-      DCHECK(session_delegate_);
-      session_delegate_->OnConnectionWritable();
-      session_delegate_->OnCryptoHandshakeComplete();
-      break;
-  }
-}
-
 void QuartcSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
   QuicSession::SetDefaultEncryptionLevel(level);
   switch (level) {

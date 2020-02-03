@@ -97,16 +97,6 @@ QuicStream* QuicTransportClientSession::CreateIncomingStream(QuicStreamId id) {
   return stream;
 }
 
-void QuicTransportClientSession::OnCryptoHandshakeEvent(
-    CryptoHandshakeEvent event) {
-  QuicSession::OnCryptoHandshakeEvent(event);
-  if (event != EVENT_HANDSHAKE_CONFIRMED) {
-    return;
-  }
-
-  SendClientIndication();
-}
-
 void QuicTransportClientSession::SetDefaultEncryptionLevel(
     EncryptionLevel level) {
   QuicSession::SetDefaultEncryptionLevel(level);

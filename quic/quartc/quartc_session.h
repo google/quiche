@@ -74,7 +74,6 @@ class QuartcSession : public QuicSession,
     return VersionSupportsMessageFrames(transport_version());
   }
 
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
 
   // QuicConnectionVisitorInterface overrides.

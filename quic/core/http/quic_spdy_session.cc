@@ -704,11 +704,6 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
   return static_cast<QuicSpdyStream*>(stream);
 }
 
-void QuicSpdySession::OnCryptoHandshakeEvent(CryptoHandshakeEvent event) {
-  QuicSession::OnCryptoHandshakeEvent(event);
-  SendInitialData();
-}
-
 void QuicSpdySession::SetDefaultEncryptionLevel(quic::EncryptionLevel level) {
   QuicSession::SetDefaultEncryptionLevel(level);
   SendInitialData();

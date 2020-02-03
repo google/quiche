@@ -322,7 +322,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       bool exclusive,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
-  void OnCryptoHandshakeEvent(CryptoHandshakeEvent event) override;
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
 
   bool supports_push_promise() { return supports_push_promise_; }
