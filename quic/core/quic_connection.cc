@@ -2657,9 +2657,7 @@ void QuicConnection::OnRetransmissionTimeout() {
     packet_creator_.SkipNPacketNumbers(
         num_packet_numbers_to_skip, sent_packet_manager_.GetLeastUnacked(),
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
-    if (GetQuicReloadableFlag(quic_on_packet_numbers_skipped) &&
-        debug_visitor_ != nullptr) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_on_packet_numbers_skipped);
+    if (debug_visitor_ != nullptr) {
       debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
     }
   }
