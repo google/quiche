@@ -694,7 +694,9 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
     const QuicStreamId stream_id) {
   QuicStream* stream = GetOrCreateStream(stream_id);
   if (stream && stream->is_static()) {
-    QUIC_BUG << "GetOrCreateSpdyDataStream returns static stream " << stream_id;
+    QUIC_BUG << "GetOrCreateSpdyDataStream returns static stream " << stream_id
+             << " in version " << transport_version() << "\n"
+             << QuicStackTrace();
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
         quiche::QuicheStrCat("stream ", stream_id, " is static"),
