@@ -821,7 +821,7 @@ void QuicSession::InsertLocallyClosedStreamsHighestOffset(
   }
 }
 
-void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
+void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
 
   StreamMap::iterator it = stream_map_.find(stream_id);
@@ -845,7 +845,7 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool locally_reset) {
   StreamType type = stream->type();
 
   // Tell the stream that a RST has been sent.
-  if (locally_reset) {
+  if (rst_sent) {
     stream->set_rst_sent(true);
   }
 

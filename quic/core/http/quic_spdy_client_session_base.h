@@ -103,7 +103,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   void ResetPromised(QuicStreamId id, QuicRstStreamErrorCode error_code);
 
   // Release headers stream's sequencer buffer if it's empty.
-  void CloseStreamInner(QuicStreamId stream_id, bool locally_reset) override;
+  void CloseStreamInner(QuicStreamId stream_id, bool rst_sent) override;
 
   // Returns true if there are no active requests and no promised streams.
   bool ShouldReleaseHeadersStreamSequencerBuffer() override;

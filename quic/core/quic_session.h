@@ -514,9 +514,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // as a transport parameter, or in the most recent MAX_STREAMS frame.
   QuicStreamCount GetAdvertisedMaxIncomingBidirectionalStreams() const;
 
-  // Performs the work required to close |stream_id|.  If |locally_reset|
-  // then the stream has been reset by this endpoint, not by the peer.
-  virtual void CloseStreamInner(QuicStreamId stream_id, bool locally_reset);
+  // Performs the work required to close |stream_id|.  If |rst_sent| then a
+  // Reset Stream frame has already been sent for this stream.
+  virtual void CloseStreamInner(QuicStreamId stream_id, bool rst_sent);
 
   // When a stream is closed locally, it may not yet know how many bytes the
   // peer sent on that stream.

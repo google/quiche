@@ -209,8 +209,8 @@ void QuicSpdyClientSessionBase::ResetPromised(
 }
 
 void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
-                                                 bool locally_reset) {
-  QuicSpdySession::CloseStreamInner(stream_id, locally_reset);
+                                                 bool rst_sent) {
+  QuicSpdySession::CloseStreamInner(stream_id, rst_sent);
   if (!VersionUsesHttp3(transport_version())) {
     headers_stream()->MaybeReleaseSequencerBuffer();
   }
