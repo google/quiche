@@ -166,14 +166,16 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   }
   const bool connect_result = client->Connect();
   QuicConnection* connection = client->session()->connection();
-  if (connection != nullptr) {
-    QuicConnectionStats client_stats = connection->GetStats();
-    if (client_stats.retry_packet_processed) {
-      InsertFeature(Feature::kRetry);
-    }
-    if (test_version_negotiation && connection->version() == version) {
-      InsertFeature(Feature::kVersionNegotiation);
-    }
+  if (connection == nullptr) {
+    QUIC_LOG(ERROR) << "No QuicConnection object";
+    return;
+  }
+  QuicConnectionStats client_stats = connection->GetStats();
+  if (client_stats.retry_packet_processed) {
+    InsertFeature(Feature::kRetry);
+  }
+  if (test_version_negotiation && connection->version() == version) {
+    InsertFeature(Feature::kVersionNegotiation);
   }
   if (test_version_negotiation && !connect_result) {
     // Failed to negotiate version, retry without version negotiation.
@@ -206,17 +208,15 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     }
   }
 
-  if (connection != nullptr) {
-    QuicConnectionStats client_stats = connection->GetStats();
-    QuicSentPacketManager* sent_packet_manager =
-        test::QuicConnectionPeer::GetSentPacketManager(connection);
-    const bool received_forward_secure_ack =
-        sent_packet_manager != nullptr &&
-        sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
-            .IsInitialized();
-    if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
-      InsertFeature(Feature::kStreamData);
-    }
+  client_stats = connection->GetStats();
+  QuicSentPacketManager* sent_packet_manager =
+      test::QuicConnectionPeer::GetSentPacketManager(connection);
+  const bool received_forward_secure_ack =
+      sent_packet_manager != nullptr &&
+      sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
+          .IsInitialized();
+  if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
+    InsertFeature(Feature::kStreamData);
   }
 
   if (request_timed_out || !client->connected()) {
@@ -256,7 +256,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     }
   }
 
-  if (connection != nullptr && connection->connected()) {
+  if (connection->connected()) {
     test::QuicConnectionPeer::SendConnectionClosePacket(
         connection, QUIC_NO_ERROR, "Graceful close");
     const QuicTime close_start_time = epoll_clock.Now();
