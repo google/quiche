@@ -106,9 +106,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderDynamicTable {
   // exceed the acknowledged value of SETTINGS_HEADER_TABLE_SIZE.
   void DynamicTableSizeUpdate(size_t size_limit);
 
-  // Returns true if inserted, false if too large (at which point the
-  // dynamic table will be empty.)
-  bool Insert(const HpackString& name, const HpackString& value);
+  // Insert entry if possible.
+  // If entry is too large to insert, then dynamic table will be empty.
+  void Insert(const HpackString& name, const HpackString& value);
 
   // If index is valid, returns a pointer to the entry, otherwise returns
   // nullptr.
@@ -165,12 +165,12 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderTables {
     dynamic_table_.DynamicTableSizeUpdate(size_limit);
   }
 
-  // Returns true if inserted, false if too large (at which point the
-  // dynamic table will be empty.)
+  // Insert entry if possible.
+  // If entry is too large to insert, then dynamic table will be empty.
   // TODO(jamessynge): Add methods for moving the string(s) into the table,
   // or for otherwise avoiding unnecessary copies.
-  bool Insert(const HpackString& name, const HpackString& value) {
-    return dynamic_table_.Insert(name, value);
+  void Insert(const HpackString& name, const HpackString& value) {
+    dynamic_table_.Insert(name, value);
   }
 
   // If index is valid, returns a pointer to the entry, otherwise returns

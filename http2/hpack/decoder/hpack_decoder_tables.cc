@@ -69,7 +69,7 @@ void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
 
 // TODO(jamessynge): Check somewhere before here that names received from the
 // peer are valid (e.g. are lower-case, no whitespace, etc.).
-bool HpackDecoderDynamicTable::Insert(const HpackString& name,
+void HpackDecoderDynamicTable::Insert(const HpackString& name,
                                       const HpackString& value) {
   HpackDecoderTableEntry entry(name, value);
   size_t entry_size = entry.size();
@@ -81,7 +81,7 @@ bool HpackDecoderDynamicTable::Insert(const HpackString& name,
                    << current_size_ << " bytes.";
     table_.clear();
     current_size_ = 0;
-    return false;  // Not inserted because too large.
+    return;
   }
   ++insert_count_;
   if (debug_listener_ != nullptr) {
@@ -96,7 +96,6 @@ bool HpackDecoderDynamicTable::Insert(const HpackString& name,
   HTTP2_DVLOG(2) << "InsertEntry: current_size_=" << current_size_;
   DCHECK_GE(current_size_, entry_size);
   DCHECK_LE(current_size_, size_limit_);
-  return true;
 }
 
 const HpackStringPair* HpackDecoderDynamicTable::Lookup(size_t index) const {
