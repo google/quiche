@@ -2757,7 +2757,7 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderTruncated) {
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
   // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromMilliseconds(100));
+  QuicSleep(QuicTime::Delta::FromSeconds(1));
   // Pause the server so we can access the server's internals without races.
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
@@ -2808,7 +2808,7 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderFlags) {
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
   // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromMilliseconds(100));
+  QuicSleep(QuicTime::Delta::FromSeconds(1));
   // Pause the server so we can access the server's internals without races.
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
@@ -2844,7 +2844,7 @@ TEST_P(EndToEndTestWithTls, BadEncryptedData) {
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
   // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromMilliseconds(100));
+  QuicSleep(QuicTime::Delta::FromSeconds(1));
   // This error is sent to the connection's OnError (which ignores it), so the
   // dispatcher doesn't see it.
   // Pause the server so we can access the server's internals without races.
