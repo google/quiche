@@ -218,6 +218,16 @@ void QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       // it from in flight.
       RemoveFromInFlight(packet_number);
       it->state = NEUTERED;
+      if (GetQuicReloadableFlag(quic_neuter_unencrypted_control_frames) ||
+          supports_multiple_packet_number_spaces_) {
+        if (GetQuicReloadableFlag(quic_neuter_unencrypted_control_frames)) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_neuter_unencrypted_control_frames);
+        }
+        // Notify session that the data has been delivered (but do not notify
+        // send algorithm).
+        // TODO(b/148868195): use NotifyFramesNeutered.
+        NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
+      }
       DCHECK(!HasRetransmittableFrames(*it));
     }
   }
@@ -236,6 +246,7 @@ void QuicUnackedPacketMap::NeuterHandshakePackets() {
       // Notify session that the data has been delivered (but do not notify
       // send algorithm).
       it->state = NEUTERED;
+      // TODO(b/148868195): use NotifyFramesNeutered.
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
     }
   }
