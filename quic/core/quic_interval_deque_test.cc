@@ -15,26 +15,24 @@ namespace quic {
 namespace test {
 namespace {
 
-struct IntervalItem {
+const int32_t kSize = 100;
+const std::size_t kIntervalStep = 10;
+
+}  // namespace
+
+struct TestIntervalItem {
   int32_t val;
   std::size_t interval_start, interval_end;
   QuicInterval<std::size_t> interval() const {
     return QuicInterval<std::size_t>(interval_start, interval_end);
   }
-  IntervalItem(int32_t val,
-               std::size_t interval_start,
-               std::size_t interval_end)
+  TestIntervalItem(int32_t val,
+                   std::size_t interval_start,
+                   std::size_t interval_end)
       : val(val), interval_start(interval_start), interval_end(interval_end) {}
 };
 
-namespace {
-
-typedef QuicIntervalDeque<IntervalItem> QID;
-
-const int32_t kSize = 100;
-const std::size_t kIntervalStep = 10;
-
-}  // namespace
+typedef QuicIntervalDeque<TestIntervalItem> QID;
 
 class QuicIntervalDequeTest : public QuicTest {
  public:
@@ -43,7 +41,7 @@ class QuicIntervalDequeTest : public QuicTest {
     for (int32_t i = 0; i < kSize; ++i) {
       const std::size_t interval_begin = kIntervalStep * i;
       const std::size_t interval_end = interval_begin + kIntervalStep;
-      qid_.PushBack(IntervalItem(i, interval_begin, interval_end));
+      qid_.PushBack(TestIntervalItem(i, interval_begin, interval_end));
     }
   }
 
@@ -56,13 +54,13 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertRemoveSize) {
   QID qid;
 
   EXPECT_EQ(qid.Size(), std::size_t(0));
-  qid.PushBack(IntervalItem(0, 0, 10));
+  qid.PushBack(TestIntervalItem(0, 0, 10));
   EXPECT_EQ(qid.Size(), std::size_t(1));
-  qid.PushBack(IntervalItem(1, 10, 20));
+  qid.PushBack(TestIntervalItem(1, 10, 20));
   EXPECT_EQ(qid.Size(), std::size_t(2));
-  qid.PushBack(IntervalItem(2, 20, 30));
+  qid.PushBack(TestIntervalItem(2, 20, 30));
   EXPECT_EQ(qid.Size(), std::size_t(3));
-  qid.PushBack(IntervalItem(3, 30, 40));
+  qid.PushBack(TestIntervalItem(3, 30, 40));
   EXPECT_EQ(qid.Size(), std::size_t(4));
 
   // Advance the index all the way...
@@ -253,7 +251,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateInsert) {
   for (int32_t i = 0; i < kSize; ++i) {
     const std::size_t interval_begin = offset + (kIntervalStep * i);
     const std::size_t interval_end = offset + interval_begin + kIntervalStep;
-    qid_.PushBack(IntervalItem(i + offset, interval_begin, interval_end));
+    qid_.PushBack(TestIntervalItem(i + offset, interval_begin, interval_end));
     const int32_t index_current = QuicIntervalDequePeer::GetCachedIndex(&qid_);
     // Index should now be valid and equal to the size of the container before
     // adding more items to it.
@@ -347,7 +345,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequePopEmpty) {
 // The goal of this test is to show that adding a zero-sized interval is a bug.
 TEST_F(QuicIntervalDequeTest, QuicDequeZeroSizedInterval) {
   QID qid;
-  EXPECT_QUIC_BUG(qid.PushBack(IntervalItem(0, 0, 0)),
+  EXPECT_QUIC_BUG(qid.PushBack(TestIntervalItem(0, 0, 0)),
                   "Trying to save empty interval to QuicDeque.");
 }
 
@@ -359,6 +357,5 @@ TEST_F(QuicIntervalDequeTest, QuicDequeIteratorEmpty) {
   EXPECT_EQ(it, qid.DataEnd());
 }
 
-}  // namespace
 }  // namespace test
 }  // namespace quic
