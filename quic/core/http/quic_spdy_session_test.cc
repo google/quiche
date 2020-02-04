@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 
 #include <cstdint>
+#include <limits>
 #include <set>
 #include <string>
 #include <utility>
@@ -14,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -2704,6 +2706,43 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   session_.OnHttp3GoAway(stream_id);
+}
+
+TEST_P(QuicSpdySessionTestServer, OnSetting) {
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_EQ(std::numeric_limits<size_t>::max(),
+              session_.max_outbound_header_list_size());
+    session_.OnSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 5);
+    EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+
+    QpackEncoder* qpack_encoder = session_.qpack_encoder();
+    EXPECT_EQ(0u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+    session_.OnSetting(SETTINGS_QPACK_BLOCKED_STREAMS, 12);
+    EXPECT_EQ(12u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+
+    QpackHeaderTable* header_table =
+        QpackEncoderPeer::header_table(qpack_encoder);
+    EXPECT_EQ(0u, header_table->maximum_dynamic_table_capacity());
+    session_.OnSetting(SETTINGS_QPACK_MAX_TABLE_CAPACITY, 37);
+    EXPECT_EQ(37u, header_table->maximum_dynamic_table_capacity());
+
+    return;
+  }
+
+  EXPECT_EQ(std::numeric_limits<size_t>::max(),
+            session_.max_outbound_header_list_size());
+  session_.OnSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 5);
+  EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+
+  EXPECT_TRUE(session_.server_push_enabled());
+  session_.OnSetting(spdy::SETTINGS_ENABLE_PUSH, 0);
+  EXPECT_FALSE(session_.server_push_enabled());
+
+  spdy::HpackEncoder* hpack_encoder =
+      QuicSpdySessionPeer::GetSpdyFramer(&session_)->GetHpackEncoder();
+  EXPECT_EQ(4096u, hpack_encoder->CurrentHeaderTableSizeSetting());
+  session_.OnSetting(spdy::SETTINGS_HEADER_TABLE_SIZE, 59);
+  EXPECT_EQ(59u, hpack_encoder->CurrentHeaderTableSizeSetting());
 }
 
 }  // namespace

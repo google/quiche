@@ -417,7 +417,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // The maximum size of a header block that can be sent to the peer. This field
   // is informed and set by the peer via SETTINGS frame.
-  // TODO(renjietang): Honor this field when sending headers.
+  // TODO(b/148616439): Honor this field when sending headers.
   size_t max_outbound_header_list_size_;
 
   // Set during handshake. If true, resources in x-associated-content and link

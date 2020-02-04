@@ -646,7 +646,7 @@ TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameSupportedFields) {
   stream_frame_.data_length = frame.size();
   headers_stream_->OnStreamFrame(stream_frame_);
   EXPECT_EQ(kTestHeaderTableSize, QuicSpdySessionPeer::GetSpdyFramer(&session_)
-                                      .header_encoder_table_size());
+                                      ->header_encoder_table_size());
 }
 
 TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameUnsupportedFields) {

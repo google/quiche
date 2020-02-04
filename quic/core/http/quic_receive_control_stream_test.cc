@@ -5,9 +5,11 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_receive_control_stream.h"
 
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -15,6 +17,9 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
+
+class QpackEncoder;
+
 namespace test {
 
 namespace {
@@ -150,11 +155,24 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettings) {
   SettingsFrame settings;
   settings.values[3] = 2;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] = 12;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 37;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
-  EXPECT_NE(5u, session_.max_outbound_header_list_size());
+
+  QpackEncoder* qpack_encoder = session_.qpack_encoder();
+  QpackHeaderTable* header_table =
+      QpackEncoderPeer::header_table(qpack_encoder);
+  EXPECT_EQ(std::numeric_limits<size_t>::max(),
+            session_.max_outbound_header_list_size());
+  EXPECT_EQ(0u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+  EXPECT_EQ(0u, header_table->maximum_dynamic_table_capacity());
+
   receive_control_stream_->OnStreamFrame(frame);
+
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
+  EXPECT_EQ(12u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
+  EXPECT_EQ(37u, header_table->maximum_dynamic_table_capacity());
 }
 
 // Regression test for https://crbug.com/982648.

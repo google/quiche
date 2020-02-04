@@ -32,9 +32,8 @@ void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
 }
 
 // static
-const spdy::SpdyFramer& QuicSpdySessionPeer::GetSpdyFramer(
-    QuicSpdySession* session) {
-  return session->spdy_framer_;
+spdy::SpdyFramer* QuicSpdySessionPeer::GetSpdyFramer(QuicSpdySession* session) {
+  return &session->spdy_framer_;
 }
 
 void QuicSpdySessionPeer::SetHpackEncoderDebugVisitor(

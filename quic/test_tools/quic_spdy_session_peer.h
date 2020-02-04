@@ -28,7 +28,7 @@ class QuicSpdySessionPeer {
   static QuicHeadersStream* GetHeadersStream(QuicSpdySession* session);
   static void SetHeadersStream(QuicSpdySession* session,
                                QuicHeadersStream* headers_stream);
-  static const spdy::SpdyFramer& GetSpdyFramer(QuicSpdySession* session);
+  static spdy::SpdyFramer* GetSpdyFramer(QuicSpdySession* session);
   static void SetHpackEncoderDebugVisitor(
       QuicSpdySession* session,
       std::unique_ptr<QuicHpackDebugVisitor> visitor);

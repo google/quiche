@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -338,7 +339,7 @@ QuicSpdySession::QuicSpdySession(
           kDefaultQpackMaxDynamicTableCapacity),
       qpack_maximum_blocked_streams_(kDefaultMaximumBlockedStreams),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
-      max_outbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
+      max_outbound_header_list_size_(std::numeric_limits<size_t>::max()),
       server_push_enabled_(true),
       stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
@@ -854,12 +855,11 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         }
       }
       break;
-    // TODO(fayang): Need to support SETTINGS_MAX_HEADER_LIST_SIZE when
-    // clients are actually sending it.
     case spdy::SETTINGS_MAX_HEADER_LIST_SIZE:
       QUIC_DVLOG(1) << ENDPOINT
                     << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
                     << value;
+      max_outbound_header_list_size_ = value;
       break;
     default:
       QUIC_DLOG(ERROR) << ENDPOINT << "Unknown setting identifier " << id
