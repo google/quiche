@@ -36,7 +36,8 @@ QuicClientBase::QuicClientBase(
       num_sent_client_hellos_(0),
       connection_error_(QUIC_NO_ERROR),
       connected_or_attempting_connect_(false),
-      network_helper_(std::move(network_helper)) {}
+      network_helper_(std::move(network_helper)),
+      connection_debug_visitor_(nullptr) {}
 
 QuicClientBase::~QuicClientBase() = default;
 
@@ -114,6 +115,9 @@ void QuicClientBase::StartConnect() {
                          can_reconnect_with_different_version
                              ? ParsedQuicVersionVector{mutual_version}
                              : supported_versions()));
+  if (connection_debug_visitor_ != nullptr) {
+    session()->connection()->set_debug_visitor(connection_debug_visitor_);
+  }
   session()->connection()->set_client_connection_id(GetClientConnectionId());
   if (initial_max_packet_length_ != 0) {
     session()->connection()->SetMaxPacketLength(initial_max_packet_length_);

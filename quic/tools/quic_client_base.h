@@ -213,6 +213,11 @@ class QuicClientBase {
     crypto_config_.set_pre_shared_key(key);
   }
 
+  void set_connection_debug_visitor(
+      QuicConnectionDebugVisitor* connection_debug_visitor) {
+    connection_debug_visitor_ = connection_debug_visitor;
+  }
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -331,6 +336,10 @@ class QuicClientBase {
   // The network helper used to create sockets and manage the event loop.
   // Not owned by this class.
   std::unique_ptr<NetworkHelper> network_helper_;
+
+  // The debug visitor set on the connection right after it is constructed.
+  // Not owned, must be valid for the lifetime of the QuicClientBase instance.
+  QuicConnectionDebugVisitor* connection_debug_visitor_;
 };
 
 }  // namespace quic

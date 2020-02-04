@@ -79,10 +79,53 @@ char MatrixLetter(Feature f) {
   }
 }
 
-// Attempts a resumption using |client| by disconnecting and reconnecting. If
-// resumption is successful, |features| is modified to add Feature::kResumption
-// to it, otherwise it is left unmodified.
-void AttemptResumption(QuicClient* client, std::set<Feature>* features) {
+class QuicClientInteropRunner : QuicConnectionDebugVisitor {
+ public:
+  QuicClientInteropRunner() {}
+
+  void InsertFeature(Feature feature) { features_.insert(feature); }
+
+  std::set<Feature> features() const { return features_; }
+
+  // Attempts a resumption using |client| by disconnecting and reconnecting. If
+  // resumption is successful, |features_| is modified to add
+  // Feature::kResumption to it, otherwise it is left unmodified.
+  void AttemptResumption(QuicClient* client);
+
+  void AttemptRequest(QuicSocketAddress addr,
+                      std::string authority,
+                      QuicServerId server_id,
+                      bool test_version_negotiation,
+                      bool attempt_rebind);
+
+  void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
+    switch (frame.close_type) {
+      case GOOGLE_QUIC_CONNECTION_CLOSE:
+        QUIC_LOG(ERROR) << "Received unexpected GoogleQUIC connection close";
+        break;
+      case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
+        if (frame.transport_error_code == NO_IETF_QUIC_ERROR) {
+          InsertFeature(Feature::kConnectionClose);
+        }
+        break;
+      case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
+        if (frame.application_error_code == 0) {
+          InsertFeature(Feature::kConnectionClose);
+        }
+        break;
+    }
+  }
+
+  void OnVersionNegotiationPacket(
+      const QuicVersionNegotiationPacket& /*packet*/) override {
+    InsertFeature(Feature::kVersionNegotiation);
+  }
+
+ private:
+  std::set<Feature> features_;
+};
+
+void QuicClientInteropRunner::AttemptResumption(QuicClient* client) {
   client->Disconnect();
   if (!client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to reinitialize client";
@@ -94,22 +137,21 @@ void AttemptResumption(QuicClient* client, std::set<Feature>* features) {
   if (static_cast<QuicCryptoClientStream*>(
           test::QuicSessionPeer::GetMutableCryptoStream(client->session()))
           ->IsResumption()) {
-    features->insert(Feature::kResumption);
+    InsertFeature(Feature::kResumption);
   }
 }
 
-std::set<Feature> AttemptRequest(QuicSocketAddress addr,
-                                 std::string authority,
-                                 QuicServerId server_id,
-                                 bool test_version_negotiation,
-                                 bool attempt_rebind) {
+void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
+                                             std::string authority,
+                                             QuicServerId server_id,
+                                             bool test_version_negotiation,
+                                             bool attempt_rebind) {
   ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   ParsedQuicVersionVector versions = {version};
   if (test_version_negotiation) {
     versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
   }
 
-  std::set<Feature> features;
   auto proof_verifier = std::make_unique<FakeProofVerifier>();
   auto session_cache = std::make_unique<test::SimpleSessionCache>();
   QuicEpollServer epoll_server;
@@ -117,35 +159,32 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
   auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, &epoll_server, std::move(proof_verifier),
       std::move(session_cache));
+  client->set_connection_debug_visitor(this);
   if (!client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to initialize client";
-    return features;
+    return;
   }
   const bool connect_result = client->Connect();
   QuicConnection* connection = client->session()->connection();
   if (connection != nullptr) {
     QuicConnectionStats client_stats = connection->GetStats();
     if (client_stats.retry_packet_processed) {
-      features.insert(Feature::kRetry);
+      InsertFeature(Feature::kRetry);
     }
     if (test_version_negotiation && connection->version() == version) {
-      features.insert(Feature::kVersionNegotiation);
+      InsertFeature(Feature::kVersionNegotiation);
     }
   }
   if (test_version_negotiation && !connect_result) {
     // Failed to negotiate version, retry without version negotiation.
-    std::set<Feature> features_without_version_negotiation =
-        AttemptRequest(addr, authority, server_id,
-                       /*test_version_negotiation=*/false, attempt_rebind);
-
-    features.insert(features_without_version_negotiation.begin(),
-                    features_without_version_negotiation.end());
-    return features;
+    AttemptRequest(addr, authority, server_id,
+                   /*test_version_negotiation=*/false, attempt_rebind);
+    return;
   }
   if (!client->session()->OneRttKeysAvailable()) {
-    return features;
+    return;
   }
-  features.insert(Feature::kHandshake);
+  InsertFeature(Feature::kHandshake);
 
   // Construct and send a request.
   spdy::SpdyHeaderBlock header_block;
@@ -176,19 +215,19 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
         sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
             .IsInitialized();
     if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
-      features.insert(Feature::kStreamData);
+      InsertFeature(Feature::kStreamData);
     }
   }
 
   if (request_timed_out || !client->connected()) {
-    return features;
+    return;
   }
 
   if (client->latest_response_code() != -1) {
-    features.insert(Feature::kHttp3);
+    InsertFeature(Feature::kHttp3);
 
     if (client->client_session()->dynamic_table_entry_referenced()) {
-      features.insert(Feature::kDynamicEntryReferenced);
+      InsertFeature(Feature::kDynamicEntryReferenced);
     }
 
     if (attempt_rebind) {
@@ -201,18 +240,15 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
           if (epoll_clock.Now() - second_request_start_time >=
               request_timeout) {
             // Rebinding does not work, retry without attempting it.
-            std::set<Feature> features_without_rebind = AttemptRequest(
-                addr, authority, server_id, test_version_negotiation,
-                /*attempt_rebind=*/false);
-            features.insert(features_without_rebind.begin(),
-                            features_without_rebind.end());
-            return features;
+            AttemptRequest(addr, authority, server_id, test_version_negotiation,
+                           /*attempt_rebind=*/false);
+            return;
           }
         }
-        features.insert(Feature::kRebinding);
+        InsertFeature(Feature::kRebinding);
 
         if (client->client_session()->dynamic_table_entry_referenced()) {
-          features.insert(Feature::kDynamicEntryReferenced);
+          InsertFeature(Feature::kDynamicEntryReferenced);
         }
       } else {
         QUIC_LOG(ERROR) << "Failed to change ephemeral port";
@@ -229,22 +265,21 @@ std::set<Feature> AttemptRequest(QuicSocketAddress addr,
       client->epoll_network_helper()->RunEventLoop();
       if (epoll_clock.Now() - close_start_time >= close_timeout) {
         QUIC_LOG(ERROR) << "Timed out waiting for connection close";
-        AttemptResumption(client.get(), &features);
-        return features;
+        AttemptResumption(client.get());
+        return;
       }
     }
     const QuicErrorCode received_error = client->session()->error();
     if (received_error == QUIC_NO_ERROR ||
         received_error == QUIC_PUBLIC_RESET) {
-      features.insert(Feature::kConnectionClose);
+      InsertFeature(Feature::kConnectionClose);
     } else {
       QUIC_LOG(ERROR) << "Received error " << client->session()->error() << " "
                       << client->session()->error_details();
     }
   }
 
-  AttemptResumption(client.get(), &features);
-  return features;
+  AttemptResumption(client.get());
 }
 
 std::set<Feature> ServerSupport(std::string host, int port) {
@@ -262,9 +297,13 @@ std::set<Feature> ServerSupport(std::string host, int port) {
   QuicServerId server_id(host, port, false);
   std::string authority = quiche::QuicheStrCat(host, ":", port);
 
-  return AttemptRequest(addr, authority, server_id,
+  QuicClientInteropRunner runner;
+
+  runner.AttemptRequest(addr, authority, server_id,
                         /*test_version_negotiation=*/true,
                         /*attempt_rebind=*/true);
+
+  return runner.features();
 }
 
 }  // namespace quic
