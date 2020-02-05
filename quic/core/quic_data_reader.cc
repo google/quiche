@@ -60,15 +60,6 @@ bool QuicDataReader::ReadUFloat16(uint64_t* result) {
 
 bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
                                       uint8_t length) {
-  if (!GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
-    if (length > kQuicMaxConnectionIdAllVersionsLength) {
-      QUIC_BUG << "Attempted to read connection ID with length too high "
-               << static_cast<int>(length);
-      return false;
-    }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_very_long_connection_ids, 1, 5);
-  }
   if (length == 0) {
     connection_id->set_length(0);
     return true;
@@ -90,13 +81,6 @@ bool QuicDataReader::ReadLengthPrefixedConnectionId(
   uint8_t connection_id_length;
   if (!ReadUInt8(&connection_id_length)) {
     return false;
-  }
-  if (!GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
-    if (connection_id_length > kQuicMaxConnectionIdAllVersionsLength) {
-      return false;
-    }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_very_long_connection_ids, 2, 5);
   }
   return ReadConnectionId(connection_id, connection_id_length);
 }

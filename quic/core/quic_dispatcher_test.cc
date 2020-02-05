@@ -537,7 +537,6 @@ TEST_F(QuicDispatcherTest, StatelessVersionNegotiation) {
 
 TEST_F(QuicDispatcherTest,
        StatelessVersionNegotiationWithVeryLongConnectionId) {
-  SetQuicRestartFlag(quic_allow_very_long_connection_ids, true);
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(33);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);

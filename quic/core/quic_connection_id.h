@@ -25,9 +25,6 @@ enum QuicConnectionIdIncluded : uint8_t {
   CONNECTION_ID_ABSENT = 2,
 };
 
-// Maximum connection ID length that we support in any packet or version.
-const uint8_t kQuicMaxConnectionIdAllVersionsLength = 20;
-
 // Maximum connection ID length supported by versions that use the encoding from
 // draft-ietf-quic-invariants-06.
 const uint8_t kQuicMaxConnectionIdWithLengthPrefixLength = 20;

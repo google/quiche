@@ -92,7 +92,6 @@ TEST_F(QuicConnectionIdTest, Hash) {
 
   // Verify that any two all-zero connection IDs of different lengths never
   // have the same hash.
-  SetQuicRestartFlag(quic_allow_very_long_connection_ids, true);
   const char connection_id_bytes[255] = {};
   for (uint8_t i = 0; i < sizeof(connection_id_bytes) - 1; ++i) {
     QuicConnectionId connection_id_i(connection_id_bytes, i);

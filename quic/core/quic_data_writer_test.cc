@@ -1167,26 +1167,6 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
   EXPECT_EQ(8, reader4.PeekVarInt62Length());
 }
 
-TEST_P(QuicDataWriterTest, InvalidConnectionIdLengthRead) {
-  SetQuicRestartFlag(quic_allow_very_long_connection_ids, false);
-  // TODO(dschinazi) delete this test when we deprecate
-  // quic_allow_very_long_connection_ids.
-  static const uint8_t bad_connection_id_length = 200;
-  static_assert(
-      bad_connection_id_length > kQuicMaxConnectionIdAllVersionsLength,
-      "bad lengths");
-  char buffer[255] = {};
-  QuicDataReader reader(buffer, sizeof(buffer));
-  QuicConnectionId connection_id;
-  bool ok;
-  EXPECT_QUIC_BUG(
-      ok = reader.ReadConnectionId(&connection_id, bad_connection_id_length),
-      quiche::QuicheStrCat(
-          "Attempted to read connection ID with length too high ",
-          static_cast<int>(bad_connection_id_length)));
-  EXPECT_FALSE(ok);
-}
-
 // Test that ReadVarIntU32 works properly. Tests a valid stream count
 // (a 32 bit number) and an invalid one (a >32 bit number)
 TEST_P(QuicDataWriterTest, ValidU32) {

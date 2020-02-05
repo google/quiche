@@ -53,20 +53,6 @@ class QuicConnectionIdHasher {
 QuicConnectionId::QuicConnectionId() : QuicConnectionId(nullptr, 0) {}
 
 QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
-  if (!GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
-    // TODO(dschinazi) remove kQuicMaxConnectionIdAllVersionsLength entirely
-    // when we deprecate quic_allow_very_long_connection_ids.
-    static_assert(kQuicMaxConnectionIdAllVersionsLength <=
-                      std::numeric_limits<uint8_t>::max(),
-                  "kQuicMaxConnectionIdAllVersionsLength too high");
-    if (length > kQuicMaxConnectionIdAllVersionsLength) {
-      QUIC_BUG << "Attempted to create connection ID of length "
-               << static_cast<int>(length);
-      length = kQuicMaxConnectionIdAllVersionsLength;
-    }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_very_long_connection_ids, 3, 5);
-  }
   length_ = length;
   if (length_ == 0) {
     return;
@@ -115,15 +101,6 @@ uint8_t QuicConnectionId::length() const {
 }
 
 void QuicConnectionId::set_length(uint8_t length) {
-  if (!GetQuicRestartFlag(quic_allow_very_long_connection_ids)) {
-    if (length > kQuicMaxConnectionIdAllVersionsLength) {
-      QUIC_BUG << "Attempted to set connection ID length to "
-               << static_cast<int>(length);
-      length = kQuicMaxConnectionIdAllVersionsLength;
-    }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_allow_very_long_connection_ids, 4, 5);
-  }
   char temporary_data[sizeof(data_short_)];
   if (length > sizeof(data_short_)) {
     if (length_ <= sizeof(data_short_)) {
