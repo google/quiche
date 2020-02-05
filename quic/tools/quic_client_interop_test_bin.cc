@@ -106,11 +106,18 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
       case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
         if (frame.transport_error_code == NO_IETF_QUIC_ERROR) {
           InsertFeature(Feature::kConnectionClose);
+        } else {
+          QUIC_LOG(ERROR) << "Received transport connection close "
+                          << QuicIetfTransportErrorCodeString(
+                                 frame.transport_error_code);
         }
         break;
       case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
         if (frame.application_error_code == 0) {
           InsertFeature(Feature::kConnectionClose);
+        } else {
+          QUIC_LOG(ERROR) << "Received application connection close "
+                          << frame.application_error_code;
         }
         break;
     }

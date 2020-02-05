@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
@@ -79,8 +80,25 @@ MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
     return #x;
 
 std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
-  if (static_cast<uint16_t>(c) >= 0xff00u) {
-    return quiche::QuicheStrCat("Private value: ", static_cast<uint16_t>(c));
+  if (static_cast<uint64_t>(c) >= 0xff00u) {
+    return quiche::QuicheStrCat("Private(", static_cast<uint64_t>(c), ")");
+  }
+  if (c >= CRYPTO_ERROR_FIRST && c <= CRYPTO_ERROR_LAST) {
+    const int tls_error = static_cast<int>(c - CRYPTO_ERROR_FIRST);
+    const char* tls_error_description = SSL_alert_desc_string_long(tls_error);
+    if (strcmp("unknown", tls_error_description) != 0) {
+      return quiche::QuicheStrCat("CRYPTO_ERROR(", tls_error_description, ")");
+    }
+    // SSL_alert_desc_string_long doesn't currently support these two errors.
+    // TODO(dschinazi) remove this once BoringSSL supports them.
+    // https://boringssl-review.googlesource.com/c/boringssl/+/39784
+    if (tls_error == SSL_AD_MISSING_EXTENSION) {
+      return "CRYPTO_ERROR(missing extension)";
+    }
+    if (tls_error == 120) {
+      return "CRYPTO_ERROR(no application protocol)";
+    }
+    return quiche::QuicheStrCat("CRYPTO_ERROR(unknown(", tls_error, "))");
   }
 
   switch (c) {
@@ -93,13 +111,19 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     RETURN_STRING_LITERAL(FINAL_SIZE_ERROR);
     RETURN_STRING_LITERAL(FRAME_ENCODING_ERROR);
     RETURN_STRING_LITERAL(TRANSPORT_PARAMETER_ERROR);
-    RETURN_STRING_LITERAL(VERSION_NEGOTIATION_ERROR);
+    RETURN_STRING_LITERAL(CONNECTION_ID_LIMIT_ERROR);
     RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
-    RETURN_STRING_LITERAL(INVALID_MIGRATION);
-    default:
-      return quiche::QuicheStrCat("Unknown Transport Error Code Value: ",
-                                  static_cast<uint16_t>(c));
+    RETURN_STRING_LITERAL(INVALID_TOKEN);
+    RETURN_STRING_LITERAL(CRYPTO_BUFFER_EXCEEDED);
+    // CRYPTO_ERROR is handled in the if before this switch, these cases do not
+    // change behavior and are only here to make the compiler happy.
+    case CRYPTO_ERROR_FIRST:
+    case CRYPTO_ERROR_LAST:
+      DCHECK(false) << "Unexpected error " << static_cast<uint64_t>(c);
+      break;
   }
+
+  return quiche::QuicheStrCat("Unknown(", static_cast<uint64_t>(c), ")");
 }
 
 std::ostream& operator<<(std::ostream& os,

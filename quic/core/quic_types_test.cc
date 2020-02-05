@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
@@ -17,7 +18,7 @@ class QuicTypesTest : public QuicTest {};
 
 TEST_F(QuicTypesTest, QuicIetfTransportErrorCodeString) {
   // QuicIetfTransportErrorCode out of bound.
-  for (quic::QuicErrorCode error = quic::QUIC_ENCRYPTION_FAILURE;
+  for (quic::QuicErrorCode error = quic::QUIC_PACKET_TOO_LARGE;
        error < quic::QUIC_LAST_ERROR;
        error = static_cast<quic::QuicErrorCode>(error + 1)) {
     QuicErrorCodeToIetfMapping mapping =
@@ -25,8 +26,10 @@ TEST_F(QuicTypesTest, QuicIetfTransportErrorCodeString) {
     if (mapping.is_transport_close_) {
       EXPECT_EQ(QuicIetfTransportErrorCodeString(mapping.transport_error_code_),
                 quiche::QuicheStrCat(
-                    "Unknown Transport Error Code Value: ",
-                    static_cast<uint16_t>(mapping.transport_error_code_)));
+                    "Unknown(",
+                    static_cast<uint64_t>(mapping.transport_error_code_), ")"))
+          << " " << static_cast<uint64_t>(error) << " "
+          << QuicErrorCodeToString(error);
     }
   }
 }
