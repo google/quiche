@@ -163,9 +163,12 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   auto session_cache = std::make_unique<test::SimpleSessionCache>();
   QuicEpollServer epoll_server;
   QuicEpollClock epoll_clock(&epoll_server);
+  QuicConfig config;
+  QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(20);
+  config.SetIdleNetworkTimeout(timeout, timeout);
   auto client = std::make_unique<QuicClient>(
-      addr, server_id, versions, &epoll_server, std::move(proof_verifier),
-      std::move(session_cache));
+      addr, server_id, versions, config, &epoll_server,
+      std::move(proof_verifier), std::move(session_cache));
   client->set_connection_debug_visitor(this);
   if (!client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to initialize client";
@@ -202,18 +205,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   header_block[":authority"] = authority;
   header_block[":path"] = "/";
   client->set_store_response(true);
-  client->SendRequest(header_block, "", /*fin=*/true);
-
-  const QuicTime request_start_time = epoll_clock.Now();
-  static const auto request_timeout = QuicTime::Delta::FromSeconds(20);
-  bool request_timed_out = false;
-  while (client->WaitForEvents()) {
-    if (epoll_clock.Now() - request_start_time >= request_timeout) {
-      QUIC_LOG(ERROR) << "Timed out waiting for HTTP response";
-      request_timed_out = true;
-      break;
-    }
-  }
+  client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
 
   client_stats = connection->GetStats();
   QuicSentPacketManager* sent_packet_manager =
@@ -226,7 +218,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     InsertFeature(Feature::kStreamData);
   }
 
-  if (request_timed_out || !client->connected()) {
+  if (!client->connected()) {
     return;
   }
 
@@ -240,17 +232,12 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     if (attempt_rebind) {
       // Now make a second request after switching to a different client port.
       if (client->ChangeEphemeralPort()) {
-        client->SendRequest(header_block, "", /*fin=*/true);
-
-        const QuicTime second_request_start_time = epoll_clock.Now();
-        while (client->WaitForEvents()) {
-          if (epoll_clock.Now() - second_request_start_time >=
-              request_timeout) {
-            // Rebinding does not work, retry without attempting it.
-            AttemptRequest(addr, authority, server_id, test_version_negotiation,
-                           /*attempt_rebind=*/false);
-            return;
-          }
+        client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
+        if (!client->connected()) {
+          // Rebinding does not work, retry without attempting it.
+          AttemptRequest(addr, authority, server_id, test_version_negotiation,
+                         /*attempt_rebind=*/false);
+          return;
         }
         InsertFeature(Feature::kRebinding);
 
