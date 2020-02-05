@@ -384,8 +384,7 @@ QuicConnection::QuicConnection(
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server connection is created with the right version.
   if (perspective_ == Perspective::IS_SERVER) {
-    version_negotiated_ = true;
-    framer_.InferPacketHeaderTypeFromVersion();
+    SetVersionNegotiated();
   }
 }
 

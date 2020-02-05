@@ -79,8 +79,7 @@ bool QuicClientBase::Connect() {
       WaitForEvents();
     }
     ParsedQuicVersion version = UnsupportedQuicVersion();
-    if (session() != nullptr &&
-        !CanReconnectWithDifferentVersion(&version)) {
+    if (session() != nullptr && !CanReconnectWithDifferentVersion(&version)) {
       // We've successfully created a session but we're not connected, and we
       // cannot reconnect with a different version.  Give up trying.
       break;
@@ -126,6 +125,10 @@ void QuicClientBase::StartConnect() {
   // session.
   set_writer(writer);
   InitializeSession();
+  if (can_reconnect_with_different_version) {
+    // This is a reconnect using server supported |mutual_version|.
+    session()->connection()->SetVersionNegotiated();
+  }
   set_connected_or_attempting_connect(true);
 }
 

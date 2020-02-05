@@ -484,6 +484,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return framer_.supported_versions();
   }
 
+  // Mark version negotiated for this connection. Once called, the connection
+  // will ignore received version negotiation packets.
+  void SetVersionNegotiated() {
+    version_negotiated_ = true;
+    if (perspective_ == Perspective::IS_SERVER) {
+      framer_.InferPacketHeaderTypeFromVersion();
+    }
+  }
+
   // From QuicFramerVisitorInterface
   void OnError(QuicFramer* framer) override;
   bool OnProtocolVersionMismatch(ParsedQuicVersion received_version) override;
