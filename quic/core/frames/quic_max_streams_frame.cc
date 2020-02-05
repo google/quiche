@@ -9,6 +9,7 @@ namespace quic {
 QuicMaxStreamsFrame::QuicMaxStreamsFrame()
     : QuicInlinedFrame(MAX_STREAMS_FRAME),
       control_frame_id(kInvalidControlFrameId),
+      stream_count(0),
       unidirectional(false) {}
 
 QuicMaxStreamsFrame::QuicMaxStreamsFrame(QuicControlFrameId control_frame_id,
