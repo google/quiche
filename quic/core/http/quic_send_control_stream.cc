@@ -62,7 +62,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.4.1
   // specifies that setting identifiers of 0x1f * N + 0x21 are reserved and
   // greasing should be attempted.
-  if (GetQuicFlag(FLAGS_quic_disable_http3_settings_grease_randomness)) {
+  if (!GetQuicFlag(FLAGS_quic_enable_http3_grease_randomness)) {
     settings.values[0x40] = 20;
   } else {
     uint32_t result;
@@ -84,6 +84,14 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;
+
+  // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9
+  // specifies that a reserved frame type has no semantic meaning and should be
+  // discarded. A greasing frame is added here.
+  std::unique_ptr<char[]> grease;
+  QuicByteCount grease_length = HttpEncoder::SerializeGreasingFrame(&grease);
+  WriteOrBufferData(quiche::QuicheStringPiece(grease.get(), grease_length),
+                    /*fin = */ false, nullptr);
 }
 
 void QuicSendControlStream::WritePriorityUpdate(

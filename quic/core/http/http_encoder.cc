@@ -3,8 +3,12 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
+#include <cstdint>
+#include <memory>
 
+#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -238,6 +242,41 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
 
   QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
                       "PRIORITY_UPDATE frame.";
+  return 0;
+}
+
+// static
+QuicByteCount HttpEncoder::SerializeGreasingFrame(
+    std::unique_ptr<char[]>* output) {
+  // To not congest the network, a greasing frame only contains a uint8_t as
+  // payload.
+  uint64_t frame_type;
+  uint8_t frame_payload;
+  if (!GetQuicFlag(FLAGS_quic_enable_http3_grease_randomness)) {
+    frame_type = 0x40;
+    frame_payload = 20;
+  } else {
+    uint32_t result;
+    QuicRandom::GetInstance()->RandBytes(&result, sizeof(result));
+    frame_type = 0x1fULL * static_cast<uint64_t>(result) + 0x21ULL;
+    QuicRandom::GetInstance()->RandBytes(&frame_payload, sizeof(frame_payload));
+  }
+  QuicByteCount total_length =
+      QuicDataWriter::GetVarInt62Len(frame_type) +
+      QuicDataWriter::GetVarInt62Len(sizeof(frame_payload)) +
+      sizeof(frame_payload);
+
+  output->reset(new char[total_length]);
+  QuicDataWriter writer(total_length, output->get());
+
+  if (writer.WriteVarInt62(frame_type) &&
+      writer.WriteVarInt62(sizeof(frame_payload)) &&
+      writer.WriteUInt8(frame_payload)) {
+    return total_length;
+  }
+
+  QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
+                      "greasing frame.";
   return 0;
 }
 

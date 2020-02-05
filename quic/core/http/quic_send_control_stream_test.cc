@@ -103,7 +103,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicSendControlStreamTest, WriteSettings) {
-  SetQuicFlag(FLAGS_quic_disable_http3_settings_grease_randomness, true);
+  SetQuicFlag(FLAGS_quic_enable_http3_grease_randomness, false);
   session_.set_qpack_maximum_dynamic_table_capacity(255);
   session_.set_qpack_maximum_blocked_streams(16);
   session_.set_max_inbound_header_list_size(1024);
@@ -122,6 +122,9 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       "07"    // SETTINGS_QPACK_BLOCKED_STREAMS
       "10"    // 16
       "4040"  // 0x40 as the reserved settings id
+      "14"    // 20
+      "4040"  // 0x40 as the reserved frame type
+      "01"    // 8 bytes for uint8_t
       "14");  // 20
 
   auto buffer = std::make_unique<char[]>(expected_write_data.size());
@@ -140,7 +143,9 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
   EXPECT_CALL(session_, WritevData(send_control_stream_, _, 1, _, _))
       .WillOnce(Invoke(save_write_data));
   EXPECT_CALL(session_, WritevData(send_control_stream_, _,
-                                   expected_write_data.size() - 1, _, _))
+                                   expected_write_data.size() - 5, _, _))
+      .WillOnce(Invoke(save_write_data));
+  EXPECT_CALL(session_, WritevData(send_control_stream_, _, 4, _, _))
       .WillOnce(Invoke(save_write_data));
 
   send_control_stream_->MaybeSendSettingsFrame();
@@ -153,7 +158,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
   testing::InSequence s;
 
   EXPECT_CALL(session_, WritevData(send_control_stream_, _, 1, _, _));
-  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _));
+  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _)).Times(2);
   send_control_stream_->MaybeSendSettingsFrame();
 
   // No data should be written the second time MaybeSendSettingsFrame() is
@@ -166,9 +171,9 @@ TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
   Initialize();
   testing::InSequence s;
 
-  // The first write will trigger the control stream to write stream type and a
-  // SETTINGS frame before the PRIORITY_UPDATE frame.
-  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _)).Times(3);
+  // The first write will trigger the control stream to write stream type, a
+  // SETTINGS frame, and a greased frame before the PRIORITY_UPDATE frame.
+  EXPECT_CALL(session_, WritevData(send_control_stream_, _, _, _, _)).Times(4);
   PriorityUpdateFrame frame;
   send_control_stream_->WritePriorityUpdate(frame);
 

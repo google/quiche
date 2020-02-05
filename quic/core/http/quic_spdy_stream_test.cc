@@ -227,8 +227,9 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*connection_, OnCanWrite());
     }
     if (UsesHttp3()) {
-      // The control stream will write the stream type and SETTINGS frame.
-      int num_control_stream_writes = 2;
+      // The control stream will write the stream type, a greased frame, and
+      // SETTINGS frame.
+      int num_control_stream_writes = 3;
       if (session_->perspective() == Perspective::IS_CLIENT) {
         // The control stream also writes the max push id frame.
         num_control_stream_writes++;
