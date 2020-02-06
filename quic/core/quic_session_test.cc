@@ -1623,10 +1623,8 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
                                QUIC_STREAM_CANCELLED, kByteOffset);
   session_.OnRstStream(rst_frame);
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // The test is predicated on the stream being fully closed. For IETF QUIC,
-    // the RST_STREAM only does one side (the read side from the perspective of
-    // the node receiving the RST_STREAM). This is needed to fully close the
-    // stream and therefore fulfill all of the expects.
+    // The test requires the stream to be fully closed in both directions. For
+    // IETF QUIC, the RST_STREAM only closes one side.
     QuicStopSendingFrame frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED);
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -2138,10 +2136,8 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   stream2->OnStreamReset(rst_frame);
 
   if (VersionHasIetfQuicFrames(transport_version())) {
-    // The test is predicated on the stream being fully closed. For IETF QUIC,
-    // the RST_STREAM only does one side (the read side from the perspective of
-    // the node receiving the RST_STREAM). This is needed to fully close the
-    // stream and therefore fulfill all of the expects.
+    // The test requires the stream to be fully closed in both directions. For
+    // IETF QUIC, the RST_STREAM only closes one side.
     QuicStopSendingFrame frame(kInvalidControlFrameId, stream2->id(),
                                QUIC_STREAM_CANCELLED);
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -2641,15 +2637,12 @@ TEST_P(QuicSessionTestServer, NewStreamIdAboveLimit) {
   session_.OnStreamFrame(unidirectional_stream_frame);
 }
 
-// Check that the OnStopSendingFrame upcall handles bad input properly
-// First test checks that invalid stream ids are handled.
-TEST_P(QuicSessionTestServer, OnStopSendingInputInvalidStreamId) {
+// Checks that invalid stream ids are handled.
+TEST_P(QuicSessionTestServer, OnStopSendingInvalidStreamId) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    // Applicable only to IETF QUIC
     return;
   }
   // Check that "invalid" stream ids are rejected.
-  // Note that the notion of an invalid stream id is Google-specific.
   QuicStopSendingFrame frame(1, -1, 123);
   EXPECT_CALL(
       *connection_,
@@ -2658,11 +2651,22 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputInvalidStreamId) {
   session_.OnStopSendingFrame(frame);
 }
 
-// Second test, streams in the static stream map are not subject to
-// STOP_SENDING; it's ignored.
-TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
+TEST_P(QuicSessionTestServer, OnStopSendingReadUnidirectional) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    // Applicable only to IETF QUIC
+    return;
+  }
+  // It's illegal to send STOP_SENDING with a stream ID that is read-only.
+  QuicStopSendingFrame frame(1, GetNthClientInitiatedUnidirectionalId(1), 123);
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_STREAM_ID,
+                      "Received STOP_SENDING for a read-only stream", _));
+  session_.OnStopSendingFrame(frame);
+}
+
+// Static streams ignore STOP_SENDING.
+TEST_P(QuicSessionTestServer, OnStopSendingStaticStreams) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
   QuicStreamId stream_id = 0;
@@ -2670,7 +2674,6 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
       stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
   QuicSessionPeer::ActivateStream(&session_, std::move(fake_static_stream));
   // Check that a stream id in the static stream map is ignored.
-  // Note that the notion of a static stream is Google-specific.
   QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
@@ -2678,31 +2681,41 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputStaticStreams) {
   session_.OnStopSendingFrame(frame);
 }
 
-// Third test, if stream id specifies a closed stream:
-// return true and do not close the connection.
-TEST_P(QuicSessionTestServer, OnStopSendingInputClosedStream) {
+// If stream is write closed, do not send a RESET_STREAM frame.
+TEST_P(QuicSessionTestServer, OnStopSendingForWriteClosedStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    // Applicable only to IETF QUIC
     return;
   }
 
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
-  // Expect these as side effect of the close operations.
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(_, _));
   stream->CloseWriteSide();
-  stream->CloseReadSide();
+  EXPECT_TRUE(stream->write_side_closed());
   QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
 }
 
-// Fourth test, if stream id specifies a nonexistent stream, return false and
-// close the connection
+// If stream is closed, return true and do not close the connection.
+TEST_P(QuicSessionTestServer, OnStopSendingClosedStream) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  QuicStreamId stream_id = stream->id();
+  // Expect these as side effect of closing the stream.
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*connection_, OnStreamReset(_, _));
+  session_.CloseStream(stream_id);
+  QuicStopSendingFrame frame(1, stream_id, 123);
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  session_.OnStopSendingFrame(frame);
+}
+
+// If stream id is a nonexistent stream, return false and close the connection.
 TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    // Applicable only to IETF QUIC
     return;
   }
 

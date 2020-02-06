@@ -221,15 +221,32 @@ void QuicSession::OnCryptoFrame(const QuicCryptoFrame& frame) {
 void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   // STOP_SENDING is in IETF QUIC only.
   DCHECK(VersionHasIetfQuicFrames(transport_version()));
+  DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
 
   QuicStreamId stream_id = frame.stream_id;
   // If Stream ID is invalid then close the connection.
+  // TODO(ianswett): This check is redundant to checks for IsClosedStream,
+  // but removing it requires removing multiple DCHECKs.
+  // TODO(ianswett): Multiple QUIC_DVLOGs could be QUIC_PEER_BUGs.
   if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received STOP_SENDING with invalid stream_id: "
                   << stream_id << " Closing connection";
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for an invalid stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  // If stream_id is READ_UNIDIRECTIONAL, close the connection.
+  if (QuicUtils::GetStreamType(stream_id, perspective(),
+                               IsIncomingStream(stream_id)) ==
+      READ_UNIDIRECTIONAL) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Received STOP_SENDING for a read-only stream_id: "
+                  << stream_id << ".";
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for a read-only stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -246,7 +263,9 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
         << stream_id << " Ignoring.";
     return;
   }
-  // If stream is non-existent, close the connection
+  // If stream is non-existent, close the connection.
+  // TODO(b/148842616): IETF QUIC allows a STOP_SENDING to arrive before a
+  // STREAM frame for peer-intiated bidirectional steams
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
     QUIC_DVLOG(1) << ENDPOINT
@@ -260,10 +279,22 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   }
 
   QuicStream* stream = it->second.get();
+  // If the stream is null, it's an implementation error.
   if (stream == nullptr) {
     QUIC_BUG << ENDPOINT
              << "Received STOP_SENDING for NULL QuicStream, stream_id: "
              << stream_id << ". Ignoring.";
+    connection()->CloseConnection(
+        QUIC_INTERNAL_ERROR, "Received STOP_SENDING for a null stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
+  // Do not reset the sream if all data has been sent and acknowledged.
+  if (stream->write_side_closed() && !stream->IsWaitingForAcks()) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Ignoring STOP_SENDING for a write closed stream, id: "
+                  << stream_id;
     return;
   }
 

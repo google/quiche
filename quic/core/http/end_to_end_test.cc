@@ -4013,10 +4013,8 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   }
 }
 
-// Test that STOP_SENDING makes it to the other side. Set up a client & server,
-// create a stream (do not close it), and then send a STOP_SENDING from one
-// side. The other side should get a call to QuicStream::OnStopSending.
-// (aside, test cribbed from RequestAndStreamRstInOnePacket)
+// Test that STOP_SENDING makes it to the peer.  Create a stream and send a
+// STOP_SENDING. The receiver should get a call to QuicStream::OnStopSending.
 TEST_P(EndToEndTest, SimpleStopSendingTest) {
   const uint16_t kStopSendingTestCode = 123;
   ASSERT_TRUE(Initialize());
@@ -4028,9 +4026,6 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   QuicConnection* client_connection = client_session->connection();
   ASSERT_NE(nullptr, client_connection);
 
-  // STOP_SENDING will cause the server to not to send the trailer
-  // (and the FIN) after the response body. Instead, it sends a STOP_SENDING
-  // frame for the stream.
   std::string response_body(1305, 'a');
   SpdyHeaderBlock response_headers;
   response_headers[":status"] = quiche::QuicheTextUtils::Uint64ToString(200);
@@ -4057,14 +4052,13 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   // Wait for the connection to become idle.
   client_->WaitForDelayedAcks();
 
-  // The real expectation is the test does not crash or timeout.
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
-  // And that the stop-sending code is received.
   QuicSimpleClientStream* client_stream =
       static_cast<QuicSimpleClientStream*>(client_->latest_created_stream());
   ASSERT_NE(nullptr, client_stream);
-  // Make sure we have the correct stream
+  // Ensure the stream has been write closed upon receiving STOP_SENDING.
   EXPECT_EQ(stream_id, client_stream->id());
+  EXPECT_TRUE(client_stream->write_side_closed());
   EXPECT_EQ(kStopSendingTestCode,
             static_cast<uint16_t>(client_stream->stream_error()));
 }
