@@ -251,26 +251,10 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   }
 
   if (connection->connected()) {
-    test::QuicConnectionPeer::SendConnectionClosePacket(
-        connection, QUIC_NO_ERROR, "Graceful close");
-    const QuicTime close_start_time = epoll_clock.Now();
-    static const auto close_timeout = QuicTime::Delta::FromSeconds(10);
-    while (client->connected()) {
-      client->epoll_network_helper()->RunEventLoop();
-      if (epoll_clock.Now() - close_start_time >= close_timeout) {
-        QUIC_LOG(ERROR) << "Timed out waiting for connection close";
-        AttemptResumption(client.get());
-        return;
-      }
-    }
-    const QuicErrorCode received_error = client->session()->error();
-    if (received_error == QUIC_NO_ERROR ||
-        received_error == QUIC_PUBLIC_RESET) {
-      InsertFeature(Feature::kConnectionClose);
-    } else {
-      QUIC_LOG(ERROR) << "Received error " << client->session()->error() << " "
-                      << client->session()->error_details();
-    }
+    connection->CloseConnection(
+        QUIC_NO_ERROR, "Graceful close",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    InsertFeature(Feature::kConnectionClose);
   }
 
   AttemptResumption(client.get());
