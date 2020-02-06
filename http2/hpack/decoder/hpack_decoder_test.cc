@@ -127,15 +127,15 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
   AssertionResult DecodeBlock(quiche::QuicheStringPiece block) {
     HTTP2_VLOG(1) << "HpackDecoderTest::DecodeBlock";
 
-    VERIFY_FALSE(decoder_.error_detected());
+    VERIFY_FALSE(decoder_.DetectError());
     VERIFY_TRUE(error_messages_.empty());
     VERIFY_FALSE(saw_start_);
     VERIFY_FALSE(saw_end_);
     header_entries_.clear();
 
-    VERIFY_FALSE(decoder_.error_detected());
+    VERIFY_FALSE(decoder_.DetectError());
     VERIFY_TRUE(decoder_.StartDecodingBlock());
-    VERIFY_FALSE(decoder_.error_detected());
+    VERIFY_FALSE(decoder_.DetectError());
 
     if (fragment_the_hpack_block_) {
       // See note in ctor regarding RNG.
@@ -151,14 +151,14 @@ class HpackDecoderTest : public ::testing::TestWithParam<bool>,
       VERIFY_TRUE(decoder_.DecodeFragment(&db));
       VERIFY_EQ(0u, db.Remaining());
     }
-    VERIFY_FALSE(decoder_.error_detected());
+    VERIFY_FALSE(decoder_.DetectError());
 
     VERIFY_TRUE(decoder_.EndDecodingBlock());
     if (saw_end_) {
-      VERIFY_FALSE(decoder_.error_detected());
+      VERIFY_FALSE(decoder_.DetectError());
       VERIFY_TRUE(error_messages_.empty());
     } else {
-      VERIFY_TRUE(decoder_.error_detected());
+      VERIFY_TRUE(decoder_.DetectError());
       VERIFY_FALSE(error_messages_.empty());
     }
 
@@ -1088,7 +1088,7 @@ TEST_P(HpackDecoderTest, InvalidIndexedHeaderVarint) {
   EXPECT_TRUE(decoder_.StartDecodingBlock());
   DecodeBuffer db("\xff\x80\x80\x80\x80\x80\x80\x80\x80\x80\x80\x00");
   EXPECT_FALSE(decoder_.DecodeFragment(&db));
-  EXPECT_TRUE(decoder_.error_detected());
+  EXPECT_TRUE(decoder_.DetectError());
   EXPECT_FALSE(saw_end_);
   EXPECT_EQ(1u, error_messages_.size());
   EXPECT_THAT(error_messages_[0], HasSubstr("malformed"));
@@ -1103,7 +1103,7 @@ TEST_P(HpackDecoderTest, InvalidIndex) {
   EXPECT_TRUE(decoder_.StartDecodingBlock());
   DecodeBuffer db("\x80");
   EXPECT_FALSE(decoder_.DecodeFragment(&db));
-  EXPECT_TRUE(decoder_.error_detected());
+  EXPECT_TRUE(decoder_.DetectError());
   EXPECT_FALSE(saw_end_);
   EXPECT_EQ(1u, error_messages_.size());
   EXPECT_THAT(error_messages_[0], HasSubstr("Invalid index"));

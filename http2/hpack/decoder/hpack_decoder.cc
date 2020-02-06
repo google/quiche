@@ -16,7 +16,9 @@ HpackDecoder::HpackDecoder(HpackDecoderListener* listener,
     : decoder_state_(listener),
       entry_buffer_(&decoder_state_, max_string_size),
       block_decoder_(&entry_buffer_),
-      error_detected_(false) {}
+      error_detected_(false),
+      http2_skip_querying_entry_buffer_error_(
+          GetHttp2ReloadableFlag(http2_skip_querying_entry_buffer_error)) {}
 
 HpackDecoder::~HpackDecoder() = default;
 
@@ -35,8 +37,8 @@ void HpackDecoder::ApplyHeaderTableSizeSetting(uint32_t max_header_table_size) {
 
 bool HpackDecoder::StartDecodingBlock() {
   HTTP2_DVLOG(3) << "HpackDecoder::StartDecodingBlock, error_detected="
-                 << (error_detected() ? "true" : "false");
-  if (error_detected()) {
+                 << (DetectError() ? "true" : "false");
+  if (DetectError()) {
     return false;
   }
   // TODO(jamessynge): Eliminate Reset(), which shouldn't be necessary
@@ -49,9 +51,9 @@ bool HpackDecoder::StartDecodingBlock() {
 
 bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
   HTTP2_DVLOG(3) << "HpackDecoder::DecodeFragment, error_detected="
-                 << (error_detected() ? "true" : "false")
+                 << (DetectError() ? "true" : "false")
                  << ", size=" << db->Remaining();
-  if (error_detected()) {
+  if (DetectError()) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 3, 23);
     return false;
   }
@@ -64,7 +66,7 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
     ReportError("HPACK block malformed.");
     HTTP2_CODE_COUNT_N(decompress_failure_3, 4, 23);
     return false;
-  } else if (error_detected()) {
+  } else if (DetectError()) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 5, 23);
     return false;
   }
@@ -79,8 +81,8 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
 
 bool HpackDecoder::EndDecodingBlock() {
   HTTP2_DVLOG(3) << "HpackDecoder::EndDecodingBlock, error_detected="
-                 << (error_detected() ? "true" : "false");
-  if (error_detected()) {
+                 << (DetectError() ? "true" : "false");
+  if (DetectError()) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 6, 23);
     return false;
   }
@@ -91,7 +93,7 @@ bool HpackDecoder::EndDecodingBlock() {
     return false;
   }
   decoder_state_.OnHeaderBlockEnd();
-  if (error_detected()) {
+  if (DetectError()) {
     // HpackDecoderState will have reported the error.
     HTTP2_CODE_COUNT_N(decompress_failure_3, 8, 23);
     return false;
@@ -99,18 +101,29 @@ bool HpackDecoder::EndDecodingBlock() {
   return true;
 }
 
-bool HpackDecoder::error_detected() {
-  if (!error_detected_) {
-    if (entry_buffer_.error_detected()) {
+bool HpackDecoder::DetectError() {
+  if (error_detected_) {
+    return true;
+  }
+
+  if (decoder_state_.error_detected()) {
+    HTTP2_DVLOG(2) << "HpackDecoder::error_detected in decoder_state_";
+    HTTP2_CODE_COUNT_N(decompress_failure_3, 10, 23);
+    HTTP2_CODE_COUNT_N(http2_skip_querying_entry_buffer_error, 1, 3);
+    error_detected_ = true;
+  } else if (entry_buffer_.error_detected()) {
+    // This should never happen, because if an error had occured in
+    // |entry_buffer_|, it would have notified its listener, |decoder_state_|.
+    if (http2_skip_querying_entry_buffer_error_) {
+      HTTP2_CODE_COUNT_N(http2_skip_querying_entry_buffer_error, 2, 3);
+    } else {
       HTTP2_DVLOG(2) << "HpackDecoder::error_detected in entry_buffer_";
       HTTP2_CODE_COUNT_N(decompress_failure_3, 9, 23);
-      error_detected_ = true;
-    } else if (decoder_state_.error_detected()) {
-      HTTP2_DVLOG(2) << "HpackDecoder::error_detected in decoder_state_";
-      HTTP2_CODE_COUNT_N(decompress_failure_3, 10, 23);
+      HTTP2_CODE_COUNT_N(http2_skip_querying_entry_buffer_error, 3, 3);
       error_detected_ = true;
     }
   }
+
   return error_detected_;
 }
 

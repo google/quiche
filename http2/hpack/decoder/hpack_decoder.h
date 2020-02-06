@@ -92,8 +92,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   // and returns true; else returns false.
   bool EndDecodingBlock();
 
-  // Was an error detected?
-  bool error_detected();
+  // If no error has been detected so far, query |decoder_state_| for errors and
+  // set |error_detected_| if necessary.
+  bool DetectError();
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
@@ -116,6 +117,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
 
   // Has an error been detected?
   bool error_detected_;
+
+  // Latched value of reloadable_flag_http2_skip_querying_entry_buffer_error.
+  const bool http2_skip_querying_entry_buffer_error_;
 };
 
 }  // namespace http2
