@@ -10,7 +10,7 @@ namespace spdy {
 
 namespace {
 
-class HpackEntryTest : public ::testing::Test {
+class HpackEntryTest : public SpdyTest {
  protected:
   HpackEntryTest()
       : name_("header-name"),

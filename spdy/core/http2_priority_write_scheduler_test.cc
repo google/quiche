@@ -39,7 +39,7 @@ class Http2PriorityWriteSchedulerPeer {
   Http2PriorityWriteScheduler<StreamIdType>* scheduler_;
 };
 
-class Http2PriorityWriteSchedulerTest : public ::testing::Test {
+class Http2PriorityWriteSchedulerTest : public SpdyTest {
  protected:
   typedef uint32_t SpdyStreamId;
 

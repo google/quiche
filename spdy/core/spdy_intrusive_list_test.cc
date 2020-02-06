@@ -29,11 +29,12 @@ void swap(TestItem &a, TestItem &b) {
   swap(a.n, b.n);
 }
 
-class IntrusiveListTest : public ::testing::Test {
+class IntrusiveListTest : public SpdyTest {
  protected:
   void CheckLists() {
     CheckLists(l1, ll1);
-    if (::testing::Test::HasFailure()) return;
+    if (SpdyTest::HasFailure())
+      return;
     CheckLists(l2, ll2);
   }
 

@@ -7,4 +7,9 @@
 
 #include "net/spdy/platform/impl/spdy_test_impl.h"
 
+// Defines the base classes to be used in SPDY tests.
+using SpdyTest = SpdyTestImpl;
+template <class T>
+using SpdyTestWithParam = SpdyTestWithParamImpl<T>;
+
 #endif  // QUICHE_SPDY_PLATFORM_API_SPDY_TEST_H_

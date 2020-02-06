@@ -127,7 +127,7 @@ enum EncodeStrategy {
   kRepresentations,
 };
 
-class HpackEncoderTestBase : public ::testing::Test {
+class HpackEncoderTestBase : public SpdyTest {
  protected:
   typedef test::HpackEncoderPeer::Representations Representations;
 

@@ -68,7 +68,7 @@ class HpackHeaderTablePeer {
 
 namespace {
 
-class HpackHeaderTableTest : public ::testing::Test {
+class HpackHeaderTableTest : public SpdyTest {
  protected:
   typedef std::vector<HpackEntry> HpackEntryVector;
 

@@ -13,7 +13,7 @@ namespace spdy {
 
 namespace test {
 
-class SpdyPinnableBufferPieceTest : public ::testing::Test {
+class SpdyPinnableBufferPieceTest : public SpdyTest {
  protected:
   SpdyPrefixedBufferReader Build(const std::string& prefix,
                                  const std::string& suffix) {

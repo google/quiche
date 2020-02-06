@@ -17,7 +17,7 @@ namespace test {
 
 namespace {
 
-class HpackStaticTableTest : public ::testing::Test {
+class HpackStaticTableTest : public SpdyTest {
  protected:
   HpackStaticTableTest() : table_() {}
 

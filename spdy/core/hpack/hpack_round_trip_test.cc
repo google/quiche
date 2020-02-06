@@ -22,7 +22,7 @@ namespace {
 // Supports testing with the input split at every byte boundary.
 enum InputSizeParam { ALL_INPUT, ONE_BYTE, ZERO_THEN_ONE_BYTE };
 
-class HpackRoundTripTest : public ::testing::TestWithParam<InputSizeParam> {
+class HpackRoundTripTest : public SpdyTestWithParam<InputSizeParam> {
  protected:
   HpackRoundTripTest() : encoder_(ObtainHpackHuffmanTable()), decoder_() {}
 

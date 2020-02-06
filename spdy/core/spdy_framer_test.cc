@@ -579,7 +579,7 @@ class TestSpdyUnknownIR : public SpdyUnknownIR {
 
 enum Output { USE, NOT_USE };
 
-class SpdyFramerTest : public ::testing::TestWithParam<Output> {
+class SpdyFramerTest : public SpdyTestWithParam<Output> {
  public:
   SpdyFramerTest()
       : output_(output_buffer, kSize),
@@ -2766,7 +2766,7 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_FALSE(frame_it.HasNextFrame());
 }
 
-class SpdyControlFrameIteratorTest : public ::testing::Test {
+class SpdyControlFrameIteratorTest : public SpdyTest {
  public:
   SpdyControlFrameIteratorTest() : output_(output_buffer, kSize) {}
 

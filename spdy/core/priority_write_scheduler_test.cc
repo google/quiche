@@ -29,7 +29,7 @@ class PriorityWriteSchedulerPeer {
 
 namespace {
 
-class PriorityWriteSchedulerTest : public ::testing::Test {
+class PriorityWriteSchedulerTest : public SpdyTest {
  public:
   PriorityWriteSchedulerTest() : peer_(&scheduler_) {}
 

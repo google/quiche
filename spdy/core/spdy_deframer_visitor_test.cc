@@ -25,7 +25,7 @@ namespace spdy {
 namespace test {
 namespace {
 
-class SpdyDeframerVisitorTest : public ::testing::Test {
+class SpdyDeframerVisitorTest : public SpdyTest {
  protected:
   SpdyDeframerVisitorTest() : encoder_(SpdyFramer::ENABLE_COMPRESSION) {
     decoder_.set_process_single_input_frame(true);
