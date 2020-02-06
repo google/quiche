@@ -16,7 +16,7 @@ namespace {
 class QuicVersionManagerTest : public QuicTest {};
 
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, false);
   SetQuicReloadableFlag(quic_enable_version_t050, false);

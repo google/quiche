@@ -124,7 +124,7 @@ QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
     QuicTransportVersion transport_version);
 
 // IETF draft version most closely approximated by TLS + v99.
-static const int kQuicIetfDraftVersion = 25;
+enum : int { kQuicIetfDraftVersion = 25 };
 
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {
@@ -313,26 +313,31 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 // skipped as necessary).
 //
 // See go/new-quic-version for more details on how to roll out new versions.
-static const QuicTransportVersion kSupportedTransportVersions[] = {
-    QUIC_VERSION_99, QUIC_VERSION_50, QUIC_VERSION_49,
-    QUIC_VERSION_48, QUIC_VERSION_46, QUIC_VERSION_43,
-};
+constexpr std::array<QuicTransportVersion, 6> SupportedTransportVersions() {
+  return std::array<QuicTransportVersion, 6>(
+      {QUIC_VERSION_99, QUIC_VERSION_50, QUIC_VERSION_49, QUIC_VERSION_48,
+       QUIC_VERSION_46, QUIC_VERSION_43});
+}
 
 // This vector contains all crypto handshake protocols that are supported.
-static const HandshakeProtocol kSupportedHandshakeProtocols[] = {
-    PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
+constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
+  return std::array<HandshakeProtocol, 2>(
+      {PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3});
+}
 
-static const std::array<ParsedQuicVersion, 7> kSupportedVersions = {
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
-    ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
-    ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99),
-    ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
-};
+constexpr std::array<ParsedQuicVersion, 7> SupportedVersions() {
+  return std::array<ParsedQuicVersion, 7>({
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99),
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
+  });
+}
 
-typedef std::vector<QuicTransportVersion> QuicTransportVersionVector;
+using QuicTransportVersionVector = std::vector<QuicTransportVersion>;
 
 // Returns a vector of QUIC versions in kSupportedTransportVersions.
 QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();

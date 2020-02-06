@@ -940,7 +940,7 @@ TEST_F(QuicDispatcherTest, VersionsChangeInFlight) {
 }
 
 TEST_F(QuicDispatcherTest, RejectDeprecatedVersionsWithVersionNegotiation) {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Please add deprecated versions to this test");
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();

@@ -181,7 +181,7 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
                << parsed_version.handshake_protocol;
       return 0;
   }
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   switch (parsed_version.transport_version) {
     case QUIC_VERSION_43:
@@ -262,16 +262,16 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
 }
 
 QuicTransportVersionVector AllSupportedTransportVersions() {
-  QuicTransportVersionVector supported_versions;
-  for (QuicTransportVersion version : kSupportedTransportVersions) {
-    supported_versions.push_back(version);
-  }
+  constexpr auto supported_transport_versions = SupportedTransportVersions();
+  QuicTransportVersionVector supported_versions(
+      supported_transport_versions.begin(), supported_transport_versions.end());
   return supported_versions;
 }
 
 ParsedQuicVersionVector AllSupportedVersions() {
-  return ParsedQuicVersionVector(kSupportedVersions.begin(),
-                                 kSupportedVersions.end());
+  constexpr auto supported_versions = SupportedVersions();
+  return ParsedQuicVersionVector(supported_versions.begin(),
+                                 supported_versions.end());
 }
 
 ParsedQuicVersionVector CurrentSupportedVersions() {
@@ -401,7 +401,7 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
@@ -525,7 +525,7 @@ void QuicVersionInitializeSupportForIetfDraft() {
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   if (parsed_version.transport_version == QUIC_VERSION_99) {
     if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {

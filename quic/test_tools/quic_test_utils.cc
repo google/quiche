@@ -1028,13 +1028,6 @@ QuicConfig DefaultQuicConfig() {
   return config;
 }
 
-QuicTransportVersionVector SupportedTransportVersions(
-    QuicTransportVersion version) {
-  QuicTransportVersionVector versions;
-  versions.push_back(version);
-  return versions;
-}
-
 ParsedQuicVersionVector SupportedVersions(ParsedQuicVersion version) {
   ParsedQuicVersionVector versions;
   versions.push_back(version);

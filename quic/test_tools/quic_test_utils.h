@@ -168,10 +168,6 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
 // Returns QuicConfig set to default values.
 QuicConfig DefaultQuicConfig();
 
-// Returns a version vector consisting of |version|.
-QuicTransportVersionVector SupportedTransportVersions(
-    QuicTransportVersion version);
-
 ParsedQuicVersionVector SupportedVersions(ParsedQuicVersion version);
 
 struct QuicAckBlock {

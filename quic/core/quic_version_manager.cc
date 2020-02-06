@@ -23,7 +23,7 @@ QuicVersionManager::QuicVersionManager(
       disable_version_q046_(GetQuicReloadableFlag(quic_disable_version_q046)),
       disable_version_q043_(GetQuicReloadableFlag(quic_disable_version_q043)),
       allowed_supported_versions_(std::move(supported_versions)) {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   RefilterSupportedVersions();
 }
@@ -42,7 +42,7 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
-  static_assert(QUICHE_ARRAYSIZE(kSupportedTransportVersions) == 6u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   if (enable_version_t099_ != GetQuicReloadableFlag(quic_enable_version_t099) ||
       disable_version_q050_ !=
