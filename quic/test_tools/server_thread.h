@@ -39,6 +39,13 @@ class ServerThread : public QuicThread {
   // Waits for the handshake to be confirmed for the first session created.
   void WaitForCryptoHandshakeConfirmed();
 
+  // Wait until |termination_predicate| returns true in server thread, or
+  // reached |timeout|. Must be called from an external thread.
+  // Return whether the function returned after |termination_predicate| become
+  // true.
+  bool WaitUntil(std::function<bool()> termination_predicate,
+                 QuicTime::Delta timeout);
+
   // Pauses execution of the server until Resume() is called.  May only be
   // called once.
   void Pause();
@@ -71,6 +78,7 @@ class ServerThread : public QuicThread {
   QuicNotification quit_;    // Notified when the server should quit.
 
   std::unique_ptr<QuicServer> server_;
+  QuicEpollClock clock_;
   QuicSocketAddress address_;
   mutable QuicMutex port_lock_;
   int port_ QUIC_GUARDED_BY(port_lock_);

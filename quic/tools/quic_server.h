@@ -91,6 +91,8 @@ class QuicServer : public QuicSpdyServerBase,
 
   int port() { return port_; }
 
+  QuicEpollServer* epoll_server() { return &epoll_server_; }
+
  protected:
   virtual QuicPacketWriter* CreateWriter(int fd);
 
@@ -98,7 +100,6 @@ class QuicServer : public QuicSpdyServerBase,
 
   const QuicConfig& config() const { return config_; }
   const QuicCryptoServerConfig& crypto_config() const { return crypto_config_; }
-  QuicEpollServer* epoll_server() { return &epoll_server_; }
 
   QuicDispatcher* dispatcher() { return dispatcher_.get(); }
 

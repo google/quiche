@@ -2756,15 +2756,13 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderTruncated) {
       &packet[0], sizeof(packet),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
-  // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromSeconds(1));
-  // Pause the server so we can access the server's internals without races.
-  server_thread_->Pause();
-  QuicDispatcher* dispatcher =
-      QuicServerPeer::GetDispatcher(server_thread_->server());
-  EXPECT_THAT(QuicDispatcherPeer::GetAndClearLastError(dispatcher),
-              IsError(QUIC_INVALID_PACKET_HEADER));
-  server_thread_->Resume();
+  EXPECT_TRUE(server_thread_->WaitUntil(
+      [&] {
+        return QuicDispatcherPeer::GetAndClearLastError(
+                   QuicServerPeer::GetDispatcher(server_thread_->server())) ==
+               QUIC_INVALID_PACKET_HEADER;
+      },
+      QuicTime::Delta::FromSeconds(5)));
 
   // The connection should not be terminated.
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -2807,15 +2805,14 @@ TEST_P(EndToEndTestWithTls, BadPacketHeaderFlags) {
       &packet[0], sizeof(packet),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr);
-  // Give the server time to process the packet.
-  QuicSleep(QuicTime::Delta::FromSeconds(1));
-  // Pause the server so we can access the server's internals without races.
-  server_thread_->Pause();
-  QuicDispatcher* dispatcher =
-      QuicServerPeer::GetDispatcher(server_thread_->server());
-  EXPECT_THAT(QuicDispatcherPeer::GetAndClearLastError(dispatcher),
-              IsError(QUIC_INVALID_PACKET_HEADER));
-  server_thread_->Resume();
+
+  EXPECT_TRUE(server_thread_->WaitUntil(
+      [&] {
+        return QuicDispatcherPeer::GetAndClearLastError(
+                   QuicServerPeer::GetDispatcher(server_thread_->server())) ==
+               QUIC_INVALID_PACKET_HEADER;
+      },
+      QuicTime::Delta::FromSeconds(5)));
 
   // The connection should not be terminated.
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
