@@ -1417,12 +1417,6 @@ void QuicConnection::OnPacketComplete() {
       << IsCurrentPacketConnectivityProbing();
 
   if (IsCurrentPacketConnectivityProbing()) {
-    QUIC_DVLOG(1) << ENDPOINT << "Received a connectivity probing packet for "
-                  << GetServerConnectionIdAsRecipient(last_header_,
-                                                      perspective_)
-                  << " from ip:port: " << last_packet_source_address_.ToString()
-                  << " to ip:port: "
-                  << last_packet_destination_address_.ToString();
     visitor_->OnPacketReceived(last_packet_destination_address_,
                                last_packet_source_address_,
                                /*is_connectivity_probe=*/true);
@@ -3711,10 +3705,23 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
     if (perspective_ == Perspective::IS_SERVER) {
       is_current_packet_connectivity_probing_ =
           current_effective_peer_migration_type_ != NO_CHANGE;
+      QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
+          << ENDPOINT
+          << "Detected connectivity probing packet. "
+             "current_effective_peer_migration_type_:"
+          << current_effective_peer_migration_type_;
     } else {
       is_current_packet_connectivity_probing_ =
           (last_packet_source_address_ != peer_address_) ||
           (last_packet_destination_address_ != self_address_);
+      QUIC_DLOG_IF(INFO, is_current_packet_connectivity_probing_)
+          << ENDPOINT
+          << "Detected connectivity probing packet. "
+             "last_packet_source_address_:"
+          << last_packet_source_address_ << ", peer_address_:" << peer_address_
+          << ", last_packet_destination_address_:"
+          << last_packet_destination_address_
+          << ", self_address_:" << self_address_;
     }
     return;
   }

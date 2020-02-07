@@ -632,8 +632,29 @@ std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
       break;
   }
 }
+
 std::ostream& operator<<(std::ostream& os, const QuicConnectionCloseType type) {
   os << QuicConnectionCloseTypeString(type);
+  return os;
+}
+
+std::string AddressChangeTypeToString(AddressChangeType type) {
+  using IntType = typename std::underlying_type<AddressChangeType>::type;
+  switch (type) {
+    RETURN_STRING_LITERAL(NO_CHANGE);
+    RETURN_STRING_LITERAL(PORT_CHANGE);
+    RETURN_STRING_LITERAL(IPV4_SUBNET_CHANGE);
+    RETURN_STRING_LITERAL(IPV4_TO_IPV4_CHANGE);
+    RETURN_STRING_LITERAL(IPV4_TO_IPV6_CHANGE);
+    RETURN_STRING_LITERAL(IPV6_TO_IPV4_CHANGE);
+    RETURN_STRING_LITERAL(IPV6_TO_IPV6_CHANGE);
+    default:
+      return quiche::QuicheStrCat("Unknown(", static_cast<IntType>(type), ")");
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, AddressChangeType type) {
+  os << AddressChangeTypeToString(type);
   return os;
 }
 

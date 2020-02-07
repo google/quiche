@@ -460,6 +460,12 @@ enum AddressChangeType : uint8_t {
   IPV6_TO_IPV6_CHANGE,
 };
 
+QUIC_EXPORT_PRIVATE std::string AddressChangeTypeToString(
+    AddressChangeType type);
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             AddressChangeType type);
+
 enum StreamSendingState {
   // Sender has more data to send on this stream.
   NO_FIN,
