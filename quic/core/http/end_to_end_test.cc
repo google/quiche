@@ -3732,9 +3732,9 @@ TEST_P(EndToEndTest, LastPacketSentIsConnectivityProbing) {
 TEST_P(EndToEndTest, PreSharedKey) {
   SetQuicReloadableFlag(quic_check_handshake_timeout_before_idle_timeout, true);
   client_config_.set_max_time_before_crypto_handshake(
-      QuicTime::Delta::FromSeconds(1));
+      QuicTime::Delta::FromSeconds(5));
   client_config_.set_max_idle_time_before_crypto_handshake(
-      QuicTime::Delta::FromSeconds(1));
+      QuicTime::Delta::FromSeconds(5));
   pre_shared_key_client_ = "foobar";
   pre_shared_key_server_ = "foobar";
   ASSERT_TRUE(Initialize());
