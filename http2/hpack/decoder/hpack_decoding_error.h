@@ -37,6 +37,10 @@ enum class HpackDecodingError {
   kDynamicTableSizeUpdateIsAboveAcknowledgedSetting,
   // HPACK block ends in the middle of an instruction.
   kTruncatedBlock,
+  // Incoming data fragment exceeds buffer limit.
+  kFragmentTooLong,
+  // Total compressed HPACK data size exceeds limit.
+  kCompressedHeaderSizeExceedsLimit,
 };
 
 QUICHE_EXPORT_PRIVATE quiche::QuicheStringPiece HpackDecodingErrorToString(

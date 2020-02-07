@@ -40,6 +40,10 @@ quiche::QuicheStringPiece HpackDecodingErrorToString(HpackDecodingError error) {
       return "Dynamic table size update is above acknowledged setting";
     case HpackDecodingError::kTruncatedBlock:
       return "Block ends in the middle of an instruction";
+    case HpackDecodingError::kFragmentTooLong:
+      return "Incoming data fragment exceeds buffer limit";
+    case HpackDecodingError::kCompressedHeaderSizeExceedsLimit:
+      return "Total compressed HPACK data size exceeds limit";
   }
   return "invalid HpackDecodingError value";
 }

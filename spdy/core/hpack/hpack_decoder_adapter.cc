@@ -22,7 +22,8 @@ HpackDecoderAdapter::HpackDecoderAdapter()
     : hpack_decoder_(&listener_adapter_, kMaxDecodeBufferSizeBytes),
       max_decode_buffer_size_bytes_(kMaxDecodeBufferSizeBytes),
       max_header_block_bytes_(0),
-      header_block_started_(false) {}
+      header_block_started_(false),
+      error_(http2::HpackDecodingError::kOk) {}
 
 HpackDecoderAdapter::~HpackDecoderAdapter() = default;
 
@@ -50,6 +51,7 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
     if (!hpack_decoder_.StartDecodingBlock()) {
       header_block_started_ = false;
       SPDY_CODE_COUNT_N(decompress_failure_2, 1, 5);
+      error_ = hpack_decoder_.error();
       return false;
     }
   }
@@ -64,12 +66,14 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
                     << max_decode_buffer_size_bytes_ << " < "
                     << headers_data_length;
       SPDY_CODE_COUNT_N(decompress_failure_2, 2, 5);
+      error_ = http2::HpackDecodingError::kFragmentTooLong;
       return false;
     }
     listener_adapter_.AddToTotalHpackBytes(headers_data_length);
     if (max_header_block_bytes_ != 0 &&
         listener_adapter_.total_hpack_bytes() > max_header_block_bytes_) {
       SPDY_CODE_COUNT_N(decompress_failure, 3, 5);
+      error_ = http2::HpackDecodingError::kCompressedHeaderSizeExceedsLimit;
       return false;
     }
     http2::DecodeBuffer db(headers_data, headers_data_length);
@@ -77,6 +81,7 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersData(
     DCHECK(!ok || db.Empty()) << "Remaining=" << db.Remaining();
     if (!ok) {
       SPDY_CODE_COUNT_N(decompress_failure_2, 4, 5);
+      error_ = hpack_decoder_.error();
     }
     return ok;
   }
@@ -92,6 +97,7 @@ bool HpackDecoderAdapter::HandleControlFrameHeadersComplete(
   if (!hpack_decoder_.EndDecodingBlock()) {
     SPDY_DVLOG(3) << "EndDecodingBlock returned false";
     SPDY_CODE_COUNT_N(decompress_failure_2, 5, 5);
+    error_ = hpack_decoder_.error();
     return false;
   }
   header_block_started_ = false;

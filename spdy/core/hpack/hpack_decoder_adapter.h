@@ -85,6 +85,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
 
   size_t EstimateMemoryUsage() const;
 
+  // Error code if an error has occurred, Error::kOk otherwise.
+  http2::HpackDecodingError error() const { return error_; }
+
  private:
   class QUICHE_EXPORT_PRIVATE ListenerAdapter
       : public http2::HpackDecoderListener,
@@ -158,6 +161,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // moment because HandleControlFrameHeadersStart won't be called if a handler
   // is not being provided by the caller.
   bool header_block_started_;
+
+  // Error code if an error has occurred, Error::kOk otherwise.
+  http2::HpackDecodingError error_;
 };
 
 }  // namespace spdy
