@@ -80,6 +80,7 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
       return status;
     case DecodeStatus::kDecodeError:
       HTTP2_CODE_COUNT_N(decompress_failure_3, 11, 23);
+      error_ = HpackDecodingError::kIndexVarintError;
       // The varint must have been invalid (too long).
       return status;
   }
@@ -104,6 +105,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         status = entry_type_decoder_.Resume(db);
         if (status == DecodeStatus::kDecodeError) {
           HTTP2_CODE_COUNT_N(decompress_failure_3, 12, 23);
+          error_ = HpackDecodingError::kIndexVarintError;
         }
         if (status != DecodeStatus::kDecodeDone) {
           return status;
@@ -136,6 +138,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           state_ = EntryDecoderState::kResumeDecodingName;
           if (status == DecodeStatus::kDecodeError) {
             HTTP2_CODE_COUNT_N(decompress_failure_3, 13, 23);
+            error_ = HpackDecodingError::kNameLengthVarintError;
           }
           return status;
         }
@@ -151,6 +154,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         }
         if (status == DecodeStatus::kDecodeError) {
           HTTP2_CODE_COUNT_N(decompress_failure_3, 14, 23);
+          error_ = HpackDecodingError::kValueLengthVarintError;
         }
         if (status == DecodeStatus::kDecodeDone) {
           // Done with decoding the literal value, so we've reached the
@@ -180,6 +184,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
           state_ = EntryDecoderState::kResumeDecodingName;
           if (status == DecodeStatus::kDecodeError) {
             HTTP2_CODE_COUNT_N(decompress_failure_3, 15, 23);
+            error_ = HpackDecodingError::kNameLengthVarintError;
           }
           return status;
         }
@@ -196,6 +201,7 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         }
         if (status == DecodeStatus::kDecodeError) {
           HTTP2_CODE_COUNT_N(decompress_failure_3, 16, 23);
+          error_ = HpackDecodingError::kValueLengthVarintError;
         }
         if (status == DecodeStatus::kDecodeDone) {
           // Done with decoding the value, therefore the entry as a whole.

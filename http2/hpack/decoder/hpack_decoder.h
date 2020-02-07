@@ -28,9 +28,9 @@
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_state.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
+#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoding_error.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_buffer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 namespace test {
@@ -93,8 +93,12 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   bool EndDecodingBlock();
 
   // If no error has been detected so far, query |decoder_state_| for errors and
-  // set |error_detected_| if necessary.
+  // set |error_| if necessary.  Returns true if an error has ever been
+  // detected.
   bool DetectError();
+
+  // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
+  HpackDecodingError error() const { return error_; }
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
@@ -103,7 +107,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   friend class test::HpackDecoderPeer;
 
   // Reports an error to the listener IF this is the first error detected.
-  void ReportError(quiche::QuicheStringPiece error_message);
+  void ReportError(HpackDecodingError error);
 
   // The decompressor state, as defined by HPACK (i.e. the static and dynamic
   // tables).
@@ -115,8 +119,8 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   // The decoder of HPACK blocks into entry parts, passed to entry_buffer_.
   HpackBlockDecoder block_decoder_;
 
-  // Has an error been detected?
-  bool error_detected_;
+  // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
+  HpackDecodingError error_;
 
   // Latched value of reloadable_flag_http2_skip_querying_entry_buffer_error.
   const bool http2_skip_querying_entry_buffer_error_;

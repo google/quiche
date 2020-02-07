@@ -20,8 +20,8 @@ void HpackWholeEntryNoOpListener::OnLiteralNameAndValue(
     HpackDecoderStringBuffer* name_buffer,
     HpackDecoderStringBuffer* value_buffer) {}
 void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t size) {}
-void HpackWholeEntryNoOpListener::OnHpackDecodeError(
-    quiche::QuicheStringPiece error_message) {}
+void HpackWholeEntryNoOpListener::OnHpackDecodeError(HpackDecodingError error) {
+}
 
 // static
 HpackWholeEntryNoOpListener* HpackWholeEntryNoOpListener::NoOpListener() {

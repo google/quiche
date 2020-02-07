@@ -14,6 +14,7 @@
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
+#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoding_error.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_type_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder.h"
@@ -63,6 +64,9 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
   // in decoding the entry type and its varint.
   DecodeStatus Resume(DecodeBuffer* db, HpackEntryDecoderListener* listener);
 
+  // Return error code after decoding error occurred.
+  HpackDecodingError error() const { return error_; }
+
   std::string DebugString() const;
   void OutputDebugString(std::ostream& out) const;
 
@@ -73,6 +77,7 @@ class QUICHE_EXPORT_PRIVATE HpackEntryDecoder {
   HpackEntryTypeDecoder entry_type_decoder_;
   HpackStringDecoder string_decoder_;
   EntryDecoderState state_ = EntryDecoderState();
+  HpackDecodingError error_ = HpackDecodingError::kOk;
 };
 
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,

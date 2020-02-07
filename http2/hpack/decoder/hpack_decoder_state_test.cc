@@ -21,7 +21,6 @@
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
 using ::testing::Eq;
-using ::testing::HasSubstr;
 using ::testing::Mock;
 using ::testing::StrictMock;
 
@@ -419,8 +418,8 @@ TEST_F(HpackDecoderStateTest, OptionalTableSizeChanges) {
   EXPECT_EQ(0u, header_table_size_limit());
 
   // Three updates aren't allowed.
-  EXPECT_CALL(listener_,
-              OnHeaderErrorDetected(HasSubstr("size update not allowed")));
+  EXPECT_CALL(listener_, OnHeaderErrorDetected(
+                             Eq("Dynamic table size update not allowed")));
   SendSizeUpdate(0);
 }
 
@@ -442,8 +441,8 @@ TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeHeader) {
   // Another HPACK block, but this time missing the required size update.
   decoder_state_.ApplyHeaderTableSizeSetting(1024);
   SendStartAndVerifyCallback();
-  EXPECT_CALL(listener_, OnHeaderErrorDetected(
-                             HasSubstr("Missing dynamic table size update")));
+  EXPECT_CALL(listener_,
+              OnHeaderErrorDetected(Eq("Missing dynamic table size update")));
   decoder_state_.OnIndexedHeader(1);
 
   // Further decoded entries are ignored.
@@ -456,7 +455,7 @@ TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeHeader) {
   decoder_state_.OnLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader,
                                        &name_buffer_, &value_buffer_);
   decoder_state_.OnHeaderBlockEnd();
-  decoder_state_.OnHpackDecodeError("NOT FORWARDED");
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError);
 }
 
 // Confirm that required size updates are validated.
@@ -466,8 +465,10 @@ TEST_F(HpackDecoderStateTest, InvalidRequiredSizeUpdate) {
   SendStartAndVerifyCallback();
   EXPECT_EQ(Http2SettingsInfo::DefaultHeaderTableSize(),
             header_table_size_limit());
-  EXPECT_CALL(listener_,
-              OnHeaderErrorDetected(HasSubstr("above low water mark")));
+  EXPECT_CALL(
+      listener_,
+      OnHeaderErrorDetected(
+          Eq("Initial dynamic table size update is above low water mark")));
   SendSizeUpdate(2048);
 }
 
@@ -475,8 +476,8 @@ TEST_F(HpackDecoderStateTest, InvalidRequiredSizeUpdate) {
 TEST_F(HpackDecoderStateTest, RequiredTableSizeChangeBeforeEnd) {
   decoder_state_.ApplyHeaderTableSizeSetting(1024);
   SendStartAndVerifyCallback();
-  EXPECT_CALL(listener_, OnHeaderErrorDetected(
-                             HasSubstr("Missing dynamic table size update")));
+  EXPECT_CALL(listener_,
+              OnHeaderErrorDetected(Eq("Missing dynamic table size update")));
   decoder_state_.OnHeaderBlockEnd();
 }
 
@@ -487,26 +488,32 @@ TEST_F(HpackDecoderStateTest, InvalidOptionalSizeUpdate) {
   EXPECT_EQ(Http2SettingsInfo::DefaultHeaderTableSize(),
             header_table_size_limit());
   EXPECT_CALL(listener_,
-              OnHeaderErrorDetected(HasSubstr("size update is above")));
+              OnHeaderErrorDetected(Eq(
+                  "Dynamic table size update is above acknowledged setting")));
   SendSizeUpdate(Http2SettingsInfo::DefaultHeaderTableSize() + 1);
 }
 
 TEST_F(HpackDecoderStateTest, InvalidStaticIndex) {
   SendStartAndVerifyCallback();
-  EXPECT_CALL(listener_, OnHeaderErrorDetected(HasSubstr("Invalid index")));
+  EXPECT_CALL(listener_,
+              OnHeaderErrorDetected(
+                  Eq("Invalid index in indexed header field representation")));
   decoder_state_.OnIndexedHeader(0);
 }
 
 TEST_F(HpackDecoderStateTest, InvalidDynamicIndex) {
   SendStartAndVerifyCallback();
-  EXPECT_CALL(listener_, OnHeaderErrorDetected(HasSubstr("Invalid index")));
+  EXPECT_CALL(listener_,
+              OnHeaderErrorDetected(
+                  Eq("Invalid index in indexed header field representation")));
   decoder_state_.OnIndexedHeader(kFirstDynamicTableIndex);
 }
 
 TEST_F(HpackDecoderStateTest, InvalidNameIndex) {
   SendStartAndVerifyCallback();
   EXPECT_CALL(listener_,
-              OnHeaderErrorDetected(HasSubstr("Invalid name index")));
+              OnHeaderErrorDetected(Eq("Invalid index in literal header field "
+                                       "with indexed name representation")));
   SetValue("value", UNBUFFERED);
   decoder_state_.OnNameIndexAndLiteralValue(
       HpackEntryType::kIndexedLiteralHeader, kFirstDynamicTableIndex,
@@ -515,9 +522,9 @@ TEST_F(HpackDecoderStateTest, InvalidNameIndex) {
 
 TEST_F(HpackDecoderStateTest, ErrorsSuppressCallbacks) {
   SendStartAndVerifyCallback();
-  EXPECT_CALL(listener_, OnHeaderErrorDetected(quiche::QuicheStringPiece(
-                             "Huffman decode error.")));
-  decoder_state_.OnHpackDecodeError("Huffman decode error.");
+  EXPECT_CALL(listener_,
+              OnHeaderErrorDetected(Eq("Name Huffman encoding error")));
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kNameHuffmanError);
 
   // Further decoded entries are ignored.
   decoder_state_.OnIndexedHeader(1);
@@ -529,7 +536,7 @@ TEST_F(HpackDecoderStateTest, ErrorsSuppressCallbacks) {
   decoder_state_.OnLiteralNameAndValue(HpackEntryType::kIndexedLiteralHeader,
                                        &name_buffer_, &value_buffer_);
   decoder_state_.OnHeaderBlockEnd();
-  decoder_state_.OnHpackDecodeError("NOT FORWARDED");
+  decoder_state_.OnHpackDecodeError(HpackDecodingError::kIndexVarintError);
 }
 
 }  // namespace

@@ -58,7 +58,7 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
     if (len > max_string_size_bytes_) {
       HTTP2_DVLOG(1) << "Name length (" << len << ") is longer than permitted ("
                      << max_string_size_bytes_ << ")";
-      ReportError("HPACK entry name size is too long.");
+      ReportError(HpackDecodingError::kNameTooLong);
       HTTP2_CODE_COUNT_N(decompress_failure_3, 18, 23);
       return;
     }
@@ -72,7 +72,7 @@ void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
                  << Http2HexDump(quiche::QuicheStringPiece(data, len));
   DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
-    ReportError("Error decoding HPACK entry name.");
+    ReportError(HpackDecodingError::kNameHuffmanError);
     HTTP2_CODE_COUNT_N(decompress_failure_3, 19, 23);
   }
 }
@@ -81,7 +81,7 @@ void HpackWholeEntryBuffer::OnNameEnd() {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameEnd";
   DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnEnd()) {
-    ReportError("Error decoding HPACK entry name.");
+    ReportError(HpackDecodingError::kNameHuffmanError);
     HTTP2_CODE_COUNT_N(decompress_failure_3, 20, 23);
   }
 }
@@ -94,7 +94,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
       HTTP2_DVLOG(1) << "Value length (" << len
                      << ") is longer than permitted (" << max_string_size_bytes_
                      << ")";
-      ReportError("HPACK entry value size is too long.");
+      ReportError(HpackDecodingError::kValueTooLong);
       HTTP2_CODE_COUNT_N(decompress_failure_3, 21, 23);
       return;
     }
@@ -107,7 +107,7 @@ void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
                  << " data:\n"
                  << Http2HexDump(quiche::QuicheStringPiece(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
-    ReportError("Error decoding HPACK entry value.");
+    ReportError(HpackDecodingError::kValueHuffmanError);
     HTTP2_CODE_COUNT_N(decompress_failure_3, 22, 23);
   }
 }
@@ -118,7 +118,7 @@ void HpackWholeEntryBuffer::OnValueEnd() {
     return;
   }
   if (!value_.OnEnd()) {
-    ReportError("Error decoding HPACK entry value.");
+    ReportError(HpackDecodingError::kValueHuffmanError);
     HTTP2_CODE_COUNT_N(decompress_failure_3, 23, 23);
     return;
   }
@@ -138,12 +138,12 @@ void HpackWholeEntryBuffer::OnDynamicTableSizeUpdate(size_t size) {
   listener_->OnDynamicTableSizeUpdate(size);
 }
 
-void HpackWholeEntryBuffer::ReportError(
-    quiche::QuicheStringPiece error_message) {
+void HpackWholeEntryBuffer::ReportError(HpackDecodingError error) {
   if (!error_detected_) {
-    HTTP2_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: " << error_message;
+    HTTP2_DVLOG(1) << "HpackWholeEntryBuffer::ReportError: "
+                   << HpackDecodingErrorToString(error);
     error_detected_ = true;
-    listener_->OnHpackDecodeError(error_message);
+    listener_->OnHpackDecodeError(error);
     listener_ = HpackWholeEntryNoOpListener::NoOpListener();
   }
 }

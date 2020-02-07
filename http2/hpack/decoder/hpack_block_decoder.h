@@ -14,6 +14,7 @@
 
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
+#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoding_error.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
@@ -48,6 +49,9 @@ class QUICHE_EXPORT_PRIVATE HpackBlockDecoder {
   // Is the decoding process between entries (i.e. would the next byte be the
   // first byte of a new HPACK entry)?
   bool before_entry() const { return before_entry_; }
+
+  // Return error code after decoding error occurred in HpackEntryDecoder.
+  HpackDecodingError error() const { return entry_decoder_.error(); }
 
   std::string DebugString() const;
 

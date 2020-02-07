@@ -12,7 +12,6 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
 using ::testing::AllOf;
-using ::testing::HasSubstr;
 using ::testing::InSequence;
 using ::testing::Property;
 using ::testing::StrictMock;
@@ -37,8 +36,7 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
                     HpackDecoderStringBuffer* name_buffer,
                     HpackDecoderStringBuffer* value_buffer));
   MOCK_METHOD1(OnDynamicTableSizeUpdate, void(size_t size));
-  MOCK_METHOD1(OnHpackDecodeError,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD1(OnHpackDecodeError, void(HpackDecodingError error));
 };
 
 class HpackWholeEntryBufferTest : public ::testing::Test {
@@ -156,14 +154,14 @@ TEST_F(HpackWholeEntryBufferTest, OnLiteralNameAndValue) {
 // Verify that a name longer than the allowed size generates an error.
 TEST_F(HpackWholeEntryBufferTest, NameTooLong) {
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 0);
-  EXPECT_CALL(listener_, OnHpackDecodeError(HasSubstr("HPACK entry name")));
+  EXPECT_CALL(listener_, OnHpackDecodeError(HpackDecodingError::kNameTooLong));
   entry_buffer_.OnNameStart(false, kMaxStringSize + 1);
 }
 
 // Verify that a name longer than the allowed size generates an error.
 TEST_F(HpackWholeEntryBufferTest, ValueTooLong) {
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 1);
-  EXPECT_CALL(listener_, OnHpackDecodeError(HasSubstr("HPACK entry value")));
+  EXPECT_CALL(listener_, OnHpackDecodeError(HpackDecodingError::kValueTooLong));
   entry_buffer_.OnValueStart(false, kMaxStringSize + 1);
 }
 
@@ -176,7 +174,8 @@ TEST_F(HpackWholeEntryBufferTest, NameHuffmanError) {
   entry_buffer_.OnNameStart(true, 4);
   entry_buffer_.OnNameData(data, 3);
 
-  EXPECT_CALL(listener_, OnHpackDecodeError(HasSubstr("HPACK entry name")));
+  EXPECT_CALL(listener_,
+              OnHpackDecodeError(HpackDecodingError::kNameHuffmanError));
 
   entry_buffer_.OnNameData(data, 1);
 
@@ -187,14 +186,15 @@ TEST_F(HpackWholeEntryBufferTest, NameHuffmanError) {
 
 // Verify that a Huffman encoded value that isn't properly terminated with
 // a partial EOS symbol generates an error.
-TEST_F(HpackWholeEntryBufferTest, ValueeHuffmanError) {
+TEST_F(HpackWholeEntryBufferTest, ValueHuffmanError) {
   const char data[] = "\x00\x00\x00";
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kNeverIndexedLiteralHeader,
                                      61);
   entry_buffer_.OnValueStart(true, 3);
   entry_buffer_.OnValueData(data, 3);
 
-  EXPECT_CALL(listener_, OnHpackDecodeError(HasSubstr("HPACK entry value")));
+  EXPECT_CALL(listener_,
+              OnHpackDecodeError(HpackDecodingError::kValueHuffmanError));
 
   entry_buffer_.OnValueEnd();
 

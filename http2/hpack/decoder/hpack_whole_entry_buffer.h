@@ -13,6 +13,7 @@
 #include <stddef.h>
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
+#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoding_error.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
@@ -79,7 +80,7 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryBuffer
   void OnDynamicTableSizeUpdate(size_t size) override;
 
  private:
-  void ReportError(quiche::QuicheStringPiece error_message);
+  void ReportError(HpackDecodingError error);
 
   HpackWholeEntryListener* listener_;
   HpackDecoderStringBuffer name_, value_;
