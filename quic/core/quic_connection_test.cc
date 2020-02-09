@@ -2855,6 +2855,49 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
   EXPECT_EQ(1u, writer_->ping_frames().size());
 }
 
+TEST_P(QuicConnectionTest, AckNeedsRetransmittableFramesAfterPto) {
+  SetQuicReloadableFlag(quic_bundle_retransmittable_with_pto_ack, true);
+  // Disable TLP so the RTO fires immediately.
+  connection_.SetMaxTailLossProbes(0);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kEACK);
+  config.SetConnectionOptionsToSend(connection_options);
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(10);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(4);
+  // Receive packets 1 - 9.
+  for (size_t i = 1; i <= 9; ++i) {
+    ProcessDataPacket(i);
+  }
+
+  // Send a ping and fire the retransmission alarm.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  SendPing();
+  QuicTime retransmission_time =
+      connection_.GetRetransmissionAlarm()->deadline();
+  clock_.AdvanceTime(retransmission_time - clock_.Now());
+  connection_.GetRetransmissionAlarm()->Fire();
+  ASSERT_TRUE(manager_->GetConsecutiveRtoCount() > 0 ||
+              manager_->GetConsecutivePtoCount() > 0);
+
+  // Process a packet, which requests a retransmittable frame be bundled
+  // with the ACK.
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
+      .WillOnce(Invoke([this]() {
+        connection_.SendControlFrame(
+            QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+      }));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ProcessDataPacket(11);
+  EXPECT_EQ(1u, writer_->window_update_frames().size());
+}
+
 TEST_P(QuicConnectionTest, LeastUnackedLower) {
   if (VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
     return;

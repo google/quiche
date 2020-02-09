@@ -1154,6 +1154,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // num_retransmittable_packets_received_since_last_ack_sent_ etc.
   void ResetAckStates();
 
+  // Returns true if the ACK frame should be bundled with ACK-eliciting frame.
+  bool ShouldBundleRetransmittableFrameWithAck() const;
+
   void PopulateStopWaitingFrame(QuicStopWaitingFrame* stop_waiting);
 
   // Enables multiple packet number spaces support based on handshake protocol
@@ -1437,6 +1440,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // retransmittable frame(a WINDOW_UPDATE) will be created to solicit an ack
   // from the peer. Default to kMaxConsecutiveNonRetransmittablePackets.
   size_t max_consecutive_num_packets_with_no_retransmittable_frames_;
+
+  // If true, bundle an ack-eliciting frame with an ACK if the PTO or RTO alarm
+  // have previously fired.
+  bool bundle_retransmittable_with_pto_ack_;
 
   // If true, the connection will fill up the pipe with extra data whenever the
   // congestion controller needs it in order to make a bandwidth estimate.  This

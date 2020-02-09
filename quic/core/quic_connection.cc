@@ -319,6 +319,7 @@ QuicConnection::QuicConnection(
       consecutive_num_packets_with_no_retransmittable_frames_(0),
       max_consecutive_num_packets_with_no_retransmittable_frames_(
           kMaxConsecutiveNonRetransmittablePackets),
+      bundle_retransmittable_with_pto_ack_(false),
       fill_up_link_during_probing_(false),
       probing_retransmission_pending_(false),
       stateless_reset_token_received_(false),
@@ -474,6 +475,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_send_timestamps);
     framer_.set_process_timestamps(true);
     uber_received_packet_manager_.set_save_timestamps(true);
+  }
+  if (GetQuicReloadableFlag(quic_bundle_retransmittable_with_pto_ack) &&
+      config.HasClientSentConnectionOption(kEACK, perspective_)) {
+    bundle_retransmittable_with_pto_ack_ = true;
   }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
@@ -2598,8 +2603,7 @@ void QuicConnection::SendAck() {
     return;
   }
   ResetAckStates();
-  if (consecutive_num_packets_with_no_retransmittable_frames_ <
-      max_consecutive_num_packets_with_no_retransmittable_frames_) {
+  if (!ShouldBundleRetransmittableFrameWithAck()) {
     return;
   }
   consecutive_num_packets_with_no_retransmittable_frames_ = 0;
@@ -3916,8 +3920,7 @@ void QuicConnection::SendAllPendingAcks() {
   // Only try to bundle retransmittable data with ACK frame if default
   // encryption level is forward secure.
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE ||
-      consecutive_num_packets_with_no_retransmittable_frames_ <
-          max_consecutive_num_packets_with_no_retransmittable_frames_) {
+      !ShouldBundleRetransmittableFrameWithAck()) {
     return;
   }
   consecutive_num_packets_with_no_retransmittable_frames_ = 0;
@@ -3928,6 +3931,22 @@ void QuicConnection::SendAllPendingAcks() {
   }
 
   visitor_->OnAckNeedsRetransmittableFrame();
+}
+
+bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
+  if (consecutive_num_packets_with_no_retransmittable_frames_ >=
+      max_consecutive_num_packets_with_no_retransmittable_frames_) {
+    return true;
+  }
+  if (bundle_retransmittable_with_pto_ack_ &&
+      (sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
+       sent_packet_manager_.GetConsecutivePtoCount() > 0)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bundle_retransmittable_with_pto_ack);
+    // Bundle a retransmittable frame with an ACK if the PTO or RTO has fired
+    // in order to recover more quickly in cases of temporary network outage.
+    return true;
+  }
+  return false;
 }
 
 bool QuicConnection::FlushCoalescedPacket() {

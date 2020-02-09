@@ -159,6 +159,8 @@ const QuicTag kCONH = TAG('C', 'O', 'N', 'H');   // Conservative Handshake
 const QuicTag kLFAK = TAG('L', 'F', 'A', 'K');   // Don't invoke FACK on the
                                                  // first ack.
 const QuicTag kSTMP = TAG('S', 'T', 'M', 'P');   // Send and process timestamps
+const QuicTag kEACK = TAG('E', 'A', 'C', 'K');   // Bundle ack-eliciting frame
+                                                 // with an ACK after PTO/RTO
 
 const QuicTag kILD0 = TAG('I', 'L', 'D', '0');   // IETF style loss detection
                                                  // (default with 1/8 RTT time
