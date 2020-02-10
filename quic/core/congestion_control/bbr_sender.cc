@@ -876,9 +876,8 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
         // Do not let the pacing rate drop below the connection's initial pacing
         // rate.
         pacing_rate_ =
-            std::max(target_rate,
-                     QuicBandwidth::FromBytesAndTimeDelta(
-                         initial_congestion_window_, rtt_stats_->min_rtt()));
+            std::max(target_rate, QuicBandwidth::FromBytesAndTimeDelta(
+                                      initial_congestion_window_, GetMinRtt()));
         if (stats_) {
           stats_->overshooting_detected_with_network_parameters_adjusted = true;
         }
