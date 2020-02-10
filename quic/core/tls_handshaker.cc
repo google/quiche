@@ -73,10 +73,10 @@ void TlsHandshaker::SetEncryptionSecret(
       QuicDecrypter::CreateFromCipherSuite(
           SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
   CryptoUtils::SetKeyAndIV(Prf(), read_secret, decrypter.get());
-  delegate_->OnNewKeysAvailable(level, std::move(decrypter),
-                                /*set_alternative_decrypter=*/false,
-                                /*latch_once_used=*/false,
-                                std::move(encrypter));
+  delegate_->OnNewEncryptionKeyAvailable(level, std::move(encrypter));
+  delegate_->OnNewDecryptionKeyAvailable(level, std::move(decrypter),
+                                         /*set_alternative_decrypter=*/false,
+                                         /*latch_once_used=*/false);
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level,

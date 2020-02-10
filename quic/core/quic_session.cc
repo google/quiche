@@ -1295,13 +1295,14 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   flow_controller_.UpdateSendWindowOffset(new_window);
 }
 
-void QuicSession::OnNewKeysAvailable(EncryptionLevel level,
-                                     std::unique_ptr<QuicDecrypter> decrypter,
-                                     bool set_alternative_decrypter,
-                                     bool latch_once_used,
-                                     std::unique_ptr<QuicEncrypter> encrypter) {
-  // Install new keys.
-  connection()->SetEncrypter(level, std::move(encrypter));
+void QuicSession::OnNewDecryptionKeyAvailable(
+    EncryptionLevel level,
+    std::unique_ptr<QuicDecrypter> decrypter,
+    bool set_alternative_decrypter,
+    bool latch_once_used) {
+  // TODO(fayang): Close connection if corresponding encryption key is not
+  // available.
+  DCHECK(connection()->framer().HasEncrypterOfEncryptionLevel(level));
   if (connection()->version().KnowsWhichDecrypterToUse()) {
     connection()->InstallDecrypter(level, std::move(decrypter));
     return;
@@ -1312,6 +1313,12 @@ void QuicSession::OnNewKeysAvailable(EncryptionLevel level,
     return;
   }
   connection()->SetDecrypter(level, std::move(decrypter));
+}
+
+void QuicSession::OnNewEncryptionKeyAvailable(
+    EncryptionLevel level,
+    std::unique_ptr<QuicEncrypter> encrypter) {
+  connection()->SetEncrypter(level, std::move(encrypter));
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {

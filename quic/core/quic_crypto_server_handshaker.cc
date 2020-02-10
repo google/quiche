@@ -200,12 +200,14 @@ void QuicCryptoServerHandshaker::
   // write key.
   //
   // NOTE: the SHLO will be encrypted with the new server write key.
-  delegate_->OnNewKeysAvailable(
+  delegate_->OnNewEncryptionKeyAvailable(
+      ENCRYPTION_ZERO_RTT,
+      std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+  delegate_->OnNewDecryptionKeyAvailable(
       ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.decrypter),
       /*set_alternative_decrypter=*/false,
-      /*latch_once_used=*/false,
-      std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+      /*latch_once_used=*/false);
   delegate_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   delegate_->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   session()->connection()->SetDiversificationNonce(*diversification_nonce);
@@ -213,12 +215,14 @@ void QuicCryptoServerHandshaker::
   session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_shlo());
   SendHandshakeMessage(*reply);
-  delegate_->OnNewKeysAvailable(
+  delegate_->OnNewEncryptionKeyAvailable(
+      ENCRYPTION_FORWARD_SECURE,
+      std::move(crypto_negotiated_params_->forward_secure_crypters.encrypter));
+  delegate_->OnNewDecryptionKeyAvailable(
       ENCRYPTION_FORWARD_SECURE,
       std::move(crypto_negotiated_params_->forward_secure_crypters.decrypter),
       /*set_alternative_decrypter=*/true,
-      /*latch_once_used=*/false,
-      std::move(crypto_negotiated_params_->forward_secure_crypters.encrypter));
+      /*latch_once_used=*/false);
   encryption_established_ = true;
   one_rtt_keys_available_ = true;
   delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

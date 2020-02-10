@@ -17,12 +17,17 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
  public:
   virtual ~HandshakerDelegateInterface() {}
 
-  // Called when new keys are available.
-  virtual void OnNewKeysAvailable(EncryptionLevel level,
-                                  std::unique_ptr<QuicDecrypter> decrypter,
-                                  bool set_alternative_decrypter,
-                                  bool latch_once_used,
-                                  std::unique_ptr<QuicEncrypter> encrypter) = 0;
+  // Called when new decryption key of |level| is available.
+  virtual void OnNewDecryptionKeyAvailable(
+      EncryptionLevel level,
+      std::unique_ptr<QuicDecrypter> decrypter,
+      bool set_alternative_decrypter,
+      bool latch_once_used) = 0;
+
+  // Called when new encryption key of |level| is available.
+  virtual void OnNewEncryptionKeyAvailable(
+      EncryptionLevel level,
+      std::unique_ptr<QuicEncrypter> encrypter) = 0;
 
   // Called to set default encryption level to |level|.
   virtual void SetDefaultEncryptionLevel(EncryptionLevel level) = 0;

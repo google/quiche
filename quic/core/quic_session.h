@@ -243,11 +243,13 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void OnConfigNegotiated();
 
   // From HandshakerDelegateInterface
-  void OnNewKeysAvailable(EncryptionLevel level,
-                          std::unique_ptr<QuicDecrypter> decrypter,
-                          bool set_alternative_decrypter,
-                          bool latch_once_used,
-                          std::unique_ptr<QuicEncrypter> encrypter) override;
+  void OnNewDecryptionKeyAvailable(EncryptionLevel level,
+                                   std::unique_ptr<QuicDecrypter> decrypter,
+                                   bool set_alternative_decrypter,
+                                   bool latch_once_used) override;
+  void OnNewEncryptionKeyAvailable(
+      EncryptionLevel level,
+      std::unique_ptr<QuicEncrypter> encrypter) override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void DiscardOldDecryptionKey(EncryptionLevel level) override;
   void DiscardOldEncryptionKey(EncryptionLevel level) override;

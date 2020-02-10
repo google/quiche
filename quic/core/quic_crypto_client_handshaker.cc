@@ -327,12 +327,14 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       crypto_config_->pad_full_hello());
   SendHandshakeMessage(out);
   // Be prepared to decrypt with the new server write key.
-  delegate_->OnNewKeysAvailable(
+  delegate_->OnNewEncryptionKeyAvailable(
+      ENCRYPTION_ZERO_RTT,
+      std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+  delegate_->OnNewDecryptionKeyAvailable(
       ENCRYPTION_ZERO_RTT,
       std::move(crypto_negotiated_params_->initial_crypters.decrypter),
       /*set_alternative_decrypter=*/true,
-      /*latch_once_used=*/true,
-      std::move(crypto_negotiated_params_->initial_crypters.encrypter));
+      /*latch_once_used=*/true);
   encryption_established_ = true;
   delegate_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 }
@@ -537,10 +539,12 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   // has been floated that the server shouldn't send packets encrypted
   // with the FORWARD_SECURE key until it receives a FORWARD_SECURE
   // packet from the client.
-  delegate_->OnNewKeysAvailable(
-      ENCRYPTION_FORWARD_SECURE, std::move(crypters->decrypter),
-      /*set_alternative_decrypter=*/true,
-      /*latch_once_used=*/false, std::move(crypters->encrypter));
+  delegate_->OnNewEncryptionKeyAvailable(ENCRYPTION_FORWARD_SECURE,
+                                         std::move(crypters->encrypter));
+  delegate_->OnNewDecryptionKeyAvailable(ENCRYPTION_FORWARD_SECURE,
+                                         std::move(crypters->decrypter),
+                                         /*set_alternative_decrypter=*/true,
+                                         /*latch_once_used=*/false);
   one_rtt_keys_available_ = true;
   delegate_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
