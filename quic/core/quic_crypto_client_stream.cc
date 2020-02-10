@@ -65,6 +65,14 @@ bool QuicCryptoClientStream::IsResumption() const {
   return handshaker_->IsResumption();
 }
 
+bool QuicCryptoClientStream::EarlyDataAccepted() const {
+  return handshaker_->EarlyDataAccepted();
+}
+
+bool QuicCryptoClientStream::ReceivedInchoateReject() const {
+  return handshaker_->ReceivedInchoateReject();
+}
+
 int QuicCryptoClientStream::num_scup_messages_received() const {
   return handshaker_->num_scup_messages_received();
 }

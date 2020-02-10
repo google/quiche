@@ -204,13 +204,23 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 }
 
 int TlsClientHandshaker::num_sent_client_hellos() const {
-  // TODO(nharper): Return a sensible value here.
   return 0;
 }
 
 bool TlsClientHandshaker::IsResumption() const {
   QUIC_BUG_IF(!one_rtt_keys_available_);
   return SSL_session_reused(ssl()) == 1;
+}
+
+bool TlsClientHandshaker::EarlyDataAccepted() const {
+  QUIC_BUG_IF(!one_rtt_keys_available_);
+  return SSL_early_data_accepted(ssl()) == 1;
+}
+
+bool TlsClientHandshaker::ReceivedInchoateReject() const {
+  QUIC_BUG_IF(!one_rtt_keys_available_);
+  // REJ messages are a QUIC crypto feature, so TLS always returns false.
+  return false;
 }
 
 int TlsClientHandshaker::num_scup_messages_received() const {

@@ -110,6 +110,14 @@ int QuicSpdyClientSession::GetNumSentClientHellos() const {
   return crypto_stream_->num_sent_client_hellos();
 }
 
+bool QuicSpdyClientSession::EarlyDataAccepted() const {
+  return crypto_stream_->EarlyDataAccepted();
+}
+
+bool QuicSpdyClientSession::ReceivedInchoateReject() const {
+  return crypto_stream_->ReceivedInchoateReject();
+}
+
 int QuicSpdyClientSession::GetNumReceivedServerConfigUpdates() const {
   return crypto_stream_->num_scup_messages_received();
 }

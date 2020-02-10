@@ -124,6 +124,16 @@ bool QuicCryptoClientHandshaker::IsResumption() const {
   return false;
 }
 
+bool QuicCryptoClientHandshaker::EarlyDataAccepted() const {
+  QUIC_BUG_IF(!one_rtt_keys_available_);
+  return num_client_hellos_ == 1;
+}
+
+bool QuicCryptoClientHandshaker::ReceivedInchoateReject() const {
+  QUIC_BUG_IF(!one_rtt_keys_available_);
+  return num_client_hellos_ == 3;
+}
+
 int QuicCryptoClientHandshaker::num_scup_messages_received() const {
   return num_scup_messages_received_;
 }

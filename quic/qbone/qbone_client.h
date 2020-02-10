@@ -36,6 +36,9 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
   // sends the packet down to the QBONE connection.
   void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) override;
 
+  bool EarlyDataAccepted() override;
+  bool ReceivedInchoateReject() override;
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;

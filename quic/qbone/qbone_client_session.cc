@@ -53,6 +53,16 @@ int QboneClientSession::GetNumSentClientHellos() const {
       ->num_sent_client_hellos();
 }
 
+bool QboneClientSession::EarlyDataAccepted() const {
+  return static_cast<const QuicCryptoClientStreamBase*>(GetCryptoStream())
+      ->EarlyDataAccepted();
+}
+
+bool QboneClientSession::ReceivedInchoateReject() const {
+  return static_cast<const QuicCryptoClientStreamBase*>(GetCryptoStream())
+      ->ReceivedInchoateReject();
+}
+
 int QboneClientSession::GetNumReceivedServerConfigUpdates() const {
   return static_cast<const QuicCryptoClientStreamBase*>(GetCryptoStream())
       ->num_scup_messages_received();

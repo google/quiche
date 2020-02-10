@@ -38,6 +38,19 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
   // crypto stream. If the handshake has completed then this is one greater
   // than the number of round-trips needed for the handshake.
   int GetNumSentClientHellos() const;
+
+  // Returns true if early data (0-RTT data) was sent and the server accepted
+  // it.
+  bool EarlyDataAccepted() const;
+
+  // Returns true if the handshake was delayed one round trip by the server
+  // because the server wanted proof the client controls its source address
+  // before progressing further. In Google QUIC, this would be due to an
+  // inchoate REJ in the QUIC Crypto handshake; in IETF QUIC this would be due
+  // to a Retry packet.
+  // TODO(nharper): Consider a better name for this method.
+  bool ReceivedInchoateReject() const;
+
   int GetNumReceivedServerConfigUpdates() const;
 
   bool SendServerRequest(const QboneServerRequest& request);

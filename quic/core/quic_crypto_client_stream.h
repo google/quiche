@@ -30,6 +30,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // is still connected.
   virtual bool CryptoConnect() = 0;
 
+  // DEPRECATED: Use IsResumption, EarlyDataAccepted, and/or
+  // ReceivedInchoateReject instead.
+  //
   // num_sent_client_hellos returns the number of client hello messages that
   // have been sent. If the handshake has completed then this is one greater
   // than the number of round-trips needed for the handshake.
@@ -41,6 +44,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // handshake. This function only returns valid results once the handshake is
   // complete.
   virtual bool IsResumption() const = 0;
+
+  // Returns true if early data (0-RTT) was accepted in the connection.
+  virtual bool EarlyDataAccepted() const = 0;
+
+  // Returns true if the client received an inchoate REJ during the handshake,
+  // extending the handshake by one round trip. This only applies for QUIC
+  // crypto handshakes. The equivalent feature in IETF QUIC is a Retry packet,
+  // but that is handled at the connection layer instead of the crypto layer.
+  virtual bool ReceivedInchoateReject() const = 0;
 
   // The number of server config update messages received by the
   // client.  Does not count update messages that were received prior
@@ -81,6 +93,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // connection is still connected.
     virtual bool CryptoConnect() = 0;
 
+    // DEPRECATED: Use IsResumption, EarlyDataAccepted, and/or
+    // ReceivedInchoateReject instead.
+    //
     // num_sent_client_hellos returns the number of client hello messages that
     // have been sent. If the handshake has completed then this is one greater
     // than the number of round-trips needed for the handshake.
@@ -92,6 +107,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // handshake. This function only returns valid results once the handshake is
     // complete.
     virtual bool IsResumption() const = 0;
+
+    // Returns true if early data (0-RTT) was accepted in the connection.
+    virtual bool EarlyDataAccepted() const = 0;
+
+    // Returns true if the client received an inchoate REJ during the handshake,
+    // extending the handshake by one round trip. This only applies for QUIC
+    // crypto handshakes. The equivalent feature in IETF QUIC is a Retry packet,
+    // but that is handled at the connection layer instead of the crypto layer.
+    virtual bool ReceivedInchoateReject() const = 0;
 
     // The number of server config update messages received by the
     // client.  Does not count update messages that were received prior
@@ -161,6 +185,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   bool CryptoConnect() override;
   int num_sent_client_hellos() const override;
   bool IsResumption() const override;
+  bool EarlyDataAccepted() const override;
+  bool ReceivedInchoateReject() const override;
 
   int num_scup_messages_received() const override;
 

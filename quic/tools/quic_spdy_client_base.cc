@@ -190,6 +190,14 @@ QuicSpdyClientStream* QuicSpdyClientBase::CreateClientStream() {
   return stream;
 }
 
+bool QuicSpdyClientBase::EarlyDataAccepted() {
+  return client_session()->EarlyDataAccepted();
+}
+
+bool QuicSpdyClientBase::ReceivedInchoateReject() {
+  return client_session()->ReceivedInchoateReject();
+}
+
 int QuicSpdyClientBase::GetNumSentClientHellosFromSession() {
   return client_session()->GetNumSentClientHellos();
 }

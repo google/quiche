@@ -62,6 +62,14 @@ void QboneClient::ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) {
   qbone_session()->ProcessPacketFromNetwork(packet);
 }
 
+bool QboneClient::EarlyDataAccepted() {
+  return qbone_session()->EarlyDataAccepted();
+}
+
+bool QboneClient::ReceivedInchoateReject() {
+  return qbone_session()->ReceivedInchoateReject();
+}
+
 int QboneClient::GetNumSentClientHellosFromSession() {
   return qbone_session()->GetNumSentClientHellos();
 }

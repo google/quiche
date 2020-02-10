@@ -145,6 +145,9 @@ class QuicSpdyClientBase : public QuicClientBase,
   // Must be called before InitializeSession().
   void disable_qpack_dynamic_table() { disable_qpack_dynamic_table_ = true; }
 
+  bool EarlyDataAccepted() override;
+  bool ReceivedInchoateReject() override;
+
  protected:
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
