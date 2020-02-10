@@ -137,10 +137,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Does not consume data.
   bool PeekRegion(QuicStreamOffset offset, iovec* iov) const;
 
-  // Called after GetReadableRegions() to free up |bytes_used| space if these
-  // bytes are processed.
-  // Pre-requisite: bytes_used <= available bytes to read.
-  bool MarkConsumed(size_t bytes_buffered);
+  // Called after GetReadableRegions() to free up |bytes_consumed| space if
+  // these bytes are processed.
+  // Pre-requisite: bytes_consumed <= available bytes to read.
+  bool MarkConsumed(size_t bytes_consumed);
 
   // Deletes and records as consumed any buffered data and clear the buffer.
   // (To be called only after sequencer's StopReading has been called.)
@@ -208,10 +208,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Returns offset of highest received byte + 1.
   QuicStreamOffset NextExpectedByte() const;
 
-  // Return |gaps_| as a string: [1024, 1500) [1800, 2048)... for debugging.
-  std::string GapsDebugString() const;
-
-  // Return all received frames as a string in same format as GapsDebugString();
+  // Return all received frames as a string.
   std::string ReceivedFramesDebugString() const;
 
   // The maximum total capacity of this buffer in byte, as constructed.
