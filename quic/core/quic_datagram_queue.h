@@ -61,7 +61,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
   const QuicClock* clock_;
 
   QuicTime::Delta max_time_in_queue_ = QuicTime::Delta::Zero();
-  QuicDeque<Datagram> queue_;
+  QuicCircularDeque<Datagram> queue_;
 };
 
 }  // namespace quic

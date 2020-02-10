@@ -60,7 +60,7 @@ class OneWayLink : public Actor, public ConstrainedPortInterface {
   void ScheduleNextPacketDeparture();
 
   UnconstrainedPortInterface* sink_;
-  QuicDeque<QueuedPacket> packets_in_transit_;
+  QuicCircularDeque<QueuedPacket> packets_in_transit_;
 
   QuicBandwidth bandwidth_;
   const QuicTime::Delta propagation_delay_;

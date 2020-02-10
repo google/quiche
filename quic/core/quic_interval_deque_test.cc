@@ -50,7 +50,7 @@ class QuicIntervalDequeTest : public QuicTest {
 
 // The goal of this test is to show insertion/push_back, iteration, and and
 // deletion/pop_front from the container.
-TEST_F(QuicIntervalDequeTest, QuicDequeInsertRemoveSize) {
+TEST_F(QuicIntervalDequeTest, InsertRemoveSize) {
   QID qid;
 
   EXPECT_EQ(qid.Size(), std::size_t(0));
@@ -89,7 +89,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertRemoveSize) {
 // The goal of this test is to push data into the container at specific
 // intervals and show how the |DataAt| method can move the |cached_index| as the
 // iterator moves through the data.
-TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateWhole) {
+TEST_F(QuicIntervalDequeTest, InsertIterateWhole) {
   // The write index should point to the beginning of the container.
   const int32_t cached_index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(cached_index, 0);
@@ -118,7 +118,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateWhole) {
 // The goal of this test is to push data into the container at specific
 // intervals and show how the |DataAt| method can move the |cached_index| using
 // the off-by-one logic.
-TEST_F(QuicIntervalDequeTest, QuicDequeOffByOne) {
+TEST_F(QuicIntervalDequeTest, OffByOne) {
   // The write index should point to the beginning of the container.
   const int32_t cached_index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(cached_index, 0);
@@ -145,7 +145,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeOffByOne) {
 
 // The goal of this test is to push data into the container at specific
 // intervals and show modify the structure with a live iterator.
-TEST_F(QuicIntervalDequeTest, QuicDequeIteratorInvalidation) {
+TEST_F(QuicIntervalDequeTest, IteratorInvalidation) {
   // The write index should point to the beginning of the container.
   const int32_t cached_index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(cached_index, 0);
@@ -159,9 +159,9 @@ TEST_F(QuicIntervalDequeTest, QuicDequeIteratorInvalidation) {
   EXPECT_EQ(lookup_end, qid_.DataEnd());
 }
 
-// The goal of this test is the same as |QuicDequeInsertIterateWhole| but to
+// The goal of this test is the same as |InsertIterateWhole| but to
 // skip certain intervals and show the |cached_index| is updated properly.
-TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateSkip) {
+TEST_F(QuicIntervalDequeTest, InsertIterateSkip) {
   // The write index should point to the beginning of the container.
   const int32_t cached_index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(cached_index, 0);
@@ -189,9 +189,9 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateSkip) {
   }
 }
 
-// The goal of this test is the same as |QuicDequeInsertIterateWhole| but it has
+// The goal of this test is the same as |InsertIterateWhole| but it has
 // |PopFront| calls interleaved to show the |cached_index| updates correctly.
-TEST_F(QuicIntervalDequeTest, QuicDequeInsertDeleteIterate) {
+TEST_F(QuicIntervalDequeTest, InsertDeleteIterate) {
   // The write index should point to the beginning of the container.
   const int32_t index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(index, 0);
@@ -223,7 +223,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertDeleteIterate) {
 
 // The goal of this test is to move the index to the end and then add more data
 // to show it can be reset to a valid index.
-TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateInsert) {
+TEST_F(QuicIntervalDequeTest, InsertIterateInsert) {
   // The write index should point to the beginning of the container.
   const int32_t index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(index, 0);
@@ -285,7 +285,7 @@ TEST_F(QuicIntervalDequeTest, QuicDequeInsertIterateInsert) {
 
 // The goal of this test is to push data into the container at specific
 // intervals and show how the |DataAt| can iterate over already scanned data.
-TEST_F(QuicIntervalDequeTest, QuicDequeRescanData) {
+TEST_F(QuicIntervalDequeTest, RescanData) {
   // The write index should point to the beginning of the container.
   const int32_t index = QuicIntervalDequePeer::GetCachedIndex(&qid_);
   EXPECT_EQ(index, 0);
@@ -336,22 +336,22 @@ TEST_F(QuicIntervalDequeTest, QuicDequeRescanData) {
 
 // The goal of this test is to show that popping from an empty container is a
 // bug.
-TEST_F(QuicIntervalDequeTest, QuicDequePopEmpty) {
+TEST_F(QuicIntervalDequeTest, PopEmpty) {
   QID qid;
   EXPECT_TRUE(qid.Empty());
   EXPECT_QUIC_BUG(qid.PopFront(), "Trying to pop from an empty container.");
 }
 
 // The goal of this test is to show that adding a zero-sized interval is a bug.
-TEST_F(QuicIntervalDequeTest, QuicDequeZeroSizedInterval) {
+TEST_F(QuicIntervalDequeTest, ZeroSizedInterval) {
   QID qid;
   EXPECT_QUIC_BUG(qid.PushBack(TestIntervalItem(0, 0, 0)),
-                  "Trying to save empty interval to QuicDeque.");
+                  "Trying to save empty interval to .");
 }
 
 // The goal of this test is to show that an iterator to an empty container
 // returns |DataEnd|.
-TEST_F(QuicIntervalDequeTest, QuicDequeIteratorEmpty) {
+TEST_F(QuicIntervalDequeTest, IteratorEmpty) {
   QID qid;
   auto it = qid.DataAt(0);
   EXPECT_EQ(it, qid.DataEnd());

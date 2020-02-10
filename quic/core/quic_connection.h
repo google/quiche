@@ -1276,11 +1276,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // established, but which could not be decrypted.  We buffer these on
   // the assumption that they could not be processed because they were
   // sent with the INITIAL encryption and the CHLO message was lost.
-  QuicDeque<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
+  QuicCircularDeque<std::unique_ptr<QuicEncryptedPacket>>
+      undecryptable_packets_;
 
   // Collection of coalesced packets which were received while processing
   // the current packet.
-  QuicDeque<std::unique_ptr<QuicEncryptedPacket>> received_coalesced_packets_;
+  QuicCircularDeque<std::unique_ptr<QuicEncryptedPacket>>
+      received_coalesced_packets_;
 
   // Maximum number of undecryptable packets the connection will store.
   size_t max_undecryptable_packets_;
@@ -1488,7 +1490,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Deque because the peer might no be using this implementation, and others
   // might send a packet with more than one PATH_CHALLENGE, so all need to be
   // saved and responded to.
-  QuicDeque<QuicPathFrameBuffer> received_path_challenge_payloads_;
+  QuicCircularDeque<QuicPathFrameBuffer> received_path_challenge_payloads_;
 
   // Set of connection IDs that should be accepted as destination on
   // received packets. This is conceptually a set but is implemented as a

@@ -806,7 +806,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
 
 OwningSerializedPacketPointer
 QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
-    const QuicDeque<QuicPathFrameBuffer>& payloads,
+    const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded) {
   QUIC_BUG_IF(!VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must be version 99 to serialize path response connectivity probe, is "
@@ -872,7 +872,7 @@ size_t QuicPacketCreator::BuildPathResponsePacket(
     const QuicPacketHeader& header,
     char* buffer,
     size_t packet_length,
-    const QuicDeque<QuicPathFrameBuffer>& payloads,
+    const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded,
     EncryptionLevel level) {
   if (payloads.empty()) {

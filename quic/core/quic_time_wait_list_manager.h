@@ -193,8 +193,8 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   virtual bool SendOrQueuePacket(std::unique_ptr<QueuedPacket> packet,
                                  const QuicPerPacketContext* packet_context);
 
-  const QuicDeque<std::unique_ptr<QueuedPacket>>& pending_packets_queue()
-      const {
+  const QuicCircularDeque<std::unique_ptr<QueuedPacket>>&
+  pending_packets_queue() const {
     return pending_packets_queue_;
   }
 
@@ -260,7 +260,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
 
   // Pending termination packets that need to be sent out to the peer when we
   // are given a chance to write by the dispatcher.
-  QuicDeque<std::unique_ptr<QueuedPacket>> pending_packets_queue_;
+  QuicCircularDeque<std::unique_ptr<QueuedPacket>> pending_packets_queue_;
 
   // Time period for which connection_ids should remain in time wait state.
   const QuicTime::Delta time_wait_period_;

@@ -239,7 +239,7 @@ class QuartcSession : public QuicSession,
   // Queue of pending messages sent by SendQuartcMessage that were not sent
   // yet or blocked by congestion control. Messages are queued in the order
   // of sent by SendOrQueueMessage().
-  QuicDeque<QueuedMessage> send_message_queue_;
+  QuicCircularDeque<QueuedMessage> send_message_queue_;
 
   // Maps message ids to datagram ids, so we could translate message ACKs
   // received from QUIC to datagram ACKs that are propagated up the stack.

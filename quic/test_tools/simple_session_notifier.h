@@ -127,7 +127,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   bool StreamHasBufferedData(QuicStreamId id) const;
 
-  QuicDeque<QuicFrame> control_frames_;
+  QuicCircularDeque<QuicFrame> control_frames_;
 
   QuicLinkedHashMap<QuicControlFrameId, bool> lost_control_frames_;
 

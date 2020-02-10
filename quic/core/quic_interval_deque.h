@@ -135,7 +135,7 @@ class QuicIntervalDequePeer;
 //   //   cached_index -> 1
 //   //   container -> {{2, [25, 30)}, {3, [35, 50)}}
 
-template <class T, class C = QUIC_NO_EXPORT QuicDeque<T>>
+template <class T, class C = QUIC_NO_EXPORT QuicCircularDeque<T>>
 class QUIC_EXPORT_PRIVATE QuicIntervalDeque {
  public:
   class QUIC_EXPORT_PRIVATE Iterator {
@@ -359,7 +359,7 @@ void QuicIntervalDeque<T, C>::PushBackUniversal(U&& item) {
   QuicInterval<std::size_t> interval = item.interval();
   // Adding an empty interval is a bug.
   if (interval.Empty()) {
-    QUIC_BUG << "Trying to save empty interval to QuicDeque.";
+    QUIC_BUG << "Trying to save empty interval to QuicCircularDeque.";
     return;
   }
   container_.push_back(std::forward<U>(item));

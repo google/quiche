@@ -64,7 +64,7 @@ class QuicTransportSimpleServerSession
   const bool owns_connection_;
   Mode mode_;
   std::vector<url::Origin> accepted_origins_;
-  QuicDeque<std::string> streams_to_echo_back_;
+  QuicCircularDeque<std::string> streams_to_echo_back_;
 };
 
 }  // namespace quic

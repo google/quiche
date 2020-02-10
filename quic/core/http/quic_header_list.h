@@ -23,7 +23,7 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE QuicHeaderList
     : public spdy::SpdyHeadersHandlerInterface {
  public:
-  using ListType = QuicDeque<std::pair<std::string, std::string>>;
+  using ListType = QuicCircularDeque<std::pair<std::string, std::string>>;
   using value_type = ListType::value_type;
   using const_iterator = ListType::const_iterator;
 
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE QuicHeaderList
   std::string DebugString() const;
 
  private:
-  QuicDeque<std::pair<std::string, std::string>> header_list_;
+  QuicCircularDeque<std::pair<std::string, std::string>> header_list_;
 
   // The limit on the size of the header list (defined by spec as name + value +
   // overhead for each header field). Headers over this limit will not be

@@ -130,7 +130,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // frame.
   void WriteOrBufferQuicFrame(QuicFrame frame);
 
-  QuicDeque<QuicFrame> control_frames_;
+  QuicCircularDeque<QuicFrame> control_frames_;
 
   // Id of latest saved control frame. 0 if no control frame has been saved.
   QuicControlFrameId last_control_frame_id_;

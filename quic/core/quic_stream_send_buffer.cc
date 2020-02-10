@@ -148,7 +148,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     return data_length == 0;
   }
 
-  QuicDeque<BufferedSlice>::iterator slice_it =
+  QuicCircularDeque<BufferedSlice>::iterator slice_it =
       write_index_ == -1
           ? buffered_slices_.begin()
           // Assume with write_index, write mostly starts from indexed slice.
@@ -185,7 +185,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
     data_length -= copy_length;
 
     if (write_index_ != -1) {
-      QuicDeque<BufferedSlice>::const_iterator index_slice =
+      QuicCircularDeque<BufferedSlice>::const_iterator index_slice =
           buffered_slices_.begin() + write_index_;
       if (index_slice->offset == slice_it->offset &&
           copy_length == available_bytes_in_slice) {

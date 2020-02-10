@@ -222,7 +222,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // will pad the packet to be MTU bytes long, else it will not pad the packet.
   // |payloads| is cleared.
   OwningSerializedPacketPointer SerializePathResponseConnectivityProbingPacket(
-      const QuicDeque<QuicPathFrameBuffer>& payloads,
+      const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
   // Returns a dummy packet that is valid but contains no useful information.
@@ -404,12 +404,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // frame. Also fills the packet with padding if |is_padded| is
   // true. |payloads| is always emptied, even if the packet can not be
   // successfully built.
-  size_t BuildPathResponsePacket(const QuicPacketHeader& header,
-                                 char* buffer,
-                                 size_t packet_length,
-                                 const QuicDeque<QuicPathFrameBuffer>& payloads,
-                                 const bool is_padded,
-                                 EncryptionLevel level);
+  size_t BuildPathResponsePacket(
+      const QuicPacketHeader& header,
+      char* buffer,
+      size_t packet_length,
+      const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
+      const bool is_padded,
+      EncryptionLevel level);
 
   // Serializes a probing packet, which is a padded PING packet. Returns the
   // length of the packet. Returns 0 if it fails to serialize.

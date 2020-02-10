@@ -146,7 +146,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSendBuffer {
   void CleanUpBufferedSlices();
 
   bool interval_deque_active_;
-  QuicDeque<BufferedSlice> buffered_slices_;
+  QuicCircularDeque<BufferedSlice> buffered_slices_;
   // |current_end_offset_| stores the end offset of the current slice to ensure
   // data isn't being written out of order when using the |interval_deque_|.
   QuicStreamOffset current_end_offset_;

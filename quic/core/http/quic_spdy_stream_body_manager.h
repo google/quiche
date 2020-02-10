@@ -84,7 +84,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
     QuicByteCount trailing_non_body_byte_count;
   };
   // Queue of body fragments and trailing non-body byte counts.
-  QuicDeque<Fragment> fragments_;
+  QuicCircularDeque<Fragment> fragments_;
   // Total body bytes received.
   QuicByteCount total_body_bytes_received_;
 };

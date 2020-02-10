@@ -113,7 +113,7 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
     return const_cast<EntryWrapper*>(const_this->GetEntryWrapper(offset));
   }
 
-  QuicDeque<EntryWrapper> entries_;
+  QuicCircularDeque<EntryWrapper> entries_;
   // NOTE(wub): When --quic_bw_sampler_remove_packets_once_per_congestion_event
   // is enabled, |number_of_present_entries_| only represents number of holes,
   // which does not include number of acked or lost packets.

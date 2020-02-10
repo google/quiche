@@ -86,7 +86,7 @@ class ServerThread : public QuicThread {
   bool initialized_;
 
   QuicMutex scheduled_actions_lock_;
-  QuicDeque<std::function<void()>> scheduled_actions_
+  QuicCircularDeque<std::function<void()>> scheduled_actions_
       QUIC_GUARDED_BY(scheduled_actions_lock_);
 };
 
