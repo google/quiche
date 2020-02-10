@@ -402,6 +402,9 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // bytes_lost_multiplier_with_network_parameters_adjusted_ > IW.
   uint8_t bytes_lost_multiplier_with_network_parameters_adjusted_;
 
+  // Max congestion window when adjusting network parameters.
+  QuicByteCount max_congestion_window_with_network_parameters_adjusted_;
+
   // Latched value of --quic_bbr_loss_based_startup_exit &&
   // sampler_.one_bw_sample_per_ack_event().
   const bool loss_based_startup_exit_;

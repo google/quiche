@@ -245,6 +245,8 @@ const QuicTag kBWM3 = TAG('B', 'W', 'M', '3');  // Consider overshooting if
 const QuicTag kBWM4 = TAG('B', 'W', 'M', '4');  // Consider overshooting if
                                                 // bytes lost after bandwidth
                                                 // resumption * 4 > IW.
+const QuicTag kICW1 = TAG('I', 'C', 'W', '1');  // Max initial congestion window
+                                                // 100.
 
 // Enable path MTU discovery experiment.
 const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.

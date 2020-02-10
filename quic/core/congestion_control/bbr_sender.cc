@@ -130,6 +130,8 @@ BbrSender::BbrSender(QuicTime now,
       network_parameters_adjusted_(false),
       bytes_lost_with_network_parameters_adjusted_(0),
       bytes_lost_multiplier_with_network_parameters_adjusted_(2),
+      max_congestion_window_with_network_parameters_adjusted_(
+          kMaxInitialCongestionWindow * kDefaultTCPMSS),
       loss_based_startup_exit_(
           GetQuicReloadableFlag(quic_bbr_loss_based_startup_exit) &&
           sampler_.one_bw_sample_per_ack_event()) {
@@ -320,6 +322,10 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kMIN1, perspective)) {
     min_congestion_window_ = kMaxSegmentSize;
   }
+  if (config.HasClientRequestedIndependentOption(kICW1, perspective)) {
+    max_congestion_window_with_network_parameters_adjusted_ =
+        100 * kDefaultTCPMSS;
+  }
 }
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
@@ -342,7 +348,7 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
     }
     const QuicByteCount new_cwnd = std::max(
         kMinInitialCongestionWindow * kDefaultTCPMSS,
-        std::min(kMaxInitialCongestionWindow * kDefaultTCPMSS,
+        std::min(max_congestion_window_with_network_parameters_adjusted_,
                  bandwidth * (params.quic_bbr_donot_inject_bandwidth
                                   ? GetMinRtt()
                                   : rtt_stats_->SmoothedOrInitialRtt())));
