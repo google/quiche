@@ -640,11 +640,21 @@ void QuicSession::OnCanWrite() {
       return;
     }
   }
+  std::vector<QuicStreamId> last_writing_stream_ids;
   for (size_t i = 0; i < num_writes; ++i) {
     if (!(write_blocked_streams_.HasWriteBlockedSpecialStream() ||
           write_blocked_streams_.HasWriteBlockedDataStreams())) {
       // Writing one stream removed another!? Something's broken.
-      QUIC_BUG << "WriteBlockedStream is missing";
+      QUIC_BUG << "WriteBlockedStream is missing, num_writes: " << num_writes
+               << ", finished_writes: " << i
+               << ", connected: " << connection_->connected()
+               << ", connection level flow control blocked: "
+               << flow_controller_.IsBlocked() << ", scheduler type: "
+               << spdy::WriteSchedulerTypeToString(
+                      write_blocked_streams_.scheduler_type());
+      for (QuicStreamId id : last_writing_stream_ids) {
+        QUIC_LOG(WARNING) << "last_writing_stream_id: " << id;
+      }
       connection_->CloseConnection(QUIC_INTERNAL_ERROR,
                                    "WriteBlockedStream is missing",
                                    ConnectionCloseBehavior::SILENT_CLOSE);
@@ -654,6 +664,7 @@ void QuicSession::OnCanWrite() {
       return;
     }
     currently_writing_stream_id_ = write_blocked_streams_.PopFront();
+    last_writing_stream_ids.push_back(currently_writing_stream_id_);
     QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
                   << currently_writing_stream_id_ << " from write-blocked list";
     QuicStream* stream = GetOrCreateStream(currently_writing_stream_id_);
