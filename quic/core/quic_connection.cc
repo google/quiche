@@ -2923,7 +2923,7 @@ void QuicConnection::CloseConnection(
 
 void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                const std::string& details) {
-  if (!GetQuicReloadableFlag(quic_close_all_encryptions_levels2)) {
+  if (!SupportsMultiplePacketNumberSpaces()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
     SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
     if (version().CanSendCoalescedPackets()) {
@@ -2953,7 +2953,6 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   }
   const EncryptionLevel current_encryption_level = encryption_level_;
   ScopedPacketFlusher flusher(this);
-  QUIC_RELOADABLE_FLAG_COUNT(quic_close_all_encryptions_levels2);
 
   // Now that the connection is being closed, discard any unsent packets
   // so the only packets to be sent will be connection close packets.

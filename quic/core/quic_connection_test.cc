@@ -8114,7 +8114,9 @@ TEST_P(QuicConnectionTest, DoNotForceSendingAckOnPacketTooLarge) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionAllLevels) {
-  SetQuicReloadableFlag(quic_close_all_encryptions_levels2, true);
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
 
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
@@ -8152,7 +8154,9 @@ TEST_P(QuicConnectionTest, CloseConnectionAllLevels) {
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionOneLevel) {
-  SetQuicReloadableFlag(quic_close_all_encryptions_levels2, false);
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
 
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
