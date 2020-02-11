@@ -7,9 +7,9 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_session.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_stream.h"

@@ -8,8 +8,8 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
+#include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_connection_helper.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_crypto_helpers.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_dispatcher.h"

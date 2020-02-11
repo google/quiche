@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_PLATFORM_API_QUIC_CLOCK_H_
-#define QUICHE_QUIC_PLATFORM_API_QUIC_CLOCK_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_CLOCK_H_
+#define QUICHE_QUIC_CORE_QUIC_CLOCK_H_
 
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -69,4 +69,4 @@ class QUIC_EXPORT_PRIVATE QuicClock {
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_PLATFORM_API_QUIC_CLOCK_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_CLOCK_H_

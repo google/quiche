@@ -12,11 +12,11 @@
 // regardless of how the below transitive header include set may change.
 #include <sys/socket.h>
 
+#include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_clock.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_socket_utils.h"
