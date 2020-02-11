@@ -2349,9 +2349,11 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   if (IsWriteError(result.status)) {
     OnWriteError(result.error_code);
     QUIC_LOG_FIRST_N(ERROR, 10)
-        << ENDPOINT << "failed writing packet " << packet_number << " of "
+        << ENDPOINT << "Failed writing packet " << packet_number << " of "
         << encrypted_length << " bytes from " << self_address().host() << " to "
-        << peer_address() << ", with error code " << result.error_code;
+        << peer_address() << ", with error code " << result.error_code
+        << ". long_term_mtu_:" << long_term_mtu_
+        << ", is_mtu_discovery:" << is_mtu_discovery;
     return false;
   }
 
