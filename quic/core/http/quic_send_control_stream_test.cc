@@ -124,8 +124,8 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       "4040"  // 0x40 as the reserved settings id
       "14"    // 20
       "4040"  // 0x40 as the reserved frame type
-      "01"    // 8 bytes for uint8_t
-      "14");  // 20
+      "01"    // 1 byte frame length
+      "61");  //  payload "a"
 
   auto buffer = std::make_unique<char[]>(expected_write_data.size());
   QuicDataWriter writer(expected_write_data.size(), buffer.get());
