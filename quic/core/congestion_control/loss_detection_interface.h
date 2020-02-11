@@ -20,9 +20,6 @@ class RttStats;
 class QUIC_EXPORT_PRIVATE LossDetectionInterface {
  public:
   virtual ~LossDetectionInterface() {}
-
-  virtual LossDetectionType GetLossDetectionType() const = 0;
-
   // Called when a new ack arrives or the loss alarm fires.
   virtual void DetectLosses(const QuicUnackedPacketMap& unacked_packets,
                             QuicTime time,

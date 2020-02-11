@@ -397,24 +397,6 @@ enum CongestionControlType {
   kBBRv2,
 };
 
-enum LossDetectionType : uint8_t {
-  kNack,               // Used to mimic TCP's loss detection.
-  kTime,               // Time based loss detection.
-  kAdaptiveTime,       // Adaptive time based loss detection.
-  kLazyFack,           // Nack based but with FACK disabled for the first ack.
-  kIetfLossDetection,  // IETF style loss detection.
-};
-
-// TODO(fayang): Remove this when deprecating
-// quic_default_on_ietf_loss_detection.
-inline LossDetectionType GetDefaultLossDetectionType() {
-  if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
-    QUIC_RESTART_FLAG_COUNT(quic_default_on_ietf_loss_detection);
-    return kIetfLossDetection;
-  }
-  return kNack;
-}
-
 // EncryptionLevel enumerates the stages of encryption that a QUIC connection
 // progresses through. When retransmitting a packet, the encryption level needs
 // to be specified so that it is retransmitted at a level which the peer can

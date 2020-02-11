@@ -8,26 +8,10 @@
 
 namespace quic {
 
-UberLossAlgorithm::UberLossAlgorithm()
-    : UberLossAlgorithm(GetDefaultLossDetectionType()) {}
-
-UberLossAlgorithm::UberLossAlgorithm(LossDetectionType loss_type)
-    : loss_type_(loss_type) {
-  SetLossDetectionType(loss_type);
+UberLossAlgorithm::UberLossAlgorithm() {
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     general_loss_algorithms_[i].SetPacketNumberSpace(
         static_cast<PacketNumberSpace>(i));
-  }
-}
-
-LossDetectionType UberLossAlgorithm::GetLossDetectionType() const {
-  return loss_type_;
-}
-
-void UberLossAlgorithm::SetLossDetectionType(LossDetectionType loss_type) {
-  loss_type_ = loss_type;
-  for (auto& loss_algorithm : general_loss_algorithms_) {
-    loss_algorithm.SetLossDetectionType(loss_type);
   }
 }
 

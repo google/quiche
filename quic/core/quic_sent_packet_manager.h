@@ -111,8 +111,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                         const QuicClock* clock,
                         QuicRandom* random,
                         QuicConnectionStats* stats,
-                        CongestionControlType congestion_control_type,
-                        LossDetectionType loss_type);
+                        CongestionControlType congestion_control_type);
   QuicSentPacketManager(const QuicSentPacketManager&) = delete;
   QuicSentPacketManager& operator=(const QuicSentPacketManager&) = delete;
   virtual ~QuicSentPacketManager();

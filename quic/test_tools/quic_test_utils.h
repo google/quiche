@@ -969,7 +969,6 @@ class MockLossAlgorithm : public LossDetectionInterface {
   MockLossAlgorithm& operator=(const MockLossAlgorithm&) = delete;
   ~MockLossAlgorithm() override;
 
-  MOCK_CONST_METHOD0(GetLossDetectionType, LossDetectionType());
   MOCK_METHOD6(DetectLosses,
                void(const QuicUnackedPacketMap& unacked_packets,
                     QuicTime time,

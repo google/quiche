@@ -66,8 +66,7 @@ QuicSentPacketManager::QuicSentPacketManager(
     const QuicClock* clock,
     QuicRandom* random,
     QuicConnectionStats* stats,
-    CongestionControlType congestion_control_type,
-    LossDetectionType loss_type)
+    CongestionControlType congestion_control_type)
     : unacked_packets_(perspective),
       clock_(clock),
       random_(random),
@@ -76,7 +75,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       network_change_visitor_(nullptr),
       initial_congestion_window_(kInitialCongestionWindow),
       loss_algorithm_(GetInitialLossAlgorithm()),
-      uber_loss_algorithm_(loss_type),
       consecutive_rto_count_(0),
       consecutive_tlp_count_(0),
       consecutive_crypto_retransmission_count_(0),
@@ -254,45 +252,23 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     use_new_rto_ = true;
   }
   // Configure loss detection.
-  if (!GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
-    if (config.HasClientRequestedIndependentOption(kTIME, perspective)) {
-      uber_loss_algorithm_.SetLossDetectionType(kTime);
-    }
-    if (config.HasClientRequestedIndependentOption(kATIM, perspective)) {
-      uber_loss_algorithm_.SetLossDetectionType(kAdaptiveTime);
-    }
-    if (config.HasClientRequestedIndependentOption(kLFAK, perspective)) {
-      uber_loss_algorithm_.SetLossDetectionType(kLazyFack);
-    }
-  }
   if (config.HasClientRequestedIndependentOption(kILD0, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
-    if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
-      uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
-      uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
-    }
+    uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
+    uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
   }
   if (config.HasClientRequestedIndependentOption(kILD1, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
     uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
-    if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
-      uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
-    }
+    uber_loss_algorithm_.DisableAdaptiveReorderingThreshold();
   }
   if (config.HasClientRequestedIndependentOption(kILD2, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
     uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
-    if (GetQuicRestartFlag(quic_default_on_ietf_loss_detection)) {
-      uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
-    }
+    uber_loss_algorithm_.SetReorderingShift(kDefaultIetfLossDelayShift);
   }
   if (config.HasClientRequestedIndependentOption(kILD3, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
     uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
     uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
   }
   if (config.HasClientRequestedIndependentOption(kILD4, perspective)) {
-    uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
     uber_loss_algorithm_.SetReorderingShift(kDefaultLossDelayShift);
     uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
     uber_loss_algorithm_.EnableAdaptiveTimeThreshold();
@@ -849,7 +825,6 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
 void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   pto_enabled_ = true;
   handshake_mode_disabled_ = true;
-  uber_loss_algorithm_.SetLossDetectionType(kIetfLossDetection);
 }
 
 void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(

@@ -19,16 +19,9 @@ class QuicSentPacketManagerPeer;
 class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
  public:
   UberLossAlgorithm();
-  explicit UberLossAlgorithm(LossDetectionType loss_type);
   UberLossAlgorithm(const UberLossAlgorithm&) = delete;
   UberLossAlgorithm& operator=(const UberLossAlgorithm&) = delete;
   ~UberLossAlgorithm() override {}
-
-  LossDetectionType GetLossDetectionType() const override;
-
-  // Switches the loss detection type to |loss_type| and resets loss algorithm
-  // for all packet number spaces.
-  void SetLossDetectionType(LossDetectionType loss_type);
 
   // Detects lost packets.
   void DetectLosses(const QuicUnackedPacketMap& unacked_packets,
@@ -63,7 +56,6 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
  private:
   friend class test::QuicSentPacketManagerPeer;
 
-  LossDetectionType loss_type_;
   // One loss algorithm per packet number space.
   GeneralLossAlgorithm general_loss_algorithms_[NUM_PACKET_NUMBER_SPACES];
 };

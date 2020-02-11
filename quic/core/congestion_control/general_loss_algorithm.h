@@ -25,16 +25,9 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   static const QuicPacketCount kNumberOfNacksBeforeRetransmission = 3;
 
   GeneralLossAlgorithm();
-  explicit GeneralLossAlgorithm(LossDetectionType loss_type);
   GeneralLossAlgorithm(const GeneralLossAlgorithm&) = delete;
   GeneralLossAlgorithm& operator=(const GeneralLossAlgorithm&) = delete;
   ~GeneralLossAlgorithm() override {}
-
-  LossDetectionType GetLossDetectionType() const override;
-
-  // Switches the loss detection type to |loss_type| and resets the loss
-  // algorithm.
-  void SetLossDetectionType(LossDetectionType loss_type);
 
   // Uses |largest_acked| and time to decide when packets are lost.
   void DetectLosses(const QuicUnackedPacketMap& unacked_packets,
@@ -78,9 +71,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
  private:
   QuicTime loss_detection_timeout_;
-  // TODO(fayang): remove loss_type_ when deprecating
-  // quic_default_on_ietf_loss_detection.
-  LossDetectionType loss_type_;
   // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
   // loss.  Fraction calculated by shifting max(SRTT, latest_rtt) to the right
   // by reordering_shift.
