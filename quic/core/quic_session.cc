@@ -1374,7 +1374,6 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 
 void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
   if (!connection()->version().KnowsWhichDecrypterToUse()) {
-    // TODO(fayang): actually discard keys.
     return;
   }
   connection()->RemoveDecrypter(level);
@@ -1383,7 +1382,9 @@ void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
 void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
   QUIC_DVLOG(1) << ENDPOINT << "Discard keys of "
                 << EncryptionLevelToString(level);
-  // TODO(fayang): actually discard keys.
+  if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
+    connection()->RemoveEncrypter(level);
+  }
   switch (level) {
     case ENCRYPTION_INITIAL:
       NeuterUnencryptedData();

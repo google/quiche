@@ -6661,7 +6661,12 @@ TEST_P(QuicConnectionTest, SendDelayedAckOnHandshakeConfirmed) {
   QuicConnectionPeer::SetPerspective(&connection_, Perspective::IS_CLIENT);
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
-  EXPECT_EQ(clock_.ApproximateNow(), connection_.GetAckAlarm()->deadline());
+  if (connection_.SupportsMultiplePacketNumberSpaces()) {
+    EXPECT_EQ(clock_.ApproximateNow() + DefaultDelayedAckTime(),
+              connection_.GetAckAlarm()->deadline());
+  } else {
+    EXPECT_EQ(clock_.ApproximateNow(), connection_.GetAckAlarm()->deadline());
+  }
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckOnSecondPacket) {

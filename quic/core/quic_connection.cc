@@ -2073,6 +2073,13 @@ void QuicConnection::NeuterUnencryptedPackets() {
   sent_packet_manager_.NeuterUnencryptedPackets();
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
+  if (SupportsMultiplePacketNumberSpaces()) {
+    // Stop sending ack of initial packet number space.
+    uber_received_packet_manager_.ResetAckStates(ENCRYPTION_INITIAL);
+    // Re-arm ack alarm.
+    ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
+                       kAlarmGranularity);
+  }
 }
 
 bool QuicConnection::ShouldGeneratePacket(
@@ -2566,11 +2573,19 @@ void QuicConnection::OnHandshakeComplete() {
   sent_packet_manager_.SetHandshakeConfirmed();
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
-  // The client should immediately ack the SHLO to confirm the handshake is
-  // complete with the server.
-  if (perspective_ == Perspective::IS_CLIENT && ack_frame_updated()) {
-    ack_alarm_->Update(clock_->ApproximateNow(), QuicTime::Delta::Zero());
+  if (!SupportsMultiplePacketNumberSpaces()) {
+    // The client should immediately ack the SHLO to confirm the handshake is
+    // complete with the server.
+    if (perspective_ == Perspective::IS_CLIENT && ack_frame_updated()) {
+      ack_alarm_->Update(clock_->ApproximateNow(), QuicTime::Delta::Zero());
+    }
+    return;
   }
+  // Stop sending ack of handshake packet number space.
+  uber_received_packet_manager_.ResetAckStates(ENCRYPTION_HANDSHAKE);
+  // Re-arm ack alarm.
+  ack_alarm_->Update(uber_received_packet_manager_.GetEarliestAckTimeout(),
+                     kAlarmGranularity);
 }
 
 void QuicConnection::SendOrQueuePacket(SerializedPacket* packet) {
@@ -2725,6 +2740,10 @@ void QuicConnection::OnRetransmissionTimeout() {
 void QuicConnection::SetEncrypter(EncryptionLevel level,
                                   std::unique_ptr<QuicEncrypter> encrypter) {
   packet_creator_.SetEncrypter(level, std::move(encrypter));
+}
+
+void QuicConnection::RemoveEncrypter(EncryptionLevel level) {
+  framer_.RemoveEncrypter(level);
 }
 
 void QuicConnection::SetDiversificationNonce(

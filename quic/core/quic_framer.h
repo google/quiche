@@ -520,6 +520,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void SetEncrypter(EncryptionLevel level,
                     std::unique_ptr<QuicEncrypter> encrypter);
 
+  // Called to remove encrypter of encryption |level|.
+  void RemoveEncrypter(EncryptionLevel level);
+
   // Sets the encrypter and decrypter for the ENCRYPTION_INITIAL level.
   void SetInitialObfuscators(QuicConnectionId connection_id);
 

@@ -4128,6 +4128,12 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
   encrypter_[level] = std::move(encrypter);
 }
 
+void QuicFramer::RemoveEncrypter(EncryptionLevel level) {
+  QUIC_DVLOG(1) << ENDPOINT << "Removing encrypter of "
+                << EncryptionLevelToString(level);
+  encrypter_[level] = nullptr;
+}
+
 void QuicFramer::SetInitialObfuscators(QuicConnectionId connection_id) {
   CrypterPair crypters;
   CryptoUtils::CreateInitialObfuscators(perspective_, version_, connection_id,

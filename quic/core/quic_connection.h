@@ -671,6 +671,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetEncrypter(EncryptionLevel level,
                     std::unique_ptr<QuicEncrypter> encrypter);
 
+  // Called to remove encrypter of encryption |level|.
+  void RemoveEncrypter(EncryptionLevel level);
+
   // SetNonceForPublicHeader sets the nonce that will be transmitted in the
   // header of each packet encrypted at the initial encryption level decrypted.
   // This should only be called on the server side.
