@@ -1306,24 +1306,30 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   flow_controller_.UpdateSendWindowOffset(new_window);
 }
 
-void QuicSession::OnNewDecryptionKeyAvailable(
+bool QuicSession::OnNewDecryptionKeyAvailable(
     EncryptionLevel level,
     std::unique_ptr<QuicDecrypter> decrypter,
     bool set_alternative_decrypter,
     bool latch_once_used) {
-  // TODO(fayang): Close connection if corresponding encryption key is not
-  // available.
-  DCHECK(connection()->framer().HasEncrypterOfEncryptionLevel(level));
+  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
+      !connection()->framer().HasEncrypterOfEncryptionLevel(
+          QuicUtils::GetEncryptionLevel(
+              QuicUtils::GetPacketNumberSpace(level)))) {
+    // This should never happen because connection should never decrypt a packet
+    // while an ACK for it cannot be encrypted.
+    return false;
+  }
   if (connection()->version().KnowsWhichDecrypterToUse()) {
     connection()->InstallDecrypter(level, std::move(decrypter));
-    return;
+    return true;
   }
   if (set_alternative_decrypter) {
     connection()->SetAlternativeDecrypter(level, std::move(decrypter),
                                           latch_once_used);
-    return;
+    return true;
   }
   connection()->SetDecrypter(level, std::move(decrypter));
+  return true;
 }
 
 void QuicSession::OnNewEncryptionKeyAvailable(

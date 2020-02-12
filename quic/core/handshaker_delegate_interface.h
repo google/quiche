@@ -17,8 +17,9 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
  public:
   virtual ~HandshakerDelegateInterface() {}
 
-  // Called when new decryption key of |level| is available.
-  virtual void OnNewDecryptionKeyAvailable(
+  // Called when new decryption key of |level| is available. Returns true if
+  // decrypter is set successfully, otherwise, returns false.
+  virtual bool OnNewDecryptionKeyAvailable(
       EncryptionLevel level,
       std::unique_ptr<QuicDecrypter> decrypter,
       bool set_alternative_decrypter,

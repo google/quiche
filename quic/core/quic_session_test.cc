@@ -2822,6 +2822,17 @@ TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
   session_.SendRstStream(bidirectional, QUIC_STREAM_CANCELLED, 0);
 }
 
+TEST_P(QuicSessionTestServer, DecryptionKeyAvailableBeforeEncryptionKey) {
+  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+    return;
+  }
+  ASSERT_FALSE(connection_->framer().HasEncrypterOfEncryptionLevel(
+      ENCRYPTION_HANDSHAKE));
+  EXPECT_FALSE(session_.OnNewDecryptionKeyAvailable(
+      ENCRYPTION_HANDSHAKE, /*decrypter=*/nullptr,
+      /*set_alternative_decrypter=*/false, /*latch_once_used=*/false));
+}
+
 // A client test class that can be used when the automatic configuration is not
 // desired.
 class QuicSessionTestClientUnconfigured : public QuicSessionTestBase {

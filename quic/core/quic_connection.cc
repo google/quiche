@@ -1465,29 +1465,13 @@ void QuicConnection::OnPacketComplete() {
 
   current_effective_peer_migration_type_ = NO_CHANGE;
 
-  // Some encryption levels share a packet number space, it is therefore
-  // possible for us to want to ack some packets even though we do not yet
-  // have the appropriate keys to encrypt the acks. In this scenario we
-  // do not update the ACK timeout. This can happen for example with
-  // IETF QUIC on the server when we receive 0-RTT packets and do not yet
-  // have 1-RTT keys (0-RTT packets are acked at the 1-RTT level).
-  // Note that this could cause slight performance degradations in the edge
-  // case where one packet is received, then the encrypter is installed,
-  // then a second packet is received; as that could cause the ACK for the
-  // second packet to be delayed instead of immediate. This is currently
-  // considered to be small enough of an edge case to not be optimized for.
-  if (!SupportsMultiplePacketNumberSpaces() ||
-      framer_.HasEncrypterOfEncryptionLevel(QuicUtils::GetEncryptionLevel(
-          QuicUtils::GetPacketNumberSpace(last_decrypted_packet_level_)))) {
-    uber_received_packet_manager_.MaybeUpdateAckTimeout(
-        should_last_packet_instigate_acks_, last_decrypted_packet_level_,
-        last_header_.packet_number, time_of_last_received_packet_,
-        clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
-  } else {
-    QUIC_DLOG(INFO) << ENDPOINT << "Not updating ACK timeout for "
-                    << EncryptionLevelToString(last_decrypted_packet_level_)
-                    << " as we do not have the corresponding encrypter";
-  }
+  // For IETF QUIC, it is guaranteed that TLS will give connection the
+  // corresponding write key before read key. In other words, connection should
+  // never process a packet while an ACK for it cannot be encrypted.
+  uber_received_packet_manager_.MaybeUpdateAckTimeout(
+      should_last_packet_instigate_acks_, last_decrypted_packet_level_,
+      last_header_.packet_number, time_of_last_received_packet_,
+      clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
 
   ClearLastFrames();
   CloseIfTooManyOutstandingSentPackets();

@@ -75,7 +75,8 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // secrets and application traffic secrets. For a given secret |secret|,
   // |level| indicates which EncryptionLevel it is to be used at, and |is_write|
   // indicates whether it is used for encryption or decryption.
-  void SetEncryptionSecret(EncryptionLevel level,
+  // Returns true if secret is sucessfully set, otherwise, returns false.
+  bool SetEncryptionSecret(EncryptionLevel level,
                            const std::vector<uint8_t>& read_secret,
                            const std::vector<uint8_t>& write_secret) override;
 

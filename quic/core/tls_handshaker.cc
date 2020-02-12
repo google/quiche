@@ -61,7 +61,7 @@ const EVP_MD* TlsHandshaker::Prf() {
       SSL_CIPHER_get_prf_nid(SSL_get_pending_cipher(ssl())));
 }
 
-void TlsHandshaker::SetEncryptionSecret(
+bool TlsHandshaker::SetEncryptionSecret(
     EncryptionLevel level,
     const std::vector<uint8_t>& read_secret,
     const std::vector<uint8_t>& write_secret) {
@@ -74,9 +74,10 @@ void TlsHandshaker::SetEncryptionSecret(
           SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
   CryptoUtils::SetKeyAndIV(Prf(), read_secret, decrypter.get());
   delegate_->OnNewEncryptionKeyAvailable(level, std::move(encrypter));
-  delegate_->OnNewDecryptionKeyAvailable(level, std::move(decrypter),
-                                         /*set_alternative_decrypter=*/false,
-                                         /*latch_once_used=*/false);
+  return delegate_->OnNewDecryptionKeyAvailable(
+      level, std::move(decrypter),
+      /*set_alternative_decrypter=*/false,
+      /*latch_once_used=*/false);
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level,

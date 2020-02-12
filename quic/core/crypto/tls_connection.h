@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     // the handshake traffic secrets and application traffic secrets. For a
     // given level |level|, |read_secret| is the secret used for reading data,
     // and |write_secret| is the secret used for writing data.
-    virtual void SetEncryptionSecret(
+    virtual bool SetEncryptionSecret(
         EncryptionLevel level,
         const std::vector<uint8_t>& read_secret,
         const std::vector<uint8_t>& write_secret) = 0;
