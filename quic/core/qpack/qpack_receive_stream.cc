@@ -16,9 +16,8 @@ QpackReceiveStream::QpackReceiveStream(PendingStream* pending,
 void QpackReceiveStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
-  session()->connection()->CloseConnection(
-      QUIC_INVALID_STREAM_ID, "Attempt to reset Qpack receive stream",
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                   "Attempt to reset Qpack receive stream");
 }
 
 void QpackReceiveStream::OnDataAvailable() {

@@ -112,6 +112,7 @@ const int QuicStream::kDefaultUrgency;
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
       session_(session),
+      stream_delegate_(session),
       stream_bytes_read_(0),
       fin_received_(false),
       connection_flow_controller_(session->flow_controller()),
@@ -151,8 +152,7 @@ void PendingStream::Reset(QuicRstStreamErrorCode /*error*/) {
 
 void PendingStream::CloseConnectionWithDetails(QuicErrorCode error,
                                                const std::string& details) {
-  session_->connection()->CloseConnection(
-      error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  stream_delegate_->OnStreamError(error, details);
 }
 
 QuicStreamId PendingStream::id() const {
@@ -337,6 +337,7 @@ QuicStream::QuicStream(QuicStreamId id,
     : sequencer_(std::move(sequencer)),
       id_(id),
       session_(session),
+      stream_delegate_(session),
       precedence_(CalculateDefaultPriority(session)),
       stream_bytes_read_(stream_bytes_read),
       stream_error_(QUIC_STREAM_NO_ERROR),
@@ -550,8 +551,7 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
 
 void QuicStream::CloseConnectionWithDetails(QuicErrorCode error,
                                             const std::string& details) {
-  session()->connection()->CloseConnection(
-      error, details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  stream_delegate_->OnStreamError(error, details);
 }
 
 const spdy::SpdyStreamPrecedence& QuicStream::precedence() const {

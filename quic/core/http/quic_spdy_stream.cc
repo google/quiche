@@ -41,9 +41,8 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
   void OnError(HttpDecoder* decoder) override {
-    stream_->session()->connection()->CloseConnection(
-        decoder->error(), decoder->error_detail(),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_->CloseConnectionWithDetails(decoder->error(),
+                                        decoder->error_detail());
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
@@ -170,10 +169,9 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
  private:
   void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    stream_->session()->connection()->CloseConnection(
+    stream_->CloseConnectionWithDetails(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM,
-        quiche::QuicheStrCat(frame_type, " frame received on data stream"),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        quiche::QuicheStrCat(frame_type, " frame received on data stream"));
   }
 
   QuicSpdyStream* stream_;
@@ -649,9 +647,8 @@ void QuicSpdyStream::OnPromiseHeaderList(
     const QuicHeaderList& /*header_list */) {
   // To be overridden in QuicSpdyClientStream.  Not supported on
   // server side.
-  session()->connection()->CloseConnection(
-      QUIC_INVALID_HEADERS_STREAM_DATA, "Promise headers received by server",
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                   "Promise headers received by server");
 }
 
 void QuicSpdyStream::OnTrailingHeadersComplete(
@@ -663,18 +660,16 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   if (!VersionUsesHttp3(transport_version()) && fin_received()) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Received Trailers after FIN, on stream: " << id();
-    session()->connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "Trailers after fin",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                     "Trailers after fin");
     return;
   }
 
   if (!VersionUsesHttp3(transport_version()) && !fin) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Trailers must have FIN set, on stream: " << id();
-    session()->connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "Fin missing from trailers",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                     "Fin missing from trailers");
     return;
   }
 
@@ -685,9 +680,8 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
                                           &received_trailers_)) {
     QUIC_DLOG(ERROR) << ENDPOINT << "Trailers for stream " << id()
                      << " are malformed.";
-    session()->connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "Trailers are malformed",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                     "Trailers are malformed");
     return;
   }
   trailers_decompressed_ = true;
@@ -858,9 +852,8 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (!headers_decompressed_ || trailers_decompressed_) {
     // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
-    session()->connection()->CloseConnection(
-        QUIC_INVALID_HEADERS_STREAM_DATA, "Unexpected DATA frame received.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
+                                     "Unexpected DATA frame received.");
     return false;
   }
 
@@ -938,10 +931,9 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
 
   if (trailers_decompressed_) {
     // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
-    session()->connection()->CloseConnection(
+    stream_delegate()->OnStreamError(
         QUIC_INVALID_HEADERS_STREAM_DATA,
-        "HEADERS frame received after trailing HEADERS.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        "HEADERS frame received after trailing HEADERS.");
     return false;
   }
 

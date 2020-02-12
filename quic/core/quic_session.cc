@@ -839,6 +839,13 @@ void QuicSession::OnError(QuicErrorCode error_code, std::string error_details) {
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
+void QuicSession::OnStreamError(QuicErrorCode error_code,
+                                std::string error_details) {
+  connection_->CloseConnection(
+      error_code, error_details,
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
                                  bool unidirectional) {
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);

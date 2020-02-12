@@ -35,7 +35,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
     virtual void OnFinRead() = 0;
     // Called when bytes have been consumed from the sequencer.
     virtual void AddBytesConsumed(QuicByteCount bytes) = 0;
-    // TODO(rch): Clean up this interface via OnUnrecoverableError and
+    // TODO(b/136274541): Clean up this interface via OnUnrecoverableError and
     // remove PeerAddressOfLatestPacket().
     // Called when an error has occurred which should result in the stream
     // being reset.

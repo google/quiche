@@ -145,10 +145,9 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
  private:
   void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    stream_->session()->connection()->CloseConnection(
+    stream_->CloseConnectionWithDetails(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
-        quiche::QuicheStrCat(frame_type, " frame received on control stream"),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        quiche::QuicheStrCat(frame_type, " frame received on control stream"));
   }
 
   QuicReceiveControlStream* stream_;
@@ -171,9 +170,8 @@ void QuicReceiveControlStream::OnStreamReset(
     const QuicRstStreamFrame& /*frame*/) {
   // TODO(renjietang) Change the error code to H/3 specific
   // HTTP_CLOSED_CRITICAL_STREAM.
-  session()->connection()->CloseConnection(
-      QUIC_INVALID_STREAM_ID, "Attempt to reset receive control stream",
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                   "Attempt to reset receive control stream");
 }
 
 void QuicReceiveControlStream::OnDataAvailable() {
@@ -200,9 +198,8 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
     QuicByteCount /* header_length */) {
   if (settings_frame_received_) {
     // TODO(renjietang): Change error code to HTTP_UNEXPECTED_FRAME.
-    session()->connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Settings frames are received twice.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                     "Settings frames are received twice.");
     return false;
   }
 
@@ -226,10 +223,9 @@ bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
 bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
     QuicByteCount /* header_length */) {
   if (!settings_frame_received_) {
-    session()->connection()->CloseConnection(
+    stream_delegate()->OnStreamError(
         QUIC_INVALID_STREAM_ID,
-        "PRIORITY_UPDATE frame received before SETTINGS.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        "PRIORITY_UPDATE frame received before SETTINGS.");
     return false;
   }
   return true;
@@ -255,10 +251,9 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     int urgency;
     if (!quiche::QuicheTextUtils::StringToInt(value, &urgency) || urgency < 0 ||
         urgency > 7) {
-      session()->connection()->CloseConnection(
+      stream_delegate()->OnStreamError(
           QUIC_INVALID_STREAM_ID,
-          "Invalid value for PRIORITY_UPDATE urgency parameter.",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+          "Invalid value for PRIORITY_UPDATE urgency parameter.");
       return false;
     }
 

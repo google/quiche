@@ -28,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_write_blocked_list.h"
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
+#include "net/third_party/quiche/src/quic/core/stream_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/uber_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -50,7 +51,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
       public SessionNotifierInterface,
       public QuicStreamFrameDataProducer,
       public QuicStreamIdManager::DelegateInterface,
-      public HandshakerDelegateInterface {
+      public HandshakerDelegateInterface,
+      public StreamDelegateInterface {
  public:
   // An interface from the session to the entity owning the session.
   // This lets the session notify its owner (the Dispatcher) when the connection
@@ -255,6 +257,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void DiscardOldEncryptionKey(EncryptionLevel level) override;
   void NeuterUnencryptedData() override;
   void NeuterHandshakeData() override;
+
+  // Implement StreamDelegateInterface.
+  void OnStreamError(QuicErrorCode error_code,
+                     std::string error_details) override;
 
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(

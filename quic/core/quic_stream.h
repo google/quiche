@@ -28,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
+#include "net/third_party/quiche/src/quic/core/stream_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
@@ -91,7 +92,9 @@ class QUIC_EXPORT_PRIVATE PendingStream
   QuicStreamId id_;
 
   // Session which owns this.
+  // TODO(b/136274541): Remove session pointer from streams.
   QuicSession* session_;
+  StreamDelegateInterface* stream_delegate_;
 
   // Bytes read refers to payload bytes only: they do not include framing,
   // encryption overhead etc.
@@ -400,6 +403,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // this virtual so that subclasses can implement their own logics.
   virtual void OnDeadlinePassed();
 
+  StreamDelegateInterface* stream_delegate() { return stream_delegate_; }
+
   bool fin_buffered() const { return fin_buffered_; }
 
   const QuicSession* session() const { return session_; }
@@ -451,7 +456,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   QuicStreamSequencer sequencer_;
   QuicStreamId id_;
   // Pointer to the owning QuicSession object.
+  // TODO(b/136274541): Remove session pointer from streams.
   QuicSession* session_;
+  StreamDelegateInterface* stream_delegate_;
   // The precedence of the stream, once parsed.
   spdy::SpdyStreamPrecedence precedence_;
   // Bytes read refers to payload bytes only: they do not include framing,
