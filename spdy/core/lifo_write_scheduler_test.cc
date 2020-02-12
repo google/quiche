@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/spdy/core/lifo_write_scheduler.h"
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test_helpers.h"
 
 namespace spdy {

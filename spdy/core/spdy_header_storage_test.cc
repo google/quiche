@@ -1,6 +1,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_header_storage.h"
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
 namespace test {

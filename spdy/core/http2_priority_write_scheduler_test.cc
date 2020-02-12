@@ -6,7 +6,7 @@
 
 #include <initializer_list>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_test_helpers.h"
 
 using ::testing::AssertionFailure;
@@ -39,7 +39,7 @@ class Http2PriorityWriteSchedulerPeer {
   Http2PriorityWriteScheduler<StreamIdType>* scheduler_;
 };
 
-class Http2PriorityWriteSchedulerTest : public SpdyTest {
+class Http2PriorityWriteSchedulerTest : public QuicheTest {
  protected:
   typedef uint32_t SpdyStreamId;
 

@@ -18,13 +18,13 @@
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackString;
@@ -111,7 +111,7 @@ const char* kCookieKey = "cookie";
 enum StartChoice { START_WITH_HANDLER, START_WITHOUT_HANDLER, NO_START };
 
 class HpackDecoderAdapterTest
-    : public SpdyTestWithParam<std::tuple<StartChoice, bool>> {
+    : public QuicheTestWithParam<std::tuple<StartChoice, bool>> {
  protected:
   HpackDecoderAdapterTest() : decoder_(), decoder_peer_(&decoder_) {}
 

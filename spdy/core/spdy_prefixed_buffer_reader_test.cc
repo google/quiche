@@ -7,7 +7,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
 
@@ -15,7 +15,7 @@ namespace test {
 
 using testing::ElementsAreArray;
 
-class SpdyPrefixedBufferReaderTest : public SpdyTest {
+class SpdyPrefixedBufferReaderTest : public QuicheTest {
  protected:
   SpdyPrefixedBufferReader Build(const std::string& prefix,
                                  const std::string& suffix) {

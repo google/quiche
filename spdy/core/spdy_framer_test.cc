@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 using ::http2::Http2DecoderAdapter;
 using ::testing::_;
@@ -462,7 +462,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
       // the socket.
       const size_t kMaxReadSize = 32;
       size_t bytes_read =
-          (rand() % std::min(input_remaining, kMaxReadSize)) + 1;
+          (rand() % std::min(input_remaining, kMaxReadSize)) + 1;  // NOLINT
       size_t bytes_processed = deframer_.ProcessInput(input_ptr, bytes_read);
       input_remaining -= bytes_processed;
       input_ptr += bytes_processed;
@@ -579,7 +579,7 @@ class TestSpdyUnknownIR : public SpdyUnknownIR {
 
 enum Output { USE, NOT_USE };
 
-class SpdyFramerTest : public SpdyTestWithParam<Output> {
+class SpdyFramerTest : public QuicheTestWithParam<Output> {
  public:
   SpdyFramerTest()
       : output_(output_buffer, kSize),
@@ -2766,7 +2766,7 @@ TEST_P(SpdyFramerTest, PushPromiseFramesWithIterator) {
   EXPECT_FALSE(frame_it.HasNextFrame());
 }
 
-class SpdyControlFrameIteratorTest : public SpdyTest {
+class SpdyControlFrameIteratorTest : public quiche::test::QuicheTest {
  public:
   SpdyControlFrameIteratorTest() : output_(output_buffer, kSize) {}
 

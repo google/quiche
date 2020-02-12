@@ -9,10 +9,10 @@
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 
@@ -38,7 +38,7 @@ namespace {
 
 // Tests of the ability to encode some canonical Huffman code,
 // not just the one defined in the RFC 7541.
-class GenericHuffmanTableTest : public SpdyTest {
+class GenericHuffmanTableTest : public QuicheTest {
  protected:
   GenericHuffmanTableTest() : table_(), peer_(table_) {}
 

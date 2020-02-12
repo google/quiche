@@ -8,9 +8,9 @@
 #include <map>
 
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 
@@ -127,7 +127,7 @@ enum EncodeStrategy {
   kRepresentations,
 };
 
-class HpackEncoderTestBase : public SpdyTest {
+class HpackEncoderTestBase : public QuicheTest {
  protected:
   typedef test::HpackEncoderPeer::Representations Representations;
 

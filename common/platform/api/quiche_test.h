@@ -7,6 +7,8 @@
 
 #include "net/quiche/common/platform/impl/quiche_test_impl.h"
 
+using QuicheTest = quiche::test::QuicheTest;
+
 template <class T>
 using QuicheTestWithParam = quiche::test::QuicheTestWithParamImpl<T>;
 

@@ -10,6 +10,7 @@
 #include <limits>
 
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
@@ -19,13 +20,12 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 namespace test {
 namespace {
 
-class SpdyDeframerVisitorTest : public SpdyTest {
+class SpdyDeframerVisitorTest : public QuicheTest {
  protected:
   SpdyDeframerVisitorTest() : encoder_(SpdyFramer::ENABLE_COMPRESSION) {
     decoder_.set_process_single_input_frame(true);

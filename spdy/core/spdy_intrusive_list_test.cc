@@ -10,7 +10,7 @@
 #include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
 namespace test {
@@ -29,11 +29,11 @@ void swap(TestItem &a, TestItem &b) {
   swap(a.n, b.n);
 }
 
-class IntrusiveListTest : public SpdyTest {
+class IntrusiveListTest : public QuicheTest {
  protected:
   void CheckLists() {
     CheckLists(l1, ll1);
-    if (SpdyTest::HasFailure())
+    if (QuicheTest::HasFailure())
       return;
     CheckLists(l2, ll2);
   }

@@ -4,13 +4,13 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
 
 namespace {
 
-class HpackEntryTest : public SpdyTest {
+class HpackEntryTest : public QuicheTest {
  protected:
   HpackEntryTest()
       : name_("header-name"),

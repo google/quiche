@@ -7,8 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 using ::testing::ElementsAre;
 

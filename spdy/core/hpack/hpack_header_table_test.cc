@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_test.h"
 
 namespace spdy {
 
@@ -68,7 +68,7 @@ class HpackHeaderTablePeer {
 
 namespace {
 
-class HpackHeaderTableTest : public SpdyTest {
+class HpackHeaderTableTest : public QuicheTest {
  protected:
   typedef std::vector<HpackEntry> HpackEntryVector;
 
