@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/actor.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/port.h"
 

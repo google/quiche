@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_coalesced_packet.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"

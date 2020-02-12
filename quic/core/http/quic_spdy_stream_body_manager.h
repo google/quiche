@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"

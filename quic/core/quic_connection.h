@@ -31,6 +31,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_blocked_writer_interface.h"
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
