@@ -19,7 +19,7 @@ namespace {
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
   MOCK_METHOD1(OnCanCreateNewOutgoingStream, void(bool unidirectional));
-  MOCK_METHOD2(OnError,
+  MOCK_METHOD2(OnStreamIdManagerError,
                void(QuicErrorCode error_code, std::string error_details));
   MOCK_METHOD2(SendMaxStreams,
                void(QuicStreamCount stream_count, bool unidirectional));
@@ -173,10 +173,10 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
       GetNthPeerInitiatedBidirectionalStreamId(i)));
 
   // We should have exhausted the counts, the next streams should fail
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, _));
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, _));
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(
       GetNthPeerInitiatedUnidirectionalStreamId(i)));
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, _));
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, _));
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(
       GetNthPeerInitiatedBidirectionalStreamId(i + 1)));
 }
@@ -212,7 +212,7 @@ TEST_P(UberQuicStreamIdManagerTest, AvailableStreams) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
-  EXPECT_CALL(delegate_, OnError(_, _)).Times(0);
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(_, _)).Times(0);
   EXPECT_TRUE(manager_.MaybeIncreaseLargestPeerStreamId(StreamCountToId(
       manager_.max_incoming_bidirectional_streams(),
       QuicUtils::InvertPerspective(perspective()), /* bidirectional=*/true)));
@@ -225,14 +225,16 @@ TEST_P(UberQuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
           ? "Stream id 400 would exceed stream count limit 100"
           : "Stream id 401 would exceed stream count limit 100";
 
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
+  EXPECT_CALL(delegate_,
+              OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(StreamCountToId(
       manager_.max_incoming_bidirectional_streams() + 1,
       QuicUtils::InvertPerspective(perspective()), /* bidirectional=*/true)));
   error_details = perspective() == Perspective::IS_SERVER
                       ? "Stream id 402 would exceed stream count limit 100"
                       : "Stream id 403 would exceed stream count limit 100";
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
+  EXPECT_CALL(delegate_,
+              OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(StreamCountToId(
       manager_.max_incoming_bidirectional_streams() + 1,
       QuicUtils::InvertPerspective(perspective()), /* bidirectional=*/false)));

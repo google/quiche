@@ -42,8 +42,8 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
     virtual void OnCanCreateNewOutgoingStream(bool unidirectional) = 0;
 
     // Closes the connection when an error is encountered.
-    virtual void OnError(QuicErrorCode error_code,
-                         std::string error_details) = 0;
+    virtual void OnStreamIdManagerError(QuicErrorCode error_code,
+                                        std::string error_details) = 0;
 
     // Send a MAX_STREAMS frame.
     virtual void SendMaxStreams(QuicStreamCount stream_count,

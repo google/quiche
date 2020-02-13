@@ -72,8 +72,8 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
     // Peer thinks it can send more streams that we've told it.
     // This is a protocol error.
     QUIC_CODE_COUNT(quic_streams_blocked_too_big);
-    delegate_->OnError(QUIC_STREAMS_BLOCKED_ERROR,
-                       "Invalid stream count specified");
+    delegate_->OnStreamIdManagerError(QUIC_STREAMS_BLOCKED_ERROR,
+                                      "Invalid stream count specified");
     return false;
   }
   if (frame.stream_count < incoming_actual_max_streams_) {
@@ -116,8 +116,8 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
       QuicUtils::GetMaxStreamCount(unidirectional_, perspective());
   QuicStreamCount new_max = std::min(implementation_max, max_open_streams);
   if (new_max < incoming_stream_count_) {
-    delegate_->OnError(QUIC_MAX_STREAMS_ERROR,
-                       "Stream limit less than existing stream count");
+    delegate_->OnStreamIdManagerError(
+        QUIC_MAX_STREAMS_ERROR, "Stream limit less than existing stream count");
     return;
   }
   incoming_actual_max_streams_ = new_max;
@@ -244,10 +244,11 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
                     << "Failed to create a new incoming stream with id:"
                     << stream_id << ", reaching MAX_STREAMS limit: "
                     << incoming_advertised_max_streams_ << ".";
-    delegate_->OnError(QUIC_INVALID_STREAM_ID,
-                       quiche::QuicheStrCat("Stream id ", stream_id,
-                                            " would exceed stream count limit ",
-                                            incoming_advertised_max_streams_));
+    delegate_->OnStreamIdManagerError(
+        QUIC_INVALID_STREAM_ID,
+        quiche::QuicheStrCat("Stream id ", stream_id,
+                             " would exceed stream count limit ",
+                             incoming_advertised_max_streams_));
     return false;
   }
 

@@ -24,7 +24,7 @@ namespace {
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
   MOCK_METHOD1(OnCanCreateNewOutgoingStream, void(bool unidirectional));
-  MOCK_METHOD2(OnError,
+  MOCK_METHOD2(OnStreamIdManagerError,
                void(QuicErrorCode error_code, std::string error_details));
   MOCK_METHOD2(SendMaxStreams,
                void(QuicStreamCount stream_count, bool unidirectional));
@@ -195,7 +195,7 @@ TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedNoOp) {
 // the count most recently advertised in a MAX_STREAMS frame. Expect a
 // connection close with an error.
 TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedTooBig) {
-  EXPECT_CALL(delegate_, OnError(QUIC_STREAMS_BLOCKED_ERROR, _));
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_STREAMS_BLOCKED_ERROR, _));
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
   EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   QuicStreamCount stream_count =
@@ -213,7 +213,7 @@ TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedTooBig) {
 TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidBelowLimit) {
   QuicStreamId stream_id = GetNthIncomingStreamId(
       stream_id_manager_.incoming_actual_max_streams() - 2);
-  EXPECT_CALL(delegate_, OnError(_, _)).Times(0);
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(_, _)).Times(0);
   EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
@@ -221,7 +221,7 @@ TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidBelowLimit) {
 TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdValidAtLimit) {
   QuicStreamId stream_id = GetNthIncomingStreamId(
       stream_id_manager_.incoming_actual_max_streams() - 1);
-  EXPECT_CALL(delegate_, OnError(_, _)).Times(0);
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(_, _)).Times(0);
   EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
@@ -231,7 +231,8 @@ TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdInValidAboveLimit) {
       GetNthIncomingStreamId(stream_id_manager_.incoming_actual_max_streams());
   std::string error_details = quiche::QuicheStrCat(
       "Stream id ", stream_id, " would exceed stream count limit 100");
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
+  EXPECT_CALL(delegate_,
+              OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
@@ -284,7 +285,7 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // If the peer is saying it's blocked on a stream count that is larger
   // than what we've advertised, the connection should get closed.
   frame.stream_count = advertised_stream_count + 1;
-  EXPECT_CALL(delegate_, OnError(QUIC_STREAMS_BLOCKED_ERROR, _));
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_STREAMS_BLOCKED_ERROR, _));
   EXPECT_FALSE(stream_id_manager_.OnStreamsBlockedFrame(frame));
 
   // If the peer is saying it's blocked on a count that is less than
@@ -370,7 +371,7 @@ TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
   EXPECT_TRUE(
       stream_id_manager_.MaybeIncreaseLargestPeerStreamId(first_stream_id));
   // A bad stream ID results in a closed connection.
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, _));
+  EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, _));
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
       max_stream_id + kV99StreamIdIncrement));
 }
@@ -593,7 +594,8 @@ TEST_P(QuicStreamIdManagerTest, ExtremeMaybeIncreaseLargestPeerStreamId) {
   std::string error_details = quiche::QuicheStrCat(
       "Stream id ", too_big_stream_id, " would exceed stream count limit 100");
 
-  EXPECT_CALL(delegate_, OnError(QUIC_INVALID_STREAM_ID, error_details));
+  EXPECT_CALL(delegate_,
+              OnStreamIdManagerError(QUIC_INVALID_STREAM_ID, error_details));
   EXPECT_FALSE(
       stream_id_manager_.MaybeIncreaseLargestPeerStreamId(too_big_stream_id));
 }

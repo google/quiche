@@ -150,7 +150,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool HasUnackedStreamData() const override;
 
   // QuicStreamIdManager::DelegateInterface methods:
-  void OnError(QuicErrorCode error_code, std::string error_details) override;
+  void OnStreamIdManagerError(QuicErrorCode error_code,
+                              std::string error_details) override;
   void SendMaxStreams(QuicStreamCount stream_count,
                       bool unidirectional) override;
   void SendStreamsBlocked(QuicStreamCount stream_count,

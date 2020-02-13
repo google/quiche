@@ -833,7 +833,8 @@ void QuicSession::SendWindowUpdate(QuicStreamId id,
   control_frame_manager_.WriteOrBufferWindowUpdate(id, byte_offset);
 }
 
-void QuicSession::OnError(QuicErrorCode error_code, std::string error_details) {
+void QuicSession::OnStreamIdManagerError(QuicErrorCode error_code,
+                                         std::string error_details) {
   connection_->CloseConnection(
       error_code, error_details,
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
