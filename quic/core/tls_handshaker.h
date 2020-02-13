@@ -67,7 +67,9 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   SSL* ssl() const { return tls_connection()->ssl(); }
 
   QuicCryptoStream* stream() { return stream_; }
-  HandshakerDelegateInterface* delegate() { return delegate_; }
+  HandshakerDelegateInterface* handshaker_delegate() {
+    return handshaker_delegate_;
+  }
 
   // SetEncryptionSecret provides the encryption secret to use at a particular
   // encryption level. The secrets provided here are the ones from the TLS 1.3
@@ -97,7 +99,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
 
  private:
   QuicCryptoStream* stream_;
-  HandshakerDelegateInterface* delegate_;
+  HandshakerDelegateInterface* handshaker_delegate_;
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
   std::string parser_error_detail_;

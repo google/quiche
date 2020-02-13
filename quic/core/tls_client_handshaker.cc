@@ -286,8 +286,8 @@ void TlsClientHandshaker::OnHandshakeConfirmed() {
     return;
   }
   handshake_confirmed_ = true;
-  delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
-  delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
+  handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
+  handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
 
 void TlsClientHandshaker::AdvanceHandshake() {
@@ -394,7 +394,7 @@ void TlsClientHandshaker::FinishHandshake() {
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
 
-  delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  handshaker_delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
@@ -465,8 +465,8 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
   if (level == ENCRYPTION_HANDSHAKE &&
       state_ < STATE_ENCRYPTION_HANDSHAKE_DATA_SENT) {
     state_ = STATE_ENCRYPTION_HANDSHAKE_DATA_SENT;
-    delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
-    delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
+    handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   }
   TlsHandshaker::WriteMessage(level, data);
 }

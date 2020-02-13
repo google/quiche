@@ -115,8 +115,8 @@ void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
   if (level == ENCRYPTION_HANDSHAKE &&
       state_ < STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED) {
     state_ = STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED;
-    delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
-    delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
+    handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+    handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   }
 }
 
@@ -287,9 +287,9 @@ void TlsServerHandshaker::FinishHandshake() {
   }
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
 
-  delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
-  delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
+  handshaker_delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
+  handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(

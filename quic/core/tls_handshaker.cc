@@ -15,7 +15,7 @@
 namespace quic {
 
 TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream, QuicSession* session)
-    : stream_(stream), delegate_(session) {}
+    : stream_(stream), handshaker_delegate_(session) {}
 
 TlsHandshaker::~TlsHandshaker() {}
 
@@ -73,8 +73,9 @@ bool TlsHandshaker::SetEncryptionSecret(
       QuicDecrypter::CreateFromCipherSuite(
           SSL_CIPHER_get_id(SSL_get_pending_cipher(ssl())));
   CryptoUtils::SetKeyAndIV(Prf(), read_secret, decrypter.get());
-  delegate_->OnNewEncryptionKeyAvailable(level, std::move(encrypter));
-  return delegate_->OnNewDecryptionKeyAvailable(
+  handshaker_delegate_->OnNewEncryptionKeyAvailable(level,
+                                                    std::move(encrypter));
+  return handshaker_delegate_->OnNewDecryptionKeyAvailable(
       level, std::move(decrypter),
       /*set_alternative_decrypter=*/false,
       /*latch_once_used=*/false);
