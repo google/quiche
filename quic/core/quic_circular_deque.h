@@ -586,10 +586,10 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     pointer new_data = AllocatorTraits::allocate(
         allocator_and_data_.allocator(), new_data_capacity);
 
-    if (begin_ <= end_) {
+    if (begin_ < end_) {
       // Not wrapped.
       RelocateUnwrappedRange(begin_, end_, new_data);
-    } else {
+    } else if (begin_ > end_) {
       // Wrapped.
       const size_t num_elements_before_wrap = data_capacity() - begin_;
       RelocateUnwrappedRange(begin_, data_capacity(), new_data);
@@ -611,7 +611,9 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   typename std::enable_if<std::is_trivially_copyable<T_>::value, void>::type
   RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
     DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
-    memcpy(dest, index_to_address(begin), sizeof(T) * (end - begin));
+    pointer src = index_to_address(begin);
+    DCHECK_NE(src, nullptr);
+    memcpy(dest, src, sizeof(T) * (end - begin));
     DestroyRange(begin, end);
   }
 
