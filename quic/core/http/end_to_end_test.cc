@@ -296,6 +296,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (support_server_push_) {
       client->client()->SetMaxAllowedPushId(kMaxQuicStreamId);
     }
+    client->client()->set_connection_debug_visitor(connection_debug_visitor_);
     client->Connect();
     return client;
   }
@@ -433,6 +434,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   void TearDown() override {
     ASSERT_TRUE(initialized_) << "You must call Initialize() in every test "
                               << "case. Otherwise, your test will leak memory.";
+    GetClientConnection()->set_debug_visitor(nullptr);
     StopServer();
   }
 
@@ -600,6 +602,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   QuicMemoryCacheBackend memory_cache_backend_;
   std::unique_ptr<ServerThread> server_thread_;
   std::unique_ptr<QuicTestClient> client_;
+  QuicConnectionDebugVisitor* connection_debug_visitor_ = nullptr;
   PacketDroppingTestWriter* client_writer_;
   PacketDroppingTestWriter* server_writer_;
   QuicConfig client_config_;
@@ -657,12 +660,8 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  int expected_num_client_hellos = 2;
-  if (ServerSendsVersionNegotiation()) {
-    ++expected_num_client_hellos;
-  }
-  EXPECT_EQ(expected_num_client_hellos,
-            client_->client()->GetNumSentClientHellos());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   if (VersionUsesHttp3(GetClientConnection()->transport_version())) {
     EXPECT_TRUE(QuicSpdySessionPeer::GetSendControlStream(GetClientSession()));
     EXPECT_TRUE(
@@ -719,12 +718,8 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  int expected_num_client_hellos = 2;
-  if (ServerSendsVersionNegotiation()) {
-    ++expected_num_client_hellos;
-  }
-  EXPECT_EQ(expected_num_client_hellos,
-            client_->client()->GetNumSentClientHellos());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     EXPECT_EQ(kDefaultDelayedAckTimeMs + 100u,
               GetSentPacketManagerFromFirstServerSession()
@@ -749,13 +744,9 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  int expected_num_client_hellos = 2;
-  if (ServerSendsVersionNegotiation()) {
-    ++expected_num_client_hellos;
-  }
 
-  EXPECT_EQ(expected_num_client_hellos,
-            client_->client()->GetNumSentClientHellos());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   if (VersionHasIetfQuicFrames(
           GetParam().negotiated_version.transport_version)) {
     // Should be only for IETF QUIC.
@@ -774,13 +765,17 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
+  testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  EXPECT_CALL(visitor, OnVersionNegotiationPacket(testing::_)).Times(1);
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 
-  EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 }
 
 TEST_P(EndToEndTestWithTls, ForcedVersionNegotiation) {
@@ -804,12 +799,8 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  int expected_num_client_hellos = 2;
-  if (ServerSendsVersionNegotiation()) {
-    ++expected_num_client_hellos;
-  }
-  EXPECT_EQ(expected_num_client_hellos,
-            client_->client()->GetNumSentClientHellos());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   EXPECT_EQ(GetClientConnection()->connection_id(),
             QuicUtils::CreateZeroConnectionId(
                 GetParam().negotiated_version.transport_version));
@@ -1006,11 +997,8 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(4, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->ReceivedInchoateReject());
 }
 
 TEST_P(EndToEndTestWithTls, SimpleRequestResponsev6) {
@@ -1364,14 +1352,10 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
-  // The same session is used for both hellos, so the number of hellos sent on
-  // that session is 2.
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   client_->Disconnect();
 
@@ -1382,12 +1366,8 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
 
-  EXPECT_EQ(1, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 
   client_->Disconnect();
 
@@ -1401,14 +1381,10 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
-  // The same session is used for both hellos, so the number of hellos sent on
-  // that session is 2.
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   VerifyCleanConnection(false);
 }
@@ -1419,14 +1395,10 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
-  // The same session is used for both hellos, so the number of hellos sent on
-  // that session is 2.
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   client_->Disconnect();
 
@@ -1436,12 +1408,8 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
-  EXPECT_EQ(1, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 
   client_->Disconnect();
 
@@ -1455,12 +1423,10 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   VerifyCleanConnection(false);
 }
@@ -1479,14 +1445,10 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
-  // The same session is used for both hellos, so the number of hellos sent on
-  // that session is 2.
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   client_->Disconnect();
 
@@ -1497,12 +1459,8 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
 
-  EXPECT_EQ(1, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_TRUE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 
   client_->Disconnect();
 
@@ -1517,12 +1475,10 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
 
-  EXPECT_EQ(2, GetClientSession()->GetNumSentClientHellos());
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(3, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_FALSE(GetClientSession()->EarlyDataAccepted());
+  EXPECT_FALSE(GetClientSession()->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   VerifyCleanConnection(false);
 }
@@ -4003,11 +3959,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   EXPECT_EQ(kBarResponseBody, client_->response_body());
   QuicConnectionStats client_stats = GetClientConnection()->GetStats();
   EXPECT_EQ(0u, client_stats.packets_lost);
-  if (ServerSendsVersionNegotiation()) {
-    EXPECT_EQ(2, client_->client()->GetNumSentClientHellos());
-  } else {
-    EXPECT_EQ(1, client_->client()->GetNumSentClientHellos());
-  }
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 }
 
 // Test that STOP_SENDING makes it to the peer.  Create a stream and send a

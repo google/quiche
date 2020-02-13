@@ -438,7 +438,8 @@ class QboneSessionTest : public QuicTest {
     } else {
       EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
     }
-    EXPECT_THAT(client_peer_->GetNumSentClientHellos(), Eq(2));
+    EXPECT_FALSE(client_peer_->EarlyDataAccepted());
+    EXPECT_FALSE(client_peer_->ReceivedInchoateReject());
     EXPECT_THAT(client_peer_->GetNumReceivedServerConfigUpdates(), Eq(0));
 
     if (!use_messages) {
