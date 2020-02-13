@@ -99,6 +99,15 @@ bool QuicPacketReader::ReadAndDispatchPackets(
         /*packet_buffer_length=*/sizeof(read_buffers_[i].packet_buffer));
   }
   QuicWallTime wallnow = clock.WallNow();
+  const bool use_quic_time =
+      GetQuicReloadableFlag(quic_use_quic_time_for_received_timestamp2);
+  QuicTime now = QuicTime::Zero();
+  if (use_quic_time) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_quic_time_for_received_timestamp2);
+    // Use clock.Now() as the packet receipt time, the time between packet
+    // arriving at the host and now is considered part of the network delay.
+    now = clock.Now();
+  }
   size_t packets_read = socket_api_.ReadMultiplePackets(
       fd,
       BitMask64(QuicUdpPacketInfoBit::DROPPED_PACKETS,
@@ -160,8 +169,9 @@ bool QuicPacketReader::ReadAndDispatchPackets(
 
     QuicReceivedPacket packet(
         result.packet_buffer.buffer, result.packet_buffer.buffer_len,
-        clock.ConvertWallTimeToQuicTime(walltimestamp), /*owns_buffer=*/false,
-        ttl, has_ttl, headers, headers_length, /*owns_header_buffer=*/false);
+        use_quic_time ? now : clock.ConvertWallTimeToQuicTime(walltimestamp),
+        /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
+        /*owns_header_buffer=*/false);
 
     QuicSocketAddress self_address(self_ip, port);
     processor->ProcessPacket(self_address, peer_address, packet);
