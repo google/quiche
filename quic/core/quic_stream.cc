@@ -23,7 +23,7 @@ using spdy::SpdyPriority;
 namespace quic {
 
 #define ENDPOINT \
-  (session_->perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
+  (perspective_ == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
 namespace {
 
@@ -144,9 +144,6 @@ void PendingStream::AddBytesConsumed(QuicByteCount bytes) {
 void PendingStream::Reset(QuicRstStreamErrorCode /*error*/) {
   // Currently PendingStream is only read-unidirectional. It shouldn't send
   // Reset.
-  DCHECK_EQ(READ_UNIDIRECTIONAL,
-            QuicUtils::GetStreamType(id_, session_->perspective(),
-                                     /*peer_initiated = */ true));
   QUIC_NOTREACHED();
 }
 
@@ -363,7 +360,8 @@ QuicStream::QuicStream(QuicStreamId id,
                 ? QuicUtils::GetStreamType(id_,
                                            session->perspective(),
                                            session->IsIncomingStream(id_))
-                : type) {
+                : type),
+      perspective_(session->perspective()) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
     set_fin_received(true);
     CloseReadSide();

@@ -535,6 +535,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Indicates whether this stream is bidirectional, read unidirectional or
   // write unidirectional.
   const StreamType type_;
+
+  Perspective perspective_;
 };
 
 }  // namespace quic
