@@ -941,10 +941,17 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
       << "Attempt to serialize empty coalesced packet";
   size_t packet_length = 0;
   if (coalesced.initial_packet() != nullptr) {
+    // Padding coalesced packet containing initial packet to full.
+    size_t padding_size = coalesced.max_packet_length() - coalesced.length();
+    if (framer_->perspective() == Perspective::IS_SERVER &&
+        QuicUtils::ContainsFrameType(
+            coalesced.initial_packet()->retransmittable_frames,
+            CONNECTION_CLOSE_FRAME)) {
+      // Do not pad server initial connection close packet.
+      padding_size = 0;
+    }
     size_t initial_length = ReserializeInitialPacketInCoalescedPacket(
-        *coalesced.initial_packet(),
-        /*padding_size=*/coalesced.max_packet_length() - coalesced.length(),
-        buffer, buffer_len);
+        *coalesced.initial_packet(), padding_size, buffer, buffer_len);
     if (initial_length == 0) {
       QUIC_BUG << "Failed to reserialize ENCRYPTION_INITIAL packet in "
                   "coalesced packet";

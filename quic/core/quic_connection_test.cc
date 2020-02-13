@@ -8173,6 +8173,26 @@ TEST_P(QuicConnectionTest, CloseConnectionOneLevel) {
   ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
 }
 
+TEST_P(QuicConnectionTest, DoNotPadServerInitialConnectionClose) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
+  connection_.CloseConnection(
+      kQuicErrorCode, "Some random error message",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+
+  EXPECT_EQ(2u, QuicConnectionPeer::GetNumEncryptionLevels(&connection_));
+
+  TestConnectionCloseQuicErrorCode(kQuicErrorCode);
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
+  EXPECT_TRUE(writer_->padding_frames().empty());
+  EXPECT_EQ(ENCRYPTION_INITIAL, writer_->framer()->last_decrypted_level());
+}
+
 // Regression test for b/63620844.
 TEST_P(QuicConnectionTest, FailedToWriteHandshakePacket) {
   SimulateNextPacketTooLarge();
