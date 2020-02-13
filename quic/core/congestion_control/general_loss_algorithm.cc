@@ -12,17 +12,6 @@
 
 namespace quic {
 
-namespace {
-
-// The minimum delay before a packet will be considered lost,
-// regardless of SRTT.  Half of the minimum TLP, since the loss algorithm only
-// triggers when a nack has been receieved for the packet.
-static const size_t kMinLossDelayMs = 5;
-// Default fraction (1/16) of an RTT when doing adaptive loss detection.
-static const int kDefaultAdaptiveLossDelayShift = 4;
-
-}  // namespace
-
 GeneralLossAlgorithm::GeneralLossAlgorithm()
     : loss_detection_timeout_(QuicTime::Zero()),
       reordering_shift_(kDefaultLossDelayShift),
