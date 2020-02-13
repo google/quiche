@@ -206,13 +206,7 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
     // If two packets are inflight and an alarm is armed to lose a packet and it
     // wakes up late, then the first of two in flight packets could have been
     // acknowledged before the wakeup, which re-evaluates loss detection, and
-    // could declare the later of the two lost. However, this is an edge case
-    // that should not happen in the test environments, hence the DCHECK.
-    DCHECK(lost_packets.back().packet_number <
-           acked_packets.back().packet_number)
-        << "Largest lost packet should be less than largest acked packet: "
-        << lost_packets.back().packet_number << " vs. "
-        << acked_packets.back().packet_number;
+    // could declare the later of the two lost.
     event_sample.last_packet_send_state =
         lost_packets.back().packet_number > acked_packets.back().packet_number
             ? last_lost_packet_send_state
