@@ -2917,10 +2917,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     ClearQueuedPackets();
     // If there was a packet write error, write the smallest close possible.
     ScopedPacketFlusher flusher(this);
-    // When multiple packet number spaces is supported, an ACK frame will be
-    // bundled when connection is not write blocked.
-    if (!SupportsMultiplePacketNumberSpaces() &&
-        error != QUIC_PACKET_WRITE_ERROR &&
+    // Always bundle an ACK with connection close for debugging purpose.
+    if (error != QUIC_PACKET_WRITE_ERROR &&
         !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
       SendAck();
     }
@@ -2955,15 +2953,17 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet at level: "
                     << EncryptionLevelToString(level);
     SetDefaultEncryptionLevel(level);
-    // If there was a packet write error, write the smallest close possible.
-    // When multiple packet number spaces are supported, an ACK frame will
-    // be bundled by the ScopedPacketFlusher. Otherwise, an ACK must be sent
-    // explicitly.
-    if (!SupportsMultiplePacketNumberSpaces() &&
-        error != QUIC_PACKET_WRITE_ERROR &&
-        !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
-      SendAck();
+    // Bundle an ACK of the corresponding packet number space for debugging
+    // purpose.
+    if (error != QUIC_PACKET_WRITE_ERROR) {
+      const QuicFrame ack_frame = GetUpdatedAckFrame();
+      if (!ack_frame.ack_frame->packets.Empty()) {
+        QuicFrames frames;
+        frames.push_back(ack_frame);
+        packet_creator_.FlushAckFrame(frames);
+      }
     }
+
     auto* frame =
         new QuicConnectionCloseFrame(transport_version(), error, details,
                                      framer_.current_received_frame_type());

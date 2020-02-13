@@ -9973,6 +9973,58 @@ TEST_P(QuicConnectionTest, StreamsBlockedFrameCausesConnectionClose) {
   ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
 }
 
+TEST_P(QuicConnectionTest,
+       BundleAckWithConnectionCloseMultiplePacketNumberSpace) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  // Receives packet 1000 in initial data.
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+  // Receives packet 2000 in application data.
+  ProcessDataPacketAtLevel(2000, false, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
+  connection_.CloseConnection(
+      kQuicErrorCode, "Some random error message",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+
+  EXPECT_EQ(2u, QuicConnectionPeer::GetNumEncryptionLevels(&connection_));
+
+  TestConnectionCloseQuicErrorCode(kQuicErrorCode);
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
+  // Verify ack is bundled.
+  EXPECT_EQ(1u, writer_->ack_frames().size());
+
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    // Each connection close packet should be sent in distinct UDP packets.
+    EXPECT_EQ(QuicConnectionPeer::GetNumEncryptionLevels(&connection_),
+              writer_->connection_close_packets());
+    EXPECT_EQ(QuicConnectionPeer::GetNumEncryptionLevels(&connection_),
+              writer_->packets_write_attempts());
+    return;
+  }
+
+  // A single UDP packet should be sent with multiple connection close packets
+  // coalesced together.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+
+  // Only the first packet has been processed yet.
+  EXPECT_EQ(1u, writer_->connection_close_packets());
+
+  // ProcessPacket resets the visitor and frees the coalesced packet.
+  ASSERT_TRUE(writer_->coalesced_packet() != nullptr);
+  auto packet = writer_->coalesced_packet()->Clone();
+  writer_->framer()->ProcessPacket(*packet);
+  EXPECT_EQ(1u, writer_->connection_close_packets());
+  EXPECT_EQ(1u, writer_->connection_close_frames().size());
+  // Verify ack is bundled.
+  EXPECT_EQ(1u, writer_->ack_frames().size());
+  ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
