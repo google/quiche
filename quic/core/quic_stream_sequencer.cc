@@ -74,7 +74,7 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
         "\nPeer Address: ", stream_->PeerAddressOfLatestPacket().ToString());
     QUIC_LOG_FIRST_N(WARNING, 50) << QuicErrorCodeToString(result);
     QUIC_LOG_FIRST_N(WARNING, 50) << details;
-    stream_->CloseConnectionWithDetails(result, details);
+    stream_->OnUnrecoverableError(result, details);
     return;
   }
 
@@ -117,7 +117,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
 
   // If there is a scheduled close, the new offset should match it.
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
         quiche::QuicheStrCat(
             "Stream ", stream_->id(), " received new final offset: ", offset,
@@ -128,7 +128,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
   // The final offset should be no less than the highest offset that is
   // received.
   if (offset < highest_offset_) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
         quiche::QuicheStrCat(
             "Stream ", stream_->id(), " received fin with offset: ", offset,
@@ -197,7 +197,7 @@ size_t QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
   if (read_error != QUIC_NO_ERROR) {
     std::string details =
         quiche::QuicheStrCat("Stream ", stream_->id(), ": ", error_details);
-    stream_->CloseConnectionWithDetails(read_error, details);
+    stream_->OnUnrecoverableError(read_error, details);
     return bytes_read;
   }
 

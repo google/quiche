@@ -75,8 +75,8 @@ void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
   EncryptionLevel frame_level = level;
   if (substreams_[level].sequencer.NumBytesBuffered() >
       BufferSizeLimitForLevel(frame_level)) {
-    CloseConnectionWithDetails(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
-                               "Too much crypto data received");
+    OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                         "Too much crypto data received");
   }
 }
 
@@ -84,8 +84,7 @@ void QuicCryptoStream::OnStreamFrame(const QuicStreamFrame& frame) {
   if (QuicVersionUsesCryptoFrames(session()->transport_version())) {
     QUIC_PEER_BUG
         << "Crypto data received in stream frame instead of crypto frame";
-    CloseConnectionWithDetails(QUIC_INVALID_STREAM_DATA,
-                               "Unexpected stream frame");
+    OnUnrecoverableError(QUIC_INVALID_STREAM_DATA, "Unexpected stream frame");
   }
   QuicStream::OnStreamFrame(frame);
 }
@@ -110,8 +109,8 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
     quiche::QuicheStringPiece data(static_cast<char*>(iov.iov_base),
                                    iov.iov_len);
     if (!crypto_message_parser()->ProcessInput(data, level)) {
-      CloseConnectionWithDetails(crypto_message_parser()->error(),
-                                 crypto_message_parser()->error_detail());
+      OnUnrecoverableError(crypto_message_parser()->error(),
+                           crypto_message_parser()->error_detail());
       return;
     }
     sequencer->MarkConsumed(iov.iov_len);
@@ -163,8 +162,8 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     QUIC_BUG << "Writing too much crypto handshake data";
     // TODO(nharper): Switch this to an IETF QUIC error code, possibly
     // INTERNAL_ERROR?
-    CloseConnectionWithDetails(QUIC_STREAM_LENGTH_OVERFLOW,
-                               "Writing too much crypto handshake data");
+    OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
+                         "Writing too much crypto handshake data");
   }
   if (had_buffered_data) {
     // Do not try to write if there is buffered data.
@@ -191,8 +190,8 @@ bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
   QuicByteCount newly_acked_length = 0;
   if (!substreams_[frame.level].send_buffer.OnStreamDataAcked(
           frame.offset, frame.data_length, &newly_acked_length)) {
-    CloseConnectionWithDetails(QUIC_INTERNAL_ERROR,
-                               "Trying to ack unsent crypto data.");
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                         "Trying to ack unsent crypto data.");
     return false;
   }
   return newly_acked_length > 0;

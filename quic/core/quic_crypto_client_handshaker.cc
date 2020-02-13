@@ -83,7 +83,7 @@ void QuicCryptoClientHandshaker::OnHandshakeMessage(
   QuicCryptoHandshaker::OnHandshakeMessage(message);
   if (message.tag() == kSCUP) {
     if (!one_rtt_keys_available()) {
-      stream_->CloseConnectionWithDetails(
+      stream_->OnUnrecoverableError(
           QUIC_CRYPTO_UPDATE_BEFORE_HANDSHAKE_COMPLETE,
           "Early SCUP disallowed");
       return;
@@ -98,9 +98,8 @@ void QuicCryptoClientHandshaker::OnHandshakeMessage(
 
   // Do not process handshake messages after the handshake is confirmed.
   if (one_rtt_keys_available()) {
-    stream_->CloseConnectionWithDetails(
-        QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
-        "Unexpected handshake message");
+    stream_->OnUnrecoverableError(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
+                                  "Unexpected handshake message");
     return;
   }
 
@@ -184,7 +183,7 @@ void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
       crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         error, "Server config update invalid: " + error_details);
     return;
   }
@@ -229,8 +228,8 @@ void QuicCryptoClientHandshaker::DoHandshakeLoop(
         break;
       case STATE_IDLE:
         // This means that the peer sent us a message that we weren't expecting.
-        stream_->CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-                                            "Handshake in idle state");
+        stream_->OnUnrecoverableError(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+                                      "Handshake in idle state");
         return;
       case STATE_INITIALIZE_SCUP:
         DoInitializeServerConfigUpdate(cached);
@@ -266,7 +265,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   session()->connection()->SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   encryption_established_ = false;
   if (num_client_hellos_ >= QuicCryptoClientStream::kMaxClientHellos) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_CRYPTO_TOO_MANY_REJECTS,
         quiche::QuicheStrCat("More than ",
                              QuicCryptoClientStream::kMaxClientHellos,
@@ -294,14 +293,13 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     if (max_packet_size <= kFramingOverhead) {
       QUIC_DLOG(DFATAL) << "max_packet_length (" << max_packet_size
                         << ") has no room for framing overhead.";
-      stream_->CloseConnectionWithDetails(QUIC_INTERNAL_ERROR,
-                                          "max_packet_size too smalll");
+      stream_->OnUnrecoverableError(QUIC_INTERNAL_ERROR,
+                                    "max_packet_size too smalll");
       return;
     }
     if (kClientHelloMinimumSize > max_packet_size - kFramingOverhead) {
       QUIC_DLOG(DFATAL) << "Client hello won't fit in a single packet.";
-      stream_->CloseConnectionWithDetails(QUIC_INTERNAL_ERROR,
-                                          "CHLO too large");
+      stream_->OnUnrecoverableError(QUIC_INTERNAL_ERROR, "CHLO too large");
       return;
     }
     next_state_ = STATE_RECV_REJ;
@@ -324,7 +322,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     // Flush the cached config so that, if it's bad, the server has a
     // chance to send us another in the future.
     cached->InvalidateServerConfig();
-    stream_->CloseConnectionWithDetails(error, error_details);
+    stream_->OnUnrecoverableError(error, error_details);
     return;
   }
   chlo_hash_ = CryptoUtils::HashHandshakeMessage(out, Perspective::IS_CLIENT);
@@ -358,8 +356,8 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
   // that we need.
   if (in->tag() != kREJ) {
     next_state_ = STATE_NONE;
-    stream_->CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-                                        "Expected REJ");
+    stream_->OnUnrecoverableError(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+                                  "Expected REJ");
     return;
   }
 
@@ -397,7 +395,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
 
   if (error != QUIC_NO_ERROR) {
     next_state_ = STATE_NONE;
-    stream_->CloseConnectionWithDetails(error, error_details);
+    stream_->OnUnrecoverableError(error, error_details);
     return;
   }
   if (!cached->proof_valid()) {
@@ -468,8 +466,8 @@ void QuicCryptoClientHandshaker::DoVerifyProofComplete(
     next_state_ = STATE_NONE;
     QUIC_CLIENT_HISTOGRAM_BOOL("QuicVerifyProofFailed.HandshakeConfirmed",
                                one_rtt_keys_available(), "");
-    stream_->CloseConnectionWithDetails(
-        QUIC_PROOF_INVALID, "Proof invalid: " + verify_error_details_);
+    stream_->OnUnrecoverableError(QUIC_PROOF_INVALID,
+                                  "Proof invalid: " + verify_error_details_);
     return;
   }
 
@@ -501,8 +499,8 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
     // A reject message must be sent in ENCRYPTION_INITIAL.
     if (session()->connection()->last_decrypted_level() != ENCRYPTION_INITIAL) {
       // The rejection was sent encrypted!
-      stream_->CloseConnectionWithDetails(
-          QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT, "encrypted REJ message");
+      stream_->OnUnrecoverableError(QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT,
+                                    "encrypted REJ message");
       return;
     }
     next_state_ = STATE_RECV_REJ;
@@ -510,7 +508,7 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   }
 
   if (in->tag() != kSHLO) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
         quiche::QuicheStrCat("Expected SHLO or REJ. Received: ",
                              QuicTagToString(in->tag())));
@@ -519,8 +517,8 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
 
   if (session()->connection()->last_decrypted_level() == ENCRYPTION_INITIAL) {
     // The server hello was sent without encryption.
-    stream_->CloseConnectionWithDetails(QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT,
-                                        "unencrypted SHLO message");
+    stream_->OnUnrecoverableError(QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT,
+                                  "unencrypted SHLO message");
     return;
   }
 
@@ -532,14 +530,14 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
       crypto_negotiated_params_, &error_details);
 
   if (error != QUIC_NO_ERROR) {
-    stream_->CloseConnectionWithDetails(
-        error, "Server hello invalid: " + error_details);
+    stream_->OnUnrecoverableError(error,
+                                  "Server hello invalid: " + error_details);
     return;
   }
   error = session()->config()->ProcessPeerHello(*in, SERVER, &error_details);
   if (error != QUIC_NO_ERROR) {
-    stream_->CloseConnectionWithDetails(
-        error, "Server hello invalid: " + error_details);
+    stream_->OnUnrecoverableError(error,
+                                  "Server hello invalid: " + error_details);
     return;
   }
   session()->OnConfigNegotiated();

@@ -207,9 +207,8 @@ class TestQuicCryptoStream : public QuicCryptoStream {
     for (size_t i = 0; i < pending_writes_.size(); ++i) {
       if (!stream->crypto_message_parser()->ProcessInput(
               pending_writes_[i].first, pending_writes_[i].second)) {
-        CloseConnectionWithDetails(
-            stream->crypto_message_parser()->error(),
-            stream->crypto_message_parser()->error_detail());
+        OnUnrecoverableError(stream->crypto_message_parser()->error(),
+                             stream->crypto_message_parser()->error_detail());
         break;
       }
     }

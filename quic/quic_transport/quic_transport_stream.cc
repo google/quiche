@@ -78,7 +78,7 @@ bool QuicTransportStream::Write(quiche::QuicheStringPiece data) {
   QUIC_BUG << "WriteMemSlices() unexpectedly partially consumed the input "
               "data, provided: "
            << data.size() << ", written: " << consumed.bytes_consumed;
-  CloseConnectionWithDetails(
+  OnUnrecoverableError(
       QUIC_INTERNAL_ERROR,
       "WriteMemSlices() unexpectedly partially consumed the input data");
   return false;

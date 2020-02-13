@@ -202,7 +202,7 @@ void TlsServerHandshaker::AdvanceHandshake() {
 void TlsServerHandshaker::CloseConnection(QuicErrorCode error,
                                           const std::string& reason_phrase) {
   state_ = STATE_CONNECTION_CLOSED;
-  stream()->CloseConnectionWithDetails(error, reason_phrase);
+  stream()->OnUnrecoverableError(error, reason_phrase);
 }
 
 bool TlsServerHandshaker::ProcessTransportParameters(

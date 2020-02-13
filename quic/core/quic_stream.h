@@ -59,8 +59,8 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void OnFinRead() override;
   void AddBytesConsumed(QuicByteCount bytes) override;
   void Reset(QuicRstStreamErrorCode error) override;
-  void CloseConnectionWithDetails(QuicErrorCode error,
-                                  const std::string& details) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            const std::string& details) override;
   QuicStreamId id() const override;
   const QuicSocketAddress& PeerAddressOfLatestPacket() const override;
 
@@ -155,8 +155,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
-  void CloseConnectionWithDetails(QuicErrorCode error,
-                                  const std::string& details) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            const std::string& details) override;
 
   // Get peer IP of the lastest packet which connection is dealing/delt with.
   const QuicSocketAddress& PeerAddressOfLatestPacket() const override;

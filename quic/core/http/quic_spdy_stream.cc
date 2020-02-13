@@ -41,8 +41,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
   void OnError(HttpDecoder* decoder) override {
-    stream_->CloseConnectionWithDetails(decoder->error(),
-                                        decoder->error_detail());
+    stream_->OnUnrecoverableError(decoder->error(), decoder->error_detail());
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
@@ -169,7 +168,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
  private:
   void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM,
         quiche::QuicheStrCat(frame_type, " frame received on data stream"));
   }
@@ -577,8 +576,8 @@ void QuicSpdyStream::OnHeaderDecodingError(
   std::string connection_close_error_message = quiche::QuicheStrCat(
       "Error decoding ", headers_decompressed_ ? "trailers" : "headers",
       " on stream ", id(), ": ", error_message);
-  CloseConnectionWithDetails(QUIC_QPACK_DECOMPRESSION_FAILED,
-                             connection_close_error_message);
+  OnUnrecoverableError(QUIC_QPACK_DECOMPRESSION_FAILED,
+                       connection_close_error_message);
 }
 
 void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
@@ -607,8 +606,8 @@ void QuicSpdyStream::OnHeadersTooLarge() {
     // or with H3_REQUEST_REJECTED (if server).
     std::string error_message =
         quiche::QuicheStrCat("Too large headers received on stream ", id());
-    CloseConnectionWithDetails(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-                               error_message);
+    OnUnrecoverableError(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
+                         error_message);
   } else {
     Reset(QUIC_HEADERS_TOO_LARGE);
   }

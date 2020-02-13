@@ -150,8 +150,8 @@ void PendingStream::Reset(QuicRstStreamErrorCode /*error*/) {
   QUIC_NOTREACHED();
 }
 
-void PendingStream::CloseConnectionWithDetails(QuicErrorCode error,
-                                               const std::string& details) {
+void PendingStream::OnUnrecoverableError(QuicErrorCode error,
+                                         const std::string& details) {
   stream_delegate_->OnStreamError(error, details);
 }
 
@@ -174,14 +174,13 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
     QUIC_PEER_BUG
         << "Receive stream frame reaches max stream length. frame offset "
         << frame.offset << " length " << frame.data_length;
-    CloseConnectionWithDetails(
-        QUIC_STREAM_LENGTH_OVERFLOW,
-        "Peer sends more data than allowed on this stream.");
+    OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
+                         "Peer sends more data than allowed on this stream.");
     return;
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
         quiche::QuicheStrCat(
             "Stream ", id_,
@@ -206,9 +205,8 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
     // violation of flow control.
     if (flow_controller_.FlowControlViolation() ||
         connection_flow_controller_->FlowControlViolation()) {
-      CloseConnectionWithDetails(
-          QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
-          "Flow control violation after increasing offset");
+      OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                           "Flow control violation after increasing offset");
       return;
     }
   }
@@ -221,8 +219,8 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 
   if (frame.byte_offset > kMaxStreamLength) {
     // Peer are not suppose to write bytes more than maxium allowed.
-    CloseConnectionWithDetails(QUIC_STREAM_LENGTH_OVERFLOW,
-                               "Reset frame stream offset overflow.");
+    OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
+                         "Reset frame stream offset overflow.");
     return;
   }
 
@@ -230,7 +228,7 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
       std::numeric_limits<QuicStreamOffset>::max();
   if (sequencer()->close_offset() != kMaxOffset &&
       frame.byte_offset != sequencer()->close_offset()) {
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_STREAM_MULTIPLE_OFFSET,
         quiche::QuicheStrCat("Stream ", id_,
                              " received new final offset: ", frame.byte_offset,
@@ -242,9 +240,8 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
   if (flow_controller_.FlowControlViolation() ||
       connection_flow_controller_->FlowControlViolation()) {
-    CloseConnectionWithDetails(
-        QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
-        "Flow control violation after increasing offset");
+    OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                         "Flow control violation after increasing offset");
     return;
   }
 }
@@ -398,9 +395,8 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK(!(read_side_closed_ && write_side_closed_));
 
   if (type_ == WRITE_UNIDIRECTIONAL) {
-    CloseConnectionWithDetails(
-        QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM,
-        "Data received on write unidirectional stream");
+    OnUnrecoverableError(QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM,
+                         "Data received on write unidirectional stream");
     return;
   }
 
@@ -413,7 +409,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
                   << " reaches max stream length. frame offset " << frame.offset
                   << " length " << frame.data_length << ". "
                   << sequencer_.DebugString();
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_STREAM_LENGTH_OVERFLOW,
         quiche::QuicheStrCat("Peer sends more data than allowed on stream ",
                              id_, ". frame: offset = ", frame.offset,
@@ -423,7 +419,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
         quiche::QuicheStrCat(
             "Stream ", id_,
@@ -459,9 +455,8 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
     // violation of flow control.
     if (flow_controller_->FlowControlViolation() ||
         connection_flow_controller_->FlowControlViolation()) {
-      CloseConnectionWithDetails(
-          QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
-          "Flow control violation after increasing offset");
+      OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                           "Flow control violation after increasing offset");
       return;
     }
   }
@@ -481,8 +476,8 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   rst_received_ = true;
   if (frame.byte_offset > kMaxStreamLength) {
     // Peer are not suppose to write bytes more than maxium allowed.
-    CloseConnectionWithDetails(QUIC_STREAM_LENGTH_OVERFLOW,
-                               "Reset frame stream offset overflow.");
+    OnUnrecoverableError(QUIC_STREAM_LENGTH_OVERFLOW,
+                         "Reset frame stream offset overflow.");
     return;
   }
 
@@ -490,7 +485,7 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
       std::numeric_limits<QuicStreamOffset>::max();
   if (sequencer()->close_offset() != kMaxOffset &&
       frame.byte_offset != sequencer()->close_offset()) {
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_STREAM_MULTIPLE_OFFSET,
         quiche::QuicheStrCat("Stream ", id_,
                              " received new final offset: ", frame.byte_offset,
@@ -502,9 +497,8 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
   if (flow_controller_->FlowControlViolation() ||
       connection_flow_controller_->FlowControlViolation()) {
-    CloseConnectionWithDetails(
-        QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
-        "Flow control violation after increasing offset");
+    OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
+                         "Flow control violation after increasing offset");
     return;
   }
 
@@ -549,8 +543,8 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
   rst_sent_ = true;
 }
 
-void QuicStream::CloseConnectionWithDetails(QuicErrorCode error,
-                                            const std::string& details) {
+void QuicStream::OnUnrecoverableError(QuicErrorCode error,
+                                      const std::string& details) {
   stream_delegate_->OnStreamError(error, details);
 }
 
@@ -583,9 +577,8 @@ void QuicStream::WriteOrBufferData(
     QUIC_DLOG(ERROR) << ENDPOINT
                      << "Attempt to write when the write side is closed";
     if (type_ == READ_UNIDIRECTIONAL) {
-      CloseConnectionWithDetails(
-          QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
-          "Try to send data on read unidirectional stream");
+      OnUnrecoverableError(QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
+                           "Try to send data on read unidirectional stream");
     }
     return;
   }
@@ -600,7 +593,7 @@ void QuicStream::WriteOrBufferData(
     QuicStreamOffset offset = send_buffer_.stream_offset();
     if (kMaxStreamLength - offset < data.length()) {
       QUIC_BUG << "Write too many data via stream " << id_;
-      CloseConnectionWithDetails(
+      OnUnrecoverableError(
           QUIC_STREAM_LENGTH_OVERFLOW,
           quiche::QuicheStrCat("Write too many data via stream ", id_));
       return;
@@ -678,9 +671,8 @@ QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
     QUIC_DLOG(ERROR) << ENDPOINT << "Stream " << id()
                      << " attempting to write when the write side is closed";
     if (type_ == READ_UNIDIRECTIONAL) {
-      CloseConnectionWithDetails(
-          QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
-          "Try to send data on read unidirectional stream");
+      OnUnrecoverableError(QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM,
+                           "Try to send data on read unidirectional stream");
     }
     return consumed_data;
   }
@@ -695,7 +687,7 @@ QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
       if (offset > send_buffer_.stream_offset() ||
           kMaxStreamLength < send_buffer_.stream_offset()) {
         QUIC_BUG << "Write too many data via stream " << id_;
-        CloseConnectionWithDetails(
+        OnUnrecoverableError(
             QUIC_STREAM_LENGTH_OVERFLOW,
             quiche::QuicheStrCat("Write too many data via stream ", id_));
         return consumed_data;
@@ -805,7 +797,7 @@ void QuicStream::OnClose() {
 
 void QuicStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
   if (type_ == READ_UNIDIRECTIONAL) {
-    CloseConnectionWithDetails(
+    OnUnrecoverableError(
         QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
         "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.");
     return;
@@ -882,13 +874,11 @@ bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
   *newly_acked_length = 0;
   if (!send_buffer_.OnStreamDataAcked(offset, data_length,
                                       newly_acked_length)) {
-    CloseConnectionWithDetails(QUIC_INTERNAL_ERROR,
-                               "Trying to ack unsent data.");
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR, "Trying to ack unsent data.");
     return false;
   }
   if (!fin_sent_ && fin_acked) {
-    CloseConnectionWithDetails(QUIC_INTERNAL_ERROR,
-                               "Trying to ack unsent fin.");
+    OnUnrecoverableError(QUIC_INTERNAL_ERROR, "Trying to ack unsent fin.");
     return false;
   }
   // Indicates whether ack listener's OnPacketAcked should be called.

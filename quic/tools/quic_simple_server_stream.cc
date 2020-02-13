@@ -183,7 +183,7 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
 
   if (response->response_type() == QuicBackendResponse::CLOSE_CONNECTION) {
     QUIC_DVLOG(1) << "Special response: closing connection.";
-    CloseConnectionWithDetails(QUIC_NO_ERROR, "Toy server forcing close");
+    OnUnrecoverableError(QUIC_NO_ERROR, "Toy server forcing close");
     return;
   }
 

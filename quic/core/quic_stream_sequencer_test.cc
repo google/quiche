@@ -33,7 +33,7 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
  public:
   MOCK_METHOD0(OnFinRead, void());
   MOCK_METHOD0(OnDataAvailable, void());
-  MOCK_METHOD2(CloseConnectionWithDetails,
+  MOCK_METHOD2(OnUnrecoverableError,
                void(QuicErrorCode error, const std::string& details));
   MOCK_METHOD1(Reset, void(QuicRstStreamErrorCode error));
   MOCK_METHOD0(OnCanWrite, void());
@@ -250,8 +250,7 @@ TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameAndFinConsumed) {
 }
 
 TEST_F(QuicStreamSequencerTest, EmptyFrame) {
-  EXPECT_CALL(stream_,
-              CloseConnectionWithDetails(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _));
+  EXPECT_CALL(stream_, OnUnrecoverableError(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _));
   OnFrame(0, "");
   EXPECT_EQ(0u, NumBufferedBytes());
   EXPECT_EQ(0u, sequencer_->NumBytesConsumed());
@@ -375,7 +374,7 @@ TEST_F(QuicStreamSequencerTest, MultipleOffsets) {
   OnFinFrame(3, "");
   EXPECT_EQ(3u, QuicStreamSequencerPeer::GetCloseOffset(sequencer_.get()));
 
-  EXPECT_CALL(stream_, CloseConnectionWithDetails(
+  EXPECT_CALL(stream_, OnUnrecoverableError(
                            QUIC_STREAM_SEQUENCER_INVALID_STATE,
                            "Stream 1 received new final offset: 1, which is "
                            "different from close offset: 3"));
@@ -612,8 +611,7 @@ TEST_F(QuicStreamSequencerTest, OverlappingFramesReceived) {
   sequencer_->OnStreamFrame(frame1);
 
   QuicStreamFrame frame2(id, false, 2, quiche::QuicheStringPiece("hello"));
-  EXPECT_CALL(stream_,
-              CloseConnectionWithDetails(QUIC_OVERLAPPING_STREAM_DATA, _))
+  EXPECT_CALL(stream_, OnUnrecoverableError(QUIC_OVERLAPPING_STREAM_DATA, _))
       .Times(0);
   sequencer_->OnStreamFrame(frame2);
 }
@@ -751,7 +749,7 @@ TEST_F(QuicStreamSequencerTest, StopReadingWithLevelTriggered) {
 
 // Regression test for https://crbug.com/992486.
 TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
-  EXPECT_CALL(stream_, CloseConnectionWithDetails(
+  EXPECT_CALL(stream_, OnUnrecoverableError(
                            QUIC_STREAM_SEQUENCER_INVALID_STATE,
                            "Stream 1 received new final offset: 1, which is "
                            "different from close offset: 2"));
@@ -764,7 +762,7 @@ TEST_F(QuicStreamSequencerTest, CorruptFinFrames) {
 // Regression test for crbug.com/1015693
 TEST_F(QuicStreamSequencerTest, ReceiveFinLessThanHighestOffset) {
   EXPECT_CALL(stream_, OnDataAvailable()).Times(1);
-  EXPECT_CALL(stream_, CloseConnectionWithDetails(
+  EXPECT_CALL(stream_, OnUnrecoverableError(
                            QUIC_STREAM_SEQUENCER_INVALID_STATE,
                            "Stream 1 received fin with offset: 0, which "
                            "reduces current highest offset: 3"));

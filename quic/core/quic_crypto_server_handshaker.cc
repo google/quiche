@@ -101,15 +101,14 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
 
   // Do not process handshake messages after the handshake is confirmed.
   if (one_rtt_keys_available_) {
-    stream_->CloseConnectionWithDetails(
-        QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
-        "Unexpected handshake message from client");
+    stream_->OnUnrecoverableError(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
+                                  "Unexpected handshake message from client");
     return;
   }
 
   if (message.tag() != kCHLO) {
-    stream_->CloseConnectionWithDetails(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-                                        "Handshake packet not CHLO");
+    stream_->OnUnrecoverableError(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+                                  "Handshake packet not CHLO");
     return;
   }
 
@@ -118,7 +117,7 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
     // Already processing some other handshake message.  The protocol
     // does not allow for clients to send multiple handshake messages
     // before the server has a chance to respond.
-    stream_->CloseConnectionWithDetails(
+    stream_->OnUnrecoverableError(
         QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO,
         "Unexpected handshake message while processing CHLO");
     return;
@@ -167,7 +166,7 @@ void QuicCryptoServerHandshaker::
 
   const CryptoHandshakeMessage& message = result.client_hello;
   if (error != QUIC_NO_ERROR) {
-    stream_->CloseConnectionWithDetails(error, error_details);
+    stream_->OnUnrecoverableError(error, error_details);
     return;
   }
 
@@ -187,7 +186,7 @@ void QuicCryptoServerHandshaker::
   const QuicErrorCode process_error =
       config->ProcessPeerHello(message, CLIENT, &process_error_details);
   if (process_error != QUIC_NO_ERROR) {
-    stream_->CloseConnectionWithDetails(process_error, process_error_details);
+    stream_->OnUnrecoverableError(process_error, process_error_details);
     return;
   }
 

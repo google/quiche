@@ -26,13 +26,11 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
 
   void OnError(HttpDecoder* decoder) override {
-    stream_->session()->connection()->CloseConnection(
-        decoder->error(), decoder->error_detail(),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    stream_->OnUnrecoverableError(decoder->error(), decoder->error_detail());
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Cancel Push");
+    OnWrongFrame("Cancel Push");
     return false;
   }
 
@@ -41,13 +39,13 @@ class QuicReceiveControlStream::HttpDecoderVisitor
       stream_->spdy_session()->SetMaxAllowedPushId(frame.push_id);
       return true;
     }
-    CloseConnectionOnWrongFrame("Max Push Id");
+    OnWrongFrame("Max Push Id");
     return false;
   }
 
   bool OnGoAwayFrame(const GoAwayFrame& frame) override {
     if (stream_->spdy_session()->perspective() == Perspective::IS_SERVER) {
-      CloseConnectionOnWrongFrame("Go Away");
+      OnWrongFrame("Go Away");
       return false;
     }
     stream_->spdy_session()->OnHttp3GoAway(frame.stream_id);
@@ -63,59 +61,59 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
-    CloseConnectionOnWrongFrame("Duplicate Push");
+    OnWrongFrame("Duplicate Push");
     return false;
   }
 
   bool OnDataFrameStart(QuicByteCount /*header_length*/) override {
-    CloseConnectionOnWrongFrame("Data");
+    OnWrongFrame("Data");
     return false;
   }
 
   bool OnDataFramePayload(quiche::QuicheStringPiece /*payload*/) override {
-    CloseConnectionOnWrongFrame("Data");
+    OnWrongFrame("Data");
     return false;
   }
 
   bool OnDataFrameEnd() override {
-    CloseConnectionOnWrongFrame("Data");
+    OnWrongFrame("Data");
     return false;
   }
 
   bool OnHeadersFrameStart(QuicByteCount /*header_length*/) override {
-    CloseConnectionOnWrongFrame("Headers");
+    OnWrongFrame("Headers");
     return false;
   }
 
   bool OnHeadersFramePayload(quiche::QuicheStringPiece /*payload*/) override {
-    CloseConnectionOnWrongFrame("Headers");
+    OnWrongFrame("Headers");
     return false;
   }
 
   bool OnHeadersFrameEnd() override {
-    CloseConnectionOnWrongFrame("Headers");
+    OnWrongFrame("Headers");
     return false;
   }
 
   bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
-    CloseConnectionOnWrongFrame("Push Promise");
+    OnWrongFrame("Push Promise");
     return false;
   }
 
   bool OnPushPromiseFramePushId(PushId /*push_id*/,
                                 QuicByteCount /*push_id_length*/) override {
-    CloseConnectionOnWrongFrame("Push Promise");
+    OnWrongFrame("Push Promise");
     return false;
   }
 
   bool OnPushPromiseFramePayload(
       quiche::QuicheStringPiece /*payload*/) override {
-    CloseConnectionOnWrongFrame("Push Promise");
+    OnWrongFrame("Push Promise");
     return false;
   }
 
   bool OnPushPromiseFrameEnd() override {
-    CloseConnectionOnWrongFrame("Push Promise");
+    OnWrongFrame("Push Promise");
     return false;
   }
 
@@ -144,8 +142,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
  private:
-  void CloseConnectionOnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    stream_->CloseConnectionWithDetails(
+  void OnWrongFrame(quiche::QuicheStringPiece frame_type) {
+    stream_->OnUnrecoverableError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
         quiche::QuicheStrCat(frame_type, " frame received on control stream"));
   }

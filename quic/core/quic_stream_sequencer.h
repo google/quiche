@@ -42,8 +42,8 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
     virtual void Reset(QuicRstStreamErrorCode error) = 0;
     // Called when an error has occurred which should result in the connection
     // being closed.
-    virtual void CloseConnectionWithDetails(QuicErrorCode error,
-                                            const std::string& details) = 0;
+    virtual void OnUnrecoverableError(QuicErrorCode error,
+                                      const std::string& details) = 0;
 
     // Returns the stream id of this stream.
     virtual QuicStreamId id() const = 0;
