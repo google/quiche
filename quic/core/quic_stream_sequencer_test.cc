@@ -40,14 +40,6 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
   MOCK_METHOD1(AddBytesConsumed, void(QuicByteCount bytes));
 
   QuicStreamId id() const override { return 1; }
-
-  const QuicSocketAddress& PeerAddressOfLatestPacket() const override {
-    return peer_address_;
-  }
-
- protected:
-  QuicSocketAddress peer_address_ =
-      QuicSocketAddress(QuicIpAddress::Any4(), 65535);
 };
 
 namespace {

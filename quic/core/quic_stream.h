@@ -62,7 +62,6 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
   QuicStreamId id() const override;
-  const QuicSocketAddress& PeerAddressOfLatestPacket() const override;
 
   // Buffers the contents of |frame|. Frame must have a non-zero offset.
   // If the data violates flow control, the connection will be closed.
@@ -157,9 +156,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // this end.
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
-
-  // Get peer IP of the lastest packet which connection is dealing/delt with.
-  const QuicSocketAddress& PeerAddressOfLatestPacket() const override;
 
   // Called by the session when a (potentially duplicate) stream frame has been
   // received for this stream.

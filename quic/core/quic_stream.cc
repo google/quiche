@@ -156,10 +156,6 @@ QuicStreamId PendingStream::id() const {
   return id_;
 }
 
-const QuicSocketAddress& PendingStream::PeerAddressOfLatestPacket() const {
-  return session_->connection()->last_packet_source_address();
-}
-
 void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_EQ(frame.stream_id, id_);
 
@@ -758,10 +754,6 @@ HandshakeProtocol QuicStream::handshake_protocol() const {
 void QuicStream::StopReading() {
   QUIC_DVLOG(1) << ENDPOINT << "Stop reading from stream " << id();
   sequencer_.StopReading();
-}
-
-const QuicSocketAddress& QuicStream::PeerAddressOfLatestPacket() const {
-  return session_->connection()->last_packet_source_address();
 }
 
 void QuicStream::OnClose() {

@@ -68,10 +68,9 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
       byte_offset, quiche::QuicheStringPiece(data_buffer, data_len),
       &bytes_written, &error_details);
   if (result != QUIC_NO_ERROR) {
-    std::string details = quiche::QuicheStrCat(
-        "Stream ", stream_->id(), ": ", QuicErrorCodeToString(result), ": ",
-        error_details,
-        "\nPeer Address: ", stream_->PeerAddressOfLatestPacket().ToString());
+    std::string details = quiche::QuicheStrCat("Stream ", stream_->id(), ": ",
+                                               QuicErrorCodeToString(result),
+                                               ": ", error_details);
     QUIC_LOG_FIRST_N(WARNING, 50) << QuicErrorCodeToString(result);
     QUIC_LOG_FIRST_N(WARNING, 50) << details;
     stream_->OnUnrecoverableError(result, details);
