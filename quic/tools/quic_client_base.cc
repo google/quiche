@@ -72,8 +72,9 @@ bool QuicClientBase::Initialize() {
 bool QuicClientBase::Connect() {
   // Attempt multiple connects until the maximum number of client hellos have
   // been sent.
+  int num_attempts = 0;
   while (!connected() &&
-         GetNumSentClientHellos() <= QuicCryptoClientStream::kMaxClientHellos) {
+         num_attempts <= QuicCryptoClientStream::kMaxClientHellos) {
     StartConnect();
     while (EncryptionBeingEstablished()) {
       WaitForEvents();
@@ -84,6 +85,7 @@ bool QuicClientBase::Connect() {
       // cannot reconnect with a different version.  Give up trying.
       break;
     }
+    num_attempts++;
   }
   return session()->connection()->connected();
 }
