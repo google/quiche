@@ -798,9 +798,7 @@ TEST_F(QuicSentPacketManagerTest, RttWithDeltaExceedingLimit) {
                                    ENCRYPTION_FORWARD_SECURE));
 
   QuicTime::Delta expected_rtt_sample =
-      GetQuicReloadableFlag(quic_sanitize_ack_delay)
-          ? send_delta - manager_.peer_max_ack_delay()
-          : send_delta - ack_delay;
+      send_delta - manager_.peer_max_ack_delay();
   EXPECT_EQ(expected_rtt_sample, manager_.GetRttStats()->latest_rtt());
 }
 

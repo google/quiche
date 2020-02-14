@@ -641,9 +641,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if any 1-RTT packet gets acknowledged.
   bool one_rtt_packet_acked_;
-
-  // Latched value of quic_sanitize_ack_delay.
-  const bool sanitize_ack_delay_;
 };
 
 }  // namespace quic
