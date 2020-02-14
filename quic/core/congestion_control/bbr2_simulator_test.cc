@@ -784,12 +784,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
       {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)});
 
   QuicByteCount inflight_hi = sender_->ExportDebugState().inflight_hi;
-  if (GetQuicReloadableFlag(quic_bbr2_cut_inflight_hi_gradually)) {
-    EXPECT_LT(2 * kDefaultMaxPacketSize, inflight_hi);
-  } else {
-    // Bytes inflight at send.
-    EXPECT_EQ(2 * kDefaultMaxPacketSize, inflight_hi);
-  }
+  EXPECT_LT(2 * kDefaultMaxPacketSize, inflight_hi);
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:
