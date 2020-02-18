@@ -1083,11 +1083,9 @@ void QuicSession::OnConfigNegotiated() {
         // Enable LIFO write scheduler.
         write_blocked_streams_.SwitchWriteScheduler(
             spdy::WriteSchedulerType::LIFO, transport_version());
-      } else if (GetQuicReloadableFlag(quic_enable_rr_write_scheduler) &&
-                 ContainsQuicTag(config_.ReceivedConnectionOptions(), kRRWS) &&
+      } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kRRWS) &&
                  write_blocked_streams_.scheduler_type() ==
                      spdy::WriteSchedulerType::SPDY) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_enable_rr_write_scheduler);
         enable_round_robin_scheduling_ = true;
       }
     }

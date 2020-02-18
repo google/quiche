@@ -1053,7 +1053,6 @@ TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
     // IETF QUIC currently doesn't support PRIORITY.
     return;
   }
-  SetQuicReloadableFlag(quic_enable_rr_write_scheduler, true);
   QuicTagVector copt;
   copt.push_back(kRRWS);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
