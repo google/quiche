@@ -39,7 +39,6 @@ void GeneralLossAlgorithm::DetectLosses(
       // do not use this optimization if largest_newly_acked is not the largest
       // packet in packets_acked.
       least_in_flight_ = largest_newly_acked + 1;
-      largest_previously_acked_ = largest_newly_acked;
       return;
     }
     // There is hole in acked_packets, increment least_in_flight_ if possible.
@@ -97,18 +96,11 @@ void GeneralLossAlgorithm::DetectLosses(
       break;
     }
     packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
-    continue;
-
-    if (!least_in_flight_.IsInitialized()) {
-      // At this point, packet_number is in flight and not detected as lost.
-      least_in_flight_ = packet_number;
-    }
   }
   if (!least_in_flight_.IsInitialized()) {
     // There is no in flight packet.
     least_in_flight_ = largest_newly_acked + 1;
   }
-  largest_previously_acked_ = largest_newly_acked;
 }
 
 QuicTime GeneralLossAlgorithm::GetLossTimeout() const {

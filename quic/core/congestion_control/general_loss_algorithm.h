@@ -81,8 +81,6 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   bool use_adaptive_reordering_threshold_;
   // If true, uses adaptive time threshold for time based loss detection.
   bool use_adaptive_time_threshold_;
-  // The largest newly acked from the previous call to DetectLosses.
-  QuicPacketNumber largest_previously_acked_;
   // The least in flight packet. Loss detection should start from this. Please
   // note, least_in_flight_ could be largest packet ever sent + 1.
   QuicPacketNumber least_in_flight_;
