@@ -16,8 +16,6 @@ void QuicStreamSendBufferPeer::SetStreamOffset(
   send_buffer->stream_offset_ = stream_offset;
 }
 
-// TODO(b/144690240): Remove CurrentWriteSlice when deprecating
-// --quic_interval_deque
 // static
 const BufferedSlice* QuicStreamSendBufferPeer::CurrentWriteSlice(
     QuicStreamSendBuffer* send_buffer) {
@@ -26,34 +24,21 @@ const BufferedSlice* QuicStreamSendBufferPeer::CurrentWriteSlice(
   if (wi == -1) {
     return nullptr;
   }
-  if (GetQuicReloadableFlag(quic_interval_deque)) {
-    return QuicIntervalDequePeer::GetItem(&send_buffer->interval_deque_, wi);
-  } else {
-    return &send_buffer->buffered_slices_[wi];
-  }
+  return QuicIntervalDequePeer::GetItem(&send_buffer->interval_deque_, wi);
 }
 
 QuicStreamOffset QuicStreamSendBufferPeer::EndOffset(
     QuicStreamSendBuffer* send_buffer) {
-  if (GetQuicReloadableFlag(quic_interval_deque)) {
-    return send_buffer->current_end_offset_;
-  }
-  return 0;
+  return send_buffer->current_end_offset_;
 }
 
 // static
 QuicByteCount QuicStreamSendBufferPeer::TotalLength(
     QuicStreamSendBuffer* send_buffer) {
   QuicByteCount length = 0;
-  if (GetQuicReloadableFlag(quic_interval_deque)) {
-    for (auto slice = send_buffer->interval_deque_.DataBegin();
-         slice != send_buffer->interval_deque_.DataEnd(); ++slice) {
-      length += slice->slice.length();
-    }
-  } else {
-    for (const auto& slice : send_buffer->buffered_slices_) {
-      length += slice.slice.length();
-    }
+  for (auto slice = send_buffer->interval_deque_.DataBegin();
+       slice != send_buffer->interval_deque_.DataEnd(); ++slice) {
+    length += slice->slice.length();
   }
   return length;
 }
@@ -61,11 +46,7 @@ QuicByteCount QuicStreamSendBufferPeer::TotalLength(
 // static
 int32_t QuicStreamSendBufferPeer::write_index(
     QuicStreamSendBuffer* send_buffer) {
-  if (send_buffer->interval_deque_active_) {
-    return QuicIntervalDequePeer::GetCachedIndex(&send_buffer->interval_deque_);
-  } else {
-    return send_buffer->write_index_;
-  }
+  return QuicIntervalDequePeer::GetCachedIndex(&send_buffer->interval_deque_);
 }
 
 }  // namespace test

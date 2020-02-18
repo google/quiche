@@ -46,14 +46,8 @@ class QuicStreamSendBufferTest : public QuicTest {
     memset(buffer2.get(), 'd', 768);
     QuicMemSlice slice2(std::move(buffer2), 768);
 
-    if (!GetQuicReloadableFlag(quic_interval_deque)) {
-      // Index starts from not pointing to any slice.
-      EXPECT_EQ(nullptr,
-                QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_));
-    } else {
-      // The stream offset should be 0 since nothing is written.
-      EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-    }
+    // The stream offset should be 0 since nothing is written.
+    EXPECT_EQ(0u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 
     // Save all data.
     SetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size, 1024);
@@ -143,27 +137,14 @@ TEST_F(QuicStreamSendBufferTest,
   EXPECT_EQ(copy1 + copy2, quiche::QuicheStringPiece(buf + 1024, 2048));
 
   // Write new data.
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(2, QuicStreamSendBufferPeer::write_index(&send_buffer_));
-    ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
-    EXPECT_EQ(std::string(50, 'c'),
-              quiche::QuicheStringPiece(buf + 1024 + 2048, 50));
-    EXPECT_EQ(2, QuicStreamSendBufferPeer::write_index(&send_buffer_));
-    ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1124, &writer));
-    EXPECT_EQ(copy3, quiche::QuicheStringPiece(buf + 1024 + 2048 + 50, 1124));
-    EXPECT_EQ(3, QuicStreamSendBufferPeer::write_index(&send_buffer_));
-  } else {
-    // if |quic_interval_deque| is true then |write_index_| has no value.
-    // Instead we ensure the |current_end_offet| has an appropriate value.
-    EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-    ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
-    EXPECT_EQ(std::string(50, 'c'),
-              quiche::QuicheStringPiece(buf + 1024 + 2048, 50));
-    EXPECT_EQ(3072u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-    ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1124, &writer));
-    EXPECT_EQ(copy3, quiche::QuicheStringPiece(buf + 1024 + 2048 + 50, 1124));
-    EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
+  ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
+  EXPECT_EQ(std::string(50, 'c'),
+            quiche::QuicheStringPiece(buf + 1024 + 2048, 50));
+  EXPECT_EQ(3072u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
+  ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1124, &writer));
+  EXPECT_EQ(copy3, quiche::QuicheStringPiece(buf + 1024 + 2048 + 50, 1124));
+  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 }
 
 TEST_F(QuicStreamSendBufferTest, RemoveStreamFrame) {
@@ -304,73 +285,37 @@ TEST_F(QuicStreamSendBufferTest, PendingRetransmission) {
   EXPECT_TRUE(send_buffer_.IsStreamDataOutstanding(400, 800));
 }
 
-// TODO(b/144690240): Rename to EndOffset when deprecating --quic_interval_deque
-TEST_F(QuicStreamSendBufferTest, CurrentWriteIndex) {
+TEST_F(QuicStreamSendBufferTest, EndOffset) {
   char buf[4000];
   QuicDataWriter writer(4000, buf, quiche::HOST_BYTE_ORDER);
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    // With data buffered, index points to the 1st slice of data.
-    EXPECT_EQ(
-        0u, QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_)->offset);
-  } else {
-    EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+
+  EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(0, 1024, &writer));
-  // Wrote all data on 1st slice, index points to next slice.
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(
-        1024u,
-        QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_)->offset);
-  } else {
-    // Last offset we've seen is 1024
-    EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+  // Last offset we've seen is 1024
+  EXPECT_EQ(1024u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
+
   ASSERT_TRUE(send_buffer_.WriteStreamData(1024, 512, &writer));
-  // Last write didn't finish a whole slice. Index remains.
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(
-        1024u,
-        QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_)->offset);
-  } else {
-    // Last offset is now 2048 as that's the end of the next slice.
-    EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+  // Last offset is now 2048 as that's the end of the next slice.
+  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   send_buffer_.OnStreamDataConsumed(1024);
 
   // If data in 1st slice gets ACK'ed, it shouldn't change the indexed slice
   QuicByteCount newly_acked_length;
   EXPECT_TRUE(send_buffer_.OnStreamDataAcked(0, 1024, &newly_acked_length));
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(
-        1024u,
-        QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_)->offset);
-  } else {
-    // Last offset is still 2048.
-    EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+  // Last offset is still 2048.
+  EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 
   ASSERT_TRUE(
       send_buffer_.WriteStreamData(1024 + 512, 3840 - 1024 - 512, &writer));
-  // After writing all buffered data, index become invalid again.
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    EXPECT_EQ(nullptr,
-              QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_));
-  } else {
-    // Last offset is end offset of last slice.
-    EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+
+  // Last offset is end offset of last slice.
+  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   QuicUniqueBufferPtr buffer = MakeUniqueBuffer(&allocator_, 60);
   memset(buffer.get(), 'e', 60);
   QuicMemSlice slice(std::move(buffer), 60);
   send_buffer_.SaveMemSlice(std::move(slice));
-  if (!GetQuicReloadableFlag(quic_interval_deque)) {
-    // With new data, index points to the new data.
-    EXPECT_EQ(
-        3840u,
-        QuicStreamSendBufferPeer::CurrentWriteSlice(&send_buffer_)->offset);
-  } else {
-    EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
-  }
+
+  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 }
 
 TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
