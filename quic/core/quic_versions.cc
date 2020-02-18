@@ -92,14 +92,12 @@ bool ParsedQuicVersion::AllowsVariableLengthConnectionIds() const {
 }
 
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
-  DCHECK(IsKnown() ||
-         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
+  DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_48;
 }
 
 bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
-  DCHECK(IsKnown() ||
-         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
+  DCHECK(IsKnown());
   return VersionHasLengthPrefixedConnectionIds(transport_version);
 }
 
@@ -157,8 +155,7 @@ bool ParsedQuicVersion::HasHandshakeDone() const {
 
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
-  DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED ||
-         !GetQuicRestartFlag(quic_fix_handling_of_bad_prox_packet));
+  DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
   return transport_version > QUIC_VERSION_48;
 }
 
