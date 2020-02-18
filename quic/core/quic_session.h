@@ -165,17 +165,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
                                 const QuicSocketAddress& peer_address,
                                 const QuicReceivedPacket& packet);
 
-  // Called by streams when they want to write data to the peer.
-  // Returns a pair with the number of bytes consumed from data, and a boolean
-  // indicating if the fin bit was consumed.  This does not indicate the data
-  // has been sent on the wire: it may have been turned into a packet and queued
-  // if the socket was unexpectedly blocked.
-  virtual QuicConsumedData WritevData(QuicStream* stream,
-                                      QuicStreamId id,
-                                      size_t write_length,
-                                      QuicStreamOffset offset,
-                                      StreamSendingState state);
-
   // Called by application to send |message|. Data copy can be avoided if
   // |message| is provided in reference counted memory.
   // Please note, |message| provided in reference counted memory would be moved
@@ -262,6 +251,17 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,
                      std::string error_details) override;
+
+  // Called by streams when they want to write data to the peer.
+  // Returns a pair with the number of bytes consumed from data, and a boolean
+  // indicating if the fin bit was consumed.  This does not indicate the data
+  // has been sent on the wire: it may have been turned into a packet and queued
+  // if the socket was unexpectedly blocked.
+  QuicConsumedData WritevData(QuicStream* stream,
+                              QuicStreamId id,
+                              size_t write_length,
+                              QuicStreamOffset offset,
+                              StreamSendingState state) override;
 
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(

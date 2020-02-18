@@ -5,9 +5,12 @@
 #ifndef QUICHE_QUIC_CORE_STREAM_DELEGATE_INTERFACE_H_
 #define QUICHE_QUIC_CORE_STREAM_DELEGATE_INTERFACE_H_
 
+#include <cstddef>
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
+
+class QuicStream;
 
 class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
  public:
@@ -16,6 +19,13 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   // Called when the stream has encountered errors that it can't handle.
   virtual void OnStreamError(QuicErrorCode error_code,
                              std::string error_details) = 0;
+
+  // Called when the stream needs to write data.
+  virtual QuicConsumedData WritevData(QuicStream* stream,
+                                      QuicStreamId id,
+                                      size_t write_length,
+                                      QuicStreamOffset offset,
+                                      StreamSendingState state) = 0;
 };
 
 }  // namespace quic
