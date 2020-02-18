@@ -971,7 +971,6 @@ TEST_P(QuicSessionTestServer, Http2Priority) {
     // The test is using HTTP/2 priority which is not supported in IETF QUIC.
     return;
   }
-  SetQuicReloadableFlag(quic_use_http2_priority_write_scheduler, true);
   QuicTagVector copt;
   copt.push_back(kH2PR);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);

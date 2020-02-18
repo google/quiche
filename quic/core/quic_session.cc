@@ -1069,8 +1069,7 @@ void QuicSession::OnConfigNegotiated() {
       if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFWA)) {
         AdjustInitialFlowControlWindows(1024 * 1024);
       }
-      if (GetQuicReloadableFlag(quic_use_http2_priority_write_scheduler) &&
-          ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
+      if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
           !VersionHasIetfQuicFrames(transport_version())) {
         // Enable HTTP2 (tree-style) priority write scheduler.
         use_http2_priority_write_scheduler_ =
