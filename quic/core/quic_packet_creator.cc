@@ -55,11 +55,8 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
 }
 
 void LogCoalesceStreamFrameStatus(bool success) {
-  if (GetQuicReloadableFlag(quic_log_coalesce_stream_frame_frequency)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_log_coalesce_stream_frame_frequency);
-    QUIC_HISTOGRAM_BOOL("QuicSession.CoalesceStreamFrameStatus", success,
-                        "Success rate of coalesing stream frames attempt.");
-  }
+  QUIC_HISTOGRAM_BOOL("QuicSession.CoalesceStreamFrameStatus", success,
+                      "Success rate of coalesing stream frames attempt.");
 }
 
 // ScopedPacketContextSwitcher saves |packet|'s states and change states
