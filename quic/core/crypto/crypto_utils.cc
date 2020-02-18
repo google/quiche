@@ -617,8 +617,9 @@ QuicErrorCode CryptoUtils::ValidateClientHelloVersion(
       if (client_version == CreateQuicVersionLabel(supported_versions[i])) {
         *error_details = quiche::QuicheStrCat(
             "Downgrade attack detected: ClientVersion[",
-            QuicVersionLabelToString(client_version), "] SupportedVersions(",
-            supported_versions.size(), ")[",
+            QuicVersionLabelToString(client_version), "] ConnectionVersion[",
+            ParsedQuicVersionToString(connection_version),
+            "] SupportedVersions(", supported_versions.size(), ")[",
             ParsedQuicVersionVectorToString(supported_versions, ",", 30), "]");
         return QUIC_VERSION_NEGOTIATION_MISMATCH;
       }

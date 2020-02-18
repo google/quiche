@@ -185,7 +185,7 @@ void GenerateFullCHLO(
     QuicCryptoServerConfig* crypto_config,
     QuicSocketAddress server_addr,
     QuicSocketAddress client_addr,
-    QuicTransportVersion version,
+    QuicTransportVersion transport_version,
     const QuicClock* clock,
     QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
     QuicCompressedCertsCache* compressed_certs_cache,

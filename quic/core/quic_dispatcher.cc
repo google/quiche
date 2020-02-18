@@ -631,7 +631,8 @@ void QuicDispatcher::DeleteSessions() {
   if (!write_blocked_list_.empty()) {
     for (const std::unique_ptr<QuicSession>& session : closed_session_list_) {
       if (write_blocked_list_.erase(session->connection()) != 0) {
-        QUIC_BUG << "QuicConnection was in WriteBlockedList before destruction";
+        QUIC_BUG << "QuicConnection was in WriteBlockedList before destruction "
+                 << session->connection()->connection_id();
       }
     }
   }
@@ -942,6 +943,7 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
   std::unique_ptr<QuicSession> session =
       CreateQuicSession(packet_info->destination_connection_id,
                         packet_info->peer_address, alpn, packet_info->version);
+  DCHECK(session);
   if (original_connection_id != packet_info->destination_connection_id) {
     session->connection()->AddIncomingConnectionId(original_connection_id);
     session->connection()->InstallInitialCrypters(original_connection_id);

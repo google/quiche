@@ -107,6 +107,7 @@ class FullChloGenerator {
       QuicSocketAddress server_addr,
       QuicSocketAddress client_addr,
       const QuicClock* clock,
+      ParsedQuicVersion version,
       QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       CryptoHandshakeMessage* out)
@@ -114,6 +115,7 @@ class FullChloGenerator {
         server_addr_(server_addr),
         client_addr_(client_addr),
         clock_(clock),
+        version_(version),
         signed_config_(signed_config),
         compressed_certs_cache_(compressed_certs_cache),
         out_(out),
@@ -145,9 +147,9 @@ class FullChloGenerator {
     result_ = result;
     crypto_config_->ProcessClientHello(
         result_, /*reject_only=*/false, TestConnectionId(1), server_addr_,
-        client_addr_, AllSupportedVersions().front(), AllSupportedVersions(),
-        clock_, QuicRandom::GetInstance(), compressed_certs_cache_, params_,
-        signed_config_, /*total_framing_overhead=*/50, kDefaultMaxPacketSize,
+        client_addr_, version_, {version_}, clock_, QuicRandom::GetInstance(),
+        compressed_certs_cache_, params_, signed_config_,
+        /*total_framing_overhead=*/50, kDefaultMaxPacketSize,
         GetProcessClientHelloCallback());
   }
 
@@ -155,12 +157,14 @@ class FullChloGenerator {
    public:
     explicit ProcessClientHelloCallback(FullChloGenerator* generator)
         : generator_(generator) {}
-    void Run(QuicErrorCode /*error*/,
-             const std::string& /*error_details*/,
+    void Run(QuicErrorCode error,
+             const std::string& error_details,
              std::unique_ptr<CryptoHandshakeMessage> message,
              std::unique_ptr<DiversificationNonce> /*diversification_nonce*/,
              std::unique_ptr<ProofSource::Details> /*proof_source_details*/)
         override {
+      ASSERT_TRUE(message) << QuicErrorCodeToString(error) << " "
+                           << error_details;
       generator_->ProcessClientHelloDone(std::move(message));
     }
 
@@ -200,6 +204,7 @@ class FullChloGenerator {
   QuicSocketAddress server_addr_;
   QuicSocketAddress client_addr_;
   const QuicClock* clock_;
+  ParsedQuicVersion version_;
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
   QuicCompressedCertsCache* compressed_certs_cache_;
   CryptoHandshakeMessage* out_;
@@ -813,21 +818,24 @@ std::string GenerateClientPublicValuesHex() {
                                                    sizeof(public_value)));
 }
 
-void GenerateFullCHLO(const CryptoHandshakeMessage& inchoate_chlo,
-                      QuicCryptoServerConfig* crypto_config,
-                      QuicSocketAddress server_addr,
-                      QuicSocketAddress client_addr,
-                      QuicTransportVersion version,
-                      const QuicClock* clock,
-                      QuicReferenceCountedPointer<QuicSignedServerConfig> proof,
-                      QuicCompressedCertsCache* compressed_certs_cache,
-                      CryptoHandshakeMessage* out) {
+void GenerateFullCHLO(
+    const CryptoHandshakeMessage& inchoate_chlo,
+    QuicCryptoServerConfig* crypto_config,
+    QuicSocketAddress server_addr,
+    QuicSocketAddress client_addr,
+    QuicTransportVersion transport_version,
+    const QuicClock* clock,
+    QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config,
+    QuicCompressedCertsCache* compressed_certs_cache,
+    CryptoHandshakeMessage* out) {
   // Pass a inchoate CHLO.
-  FullChloGenerator generator(crypto_config, server_addr, client_addr, clock,
-                              proof, compressed_certs_cache, out);
+  FullChloGenerator generator(
+      crypto_config, server_addr, client_addr, clock,
+      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version), signed_config,
+      compressed_certs_cache, out);
   crypto_config->ValidateClientHello(
-      inchoate_chlo, client_addr.host(), server_addr, version, clock, proof,
-      generator.GetValidateClientHelloCallback());
+      inchoate_chlo, client_addr.host(), server_addr, transport_version, clock,
+      signed_config, generator.GetValidateClientHelloCallback());
 }
 
 }  // namespace crypto_test_utils
