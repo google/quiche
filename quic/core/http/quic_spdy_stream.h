@@ -140,6 +140,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
                           QuicByteCount data_length,
                           bool fin_acked,
                           QuicTime::Delta ack_delay_time,
+                          QuicTime receive_timestamp,
                           QuicByteCount* newly_acked_length) override;
 
   // Override to report bytes retransmitted via ack_listener_.

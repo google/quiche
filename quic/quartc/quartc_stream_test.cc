@@ -565,7 +565,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
   // the stream.
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(0, 7, false, QuicTime::Delta::FromMilliseconds(1),
-                              &newly_acked_length);
+                              QuicTime::Zero(), &newly_acked_length);
   EXPECT_EQ(7u, newly_acked_length);
   stream_->OnCanWrite();
 

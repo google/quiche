@@ -374,7 +374,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   // Ack [2000, 2500).
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(2000, 500, false, QuicTime::Delta::Zero(),
-                              &newly_acked_length);
+                              QuicTime::Zero(), &newly_acked_length);
   EXPECT_EQ(500u, newly_acked_length);
 
   // Force crypto stream to send [1350, 2700) and only [1350, 1500) is consumed.

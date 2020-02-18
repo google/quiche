@@ -297,6 +297,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
                                   QuicByteCount data_length,
                                   bool fin_acked,
                                   QuicTime::Delta ack_delay_time,
+                                  QuicTime receive_timestamp,
                                   QuicByteCount* newly_acked_length);
 
   // Called when data [offset, offset + data_length) was retransmitted.

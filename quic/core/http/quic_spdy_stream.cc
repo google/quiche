@@ -881,9 +881,11 @@ bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         bool fin_acked,
                                         QuicTime::Delta ack_delay_time,
+                                        QuicTime receive_timestamp,
                                         QuicByteCount* newly_acked_length) {
   const bool new_data_acked = QuicStream::OnStreamFrameAcked(
-      offset, data_length, fin_acked, ack_delay_time, newly_acked_length);
+      offset, data_length, fin_acked, ack_delay_time, receive_timestamp,
+      newly_acked_length);
 
   const QuicByteCount newly_acked_header_length =
       GetNumFrameHeadersInInterval(offset, data_length);

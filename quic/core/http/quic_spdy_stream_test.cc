@@ -1646,6 +1646,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   // Stream is not waiting for acks as all sent data is acked.
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1667,6 +1668,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   // kData2 is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   // Stream is waiting for acks as FIN is not acked.
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -1675,6 +1677,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   // FIN is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_FALSE(stream_->IsWaitingForAcks());
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1696,16 +1699,19 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   QuicByteCount newly_acked_length = 0;
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_EQ(2u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [9, 22) 13 bytes are acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(13, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(5, 17, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [22, 26) 4 bytes are acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(4, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 8, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -1714,6 +1720,7 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // Verify [26, 27) 1 byte is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(1, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(26, 1, false, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -1721,6 +1728,7 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // Ack Fin. Verify OnPacketAcked is called.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
+                                          QuicTime::Zero(),
                                           &newly_acked_length));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1728,8 +1736,9 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // Ack [10, 27) and fin.
   // No new data is acked, verify OnPacketAcked is not called.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(_, _)).Times(0);
-  EXPECT_FALSE(stream_->OnStreamFrameAcked(
-      10, 17, true, QuicTime::Delta::Zero(), &newly_acked_length));
+  EXPECT_FALSE(
+      stream_->OnStreamFrameAcked(10, 17, true, QuicTime::Delta::Zero(),
+                                  QuicTime::Zero(), &newly_acked_length));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_FALSE(stream_->IsWaitingForAcks());
 }
