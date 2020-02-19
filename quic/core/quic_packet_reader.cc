@@ -228,9 +228,6 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
     return false;  // recvmmsg failed.
   }
 
-  bool use_quic_time =
-      GetQuicReloadableFlag(quic_use_quic_time_for_received_timestamp);
-  QuicTime fallback_timestamp(QuicTime::Zero());
   QuicWallTime fallback_walltimestamp = QuicWallTime::Zero();
   for (int i = 0; i < packets_read; ++i) {
     if (mmsg_hdr_[i].msg_len == 0) {
@@ -264,29 +261,14 @@ bool QuicPacketReader::ReadAndDispatchManyPackets(
       continue;
     }
 
-    // This isn't particularly desirable, but not all platforms support socket
-    // timestamping.
-    QuicTime timestamp(QuicTime::Zero());
-    if (!use_quic_time) {
-      if (packet_walltimestamp.IsZero()) {
-        if (fallback_walltimestamp.IsZero()) {
-          fallback_walltimestamp = clock.WallNow();
-        }
-        packet_walltimestamp = fallback_walltimestamp;
+    if (packet_walltimestamp.IsZero()) {
+      if (fallback_walltimestamp.IsZero()) {
+        fallback_walltimestamp = clock.WallNow();
       }
-      timestamp = clock.ConvertWallTimeToQuicTime(packet_walltimestamp);
-
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_use_quic_time_for_received_timestamp);
-      if (packet_walltimestamp.IsZero()) {
-        if (!fallback_timestamp.IsInitialized()) {
-          fallback_timestamp = clock.Now();
-        }
-        timestamp = fallback_timestamp;
-      } else {
-        timestamp = clock.ConvertWallTimeToQuicTime(packet_walltimestamp);
-      }
+      packet_walltimestamp = fallback_walltimestamp;
     }
+    QuicTime timestamp = clock.ConvertWallTimeToQuicTime(packet_walltimestamp);
+
     int ttl = 0;
     bool has_ttl =
         QuicSocketUtils::GetTtlFromMsghdr(&mmsg_hdr_[i].msg_hdr, &ttl);
