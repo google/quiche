@@ -346,4 +346,8 @@ QuicPacketNumber QuicReceivedPacketManager::PeerFirstSendingPacketNumber()
   return least_received_packet_number_;
 }
 
+bool QuicReceivedPacketManager::IsAckFrameEmpty() const {
+  return ack_frame_.packets.Empty();
+}
+
 }  // namespace quic

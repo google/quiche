@@ -70,6 +70,9 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   // Get the earliest ack_timeout of all packet number spaces.
   QuicTime GetEarliestAckTimeout() const;
 
+  // Return true if ack frame of |packet_number_space| is empty.
+  bool IsAckFrameEmpty(PacketNumberSpace packet_number_space) const;
+
   QuicPacketNumber peer_least_packet_awaiting_ack() const;
 
   size_t min_received_before_ack_decimation() const;

@@ -134,7 +134,9 @@ class UberReceivedPacketManagerTest : public QuicTest {
 };
 
 TEST_F(UberReceivedPacketManagerTest, DontWaitForPacketsBefore) {
+  EXPECT_TRUE(manager_->IsAckFrameEmpty(APPLICATION_DATA));
   RecordPacketReceipt(2);
+  EXPECT_FALSE(manager_->IsAckFrameEmpty(APPLICATION_DATA));
   RecordPacketReceipt(7);
   EXPECT_TRUE(manager_->IsAwaitingPacket(ENCRYPTION_FORWARD_SECURE,
                                          QuicPacketNumber(3u)));

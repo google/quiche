@@ -168,6 +168,14 @@ QuicTime UberReceivedPacketManager::GetEarliestAckTimeout() const {
   return ack_timeout;
 }
 
+bool UberReceivedPacketManager::IsAckFrameEmpty(
+    PacketNumberSpace packet_number_space) const {
+  if (!supports_multiple_packet_number_spaces_) {
+    return received_packet_managers_[0].IsAckFrameEmpty();
+  }
+  return received_packet_managers_[packet_number_space].IsAckFrameEmpty();
+}
+
 QuicPacketNumber UberReceivedPacketManager::peer_least_packet_awaiting_ack()
     const {
   DCHECK(!supports_multiple_packet_number_spaces_);

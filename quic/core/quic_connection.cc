@@ -67,7 +67,6 @@ class AckAlarmDelegate : public QuicAlarm::Delegate {
     if (connection_->SupportsMultiplePacketNumberSpaces()) {
       connection_->SendAllPendingAcks();
     } else {
-      DCHECK(!connection_->GetUpdatedAckFrame().ack_frame->packets.Empty());
       connection_->SendAck();
     }
   }
@@ -1515,6 +1514,9 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
 }
 
 const QuicFrame QuicConnection::GetUpdatedAckFrame() {
+  DCHECK(!uber_received_packet_manager_.IsAckFrameEmpty(
+      QuicUtils::GetPacketNumberSpace(encryption_level_)))
+      << "Try to retrieve an empty ACK frame";
   return uber_received_packet_manager_.GetUpdatedAckFrame(
       QuicUtils::GetPacketNumberSpace(encryption_level_),
       clock_->ApproximateNow());
@@ -2919,7 +2921,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     ScopedPacketFlusher flusher(this);
     // Always bundle an ACK with connection close for debugging purpose.
     if (error != QUIC_PACKET_WRITE_ERROR &&
-        !GetUpdatedAckFrame().ack_frame->packets.Empty()) {
+        !uber_received_packet_manager_.IsAckFrameEmpty(
+            QuicUtils::GetPacketNumberSpace(encryption_level_))) {
       SendAck();
     }
     QuicConnectionCloseFrame* frame;
@@ -2955,13 +2958,12 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     SetDefaultEncryptionLevel(level);
     // Bundle an ACK of the corresponding packet number space for debugging
     // purpose.
-    if (error != QUIC_PACKET_WRITE_ERROR) {
-      const QuicFrame ack_frame = GetUpdatedAckFrame();
-      if (!ack_frame.ack_frame->packets.Empty()) {
-        QuicFrames frames;
-        frames.push_back(ack_frame);
-        packet_creator_.FlushAckFrame(frames);
-      }
+    if (error != QUIC_PACKET_WRITE_ERROR &&
+        !uber_received_packet_manager_.IsAckFrameEmpty(
+            QuicUtils::GetPacketNumberSpace(encryption_level_))) {
+      QuicFrames frames;
+      frames.push_back(GetUpdatedAckFrame());
+      packet_creator_.FlushAckFrame(frames);
     }
 
     auto* frame =

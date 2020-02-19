@@ -90,6 +90,9 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // received.
   QuicPacketNumber PeerFirstSendingPacketNumber() const;
 
+  // Returns true if ack frame is empty.
+  bool IsAckFrameEmpty() const;
+
   void set_connection_stats(QuicConnectionStats* stats) { stats_ = stats; }
 
   // For logging purposes.
