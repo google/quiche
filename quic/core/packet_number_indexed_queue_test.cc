@@ -178,8 +178,10 @@ TEST_F(PacketNumberIndexedQueueTest, RemoveUpTo) {
   EXPECT_EQ(QuicPacketNumber(1001u), queue_.first_packet());
   EXPECT_EQ(2u, queue_.number_of_present_entries());
 
+  // Remove up to 1100, since [1100, 2001) are !present, they should be cleaned
+  // up from the front.
   queue_.RemoveUpTo(QuicPacketNumber(1100));
-  EXPECT_EQ(QuicPacketNumber(1100u), queue_.first_packet());
+  EXPECT_EQ(QuicPacketNumber(2001u), queue_.first_packet());
   EXPECT_EQ(1u, queue_.number_of_present_entries());
 
   queue_.RemoveUpTo(QuicPacketNumber(2001));

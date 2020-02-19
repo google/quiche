@@ -63,6 +63,8 @@ class QUIC_NO_EXPORT PacketNumberIndexedQueue {
   bool Remove(QuicPacketNumber packet_number, Function f);
 
   // Remove up to, but not including |packet_number|.
+  // Unused slots in the front are also removed, which means when the function
+  // returns, |first_packet()| can be larger than |packet_number|.
   void RemoveUpTo(QuicPacketNumber packet_number);
 
   bool IsEmpty() const { return number_of_present_entries_ == 0; }
@@ -209,9 +211,7 @@ void PacketNumberIndexedQueue<T>::RemoveUpTo(QuicPacketNumber packet_number) {
     entries_.pop_front();
     first_packet_++;
   }
-  if (entries_.empty()) {
-    first_packet_.Clear();
-  }
+  Cleanup();
 }
 
 template <typename T>
