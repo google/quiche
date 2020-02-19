@@ -104,7 +104,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
       num_tlp_timeout_ptos_(0),
-      one_rtt_packet_acked_(false) {
+      one_rtt_packet_acked_(false),
+      one_rtt_packet_sent_(false) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -475,22 +476,31 @@ QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
   for (int8_t i = 0; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     const QuicTime sent_time = unacked_packets_.GetLastInFlightPacketSentTime(
         static_cast<PacketNumberSpace>(i));
-    if (!earliest_sent_time.IsInitialized()) {
-      earliest_sent_time = sent_time;
-      *packet_number_space = static_cast<PacketNumberSpace>(i);
+    if (!ShouldArmPtoForApplicationData() && i == APPLICATION_DATA) {
       continue;
     }
-    if (i == APPLICATION_DATA) {
-      // Not arming PTO for application data to prioritize the completion of
-      // handshake.
-      break;
+    if (!sent_time.IsInitialized() || (earliest_sent_time.IsInitialized() &&
+                                       earliest_sent_time <= sent_time)) {
+      continue;
     }
-    if (sent_time.IsInitialized()) {
-      earliest_sent_time = std::min(earliest_sent_time, sent_time);
-      *packet_number_space = static_cast<PacketNumberSpace>(i);
-    }
+    earliest_sent_time = sent_time;
+    *packet_number_space = static_cast<PacketNumberSpace>(i);
   }
+
   return earliest_sent_time;
+}
+
+bool QuicSentPacketManager::ShouldArmPtoForApplicationData() const {
+  DCHECK(supports_multiple_packet_number_spaces());
+  // Application data must be ignored before handshake completes (1-RTT key
+  // is available). Not arming PTO for application data to prioritize the
+  // completion of handshake. On the server side, handshake_finished_
+  // indicates handshake complete (and confirmed). On the client side,
+  // one_rtt_packet_sent_ indicates handshake complete (while handshake
+  // confirmation will happen later).
+  return handshake_finished_ ||
+         (unacked_packets_.perspective() == Perspective::IS_CLIENT &&
+          one_rtt_packet_sent_);
 }
 
 void QuicSentPacketManager::MarkForRetransmission(
@@ -633,6 +643,10 @@ bool QuicSentPacketManager::OnPacketSent(
     send_algorithm_->OnPacketSent(
         sent_time, unacked_packets_.bytes_in_flight(), packet_number,
         serialized_packet->encrypted_length, has_retransmittable_data);
+  }
+
+  if (serialized_packet->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+    one_rtt_packet_sent_ = true;
   }
 
   unacked_packets_.AddSentPacket(serialized_packet, transmission_type,

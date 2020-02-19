@@ -3210,6 +3210,7 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
                        QuicTime::Delta::Zero(), QuicTime::Zero());
   QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
 
   // Send packet 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
@@ -3247,10 +3248,9 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   EXPECT_EQ(packet3_sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
 
-  // Send packet 4 in application data.
+  // Send packet 4 in application data with 0-RTT.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
-  SendDataPacket(4, ENCRYPTION_FORWARD_SECURE);
-  const QuicTime packet4_sent_time = clock_.Now();
+  SendDataPacket(4, ENCRYPTION_ZERO_RTT);
   // Verify PTO timeout is still based on packet 3.
   EXPECT_EQ(packet3_sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
@@ -3258,14 +3258,31 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   // Send packet 5 in handshake.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   SendDataPacket(5, ENCRYPTION_HANDSHAKE);
-  // Verify PTO timeout is now based on packet 5.
+  const QuicTime packet5_sent_time = clock_.Now();
+  // Verify PTO timeout is now based on packet 5 because packet 4 should be
+  // ignored.
   EXPECT_EQ(clock_.Now() + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 6 in 1-RTT.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(6, ENCRYPTION_FORWARD_SECURE);
+  const QuicTime packet6_sent_time = clock_.Now();
+  // Verify PTO timeout is now based on packet 5.
+  EXPECT_EQ(packet5_sent_time + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 7 in handshake.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(7, ENCRYPTION_HANDSHAKE);
+  // Verify PTO timeout is now based on packet 6.
+  EXPECT_EQ(packet6_sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
 
   // Neuter handshake key.
   manager_.SetHandshakeConfirmed();
-  // Verify PTO timeout is now based on packet 4.
-  EXPECT_EQ(packet4_sent_time + expected_pto_delay * 2,
+  // Verify PTO timeout remains unchanged.
+  EXPECT_EQ(packet6_sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
 }
 
@@ -3294,21 +3311,35 @@ TEST_F(QuicSentPacketManagerTest, ServerMultiplePacketNumberSpacePtoTimeout) {
   // Send packet 2 in handshake.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  const QuicTime packet2_sent_time = clock_.Now();
   // Verify PTO timeout is still based on packet 1.
   EXPECT_EQ(packet1_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 
-  // Discard both initial and handshake keys.
+  // Discard initial keys.
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   manager_.NeuterUnencryptedPackets();
-  manager_.SetHandshakeConfirmed();
-  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 
-  // Send packet 3 in application data.
+  // Send packet 3 in 1-RTT.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   SendDataPacket(3, ENCRYPTION_FORWARD_SECURE);
-  // Verify PTO timeout is correctly set.
+  // Verify PTO timeout is based on packet 2.
+  const QuicTime packet3_sent_time = clock_.Now();
+  EXPECT_EQ(packet2_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 4 in handshake.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(4, ENCRYPTION_HANDSHAKE);
+  // Verify PTO timeout is based on packet 4 as application data is ignored.
   EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Discard handshake keys.
+  manager_.SetHandshakeConfirmed();
+  // Verify PTO timeout is now based on packet 3 as handshake is
+  // complete/confirmed.
+  EXPECT_EQ(packet3_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 }
 

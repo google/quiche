@@ -515,6 +515,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicTime GetEarliestPacketSentTimeForPto(
       PacketNumberSpace* packet_number_space) const;
 
+  // Returns true if application data should be used to arm PTO. Only used when
+  // multiple packet number space is enabled.
+  bool ShouldArmPtoForApplicationData() const;
+
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
@@ -641,6 +645,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if any 1-RTT packet gets acknowledged.
   bool one_rtt_packet_acked_;
+
+  // True if any 1-RTT packet gets sent.
+  bool one_rtt_packet_sent_;
 };
 
 }  // namespace quic
