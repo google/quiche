@@ -173,6 +173,11 @@ class QuartcSessionTest : public QuicTest {
     ASSERT_TRUE(server_peer_->CanSendMessage());
     ASSERT_TRUE(client_peer_->CanSendMessage());
 
+    // Disable probing retransmissions such that the first message from either
+    // side can be sent without being queued.
+    client_peer_->connection()->set_fill_up_link_during_probing(false);
+    server_peer_->connection()->set_fill_up_link_during_probing(false);
+
     int64_t server_datagram_id = 111;
     int64_t client_datagram_id = 222;
 
