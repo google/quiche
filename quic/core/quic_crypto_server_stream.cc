@@ -67,13 +67,11 @@ QuicCryptoServerStream::QuicCryptoServerStream(
     std::unique_ptr<HandshakerInterface> handshaker)
     : QuicCryptoServerStreamBase(session),
       handshaker_(std::move(handshaker)),
-      create_handshaker_in_constructor_(
-          GetQuicReloadableFlag(quic_create_server_handshaker_in_constructor)),
       crypto_config_(crypto_config),
       compressed_certs_cache_(compressed_certs_cache),
       helper_(helper) {
   DCHECK_EQ(Perspective::IS_SERVER, session->connection()->perspective());
-  if (create_handshaker_in_constructor_ && !handshaker_) {
+  if (!handshaker_) {
     switch (session->connection()->version().handshake_protocol) {
       case PROTOCOL_QUIC_CRYPTO:
         handshaker_ = std::make_unique<QuicCryptoServerHandshaker>(
@@ -176,27 +174,6 @@ HandshakeState QuicCryptoServerStream::GetHandshakeState() const {
 size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return handshaker_->BufferSizeLimitForLevel(level);
-}
-
-void QuicCryptoServerStream::OnSuccessfulVersionNegotiation(
-    const ParsedQuicVersion& version) {
-  DCHECK_EQ(version, session()->connection()->version());
-  if (create_handshaker_in_constructor_) {
-    return;
-  }
-  CHECK(!handshaker_);
-  switch (session()->connection()->version().handshake_protocol) {
-    case PROTOCOL_QUIC_CRYPTO:
-      handshaker_ = std::make_unique<QuicCryptoServerHandshaker>(
-          crypto_config_, this, compressed_certs_cache_, session(), helper_);
-      break;
-    case PROTOCOL_TLS1_3:
-      QUIC_BUG << "Attempting to use QuicCryptoServerStream with TLS";
-      break;
-    case PROTOCOL_UNSUPPORTED:
-      QUIC_BUG << "Attempting to create QuicCryptoServerStream for unknown "
-                  "handshake protocol";
-  }
 }
 
 void QuicCryptoServerStream::set_handshaker(

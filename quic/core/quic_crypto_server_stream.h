@@ -179,8 +179,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
-  void OnSuccessfulVersionNegotiation(
-      const ParsedQuicVersion& version) override;
 
  protected:
   QUIC_EXPORT_PRIVATE friend std::unique_ptr<QuicCryptoServerStreamBase>
@@ -212,8 +210,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
  private:
   std::unique_ptr<HandshakerInterface> handshaker_;
-  // Latched value of quic_create_server_handshaker_in_constructor flag.
-  bool create_handshaker_in_constructor_;
 
   // Arguments from QuicCryptoServerStream constructor that might need to be
   // passed to the HandshakerInterface constructor in its late construction.
