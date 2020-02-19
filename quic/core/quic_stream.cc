@@ -366,7 +366,7 @@ QuicStream::QuicStream(QuicStreamId id,
     CloseWriteSide();
   }
   if (type_ != CRYPTO) {
-    session_->RegisterStreamPriority(id, is_static_, precedence_);
+    stream_delegate_->RegisterStreamPriority(id, is_static_, precedence_);
   }
 }
 
@@ -378,8 +378,8 @@ QuicStream::~QuicStream() {
         << send_buffer_.stream_bytes_outstanding()
         << ", fin_outstanding: " << fin_outstanding_;
   }
-  if (session_ != nullptr && type_ != CRYPTO) {
-    session_->UnregisterStreamPriority(id(), is_static_);
+  if (stream_delegate_ != nullptr && type_ != CRYPTO) {
+    stream_delegate_->UnregisterStreamPriority(id(), is_static_);
   }
 }
 
@@ -551,7 +551,7 @@ void QuicStream::SetPriority(const spdy::SpdyStreamPrecedence& precedence) {
 
   MaybeSendPriorityUpdateFrame();
 
-  session_->UpdateStreamPriority(id(), precedence);
+  stream_delegate_->UpdateStreamPriority(id(), precedence);
 }
 
 void QuicStream::WriteOrBufferData(

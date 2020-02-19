@@ -251,6 +251,17 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,
                      std::string error_details) override;
+  // Sets priority in the write blocked list.
+  void RegisterStreamPriority(
+      QuicStreamId id,
+      bool is_static,
+      const spdy::SpdyStreamPrecedence& precedence) override;
+  // Clears priority from the write blocked list.
+  void UnregisterStreamPriority(QuicStreamId id, bool is_static) override;
+  // Updates priority on the write blocked list.
+  void UpdateStreamPriority(
+      QuicStreamId id,
+      const spdy::SpdyStreamPrecedence& new_precedence) override;
 
   // Called by streams when they want to write data to the peer.
   // Returns a pair with the number of bytes consumed from data, and a boolean
@@ -270,20 +281,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Called by the QuicCryptoStream when a handshake message is received.
   virtual void OnCryptoHandshakeMessageReceived(
       const CryptoHandshakeMessage& message);
-
-  // Called by the stream on creation to set priority in the write blocked list.
-  virtual void RegisterStreamPriority(
-      QuicStreamId id,
-      bool is_static,
-      const spdy::SpdyStreamPrecedence& precedence);
-  // Called by the stream on deletion to clear priority from the write blocked
-  // list.
-  virtual void UnregisterStreamPriority(QuicStreamId id, bool is_static);
-  // Called by the stream on SetPriority to update priority on the write blocked
-  // list.
-  virtual void UpdateStreamPriority(
-      QuicStreamId id,
-      const spdy::SpdyStreamPrecedence& new_precedence);
 
   // Returns mutable config for this session. Returned config is owned
   // by QuicSession.
