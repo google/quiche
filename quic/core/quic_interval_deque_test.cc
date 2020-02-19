@@ -82,8 +82,7 @@ TEST_F(QuicIntervalDequeTest, InsertRemoveSize) {
   qid.PopFront();
   EXPECT_EQ(qid.Size(), std::size_t(0));
 
-  EXPECT_QUIC_DEBUG_DEATH(qid.PopFront(),
-                          "Trying to pop from an empty container.");
+  EXPECT_QUIC_BUG(qid.PopFront(), "Trying to pop from an empty container.");
 }
 
 // The goal of this test is to push data into the container at specific

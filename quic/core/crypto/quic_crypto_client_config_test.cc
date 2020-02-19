@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
@@ -115,9 +116,9 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerIdConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_designated_connection_id());
-  EXPECT_QUIC_DEBUG_DEATH(state.GetNextServerDesignatedConnectionId(),
-                          "Attempting to consume a connection id "
-                          "that was never designated.");
+  EXPECT_QUIC_BUG(state.GetNextServerDesignatedConnectionId(),
+                  "Attempting to consume a connection id "
+                  "that was never designated.");
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
@@ -154,9 +155,9 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonceConsumedBeforeSet) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_nonce());
-  EXPECT_QUIC_DEBUG_DEATH(state.GetNextServerNonce(),
-                          "Attempting to consume a server nonce "
-                          "that was never designated.");
+  EXPECT_QUIC_BUG(state.GetNextServerNonce(),
+                  "Attempting to consume a server nonce "
+                  "that was never designated.");
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {
