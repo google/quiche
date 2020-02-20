@@ -43,7 +43,7 @@ std::string HexDumpWithMarks(const char* data,
     hex = hex + "  ";
 
     for (const char* p = row; p < row + 4 && p < row + length; ++p) {
-      hex += (*p >= 0x20 && *p <= 0x7f) ? (*p) : '.';
+      hex += (*p >= 0x20 && *p < 0x7f) ? (*p) : '.';
     }
 
     hex = hex + '\n';
