@@ -79,6 +79,8 @@ class QUICHE_EXPORT_PRIVATE HpackWholeEntryBuffer
   void OnValueEnd() override;
   void OnDynamicTableSizeUpdate(size_t size) override;
 
+  const HpackDecoderStringBuffer& name() const { return name_; }
+
  private:
   void ReportError(HpackDecodingError error);
 

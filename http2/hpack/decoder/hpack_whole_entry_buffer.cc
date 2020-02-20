@@ -94,6 +94,9 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
       HTTP2_DVLOG(1) << "Value length (" << len
                      << ") is longer than permitted (" << max_string_size_bytes_
                      << ")";
+      HTTP2_LOG_FIRST_N(ERROR, 1)
+          << "Header value length " << len << " exceeds limit of "
+          << max_string_size_bytes_;
       ReportError(HpackDecodingError::kValueTooLong);
       HTTP2_CODE_COUNT_N(decompress_failure_3, 21, 23);
       return;

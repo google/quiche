@@ -19,4 +19,6 @@
 
 #define HTTP2_DLOG_EVERY_N(severity, n) HTTP2_DLOG_EVERY_N_IMPL(severity, n)
 
+#define HTTP2_LOG_FIRST_N(severity, n) HTTP2_LOG_FIRST_N_IMPL(severity, n)
+
 #endif  // QUICHE_HTTP2_PLATFORM_API_HTTP2_LOGGING_H_
