@@ -739,20 +739,6 @@ QuicConsumedData QuicSession::WritevData(QuicStream* stream,
                                          size_t write_length,
                                          QuicStreamOffset offset,
                                          StreamSendingState state) {
-  // This check is an attempt to deal with potential memory corruption
-  // in which |id| ends up set to 1 (the crypto stream id). If this happen
-  // it might end up resulting in unencrypted stream data being sent.
-  // While this is impossible to avoid given sufficient corruption, this
-  // seems like a reasonable mitigation.
-  if (QuicUtils::IsCryptoStreamId(transport_version(), id) &&
-      stream != GetMutableCryptoStream()) {
-    QUIC_BUG << "Stream id mismatch";
-    connection_->CloseConnection(
-        QUIC_INTERNAL_ERROR,
-        "Non-crypto stream attempted to write data as crypto stream.",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return QuicConsumedData(0, false);
-  }
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
