@@ -73,6 +73,7 @@ BandwidthSampler::BandwidthSampler(
     : total_bytes_sent_(0),
       total_bytes_acked_(0),
       total_bytes_lost_(0),
+      total_bytes_neutered_(0),
       total_bytes_sent_at_last_acked_packet_(0),
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
@@ -145,6 +146,14 @@ void BandwidthSampler::OnPacketSent(
   QUIC_BUG_IF(!success) << "BandwidthSampler failed to insert the packet "
                            "into the map, most likely because it's already "
                            "in it.";
+}
+
+void BandwidthSampler::OnPacketNeutered(QuicPacketNumber packet_number) {
+  connection_state_map_.Remove(
+      packet_number, [&](const ConnectionStateOnSentPacket& sent_packet) {
+        QUIC_CODE_COUNT(quic_bandwidth_sampler_packet_neutered);
+        total_bytes_neutered_ += sent_packet.size;
+      });
 }
 
 BandwidthSamplerInterface::CongestionEventSample
@@ -388,6 +397,10 @@ QuicByteCount BandwidthSampler::total_bytes_acked() const {
 
 QuicByteCount BandwidthSampler::total_bytes_lost() const {
   return total_bytes_lost_;
+}
+
+QuicByteCount BandwidthSampler::total_bytes_neutered() const {
+  return total_bytes_neutered_;
 }
 
 bool BandwidthSampler::is_app_limited() const {

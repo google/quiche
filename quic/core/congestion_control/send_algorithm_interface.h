@@ -110,6 +110,9 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
                             QuicByteCount bytes,
                             HasRetransmittableData is_retransmittable) = 0;
 
+  // Inform that |packet_number| has been neutered.
+  virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;
+
   // Called when the retransmission timeout fires.  Neither OnPacketAbandoned
   // nor OnPacketLost will be called for these packets.
   virtual void OnRetransmissionTimeout(bool packets_retransmitted) = 0;

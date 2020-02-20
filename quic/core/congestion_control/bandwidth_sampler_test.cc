@@ -566,16 +566,39 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
 }
 
+TEST_F(BandwidthSamplerTest, NeuterPacket) {
+  SendPacket(1);
+  EXPECT_EQ(0u, sampler_.total_bytes_neutered());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  sampler_.OnPacketNeutered(QuicPacketNumber(1));
+  EXPECT_LT(0u, sampler_.total_bytes_neutered());
+  EXPECT_EQ(0u, sampler_.total_bytes_acked());
+
+  // If packet 1 is acked it should not produce a bandwidth sample.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
+      clock_.Now(),
+      {AckedPacket(QuicPacketNumber(1), kRegularPacketSize, clock_.Now())}, {},
+      max_bandwidth_, est_bandwidth_upper_bound_, round_trip_count_);
+  EXPECT_EQ(0u, sampler_.total_bytes_acked());
+  EXPECT_EQ(QuicBandwidth::Zero(), sample.sample_max_bandwidth);
+  EXPECT_FALSE(sample.sample_is_app_limited);
+  EXPECT_EQ(QuicTime::Delta::Infinite(), sample.sample_rtt);
+  EXPECT_EQ(0u, sample.sample_max_inflight);
+  EXPECT_EQ(0u, sample.extra_acked);
+}
+
 TEST_F(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
   // Make sure a default constructed CongestionEventSample has the correct
   // initial values for BandwidthSampler::OnCongestionEvent() to work.
   BandwidthSampler::CongestionEventSample sample;
 
-  DCHECK_EQ(QuicBandwidth::Zero(), sample.sample_max_bandwidth);
-  DCHECK(!sample.sample_is_app_limited);
-  DCHECK_EQ(QuicTime::Delta::Infinite(), sample.sample_rtt);
-  DCHECK_EQ(0u, sample.sample_max_inflight);
-  DCHECK_EQ(0u, sample.extra_acked);
+  EXPECT_EQ(QuicBandwidth::Zero(), sample.sample_max_bandwidth);
+  EXPECT_FALSE(sample.sample_is_app_limited);
+  EXPECT_EQ(QuicTime::Delta::Infinite(), sample.sample_rtt);
+  EXPECT_EQ(0u, sample.sample_max_inflight);
+  EXPECT_EQ(0u, sample.extra_acked);
 }
 
 // 1) Send 2 packets, 2) Ack both in 1 event, 3) Repeat.

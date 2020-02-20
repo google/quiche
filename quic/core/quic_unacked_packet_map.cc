@@ -207,17 +207,21 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicPacketNumber packet_number) {
   RemoveFromInFlight(info);
 }
 
-void QuicUnackedPacketMap::NeuterUnencryptedPackets() {
+QuicInlinedVector<QuicPacketNumber, 2>
+QuicUnackedPacketMap::NeuterUnencryptedPackets() {
+  QuicInlinedVector<QuicPacketNumber, 2> neutered_packets;
   QuicPacketNumber packet_number = GetLeastUnacked();
   for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (!it->retransmittable_frames.empty() &&
         it->encryption_level == ENCRYPTION_INITIAL) {
+      QUIC_DVLOG(2) << "Neutering unencrypted packet " << packet_number;
       // Once the connection swithes to forward secure, no unencrypted packets
       // will be sent. The data has been abandoned in the cryto stream. Remove
       // it from in flight.
       RemoveFromInFlight(packet_number);
       it->state = NEUTERED;
+      neutered_packets.push_back(packet_number);
       if (GetQuicReloadableFlag(quic_neuter_unencrypted_control_frames) ||
           supports_multiple_packet_number_spaces_) {
         if (GetQuicReloadableFlag(quic_neuter_unencrypted_control_frames)) {
@@ -234,18 +238,23 @@ void QuicUnackedPacketMap::NeuterUnencryptedPackets() {
   if (supports_multiple_packet_number_spaces_) {
     last_inflight_packets_sent_time_[INITIAL_DATA] = QuicTime::Zero();
   }
+  return neutered_packets;
 }
 
-void QuicUnackedPacketMap::NeuterHandshakePackets() {
+QuicInlinedVector<QuicPacketNumber, 2>
+QuicUnackedPacketMap::NeuterHandshakePackets() {
+  QuicInlinedVector<QuicPacketNumber, 2> neutered_packets;
   QuicPacketNumber packet_number = GetLeastUnacked();
   for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (!it->retransmittable_frames.empty() &&
         GetPacketNumberSpace(it->encryption_level) == HANDSHAKE_DATA) {
+      QUIC_DVLOG(2) << "Neutering handshake packet " << packet_number;
       RemoveFromInFlight(packet_number);
       // Notify session that the data has been delivered (but do not notify
       // send algorithm).
       it->state = NEUTERED;
+      neutered_packets.push_back(packet_number);
       // TODO(b/148868195): use NotifyFramesNeutered.
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
     }
@@ -253,6 +262,7 @@ void QuicUnackedPacketMap::NeuterHandshakePackets() {
   if (supports_multiple_packet_number_spaces()) {
     last_inflight_packets_sent_time_[HANDSHAKE_DATA] = QuicTime::Zero();
   }
+  return neutered_packets;
 }
 
 bool QuicUnackedPacketMap::HasInFlightPackets() const {

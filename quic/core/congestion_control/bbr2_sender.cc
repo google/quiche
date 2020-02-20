@@ -284,6 +284,10 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                       is_retransmittable);
 }
 
+void Bbr2Sender::OnPacketNeutered(QuicPacketNumber packet_number) {
+  model_.OnPacketNeutered(packet_number);
+}
+
 bool Bbr2Sender::CanSend(QuicByteCount bytes_in_flight) {
   const bool result = bytes_in_flight < GetCongestionWindow();
   return result;

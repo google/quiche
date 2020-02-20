@@ -940,6 +940,7 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
                     QuicPacketNumber,
                     QuicByteCount,
                     HasRetransmittableData));
+  MOCK_METHOD1(OnPacketNeutered, void(QuicPacketNumber));
   MOCK_METHOD1(OnRetransmissionTimeout, void(bool));
   MOCK_METHOD0(OnConnectionMigration, void());
   MOCK_METHOD0(RevertRetransmissionTimeout, void());

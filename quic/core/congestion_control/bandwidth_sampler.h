@@ -149,6 +149,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
       QuicByteCount bytes_in_flight,
       HasRetransmittableData has_retransmittable_data) = 0;
 
+  virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;
+
   // Notifies the sampler that the |packet_number| is acknowledged. Returns a
   // bandwidth sample. If no bandwidth sample is available,
   // QuicBandwidth::Zero() is returned.
@@ -206,10 +208,11 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // Remove all the packets lower than the specified packet number.
   virtual void RemoveObsoletePackets(QuicPacketNumber least_unacked) = 0;
 
-  // Total number of bytes sent/acked/lost in the connection.
+  // Total number of bytes sent/acked/lost/neutered in the connection.
   virtual QuicByteCount total_bytes_sent() const = 0;
   virtual QuicByteCount total_bytes_acked() const = 0;
   virtual QuicByteCount total_bytes_lost() const = 0;
+  virtual QuicByteCount total_bytes_neutered() const = 0;
 
   // Application-limited information exported for debugging.
   virtual bool is_app_limited() const = 0;
@@ -308,6 +311,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                     QuicByteCount bytes,
                     QuicByteCount bytes_in_flight,
                     HasRetransmittableData has_retransmittable_data) override;
+  void OnPacketNeutered(QuicPacketNumber packet_number) override;
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
                                        QuicPacketNumber packet_number) override;
   CongestionEventSample OnCongestionEvent(
@@ -329,6 +333,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   QuicByteCount total_bytes_sent() const override;
   QuicByteCount total_bytes_acked() const override;
   QuicByteCount total_bytes_lost() const override;
+  QuicByteCount total_bytes_neutered() const override;
 
   bool is_app_limited() const override;
 
@@ -431,6 +436,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   // The total number of congestion controlled bytes which were lost.
   QuicByteCount total_bytes_lost_;
+
+  // The total number of congestion controlled bytes which have been neutered.
+  QuicByteCount total_bytes_neutered_;
 
   // The value of |total_bytes_sent_| at the time the last acknowledged packet
   // was sent. Valid only when |last_acked_packet_sent_time_| is valid.

@@ -111,6 +111,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         .WillRepeatedly(Return(QuicBandwidth::Zero()));
     EXPECT_CALL(*send_algorithm_, InSlowStart()).Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, InRecovery()).Times(AnyNumber());
+    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(_)).Times(AnyNumber());
     EXPECT_CALL(*network_change_visitor_, OnPathMtuIncreased(1000))
         .Times(AnyNumber());
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
@@ -3343,6 +3344,31 @@ TEST_F(QuicSentPacketManagerTest, ServerMultiplePacketNumberSpacePtoTimeout) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, SetHandshakeConfirmed) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _))
+      .WillOnce(
+          Invoke([](const QuicFrame& /*frame*/, QuicTime::Delta ack_delay_time,
+                    QuicTime receive_timestamp) {
+            EXPECT_TRUE(ack_delay_time.IsZero());
+            EXPECT_EQ(receive_timestamp, QuicTime::Zero());
+            return true;
+          }));
+
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(2)))
+        .Times(1);
+  }
+  manager_.SetHandshakeConfirmed();
+}
+
 // Regresstion test for b/148841700.
 TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
   SendCryptoPacket(1);
@@ -3357,6 +3383,11 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
     EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   }
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
+        .Times(1);
+  }
   manager_.NeuterUnencryptedPackets();
 }
 

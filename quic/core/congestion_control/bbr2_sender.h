@@ -64,6 +64,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
 
+  void OnPacketNeutered(QuicPacketNumber packet_number) override;
+
   void OnRetransmissionTimeout(bool /*packets_retransmitted*/) override {}
 
   void OnConnectionMigration() override {}

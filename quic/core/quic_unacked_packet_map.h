@@ -66,13 +66,13 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   void RemoveFromInFlight(QuicPacketNumber packet_number);
 
   // Called to neuter all unencrypted packets to ensure they do not get
-  // retransmitted.
-  void NeuterUnencryptedPackets();
+  // retransmitted. Returns a vector of neutered packet numbers.
+  QuicInlinedVector<QuicPacketNumber, 2> NeuterUnencryptedPackets();
 
   // Called to neuter packets in handshake packet number space to ensure they do
-  // not get retransmitted.
+  // not get retransmitted. Returns a vector of neutered packet numbers.
   // TODO(fayang): Consider to combine this with NeuterUnencryptedPackets.
-  void NeuterHandshakePackets();
+  QuicInlinedVector<QuicPacketNumber, 2> NeuterHandshakePackets();
 
   // Returns true if |packet_number| has retransmittable frames. This will
   // return false if all frames of this packet are either non-retransmittable or

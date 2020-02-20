@@ -648,6 +648,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if any 1-RTT packet gets sent.
   bool one_rtt_packet_sent_;
+
+  const bool avoid_overestimate_bandwidth_with_aggregation_ =
+      GetQuicReloadableFlag(quic_avoid_overestimate_bandwidth_with_aggregation);
 };
 
 }  // namespace quic

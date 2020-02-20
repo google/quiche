@@ -359,6 +359,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  void OnPacketNeutered(QuicPacketNumber packet_number) {
+    bandwidth_sampler_.OnPacketNeutered(packet_number);
+  }
+
   uint64_t num_ack_aggregation_epochs() const {
     return bandwidth_sampler_.num_ack_aggregation_epochs();
   }

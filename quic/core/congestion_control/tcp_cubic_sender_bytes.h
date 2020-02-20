@@ -61,6 +61,7 @@ class QUIC_EXPORT_PRIVATE TcpCubicSenderBytes : public SendAlgorithmInterface {
                     QuicPacketNumber packet_number,
                     QuicByteCount bytes,
                     HasRetransmittableData is_retransmittable) override;
+  void OnPacketNeutered(QuicPacketNumber /*packet_number*/) override {}
   void OnRetransmissionTimeout(bool packets_retransmitted) override;
   bool CanSend(QuicByteCount bytes_in_flight) override;
   QuicBandwidth PacingRate(QuicByteCount bytes_in_flight) const override;
