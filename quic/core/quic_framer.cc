@@ -320,8 +320,8 @@ bool IsValidPacketNumberLength(QuicPacketNumberLength packet_number_length) {
 }
 
 bool IsValidFullPacketNumber(uint64_t full_packet_number,
-                             QuicTransportVersion version) {
-  return full_packet_number > 0 || version == QUIC_VERSION_99;
+                             ParsedQuicVersion version) {
+  return full_packet_number > 0 || version.HasIetfQuicFrames();
 }
 
 bool AppendIetfConnectionIds(bool version_flag,
@@ -1699,7 +1699,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     }
 
     if (hp_removal_failed ||
-        !IsValidFullPacketNumber(full_packet_number, transport_version())) {
+        !IsValidFullPacketNumber(full_packet_number, version())) {
       if (IsIetfStatelessResetPacket(*header)) {
         // This is a stateless reset packet.
         QuicIetfStatelessResetPacket packet(
@@ -2396,7 +2396,7 @@ bool QuicFramer::ProcessUnauthenticatedHeader(QuicDataReader* encrypted_reader,
     return RaiseError(QUIC_INVALID_PACKET_HEADER);
   }
 
-  if (!IsValidFullPacketNumber(full_packet_number, transport_version())) {
+  if (!IsValidFullPacketNumber(full_packet_number, version())) {
     set_detailed_error("packet numbers cannot be 0.");
     return RaiseError(QUIC_INVALID_PACKET_HEADER);
   }

@@ -9888,7 +9888,8 @@ TEST_P(QuicConnectionTest, ClientParsesRetry) {
   if (!version().HasRetryIntegrityTag()) {
     return;
   }
-  if (version() != ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)) {
+  if (version() !=
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25)) {
     // TODO(dschinazi) generate retry packets for all versions once we have
     // server-side support for generating these programmatically.
     return;

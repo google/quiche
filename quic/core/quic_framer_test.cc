@@ -6543,7 +6543,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 
   unsigned char* packet = packet48;
   size_t packet_size = QUICHE_ARRAYSIZE(packet48);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (framer_.version().HasIetfQuicFrames()) {
     packet = packet99;
     packet_size = QUICHE_ARRAYSIZE(packet99);
   }
@@ -6619,7 +6619,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      framer_.transport_version() == QUIC_VERSION_99 ? packet99 : packet48;
+      framer_.version().HasIetfQuicFrames() ? packet99 : packet48;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -12246,7 +12246,7 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = QUICHE_ARRAYSIZE(packet);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (framer_.version().HasIetfQuicFrames()) {
     p = packet99;
     p_length = QUICHE_ARRAYSIZE(packet99);
   }
@@ -12624,7 +12624,7 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = QUICHE_ARRAYSIZE(packet);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (framer_.version().HasIetfQuicFrames()) {
     p = packet99;
     p_length = QUICHE_ARRAYSIZE(packet99);
   }
@@ -12791,7 +12791,7 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = QUICHE_ARRAYSIZE(packet);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (framer_.version().HasIetfQuicFrames()) {
     p = packet99;
     p_length = QUICHE_ARRAYSIZE(packet99);
   }
@@ -12897,7 +12897,7 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = QUICHE_ARRAYSIZE(packet);
-  if (framer_.transport_version() == QUIC_VERSION_99) {
+  if (framer_.version().HasIetfQuicFrames()) {
     p = packet99;
     p_length = QUICHE_ARRAYSIZE(packet99);
   }
