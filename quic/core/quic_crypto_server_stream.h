@@ -31,6 +31,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoServerStreamBase(QuicSession* session);
 
+  class QUIC_EXPORT_PRIVATE Helper {
+   public:
+    virtual ~Helper() {}
+
+    // Returns true if |message|, which was received on |self_address| is
+    // acceptable according to the visitor's policy. Otherwise, returns false
+    // and populates |error_details|.
+    virtual bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
+                                      const QuicSocketAddress& client_address,
+                                      const QuicSocketAddress& peer_address,
+                                      const QuicSocketAddress& self_address,
+                                      std::string* error_details) const = 0;
+  };
+
   ~QuicCryptoServerStreamBase() override {}
 
   // Cancel any outstanding callbacks, such as asynchronous validation of client
@@ -136,20 +150,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
   };
 
-  class QUIC_EXPORT_PRIVATE Helper {
-   public:
-    virtual ~Helper() {}
-
-    // Returns true if |message|, which was received on |self_address| is
-    // acceptable according to the visitor's policy. Otherwise, returns false
-    // and populates |error_details|.
-    virtual bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
-                                      const QuicSocketAddress& client_address,
-                                      const QuicSocketAddress& peer_address,
-                                      const QuicSocketAddress& self_address,
-                                      std::string* error_details) const = 0;
-  };
-
   QuicCryptoServerStream(const QuicCryptoServerStream&) = delete;
   QuicCryptoServerStream& operator=(const QuicCryptoServerStream&) = delete;
 
@@ -185,12 +185,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                            QuicCompressedCertsCache* compressed_certs_cache,
                            QuicSession* session,
-                           Helper* helper);
+                           QuicCryptoServerStreamBase::Helper* helper);
 
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSession* session,
-                         Helper* helper);
+                         QuicCryptoServerStreamBase::Helper* helper);
   // Provided so that subclasses can provide their own handshaker.
   // set_handshaker can only be called if this QuicCryptoServerStream's
   // handshaker hasn't been set yet. If set_handshaker is called outside of
@@ -199,14 +199,14 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSession* session,
-                         Helper* helper,
+                         QuicCryptoServerStreamBase::Helper* helper,
                          std::unique_ptr<HandshakerInterface> handshaker);
   void set_handshaker(std::unique_ptr<HandshakerInterface> handshaker);
   HandshakerInterface* handshaker() const;
 
   const QuicCryptoServerConfig* crypto_config() const;
   QuicCompressedCertsCache* compressed_certs_cache() const;
-  Helper* helper() const;
+  QuicCryptoServerStreamBase::Helper* helper() const;
 
  private:
   std::unique_ptr<HandshakerInterface> handshaker_;
@@ -215,7 +215,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // passed to the HandshakerInterface constructor in its late construction.
   const QuicCryptoServerConfig* crypto_config_;
   QuicCompressedCertsCache* compressed_certs_cache_;
-  Helper* helper_;
+  QuicCryptoServerStreamBase::Helper* helper_;
 };
 
 // Creates an appropriate QuicCryptoServerStream for the provided parameters,
@@ -226,7 +226,7 @@ QUIC_EXPORT_PRIVATE std::unique_ptr<QuicCryptoServerStreamBase>
 CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSession* session,
-                         QuicCryptoServerStream::Helper* helper);
+                         QuicCryptoServerStreamBase::Helper* helper);
 
 }  // namespace quic
 

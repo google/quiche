@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
                         const ParsedQuicVersionVector& supported_versions,
                         QuicConnection* connection,
                         QuicSession::Visitor* visitor,
-                        QuicCryptoServerStream::Helper* helper,
+                        QuicCryptoServerStreamBase::Helper* helper,
                         const QuicCryptoServerConfig* crypto_config,
                         QuicCompressedCertsCache* compressed_certs_cache);
   QuicServerSessionBase(const QuicServerSessionBase&) = delete;
@@ -93,7 +93,7 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
 
   const QuicCryptoServerConfig* crypto_config() { return crypto_config_; }
 
-  QuicCryptoServerStream::Helper* stream_helper() { return helper_; }
+  QuicCryptoServerStreamBase::Helper* stream_helper() { return helper_; }
 
  private:
   friend class test::QuicServerSessionBasePeer;
@@ -109,7 +109,7 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
 
   // Pointer to the helper used to create crypto server streams. Must outlive
   // streams created via CreateQuicCryptoServerStream.
-  QuicCryptoServerStream::Helper* helper_;
+  QuicCryptoServerStreamBase::Helper* helper_;
 
   // Whether bandwidth resumption is enabled for this connection.
   bool bandwidth_resumption_enabled_;

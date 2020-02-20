@@ -99,7 +99,8 @@ class InsecureProofVerifier : public ProofVerifier {
 };
 
 // Implementation of the server-side crypto stream helper.
-class QuartcCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
+class QuartcCryptoServerStreamHelper
+    : public QuicCryptoServerStreamBase::Helper {
  public:
   bool CanAcceptClientHello(const CryptoHandshakeMessage& message,
                             const QuicSocketAddress& client_address,

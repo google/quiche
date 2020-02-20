@@ -43,13 +43,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Ideally we'd have a linked_hash_set: the  boolean is unused.
   typedef QuicLinkedHashMap<QuicBlockedWriterInterface*, bool> WriteBlockedList;
 
-  QuicDispatcher(const QuicConfig* config,
-                 const QuicCryptoServerConfig* crypto_config,
-                 QuicVersionManager* version_manager,
-                 std::unique_ptr<QuicConnectionHelperInterface> helper,
-                 std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
-                 std::unique_ptr<QuicAlarmFactory> alarm_factory,
-                 uint8_t expected_server_connection_id_length);
+  QuicDispatcher(
+      const QuicConfig* config,
+      const QuicCryptoServerConfig* crypto_config,
+      QuicVersionManager* version_manager,
+      std::unique_ptr<QuicConnectionHelperInterface> helper,
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
+      std::unique_ptr<QuicAlarmFactory> alarm_factory,
+      uint8_t expected_server_connection_id_length);
   QuicDispatcher(const QuicDispatcher&) = delete;
   QuicDispatcher& operator=(const QuicDispatcher&) = delete;
 
@@ -210,7 +211,7 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   QuicConnectionHelperInterface* helper() { return helper_.get(); }
 
-  QuicCryptoServerStream::Helper* session_helper() {
+  QuicCryptoServerStreamBase::Helper* session_helper() {
     return session_helper_.get();
   }
 
@@ -338,7 +339,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   std::unique_ptr<QuicConnectionHelperInterface> helper_;
 
   // The helper used for all sessions.
-  std::unique_ptr<QuicCryptoServerStream::Helper> session_helper_;
+  std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper_;
 
   // Creates alarms.
   std::unique_ptr<QuicAlarmFactory> alarm_factory_;

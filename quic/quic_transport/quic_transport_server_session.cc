@@ -21,7 +21,8 @@
 namespace quic {
 
 namespace {
-class QuicTransportServerCryptoHelper : public QuicCryptoServerStream::Helper {
+class QuicTransportServerCryptoHelper
+    : public QuicCryptoServerStreamBase::Helper {
  public:
   bool CanAcceptClientHello(const CryptoHandshakeMessage& /*message*/,
                             const QuicSocketAddress& /*client_address*/,

@@ -22,7 +22,7 @@ QuicServerSessionBase::QuicServerSessionBase(
     const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection,
     Visitor* visitor,
-    QuicCryptoServerStream::Helper* helper,
+    QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache)
     : QuicSpdySession(connection, visitor, config, supported_versions),

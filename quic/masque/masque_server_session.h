@@ -38,7 +38,7 @@ class QUIC_NO_EXPORT MasqueServerSession
       QuicConnection* connection,
       QuicSession::Visitor* visitor,
       Visitor* owner,
-      QuicCryptoServerStream::Helper* helper,
+      QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       MasqueServerBackend* masque_server_backend);

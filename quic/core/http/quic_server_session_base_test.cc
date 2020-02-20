@@ -54,7 +54,7 @@ class TestServerSession : public QuicServerSessionBase {
   TestServerSession(const QuicConfig& config,
                     QuicConnection* connection,
                     QuicSession::Visitor* visitor,
-                    QuicCryptoServerStream::Helper* helper,
+                    QuicCryptoServerStreamBase::Helper* helper,
                     const QuicCryptoServerConfig* crypto_config,
                     QuicCompressedCertsCache* compressed_certs_cache,
                     QuicSimpleServerBackend* quic_simple_server_backend)
@@ -462,7 +462,7 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicServerSessionBase* session,
-      QuicCryptoServerStream::Helper* helper)
+      QuicCryptoServerStreamBase::Helper* helper)
       : QuicCryptoServerStream(crypto_config,
                                compressed_certs_cache,
                                session,

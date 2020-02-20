@@ -308,7 +308,7 @@ class QuartcServerSession : public QuartcSession {
                       const QuicClock* clock,
                       const QuicCryptoServerConfig* server_crypto_config,
                       QuicCompressedCertsCache* const compressed_certs_cache,
-                      QuicCryptoServerStream::Helper* const stream_helper);
+                      QuicCryptoServerStreamBase::Helper* const stream_helper);
   QuartcServerSession(const QuartcServerSession&) = delete;
   QuartcServerSession& operator=(const QuartcServerSession&) = delete;
 
@@ -327,7 +327,7 @@ class QuartcServerSession : public QuartcSession {
   QuicCompressedCertsCache* const compressed_certs_cache_;
 
   // This helper is needed to create QuicCryptoServerStream.
-  QuicCryptoServerStream::Helper* const stream_helper_;
+  QuicCryptoServerStreamBase::Helper* const stream_helper_;
 
   // Server perspective crypto stream.
   std::unique_ptr<QuicCryptoServerStreamBase> crypto_stream_;

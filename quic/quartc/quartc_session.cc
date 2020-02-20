@@ -429,7 +429,7 @@ QuartcServerSession::QuartcServerSession(
     const QuicClock* clock,
     const QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* const compressed_certs_cache,
-    QuicCryptoServerStream::Helper* const stream_helper)
+    QuicCryptoServerStreamBase::Helper* const stream_helper)
     : QuartcSession(std::move(connection),
                     visitor,
                     config,

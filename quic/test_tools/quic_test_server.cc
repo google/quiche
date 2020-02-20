@@ -25,7 +25,7 @@ class CustomStreamSession : public QuicSimpleServerSession {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection,
       QuicSession::Visitor* visitor,
-      QuicCryptoServerStream::Helper* helper,
+      QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicTestServer::StreamFactory* stream_factory,
@@ -77,7 +77,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
-      std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend,
       uint8_t expected_server_connection_id_length)
@@ -191,7 +191,7 @@ QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
       &config(), &crypto_config(), version_manager(),
       std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
                                                   QuicAllocator::BUFFER_POOL),
-      std::unique_ptr<QuicCryptoServerStream::Helper>(
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
           new QuicSimpleCryptoServerStreamHelper()),
       std::make_unique<QuicEpollAlarmFactory>(epoll_server()), server_backend(),
       expected_server_connection_id_length());
@@ -217,7 +217,7 @@ ImmediateGoAwaySession::ImmediateGoAwaySession(
     const QuicConfig& config,
     QuicConnection* connection,
     QuicSession::Visitor* visitor,
-    QuicCryptoServerStream::Helper* helper,
+    QuicCryptoServerStreamBase::Helper* helper,
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSimpleServerBackend* quic_simple_server_backend)

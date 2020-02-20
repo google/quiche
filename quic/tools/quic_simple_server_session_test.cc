@@ -85,7 +85,7 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicSession* session,
-      QuicCryptoServerStream::Helper* helper)
+      QuicCryptoServerStreamBase::Helper* helper)
       : QuicCryptoServerStream(crypto_config,
                                compressed_certs_cache,
                                session,
@@ -121,7 +121,7 @@ QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
-    QuicCryptoServerStream::Helper* helper) {
+    QuicCryptoServerStreamBase::Helper* helper) {
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
       return new MockQuicCryptoServerStream(
@@ -171,7 +171,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
       const QuicConfig& config,
       QuicConnection* connection,
       QuicSession::Visitor* visitor,
-      QuicCryptoServerStream::Helper* helper,
+      QuicCryptoServerStreamBase::Helper* helper,
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicSimpleServerBackend* quic_simple_server_backend)

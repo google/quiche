@@ -31,7 +31,7 @@ class QuicTestServer : public QuicServer {
         const QuicConfig& config,
         QuicConnection* connection,
         QuicSession::Visitor* visitor,
-        QuicCryptoServerStream::Helper* helper,
+        QuicCryptoServerStreamBase::Helper* helper,
         const QuicCryptoServerConfig* crypto_config,
         QuicCompressedCertsCache* compressed_certs_cache,
         QuicSimpleServerBackend* quic_simple_server_backend) = 0;
@@ -97,7 +97,7 @@ class ImmediateGoAwaySession : public QuicSimpleServerSession {
   ImmediateGoAwaySession(const QuicConfig& config,
                          QuicConnection* connection,
                          QuicSession::Visitor* visitor,
-                         QuicCryptoServerStream::Helper* helper,
+                         QuicCryptoServerStreamBase::Helper* helper,
                          const QuicCryptoServerConfig* crypto_config,
                          QuicCompressedCertsCache* compressed_certs_cache,
                          QuicSimpleServerBackend* quic_simple_server_backend);

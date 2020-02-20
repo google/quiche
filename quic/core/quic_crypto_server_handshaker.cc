@@ -51,7 +51,7 @@ QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
     QuicCryptoServerStream* stream,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
-    QuicCryptoServerStream::Helper* helper)
+    QuicCryptoServerStreamBase::Helper* helper)
     : QuicCryptoHandshaker(stream, session),
       stream_(stream),
       session_(session),

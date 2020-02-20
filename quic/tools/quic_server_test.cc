@@ -35,7 +35,7 @@ class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
-      std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QuicSimpleServerBackend* quic_simple_server_backend)
       : QuicSimpleDispatcher(config,
@@ -71,7 +71,7 @@ class TestQuicServer : public QuicServer {
         std::unique_ptr<QuicEpollConnectionHelper>(
             new QuicEpollConnectionHelper(epoll_server(),
                                           QuicAllocator::BUFFER_POOL)),
-        std::unique_ptr<QuicCryptoServerStream::Helper>(
+        std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
             new QuicSimpleCryptoServerStreamHelper()),
         std::unique_ptr<QuicEpollAlarmFactory>(
             new QuicEpollAlarmFactory(epoll_server())),
@@ -164,7 +164,7 @@ class QuicServerDispatchPacketTest : public QuicTest {
             std::unique_ptr<QuicEpollConnectionHelper>(
                 new QuicEpollConnectionHelper(&eps_,
                                               QuicAllocator::BUFFER_POOL)),
-            std::unique_ptr<QuicCryptoServerStream::Helper>(
+            std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
                 new QuicSimpleCryptoServerStreamHelper()),
             std::unique_ptr<QuicEpollAlarmFactory>(
                 new QuicEpollAlarmFactory(&eps_)),

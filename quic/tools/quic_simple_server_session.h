@@ -56,7 +56,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
                           const ParsedQuicVersionVector& supported_versions,
                           QuicConnection* connection,
                           QuicSession::Visitor* visitor,
-                          QuicCryptoServerStream::Helper* helper,
+                          QuicCryptoServerStreamBase::Helper* helper,
                           const QuicCryptoServerConfig* crypto_config,
                           QuicCompressedCertsCache* compressed_certs_cache,
                           QuicSimpleServerBackend* quic_simple_server_backend);

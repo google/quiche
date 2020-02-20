@@ -93,7 +93,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
                                     stream_helper());
   }
 
-  QuicCryptoServerStream::Helper* stream_helper() {
+  QuicCryptoServerStreamBase::Helper* stream_helper() {
     return QuicServerSessionBase::stream_helper();
   }
 };
@@ -108,7 +108,7 @@ class TestDispatcher : public QuicDispatcher {
                        crypto_config,
                        version_manager,
                        std::make_unique<MockQuicConnectionHelper>(),
-                       std::unique_ptr<QuicCryptoServerStream::Helper>(
+                       std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
                            new QuicSimpleCryptoServerStreamHelper()),
                        std::make_unique<MockAlarmFactory>(),
                        kQuicDefaultConnectionIdLength),

@@ -31,7 +31,8 @@ class MockQuicSessionVisitor : public QuicTimeWaitListManager::Visitor {
                void(QuicConnectionId connection_id));
 };
 
-class MockQuicCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
+class MockQuicCryptoServerStreamHelper
+    : public QuicCryptoServerStreamBase::Helper {
  public:
   MockQuicCryptoServerStreamHelper();
   MockQuicCryptoServerStreamHelper(const MockQuicCryptoServerStreamHelper&) =

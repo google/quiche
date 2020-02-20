@@ -31,7 +31,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
                              QuicCryptoServerStream* stream,
                              QuicCompressedCertsCache* compressed_certs_cache,
                              QuicSession* session,
-                             QuicCryptoServerStream::Helper* helper);
+                             QuicCryptoServerStreamBase::Helper* helper);
   QuicCryptoServerHandshaker(const QuicCryptoServerHandshaker&) = delete;
   QuicCryptoServerHandshaker& operator=(const QuicCryptoServerHandshaker&) =
       delete;
@@ -182,7 +182,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   std::string chlo_hash_;
 
   // Pointer to the helper for this crypto stream. Must outlive this stream.
-  QuicCryptoServerStream::Helper* helper_;
+  QuicCryptoServerStreamBase::Helper* helper_;
 
   // Number of handshake messages received by this stream.
   uint8_t num_handshake_messages_;

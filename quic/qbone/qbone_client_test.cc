@@ -94,7 +94,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
       const QuicCryptoServerConfig* crypto_config,
       QuicVersionManager* version_manager,
       std::unique_ptr<QuicConnectionHelperInterface> helper,
-      std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
+      std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
       std::unique_ptr<QuicAlarmFactory> alarm_factory,
       QbonePacketWriter* writer)
       : QuicDispatcher(config,
@@ -146,7 +146,7 @@ class QboneTestServer : public QuicServer {
         std::unique_ptr<QuicEpollConnectionHelper>(
             new QuicEpollConnectionHelper(epoll_server(),
                                           QuicAllocator::BUFFER_POOL)),
-        std::unique_ptr<QuicCryptoServerStream::Helper>(
+        std::unique_ptr<QuicCryptoServerStreamBase::Helper>(
             new QboneCryptoServerStreamHelper()),
         std::unique_ptr<QuicEpollAlarmFactory>(
             new QuicEpollAlarmFactory(epoll_server())),

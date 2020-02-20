@@ -31,7 +31,7 @@ std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
-    QuicCryptoServerStream::Helper* helper) {
+    QuicCryptoServerStreamBase::Helper* helper) {
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
       return std::unique_ptr<QuicCryptoServerStream>(new QuicCryptoServerStream(
@@ -52,7 +52,7 @@ QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
-    Helper* helper)
+    QuicCryptoServerStreamBase::Helper* helper)
     : QuicCryptoServerStream(crypto_config,
                              compressed_certs_cache,
                              session,
@@ -63,7 +63,7 @@ QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
-    Helper* helper,
+    QuicCryptoServerStreamBase::Helper* helper,
     std::unique_ptr<HandshakerInterface> handshaker)
     : QuicCryptoServerStreamBase(session),
       handshaker_(std::move(handshaker)),
@@ -196,7 +196,7 @@ QuicCompressedCertsCache* QuicCryptoServerStream::compressed_certs_cache()
   return compressed_certs_cache_;
 }
 
-QuicCryptoServerStream::Helper* QuicCryptoServerStream::helper() const {
+QuicCryptoServerStreamBase::Helper* QuicCryptoServerStream::helper() const {
   return helper_;
 }
 

@@ -16,7 +16,7 @@ QuartcDispatcher::QuartcDispatcher(
     std::unique_ptr<QuicCryptoServerConfig> crypto_config,
     QuicVersionManager* version_manager,
     std::unique_ptr<QuicConnectionHelperInterface> helper,
-    std::unique_ptr<QuicCryptoServerStream::Helper> session_helper,
+    std::unique_ptr<QuicCryptoServerStreamBase::Helper> session_helper,
     std::unique_ptr<QuicAlarmFactory> alarm_factory,
     std::unique_ptr<QuartcPacketWriter> packet_writer,
     Delegate* delegate)

@@ -18,7 +18,8 @@
 namespace quic {
 
 // A helper class is used by the QuicCryptoServerStream.
-class QboneCryptoServerStreamHelper : public QuicCryptoServerStream::Helper {
+class QboneCryptoServerStreamHelper
+    : public QuicCryptoServerStreamBase::Helper {
  public:
   // This will look for the qbone alpn.
   bool CanAcceptClientHello(const CryptoHandshakeMessage& chlo,
