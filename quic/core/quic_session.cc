@@ -922,7 +922,8 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
   } else if (VersionHasIetfQuicFrames(transport_version())) {
     // Stream was not draining, but we did have a fin or rst, so we can now
     // free the stream ID if version 99.
-    if (had_fin_or_rst) {
+    if (had_fin_or_rst && connection_->connected()) {
+      // Do not bother informing stream ID manager if connection is closed.
       v99_streamid_manager_.OnStreamClosed(stream_id);
     }
   }
