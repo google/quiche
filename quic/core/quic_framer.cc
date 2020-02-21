@@ -1582,7 +1582,8 @@ void QuicFramer::MaybeProcessCoalescedPacket(
   if (!ProcessIetfPacketHeader(&coalesced_reader, &coalesced_header)) {
     QUIC_PEER_BUG << ENDPOINT
                   << "Failed to parse received coalesced header of length "
-                  << coalesced_data_length << ": "
+                  << coalesced_data_length << " with error: " << detailed_error_
+                  << ": "
                   << quiche::QuicheTextUtils::HexEncode(coalesced_data,
                                                         coalesced_data_length)
                   << " previous header was " << header;
