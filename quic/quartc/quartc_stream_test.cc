@@ -64,11 +64,11 @@ class MockQuicSession : public QuicSession {
   ~MockQuicSession() override {}
 
   // Writes outgoing data from QuicStream to a string.
-  QuicConsumedData WritevData(QuicStream* stream,
-                              QuicStreamId /*id*/,
+  QuicConsumedData WritevData(QuicStreamId id,
                               size_t write_length,
                               QuicStreamOffset offset,
-                              StreamSendingState state) override {
+                              StreamSendingState state,
+                              bool /*is_retransmission*/) override {
     if (!writable_) {
       return QuicConsumedData(0, false);
     }
@@ -77,6 +77,8 @@ class MockQuicSession : public QuicSession {
     // data is consumed. Retrieve data from stream.
     char* buf = new char[write_length];
     QuicDataWriter writer(write_length, buf, quiche::NETWORK_BYTE_ORDER);
+    QuicStream* stream = GetOrCreateStream(id);
+    DCHECK(stream);
     if (write_length > 0) {
       stream->WriteStreamData(offset, write_length, &writer);
     }

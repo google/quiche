@@ -290,8 +290,9 @@ void QuicCryptoStream::WritePendingRetransmission() {
     // Set appropriate encryption level.
     session()->connection()->SetDefaultEncryptionLevel(
         retransmission_encryption_level);
-    QuicConsumedData consumed = stream_delegate()->WritevData(
-        this, id(), pending.length, pending.offset, NO_FIN);
+    QuicConsumedData consumed =
+        stream_delegate()->WritevData(id(), pending.length, pending.offset,
+                                      NO_FIN, /*is_retransmission*/ true);
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
                   << " tries to retransmit stream data [" << pending.offset
                   << ", " << pending.offset + pending.length
@@ -333,7 +334,8 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
     // Set appropriate encryption level.
     session()->connection()->SetDefaultEncryptionLevel(send_encryption_level);
     QuicConsumedData consumed = stream_delegate()->WritevData(
-        this, id(), retransmission_length, retransmission_offset, NO_FIN);
+        id(), retransmission_length, retransmission_offset, NO_FIN,
+        /*is_retransmission*/ true);
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
                   << " is forced to retransmit stream data ["
                   << retransmission_offset << ", "

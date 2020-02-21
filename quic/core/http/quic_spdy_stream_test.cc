@@ -203,7 +203,8 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_ = std::make_unique<StrictMock<MockQuicSpdySession>>(connection_);
     session_->Initialize();
     ON_CALL(*session_, WritevData(_, _, _, _, _))
-        .WillByDefault(Invoke(MockQuicSession::ConsumeData));
+        .WillByDefault(
+            Invoke(session_.get(), &MockQuicSpdySession::ConsumeData));
 
     stream_ =
         new StrictMock<TestStream>(GetNthClientInitiatedBidirectionalId(0),
@@ -236,17 +237,16 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       }
       auto send_control_stream =
           QuicSpdySessionPeer::GetSendControlStream(session_.get());
-      EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                        send_control_stream->id(), _, _, _))
+      EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _))
           .Times(num_control_stream_writes);
       auto qpack_decoder_stream =
           QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-      EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
-                                        qpack_decoder_stream->id(), 1, 0, _));
+      EXPECT_CALL(*session_,
+                  WritevData(qpack_decoder_stream->id(), 1, 0, _, _));
       auto qpack_encoder_stream =
           QuicSpdySessionPeer::GetQpackEncoderSendStream(session_.get());
-      EXPECT_CALL(*session_, WritevData(qpack_encoder_stream,
-                                        qpack_encoder_stream->id(), 1, 0, _));
+      EXPECT_CALL(*session_,
+                  WritevData(qpack_encoder_stream->id(), 1, 0, _, _));
     }
     static_cast<QuicSession*>(session_.get())
         ->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
@@ -769,7 +769,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
 
   const uint64_t kHeaderLength = UsesHttp3() ? 2 : 0;
   if (UsesHttp3()) {
-    EXPECT_CALL(*session_, WritevData(_, _, kHeaderLength, _, NO_FIN));
+    EXPECT_CALL(*session_, WritevData(_, kHeaderLength, _, NO_FIN, _));
   }
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(kWindow - kHeaderLength, true)));
@@ -1047,7 +1047,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
   EXPECT_CALL(*connection_,
               SendBlocked(GetNthClientInitiatedBidirectionalId(0)))
       .Times(0);
-  EXPECT_CALL(*session_, WritevData(_, _, 0, _, FIN));
+  EXPECT_CALL(*session_, WritevData(_, 0, _, FIN, _));
 
   stream_->WriteOrBufferBody(body, fin);
 }
@@ -1290,8 +1290,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersSendsAFin) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     // Four writes on the request stream: HEADERS frame header and payload both
     // for headers and trailers.
-    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
-        .Times(4);
+    EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _)).Times(4);
   }
 
   // Write the initial headers, without a FIN.
@@ -1315,14 +1314,13 @@ TEST_P(QuicSpdyStreamTest, DoNotSendPriorityUpdateWithDefaultUrgency) {
 
   // Four writes on the request stream: HEADERS frame header and payload both
   // for headers and trailers.
-  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(4);
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _)).Times(4);
 
   // No PRIORITY_UPDATE frames on the control stream,
   // because the stream has default priority.
   auto send_control_stream =
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
-  EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                    send_control_stream->id(), _, _, _))
+  EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _))
       .Times(0);
 
   // Write the initial headers, without a FIN.
@@ -1345,15 +1343,14 @@ TEST_P(QuicSpdyStreamTest, ChangePriority) {
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
 
   // Two writes on the request stream: HEADERS frame header and payload.
-  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(2);
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _)).Times(2);
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/false, nullptr);
 
   // PRIORITY_UPDATE frame on the control stream.
   auto send_control_stream =
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
-  EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                    send_control_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _));
   stream_->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
 }
 
@@ -1368,15 +1365,14 @@ TEST_P(QuicSpdyStreamTest, ChangePriorityBeforeWritingHeaders) {
   // is called, before HEADERS frame is sent.
   auto send_control_stream =
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
-  EXPECT_CALL(*session_, WritevData(send_control_stream,
-                                    send_control_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(send_control_stream->id(), _, _, _, _));
 
   stream_->SetPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   testing::Mock::VerifyAndClearExpectations(session_.get());
 
   // Two writes on the request stream: HEADERS frame header and payload.
   // PRIORITY_UPDATE frame is not sent this time, because one is already sent.
-  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _)).Times(2);
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _)).Times(2);
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
   stream_->WriteHeaders(SpdyHeaderBlock(), /*fin=*/true, nullptr);
 }
@@ -1389,8 +1385,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersFinalOffset) {
   if (UsesHttp3()) {
     // In this case, TestStream::WriteHeadersImpl() does not prevent writes.
     // HEADERS frame header and payload on the request stream.
-    EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
-        .Times(2);
+    EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _)).Times(2);
   }
 
   // Write the initial headers.
@@ -1433,7 +1428,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersClosesWriteSide) {
 
   // Expect data being written on the stream.  In addition to that, headers are
   // also written on the stream in case of IETF QUIC.
-  EXPECT_CALL(*session_, WritevData(stream_, stream_->id(), _, _, _))
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _))
       .Times(AtLeast(1));
 
   // Write the initial headers.
@@ -1472,9 +1467,9 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   // Write non-zero body data, but only consume partially, ensuring queueing.
   const int kBodySize = 1 * 1024;  // 1 kB
   if (UsesHttp3()) {
-    EXPECT_CALL(*session_, WritevData(_, _, 3, _, NO_FIN));
+    EXPECT_CALL(*session_, WritevData(_, 3, _, NO_FIN, _));
   }
-  EXPECT_CALL(*session_, WritevData(_, _, kBodySize, _, NO_FIN))
+  EXPECT_CALL(*session_, WritevData(_, kBodySize, _, NO_FIN, _))
       .WillOnce(Return(QuicConsumedData(kBodySize - 1, false)));
   stream_->WriteOrBufferBody(std::string(kBodySize, 'x'), false);
   EXPECT_EQ(1u, stream_->BufferedDataBytes());
@@ -1487,7 +1482,7 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
   EXPECT_FALSE(stream_->write_side_closed());
 
   // Writing the queued bytes will close the write side of the stream.
-  EXPECT_CALL(*session_, WritevData(_, _, 1, _, NO_FIN));
+  EXPECT_CALL(*session_, WritevData(_, 1, _, NO_FIN, _));
   stream_->OnCanWrite();
   EXPECT_TRUE(stream_->write_side_closed());
 }
@@ -1595,9 +1590,9 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
   Initialize(kShouldProcessData);
 
   if (UsesHttp3()) {
-    EXPECT_CALL(*session_, WritevData(_, _, 2, _, NO_FIN));
+    EXPECT_CALL(*session_, WritevData(_, 2, _, NO_FIN, _));
   }
-  EXPECT_CALL(*session_, WritevData(_, _, 4, _, FIN));
+  EXPECT_CALL(*session_, WritevData(_, 4, _, FIN, _));
   stream_->WriteOrBufferBody("data", true);
   stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   EXPECT_EQ(spdy::SpdyStreamPrecedence(kV3HighestPriority),
@@ -2029,8 +2024,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
   // The stream byte will be written in the first byte.
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _));
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 
@@ -2052,8 +2046,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _));
   // Deliver second dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
 
@@ -2094,8 +2087,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
   // The stream byte will be written in the first byte.
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _));
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
   EXPECT_TRUE(stream_->headers_decompressed());
@@ -2120,8 +2112,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   // Decoding is blocked because dynamic table entry has not been received yet.
   EXPECT_FALSE(stream_->trailers_decompressed());
 
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _));
   // Deliver second dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
   EXPECT_TRUE(stream_->trailers_decompressed());
@@ -2215,8 +2206,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
 
   // The stream byte will be written in the first byte.
-  EXPECT_CALL(*session_, WritevData(decoder_send_stream,
-                                    decoder_send_stream->id(), _, _, _));
+  EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _));
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
   EXPECT_TRUE(stream_->headers_decompressed());
@@ -2645,8 +2635,7 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
-                                    qpack_decoder_stream->id(), 1, 1, _));
+  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream->id(), 1, 1, _, _));
   EXPECT_CALL(*session_,
               SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 0));
 
@@ -2664,8 +2653,7 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationOnResetReceived) {
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
-  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream,
-                                    qpack_decoder_stream->id(), 1, 1, _));
+  EXPECT_CALL(*session_, WritevData(qpack_decoder_stream->id(), 1, 1, _, _));
 
   stream_->OnStreamReset(QuicRstStreamFrame(
       kInvalidControlFrameId, stream_->id(), QUIC_STREAM_CANCELLED, 0));

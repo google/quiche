@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
@@ -633,11 +634,11 @@ class MockQuicSession : public QuicSession {
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
   MOCK_METHOD5(WritevData,
-               QuicConsumedData(QuicStream* stream,
-                                QuicStreamId id,
+               QuicConsumedData(QuicStreamId id,
                                 size_t write_length,
                                 QuicStreamOffset offset,
-                                StreamSendingState state));
+                                StreamSendingState state,
+                                bool is_retransmission));
 
   MOCK_METHOD3(SendRstStream,
                void(QuicStreamId stream_id,
@@ -663,11 +664,11 @@ class MockQuicSession : public QuicSession {
 
   // Returns a QuicConsumedData that indicates all of |write_length| (and |fin|
   // if set) has been consumed.
-  static QuicConsumedData ConsumeData(QuicStream* stream,
-                                      QuicStreamId id,
-                                      size_t write_length,
-                                      QuicStreamOffset offset,
-                                      StreamSendingState state);
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               size_t write_length,
+                               QuicStreamOffset offset,
+                               StreamSendingState state,
+                               bool is_retransmission);
 
   void ReallySendRstStream(QuicStreamId id,
                            QuicRstStreamErrorCode error,
@@ -732,11 +733,11 @@ class MockQuicSpdySession : public QuicSpdySession {
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
   MOCK_METHOD5(WritevData,
-               QuicConsumedData(QuicStream* stream,
-                                QuicStreamId id,
+               QuicConsumedData(QuicStreamId id,
                                 size_t write_length,
                                 QuicStreamOffset offset,
-                                StreamSendingState state));
+                                StreamSendingState state,
+                                bool is_retransmission));
 
   MOCK_METHOD3(SendRstStream,
                void(QuicStreamId stream_id,
@@ -776,6 +777,14 @@ class MockQuicSpdySession : public QuicSpdySession {
   MOCK_METHOD4(
       OnStreamFrameData,
       void(QuicStreamId stream_id, const char* data, size_t len, bool fin));
+
+  // Returns a QuicConsumedData that indicates all of |write_length| (and |fin|
+  // if set) has been consumed.
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               size_t write_length,
+                               QuicStreamOffset offset,
+                               StreamSendingState state,
+                               bool is_retransmission);
 
   using QuicSession::ActivateStream;
 

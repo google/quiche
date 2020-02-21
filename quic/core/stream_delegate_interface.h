@@ -21,11 +21,11 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   virtual void OnStreamError(QuicErrorCode error_code,
                              std::string error_details) = 0;
   // Called when the stream needs to write data.
-  virtual QuicConsumedData WritevData(QuicStream* stream,
-                                      QuicStreamId id,
+  virtual QuicConsumedData WritevData(QuicStreamId id,
                                       size_t write_length,
                                       QuicStreamOffset offset,
-                                      StreamSendingState state) = 0;
+                                      StreamSendingState state,
+                                      bool is_retransmission) = 0;
   // Called on stream creation.
   virtual void RegisterStreamPriority(
       QuicStreamId id,

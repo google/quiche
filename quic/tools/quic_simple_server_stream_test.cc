@@ -110,7 +110,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
       QuicSessionPeer::SetMaxOpenOutgoingStreams(this, kMaxStreamsForTest);
     }
     ON_CALL(*this, WritevData(_, _, _, _, _))
-        .WillByDefault(Invoke(MockQuicSession::ConsumeData));
+        .WillByDefault(Invoke(this, &MockQuicSimpleServerSession::ConsumeData));
   }
 
   MockQuicSimpleServerSession(const MockQuicSimpleServerSession&) = delete;
@@ -123,11 +123,11 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                     ConnectionCloseSource source));
   MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
   MOCK_METHOD5(WritevData,
-               QuicConsumedData(QuicStream* stream,
-                                QuicStreamId id,
+               QuicConsumedData(QuicStreamId id,
                                 size_t write_length,
                                 QuicStreamOffset offset,
-                                StreamSendingState state));
+                                StreamSendingState state,
+                                bool is_retransmission));
   MOCK_METHOD4(OnStreamHeaderList,
                void(QuicStreamId stream_id,
                     bool fin,
@@ -162,6 +162,23 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
   using QuicSession::ActivateStream;
 
   MOCK_METHOD1(OnStopSendingReceived, void(const QuicStopSendingFrame& frame));
+
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               size_t write_length,
+                               QuicStreamOffset offset,
+                               StreamSendingState state,
+                               bool /*is_retransmission*/) {
+    if (write_length > 0) {
+      auto buf = std::make_unique<char[]>(write_length);
+      QuicStream* stream = GetOrCreateStream(id);
+      DCHECK(stream);
+      QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
+      stream->WriteStreamData(offset, write_length, &writer);
+    } else {
+      DCHECK(state != NO_FIN);
+    }
+    return QuicConsumedData(write_length, state != NO_FIN);
+  }
 
   spdy::SpdyHeaderBlock original_request_headers_;
 };
@@ -257,7 +274,8 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 
 TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
-      .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
@@ -274,7 +292,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFraming) {
 
 TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
-      .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
 
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
@@ -292,7 +311,8 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
 
 TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
-      .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
 
   EXPECT_FALSE(stream_->fin_received());
   EXPECT_FALSE(stream_->rst_received());
@@ -311,9 +331,9 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   // We'll automatically write out an error (headers + body)
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, kDataFrameHeaderLength, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, kDataFrameHeaderLength, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, kErrorLength, _, FIN));
+  EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _));
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
 
@@ -362,9 +382,9 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, header_length, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, kErrorLength, _, FIN));
+  EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _));
 
   stream_->DoSendResponse();
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
@@ -395,9 +415,9 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, header_length, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, kErrorLength, _, FIN));
+  EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _));
 
   stream_->DoSendResponse();
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
@@ -455,9 +475,9 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, header_length, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, body.length(), _, FIN));
+  EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _));
 
   stream_->DoSendResponse();
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
@@ -497,9 +517,9 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
                             _, _));
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, header_length, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, header_length, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, body.length(), _, FIN));
+  EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _));
   stream_->DoSendResponse();
   EXPECT_EQ(*request_headers, session_.original_request_headers_);
 }
@@ -553,11 +573,11 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
   EXPECT_CALL(*server_initiated_stream, WriteHeadersMock(false));
 
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, kServerInitiatedStreamId, header_length,
-                                     _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(kServerInitiatedStreamId, header_length, _,
+                                     NO_FIN, _));
   }
   EXPECT_CALL(session_,
-              WritevData(_, kServerInitiatedStreamId, kBody.size(), _, FIN));
+              WritevData(kServerInitiatedStreamId, kBody.size(), _, FIN, _));
   server_initiated_stream->PushResponse(std::move(headers));
   EXPECT_EQ(kPath, server_initiated_stream->GetHeader(":path"));
   EXPECT_EQ("GET", server_initiated_stream->GetHeader(":method"));
@@ -571,9 +591,9 @@ TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   if (UsesHttp3()) {
-    EXPECT_CALL(session_, WritevData(_, _, kDataFrameHeaderLength, _, NO_FIN));
+    EXPECT_CALL(session_, WritevData(_, kDataFrameHeaderLength, _, NO_FIN, _));
   }
-  EXPECT_CALL(session_, WritevData(_, _, kErrorLength, _, FIN));
+  EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _));
 
   stream_->DoSendErrorResponse();
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
@@ -590,7 +610,8 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
-      .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
   stream_->OnStreamHeaderList(true, kFakeFrameLen, header_list_);
 
   EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
@@ -608,7 +629,8 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _))
-      .WillRepeatedly(Invoke(MockQuicSession::ConsumeData));
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
   stream_->OnStreamHeaderList(true, kFakeFrameLen, header_list_);
 
   EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
@@ -642,8 +664,7 @@ TEST_P(QuicSimpleServerStreamTest,
     // assumption on their number or size.
     auto* qpack_decoder_stream =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
-    EXPECT_CALL(session_, WritevData(qpack_decoder_stream,
-                                     qpack_decoder_stream->id(), _, _, _))
+    EXPECT_CALL(session_, WritevData(qpack_decoder_stream->id(), _, _, _, _))
         .Times(AnyNumber());
   }
   EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _)).Times(1);

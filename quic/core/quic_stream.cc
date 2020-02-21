@@ -929,9 +929,9 @@ bool QuicStream::RetransmitStreamData(QuicStreamOffset offset,
     const bool can_bundle_fin =
         retransmit_fin && (retransmission_offset + retransmission_length ==
                            stream_bytes_written());
-    consumed = stream_delegate_->WritevData(this, id_, retransmission_length,
-                                            retransmission_offset,
-                                            can_bundle_fin ? FIN : NO_FIN);
+    consumed = stream_delegate_->WritevData(
+        id_, retransmission_length, retransmission_offset,
+        can_bundle_fin ? FIN : NO_FIN, /*is_retransmission*/ true);
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                   << " is forced to retransmit stream data ["
                   << retransmission_offset << ", "
@@ -952,8 +952,8 @@ bool QuicStream::RetransmitStreamData(QuicStreamOffset offset,
   if (retransmit_fin) {
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                   << " retransmits fin only frame.";
-    consumed =
-        stream_delegate_->WritevData(this, id_, 0, stream_bytes_written(), FIN);
+    consumed = stream_delegate_->WritevData(id_, 0, stream_bytes_written(), FIN,
+                                            /*is_retransmission*/ true);
     if (!consumed.fin_consumed) {
       return false;
     }
@@ -1023,8 +1023,9 @@ void QuicStream::WriteBufferedData() {
   if (fin && add_random_padding_after_fin_) {
     state = FIN_AND_PADDING;
   }
-  QuicConsumedData consumed_data = stream_delegate_->WritevData(
-      this, id(), write_length, stream_bytes_written(), state);
+  QuicConsumedData consumed_data =
+      stream_delegate_->WritevData(id(), write_length, stream_bytes_written(),
+                                   state, /*is_retransmission*/ false);
 
   OnStreamDataConsumed(consumed_data.bytes_consumed);
 
@@ -1098,8 +1099,8 @@ void QuicStream::WritePendingRetransmission() {
     if (!send_buffer_.HasPendingRetransmission()) {
       QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                     << " retransmits fin only frame.";
-      consumed = stream_delegate_->WritevData(this, id_, 0,
-                                              stream_bytes_written(), FIN);
+      consumed = stream_delegate_->WritevData(id_, 0, stream_bytes_written(),
+                                              FIN, /*is_retransmission*/ true);
       fin_lost_ = !consumed.fin_consumed;
       if (fin_lost_) {
         // Connection is write blocked.
@@ -1112,9 +1113,9 @@ void QuicStream::WritePendingRetransmission() {
       const bool can_bundle_fin =
           fin_lost_ &&
           (pending.offset + pending.length == stream_bytes_written());
-      consumed = stream_delegate_->WritevData(this, id_, pending.length,
-                                              pending.offset,
-                                              can_bundle_fin ? FIN : NO_FIN);
+      consumed = stream_delegate_->WritevData(
+          id_, pending.length, pending.offset, can_bundle_fin ? FIN : NO_FIN,
+          /*is_retransmission*/ true);
       QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                     << " tries to retransmit stream data [" << pending.offset
                     << ", " << pending.offset + pending.length

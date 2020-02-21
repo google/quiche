@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -576,14 +577,15 @@ void MockQuicSession::SetCryptoStream(QuicCryptoStream* crypto_stream) {
   crypto_stream_.reset(crypto_stream);
 }
 
-// static
-QuicConsumedData MockQuicSession::ConsumeData(QuicStream* stream,
-                                              QuicStreamId /*id*/,
+QuicConsumedData MockQuicSession::ConsumeData(QuicStreamId id,
                                               size_t write_length,
                                               QuicStreamOffset offset,
-                                              StreamSendingState state) {
+                                              StreamSendingState state,
+                                              bool /*is_retransmission*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
+    QuicStream* stream = GetOrCreateStream(id);
+    DCHECK(stream);
     QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
     stream->WriteStreamData(offset, write_length, &writer);
   } else {
@@ -645,6 +647,23 @@ const QuicCryptoStream* MockQuicSpdySession::GetCryptoStream() const {
 
 void MockQuicSpdySession::SetCryptoStream(QuicCryptoStream* crypto_stream) {
   crypto_stream_.reset(crypto_stream);
+}
+
+QuicConsumedData MockQuicSpdySession::ConsumeData(QuicStreamId id,
+                                                  size_t write_length,
+                                                  QuicStreamOffset offset,
+                                                  StreamSendingState state,
+                                                  bool /*is_retransmission*/) {
+  if (write_length > 0) {
+    auto buf = std::make_unique<char[]>(write_length);
+    QuicStream* stream = GetOrCreateStream(id);
+    DCHECK(stream);
+    QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
+    stream->WriteStreamData(offset, write_length, &writer);
+  } else {
+    DCHECK(state != NO_FIN);
+  }
+  return QuicConsumedData(write_length, state != NO_FIN);
 }
 
 TestQuicSpdyServerSession::TestQuicSpdyServerSession(

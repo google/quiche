@@ -734,11 +734,11 @@ void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
   connection_->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
-QuicConsumedData QuicSession::WritevData(QuicStream* stream,
-                                         QuicStreamId id,
+QuicConsumedData QuicSession::WritevData(QuicStreamId id,
                                          size_t write_length,
                                          QuicStreamOffset offset,
-                                         StreamSendingState state) {
+                                         StreamSendingState state,
+                                         bool is_retransmission) {
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -748,7 +748,7 @@ QuicConsumedData QuicSession::WritevData(QuicStream* stream,
 
   QuicConsumedData data =
       connection_->SendStreamData(id, write_length, offset, state);
-  if (offset >= stream->stream_bytes_written()) {
+  if (!is_retransmission) {
     // This is new stream data.
     write_blocked_streams_.UpdateBytesForStream(id, data.bytes_consumed);
   }

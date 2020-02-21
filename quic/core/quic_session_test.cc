@@ -261,19 +261,16 @@ class TestSession : public QuicSession {
     return GetNumActiveStreams() > 0;
   }
 
-  QuicConsumedData WritevData(QuicStream* stream,
-                              QuicStreamId id,
+  QuicConsumedData WritevData(QuicStreamId id,
                               size_t write_length,
                               QuicStreamOffset offset,
-                              StreamSendingState state) override {
+                              StreamSendingState state,
+                              bool is_retransmission) override {
     bool fin = state != NO_FIN;
     QuicConsumedData consumed(write_length, fin);
     if (!writev_consumes_all_data_) {
-      consumed =
-          QuicSession::WritevData(stream, id, write_length, offset, state);
-    }
-    if (fin && consumed.fin_consumed) {
-      stream->set_fin_sent(true);
+      consumed = QuicSession::WritevData(id, write_length, offset, state,
+                                         is_retransmission);
     }
     QuicSessionPeer::GetWriteBlockedStreams(this)->UpdateBytesForStream(
         id, consumed.bytes_consumed);
@@ -295,7 +292,8 @@ class TestSession : public QuicSession {
     }
     MakeIOVector("not empty", &iov);
     QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
-    QuicConsumedData consumed = WritevData(stream, stream->id(), 9, 0, FIN);
+    QuicConsumedData consumed =
+        WritevData(stream->id(), 9, 0, FIN, /*is_retransmission*/ false);
     QuicStreamPeer::SendBuffer(stream).OnStreamDataConsumed(
         consumed.bytes_consumed);
     return consumed;
@@ -311,7 +309,8 @@ class TestSession : public QuicSession {
 
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
-    return WritevData(stream, stream->id(), bytes, 0, FIN);
+    return WritevData(stream->id(), bytes, 0, FIN,
+                      /*is_retransmission*/ false);
   }
 
   bool UsesPendingStreams() const override { return uses_pending_streams_; }
