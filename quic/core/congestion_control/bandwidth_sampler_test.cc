@@ -45,6 +45,10 @@ class BandwidthSamplerTest : public QuicTest {
         round_trip_count_(0) {
     // Ensure that the clock does not start at zero.
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    if (GetQuicReloadableFlag(
+            quic_avoid_overestimate_bandwidth_with_aggregation)) {
+      sampler_.EnableOverestimateAvoidance();
+    }
   }
 
   MockClock clock_;
@@ -286,7 +290,7 @@ TEST_F(BandwidthSamplerTest, SendPaced) {
   QuicBandwidth last_bandwidth = QuicBandwidth::Zero();
   for (int i = 21; i <= 40; i++) {
     last_bandwidth = AckPacket(i);
-    EXPECT_EQ(expected_bandwidth, last_bandwidth);
+    EXPECT_EQ(expected_bandwidth, last_bandwidth) << "i is " << i;
     clock_.AdvanceTime(time_between_packets);
   }
   if (sampler_.remove_packets_once_per_congestion_event()) {
@@ -690,7 +694,7 @@ TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
 
   // Send and ack packet 2, 3 and 4.
   round_trip_count_++;
-  est_bandwidth_upper_bound_ = first_packet_sending_rate * 0.9;
+  est_bandwidth_upper_bound_ = first_packet_sending_rate * 0.3;
   SendPacket(2);
   SendPacket(3);
   SendPacket(4);
@@ -704,7 +708,12 @@ TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
 
 class MaxAckHeightTrackerTest : public QuicTest {
  protected:
-  MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {}
+  MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {
+    if (GetQuicReloadableFlag(
+            quic_avoid_overestimate_bandwidth_with_aggregation)) {
+      tracker_.SetAckAggregationBandwidthThreshold(1.8);
+    }
+  }
 
   // Run a full aggregation episode, which is one or more aggregated acks,
   // followed by a quiet period in which no ack happens.
@@ -787,9 +796,15 @@ TEST_F(MaxAckHeightTrackerTest, VeryAggregatedLargeAck) {
                      1200, true);
   now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
 
-  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
-                     1200, false);
-  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  if (tracker_.ack_aggregation_bandwidth_threshold() > 1.1) {
+    AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                       1200, true);
+    EXPECT_EQ(3u, tracker_.num_ack_aggregation_epochs());
+  } else {
+    AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                       1200, false);
+    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  }
 }
 
 TEST_F(MaxAckHeightTrackerTest, VeryAggregatedSmallAcks) {
@@ -799,9 +814,15 @@ TEST_F(MaxAckHeightTrackerTest, VeryAggregatedSmallAcks) {
                      true);
   now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
 
-  AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6), 300,
-                     false);
-  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  if (tracker_.ack_aggregation_bandwidth_threshold() > 1.1) {
+    AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                       300, true);
+    EXPECT_EQ(3u, tracker_.num_ack_aggregation_epochs());
+  } else {
+    AggregationEpisode(bandwidth_ * 20, QuicTime::Delta::FromMilliseconds(6),
+                       300, false);
+    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  }
 }
 
 TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedLargeAck) {
@@ -811,9 +832,15 @@ TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedLargeAck) {
                      1000, true);
   now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
 
-  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
-                     1000, false);
-  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  if (tracker_.ack_aggregation_bandwidth_threshold() > 1.1) {
+    AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                       1000, true);
+    EXPECT_EQ(3u, tracker_.num_ack_aggregation_epochs());
+  } else {
+    AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                       1000, false);
+    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  }
 }
 
 TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedSmallAcks) {
@@ -823,9 +850,15 @@ TEST_F(MaxAckHeightTrackerTest, SomewhatAggregatedSmallAcks) {
                      true);
   now_ = now_ - QuicTime::Delta::FromMilliseconds(1);
 
-  AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50), 100,
-                     false);
-  EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  if (tracker_.ack_aggregation_bandwidth_threshold() > 1.1) {
+    AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                       100, true);
+    EXPECT_EQ(3u, tracker_.num_ack_aggregation_epochs());
+  } else {
+    AggregationEpisode(bandwidth_ * 2, QuicTime::Delta::FromMilliseconds(50),
+                       100, false);
+    EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+  }
 }
 
 TEST_F(MaxAckHeightTrackerTest, NotAggregated) {

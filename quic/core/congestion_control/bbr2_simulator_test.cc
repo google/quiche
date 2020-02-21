@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -304,6 +305,14 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
                                               aggregation_timeout);
   }
 
+  void SetConnectionOption(QuicTag option) {
+    QuicConfig config;
+    QuicTagVector options;
+    options.push_back(option);
+    QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+    sender_->SetFromConfig(config, Perspective::IS_SERVER);
+  }
+
   bool Bbr2ModeIsOneOf(const std::vector<Bbr2Mode>& expected_modes) const {
     const Bbr2Mode mode = sender_->ExportDebugState().mode;
     for (Bbr2Mode expected_mode : expected_modes) {
@@ -416,6 +425,10 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    SetConnectionOption(kBSAO);
+  }
   DefaultTopologyParams params;
   CreateNetwork(params);
   // 2 RTTs of aggregation, with a max of 10kb.
@@ -425,11 +438,17 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
 
-  EXPECT_LE(params.BottleneckBandwidth() * 0.99f,
-            sender_->ExportDebugState().bandwidth_hi);
-  // TODO(b/36022633): Bandwidth sampler overestimates with aggregation.
-  EXPECT_GE(params.BottleneckBandwidth() * 1.5f,
-            sender_->ExportDebugState().bandwidth_hi);
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                     sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  } else {
+    EXPECT_LE(params.BottleneckBandwidth() * 0.99f,
+              sender_->ExportDebugState().bandwidth_hi);
+    // TODO(b/36022633): Bandwidth sampler overestimates with aggregation.
+    EXPECT_GE(params.BottleneckBandwidth() * 1.5f,
+              sender_->ExportDebugState().bandwidth_hi);
+  }
   EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
@@ -438,6 +457,10 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferAckDecimation) {
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    SetConnectionOption(kBSAO);
+  }
   // Enable Ack Decimation on the receiver.
   QuicConnectionPeer::SetAckMode(receiver_endpoint_.connection(),
                                  AckMode::ACK_DECIMATION);
@@ -448,11 +471,17 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferAckDecimation) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
 
-  EXPECT_LE(params.BottleneckBandwidth() * 0.99f,
-            sender_->ExportDebugState().bandwidth_hi);
-  // TODO(b/36022633): Bandwidth sampler overestimates with aggregation.
-  EXPECT_GE(params.BottleneckBandwidth() * 1.1f,
-            sender_->ExportDebugState().bandwidth_hi);
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                     sender_->ExportDebugState().bandwidth_hi, 0.01f);
+  } else {
+    EXPECT_LE(params.BottleneckBandwidth() * 0.99f,
+              sender_->ExportDebugState().bandwidth_hi);
+    // TODO(b/36022633): Bandwidth sampler overestimates with aggregation.
+    EXPECT_GE(params.BottleneckBandwidth() * 1.1f,
+              sender_->ExportDebugState().bandwidth_hi);
+  }
   EXPECT_LE(sender_loss_rate_in_packets(), 0.001);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
   // The margin here is high, because the aggregation greatly increases

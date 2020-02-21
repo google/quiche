@@ -330,6 +330,13 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     max_congestion_window_with_network_parameters_adjusted_ =
         100 * kDefaultTCPMSS;
   }
+  if (GetQuicReloadableFlag(
+          quic_avoid_overestimate_bandwidth_with_aggregation) &&
+      config.HasClientRequestedIndependentOption(kBSAO, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_avoid_overestimate_bandwidth_with_aggregation, 3, 4);
+    sampler_.EnableOverestimateAvoidance();
+  }
 }
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {

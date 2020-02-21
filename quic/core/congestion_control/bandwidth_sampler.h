@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/windowed_filter.h"
 #include "net/third_party/quiche/src/quic/core/packet_number_indexed_queue.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -110,6 +111,14 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
     max_ack_height_filter_.Reset(new_height, new_time);
   }
 
+  void SetAckAggregationBandwidthThreshold(double threshold) {
+    ack_aggregation_bandwidth_threshold_ = threshold;
+  }
+
+  double ack_aggregation_bandwidth_threshold() const {
+    return ack_aggregation_bandwidth_threshold_;
+  }
+
   uint64_t num_ack_aggregation_epochs() const {
     return num_ack_aggregation_epochs_;
   }
@@ -130,6 +139,8 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
   // The number of ack aggregation epochs ever started, including the ongoing
   // one. Stats only.
   uint64_t num_ack_aggregation_epochs_ = 0;
+  double ack_aggregation_bandwidth_threshold_ =
+      GetQuicFlag(FLAGS_quic_ack_aggregation_bandwidth_threshold);
 };
 
 // An interface common to any class that can provide bandwidth samples from the
@@ -245,8 +256,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 // For that purpose, BandwidthSampler always keeps track of the most recently
 // acknowledged packet, and records it together with every outgoing packet.
 // When a packet gets acknowledged (A_1), it has not only information about when
-// it itself was sent (S_1), but also the information about the latest
-// acknowledged packet right before it was sent (S_0 and A_0).
+// it itself was sent (S_1), but also the information about a previously
+// acknowledged packet before it was sent (S_0 and A_0).
 //
 // Based on that data, send and ack rate are estimated as:
 //   send_rate = (bytes(S_1) - bytes(S_0)) / (time(S_1) - time(S_0))
@@ -362,6 +373,57 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     return one_bw_sample_per_ack_event_;
   }
 
+  // AckPoint represents a point on the ack line.
+  struct QUIC_NO_EXPORT AckPoint {
+    QuicTime ack_time = QuicTime::Zero();
+    QuicByteCount total_bytes_acked = 0;
+
+    friend QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
+                                                   const AckPoint& ack_point) {
+      return os << ack_point.ack_time << ":" << ack_point.total_bytes_acked;
+    }
+  };
+
+  // RecentAckPoints maintains the most recent 2 ack points at distinct times.
+  class QUIC_NO_EXPORT RecentAckPoints {
+   public:
+    void Update(QuicTime ack_time, QuicByteCount total_bytes_acked) {
+      DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
+
+      if (ack_time < ack_points_[1].ack_time) {
+        // This can only happen when time goes backwards, we use the smaller
+        // timestamp for the most recent ack point in that case.
+        // TODO(wub): Add a QUIC_BUG if ack time stops going backwards.
+        ack_points_[1].ack_time = ack_time;
+      } else if (ack_time > ack_points_[1].ack_time) {
+        ack_points_[0] = ack_points_[1];
+        ack_points_[1].ack_time = ack_time;
+      }
+
+      ack_points_[1].total_bytes_acked = total_bytes_acked;
+    }
+
+    void Clear() { ack_points_[0] = ack_points_[1] = AckPoint(); }
+
+    const AckPoint& MostRecentPoint() const { return ack_points_[1]; }
+
+    const AckPoint& LessRecentPoint() const {
+      if (ack_points_[0].total_bytes_acked != 0) {
+        return ack_points_[0];
+      }
+
+      return ack_points_[1];
+    }
+
+   private:
+    AckPoint ack_points_[2];
+  };
+
+  void EnableOverestimateAvoidance();
+  bool IsOverestimateAvoidanceEnabled() const {
+    return overestimate_avoidance_;
+  }
+
  private:
   friend class test::BandwidthSamplerPeer;
 
@@ -428,6 +490,20 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   void SentPacketToSendTimeState(const ConnectionStateOnSentPacket& sent_packet,
                                  SendTimeState* send_time_state) const;
 
+  // Choose the best a0 from |a0_candidates_| to calculate the ack rate.
+  // |total_bytes_acked| is the total bytes acked when the packet being acked is
+  // sent. The best a0 is chosen as follows:
+  // - If there's only one candidate, use it.
+  // - If there are multiple candidates, let a[n] be the nth candidate, and
+  //   a[n-1].total_bytes_acked <= |total_bytes_acked| < a[n].total_bytes_acked,
+  //   use a[n-1].
+  // - If all candidates's total_bytes_acked is > |total_bytes_acked|, use a[0].
+  //   This may happen when acks are received out of order, and ack[n] caused
+  //   some candidates of ack[n-x] to be removed.
+  // - If all candidates's total_bytes_acked is <= |total_bytes_acked|, use
+  //   a[a.size()-1].
+  bool ChooseA0Point(QuicByteCount total_bytes_acked, AckPoint* a0);
+
   // The total number of congestion controlled bytes sent during the connection.
   QuicByteCount total_bytes_sent_;
 
@@ -466,6 +542,9 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // sent, indexed by the packet number.
   PacketNumberIndexedQueue<ConnectionStateOnSentPacket> connection_state_map_;
 
+  RecentAckPoints recent_ack_points_;
+  QuicCircularDeque<AckPoint> a0_candidates_;
+
   // Maximum number of tracked packets.
   const QuicPacketCount max_tracked_packets_;
 
@@ -493,6 +572,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   const bool one_bw_sample_per_ack_event_ =
       remove_packets_once_per_congestion_event_ &&
       GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2);
+
+  // True if --quic_avoid_overestimate_bandwidth_with_aggregation=true and
+  // connection option 'BSAO' is set.
+  bool overestimate_avoidance_;
 };
 
 }  // namespace quic

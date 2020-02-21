@@ -359,6 +359,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.max_ack_height();
   }
 
+  void EnableOverestimateAvoidance() {
+    bandwidth_sampler_.EnableOverestimateAvoidance();
+  }
+
   void OnPacketNeutered(QuicPacketNumber packet_number) {
     bandwidth_sampler_.OnPacketNeutered(packet_number);
   }
