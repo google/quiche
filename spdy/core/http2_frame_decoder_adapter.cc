@@ -73,9 +73,8 @@ uint64_t ToSpdyPingId(const Http2PingFields& ping) {
 // Overwrites the fields of the header with invalid values, for the purpose
 // of identifying reading of unset fields. Only takes effect for debug builds.
 // In Address Sanatizer builds, it also marks the fields as un-readable.
-void CorruptFrameHeader(Http2FrameHeader*
 #ifndef NDEBUG
-                            header) {
+void CorruptFrameHeader(Http2FrameHeader* header) {
   // Beyond a valid payload length, which is 2^24 - 1.
   header->payload_length = 0x1010dead;
   // An unsupported frame type.
@@ -86,9 +85,68 @@ void CorruptFrameHeader(Http2FrameHeader*
   // A stream id with the reserved high-bit (R in the RFC) set.
   // 2129510127 when the high-bit is cleared.
   header->stream_id = 0xfeedbeef;
+}
 #else
-                        /*header*/) {
+void CorruptFrameHeader(Http2FrameHeader* /*header*/) {}
 #endif
+
+Http2DecoderAdapter::SpdyFramerError HpackDecodingErrorToSpdyFramerError(
+    HpackDecodingError error) {
+  if (!GetSpdyReloadableFlag(spdy_enable_granular_decompress_errors)) {
+    return Http2DecoderAdapter::SpdyFramerError::SPDY_DECOMPRESS_FAILURE;
+  }
+
+  SPDY_CODE_COUNT(spdy_enable_granular_decompress_errors);
+
+  switch (error) {
+    case HpackDecodingError::kOk:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_NO_ERROR;
+    case HpackDecodingError::kIndexVarintError:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_INDEX_VARINT_ERROR;
+    case HpackDecodingError::kNameLengthVarintError:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_NAME_LENGTH_VARINT_ERROR;
+    case HpackDecodingError::kValueLengthVarintError:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_VALUE_LENGTH_VARINT_ERROR;
+    case HpackDecodingError::kNameTooLong:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_NAME_TOO_LONG;
+    case HpackDecodingError::kValueTooLong:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_VALUE_TOO_LONG;
+    case HpackDecodingError::kNameHuffmanError:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_NAME_HUFFMAN_ERROR;
+    case HpackDecodingError::kValueHuffmanError:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_VALUE_HUFFMAN_ERROR;
+    case HpackDecodingError::kMissingDynamicTableSizeUpdate:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE;
+    case HpackDecodingError::kInvalidIndex:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INVALID_INDEX;
+    case HpackDecodingError::kInvalidNameIndex:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_INVALID_NAME_INDEX;
+    case HpackDecodingError::kDynamicTableSizeUpdateNotAllowed:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED;
+    case HpackDecodingError::kInitialDynamicTableSizeUpdateIsAboveLowWaterMark:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK;
+    case HpackDecodingError::kDynamicTableSizeUpdateIsAboveAcknowledgedSetting:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING;
+    case HpackDecodingError::kTruncatedBlock:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_TRUNCATED_BLOCK;
+    case HpackDecodingError::kFragmentTooLong:
+      return Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_FRAGMENT_TOO_LONG;
+    case HpackDecodingError::kCompressedHeaderSizeExceedsLimit:
+      return Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT;
+  }
+
+  return Http2DecoderAdapter::SpdyFramerError::SPDY_DECOMPRESS_FAILURE;
 }
 
 }  // namespace
@@ -166,6 +224,38 @@ const char* Http2DecoderAdapter::SpdyFramerErrorToString(
       return "INVALID_CONTROL_FRAME_SIZE";
     case SPDY_OVERSIZED_PAYLOAD:
       return "OVERSIZED_PAYLOAD";
+    case SPDY_HPACK_INDEX_VARINT_ERROR:
+      return "HPACK_INDEX_VARINT_ERROR";
+    case SPDY_HPACK_NAME_LENGTH_VARINT_ERROR:
+      return "HPACK_NAME_LENGTH_VARINT_ERROR";
+    case SPDY_HPACK_VALUE_LENGTH_VARINT_ERROR:
+      return "HPACK_VALUE_LENGTH_VARINT_ERROR";
+    case SPDY_HPACK_NAME_TOO_LONG:
+      return "HPACK_NAME_TOO_LONG";
+    case SPDY_HPACK_VALUE_TOO_LONG:
+      return "HPACK_VALUE_TOO_LONG";
+    case SPDY_HPACK_NAME_HUFFMAN_ERROR:
+      return "HPACK_NAME_HUFFMAN_ERROR";
+    case SPDY_HPACK_VALUE_HUFFMAN_ERROR:
+      return "HPACK_VALUE_HUFFMAN_ERROR";
+    case SPDY_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE:
+      return "HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE";
+    case SPDY_HPACK_INVALID_INDEX:
+      return "HPACK_INVALID_INDEX";
+    case SPDY_HPACK_INVALID_NAME_INDEX:
+      return "HPACK_INVALID_NAME_INDEX";
+    case SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED:
+      return "HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED";
+    case SPDY_HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK:
+      return "HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK";
+    case SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING:
+      return "HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING";
+    case SPDY_HPACK_TRUNCATED_BLOCK:
+      return "HPACK_TRUNCATED_BLOCK";
+    case SPDY_HPACK_FRAGMENT_TOO_LONG:
+      return "HPACK_FRAGMENT_TOO_LONG";
+    case SPDY_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
+      return "HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT";
     case LAST_ERROR:
       return "UNKNOWN_ERROR";
   }
@@ -410,8 +500,10 @@ void Http2DecoderAdapter::OnHeadersPriority(
 void Http2DecoderAdapter::OnHpackFragment(const char* data, size_t len) {
   SPDY_DVLOG(1) << "OnHpackFragment: len=" << len;
   on_hpack_fragment_called_ = true;
-  if (!GetHpackDecoder()->HandleControlFrameHeadersData(data, len)) {
-    SetSpdyErrorAndNotify(SpdyFramerError::SPDY_DECOMPRESS_FAILURE);
+  auto* decoder = GetHpackDecoder();
+  if (!decoder->HandleControlFrameHeadersData(data, len)) {
+    SetSpdyErrorAndNotify(
+        HpackDecodingErrorToSpdyFramerError(decoder->error()));
     return;
   }
 }
@@ -995,10 +1087,12 @@ void Http2DecoderAdapter::CommonHpackFragmentEnd() {
               frame_type() == Http2FrameType::CONTINUATION)
         << frame_header();
     has_expected_frame_type_ = false;
-    if (GetHpackDecoder()->HandleControlFrameHeadersComplete(nullptr)) {
+    auto* decoder = GetHpackDecoder();
+    if (decoder->HandleControlFrameHeadersComplete(nullptr)) {
       visitor()->OnHeaderFrameEnd(stream_id());
     } else {
-      SetSpdyErrorAndNotify(SpdyFramerError::SPDY_DECOMPRESS_FAILURE);
+      SetSpdyErrorAndNotify(
+          HpackDecodingErrorToSpdyFramerError(decoder->error()));
       return;
     }
     const Http2FrameHeader& first = frame_type() == Http2FrameType::CONTINUATION

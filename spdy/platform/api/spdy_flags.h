@@ -10,6 +10,7 @@
 #define GetSpdyReloadableFlag(flag) GetSpdyReloadableFlagImpl(flag)
 #define GetSpdyRestartFlag(flag) GetSpdyRestartFlagImpl(flag)
 
+#define SPDY_CODE_COUNT SPDY_CODE_COUNT_IMPL
 #define SPDY_CODE_COUNT_N SPDY_CODE_COUNT_N_IMPL
 
 #endif  // QUICHE_SPDY_PLATFORM_API_SPDY_FLAGS_H_

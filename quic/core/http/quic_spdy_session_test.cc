@@ -2745,6 +2745,40 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
   EXPECT_EQ(59u, hpack_encoder->CurrentHeaderTableSizeSetting());
 }
 
+TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
+  if (VersionUsesHttp3(transport_version())) {
+    // HPACK is not used in HTTP/3.
+    return;
+  }
+
+  QuicFlagSaver flag_saver;
+  SetQuicReloadableFlag(spdy_enable_granular_decompress_errors, true);
+
+  QuicStreamId request_stream_id = 5;
+  session_.CreateIncomingStream(request_stream_id);
+
+  // Index 126 does not exist (static table has 61 entries and dynamic table is
+  // empty).
+  std::string headers_frame = quiche::QuicheTextUtils::HexDecode(
+      "000006"    // length
+      "01"        // type
+      "24"        // flags: PRIORITY | END_HEADERS
+      "00000005"  // stream_id
+      "00000000"  // stream dependency
+      "10"        // weight
+      "fe");      // payload: reference to index 126.
+  QuicStreamId headers_stream_id =
+      QuicUtils::GetHeadersStreamId(transport_version());
+  QuicStreamFrame data(headers_stream_id, false, 0, headers_frame);
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HPACK_INVALID_INDEX,
+                      "SPDY framing error: HPACK_INVALID_INDEX",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  session_.OnStreamFrame(data);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

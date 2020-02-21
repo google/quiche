@@ -139,13 +139,68 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   void OnError(Http2DecoderAdapter::SpdyFramerError error) override {
-    QuicErrorCode code = QUIC_INVALID_HEADERS_STREAM_DATA;
+    QuicErrorCode code;
     switch (error) {
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INDEX_VARINT_ERROR:
+        code = QUIC_HPACK_NAME_LENGTH_VARINT_ERROR;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_NAME_LENGTH_VARINT_ERROR:
+        code = QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_VALUE_LENGTH_VARINT_ERROR:
+        code = QUIC_HPACK_NAME_TOO_LONG;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_NAME_TOO_LONG:
+        code = QUIC_HPACK_VALUE_TOO_LONG;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_VALUE_TOO_LONG:
+        code = QUIC_HPACK_INDEX_VARINT_ERROR;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_NAME_HUFFMAN_ERROR:
+        code = QUIC_HPACK_NAME_HUFFMAN_ERROR;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_VALUE_HUFFMAN_ERROR:
+        code = QUIC_HPACK_VALUE_HUFFMAN_ERROR;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE:
+        code = QUIC_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INVALID_INDEX:
+        code = QUIC_HPACK_INVALID_INDEX;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INVALID_NAME_INDEX:
+        code = QUIC_HPACK_INVALID_NAME_INDEX;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED:
+        code = QUIC_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_INITIAL_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK:
+        code = QUIC_HPACK_INITIAL_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING:
+        code = QUIC_HPACK_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_TRUNCATED_BLOCK:
+        code = QUIC_HPACK_TRUNCATED_BLOCK;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_FRAGMENT_TOO_LONG:
+        code = QUIC_HPACK_FRAGMENT_TOO_LONG;
+        break;
+      case Http2DecoderAdapter::SpdyFramerError::
+          SPDY_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
+        code = QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT;
+        break;
       case Http2DecoderAdapter::SpdyFramerError::SPDY_DECOMPRESS_FAILURE:
         code = QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE;
         break;
       default:
-        break;
+        code = QUIC_INVALID_HEADERS_STREAM_DATA;
     }
     CloseConnection(quiche::QuicheStrCat(
                         "SPDY framing error: ",

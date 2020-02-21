@@ -465,6 +465,51 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {false,
               {static_cast<uint64_t>(
                   QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HPACK_INDEX_VARINT_ERROR:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_INDEX_VARINT_ERROR)}};
+    case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:
+      return {false,
+              {static_cast<uint64_t>(QUIC_HPACK_NAME_LENGTH_VARINT_ERROR)}};
+    case QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR:
+      return {false,
+              {static_cast<uint64_t>(QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR)}};
+    case QUIC_HPACK_NAME_TOO_LONG:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_NAME_TOO_LONG)}};
+    case QUIC_HPACK_VALUE_TOO_LONG:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_VALUE_TOO_LONG)}};
+    case QUIC_HPACK_NAME_HUFFMAN_ERROR:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_NAME_HUFFMAN_ERROR)}};
+    case QUIC_HPACK_VALUE_HUFFMAN_ERROR:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_VALUE_HUFFMAN_ERROR)}};
+    case QUIC_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE:
+      return {false,
+              {static_cast<uint64_t>(
+                  QUIC_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE)}};
+    case QUIC_HPACK_INVALID_INDEX:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_INVALID_INDEX)}};
+    case QUIC_HPACK_INVALID_NAME_INDEX:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_INVALID_NAME_INDEX)}};
+    case QUIC_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED:
+      return {false,
+              {static_cast<uint64_t>(
+                  QUIC_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED)}};
+    case QUIC_HPACK_INITIAL_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK:
+      return {
+          false,
+          {static_cast<uint64_t>(
+              QUIC_HPACK_INITIAL_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK)}};
+    case QUIC_HPACK_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING:
+      return {false,
+              {static_cast<uint64_t>(
+                  QUIC_HPACK_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING)}};
+    case QUIC_HPACK_TRUNCATED_BLOCK:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_TRUNCATED_BLOCK)}};
+    case QUIC_HPACK_FRAGMENT_TOO_LONG:
+      return {false, {static_cast<uint64_t>(QUIC_HPACK_FRAGMENT_TOO_LONG)}};
+    case QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
+      return {false,
+              {static_cast<uint64_t>(
+                  QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT)}};
     case QUIC_LAST_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_LAST_ERROR)}};
   }
