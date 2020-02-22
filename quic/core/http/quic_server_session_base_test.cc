@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quic/core/quic_crypto_server_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
@@ -456,21 +457,22 @@ TEST_P(QuicServerSessionBaseTest, GetStreamDisconnected) {
                   "ShouldCreateIncomingStream called when disconnected");
 }
 
-class MockQuicCryptoServerStream : public QuicCryptoServerStream {
+class MockQuicCryptoServerHandshaker : public QuicCryptoServerHandshaker {
  public:
-  explicit MockQuicCryptoServerStream(
+  explicit MockQuicCryptoServerHandshaker(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicServerSessionBase* session,
       QuicCryptoServerStreamBase::Helper* helper)
-      : QuicCryptoServerStream(crypto_config,
-                               compressed_certs_cache,
-                               session,
-                               helper) {}
-  MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
-  MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
+      : QuicCryptoServerHandshaker(crypto_config,
+                                   compressed_certs_cache,
+                                   session,
+                                   helper) {}
+  MockQuicCryptoServerHandshaker(const MockQuicCryptoServerHandshaker&) =
       delete;
-  ~MockQuicCryptoServerStream() override {}
+  MockQuicCryptoServerHandshaker& operator=(
+      const MockQuicCryptoServerHandshaker&) = delete;
+  ~MockQuicCryptoServerHandshaker() override {}
 
   MOCK_METHOD1(SendServerConfigUpdate,
                void(const CachedNetworkParameters* cached_network_parameters));
@@ -516,11 +518,11 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
         /*is_static=*/true);
   }
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
-  MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
+  MockQuicCryptoServerHandshaker* quic_crypto_stream = nullptr;
   MockTlsServerHandshaker* tls_server_stream = nullptr;
   if (session_->connection()->version().handshake_protocol ==
       PROTOCOL_QUIC_CRYPTO) {
-    quic_crypto_stream = new MockQuicCryptoServerStream(
+    quic_crypto_stream = new MockQuicCryptoServerHandshaker(
         &crypto_config_, &compressed_certs_cache_, session_.get(),
         &stream_helper_);
     QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
@@ -651,8 +653,9 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   connection_->AdvanceTime(
       QuicTime::Delta::FromSeconds(kNumSecondsPerHour + 1));
 
-  QuicCryptoServerStream* crypto_stream = static_cast<QuicCryptoServerStream*>(
-      QuicSessionPeer::GetMutableCryptoStream(session_.get()));
+  QuicCryptoServerStreamBase* crypto_stream =
+      static_cast<QuicCryptoServerStreamBase*>(
+          QuicSessionPeer::GetMutableCryptoStream(session_.get()));
 
   // No effect if no CachedNetworkParameters provided.
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);

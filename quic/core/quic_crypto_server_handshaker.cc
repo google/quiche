@@ -48,12 +48,11 @@ class QuicCryptoServerHandshaker::ProcessClientHelloCallback
 
 QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
     const QuicCryptoServerConfig* crypto_config,
-    QuicCryptoServerStream* stream,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
     QuicCryptoServerStreamBase::Helper* helper)
-    : QuicCryptoHandshaker(stream, session),
-      stream_(stream),
+    : QuicCryptoServerStreamBase(session),
+      QuicCryptoHandshaker(this, session),
       session_(session),
       delegate_(session),
       crypto_config_(crypto_config),
@@ -101,14 +100,14 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
 
   // Do not process handshake messages after the handshake is confirmed.
   if (one_rtt_keys_available_) {
-    stream_->OnUnrecoverableError(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
-                                  "Unexpected handshake message from client");
+    OnUnrecoverableError(QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE,
+                         "Unexpected handshake message from client");
     return;
   }
 
   if (message.tag() != kCHLO) {
-    stream_->OnUnrecoverableError(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-                                  "Handshake packet not CHLO");
+    OnUnrecoverableError(QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
+                         "Handshake packet not CHLO");
     return;
   }
 
@@ -117,9 +116,8 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
     // Already processing some other handshake message.  The protocol
     // does not allow for clients to send multiple handshake messages
     // before the server has a chance to respond.
-    stream_->OnUnrecoverableError(
-        QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO,
-        "Unexpected handshake message while processing CHLO");
+    OnUnrecoverableError(QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO,
+                         "Unexpected handshake message while processing CHLO");
     return;
   }
 
@@ -166,7 +164,7 @@ void QuicCryptoServerHandshaker::
 
   const CryptoHandshakeMessage& message = result.client_hello;
   if (error != QUIC_NO_ERROR) {
-    stream_->OnUnrecoverableError(error, error_details);
+    OnUnrecoverableError(error, error_details);
     return;
   }
 
@@ -186,7 +184,7 @@ void QuicCryptoServerHandshaker::
   const QuicErrorCode process_error =
       config->ProcessPeerHello(message, CLIENT, &process_error_details);
   if (process_error != QUIC_NO_ERROR) {
-    stream_->OnUnrecoverableError(process_error, process_error_details);
+    OnUnrecoverableError(process_error, process_error_details);
     return;
   }
 
@@ -286,8 +284,8 @@ void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
                 << message.DebugString();
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
     const QuicData& data = message.GetSerialized();
-    stream_->WriteOrBufferData(
-        quiche::QuicheStringPiece(data.data(), data.length()), false, nullptr);
+    WriteOrBufferData(quiche::QuicheStringPiece(data.data(), data.length()),
+                      false, nullptr);
   } else {
     SendHandshakeMessage(message);
   }
@@ -328,6 +326,10 @@ void QuicCryptoServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
     one_rtt_packet_decrypted_ = true;
     delegate_->NeuterHandshakeData();
   }
+}
+
+void QuicCryptoServerHandshaker::OnHandshakeDoneReceived() {
+  DCHECK(false);
 }
 
 bool QuicCryptoServerHandshaker::ShouldSendExpectCTHeader() const {

@@ -20,18 +20,11 @@ namespace test {
 class QuicCryptoServerStreamPeer;
 }  // namespace test
 
+// TODO(nharper): Rename this class to QuicCryptoServerStream.
 class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
-    : public QuicCryptoServerStream::HandshakerInterface,
+    : public QuicCryptoServerStreamBase,
       public QuicCryptoHandshaker {
  public:
-  // |crypto_config| must outlive the stream.
-  // |session| must outlive the stream.
-  // |helper| must outlive the stream.
-  QuicCryptoServerHandshaker(const QuicCryptoServerConfig* crypto_config,
-                             QuicCryptoServerStream* stream,
-                             QuicCompressedCertsCache* compressed_certs_cache,
-                             QuicSession* session,
-                             QuicCryptoServerStreamBase::Helper* helper);
   QuicCryptoServerHandshaker(const QuicCryptoServerHandshaker&) = delete;
   QuicCryptoServerHandshaker& operator=(const QuicCryptoServerHandshaker&) =
       delete;
@@ -51,6 +44,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) override;
   void OnPacketDecrypted(EncryptionLevel level) override;
+  void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
 
   // From QuicCryptoStream
@@ -66,6 +61,20 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
 
  protected:
+  QUIC_EXPORT_PRIVATE friend std::unique_ptr<QuicCryptoServerStreamBase>
+  CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                           QuicCompressedCertsCache* compressed_certs_cache,
+                           QuicSession* session,
+                           QuicCryptoServerStreamBase::Helper* helper);
+
+  // |crypto_config| must outlive the stream.
+  // |session| must outlive the stream.
+  // |helper| must outlive the stream.
+  QuicCryptoServerHandshaker(const QuicCryptoServerConfig* crypto_config,
+                             QuicCompressedCertsCache* compressed_certs_cache,
+                             QuicSession* session,
+                             QuicCryptoServerStreamBase::Helper* helper);
+
   virtual void ProcessClientHello(
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
           result,
@@ -160,8 +169,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   QuicTransportVersion transport_version() const {
     return session_->transport_version();
   }
-
-  QuicCryptoServerStream* stream_;
 
   QuicSession* session_;
   HandshakerDelegateInterface* delegate_;
