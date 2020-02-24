@@ -65,13 +65,13 @@ class StatsInterface : public IcmpReachable::StatsInterface {
 
   int unreachable_count() { return unreachable_count_; }
 
-  string current_source() { return current_source_; }
+  std::string current_source() { return current_source_; }
 
  private:
   int reachable_count_ = 0;
   int unreachable_count_ = 0;
 
-  string current_source_{};
+  std::string current_source_{};
 
   QuicUnorderedMap<int, int> read_errors_;
   QuicUnorderedMap<int, int> write_errors_;
@@ -182,7 +182,7 @@ TEST_F(IcmpReachableTest, HandlesReachableEvents) {
           }));
 
   sockaddr_in6 source_addr{};
-  string packed_source = source_.ToPackedString();
+  std::string packed_source = source_.ToPackedString();
   memcpy(&source_addr.sin6_addr, packed_source.data(), packed_source.size());
 
   EXPECT_CALL(kernel_, recvfrom(read_fd_, _, _, _, _, _))

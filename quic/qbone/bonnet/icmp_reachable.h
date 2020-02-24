@@ -30,7 +30,7 @@ class IcmpReachable : public IcmpReachableInterface {
   struct ReachableEvent {
     Status status;
     absl::Duration response_time;
-    string source;
+    std::string source;
   };
 
   class StatsInterface {
@@ -105,7 +105,7 @@ class IcmpReachable : public IcmpReachableInterface {
 
     void OnShutdown(QuicEpollServer* eps, int fd) override;
 
-    string Name() const override;
+    std::string Name() const override;
 
    private:
     IcmpReachable* reachable_;

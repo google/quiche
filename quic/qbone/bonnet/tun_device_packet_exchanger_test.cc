@@ -23,8 +23,8 @@ using ::testing::StrictMock;
 
 class MockVisitor : public QbonePacketExchanger::Visitor {
  public:
-  MOCK_METHOD1(OnReadError, void(const string&));
-  MOCK_METHOD1(OnWriteError, void(const string&));
+  MOCK_METHOD1(OnReadError, void(const std::string&));
+  MOCK_METHOD1(OnWriteError, void(const std::string&));
 };
 
 class TunDevicePacketExchangerTest : public QuicTest {
@@ -47,7 +47,7 @@ class TunDevicePacketExchangerTest : public QuicTest {
 };
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsFalseOnError) {
-  string packet = "fake packet";
+  std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
       .WillOnce(Invoke([](int fd, const void* buf, size_t count) {
         errno = ECOMM;
@@ -60,7 +60,7 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsFalseOnError) {
 
 TEST_F(TunDevicePacketExchangerTest,
        WritePacketReturnFalseAndBlockedOnBlockedTunnel) {
-  string packet = "fake packet";
+  std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
       .WillOnce(Invoke([](int fd, const void* buf, size_t count) {
         errno = EAGAIN;
@@ -72,7 +72,7 @@ TEST_F(TunDevicePacketExchangerTest,
 }
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsTrueOnSuccessfulWrite) {
-  string packet = "fake packet";
+  std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
       .WillOnce(Invoke([packet](int fd, const void* buf, size_t count) {
         EXPECT_THAT(reinterpret_cast<const char*>(buf), StrEq(packet));
@@ -105,7 +105,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketReturnsNullOnBlockedRead) {
 
 TEST_F(TunDevicePacketExchangerTest,
        ReadPacketReturnsThePacketOnSuccessfulRead) {
-  string packet = "fake_packet";
+  std::string packet = "fake_packet";
   EXPECT_CALL(mock_kernel_, read(kFd, _, kMtu))
       .WillOnce(Invoke([packet](int fd, void* buf, size_t count) {
         memcpy(buf, packet.data(), packet.size());

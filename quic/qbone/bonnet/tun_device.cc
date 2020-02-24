@@ -19,7 +19,7 @@ namespace quic {
 const char kTapTunDevicePath[] = "/dev/net/tun";
 const int kInvalidFd = -1;
 
-TunDevice::TunDevice(const string& interface_name,
+TunDevice::TunDevice(const std::string& interface_name,
                      int mtu,
                      bool persist,
                      bool setup_tun,

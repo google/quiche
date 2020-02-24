@@ -32,7 +32,7 @@ class TunDevice : public TunDeviceInterface {
   // routing rules go away.
   //
   // The caller should own kernel and make sure it outlives this.
-  TunDevice(const string& interface_name,
+  TunDevice(const std::string& interface_name,
             int mtu,
             bool persist,
             bool setup_tun,
@@ -70,7 +70,7 @@ class TunDevice : public TunDeviceInterface {
   // Opens a socket and makes netdevice ioctl call
   bool NetdeviceIoctl(int request, void* argp);
 
-  const string interface_name_;
+  const std::string interface_name_;
   const int mtu_;
   const bool persist_;
   const bool setup_tun_;

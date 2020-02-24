@@ -15,8 +15,8 @@ class MockPacketExchangerStatsInterface
  public:
   MOCK_METHOD0(OnPacketRead, void());
   MOCK_METHOD0(OnPacketWritten, void());
-  MOCK_METHOD1(OnReadError, void(string*));
-  MOCK_METHOD1(OnWriteError, void(string*));
+  MOCK_METHOD1(OnReadError, void(std::string*));
+  MOCK_METHOD1(OnWriteError, void(std::string*));
 
   MOCK_CONST_METHOD0(PacketsRead, int64_t());
   MOCK_CONST_METHOD0(PacketsWritten, int64_t());

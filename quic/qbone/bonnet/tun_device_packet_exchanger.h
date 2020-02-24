@@ -28,8 +28,8 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
     virtual void OnPacketRead() = 0;
     virtual void OnPacketWritten() = 0;
-    virtual void OnReadError(string* error) = 0;
-    virtual void OnWriteError(string* error) = 0;
+    virtual void OnReadError(std::string* error) = 0;
+    virtual void OnWriteError(std::string* error) = 0;
 
     ABSL_MUST_USE_RESULT virtual int64_t PacketsRead() const = 0;
     ABSL_MUST_USE_RESULT virtual int64_t PacketsWritten() const = 0;
@@ -57,13 +57,14 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
  private:
   // From QbonePacketExchanger.
-  std::unique_ptr<QuicData> ReadPacket(bool* blocked, string* error) override;
+  std::unique_ptr<QuicData> ReadPacket(bool* blocked,
+                                       std::string* error) override;
 
   // From QbonePacketExchanger.
   bool WritePacket(const char* packet,
                    size_t size,
                    bool* blocked,
-                   string* error) override;
+                   std::string* error) override;
 
   int fd_ = -1;
   size_t mtu_;

@@ -143,7 +143,7 @@ bool IcmpReachable::OnEvent(int fd) {
   QUIC_VLOG(1) << "Received ping response in "
                << absl::ToInt64Microseconds(end_ - start_) << "us.";
 
-  string source;
+  std::string source;
   QuicIpAddress source_ip;
   if (!source_ip.FromPackedString(
           reinterpret_cast<char*>(&source_addr.sin6_addr), sizeof(in6_addr))) {
@@ -208,7 +208,7 @@ void IcmpReachable::EpollCallback::OnShutdown(QuicEpollServer* eps, int fd) {
   eps->UnregisterFD(fd);
 }
 
-string IcmpReachable::EpollCallback::Name() const {
+std::string IcmpReachable::EpollCallback::Name() const {
   return "ICMP Reachable";
 }
 
