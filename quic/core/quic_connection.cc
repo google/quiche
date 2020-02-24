@@ -1191,13 +1191,6 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   // response.
   received_path_challenge_payloads_.push_back(frame.data_buffer);
 
-  // For VERSION 99 we define a "Padded PATH CHALLENGE" to be the same thing
-  // as a PADDED PING -- it will start a connectivity check and prevent
-  // connection migration. Insofar as the connectivity check and connection
-  // migration are concerned, logically the PATH CHALLENGE is the same as the
-  // PING, so as a stopgap, tell the FSM that determines whether we have a
-  // Padded PING or not that we received a PING.
-  UpdatePacketContent(FIRST_FRAME_IS_PING);
   should_last_packet_instigate_acks_ = true;
   return true;
 }
@@ -1214,7 +1207,6 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
   }
   // Have received the matching PATH RESPONSE, saved payload no longer valid.
   transmitted_connectivity_probe_payload_ = nullptr;
-  UpdatePacketContent(FIRST_FRAME_IS_PING);
   return true;
 }
 
@@ -1404,6 +1396,7 @@ void QuicConnection::OnPacketComplete() {
   }
 
   if (IsCurrentPacketConnectivityProbing()) {
+    DCHECK(!version().HasIetfQuicFrames());
     ++stats_.num_connectivity_probing_received;
   }
 
@@ -1420,6 +1413,7 @@ void QuicConnection::OnPacketComplete() {
       << IsCurrentPacketConnectivityProbing();
 
   if (IsCurrentPacketConnectivityProbing()) {
+    DCHECK(!version().HasIetfQuicFrames());
     visitor_->OnPacketReceived(last_packet_destination_address_,
                                last_packet_source_address_,
                                /*is_connectivity_probe=*/true);
@@ -1436,29 +1430,24 @@ void QuicConnection::OnPacketComplete() {
     visitor_->OnPacketReceived(last_packet_destination_address_,
                                last_packet_source_address_,
                                /*is_connectivity_probe=*/false);
-  } else {
-    // This node is not a client (is a server) AND the received packet was
-    // NOT connectivity-probing. If the packet had PATH CHALLENGES, send
-    // appropriate RESPONSE. Then deal with possible peer migration.
-    if (VersionHasIetfQuicFrames(transport_version()) &&
-        !received_path_challenge_payloads_.empty()) {
-      // If a PATH CHALLENGE was in a "Padded PING (or PATH CHALLENGE)"
-      // then it is taken care of above. This handles the case where a PATH
-      // CHALLENGE appeared someplace else (eg, the peer randomly added a PATH
-      // CHALLENGE frame to some other packet.
-      // There was at least one PATH CHALLENGE in the received packet,
-      // Generate the required PATH RESPONSE.
-      SendGenericPathProbePacket(nullptr, last_packet_source_address_,
-                                 /* is_response= */ true);
+  } else if (version().HasIetfQuicFrames() &&
+             !received_path_challenge_payloads_.empty()) {
+    if (current_effective_peer_migration_type_ != NO_CHANGE) {
+      // TODO(b/150095588): change the stats to
+      // num_valid_path_challenge_received.
+      ++stats_.num_connectivity_probing_received;
     }
-
-    if (last_header_.packet_number == GetLargestReceivedPacket()) {
-      direct_peer_address_ = last_packet_source_address_;
-      if (current_effective_peer_migration_type_ != NO_CHANGE) {
-        // TODO(fayang): When multiple packet number spaces is supported, only
-        // start peer migration for the application data.
-        StartEffectivePeerMigration(current_effective_peer_migration_type_);
-      }
+    // If the packet contains PATH CHALLENGE, send appropriate RESPONSE.
+    // There was at least one PATH CHALLENGE in the received packet,
+    // Generate the required PATH RESPONSE.
+    SendGenericPathProbePacket(nullptr, last_packet_source_address_,
+                               /* is_response=*/true);
+  } else if (last_header_.packet_number == GetLargestReceivedPacket()) {
+    direct_peer_address_ = last_packet_source_address_;
+    if (current_effective_peer_migration_type_ != NO_CHANGE) {
+      // TODO(fayang): When multiple packet number spaces is supported, only
+      // start peer migration for the application data.
+      StartEffectivePeerMigration(current_effective_peer_migration_type_);
     }
   }
 
@@ -3466,39 +3455,28 @@ bool QuicConnection::SendGenericPathProbePacket(
                   << server_connection_id_;
 
   OwningSerializedPacketPointer probing_packet;
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!version().HasIetfQuicFrames()) {
     // Non-IETF QUIC, generate a padded ping regardless of whether this is a
     // request or a response.
     probing_packet = packet_creator_.SerializeConnectivityProbingPacket();
+  } else if (is_response) {
+    // IETF QUIC path response.
+    // Respond to path probe request using IETF QUIC PATH_RESPONSE frame.
+    probing_packet =
+        packet_creator_.SerializePathResponseConnectivityProbingPacket(
+            received_path_challenge_payloads_,
+            /*is_padded=*/false);
+    received_path_challenge_payloads_.clear();
   } else {
-    if (is_response) {
-      // Respond using IETF QUIC PATH_RESPONSE frame
-      if (IsCurrentPacketConnectivityProbing()) {
-        // Pad the response if the request was a google connectivity probe
-        // (padded).
-        probing_packet =
-            packet_creator_.SerializePathResponseConnectivityProbingPacket(
-                received_path_challenge_payloads_, /* is_padded = */ true);
-        received_path_challenge_payloads_.clear();
-      } else {
-        // Do not pad the response if the path challenge was not a google
-        // connectivity probe.
-        probing_packet =
-            packet_creator_.SerializePathResponseConnectivityProbingPacket(
-                received_path_challenge_payloads_,
-                /* is_padded = */ false);
-        received_path_challenge_payloads_.clear();
-      }
-    } else {
-      // Request using IETF QUIC PATH_CHALLENGE frame
-      transmitted_connectivity_probe_payload_ =
-          std::make_unique<QuicPathFrameBuffer>();
-      probing_packet =
-          packet_creator_.SerializePathChallengeConnectivityProbingPacket(
-              transmitted_connectivity_probe_payload_.get());
-      if (!probing_packet) {
-        transmitted_connectivity_probe_payload_ = nullptr;
-      }
+    // IETF QUIC path challenge.
+    // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.
+    transmitted_connectivity_probe_payload_ =
+        std::make_unique<QuicPathFrameBuffer>();
+    probing_packet =
+        packet_creator_.SerializePathChallengeConnectivityProbingPacket(
+            transmitted_connectivity_probe_payload_.get());
+    if (!probing_packet) {
+      transmitted_connectivity_probe_payload_ = nullptr;
     }
   }
 
@@ -3685,6 +3663,14 @@ void QuicConnection::CheckIfApplicationLimited() {
 }
 
 void QuicConnection::UpdatePacketContent(PacketContent type) {
+  // Packet content is tracked to identify connectivity probe in non-IETF
+  // version, where a connectivity probe is defined as
+  // - a padded PING packet with peer address change received by server,
+  // - a padded PING packet on new path received by client.
+  if (version().HasIetfQuicFrames()) {
+    return;
+  }
+
   if (current_packet_content_ == NOT_PADDED_PING) {
     // We have already learned the current packet is not a connectivity
     // probing packet. Peer migration should have already been started earlier
@@ -3703,11 +3689,9 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
     }
   }
 
-  // In Google QUIC we look for a packet with just a PING and PADDING.
-  // For IETF QUIC, the packet must consist of just a PATH_CHALLENGE frame,
-  // followed by PADDING. If the condition is met, mark things as
-  // connectivity-probing, causing later processing to generate the correct
-  // response.
+  // In Google QUIC, we look for a packet with just a PING and PADDING.
+  // If the condition is met, mark things as connectivity-probing, causing
+  // later processing to generate the correct response.
   if (type == SECOND_FRAME_IS_PADDING &&
       current_packet_content_ == FIRST_FRAME_IS_PING) {
     current_packet_content_ = SECOND_FRAME_IS_PADDING;

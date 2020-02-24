@@ -1149,6 +1149,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                        QuicSocketAddress peer_address) {
     QuicFrames frames;
     frames.push_back(QuicFrame(frame));
+    return ProcessFramesPacketWithAddresses(frames, self_address, peer_address);
+  }
+
+  void ProcessFramesPacketWithAddresses(QuicFrames frames,
+                                        QuicSocketAddress self_address,
+                                        QuicSocketAddress peer_address) {
     QuicPacketCreatorPeer::SetSendVersionInPacket(
         &peer_creator_,
         QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) <
@@ -1984,7 +1990,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
             connection_.active_effective_peer_migration_type());
 }
 
-TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
+TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2016,17 +2022,8 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtServer) {
 
   // Process a padded PING or PATH CHALLENGE packet with no peer address change
   // on server side will be ignored.
-  OwningSerializedPacketPointer probing_packet;
-  if (VersionHasIetfQuicFrames(version().transport_version)) {
-    QuicPathFrameBuffer payload = {
-        {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
-    probing_packet =
-        QuicPacketCreatorPeer::SerializePathChallengeConnectivityProbingPacket(
-            &peer_creator_, &payload);
-  } else {
-    probing_packet = QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
-        &peer_creator_);
-  }
+  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2091,7 +2088,11 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
 }
 
-TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
+// Receive a path probe request at the server side, i.e.,
+// in non-IETF version: receive a padded PING packet with a peer addess change;
+// in IETF version: receive a packet contains PATH CHALLENGE with peer address
+// change.
+TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2119,8 +2120,13 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
-
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  }
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing.
   const QuicSocketAddress kNewPeerAddress =
@@ -2149,7 +2155,90 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
 
-TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
+// Receive a padded PING packet with a port change on server side.
+TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+
+  // Clear direct_peer_address.
+  QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
+  // Clear effective_peer_address, it is the same as direct_peer_address for
+  // this test.
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
+                                              QuicSocketAddress());
+  EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
+
+  QuicFrame frame;
+  if (GetParam().version.UsesCryptoFrames()) {
+    frame = QuicFrame(&crypto_frame_);
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    frame = QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, quiche::QuicheStringPiece()));
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  if (GetParam().version.HasIetfQuicFrames()) {
+    // In IETF version, a padded PING packet with port change is not taken as
+    // connectivity probe.
+    EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  } else {
+    // In non-IETF version, process a padded PING packet from a new peer
+    // address on server side is effectively receiving a connectivity probing.
+    EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  }
+  const QuicSocketAddress kNewPeerAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+
+  QuicFrames frames;
+  // Write a PING frame, which has no data payload.
+  QuicPingFrame ping_frame;
+  frames.push_back(QuicFrame(ping_frame));
+
+  // Add padding to the rest of the packet.
+  QuicPaddingFrame padding_frame;
+  frames.push_back(QuicFrame(padding_frame));
+
+  uint64_t num_probing_received =
+      connection_.GetStats().num_connectivity_probing_received;
+
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress);
+
+  if (GetParam().version.HasIetfQuicFrames()) {
+    // Padded PING with port changen is not considered as connectivity probe but
+    // a PORT CHANGE.
+    EXPECT_EQ(num_probing_received,
+              connection_.GetStats().num_connectivity_probing_received);
+    EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+    EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
+  } else {
+    EXPECT_EQ(num_probing_received + 1,
+              connection_.GetStats().num_connectivity_probing_received);
+    EXPECT_EQ(kPeerAddress, connection_.peer_address());
+    EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  }
+
+  // Process another packet with the old peer address on server side.
+  if (GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
+  }
+  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+}
+
+TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
@@ -2181,7 +2270,13 @@ TEST_P(QuicConnectionTest, ReceiveReorderedConnectivityProbingAtServer) {
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 4);
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  }
 
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing, even if a newer packet has
@@ -2233,7 +2328,13 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  }
 
   // Process a padded PING packet from a new peer address on server side
   // is effectively receiving a connectivity probing.
@@ -2305,7 +2406,13 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
 
-TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
+TEST_P(QuicConnectionTest, ReceiveConnectivityProbingResponseAtClient) {
+  // TODO(b/150095484): add test coverage for IETF to verify that client takes
+  // PATH RESPONSE with peer address change as correct validation on the new
+  // path.
+  if (GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   set_perspective(Perspective::IS_CLIENT);
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
@@ -2335,7 +2442,13 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingAtClient) {
   // Process a padded PING packet with a different self address on client side
   // is effectively receiving a connectivity probing.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  EXPECT_CALL(visitor_, OnPacketReceived(_, _, true)).Times(1);
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  }
 
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
