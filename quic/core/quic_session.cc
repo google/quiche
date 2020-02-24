@@ -739,6 +739,8 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id,
                                          QuicStreamOffset offset,
                                          StreamSendingState state,
                                          bool is_retransmission) {
+  DCHECK(connection_->connected())
+      << ENDPOINT << "Try to write stream data when connection is closed.";
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -2094,6 +2096,8 @@ MessageResult QuicSession::SendMessage(QuicMemSliceSpan message) {
 }
 
 MessageResult QuicSession::SendMessage(QuicMemSliceSpan message, bool flush) {
+  DCHECK(connection_->connected())
+      << ENDPOINT << "Try to write messages when connection is closed.";
   if (!IsEncryptionEstablished()) {
     return {MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0};
   }

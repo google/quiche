@@ -23,6 +23,9 @@ const size_t kMaxNumControlFrames = 1000;
 
 }  // namespace
 
+#define ENDPOINT \
+  (session_->perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
+
 QuicControlFrameManager::QuicControlFrameManager(QuicSession* session)
     : last_control_frame_id_(kInvalidControlFrameId),
       least_unacked_(1),
@@ -282,6 +285,8 @@ bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame) {
 }
 
 void QuicControlFrameManager::WriteBufferedFrames() {
+  DCHECK(session_->connection()->connected())
+      << ENDPOINT << "Try to write control frames when connection is closed.";
   while (HasBufferedFrames()) {
     session_->SetTransmissionType(NOT_RETRANSMISSION);
     QuicFrame frame_to_send =
