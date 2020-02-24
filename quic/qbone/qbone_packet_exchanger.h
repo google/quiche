@@ -19,8 +19,8 @@ class QbonePacketExchanger : public QbonePacketWriter {
   class Visitor {
    public:
     virtual ~Visitor() {}
-    virtual void OnReadError(const string& error) {}
-    virtual void OnWriteError(const string& error) {}
+    virtual void OnReadError(const std::string& error) {}
+    virtual void OnWriteError(const std::string& error) {}
   };
   // Does not take ownership of visitor.
   QbonePacketExchanger(Visitor* visitor, size_t max_pending_packets)
@@ -53,7 +53,7 @@ class QbonePacketExchanger : public QbonePacketWriter {
   // there is no packet to read, b) the read failed. In the former case, blocked
   // is set to true. error contains the error message.
   virtual std::unique_ptr<QuicData> ReadPacket(bool* blocked,
-                                               string* error) = 0;
+                                               std::string* error) = 0;
 
   // The actual implementation that writes a packet to the local network.
   // Returns true if the write succeeds. blocked will be set to true if the
@@ -62,7 +62,7 @@ class QbonePacketExchanger : public QbonePacketWriter {
   virtual bool WritePacket(const char* packet,
                            size_t size,
                            bool* blocked,
-                           string* error) = 0;
+                           std::string* error) = 0;
 
   std::list<std::unique_ptr<QuicData>> packet_queue_;
 

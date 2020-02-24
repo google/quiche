@@ -57,10 +57,11 @@ class NetlinkTest : public QuicTest {
           EXPECT_GE(msg->msg_iovlen, 1);
           EXPECT_GE(msg->msg_iov[0].iov_len, sizeof(struct nlmsghdr));
 
-          string buf;
+          std::string buf;
           for (int i = 0; i < msg->msg_iovlen; i++) {
-            buf.append(string(reinterpret_cast<char*>(msg->msg_iov[i].iov_base),
-                              msg->msg_iov[i].iov_len));
+            buf.append(
+                std::string(reinterpret_cast<char*>(msg->msg_iov[i].iov_base),
+                            msg->msg_iov[i].iov_len));
           }
 
           auto* netlink_message =
@@ -130,7 +131,7 @@ void AddRTA(struct nlmsghdr* netlink_message,
 }
 
 void CreateIfinfomsg(struct nlmsghdr* netlink_message,
-                     const string& interface_name,
+                     const std::string& interface_name,
                      uint16_t type,
                      int index,
                      unsigned int flags,

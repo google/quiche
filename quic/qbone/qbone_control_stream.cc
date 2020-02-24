@@ -38,7 +38,7 @@ void QboneControlStreamBase::OnDataAvailable() {
     if (buffer_.size() < pending_message_size_) {
       return;
     }
-    string tmp = buffer_.substr(0, pending_message_size_);
+    std::string tmp = buffer_.substr(0, pending_message_size_);
     buffer_.erase(0, pending_message_size_);
     pending_message_size_ = 0;
     OnMessage(tmp);
@@ -46,7 +46,7 @@ void QboneControlStreamBase::OnDataAvailable() {
 }
 
 bool QboneControlStreamBase::SendMessage(const proto2::Message& proto) {
-  string tmp;
+  std::string tmp;
   if (!proto.SerializeToString(&tmp)) {
     QUIC_BUG << "Failed to serialize QboneControlRequest";
     return false;

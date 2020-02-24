@@ -19,8 +19,8 @@ const size_t kMaxPendingPackets = 2;
 
 class MockVisitor : public QbonePacketExchanger::Visitor {
  public:
-  MOCK_METHOD1(OnReadError, void(const string&));
-  MOCK_METHOD1(OnWriteError, void(const string&));
+  MOCK_METHOD1(OnReadError, void(const std::string&));
+  MOCK_METHOD1(OnWriteError, void(const std::string&));
 };
 
 class FakeQbonePacketExchanger : public QbonePacketExchanger {
@@ -37,23 +37,24 @@ class FakeQbonePacketExchanger : public QbonePacketExchanger {
 
   // Sets the error to be returned by ReadPacket when the list of packets is
   // empty. If error is empty string, blocked is set by ReadPacket.
-  void SetReadError(const string& error) { read_error_ = error; }
+  void SetReadError(const std::string& error) { read_error_ = error; }
 
   // Force WritePacket to fail with the given status. WritePacket returns true
   // when blocked == true and error is empty.
-  void ForceWriteFailure(bool blocked, const string& error) {
+  void ForceWriteFailure(bool blocked, const std::string& error) {
     write_blocked_ = blocked;
     write_error_ = error;
   }
 
   // Packets that have been successfully written by WritePacket.
-  const std::vector<string>& packets_written() const {
+  const std::vector<std::string>& packets_written() const {
     return packets_written_;
   }
 
  private:
   // Implements QbonePacketExchanger::ReadPacket.
-  std::unique_ptr<QuicData> ReadPacket(bool* blocked, string* error) override {
+  std::unique_ptr<QuicData> ReadPacket(bool* blocked,
+                                       std::string* error) override {
     *blocked = false;
 
     if (packets_to_be_read_.empty()) {
@@ -71,7 +72,7 @@ class FakeQbonePacketExchanger : public QbonePacketExchanger {
   bool WritePacket(const char* packet,
                    size_t size,
                    bool* blocked,
-                   string* error) override {
+                   std::string* error) override {
     *blocked = false;
 
     if (write_blocked_ || !write_error_.empty()) {
@@ -80,16 +81,16 @@ class FakeQbonePacketExchanger : public QbonePacketExchanger {
       return false;
     }
 
-    packets_written_.push_back(string(packet, size));
+    packets_written_.push_back(std::string(packet, size));
     return true;
   }
 
-  string read_error_;
+  std::string read_error_;
   std::list<std::unique_ptr<QuicData>> packets_to_be_read_;
 
-  string write_error_;
+  std::string write_error_;
   bool write_blocked_ = false;
-  std::vector<string> packets_written_;
+  std::vector<std::string> packets_written_;
 };
 
 TEST(QbonePacketExchangerTest,
@@ -98,7 +99,7 @@ TEST(QbonePacketExchangerTest,
   FakeQbonePacketExchanger exchanger(&visitor, kMaxPendingPackets);
   StrictMock<MockQboneClient> client;
 
-  string packet = "data";
+  std::string packet = "data";
   exchanger.AddPacketToBeRead(
       std::make_unique<QuicData>(packet.data(), packet.length()));
   EXPECT_CALL(client, ProcessPacketFromNetwork(StrEq("data")));
@@ -113,7 +114,7 @@ TEST(QbonePacketExchangerTest,
   MockQboneClient client;
 
   // Force read error.
-  string io_error = "I/O error";
+  std::string io_error = "I/O error";
   exchanger.SetReadError(io_error);
   EXPECT_CALL(visitor, OnReadError(StrEq(io_error))).Times(1);
 
@@ -136,7 +137,7 @@ TEST(QbonePacketExchangerTest,
   FakeQbonePacketExchanger exchanger(&visitor, kMaxPendingPackets);
   MockQboneClient client;
 
-  string packet = "data";
+  std::string packet = "data";
   exchanger.WritePacketToNetwork(packet.data(), packet.length());
 
   ASSERT_EQ(exchanger.packets_written().size(), 1);
@@ -151,7 +152,7 @@ TEST(QbonePacketExchangerTest,
 
   // Force write to be blocked so that packets are queued.
   exchanger.ForceWriteFailure(true, "");
-  std::vector<string> packets = {"packet0", "packet1"};
+  std::vector<std::string> packets = {"packet0", "packet1"};
   for (int i = 0; i < packets.size(); i++) {
     exchanger.WritePacketToNetwork(packets[i].data(), packets[i].length());
   }
@@ -178,7 +179,7 @@ TEST(QbonePacketExchangerTest,
 
   // Force write to be blocked so that packets are queued.
   exchanger.ForceWriteFailure(true, "");
-  std::vector<string> packets = {"packet0", "packet1"};
+  std::vector<std::string> packets = {"packet0", "packet1"};
   for (int i = 0; i < packets.size(); i++) {
     exchanger.WritePacketToNetwork(packets[i].data(), packets[i].length());
   }
@@ -202,7 +203,7 @@ TEST(QbonePacketExchangerTest,
 }
 
 TEST(QbonePacketExchangerTest, WritePacketToNetworkDropsPacketIfQueueIfFull) {
-  std::vector<string> packets = {"packet0", "packet1", "packet2"};
+  std::vector<std::string> packets = {"packet0", "packet1", "packet2"};
   size_t queue_size = packets.size() - 1;
   MockVisitor visitor;
   // exchanger has smaller queue than number of packets.
@@ -230,10 +231,10 @@ TEST(QbonePacketExchangerTest, WriteErrorsGetNotified) {
   MockVisitor visitor;
   FakeQbonePacketExchanger exchanger(&visitor, kMaxPendingPackets);
   MockQboneClient client;
-  string packet = "data";
+  std::string packet = "data";
 
   // Write error is delivered to visitor during WritePacketToNetwork.
-  string io_error = "I/O error";
+  std::string io_error = "I/O error";
   exchanger.ForceWriteFailure(false, io_error);
   EXPECT_CALL(visitor, OnWriteError(StrEq(io_error))).Times(1);
   exchanger.WritePacketToNetwork(packet.data(), packet.length());
@@ -243,7 +244,7 @@ TEST(QbonePacketExchangerTest, WriteErrorsGetNotified) {
   exchanger.ForceWriteFailure(true, "");
   exchanger.WritePacketToNetwork(packet.data(), packet.length());
 
-  string sys_error = "sys error";
+  std::string sys_error = "sys error";
   exchanger.ForceWriteFailure(false, sys_error);
   EXPECT_CALL(visitor, OnWriteError(StrEq(sys_error))).Times(1);
   exchanger.SetWritable();

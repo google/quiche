@@ -11,7 +11,7 @@ namespace quic {
 bool QbonePacketExchanger::ReadAndDeliverPacket(
     QboneClientInterface* qbone_client) {
   bool blocked = false;
-  string error;
+  std::string error;
   std::unique_ptr<QuicData> packet = ReadPacket(&blocked, &error);
   if (packet == nullptr) {
     if (!blocked) {
@@ -26,7 +26,7 @@ bool QbonePacketExchanger::ReadAndDeliverPacket(
 void QbonePacketExchanger::WritePacketToNetwork(const char* packet,
                                                 size_t size) {
   bool blocked = false;
-  string error;
+  std::string error;
   if (packet_queue_.empty() && !write_blocked_) {
     if (WritePacket(packet, size, &blocked, &error)) {
       return;
@@ -53,7 +53,7 @@ void QbonePacketExchanger::SetWritable() {
   write_blocked_ = false;
   while (!packet_queue_.empty()) {
     bool blocked = false;
-    string error;
+    std::string error;
     if (WritePacket(packet_queue_.front()->data(),
                     packet_queue_.front()->length(), &blocked, &error)) {
       packet_queue_.pop_front();

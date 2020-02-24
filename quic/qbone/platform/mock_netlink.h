@@ -12,7 +12,7 @@ namespace quic {
 
 class MockNetlink : public NetlinkInterface {
  public:
-  MOCK_METHOD2(GetLinkInfo, bool(const string&, LinkInfo*));
+  MOCK_METHOD2(GetLinkInfo, bool(const std::string&, LinkInfo*));
 
   MOCK_METHOD4(GetAddresses,
                bool(int, uint8_t, std::vector<AddressInfo>*, int*));

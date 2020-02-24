@@ -36,7 +36,7 @@ class NetlinkInterface {
 
   // Gets the link information for the interface referred by the given
   // interface_name.
-  virtual bool GetLinkInfo(const string& interface_name,
+  virtual bool GetLinkInfo(const std::string& interface_name,
                            LinkInfo* link_info) = 0;
 
   // Address information reported back from GetAddresses.

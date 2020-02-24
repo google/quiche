@@ -74,9 +74,9 @@ bool IpRange::operator!=(IpRange other) const {
   return !(*this == other);
 }
 
-bool IpRange::FromString(const string& range) {
+bool IpRange::FromString(const std::string& range) {
   size_t slash_pos = range.find('/');
-  if (slash_pos == string::npos) {
+  if (slash_pos == std::string::npos) {
     return false;
   }
   QuicIpAddress prefix;

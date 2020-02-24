@@ -26,7 +26,7 @@ class QboneCryptoServerStreamHelper
                             const QuicSocketAddress& client_address,
                             const QuicSocketAddress& peer_address,
                             const QuicSocketAddress& self_address,
-                            string* error_details) const override;
+                            std::string* error_details) const override;
 };
 
 class QUIC_EXPORT_PRIVATE QboneServerSession

@@ -19,7 +19,7 @@ bool QboneCryptoServerStreamHelper::CanAcceptClientHello(
     const QuicSocketAddress& client_address,
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& self_address,
-    string* error_details) const {
+    std::string* error_details) const {
   quiche::QuicheStringPiece alpn;
   chlo.GetStringPiece(quic::kALPN, &alpn);
   if (alpn != QboneConstants::kQboneAlpn) {
@@ -74,14 +74,14 @@ bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {
 
 void QboneServerSession::ProcessPacketFromNetwork(
     quiche::QuicheStringPiece packet) {
-  string buffer = string(packet);
+  std::string buffer = std::string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_NETWORK);
 }
 
 void QboneServerSession::ProcessPacketFromPeer(
     quiche::QuicheStringPiece packet) {
-  string buffer = string(packet);
+  std::string buffer = std::string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_OFF_NETWORK);
 }

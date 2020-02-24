@@ -20,12 +20,12 @@ class QUIC_EXPORT_PRIVATE QboneControlStreamBase : public QuicStream {
   void OnDataAvailable() override;
 
  protected:
-  virtual void OnMessage(const string& data) = 0;
+  virtual void OnMessage(const std::string& data) = 0;
   bool SendMessage(const proto2::Message& proto);
 
  private:
   uint16_t pending_message_size_;
-  string buffer_;
+  std::string buffer_;
 };
 
 template <class T>
@@ -48,7 +48,7 @@ class QUIC_EXPORT_PRIVATE QboneControlStream : public QboneControlStreamBase {
   bool SendRequest(const Outgoing& request) { return SendMessage(request); }
 
  protected:
-  void OnMessage(const string& data) override {
+  void OnMessage(const std::string& data) override {
     Incoming request;
     if (!request.ParseFromString(data)) {
       QUIC_LOG(ERROR) << "Failed to parse incoming request";

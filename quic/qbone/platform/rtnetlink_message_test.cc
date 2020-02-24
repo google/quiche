@@ -48,7 +48,7 @@ TEST(RtnetlinkMessageTest, LinkMessageCanBeCreatedForNewOperation) {
   auto message = LinkMessage::New(RtnetlinkMessage::Operation::NEW, flags, seq,
                                   pid, &interface_info_header);
 
-  string device_name = "device0";
+  std::string device_name = "device0";
   message.AppendAttribute(IFLA_IFNAME, device_name.c_str(), device_name.size());
 
   // One rtattr appended.
@@ -81,8 +81,9 @@ TEST(RtnetlinkMessageTest, LinkMessageCanBeCreatedForNewOperation) {
   auto* rta = reinterpret_cast<struct rtattr*>(iov[1].iov_base);
   EXPECT_EQ(IFLA_IFNAME, rta->rta_type);
   EXPECT_EQ(RTA_LENGTH(device_name.size()), rta->rta_len);
-  EXPECT_THAT(device_name, StrEq(string(reinterpret_cast<char*>(RTA_DATA(rta)),
-                                        RTA_PAYLOAD(rta))));
+  EXPECT_THAT(device_name,
+              StrEq(std::string(reinterpret_cast<char*>(RTA_DATA(rta)),
+                                RTA_PAYLOAD(rta))));
 }
 
 TEST(RtnetlinkMessageTest, AddressMessageCanBeCreatedForGetOperation) {
@@ -158,9 +159,9 @@ TEST(RtnetlinkMessageTest, AddressMessageCanBeCreatedForNewOperation) {
   auto* rta = reinterpret_cast<struct rtattr*>(iov[1].iov_base);
   EXPECT_EQ(IFA_ADDRESS, rta->rta_type);
   EXPECT_EQ(RTA_LENGTH(ip.ToPackedString().size()), rta->rta_len);
-  EXPECT_THAT(
-      ip.ToPackedString(),
-      StrEq(string(reinterpret_cast<char*>(RTA_DATA(rta)), RTA_PAYLOAD(rta))));
+  EXPECT_THAT(ip.ToPackedString(),
+              StrEq(std::string(reinterpret_cast<char*>(RTA_DATA(rta)),
+                                RTA_PAYLOAD(rta))));
 }
 
 TEST(RtnetlinkMessageTest, RouteMessageCanBeCreatedFromNewOperation) {
@@ -219,9 +220,9 @@ TEST(RtnetlinkMessageTest, RouteMessageCanBeCreatedFromNewOperation) {
   auto* rta = reinterpret_cast<struct rtattr*>(iov[1].iov_base);
   EXPECT_EQ(RTA_PREFSRC, rta->rta_type);
   EXPECT_EQ(RTA_LENGTH(preferred_source.ToPackedString().size()), rta->rta_len);
-  EXPECT_THAT(
-      preferred_source.ToPackedString(),
-      StrEq(string(reinterpret_cast<char*>(RTA_DATA(rta)), RTA_PAYLOAD(rta))));
+  EXPECT_THAT(preferred_source.ToPackedString(),
+              StrEq(std::string(reinterpret_cast<char*>(RTA_DATA(rta)),
+                                RTA_PAYLOAD(rta))));
 }
 
 }  // namespace

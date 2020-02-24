@@ -143,7 +143,7 @@ class QbonePacketProcessor {
   // Accepts an IPv6 packet and handles it accordingly by either forwarding it,
   // replying with an ICMP packet or silently dropping it.  |packet| will be
   // modified in the process, by having the TTL field decreased.
-  void ProcessPacket(string* packet, Direction direction);
+  void ProcessPacket(std::string* packet, Direction direction);
 
   void set_filter(std::unique_ptr<Filter> filter) {
     filter_ = std::move(filter);
@@ -160,7 +160,7 @@ class QbonePacketProcessor {
   // Processes the header and returns what should be done with the packet.
   // After that, calls an external packet filter if registered.  TTL of the
   // packet may be decreased in the process.
-  ProcessingResult ProcessIPv6HeaderAndFilter(string* packet,
+  ProcessingResult ProcessIPv6HeaderAndFilter(std::string* packet,
                                               Direction direction,
                                               uint8_t* transport_protocol,
                                               char** transport_data,
@@ -188,7 +188,7 @@ class QbonePacketProcessor {
  private:
   // Performs basic sanity and permission checks on the packet, and decreases
   // the TTL.
-  ProcessingResult ProcessIPv6Header(string* packet,
+  ProcessingResult ProcessIPv6Header(std::string* packet,
                                      Direction direction,
                                      uint8_t* transport_protocol,
                                      char** transport_data,

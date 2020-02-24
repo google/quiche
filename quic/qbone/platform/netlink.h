@@ -38,7 +38,8 @@ class Netlink : public NetlinkInterface {
   //
   // This is a synchronous communication. That should not be a problem since the
   // kernel should answer immediately.
-  bool GetLinkInfo(const string& interface_name, LinkInfo* link_info) override;
+  bool GetLinkInfo(const std::string& interface_name,
+                   LinkInfo* link_info) override;
 
   // Gets the addresses for the given interface referred by the given
   // interface_index.

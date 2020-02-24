@@ -36,11 +36,11 @@ using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Not;
 
-string TestPacketIn(const string& body) {
+std::string TestPacketIn(const std::string& body) {
   return PrependIPv6HeaderForTest(body, 5);
 }
 
-string TestPacketOut(const string& body) {
+std::string TestPacketOut(const std::string& body) {
   return PrependIPv6HeaderForTest(body, 4);
 }
 
@@ -52,8 +52,8 @@ class FakeProofSource : public ProofSource {
 
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
-                const string& hostname,
-                const string& server_config,
+                const std::string& hostname,
+                const std::string& server_config,
                 QuicTransportVersion transport_version,
                 quiche::QuicheStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override {
@@ -69,11 +69,11 @@ class FakeProofSource : public ProofSource {
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
-      const string& hostname) override {
+      const std::string& hostname) override {
     if (!success_) {
       return QuicReferenceCountedPointer<Chain>();
     }
-    std::vector<string> certs;
+    std::vector<std::string> certs;
     certs.push_back("Required to establish handshake");
     return QuicReferenceCountedPointer<ProofSource::Chain>(
         new ProofSource::Chain(certs));
@@ -81,7 +81,7 @@ class FakeProofSource : public ProofSource {
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
-      const string& hostname,
+      const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override {
@@ -101,28 +101,28 @@ class FakeProofVerifier : public ProofVerifier {
 
   // ProofVerifier override
   QuicAsyncStatus VerifyProof(
-      const string& hostname,
+      const std::string& hostname,
       const uint16_t port,
-      const string& server_config,
+      const std::string& server_config,
       QuicTransportVersion transport_version,
       quiche::QuicheStringPiece chlo_hash,
-      const std::vector<string>& certs,
-      const string& cert_sct,
-      const string& signature,
+      const std::vector<std::string>& certs,
+      const std::string& cert_sct,
+      const std::string& signature,
       const ProofVerifyContext* context,
-      string* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* verify_details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return success_ ? QUIC_SUCCESS : QUIC_FAILURE;
   }
 
   QuicAsyncStatus VerifyCertChain(
-      const string& hostname,
-      const std::vector<string>& certs,
+      const std::string& hostname,
+      const std::vector<std::string>& certs,
       const std::string& ocsp_response,
       const std::string& cert_sct,
       const ProofVerifyContext* context,
-      string* error_details,
+      std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     return success_ ? QUIC_SUCCESS : QUIC_FAILURE;
@@ -140,13 +140,13 @@ class FakeProofVerifier : public ProofVerifier {
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
-    data_.push_back(string(packet, size));
+    data_.push_back(std::string(packet, size));
   }
 
-  const std::vector<string>& data() { return data_; }
+  const std::vector<std::string>& data() { return data_; }
 
  private:
-  std::vector<string> data_;
+  std::vector<std::string> data_;
 };
 
 template <class T>
@@ -355,18 +355,18 @@ class QboneSessionTest : public QuicTest {
     runner_.Run();
   }
 
-  void ExpectICMPTooBigResponse(const std::vector<string>& written_packets,
+  void ExpectICMPTooBigResponse(const std::vector<std::string>& written_packets,
                                 const int mtu,
-                                const string& packet) {
+                                const std::string& packet) {
     auto* header = reinterpret_cast<const ip6_hdr*>(packet.data());
     icmp6_hdr icmp_header{};
     icmp_header.icmp6_type = ICMP6_PACKET_TOO_BIG;
     icmp_header.icmp6_mtu = mtu;
 
-    string expected;
+    std::string expected;
     CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
                      [&expected](quiche::QuicheStringPiece icmp_packet) {
-                       expected = string(icmp_packet);
+                       expected = std::string(icmp_packet);
                      });
 
     EXPECT_THAT(written_packets, Contains(expected));
@@ -409,8 +409,8 @@ class QboneSessionTest : public QuicTest {
     // Try to send long payloads that are larger than the QUIC MTU but
     // smaller than the QBONE max size.
     // This should trigger the non-ephemeral stream code path.
-    string long_data(QboneConstants::kMaxQbonePacketBytes - sizeof(ip6_hdr) - 1,
-                     'A');
+    std::string long_data(
+        QboneConstants::kMaxQbonePacketBytes - sizeof(ip6_hdr) - 1, 'A');
     QUIC_LOG(INFO) << "Sending server -> client long data";
     server_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();

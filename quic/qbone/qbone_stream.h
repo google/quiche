@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QboneReadOnlyStream : public QuicStream {
   void OnDataAvailable() override;
 
  private:
-  string buffer_;
+  std::string buffer_;
   QboneSessionBase* session_;
 };
 

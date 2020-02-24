@@ -24,10 +24,10 @@ class IpRange {
 
   // Parses range that looks like "10.0.0.1/8". Tailing bits will be set to zero
   // after prefix_length. Return false if the parsing failed.
-  bool FromString(const string& range);
+  bool FromString(const std::string& range);
 
   // Returns the string representation of this object.
-  string ToString() const {
+  std::string ToString() const {
     if (IsInitialized()) {
       return quiche::QuicheStrCat(prefix_.ToString(), "/", prefix_length_);
     }

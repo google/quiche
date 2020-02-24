@@ -75,7 +75,7 @@ namespace {
 
 class LinkInfoParser : public NetlinkParserInterface {
  public:
-  LinkInfoParser(string interface_name, Netlink::LinkInfo* link_info)
+  LinkInfoParser(std::string interface_name, Netlink::LinkInfo* link_info)
       : interface_name_(std::move(interface_name)), link_info_(link_info) {}
 
   void Run(struct nlmsghdr* netlink_message) override {
@@ -101,7 +101,7 @@ class LinkInfoParser : public NetlinkParserInterface {
     size_t hardware_address_length = 0;
     char broadcast_address[kHwAddrSize];
     size_t broadcast_address_length = 0;
-    string name;
+    std::string name;
 
     // loop through the attributes
     struct rtattr* rta;
@@ -131,8 +131,8 @@ class LinkInfoParser : public NetlinkParserInterface {
           break;
         }
         case IFLA_IFNAME: {
-          name =
-              string(reinterpret_cast<char*>(RTA_DATA(rta)), RTA_PAYLOAD(rta));
+          name = std::string(reinterpret_cast<char*>(RTA_DATA(rta)),
+                             RTA_PAYLOAD(rta));
           // The name maybe a 0 terminated c string.
           name = name.substr(0, name.find('\0'));
           break;
@@ -163,14 +163,15 @@ class LinkInfoParser : public NetlinkParserInterface {
   bool found_link() { return found_link_; }
 
  private:
-  const string interface_name_;
+  const std::string interface_name_;
   Netlink::LinkInfo* const link_info_;
   bool found_link_ = false;
 };
 
 }  // namespace
 
-bool Netlink::GetLinkInfo(const string& interface_name, LinkInfo* link_info) {
+bool Netlink::GetLinkInfo(const std::string& interface_name,
+                          LinkInfo* link_info) {
   auto message = LinkMessage::New(RtnetlinkMessage::Operation::GET,
                                   NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
                                   seq_, getpid(), nullptr);

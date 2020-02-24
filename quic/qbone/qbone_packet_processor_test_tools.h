@@ -31,7 +31,7 @@ class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {
   MOCK_METHOD1(OnPacketDeferred, void(QbonePacketProcessor::Direction));
 };
 
-string PrependIPv6HeaderForTest(const string& body, int hops);
+std::string PrependIPv6HeaderForTest(const std::string& body, int hops);
 
 }  // namespace quic
 

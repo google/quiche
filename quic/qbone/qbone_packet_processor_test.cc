@@ -146,12 +146,12 @@ class QbonePacketProcessorTest : public QuicTest {
   }
 
   void SendPacketFromClient(quiche::QuicheStringPiece packet) {
-    string packet_buffer(packet.data(), packet.size());
+    std::string packet_buffer(packet.data(), packet.size());
     processor_->ProcessPacket(&packet_buffer, Direction::FROM_OFF_NETWORK);
   }
 
   void SendPacketFromNetwork(quiche::QuicheStringPiece packet) {
-    string packet_buffer(packet.data(), packet.size());
+    std::string packet_buffer(packet.data(), packet.size());
     processor_->ProcessPacket(&packet_buffer, Direction::FROM_NETWORK);
   }
 
@@ -174,14 +174,14 @@ TEST_F(QbonePacketProcessorTest, EmptyPacket) {
 
 TEST_F(QbonePacketProcessorTest, RandomGarbage) {
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_OFF_NETWORK));
-  SendPacketFromClient(string(1280, 'a'));
+  SendPacketFromClient(std::string(1280, 'a'));
 
   EXPECT_CALL(stats_, OnPacketDroppedSilently(Direction::FROM_NETWORK));
-  SendPacketFromNetwork(string(1280, 'a'));
+  SendPacketFromNetwork(std::string(1280, 'a'));
 }
 
 TEST_F(QbonePacketProcessorTest, RandomGarbageWithCorrectLengthFields) {
-  string packet(40, 'a');
+  std::string packet(40, 'a');
   packet[4] = 0;
   packet[5] = 0;
 
@@ -215,7 +215,7 @@ TEST_F(QbonePacketProcessorTest, GoodPacketFromNetworkWrongDirection) {
 }
 
 TEST_F(QbonePacketProcessorTest, TtlExpired) {
-  string packet(kReferenceNetworkPacket);
+  std::string packet(kReferenceNetworkPacket);
   packet[7] = 1;
 
   EXPECT_CALL(stats_, OnPacketDroppedWithIcmp(Direction::FROM_NETWORK));
@@ -224,7 +224,7 @@ TEST_F(QbonePacketProcessorTest, TtlExpired) {
 }
 
 TEST_F(QbonePacketProcessorTest, UnknownProtocol) {
-  string packet(kReferenceNetworkPacket);
+  std::string packet(kReferenceNetworkPacket);
   packet[6] = IPPROTO_SCTP;
 
   EXPECT_CALL(stats_, OnPacketDroppedWithIcmp(Direction::FROM_NETWORK));

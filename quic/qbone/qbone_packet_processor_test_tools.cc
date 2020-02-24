@@ -8,7 +8,7 @@
 
 namespace quic {
 
-string PrependIPv6HeaderForTest(const string& body, int hops) {
+std::string PrependIPv6HeaderForTest(const std::string& body, int hops) {
   ip6_hdr header;
   memset(&header, 0, sizeof(header));
 
@@ -19,7 +19,7 @@ string PrependIPv6HeaderForTest(const string& body, int hops) {
   header.ip6_src = in6addr_loopback;
   header.ip6_dst = in6addr_loopback;
 
-  string packet(sizeof(header) + body.size(), '\0');
+  std::string packet(sizeof(header) + body.size(), '\0');
   memcpy(&packet[0], &header, sizeof(header));
   memcpy(&packet[sizeof(header)], body.data(), body.size());
   return packet;
