@@ -198,15 +198,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // Enters the PROBE_BW mode.
   void EnterProbeBandwidthMode(QuicTime now);
 
-  // Discards the lost packets from BandwidthSampler state.
-  void DiscardLostPackets(const LostPacketVector& lost_packets);
   // Updates the round-trip counter if a round-trip has passed.  Returns true if
   // the counter has been advanced.
   bool UpdateRoundTripCounter(QuicPacketNumber last_acked_packet);
-  // Updates the current bandwidth and min_rtt estimate based on the samples for
-  // the received acknowledgements.  Returns true if min_rtt has expired.
-  bool UpdateBandwidthAndMinRtt(QuicTime now,
-                                const AckedPacketVector& acked_packets);
+
   // Updates the current gain used in PROBE_BW mode.
   void UpdateGainCyclePhase(QuicTime now,
                             QuicByteCount prior_in_flight,

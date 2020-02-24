@@ -162,14 +162,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
 
   virtual void OnPacketNeutered(QuicPacketNumber packet_number) = 0;
 
-  // Notifies the sampler that the |packet_number| is acknowledged. Returns a
-  // bandwidth sample. If no bandwidth sample is available,
-  // QuicBandwidth::Zero() is returned.
-  // TODO(wub): Remove when deprecating --quic_one_bw_sample_per_ack_event.
-  virtual BandwidthSample OnPacketAcknowledged(
-      QuicTime ack_time,
-      QuicPacketNumber packet_number) = 0;
-
   struct QUIC_NO_EXPORT CongestionEventSample {
     // The maximum bandwidth sample from all acked packets.
     // QuicBandwidth::Zero() if no samples are available.
@@ -197,7 +189,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
   // |max_bandwidth| is the windowed maximum observed bandwidth.
   // |est_bandwidth_upper_bound| is an upper bound of estimated bandwidth used
   // to calculate extra_acked.
-  // Only used when --quic_one_bw_sample_per_ack_event=true.
   virtual CongestionEventSample OnCongestionEvent(
       QuicTime ack_time,
       const AckedPacketVector& acked_packets,
@@ -205,11 +196,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSamplerInterface {
       QuicBandwidth max_bandwidth,
       QuicBandwidth est_bandwidth_upper_bound,
       QuicRoundTripCount round_trip_count) = 0;
-
-  // Informs the sampler that a packet is considered lost and it should no
-  // longer keep track of it.
-  virtual SendTimeState OnPacketLost(QuicPacketNumber packet_number,
-                                     QuicPacketLength bytes_lost) = 0;
 
   // Informs the sampler that the connection is currently app-limited, causing
   // the sampler to enter the app-limited phase.  The phase will expire by
@@ -323,8 +309,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                     QuicByteCount bytes_in_flight,
                     HasRetransmittableData has_retransmittable_data) override;
   void OnPacketNeutered(QuicPacketNumber packet_number) override;
-  BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
-                                       QuicPacketNumber packet_number) override;
+
   CongestionEventSample OnCongestionEvent(
       QuicTime ack_time,
       const AckedPacketVector& acked_packets,
@@ -334,8 +319,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
       QuicRoundTripCount round_trip_count) override;
   QuicByteCount OnAckEventEnd(QuicBandwidth bandwidth_estimate,
                               QuicRoundTripCount round_trip_count);
-  SendTimeState OnPacketLost(QuicPacketNumber packet_number,
-                             QuicPacketLength bytes_lost) override;
 
   void OnAppLimited() override;
 
@@ -363,10 +346,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   void ResetMaxAckHeightTracker(QuicByteCount new_height,
                                 QuicRoundTripCount new_time) {
     max_ack_height_tracker_.Reset(new_height, new_time);
-  }
-
-  bool one_bw_sample_per_ack_event() const {
-    return one_bw_sample_per_ack_event_;
   }
 
   // AckPoint represents a point on the ack line.
@@ -479,6 +458,12 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
           last_acked_packet_ack_time(QuicTime::Zero()) {}
   };
 
+  BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
+                                       QuicPacketNumber packet_number);
+
+  SendTimeState OnPacketLost(QuicPacketNumber packet_number,
+                             QuicPacketLength bytes_lost);
+
   // Copy a subset of the (private) ConnectionStateOnSentPacket to the (public)
   // SendTimeState. Always set send_time_state->is_valid to true.
   void SentPacketToSendTimeState(const ConnectionStateOnSentPacket& sent_packet,
@@ -556,10 +541,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
 
   MaxAckHeightTracker max_ack_height_tracker_;
   QuicByteCount total_bytes_acked_after_last_ack_event_;
-
-  // Latched value of quic_one_bw_sample_per_ack_event2.
-  const bool one_bw_sample_per_ack_event_ =
-      GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2);
 
   // True if --quic_avoid_overestimate_bandwidth_with_aggregation=true and
   // connection option 'BSAO' is set.

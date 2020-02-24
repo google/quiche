@@ -84,11 +84,7 @@ BandwidthSampler::BandwidthSampler(
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length),
       total_bytes_acked_after_last_ack_event_(0),
-      overestimate_avoidance_(false) {
-  if (one_bw_sample_per_ack_event_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_one_bw_sample_per_ack_event2);
-  }
-}
+      overestimate_avoidance_(false) {}
 
 void BandwidthSampler::EnableOverestimateAvoidance() {
   if (overestimate_avoidance_) {
@@ -178,8 +174,6 @@ BandwidthSampler::OnCongestionEvent(QuicTime ack_time,
                                     QuicBandwidth max_bandwidth,
                                     QuicBandwidth est_bandwidth_upper_bound,
                                     QuicRoundTripCount round_trip_count) {
-  DCHECK(one_bw_sample_per_ack_event());
-
   CongestionEventSample event_sample;
 
   SendTimeState last_lost_packet_send_state;

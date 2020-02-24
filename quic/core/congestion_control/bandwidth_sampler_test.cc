@@ -81,10 +81,6 @@ class BandwidthSamplerTest : public QuicTest {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    if (!sampler_.one_bw_sample_per_ack_event()) {
-      return sampler_.OnPacketAcknowledged(clock_.Now(),
-                                           QuicPacketNumber(packet_number));
-    }
     BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
         clock_.Now(), {MakeAckedPacket(packet_number)}, {}, max_bandwidth_,
         est_bandwidth_upper_bound_, round_trip_count_);
@@ -144,12 +140,6 @@ class BandwidthSamplerTest : public QuicTest {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
-    if (!sampler_.one_bw_sample_per_ack_event()) {
-      SendTimeState send_time_state =
-          sampler_.OnPacketLost(QuicPacketNumber(packet_number), size);
-      EXPECT_TRUE(send_time_state.is_valid);
-      return send_time_state;
-    }
     LostPacket lost_packet(QuicPacketNumber(packet_number), size);
     BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
         clock_.Now(), {}, {lost_packet}, max_bandwidth_,
@@ -548,7 +538,7 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   EXPECT_EQ(5u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   sampler_.RemoveObsoletePackets(QuicPacketNumber(4));
   EXPECT_EQ(2u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
-  sampler_.OnPacketLost(QuicPacketNumber(4), kRegularPacketSize);
+  LosePacket(4);
   sampler_.RemoveObsoletePackets(QuicPacketNumber(5));
 
   EXPECT_EQ(1u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
@@ -596,10 +586,6 @@ TEST_F(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
 
 // 1) Send 2 packets, 2) Ack both in 1 event, 3) Repeat.
 TEST_F(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
-  if (!sampler_.one_bw_sample_per_ack_event()) {
-    return;
-  }
-
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
       kRegularPacketSize, time_between_packets);
@@ -629,10 +615,6 @@ TEST_F(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
 }
 
 TEST_F(BandwidthSamplerTest, LoseEveryOtherPacket) {
-  if (!sampler_.one_bw_sample_per_ack_event()) {
-    return;
-  }
-
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
       kRegularPacketSize, time_between_packets);
@@ -665,10 +647,6 @@ TEST_F(BandwidthSamplerTest, LoseEveryOtherPacket) {
 }
 
 TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
-  if (!sampler_.one_bw_sample_per_ack_event()) {
-    return;
-  }
-
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth first_packet_sending_rate =
       QuicBandwidth::FromBytesAndTimeDelta(kRegularPacketSize,
