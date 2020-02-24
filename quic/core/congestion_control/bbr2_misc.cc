@@ -164,26 +164,21 @@ void Bbr2NetworkModel::OnCongestionEventStart(
     }
   }
 
-  if (!bandwidth_sampler_.remove_packets_once_per_congestion_event()) {
-    congestion_event->bytes_in_flight = bytes_in_flight();
-  }
-
   congestion_event->bytes_acked = total_bytes_acked() - prior_bytes_acked;
   congestion_event->bytes_lost = total_bytes_lost() - prior_bytes_lost;
-  if (bandwidth_sampler_.remove_packets_once_per_congestion_event()) {
-    if (congestion_event->prior_bytes_in_flight >=
-        congestion_event->bytes_acked + congestion_event->bytes_lost) {
-      congestion_event->bytes_in_flight =
-          congestion_event->prior_bytes_in_flight -
-          congestion_event->bytes_acked - congestion_event->bytes_lost;
-    } else {
-      QUIC_LOG_FIRST_N(ERROR, 1)
-          << "prior_bytes_in_flight:" << congestion_event->prior_bytes_in_flight
-          << " is smaller than the sum of bytes_acked:"
-          << congestion_event->bytes_acked
-          << " and bytes_lost:" << congestion_event->bytes_lost;
-      congestion_event->bytes_in_flight = 0;
-    }
+
+  if (congestion_event->prior_bytes_in_flight >=
+      congestion_event->bytes_acked + congestion_event->bytes_lost) {
+    congestion_event->bytes_in_flight =
+        congestion_event->prior_bytes_in_flight -
+        congestion_event->bytes_acked - congestion_event->bytes_lost;
+  } else {
+    QUIC_LOG_FIRST_N(ERROR, 1)
+        << "prior_bytes_in_flight:" << congestion_event->prior_bytes_in_flight
+        << " is smaller than the sum of bytes_acked:"
+        << congestion_event->bytes_acked
+        << " and bytes_lost:" << congestion_event->bytes_lost;
+    congestion_event->bytes_in_flight = 0;
   }
 
   if (congestion_event->bytes_lost > 0) {

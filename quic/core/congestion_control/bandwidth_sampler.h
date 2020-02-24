@@ -365,10 +365,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
     max_ack_height_tracker_.Reset(new_height, new_time);
   }
 
-  bool remove_packets_once_per_congestion_event() const {
-    return remove_packets_once_per_congestion_event_;
-  }
-
   bool one_bw_sample_per_ack_event() const {
     return one_bw_sample_per_ack_event_;
   }
@@ -471,9 +467,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
                           sampler.total_bytes_sent_,
                           sampler.total_bytes_acked_,
                           sampler.total_bytes_lost_,
-                          sampler.remove_packets_once_per_congestion_event()
-                              ? bytes_in_flight
-                              : 0) {}
+                          bytes_in_flight) {}
 
     // Default constructor.  Required to put this structure into
     // PacketNumberIndexedQueue.
@@ -563,14 +557,8 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   MaxAckHeightTracker max_ack_height_tracker_;
   QuicByteCount total_bytes_acked_after_last_ack_event_;
 
-  // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2.
-  const bool remove_packets_once_per_congestion_event_ = GetQuicReloadableFlag(
-      quic_bw_sampler_remove_packets_once_per_congestion_event2);
-
-  // Latched value of quic_bw_sampler_remove_packets_once_per_congestion_event2
-  // and quic_one_bw_sample_per_ack_event2.
+  // Latched value of quic_one_bw_sample_per_ack_event2.
   const bool one_bw_sample_per_ack_event_ =
-      remove_packets_once_per_congestion_event_ &&
       GetQuicReloadableFlag(quic_one_bw_sample_per_ack_event2);
 
   // True if --quic_avoid_overestimate_bandwidth_with_aggregation=true and

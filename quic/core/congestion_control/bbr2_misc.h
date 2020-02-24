@@ -404,11 +404,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return bandwidth_sampler_.total_bytes_sent();
   }
 
-  QuicByteCount bytes_in_flight() const {
-    DCHECK(!bandwidth_sampler_.remove_packets_once_per_congestion_event());
-    return total_bytes_sent() - total_bytes_acked() - total_bytes_lost();
-  }
-
   int64_t loss_events_in_round() const { return loss_events_in_round_; }
 
   bool always_count_loss_events() const { return always_count_loss_events_; }

@@ -203,9 +203,8 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
     QuicBandwidth current_sample = AckPacket(i);
     EXPECT_EQ(expected_bandwidth, current_sample);
   }
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(25));
-  }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(25));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -263,15 +262,13 @@ TEST_F(BandwidthSamplerTest, SendTimeState) {
       EXPECT_EQ(PacketsToBytes(1), send_time_state.total_bytes_acked);
       EXPECT_EQ(PacketsToBytes(2), send_time_state.total_bytes_lost);
     }
-    if (sampler_.remove_packets_once_per_congestion_event()) {
-      // This equation works because there is no neutered bytes.
-      EXPECT_EQ(send_time_state.total_bytes_sent -
-                    send_time_state.total_bytes_acked -
-                    send_time_state.total_bytes_lost,
-                send_time_state.bytes_in_flight);
-    } else {
-      EXPECT_EQ(0u, send_time_state.bytes_in_flight);
-    }
+
+    // This equation works because there is no neutered bytes.
+    EXPECT_EQ(send_time_state.total_bytes_sent -
+                  send_time_state.total_bytes_acked -
+                  send_time_state.total_bytes_lost,
+              send_time_state.bytes_in_flight);
+
     clock_.AdvanceTime(time_between_packets);
   }
 }
@@ -293,9 +290,8 @@ TEST_F(BandwidthSamplerTest, SendPaced) {
     EXPECT_EQ(expected_bandwidth, last_bandwidth) << "i is " << i;
     clock_.AdvanceTime(time_between_packets);
   }
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
-  }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -336,9 +332,8 @@ TEST_F(BandwidthSamplerTest, SendWithLosses) {
     }
     clock_.AdvanceTime(time_between_packets);
   }
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
-  }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -386,10 +381,8 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
     }
     clock_.AdvanceTime(time_between_packets);
   }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
 
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
-  }
   // Since only congestion controlled packets are entered into the map, it has
   // to be empty at this point.
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
@@ -418,9 +411,9 @@ TEST_F(BandwidthSamplerTest, CompressedAck) {
     clock_.AdvanceTime(ridiculously_small_time_delta);
   }
   EXPECT_EQ(expected_bandwidth, last_bandwidth);
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
-  }
+
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(41));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -450,9 +443,8 @@ TEST_F(BandwidthSamplerTest, ReorderedAck) {
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
   }
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(61));
-  }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(61));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -502,10 +494,8 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
     EXPECT_EQ(expected_bandwidth, last_bandwidth);
     clock_.AdvanceTime(time_between_packets);
   }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(81));
 
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(81));
-  }
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   EXPECT_EQ(0u, bytes_in_flight_);
 }
@@ -559,14 +549,13 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   sampler_.RemoveObsoletePackets(QuicPacketNumber(4));
   EXPECT_EQ(2u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   sampler_.OnPacketLost(QuicPacketNumber(4), kRegularPacketSize);
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(5));
-  }
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(5));
+
   EXPECT_EQ(1u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
   AckPacket(5);
-  if (sampler_.remove_packets_once_per_congestion_event()) {
-    sampler_.RemoveObsoletePackets(QuicPacketNumber(6));
-  }
+
+  sampler_.RemoveObsoletePackets(QuicPacketNumber(6));
+
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
 }
 
