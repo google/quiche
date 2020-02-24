@@ -131,12 +131,7 @@ BbrSender::BbrSender(QuicTime now,
       bytes_lost_with_network_parameters_adjusted_(0),
       bytes_lost_multiplier_with_network_parameters_adjusted_(2),
       max_congestion_window_with_network_parameters_adjusted_(
-          kMaxInitialCongestionWindow * kDefaultTCPMSS),
-      loss_based_startup_exit_(
-          GetQuicReloadableFlag(quic_bbr_loss_based_startup_exit)) {
-  if (loss_based_startup_exit_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_loss_based_startup_exit, 1, 2);
-  }
+          kMaxInitialCongestionWindow * kDefaultTCPMSS) {
   if (stats_) {
     // Clear some startup stats if |stats_| has been used by another sender,
     // which happens e.g. when QuicConnection switch send algorithms.
@@ -255,10 +250,8 @@ bool BbrSender::IsPipeSufficientlyFull() const {
 
 void BbrSender::SetFromConfig(const QuicConfig& config,
                               Perspective perspective) {
-  if (loss_based_startup_exit_ &&
-      config.HasClientRequestedIndependentOption(kLRTT, perspective)) {
+  if (config.HasClientRequestedIndependentOption(kLRTT, perspective)) {
     exit_startup_on_loss_ = true;
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_loss_based_startup_exit, 2, 2);
   }
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
     num_startup_rtts_ = 1;
@@ -450,7 +443,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
   excess_acked = sample.extra_acked;
   last_packet_send_state = sample.last_packet_send_state;
 
-  if (loss_based_startup_exit_ && !lost_packets.empty()) {
+  if (!lost_packets.empty()) {
     ++num_loss_events_in_round_;
     bytes_lost_in_round_ += bytes_lost;
   }
@@ -481,7 +474,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
 
   // Cleanup internal state.
   sampler_.RemoveObsoletePackets(unacked_packets_->GetLeastUnacked());
-  if (loss_based_startup_exit_ && is_round_start) {
+  if (is_round_start) {
     num_loss_events_in_round_ = 0;
     bytes_lost_in_round_ = 0;
   }
