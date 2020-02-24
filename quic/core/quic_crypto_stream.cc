@@ -182,9 +182,6 @@ size_t QuicCryptoStream::BufferSizeLimitForLevel(EncryptionLevel) const {
   return GetQuicFlag(FLAGS_quic_max_buffered_crypto_bytes);
 }
 
-void QuicCryptoStream::OnSuccessfulVersionNegotiation(
-    const ParsedQuicVersion& /*version*/) {}
-
 bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
                                           QuicTime::Delta /*ack_delay_time*/) {
   QuicByteCount newly_acked_length = 0;

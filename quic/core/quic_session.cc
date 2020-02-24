@@ -484,9 +484,7 @@ void QuicSession::OnWriteBlocked() {
 }
 
 void QuicSession::OnSuccessfulVersionNegotiation(
-    const ParsedQuicVersion& version) {
-  GetMutableCryptoStream()->OnSuccessfulVersionNegotiation(version);
-}
+    const ParsedQuicVersion& /*version*/) {}
 
 void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
                                    const QuicSocketAddress& peer_address,

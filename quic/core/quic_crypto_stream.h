@@ -98,10 +98,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // encryption level |level|.
   virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
 
-  // Called when the underlying QuicConnection has agreed upon a QUIC version to
-  // use.
-  virtual void OnSuccessfulVersionNegotiation(const ParsedQuicVersion& version);
-
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();
 
