@@ -28,7 +28,7 @@ quiche::QuicheStringPiece SpdyHeaderStorage::WriteFragments(
     return quiche::QuicheStringPiece();
   }
   size_t total_size = separator.size() * (fragments.size() - 1);
-  for (const auto fragment : fragments) {
+  for (const quiche::QuicheStringPiece& fragment : fragments) {
     total_size += fragment.size();
   }
   char* dst = arena_.Alloc(total_size);
