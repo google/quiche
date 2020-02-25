@@ -1489,11 +1489,9 @@ TEST_P(QuicSpdyStreamTest, WritingTrailersWithQueuedBytes) {
 
 // Test that it is not possible to write Trailers after a FIN has been sent.
 TEST_P(QuicSpdyStreamTest, WritingTrailersAfterFIN) {
-  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   // In IETF QUIC, there is no such thing as FIN flag on HTTP/3 frames like the
-  // HEADERS frame.  That is version 99, which is element 0 of the array, so
-  // pick another element.
-  if (GetParam() != AllSupportedVersions()[1]) {
+  // HEADERS frame.
+  if (UsesHttp3()) {
     return;
   }
 
