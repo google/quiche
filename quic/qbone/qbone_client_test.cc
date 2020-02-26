@@ -32,6 +32,24 @@ namespace quic {
 namespace test {
 namespace {
 
+ParsedQuicVersionVector GetTestParams() {
+  ParsedQuicVersionVector test_versions;
+
+  for (const auto& version : CurrentSupportedVersions()) {
+    // TODO(b/113130636): Make Qbone work with TLS.
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      continue;
+    }
+    // Qbone requires MESSAGE frames
+    if (!version.SupportsMessageFrames()) {
+      continue;
+    }
+    test_versions.push_back(version);
+  }
+
+  return test_versions;
+}
+
 std::string TestPacketIn(const std::string& body) {
   return PrependIPv6HeaderForTest(body, 5);
 }
@@ -206,7 +224,14 @@ class QboneTestClient : public QboneClient {
   DataSavingQbonePacketWriter qbone_writer_;
 };
 
-TEST(QboneClientTest, SendDataFromClient) {
+class QboneClientTest : public QuicTestWithParam<ParsedQuicVersion> {};
+
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QboneClientTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(QboneClientTest, SendDataFromClient) {
   auto server = new QboneTestServer(crypto_test_utils::ProofSourceForTesting());
   QuicSocketAddress server_address(TestLoopback(),
                                    QuicPickServerPortForTestsOrDie());
@@ -218,7 +243,7 @@ TEST(QboneClientTest, SendDataFromClient) {
   QboneTestClient client(
       server_address,
       QuicServerId("test.example.com", server_address.port(), false),
-      AllSupportedVersions(), &epoll_server,
+      ParsedQuicVersionVector{GetParam()}, &epoll_server,
       crypto_test_utils::ProofVerifierForTesting());
   ASSERT_TRUE(client.Initialize());
   ASSERT_TRUE(client.Connect());

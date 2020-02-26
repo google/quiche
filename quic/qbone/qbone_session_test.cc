@@ -44,6 +44,24 @@ std::string TestPacketOut(const std::string& body) {
   return PrependIPv6HeaderForTest(body, 4);
 }
 
+ParsedQuicVersionVector GetTestParams() {
+  ParsedQuicVersionVector test_versions;
+
+  for (const auto& version : CurrentSupportedVersions()) {
+    // TODO(b/113130636): Make Qbone work with TLS.
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      continue;
+    }
+    // Qbone requires MESSAGE frames
+    if (!version.SupportsMessageFrames()) {
+      continue;
+    }
+    test_versions.push_back(version);
+  }
+
+  return test_versions;
+}
+
 // Used by QuicCryptoServerConfig to provide server credentials, returning a
 // canned response equal to |success|.
 class FakeProofSource : public ProofSource {
@@ -227,9 +245,12 @@ class FakeTaskRunner {
   MockQuicConnectionHelper* helper_;
 };
 
-class QboneSessionTest : public QuicTest {
+class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
-  QboneSessionTest() : runner_(&helper_), compressed_certs_cache_(100) {}
+  QboneSessionTest()
+      : supported_versions_({GetParam()}),
+        runner_(&helper_),
+        compressed_certs_cache_(100) {}
 
   ~QboneSessionTest() override {
     delete client_connection_;
@@ -267,7 +288,7 @@ class QboneSessionTest : public QuicTest {
       client_connection_ = new QuicConnection(
           TestConnectionId(), server_address, &helper_, alarm_factory_.get(),
           new NiceMock<MockPacketWriter>(), true, Perspective::IS_CLIENT,
-          ParsedVersionOfIndex(AllSupportedVersions(), 0));
+          supported_versions_);
       client_connection_->SetSelfAddress(client_address);
       QuicConfig config;
       client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -277,8 +298,7 @@ class QboneSessionTest : public QuicTest {
       }
       client_peer_ = std::make_unique<QboneClientSession>(
           client_connection_, client_crypto_config_.get(),
-          /*owner=*/nullptr, config,
-          ParsedVersionOfIndex(AllSupportedVersions(), 0),
+          /*owner=*/nullptr, config, supported_versions_,
           QuicServerId("test.example.com", 1234, false), client_writer_.get(),
           client_handler_.get());
     }
@@ -287,7 +307,7 @@ class QboneSessionTest : public QuicTest {
       server_connection_ = new QuicConnection(
           TestConnectionId(), client_address, &helper_, alarm_factory_.get(),
           new NiceMock<MockPacketWriter>(), true, Perspective::IS_SERVER,
-          ParsedVersionOfIndex(AllSupportedVersions(), 0));
+          supported_versions_);
       server_connection_->SetSelfAddress(server_address);
       QuicConfig config;
       server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
@@ -304,7 +324,7 @@ class QboneSessionTest : public QuicTest {
                                            GetClock()->WallNow()));
 
       server_peer_ = std::make_unique<QboneServerSession>(
-          AllSupportedVersions(), server_connection_, nullptr, config,
+          supported_versions_, server_connection_, nullptr, config,
           server_crypto_config_.get(), &compressed_certs_cache_,
           server_writer_.get(), TestLoopback6(), TestLoopback6(), 64,
           server_handler_.get());
@@ -474,6 +494,7 @@ class QboneSessionTest : public QuicTest {
   }
 
  protected:
+  const ParsedQuicVersionVector supported_versions_;
   QuicEpollServer epoll_server_;
   std::unique_ptr<QuicAlarmFactory> alarm_factory_;
   FakeTaskRunner runner_;
@@ -495,7 +516,12 @@ class QboneSessionTest : public QuicTest {
   std::unique_ptr<QboneClientSession> client_peer_;
 };
 
-TEST_F(QboneSessionTest, StreamConnection) {
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QboneSessionTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(QboneSessionTest, StreamConnection) {
   CreateClientAndServerSessions();
   client_peer_->set_send_packets_as_messages(false);
   server_peer_->set_send_packets_as_messages(false);
@@ -503,7 +529,7 @@ TEST_F(QboneSessionTest, StreamConnection) {
   TestStreamConnection(false);
 }
 
-TEST_F(QboneSessionTest, Messages) {
+TEST_P(QboneSessionTest, Messages) {
   CreateClientAndServerSessions();
   client_peer_->set_send_packets_as_messages(true);
   server_peer_->set_send_packets_as_messages(true);
@@ -511,7 +537,7 @@ TEST_F(QboneSessionTest, Messages) {
   TestStreamConnection(true);
 }
 
-TEST_F(QboneSessionTest, ClientRejection) {
+TEST_P(QboneSessionTest, ClientRejection) {
   CreateClientAndServerSessions(false /*client_handshake_success*/,
                                 true /*server_handshake_success*/,
                                 true /*send_qbone_alpn*/);
@@ -519,7 +545,7 @@ TEST_F(QboneSessionTest, ClientRejection) {
   TestDisconnectAfterFailedHandshake();
 }
 
-TEST_F(QboneSessionTest, BadAlpn) {
+TEST_P(QboneSessionTest, BadAlpn) {
   CreateClientAndServerSessions(true /*client_handshake_success*/,
                                 true /*server_handshake_success*/,
                                 false /*send_qbone_alpn*/);
@@ -527,7 +553,7 @@ TEST_F(QboneSessionTest, BadAlpn) {
   TestDisconnectAfterFailedHandshake();
 }
 
-TEST_F(QboneSessionTest, ServerRejection) {
+TEST_P(QboneSessionTest, ServerRejection) {
   CreateClientAndServerSessions(true /*client_handshake_success*/,
                                 false /*server_handshake_success*/,
                                 true /*send_qbone_alpn*/);
@@ -536,7 +562,7 @@ TEST_F(QboneSessionTest, ServerRejection) {
 }
 
 // Test that data streams are not created before handshake.
-TEST_F(QboneSessionTest, CannotCreateDataStreamBeforeHandshake) {
+TEST_P(QboneSessionTest, CannotCreateDataStreamBeforeHandshake) {
   CreateClientAndServerSessions();
   EXPECT_QUIC_BUG(client_peer_->ProcessPacketFromNetwork(TestPacketIn("hello")),
                   "Attempting to send packet before encryption established");
@@ -546,7 +572,7 @@ TEST_F(QboneSessionTest, CannotCreateDataStreamBeforeHandshake) {
   EXPECT_EQ(0u, client_peer_->GetNumActiveStreams());
 }
 
-TEST_F(QboneSessionTest, ControlRequests) {
+TEST_P(QboneSessionTest, ControlRequests) {
   CreateClientAndServerSessions();
   StartHandshake();
   EXPECT_TRUE(client_handler_->data().empty());
