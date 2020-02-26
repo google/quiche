@@ -54,8 +54,11 @@ class QuartcSessionTest : public QuicTest {
   ~QuartcSessionTest() override {}
 
   void Init(bool create_client_endpoint = true) {
-    // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
+    // TODO(b/150224094): Re-enable TLS handshake.
+    // TODO(b/150236522): Parametrize by QUIC version.
     SetQuicReloadableFlag(quic_enable_version_t099, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+    SetQuicReloadableFlag(quic_enable_version_t050, false);
 
     client_transport_ =
         std::make_unique<simulator::SimulatedQuartcPacketTransport>(
@@ -346,18 +349,12 @@ TEST_F(QuartcSessionTest, SendReceiveStreams) {
 }
 
 TEST_F(QuartcSessionTest, SendReceiveMessages) {
-  // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
-
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
   TestSendReceiveMessage();
 }
 
 TEST_F(QuartcSessionTest, SendReceiveQueuedMessages) {
-  // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
-
   CreateClientAndServerSessions(QuartcSessionConfig());
   AwaitHandshake();
   TestSendReceiveQueuedMessages(/*direction_from_server=*/true);
@@ -416,9 +413,6 @@ TEST_F(QuartcSessionTest, TestCryptoHandshakeCanWriteTriggers) {
 }
 
 TEST_F(QuartcSessionTest, PreSharedKeyHandshake) {
-  // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
-
   QuartcSessionConfig config;
   config.pre_shared_key = "foo";
   CreateClientAndServerSessions(config);
@@ -562,9 +556,6 @@ TEST_F(QuartcSessionTest, StreamRetransmissionDisabled) {
 }
 
 TEST_F(QuartcSessionTest, LostDatagramNotifications) {
-  // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
-
   // Disable tail loss probe, otherwise test maybe flaky because dropped
   // message will be retransmitted to detect tail loss.
   QuartcSessionConfig session_config;

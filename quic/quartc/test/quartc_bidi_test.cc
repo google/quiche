@@ -26,6 +26,12 @@ namespace {
 class QuartcBidiTest : public QuicTest {
  protected:
   QuartcBidiTest() {
+    // TODO(b/150224094): Re-enable TLS handshake.
+    // TODO(b/150236522): Parametrize by QUIC version.
+    SetQuicReloadableFlag(quic_enable_version_t099, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+    SetQuicReloadableFlag(quic_enable_version_t050, false);
+
     uint64_t seed = QuicRandom::GetInstance()->RandUint64();
     QUIC_LOG(INFO) << "Setting random seed to " << seed;
     random_.set_seed(seed);

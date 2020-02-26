@@ -200,8 +200,11 @@ class QuartcMultiplexerTest : public QuicTest {
             simulator_.GetRandomGenerator(),
             &server_multiplexer_,
             quic::QuartcSessionConfig())) {
-    // TODO(b/134175506): Remove when IETF QUIC supports receive timestamps.
+    // TODO(b/150224094): Re-enable TLS handshake.
+    // TODO(b/150236522): Parametrize by QUIC version.
     SetQuicReloadableFlag(quic_enable_version_t099, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+    SetQuicReloadableFlag(quic_enable_version_t050, false);
   }
 
   void Connect() {
