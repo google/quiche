@@ -1580,23 +1580,39 @@ void QuicFramer::MaybeProcessCoalescedPacket(
 
   QuicPacketHeader coalesced_header;
   if (!ProcessIetfPacketHeader(&coalesced_reader, &coalesced_header)) {
-    QUIC_PEER_BUG << ENDPOINT
-                  << "Failed to parse received coalesced header of length "
-                  << coalesced_data_length << " with error: " << detailed_error_
-                  << ": "
-                  << quiche::QuicheTextUtils::HexEncode(coalesced_data,
-                                                        coalesced_data_length)
-                  << " previous header was " << header;
+    // Some implementations pad their INITIAL packets by sending random invalid
+    // data after the INITIAL, and that is allowed by the specification. If we
+    // fail to parse a subsequent coalesced packet, simply ignore it.
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Failed to parse received coalesced header of length "
+                    << coalesced_data_length
+                    << " with error: " << detailed_error_ << ": "
+                    << quiche::QuicheTextUtils::HexEncode(coalesced_data,
+                                                          coalesced_data_length)
+                    << " previous header was " << header;
     return;
   }
 
-  if (coalesced_header.destination_connection_id !=
-          header.destination_connection_id ||
-      (coalesced_header.form != IETF_QUIC_SHORT_HEADER_PACKET &&
-       coalesced_header.version != header.version)) {
-    QUIC_PEER_BUG << ENDPOINT << "Received mismatched coalesced header "
-                  << coalesced_header << " previous header was " << header;
-    return;
+  if (GetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_minimum_validation_of_coalesced_packets);
+    if (coalesced_header.destination_connection_id !=
+        header.destination_connection_id) {
+      // Drop coalesced packets with mismatched connection IDs.
+      QUIC_DLOG(INFO) << ENDPOINT << "Received mismatched coalesced header "
+                      << coalesced_header << " previous header was " << header;
+      QUIC_CODE_COUNT(
+          quic_received_coalesced_packets_with_mismatched_connection_id);
+      return;
+    }
+  } else {
+    if (coalesced_header.destination_connection_id !=
+            header.destination_connection_id ||
+        (coalesced_header.form != IETF_QUIC_SHORT_HEADER_PACKET &&
+         coalesced_header.version != header.version)) {
+      QUIC_PEER_BUG << ENDPOINT << "Received mismatched coalesced header "
+                    << coalesced_header << " previous header was " << header;
+      return;
+    }
   }
 
   QuicEncryptedPacket coalesced_packet(coalesced_data, coalesced_data_length,

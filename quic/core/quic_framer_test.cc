@@ -12282,6 +12282,272 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
   CheckStreamFrameData("HELLO_WORLD?", visitor_.stream_frames_[1].get());
 }
 
+TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
+  if (!framer_.version().HasLongHeaderLengths()) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  // clang-format off
+  unsigned char packet[] = {
+    // first coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (stream frame with fin)
+      0xFE,
+      // stream id
+      0x02, 0x03, 0x04,
+      // offset
+      0x3A, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54,
+      // data length
+      0x00, 0x0c,
+      // data
+      'h',  'e',  'l',  'l',
+      'o',  ' ',  'w',  'o',
+      'r',  'l',  'd',  '!',
+    // padding
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+  };
+  unsigned char packet99[] = {
+    // first coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (IETF_STREAM frame with FIN, LEN, and OFFSET bits set)
+      0x08 | 0x01 | 0x02 | 0x04,
+      // stream id
+      kVarInt62FourBytes + 0x00, 0x02, 0x03, 0x04,
+      // offset
+      kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+      0x32, 0x10, 0x76, 0x54,
+      // data length
+      kVarInt62OneByte + 0x0c,
+      // data
+      'h',  'e',  'l',  'l',
+      'o',  ' ',  'w',  'o',
+      'r',  'l',  'd',  '!',
+      // padding
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+  };
+  // clang-format on
+
+  unsigned char* p = packet;
+  size_t p_length = QUICHE_ARRAYSIZE(packet);
+  if (framer_.version().HasIetfQuicFrames()) {
+    p = packet99;
+    p_length = QUICHE_ARRAYSIZE(packet99);
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
+
+  // Stream ID should be the last 3 bytes of kStreamId.
+  EXPECT_EQ(0x00FFFFFF & kStreamId, visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
+  EXPECT_EQ(kStreamOffset, visitor_.stream_frames_[0]->offset);
+  CheckStreamFrameData("hello world!", visitor_.stream_frames_[0].get());
+
+  EXPECT_EQ(visitor_.coalesced_packets_.size(), 0u);
+}
+
+TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
+  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets, true);
+  SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
+  // clang-format off
+  unsigned char packet[] = {
+    // first coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (stream frame with fin)
+      0xFE,
+      // stream id
+      0x02, 0x03, 0x04,
+      // offset
+      0x3A, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54,
+      // data length
+      0x00, 0x0c,
+      // data
+      'h',  'e',  'l',  'l',
+      'o',  ' ',  'w',  'o',
+      'r',  'l',  'd',  '!',
+    // second coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // garbage version
+      'G', 'A', 'B', 'G',
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x79,
+      // frame type (stream frame with fin)
+      0xFE,
+      // stream id
+      0x02, 0x03, 0x04,
+      // offset
+      0x3A, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54,
+      // data length
+      0x00, 0x0c,
+      // data
+      'H',  'E',  'L',  'L',
+      'O',  '_',  'W',  'O',
+      'R',  'L',  'D',  '?',
+  };
+  unsigned char packet99[] = {
+    // first coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // version
+      QUIC_VERSION_BYTES,
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x78,
+      // frame type (IETF_STREAM frame with FIN, LEN, and OFFSET bits set)
+      0x08 | 0x01 | 0x02 | 0x04,
+      // stream id
+      kVarInt62FourBytes + 0x00, 0x02, 0x03, 0x04,
+      // offset
+      kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+      0x32, 0x10, 0x76, 0x54,
+      // data length
+      kVarInt62OneByte + 0x0c,
+      // data
+      'h',  'e',  'l',  'l',
+      'o',  ' ',  'w',  'o',
+      'r',  'l',  'd',  '!',
+    // second coalesced packet
+      // public flags (long header with packet type ZERO_RTT_PROTECTED and
+      // 4-byte packet number)
+      0xD3,
+      // garbage version
+      'G', 'A', 'B', 'G',
+      // destination connection ID length
+      0x08,
+      // destination connection ID
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+      // source connection ID length
+      0x00,
+      // long header packet length
+      0x1E,
+      // packet number
+      0x12, 0x34, 0x56, 0x79,
+      // frame type (IETF_STREAM frame with FIN, LEN, and OFFSET bits set)
+      0x08 | 0x01 | 0x02 | 0x04,
+      // stream id
+      kVarInt62FourBytes + 0x00, 0x02, 0x03, 0x04,
+      // offset
+      kVarInt62EightBytes + 0x3A, 0x98, 0xFE, 0xDC,
+      0x32, 0x10, 0x76, 0x54,
+      // data length
+      kVarInt62OneByte + 0x0c,
+      // data
+      'H',  'E',  'L',  'L',
+      'O',  '_',  'W',  'O',
+      'R',  'L',  'D',  '?',
+  };
+  // clang-format on
+
+  unsigned char* p = packet;
+  size_t p_length = QUICHE_ARRAYSIZE(packet);
+  if (framer_.version().HasIetfQuicFrames()) {
+    p = packet99;
+    p_length = QUICHE_ARRAYSIZE(packet99);
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  EXPECT_EQ(0u, visitor_.ack_frames_.size());
+
+  // Stream ID should be the last 3 bytes of kStreamId.
+  EXPECT_EQ(0x00FFFFFF & kStreamId, visitor_.stream_frames_[0]->stream_id);
+  EXPECT_TRUE(visitor_.stream_frames_[0]->fin);
+  EXPECT_EQ(kStreamOffset, visitor_.stream_frames_[0]->offset);
+  CheckStreamFrameData("hello world!", visitor_.stream_frames_[0].get());
+
+  ASSERT_EQ(visitor_.coalesced_packets_.size(), 1u);
+  EXPECT_TRUE(framer_.ProcessPacket(*visitor_.coalesced_packets_[0].get()));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+
+  ASSERT_EQ(1u, visitor_.stream_frames_.size());
+  // Verify version mismatch gets reported.
+  EXPECT_EQ(1, visitor_.version_mismatch_);
+}
+
 TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
@@ -12798,8 +13064,12 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
 
-  EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
-                       "Server: Received mismatched coalesced header.*");
+  if (GetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets)) {
+    EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  } else {
+    EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
+                         "Server: Received mismatched coalesced header.*");
+  }
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -12904,8 +13174,7 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
 
-  EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
-                       "Server: Failed to parse received coalesced header.*");
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -12975,9 +13244,8 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
                                 false);
 
   // Make sure we discard the subsequent zeroes.
-  EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
-                       "Server: (Failed to parse received|Received mismatched) "
-                       "coalesced header.*");
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_TRUE(visitor_.coalesced_packets_.empty());
 }
 
 TEST_P(QuicFramerTest, ClientReceivesInvalidVersion) {
