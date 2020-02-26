@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
+using quiche::QuicheOptional;
 using spdy::SpdyPriority;
 
 namespace quic {
@@ -279,15 +280,15 @@ QuicStream::QuicStream(PendingStream* pending, StreamType type, bool is_static)
 
 namespace {
 
-QuicOptional<QuicFlowController> FlowController(QuicStreamId id,
-                                                QuicSession* session,
-                                                StreamType type) {
+QuicheOptional<QuicFlowController> FlowController(QuicStreamId id,
+                                                  QuicSession* session,
+                                                  StreamType type) {
   if (type == CRYPTO) {
     // The only QuicStream with a StreamType of CRYPTO is QuicCryptoStream, when
     // it is using crypto frames instead of stream frames. The QuicCryptoStream
     // doesn't have any flow control in that case, so we don't create a
     // QuicFlowController for it.
-    return QuicOptional<QuicFlowController>();
+    return QuicheOptional<QuicFlowController>();
   }
   return QuicFlowController(
       session, id,
@@ -322,7 +323,7 @@ QuicStream::QuicStream(QuicStreamId id,
                        StreamType type,
                        uint64_t stream_bytes_read,
                        bool fin_received,
-                       QuicOptional<QuicFlowController> flow_controller,
+                       QuicheOptional<QuicFlowController> flow_controller,
                        QuicFlowController* connection_flow_controller)
     : sequencer_(std::move(sequencer)),
       id_(id),

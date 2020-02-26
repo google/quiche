@@ -12,6 +12,8 @@
 
 namespace quic {
 
+using quiche::QuicheOptional;
+
 constexpr float kExpiryInMinRtts = 1.25;
 constexpr float kMinPacingWindows = 4;
 
@@ -35,10 +37,10 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(QuicMemSlice datagram) {
   return MESSAGE_STATUS_BLOCKED;
 }
 
-QuicOptional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
+QuicheOptional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
   RemoveExpiredDatagrams();
   if (queue_.empty()) {
-    return QuicOptional<MessageStatus>();
+    return QuicheOptional<MessageStatus>();
   }
 
   QuicMemSliceSpan span(&queue_.front().datagram);
@@ -52,7 +54,7 @@ QuicOptional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
 size_t QuicDatagramQueue::SendDatagrams() {
   size_t num_datagrams = 0;
   for (;;) {
-    QuicOptional<MessageStatus> status = TrySendingNextDatagram();
+    QuicheOptional<MessageStatus> status = TrySendingNextDatagram();
     if (!status.has_value()) {
       break;
     }

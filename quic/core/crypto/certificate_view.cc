@@ -14,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments

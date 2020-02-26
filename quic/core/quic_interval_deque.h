@@ -12,7 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -258,7 +258,7 @@ class QUIC_EXPORT_PRIVATE QuicIntervalDeque {
   friend class test::QuicIntervalDequePeer;
 
   C container_;
-  QuicOptional<std::size_t> cached_index_;
+  quiche::QuicheOptional<std::size_t> cached_index_;
 };
 
 template <class T, class C>

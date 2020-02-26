@@ -31,8 +31,8 @@
 #include "net/third_party/quiche/src/quic/core/stream_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
@@ -431,7 +431,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
              StreamType type,
              uint64_t stream_bytes_read,
              bool fin_received,
-             QuicOptional<QuicFlowController> flow_controller,
+             quiche::QuicheOptional<QuicFlowController> flow_controller,
              QuicFlowController* connection_flow_controller);
 
   // Calls MaybeSendBlocked on the stream's flow controller and the connection
@@ -497,7 +497,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // True if this stream has received a RST_STREAM frame.
   bool rst_received_;
 
-  QuicOptional<QuicFlowController> flow_controller_;
+  quiche::QuicheOptional<QuicFlowController> flow_controller_;
 
   // The connection level flow controller. Not owned.
   QuicFlowController* connection_flow_controller_;

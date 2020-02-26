@@ -8,14 +8,16 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_optional.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
 namespace {
+
+using quiche::QuicheOptional;
 
 using testing::_;
 using testing::ElementsAre;
@@ -73,7 +75,7 @@ TEST_F(QuicDatagramQueueTest, SendDatagramAfterBuffering) {
   // Verify getting write blocked does not remove the datagram from the queue.
   EXPECT_CALL(*connection_, SendMessage(_, _, _))
       .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
-  QuicOptional<MessageStatus> status = queue_.TrySendingNextDatagram();
+  QuicheOptional<MessageStatus> status = queue_.TrySendingNextDatagram();
   ASSERT_TRUE(status.has_value());
   EXPECT_EQ(MESSAGE_STATUS_BLOCKED, *status);
   EXPECT_EQ(1u, queue_.queue_size());
@@ -87,7 +89,7 @@ TEST_F(QuicDatagramQueueTest, SendDatagramAfterBuffering) {
 }
 
 TEST_F(QuicDatagramQueueTest, EmptyBuffer) {
-  QuicOptional<MessageStatus> status = queue_.TrySendingNextDatagram();
+  QuicheOptional<MessageStatus> status = queue_.TrySendingNextDatagram();
   EXPECT_FALSE(status.has_value());
 
   size_t num_messages = queue_.SendDatagrams();
