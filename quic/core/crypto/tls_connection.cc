@@ -125,8 +125,11 @@ int TlsConnection::SetEncryptionSecretCallback(
   std::vector<uint8_t> read_secret(key_length), write_secret(key_length);
   memcpy(read_secret.data(), read_key, key_length);
   memcpy(write_secret.data(), write_key, key_length);
-  if (!ConnectionFromSsl(ssl)->delegate_->SetEncryptionSecret(
-          QuicEncryptionLevel(level), read_secret, write_secret)) {
+  TlsConnection::Delegate* delegate = ConnectionFromSsl(ssl)->delegate_;
+  const SSL_CIPHER* cipher = SSL_get_pending_cipher(ssl);
+  delegate->SetWriteSecret(QuicEncryptionLevel(level), cipher, write_secret);
+  if (!delegate->SetReadSecret(QuicEncryptionLevel(level), cipher,
+                               read_secret)) {
     return 0;
   }
   return 1;

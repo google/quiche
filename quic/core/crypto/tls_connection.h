@@ -31,16 +31,23 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     virtual ~Delegate() {}
 
    protected:
-    // SetEncryptionSecret provides the encryption secrets to use at a
-    // particular encryption level |level|. The secrets provided here are the
-    // ones from the TLS 1.3 key schedule (RFC 8446 section 7.1), in particular
-    // the handshake traffic secrets and application traffic secrets. For a
-    // given level |level|, |read_secret| is the secret used for reading data,
-    // and |write_secret| is the secret used for writing data.
-    virtual bool SetEncryptionSecret(
-        EncryptionLevel level,
-        const std::vector<uint8_t>& read_secret,
-        const std::vector<uint8_t>& write_secret) = 0;
+    // SetWriteSecret provides the encryption secret used to encrypt messages at
+    // encryption level |level|. The secret provided here is the one from the
+    // TLS 1.3 key schedule (RFC 8446 section 7.1), in particular the handshake
+    // traffic secrets and application traffic secrets. The provided write
+    // secret must be used with the provided cipher suite |cipher|.
+    virtual void SetWriteSecret(EncryptionLevel level,
+                                const SSL_CIPHER* cipher,
+                                const std::vector<uint8_t>& write_secret) = 0;
+
+    // SetReadSecret is similar to SetWriteSecret, except that it is used for
+    // decrypting messages. SetReadSecret at a particular level is always called
+    // after SetWriteSecret for that level, except for ENCRYPTION_ZERO_RTT,
+    // where the EncryptionLevel for SetWriteSecret is
+    // ENCRYPTION_FORWARD_SECURE.
+    virtual bool SetReadSecret(EncryptionLevel level,
+                               const SSL_CIPHER* cipher,
+                               const std::vector<uint8_t>& read_secret) = 0;
 
     // WriteMessage is called when there is |data| from the TLS stack ready for
     // the QUIC stack to write in a crypto frame. The data must be transmitted
