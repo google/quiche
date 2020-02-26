@@ -47,6 +47,19 @@ namespace {
 
 static const QuicStreamId kStreamId = 5;
 
+ParsedQuicVersionVector GetTestParams() {
+  ParsedQuicVersionVector test_versions;
+
+  for (const auto& version : CurrentSupportedVersions()) {
+    // TODO(b/150224094): Enable versions with TLS handshake.
+    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+      test_versions.push_back(version);
+    }
+  }
+
+  return test_versions;
+}
+
 // MockQuicSession that does not create streams and writes data from
 // QuicStream to a string.
 class MockQuicSession : public QuicSession {
@@ -212,9 +225,10 @@ class MockQuartcStreamDelegate : public QuartcStream::Delegate {
   QuicByteCount last_bytes_pending_retransmission_ = 0;
 };
 
-class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
+class QuartcStreamTest : public QuicTestWithParam<ParsedQuicVersion>,
+                         public QuicConnectionHelperInterface {
  public:
-  QuartcStreamTest() {}
+  QuartcStreamTest() : version_(GetParam()) {}
 
   ~QuartcStreamTest() override = default;
 
@@ -228,11 +242,10 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
     alarm_factory_ = std::make_unique<test::MockAlarmFactory>();
 
     connection_ = std::make_unique<QuicConnection>(
-        QuicUtils::CreateZeroConnectionId(
-            CurrentSupportedVersions()[0].transport_version),
+        QuicUtils::CreateZeroConnectionId(version_.transport_version),
         QuicSocketAddress(ip, 0), this /*QuicConnectionHelperInterface*/,
         alarm_factory_.get(), new DummyPacketWriter(), owns_writer, perspective,
-        ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
+        ParsedQuicVersionVector{version_});
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = std::make_unique<MockQuicSession>(connection_.get(),
                                                  QuicConfig(), &write_buffer_);
@@ -254,6 +267,7 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
   }
 
  protected:
+  const ParsedQuicVersion version_;
   // The QuicSession will take the ownership.
   QuartcStream* stream_;
   std::unique_ptr<MockQuartcStreamDelegate> mock_stream_delegate_;
@@ -269,8 +283,13 @@ class QuartcStreamTest : public QuicTest, public QuicConnectionHelperInterface {
   MockClock clock_;
 };
 
+INSTANTIATE_TEST_SUITE_P(Tests,
+                         QuartcStreamTest,
+                         ::testing::ValuesIn(GetTestParams()),
+                         ::testing::PrintToStringParamName());
+
 // Write an entire string.
-TEST_F(QuartcStreamTest, WriteDataWhole) {
+TEST_P(QuartcStreamTest, WriteDataWhole) {
   CreateReliableQuicStream();
   char message[] = "Foo bar";
   test::QuicTestMemSliceVector data({std::make_pair(message, 7)});
@@ -279,7 +298,7 @@ TEST_F(QuartcStreamTest, WriteDataWhole) {
 }
 
 // Write part of a string.
-TEST_F(QuartcStreamTest, WriteDataPartial) {
+TEST_P(QuartcStreamTest, WriteDataPartial) {
   CreateReliableQuicStream();
   char message[] = "Foo bar";
   test::QuicTestMemSliceVector data({std::make_pair(message, 5)});
@@ -288,7 +307,7 @@ TEST_F(QuartcStreamTest, WriteDataPartial) {
 }
 
 // Test that a QuartcStream buffers writes correctly.
-TEST_F(QuartcStreamTest, StreamBuffersData) {
+TEST_P(QuartcStreamTest, StreamBuffersData) {
   CreateReliableQuicStream();
 
   char message[] = "Foo bar";
@@ -333,7 +352,7 @@ TEST_F(QuartcStreamTest, StreamBuffersData) {
 
 // Finish writing to a stream.
 // It delivers the fin bit and closes the write-side as soon as possible.
-TEST_F(QuartcStreamTest, FinishWriting) {
+TEST_P(QuartcStreamTest, FinishWriting) {
   CreateReliableQuicStream();
 
   session_->set_writable(false);
@@ -348,7 +367,7 @@ TEST_F(QuartcStreamTest, FinishWriting) {
 }
 
 // Read an entire string.
-TEST_F(QuartcStreamTest, ReadDataWhole) {
+TEST_P(QuartcStreamTest, ReadDataWhole) {
   CreateReliableQuicStream();
   QuicStreamFrame frame(kStreamId, false, 0, "Hello, World!");
   stream_->OnStreamFrame(frame);
@@ -357,7 +376,7 @@ TEST_F(QuartcStreamTest, ReadDataWhole) {
 }
 
 // Read part of a string.
-TEST_F(QuartcStreamTest, ReadDataPartial) {
+TEST_P(QuartcStreamTest, ReadDataPartial) {
   CreateReliableQuicStream();
   QuicStreamFrame frame(kStreamId, false, 0, "Hello, World!");
   frame.data_length = 5;
@@ -368,7 +387,7 @@ TEST_F(QuartcStreamTest, ReadDataPartial) {
 
 // Streams do not call OnReceived() after StopReading().
 // Note: this is tested here because Quartc relies on this behavior.
-TEST_F(QuartcStreamTest, StopReading) {
+TEST_P(QuartcStreamTest, StopReading) {
   CreateReliableQuicStream();
   stream_->StopReading();
 
@@ -385,7 +404,7 @@ TEST_F(QuartcStreamTest, StopReading) {
 }
 
 // Test that closing the stream results in a callback.
-TEST_F(QuartcStreamTest, CloseStream) {
+TEST_P(QuartcStreamTest, CloseStream) {
   CreateReliableQuicStream();
   EXPECT_FALSE(mock_stream_delegate_->closed());
   stream_->OnClose();
@@ -393,7 +412,7 @@ TEST_F(QuartcStreamTest, CloseStream) {
 }
 
 // Both sending and receiving fin automatically closes a stream.
-TEST_F(QuartcStreamTest, CloseOnFins) {
+TEST_P(QuartcStreamTest, CloseOnFins) {
   CreateReliableQuicStream();
   QuicStreamFrame frame(kStreamId, true, 0, 0);
   stream_->OnStreamFrame(frame);
@@ -405,7 +424,7 @@ TEST_F(QuartcStreamTest, CloseOnFins) {
   EXPECT_TRUE(mock_stream_delegate_->closed());
 }
 
-TEST_F(QuartcStreamTest, TestCancelOnLossDisabled) {
+TEST_P(QuartcStreamTest, TestCancelOnLossDisabled) {
   CreateReliableQuicStream();
 
   // This should be the default state.
@@ -424,7 +443,7 @@ TEST_F(QuartcStreamTest, TestCancelOnLossDisabled) {
   EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
-TEST_F(QuartcStreamTest, TestCancelOnLossEnabled) {
+TEST_P(QuartcStreamTest, TestCancelOnLossEnabled) {
   CreateReliableQuicStream();
   stream_->set_cancel_on_loss(true);
 
@@ -441,7 +460,7 @@ TEST_F(QuartcStreamTest, TestCancelOnLossEnabled) {
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
-TEST_F(QuartcStreamTest, MaxRetransmissionsAbsent) {
+TEST_P(QuartcStreamTest, MaxRetransmissionsAbsent) {
   CreateReliableQuicStream();
 
   // This should be the default state.
@@ -461,7 +480,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsAbsent) {
   EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
-TEST_F(QuartcStreamTest, MaxRetransmissionsSet) {
+TEST_P(QuartcStreamTest, MaxRetransmissionsSet) {
   CreateReliableQuicStream();
   stream_->set_max_retransmission_count(2);
 
@@ -488,7 +507,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsSet) {
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
-TEST_F(QuartcStreamTest, MaxRetransmissionsDisjointFrames) {
+TEST_P(QuartcStreamTest, MaxRetransmissionsDisjointFrames) {
   CreateReliableQuicStream();
   stream_->set_max_retransmission_count(2);
 
@@ -517,7 +536,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsDisjointFrames) {
   EXPECT_EQ("Foo barFoo barFoo bar", write_buffer_);
 }
 
-TEST_F(QuartcStreamTest, MaxRetransmissionsOverlappingFrames) {
+TEST_P(QuartcStreamTest, MaxRetransmissionsOverlappingFrames) {
   CreateReliableQuicStream();
   stream_->set_max_retransmission_count(2);
 
@@ -547,7 +566,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsOverlappingFrames) {
   EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
 }
 
-TEST_F(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
+TEST_P(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
   CreateReliableQuicStream();
   stream_->set_max_retransmission_count(1);
 
@@ -584,7 +603,7 @@ TEST_F(QuartcStreamTest, MaxRetransmissionsWithAckedFrame) {
   EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
-TEST_F(QuartcStreamTest, TestBytesPendingRetransmission) {
+TEST_P(QuartcStreamTest, TestBytesPendingRetransmission) {
   CreateReliableQuicStream();
   stream_->set_cancel_on_loss(false);
 
@@ -610,7 +629,7 @@ TEST_F(QuartcStreamTest, TestBytesPendingRetransmission) {
   EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 }
 
-TEST_F(QuartcStreamTest, TestBytesPendingRetransmissionWithCancelOnLoss) {
+TEST_P(QuartcStreamTest, TestBytesPendingRetransmissionWithCancelOnLoss) {
   CreateReliableQuicStream();
   stream_->set_cancel_on_loss(true);
 
