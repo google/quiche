@@ -1388,8 +1388,7 @@ class QuicDispatcherWriteBlockedListTest : public QuicDispatcherTestBase {
     QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
     EXPECT_CALL(*dispatcher_,
-                CreateQuicSession(_, client_address,
-                                  quiche::QuicheStringPiece("hq"), _))
+                CreateQuicSession(_, client_address, Eq(ExpectedAlpn()), _))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, TestConnectionId(1), client_address,
             &helper_, &alarm_factory_, &crypto_config_,
@@ -1405,8 +1404,7 @@ class QuicDispatcherWriteBlockedListTest : public QuicDispatcherTestBase {
     ProcessPacket(client_address, TestConnectionId(1), true, SerializeCHLO());
 
     EXPECT_CALL(*dispatcher_,
-                CreateQuicSession(_, client_address,
-                                  quiche::QuicheStringPiece("hq"), _))
+                CreateQuicSession(_, client_address, Eq(ExpectedAlpn()), _))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, TestConnectionId(2), client_address,
             &helper_, &alarm_factory_, &crypto_config_,
