@@ -293,7 +293,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
       }
     } else if (version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
       QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3);
-      if (GetQuicReloadableFlag(quic_enable_version_draft_25)) {
+      if (GetQuicReloadableFlag(quic_enable_version_draft_25_v2)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_50) {
@@ -548,7 +548,7 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
     SetQuicReloadableFlag(quic_enable_version_t099, true);
   } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
     QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_enable_version_draft_25, true);
+    SetQuicReloadableFlag(quic_enable_version_draft_25_v2, true);
   } else if (parsed_version.transport_version == QUIC_VERSION_50) {
     if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
       SetQuicReloadableFlag(quic_disable_version_q050, false);

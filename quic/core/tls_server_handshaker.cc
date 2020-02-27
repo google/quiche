@@ -160,6 +160,19 @@ size_t TlsServerHandshaker::BufferSizeLimitForLevel(
   return TlsHandshaker::BufferSizeLimitForLevel(level);
 }
 
+bool TlsServerHandshaker::SetReadSecret(
+    EncryptionLevel level,
+    const SSL_CIPHER* cipher,
+    const std::vector<uint8_t>& read_secret) {
+  if (level != ENCRYPTION_FORWARD_SECURE || one_rtt_keys_available_) {
+    return TlsHandshaker::SetReadSecret(level, cipher, read_secret);
+  }
+  // Delay setting read secret for ENCRYPTION_FORWARD_SECURE until handshake
+  // completes.
+  app_data_read_secret_ = read_secret;
+  return true;
+}
+
 void TlsServerHandshaker::AdvanceHandshake() {
   if (state_ == STATE_CONNECTION_CLOSED) {
     QUIC_LOG(INFO) << "TlsServerHandshaker received handshake message after "
@@ -286,6 +299,16 @@ void TlsServerHandshaker::FinishHandshake() {
     crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
   }
   crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+
+  if (!app_data_read_secret_.empty()) {
+    if (!SetReadSecret(ENCRYPTION_FORWARD_SECURE, cipher,
+                       app_data_read_secret_)) {
+      QUIC_BUG << "Failed to set forward secure read key.";
+      CloseConnection(QUIC_HANDSHAKE_FAILED, "Failed to set app data read key");
+      return;
+    }
+    app_data_read_secret_.clear();
+  }
 
   handshaker_delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);

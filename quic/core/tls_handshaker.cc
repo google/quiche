@@ -56,9 +56,8 @@ size_t TlsHandshaker::BufferSizeLimitForLevel(EncryptionLevel level) const {
       ssl(), TlsConnection::BoringEncryptionLevel(level));
 }
 
-const EVP_MD* TlsHandshaker::Prf() {
-  return EVP_get_digestbynid(
-      SSL_CIPHER_get_prf_nid(SSL_get_pending_cipher(ssl())));
+const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
+  return EVP_get_digestbynid(SSL_CIPHER_get_prf_nid(cipher));
 }
 
 void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
@@ -66,7 +65,7 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                                    const std::vector<uint8_t>& write_secret) {
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::SetKeyAndIV(Prf(), write_secret, encrypter.get());
+  CryptoUtils::SetKeyAndIV(Prf(cipher), write_secret, encrypter.get());
   handshaker_delegate_->OnNewEncryptionKeyAvailable(level,
                                                     std::move(encrypter));
 }
@@ -76,7 +75,7 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const std::vector<uint8_t>& read_secret) {
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::SetKeyAndIV(Prf(), read_secret, decrypter.get());
+  CryptoUtils::SetKeyAndIV(Prf(cipher), read_secret, decrypter.get());
   return handshaker_delegate_->OnNewDecryptionKeyAvailable(
       level, std::move(decrypter),
       /*set_alternative_decrypter=*/false,

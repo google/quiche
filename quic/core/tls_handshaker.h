@@ -60,7 +60,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
                                const std::string& reason_phrase) = 0;
 
   // Returns the PRF used by the cipher suite negotiated in the TLS handshake.
-  const EVP_MD* Prf();
+  const EVP_MD* Prf(const SSL_CIPHER* cipher);
 
   virtual const TlsConnection* tls_connection() const = 0;
 

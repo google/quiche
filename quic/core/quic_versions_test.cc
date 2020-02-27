@@ -270,7 +270,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, true);
-  SetQuicReloadableFlag(quic_enable_version_draft_25, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -305,7 +305,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsNo99) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, false);
-  SetQuicReloadableFlag(quic_enable_version_draft_25, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -337,7 +337,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsNoFlags) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, false);
-  SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, false);
   SetQuicReloadableFlag(quic_enable_version_t050, false);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -458,9 +458,9 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
 
   {
     QuicFlagSaver flag_saver;
-    SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25_v2, false);
     QuicEnableVersion(parsed_version_draft_25);
-    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_draft_25));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_draft_25_v2));
   }
 
   {

@@ -38,7 +38,7 @@ class QuartcPeerTest : public QuicTest {
     // TODO(b/150224094): Re-enable TLS handshake.
     // TODO(b/150236522): Parametrize by QUIC version.
     SetQuicReloadableFlag(quic_enable_version_t099, false);
-    SetQuicReloadableFlag(quic_enable_version_draft_25, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25_v2, false);
     SetQuicReloadableFlag(quic_enable_version_t050, false);
 
     SetQuicReloadableFlag(quic_default_to_bbr, true);
