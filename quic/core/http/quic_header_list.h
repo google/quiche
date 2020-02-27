@@ -57,10 +57,6 @@ class QUIC_EXPORT_PRIVATE QuicHeaderList
     max_header_list_size_ = max_header_list_size;
   }
 
-  // Deprecated.  TODO(b/145909215): remove when deprecating
-  // FLAGS_gfe2_reloadable_flag_quic_use_session_max_inbound_header_list_size.
-  size_t max_header_list_size() const { return max_header_list_size_; }
-
   std::string DebugString() const;
 
  private:
