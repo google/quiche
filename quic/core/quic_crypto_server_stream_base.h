@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_
-#define QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_BASE_H_
+#define QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_BASE_H_
 
 #include <cstdint>
 #include <memory>
@@ -91,4 +91,4 @@ CreateCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_BASE_H_
