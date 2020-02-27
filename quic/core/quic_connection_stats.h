@@ -45,6 +45,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QuicPacketCount packets_spuriously_retransmitted = 0;
   // Number of packets abandoned as lost by the loss detection algorithm.
   QuicPacketCount packets_lost = 0;
+  // The sum of the detection time of all lost packets. The detection time of a
+  // lost packet is defined as: T(detection) - T(send).
+  QuicTime::Delta total_loss_detection_time = QuicTime::Delta::Zero();
 
   // Number of times this connection went through the slow start phase.
   uint32_t slowstart_count = 0;

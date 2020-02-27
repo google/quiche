@@ -619,6 +619,8 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   // Spurious retransmission is detected when packet 3 gets acked. We cannot
   // know packet 2 is a spurious until it gets acked.
   EXPECT_EQ(1u, stats_.packets_spuriously_retransmitted);
+  EXPECT_EQ(1u, stats_.packets_lost);
+  EXPECT_LT(QuicTime::Delta::Zero(), stats_.total_loss_detection_time);
 }
 
 TEST_F(QuicSentPacketManagerTest, AckOriginalTransmission) {

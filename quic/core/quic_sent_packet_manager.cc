@@ -891,12 +891,19 @@ void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
                                 largest_newly_acked_, packets_acked_,
                                 &packets_lost_);
   for (const LostPacket& packet : packets_lost_) {
+    QuicTransmissionInfo* info =
+        unacked_packets_.GetMutableTransmissionInfo(packet.packet_number);
     ++stats_->packets_lost;
+    if (time > info->sent_time) {
+      stats_->total_loss_detection_time =
+          stats_->total_loss_detection_time + (time - info->sent_time);
+    }
     if (debug_delegate_ != nullptr) {
       debug_delegate_->OnPacketLoss(packet.packet_number, LOSS_RETRANSMISSION,
                                     time);
     }
-    unacked_packets_.RemoveFromInFlight(packet.packet_number);
+    unacked_packets_.RemoveFromInFlight(info);
+
     MarkForRetransmission(packet.packet_number, LOSS_RETRANSMISSION);
   }
 }
