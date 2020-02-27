@@ -2613,9 +2613,13 @@ void QuicConnection::OnPathDegradingTimeout() {
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
-  DCHECK(!sent_packet_manager_.unacked_packets().empty() ||
-         (sent_packet_manager_.handshake_mode_disabled() &&
-          !IsHandshakeComplete()));
+#ifndef NDEBUG
+  if (sent_packet_manager_.unacked_packets().empty()) {
+    DCHECK(sent_packet_manager_.handshake_mode_disabled());
+    DCHECK(!IsHandshakeComplete());
+  }
+#endif
+
   const QuicPacketNumber previous_created_packet_number =
       packet_creator_.packet_number();
   if (close_connection_after_five_rtos_ &&
