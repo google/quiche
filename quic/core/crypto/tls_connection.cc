@@ -108,10 +108,18 @@ TlsConnection* TlsConnection::ConnectionFromSsl(const SSL* ssl) {
       ssl, SslIndexSingleton::GetInstance()->ssl_ex_data_index_connection()));
 }
 
+// TODO(nharper): Once
+// https://boringssl-review.googlesource.com/c/boringssl/+/40127 lands and is
+// rolled into google3, remove the BORINGSSL_API_VERSION check.
 const SSL_QUIC_METHOD TlsConnection::kSslQuicMethod{
-    TlsConnection::SetEncryptionSecretCallback,
-    TlsConnection::WriteMessageCallback, TlsConnection::FlushFlightCallback,
-    TlsConnection::SendAlertCallback};
+#if BORINGSSL_API_VERSION < 10
+  TlsConnection::SetEncryptionSecretCallback,
+#else
+  TlsConnection::SetReadSecretCallback, TlsConnection::SetWriteSecretCallback,
+#endif
+      TlsConnection::WriteMessageCallback, TlsConnection::FlushFlightCallback,
+      TlsConnection::SendAlertCallback
+};
 
 // static
 int TlsConnection::SetEncryptionSecretCallback(
@@ -132,6 +140,39 @@ int TlsConnection::SetEncryptionSecretCallback(
                                read_secret)) {
     return 0;
   }
+  return 1;
+}
+
+// static
+int TlsConnection::SetReadSecretCallback(SSL* ssl,
+                                         enum ssl_encryption_level_t level,
+                                         const SSL_CIPHER* cipher,
+                                         const uint8_t* secret,
+                                         size_t secret_length) {
+  // TODO(nharper): replace this vector with a span (which unfortunately doesn't
+  // yet exist in quic/platform/api).
+  std::vector<uint8_t> secret_vec(secret_length);
+  secret_vec.assign(secret, secret + secret_length);
+  TlsConnection::Delegate* delegate = ConnectionFromSsl(ssl)->delegate_;
+  if (!delegate->SetReadSecret(QuicEncryptionLevel(level), cipher,
+                               secret_vec)) {
+    return 0;
+  }
+  return 1;
+}
+
+// static
+int TlsConnection::SetWriteSecretCallback(SSL* ssl,
+                                          enum ssl_encryption_level_t level,
+                                          const SSL_CIPHER* cipher,
+                                          const uint8_t* secret,
+                                          size_t secret_length) {
+  // TODO(nharper): replace this vector with a span (which unfortunately doesn't
+  // yet exist in quic/platform/api).
+  std::vector<uint8_t> secret_vec(secret_length);
+  secret_vec.assign(secret, secret + secret_length);
+  TlsConnection::Delegate* delegate = ConnectionFromSsl(ssl)->delegate_;
+  delegate->SetWriteSecret(QuicEncryptionLevel(level), cipher, secret_vec);
   return 1;
 }
 
