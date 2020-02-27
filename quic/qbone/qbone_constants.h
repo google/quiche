@@ -13,11 +13,11 @@
 namespace quic {
 
 struct QboneConstants {
-  // Qbone's ALPN
+  // QBONE's ALPN
   static constexpr char kQboneAlpn[] = "qbone";
-  // The maximum number of bytes allowed in a qbone packet.
+  // The maximum number of bytes allowed in a QBONE packet.
   static const QuicByteCount kMaxQbonePacketBytes = 2000;
-  // The table id for Qbone's routing table. 'bone' in ascii.
+  // The table id for QBONE's routing table. 'bone' in ascii.
   static const uint32_t kQboneRouteTableId = 0x626F6E65;
   // The stream ID of the control channel.
   static QuicStreamId GetControlStreamId(QuicTransportVersion version);

@@ -14,11 +14,11 @@
 
 namespace quic {
 // A QboneClient encapsulates connecting to a server via an epoll server
-// and setting up a Qbone tunnel. See the QboneTestClient in qbone_client_test
+// and setting up a QBONE tunnel. See the QboneTestClient in qbone_client_test
 // for usage.
 class QboneClient : public QuicClientBase, public QboneClientInterface {
  public:
-  // Note that the epoll server, qbone writer, and handler are owned
+  // Note that the epoll server, QBONE writer, and handler are owned
   // by the caller.
   QboneClient(QuicSocketAddress server_address,
               const QuicServerId& server_id,

@@ -42,12 +42,12 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   virtual void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) = 0;
   virtual void ProcessPacketFromPeer(quiche::QuicheStringPiece packet) = 0;
 
-  // Returns the number of qbone network packets that were received
+  // Returns the number of QBONE network packets that were received
   // that fit into a single QuicStreamFrame and elided the creation of
   // a QboneReadOnlyStream.
   uint64_t GetNumEphemeralPackets() const;
 
-  // Returns the number of qbone network packets that were via
+  // Returns the number of QBONE network packets that were via
   // multiple packets, requiring the creation of a QboneReadOnlyStream.
   uint64_t GetNumStreamedPackets() const;
 

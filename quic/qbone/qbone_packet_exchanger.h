@@ -12,7 +12,7 @@
 namespace quic {
 
 // Handles reading and writing on the local network and exchange packets between
-// the local network with a Qbone connection.
+// the local network with a QBONE connection.
 class QbonePacketExchanger : public QbonePacketWriter {
  public:
   // The owner might want to receive notifications when read or write fails.

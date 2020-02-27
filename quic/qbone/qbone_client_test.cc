@@ -36,11 +36,11 @@ ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
 
   for (const auto& version : CurrentSupportedVersions()) {
-    // TODO(b/113130636): Make Qbone work with TLS.
+    // TODO(b/113130636): Make QBONE work with TLS.
     if (version.handshake_protocol == PROTOCOL_TLS1_3) {
       continue;
     }
-    // Qbone requires MESSAGE frames
+    // QBONE requires MESSAGE frames
     if (!version.SupportsMessageFrames()) {
       continue;
     }
@@ -75,7 +75,7 @@ class DataSavingQbonePacketWriter : public QbonePacketWriter {
   std::vector<std::string> data_;
 };
 
-// A subclass of a qbone session that will own the connection passed in.
+// A subclass of a QBONE session that will own the connection passed in.
 class ConnectionOwningQboneServerSession : public QboneServerSession {
  public:
   ConnectionOwningQboneServerSession(

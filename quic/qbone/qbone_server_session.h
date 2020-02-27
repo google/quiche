@@ -21,7 +21,7 @@ namespace quic {
 class QboneCryptoServerStreamHelper
     : public QuicCryptoServerStreamBase::Helper {
  public:
-  // This will look for the qbone alpn.
+  // This will look for the QBONE alpn.
   bool CanAcceptClientHello(const CryptoHandshakeMessage& chlo,
                             const QuicSocketAddress& client_address,
                             const QuicSocketAddress& peer_address,

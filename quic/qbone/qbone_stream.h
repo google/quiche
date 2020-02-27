@@ -21,7 +21,7 @@ class QUIC_EXPORT_PRIVATE QboneWriteOnlyStream : public QuicStream {
  public:
   QboneWriteOnlyStream(QuicStreamId id, QuicSession* session);
 
-  // QuicStream implementation. Qbone writers are ephemeral and don't
+  // QuicStream implementation. QBONE writers are ephemeral and don't
   // read any data.
   void OnDataAvailable() override {}
 

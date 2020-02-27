@@ -104,7 +104,7 @@ QuicStream* QboneSessionBase::CreateIncomingStream(PendingStream* /*pending*/) {
 }
 
 bool QboneSessionBase::ShouldKeepConnectionAlive() const {
-  // Qbone connections stay alive until they're explicitly closed.
+  // QBONE connections stay alive until they're explicitly closed.
   return true;
 }
 
@@ -182,7 +182,7 @@ void QboneSessionBase::SendPacketToPeer(quiche::QuicheStringPiece packet) {
     return;
   }
 
-  // Qbone streams are ephemeral.
+  // QBONE streams are ephemeral.
   QuicStream* stream = CreateOutgoingStream();
   if (!stream) {
     QUIC_BUG << "Failed to create an outgoing QBONE stream.";
