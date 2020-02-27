@@ -66,10 +66,6 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
     HTTP2_CODE_COUNT_N(decompress_failure_3, 4, 23);
     return false;
   } else if (DetectError()) {
-    if (error_ == HpackDecodingError::kValueTooLong) {
-      HTTP2_LOG_FIRST_N(ERROR, 1) << "Header value too long for header name: "
-                                  << entry_buffer_.name().str();
-    }
     HTTP2_CODE_COUNT_N(decompress_failure_3, 5, 23);
     return false;
   }
