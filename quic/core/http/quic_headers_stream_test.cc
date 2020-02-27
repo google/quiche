@@ -288,7 +288,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     // Write the headers and capture the outgoing data
     EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
                                          connection_->transport_version()),
-                                     _, _, NO_FIN, _))
+                                     _, _, NO_FIN, _, _))
         .WillOnce(WithArgs<1>(Invoke(this, &QuicHeadersStreamTest::SaveIov)));
     QuicSpdySessionPeer::WriteHeadersOnHeadersStream(
         &session_, stream_id, headers_.Clone(), fin,
@@ -412,7 +412,7 @@ TEST_P(QuicHeadersStreamTest, WritePushPromises) {
       // Write the headers and capture the outgoing data
       EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
                                            connection_->transport_version()),
-                                       _, _, NO_FIN, _))
+                                       _, _, NO_FIN, _, _))
           .WillOnce(WithArgs<1>(Invoke(this, &QuicHeadersStreamTest::SaveIov)));
       session_.WritePushPromise(stream_id, promised_stream_id,
                                 headers_.Clone());
@@ -827,7 +827,7 @@ TEST_P(QuicHeadersStreamTest, HpackEncoderDebugVisitor) {
 TEST_P(QuicHeadersStreamTest, AckSentData) {
   EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
                                        connection_->transport_version()),
-                                   _, _, NO_FIN, _))
+                                   _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
   QuicReferenceCountedPointer<MockAckListener> ack_listener1(
@@ -896,7 +896,7 @@ TEST_P(QuicHeadersStreamTest, FrameContainsMultipleHeaders) {
   // In this test, a stream frame can contain multiple headers.
   EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
                                        connection_->transport_version()),
-                                   _, _, NO_FIN, _))
+                                   _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
   QuicReferenceCountedPointer<MockAckListener> ack_listener1(
@@ -946,7 +946,7 @@ TEST_P(QuicHeadersStreamTest, FrameContainsMultipleHeaders) {
 TEST_P(QuicHeadersStreamTest, HeadersGetAckedMultipleTimes) {
   EXPECT_CALL(session_, WritevData(QuicUtils::GetHeadersStreamId(
                                        connection_->transport_version()),
-                                   _, _, NO_FIN, _))
+                                   _, _, NO_FIN, _, _))
       .WillRepeatedly(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   InSequence s;
   QuicReferenceCountedPointer<MockAckListener> ack_listener1(

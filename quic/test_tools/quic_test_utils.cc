@@ -557,7 +557,7 @@ MockQuicSession::MockQuicSession(QuicConnection* connection,
   if (create_mock_crypto_stream) {
     crypto_stream_ = std::make_unique<MockQuicCryptoStream>(this);
   }
-  ON_CALL(*this, WritevData(_, _, _, _, _))
+  ON_CALL(*this, WritevData(_, _, _, _, _, _))
       .WillByDefault(testing::Return(QuicConsumedData(0, false)));
 }
 
@@ -577,11 +577,13 @@ void MockQuicSession::SetCryptoStream(QuicCryptoStream* crypto_stream) {
   crypto_stream_.reset(crypto_stream);
 }
 
-QuicConsumedData MockQuicSession::ConsumeData(QuicStreamId id,
-                                              size_t write_length,
-                                              QuicStreamOffset offset,
-                                              StreamSendingState state,
-                                              bool /*is_retransmission*/) {
+QuicConsumedData MockQuicSession::ConsumeData(
+    QuicStreamId id,
+    size_t write_length,
+    QuicStreamOffset offset,
+    StreamSendingState state,
+    bool /*is_retransmission*/,
+    quiche::QuicheOptional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);
@@ -629,7 +631,7 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
     crypto_stream_ = std::make_unique<MockQuicCryptoStream>(this);
   }
 
-  ON_CALL(*this, WritevData(_, _, _, _, _))
+  ON_CALL(*this, WritevData(_, _, _, _, _, _))
       .WillByDefault(testing::Return(QuicConsumedData(0, false)));
 }
 
@@ -649,11 +651,13 @@ void MockQuicSpdySession::SetCryptoStream(QuicCryptoStream* crypto_stream) {
   crypto_stream_.reset(crypto_stream);
 }
 
-QuicConsumedData MockQuicSpdySession::ConsumeData(QuicStreamId id,
-                                                  size_t write_length,
-                                                  QuicStreamOffset offset,
-                                                  StreamSendingState state,
-                                                  bool /*is_retransmission*/) {
+QuicConsumedData MockQuicSpdySession::ConsumeData(
+    QuicStreamId id,
+    size_t write_length,
+    QuicStreamOffset offset,
+    StreamSendingState state,
+    bool /*is_retransmission*/,
+    quiche::QuicheOptional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);

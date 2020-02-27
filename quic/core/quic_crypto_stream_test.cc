@@ -158,7 +158,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 0, _, _))
+                 1350, 0, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
@@ -167,7 +167,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 1350, _, _))
+                 1350, 1350, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -181,19 +181,19 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1000, 0, _, _))
+                 1000, 0, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   // Verify [1200, 2000) are sent in [1200, 1350) and [1350, 2000) because of
   // they are in different encryption levels.
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 150, 1200, _, _))
+                 150, 1200, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 650, 1350, _, _))
+                 650, 1350, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->OnCanWrite();
   EXPECT_FALSE(stream_->HasPendingRetransmission());
@@ -263,7 +263,7 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 0, _, _))
+                 1350, 0, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
@@ -272,7 +272,7 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 1350, _, _))
+                 1350, 1350, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
 
@@ -347,7 +347,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 0, _, _))
+                 1350, 0, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
@@ -356,7 +356,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 1350, _, _))
+                 1350, 1350, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->WriteOrBufferData(data, false, nullptr);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -372,11 +372,11 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 650, 1350, _, _))
+                 650, 1350, _, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
         return session_.ConsumeData(
             QuicUtils::GetCryptoStreamId(connection_->transport_version()), 150,
-            1350, NO_FIN, 1350);
+            1350, NO_FIN, 1350, QuicheNullOpt);
       }));
 
   EXPECT_FALSE(stream_->RetransmitStreamData(1350, 1350, false));
@@ -387,18 +387,18 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 650, 1350, _, _))
+                 650, 1350, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 200, 2500, _, _))
+                 200, 2500, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   EXPECT_TRUE(stream_->RetransmitStreamData(1350, 1350, false));
   // Verify connection's encryption level has restored.
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
-  EXPECT_CALL(session_, WritevData(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _)).Times(0);
   // Force to send an empty frame.
   EXPECT_TRUE(stream_->RetransmitStreamData(0, 0, false));
 }
@@ -470,7 +470,7 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 0, _, _))
+                 1350, 0, _, _, _))
       .WillOnce(testing::Return(QuicConsumedData(0, false)));
   stream_->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -481,7 +481,7 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoData) {
   EXPECT_CALL(
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
-                 1350, 0, _, _))
+                 1350, 0, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   stream_->OnCanWrite();
   EXPECT_TRUE(stream_->IsWaitingForAcks());

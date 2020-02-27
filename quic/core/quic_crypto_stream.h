@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -120,6 +121,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
                             QuicByteCount data_length,
                             bool fin) override;
 
+  // Sends stream retransmission data at |encryption_level|.
+  QuicConsumedData RetransmitStreamDataAtLevel(
+      QuicStreamOffset retransmission_offset,
+      QuicByteCount retransmission_length,
+      EncryptionLevel encryption_level);
+
   // Returns the number of bytes of handshake data that have been received from
   // the peer in either CRYPTO or STREAM frames.
   uint64_t crypto_bytes_read() const;
@@ -186,6 +193,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Keeps state for data sent/received in CRYPTO frames at each encryption
   // level.
   std::array<CryptoSubstream, NUM_ENCRYPTION_LEVELS> substreams_;
+
+  // Latched value of gfe2_reloadable_flag_quic_writevdata_at_level.
+  const bool writevdata_at_level_;
 };
 
 }  // namespace quic

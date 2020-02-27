@@ -76,7 +76,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
     qpack_send_stream_ =
         QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
 
-    ON_CALL(session_, WritevData(_, _, _, _, _))
+    ON_CALL(session_, WritevData(_, _, _, _, _, _))
         .WillByDefault(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   }
 
@@ -96,13 +96,13 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 
 TEST_P(QpackSendStreamTest, WriteStreamTypeOnlyFirstTime) {
   std::string data = "data";
-  EXPECT_CALL(session_, WritevData(_, 1, _, _, _));
-  EXPECT_CALL(session_, WritevData(_, data.length(), _, _, _));
+  EXPECT_CALL(session_, WritevData(_, 1, _, _, _, _));
+  EXPECT_CALL(session_, WritevData(_, data.length(), _, _, _, _));
   qpack_send_stream_->WriteStreamData(quiche::QuicheStringPiece(data));
 
-  EXPECT_CALL(session_, WritevData(_, data.length(), _, _, _));
+  EXPECT_CALL(session_, WritevData(_, data.length(), _, _, _, _));
   qpack_send_stream_->WriteStreamData(quiche::QuicheStringPiece(data));
-  EXPECT_CALL(session_, WritevData(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _)).Times(0);
   qpack_send_stream_->MaybeSendStreamType();
 }
 

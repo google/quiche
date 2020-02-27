@@ -732,11 +732,13 @@ void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
   connection_->ProcessUdpPacket(self_address, peer_address, packet);
 }
 
-QuicConsumedData QuicSession::WritevData(QuicStreamId id,
-                                         size_t write_length,
-                                         QuicStreamOffset offset,
-                                         StreamSendingState state,
-                                         bool is_retransmission) {
+QuicConsumedData QuicSession::WritevData(
+    QuicStreamId id,
+    size_t write_length,
+    QuicStreamOffset offset,
+    StreamSendingState state,
+    bool is_retransmission,
+    quiche::QuicheOptional<EncryptionLevel> level) {
   DCHECK(connection_->connected())
       << ENDPOINT << "Try to write stream data when connection is closed.";
   if (!IsEncryptionEstablished() &&
@@ -746,12 +748,23 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id,
     return QuicConsumedData(0, false);
   }
 
+  const auto current_level = connection()->encryption_level();
+  if (level.has_value()) {
+    connection()->SetDefaultEncryptionLevel(level.value());
+  }
+
   QuicConsumedData data =
       connection_->SendStreamData(id, write_length, offset, state);
   if (!is_retransmission) {
     // This is new stream data.
     write_blocked_streams_.UpdateBytesForStream(id, data.bytes_consumed);
   }
+
+  // Restore the encryption level.
+  if (level.has_value()) {
+    connection()->SetDefaultEncryptionLevel(current_level);
+  }
+
   return data;
 }
 

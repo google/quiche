@@ -73,7 +73,7 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
             perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
-    ON_CALL(session_, WritevData(_, _, _, _, _))
+    ON_CALL(session_, WritevData(_, _, _, _, _, _))
         .WillByDefault(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
   }
 
@@ -132,22 +132,22 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
 
   // A lambda to save and consume stream data when QuicSession::WritevData() is
   // called.
-  auto save_write_data = [&writer, this](QuicStreamId /*id*/,
-                                         size_t write_length,
-                                         QuicStreamOffset offset,
-                                         StreamSendingState /*state*/,
-                                         bool /*is_retransmission*/) {
-    send_control_stream_->WriteStreamData(offset, write_length, &writer);
-    return QuicConsumedData(/* bytes_consumed = */ write_length,
-                            /* fin_consumed = */ false);
-  };
+  auto save_write_data =
+      [&writer, this](QuicStreamId /*id*/, size_t write_length,
+                      QuicStreamOffset offset, StreamSendingState /*state*/,
+                      bool /*is_retransmission*/,
+                      quiche::QuicheOptional<EncryptionLevel> /*level*/) {
+        send_control_stream_->WriteStreamData(offset, write_length, &writer);
+        return QuicConsumedData(/* bytes_consumed = */ write_length,
+                                /* fin_consumed = */ false);
+      };
 
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 1, _, _, _))
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 1, _, _, _, _))
       .WillOnce(Invoke(save_write_data));
   EXPECT_CALL(session_, WritevData(send_control_stream_->id(),
-                                   expected_write_data.size() - 5, _, _, _))
+                                   expected_write_data.size() - 5, _, _, _, _))
       .WillOnce(Invoke(save_write_data));
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 4, _, _, _))
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 4, _, _, _, _))
       .WillOnce(Invoke(save_write_data));
 
   send_control_stream_->MaybeSendSettingsFrame();
@@ -159,8 +159,8 @@ TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {
   Initialize();
   testing::InSequence s;
 
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 1, _, _, _));
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _))
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), 1, _, _, _, _));
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
       .Times(2);
   send_control_stream_->MaybeSendSettingsFrame();
 
@@ -176,12 +176,12 @@ TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
 
   // The first write will trigger the control stream to write stream type, a
   // SETTINGS frame, and a greased frame before the PRIORITY_UPDATE frame.
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _))
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
       .Times(4);
   PriorityUpdateFrame frame;
   send_control_stream_->WritePriorityUpdate(frame);
 
-  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _));
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _));
   send_control_stream_->WritePriorityUpdate(frame);
 }
 

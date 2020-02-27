@@ -10,10 +10,12 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -36,7 +38,8 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
       substreams_{{{this, ENCRYPTION_INITIAL},
                    {this, ENCRYPTION_HANDSHAKE},
                    {this, ENCRYPTION_ZERO_RTT},
-                   {this, ENCRYPTION_FORWARD_SECURE}}} {
+                   {this, ENCRYPTION_FORWARD_SECURE}}},
+      writevdata_at_level_(GetQuicReloadableFlag(quic_writevdata_at_level)) {
   // The crypto stream is exempt from connection level flow control.
   DisableConnectionFlowControlForThisStream();
 }
@@ -282,25 +285,32 @@ void QuicCryptoStream::WritePendingRetransmission() {
     pending.offset = retransmission.begin()->min();
     pending.length =
         retransmission.begin()->max() - retransmission.begin()->min();
-    EncryptionLevel current_encryption_level =
-        session()->connection()->encryption_level();
-    // Set appropriate encryption level.
-    session()->connection()->SetDefaultEncryptionLevel(
-        retransmission_encryption_level);
-    QuicConsumedData consumed =
-        stream_delegate()->WritevData(id(), pending.length, pending.offset,
-                                      NO_FIN, /*is_retransmission*/ true);
-    QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
-                  << " tries to retransmit stream data [" << pending.offset
-                  << ", " << pending.offset + pending.length
-                  << ") with encryption level: "
-                  << retransmission_encryption_level
-                  << ", consumed: " << consumed;
-    OnStreamFrameRetransmitted(pending.offset, consumed.bytes_consumed,
-                               consumed.fin_consumed);
-    // Restore encryption level.
-    session()->connection()->SetDefaultEncryptionLevel(
-        current_encryption_level);
+    QuicConsumedData consumed(0, false);
+    if (!writevdata_at_level_) {
+      EncryptionLevel current_encryption_level =
+          session()->connection()->encryption_level();
+      // Set appropriate encryption level.
+      session()->connection()->SetDefaultEncryptionLevel(
+          retransmission_encryption_level);
+      consumed = stream_delegate()->WritevData(
+          id(), pending.length, pending.offset, NO_FIN,
+          /*is_retransmission*/ true, QuicheNullOpt);
+      QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
+                    << " tries to retransmit stream data [" << pending.offset
+                    << ", " << pending.offset + pending.length
+                    << ") with encryption level: "
+                    << retransmission_encryption_level
+                    << ", consumed: " << consumed;
+      OnStreamFrameRetransmitted(pending.offset, consumed.bytes_consumed,
+                                 consumed.fin_consumed);
+      // Restore encryption level.
+      session()->connection()->SetDefaultEncryptionLevel(
+          current_encryption_level);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_writevdata_at_level, 1, 2);
+      consumed = RetransmitStreamDataAtLevel(pending.offset, pending.length,
+                                             retransmission_encryption_level);
+    }
     if (consumed.bytes_consumed < pending.length) {
       // The connection is write blocked.
       break;
@@ -328,22 +338,29 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
   for (const auto& interval : retransmission) {
     QuicStreamOffset retransmission_offset = interval.min();
     QuicByteCount retransmission_length = interval.max() - interval.min();
-    // Set appropriate encryption level.
-    session()->connection()->SetDefaultEncryptionLevel(send_encryption_level);
-    QuicConsumedData consumed = stream_delegate()->WritevData(
-        id(), retransmission_length, retransmission_offset, NO_FIN,
-        /*is_retransmission*/ true);
-    QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
-                  << " is forced to retransmit stream data ["
-                  << retransmission_offset << ", "
-                  << retransmission_offset + retransmission_length
-                  << "), with encryption level: " << send_encryption_level
-                  << ", consumed: " << consumed;
-    OnStreamFrameRetransmitted(retransmission_offset, consumed.bytes_consumed,
-                               consumed.fin_consumed);
-    // Restore encryption level.
-    session()->connection()->SetDefaultEncryptionLevel(
-        current_encryption_level);
+    QuicConsumedData consumed(0, false);
+    if (!writevdata_at_level_) {
+      // Set appropriate encryption level.
+      session()->connection()->SetDefaultEncryptionLevel(send_encryption_level);
+      consumed = stream_delegate()->WritevData(
+          id(), retransmission_length, retransmission_offset, NO_FIN,
+          /*is_retransmission*/ true, QuicheNullOpt);
+      QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
+                    << " is forced to retransmit stream data ["
+                    << retransmission_offset << ", "
+                    << retransmission_offset + retransmission_length
+                    << "), with encryption level: " << send_encryption_level
+                    << ", consumed: " << consumed;
+      OnStreamFrameRetransmitted(retransmission_offset, consumed.bytes_consumed,
+                                 consumed.fin_consumed);
+      // Restore encryption level.
+      session()->connection()->SetDefaultEncryptionLevel(
+          current_encryption_level);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_writevdata_at_level, 2, 2);
+      consumed = RetransmitStreamDataAtLevel(
+          retransmission_offset, retransmission_length, send_encryption_level);
+    }
     if (consumed.bytes_consumed < retransmission_length) {
       // The connection is write blocked.
       return false;
@@ -351,6 +368,26 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
   }
 
   return true;
+}
+
+QuicConsumedData QuicCryptoStream::RetransmitStreamDataAtLevel(
+    QuicStreamOffset retransmission_offset,
+    QuicByteCount retransmission_length,
+    EncryptionLevel encryption_level) {
+  DCHECK(writevdata_at_level_);
+  const auto consumed = stream_delegate()->WritevData(
+      id(), retransmission_length, retransmission_offset, NO_FIN,
+      /*is_retransmission*/ true, encryption_level);
+  QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
+                << " is forced to retransmit stream data ["
+                << retransmission_offset << ", "
+                << retransmission_offset + retransmission_length
+                << "), with encryption level: " << encryption_level
+                << ", consumed: " << consumed;
+  OnStreamFrameRetransmitted(retransmission_offset, consumed.bytes_consumed,
+                             consumed.fin_consumed);
+
+  return consumed;
 }
 
 uint64_t QuicCryptoStream::crypto_bytes_read() const {

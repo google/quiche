@@ -633,12 +633,13 @@ class MockQuicSession : public QuicSession {
   MOCK_METHOD1(ShouldCreateIncomingStream2, bool(QuicStreamId id));
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
-  MOCK_METHOD5(WritevData,
+  MOCK_METHOD6(WritevData,
                QuicConsumedData(QuicStreamId id,
                                 size_t write_length,
                                 QuicStreamOffset offset,
                                 StreamSendingState state,
-                                bool is_retransmission));
+                                bool is_retransmission,
+                                quiche::QuicheOptional<EncryptionLevel> level));
 
   MOCK_METHOD3(SendRstStream,
                void(QuicStreamId stream_id,
@@ -668,7 +669,8 @@ class MockQuicSession : public QuicSession {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state,
-                               bool is_retransmission);
+                               bool is_retransmission,
+                               quiche::QuicheOptional<EncryptionLevel> level);
 
   void ReallySendRstStream(QuicStreamId id,
                            QuicRstStreamErrorCode error,
@@ -732,12 +734,13 @@ class MockQuicSpdySession : public QuicSpdySession {
   MOCK_METHOD1(ShouldCreateIncomingStream, bool(QuicStreamId id));
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
-  MOCK_METHOD5(WritevData,
+  MOCK_METHOD6(WritevData,
                QuicConsumedData(QuicStreamId id,
                                 size_t write_length,
                                 QuicStreamOffset offset,
                                 StreamSendingState state,
-                                bool is_retransmission));
+                                bool is_retransmission,
+                                quiche::QuicheOptional<EncryptionLevel> level));
 
   MOCK_METHOD3(SendRstStream,
                void(QuicStreamId stream_id,
@@ -784,7 +787,8 @@ class MockQuicSpdySession : public QuicSpdySession {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state,
-                               bool is_retransmission);
+                               bool is_retransmission,
+                               quiche::QuicheOptional<EncryptionLevel> level);
 
   using QuicSession::ActivateStream;
 

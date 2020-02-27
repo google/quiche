@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -20,12 +21,15 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   // Called when the stream has encountered errors that it can't handle.
   virtual void OnStreamError(QuicErrorCode error_code,
                              std::string error_details) = 0;
-  // Called when the stream needs to write data.
-  virtual QuicConsumedData WritevData(QuicStreamId id,
-                                      size_t write_length,
-                                      QuicStreamOffset offset,
-                                      StreamSendingState state,
-                                      bool is_retransmission) = 0;
+  // Called when the stream needs to write data. If |level| is present, the data
+  // will be written at the specified |level|.
+  virtual QuicConsumedData WritevData(
+      QuicStreamId id,
+      size_t write_length,
+      QuicStreamOffset offset,
+      StreamSendingState state,
+      bool is_retransmission,
+      quiche::QuicheOptional<EncryptionLevel> level) = 0;
   // Called on stream creation.
   virtual void RegisterStreamPriority(
       QuicStreamId id,

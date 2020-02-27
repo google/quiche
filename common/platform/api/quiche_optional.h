@@ -13,6 +13,7 @@ namespace quiche {
 
 template <typename T>
 using QuicheOptional = QuicheOptionalImpl<T>;
+#define QuicheNullOpt QuicheNullOptImpl
 
 }  // namespace quiche
 

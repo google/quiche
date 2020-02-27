@@ -40,11 +40,13 @@ class MockQuicSession : public QboneSessionBase {
   ~MockQuicSession() override {}
 
   // Writes outgoing data from QuicStream to a string.
-  QuicConsumedData WritevData(QuicStreamId id,
-                              size_t write_length,
-                              QuicStreamOffset offset,
-                              StreamSendingState state,
-                              bool is_retransmission) override {
+  QuicConsumedData WritevData(
+      QuicStreamId id,
+      size_t write_length,
+      QuicStreamOffset offset,
+      StreamSendingState state,
+      bool is_retransmission,
+      quiche::QuicheOptional<EncryptionLevel> level) override {
     if (!writable_) {
       return QuicConsumedData(0, false);
     }

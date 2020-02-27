@@ -268,11 +268,13 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // indicating if the fin bit was consumed.  This does not indicate the data
   // has been sent on the wire: it may have been turned into a packet and queued
   // if the socket was unexpectedly blocked.
-  QuicConsumedData WritevData(QuicStreamId id,
-                              size_t write_length,
-                              QuicStreamOffset offset,
-                              StreamSendingState state,
-                              bool is_retransmission) override;
+  QuicConsumedData WritevData(
+      QuicStreamId id,
+      size_t write_length,
+      QuicStreamOffset offset,
+      StreamSendingState state,
+      bool is_retransmission,
+      quiche::QuicheOptional<EncryptionLevel> level) override;
 
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(

@@ -141,7 +141,7 @@ TEST_F(QuicTransportStreamTest, CannotSendFinTwice) {
   EXPECT_CALL(interface_, IsSessionReady()).WillRepeatedly(Return(true));
   ASSERT_TRUE(stream_->CanWrite());
 
-  EXPECT_CALL(session_, WritevData(stream_->id(), _, _, _, _))
+  EXPECT_CALL(session_, WritevData(stream_->id(), _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(0, /*fin_consumed=*/true)));
   EXPECT_TRUE(stream_->SendFin());
   EXPECT_FALSE(stream_->CanWrite());
