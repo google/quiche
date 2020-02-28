@@ -649,6 +649,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // True if any 1-RTT packet gets sent.
   bool one_rtt_packet_sent_;
 
+  // If true, arm the 1st PTO with earliest in flight sent time.
+  bool arm_1st_pto_with_earliest_inflight_sent_time_;
+
   const bool avoid_overestimate_bandwidth_with_aggregation_ =
       GetQuicReloadableFlag(quic_avoid_overestimate_bandwidth_with_aggregation);
 };

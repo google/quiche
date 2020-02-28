@@ -216,6 +216,14 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicTime GetLastInFlightPacketSentTime(
       PacketNumberSpace packet_number_space) const;
 
+  // Returns TransmissionInfo of the first in flight packet.
+  const QuicTransmissionInfo* GetFirstInFlightTransmissionInfo() const;
+
+  // Returns TransmissionInfo of first in flight packet in
+  // |packet_number_space|.
+  const QuicTransmissionInfo* GetFirstInFlightTransmissionInfoOfSpace(
+      PacketNumberSpace packet_number_space) const;
+
   void SetSessionNotifier(SessionNotifierInterface* session_notifier);
 
   void EnableMultiplePacketNumberSpacesSupport();

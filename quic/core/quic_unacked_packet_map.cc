@@ -477,6 +477,32 @@ QuicUnackedPacketMap::GetLargestSentRetransmittableOfPacketNumberSpace(
   return largest_sent_retransmittable_packets_[packet_number_space];
 }
 
+const QuicTransmissionInfo*
+QuicUnackedPacketMap::GetFirstInFlightTransmissionInfo() const {
+  DCHECK(HasInFlightPackets());
+  for (auto it = unacked_packets_.begin(); it != unacked_packets_.end(); ++it) {
+    if (it->in_flight) {
+      return &(*it);
+    }
+  }
+  DCHECK(false);
+  return nullptr;
+}
+
+const QuicTransmissionInfo*
+QuicUnackedPacketMap::GetFirstInFlightTransmissionInfoOfSpace(
+    PacketNumberSpace packet_number_space) const {
+  // TODO(fayang): Optimize this part if arm 1st PTO with first in flight sent
+  // time works.
+  for (auto it = unacked_packets_.begin(); it != unacked_packets_.end(); ++it) {
+    if (it->in_flight &&
+        GetPacketNumberSpace(it->encryption_level) == packet_number_space) {
+      return &(*it);
+    }
+  }
+  return nullptr;
+}
+
 void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
   if (supports_multiple_packet_number_spaces_) {
     QUIC_BUG << "Multiple packet number spaces has already been enabled";

@@ -400,6 +400,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
       copt.push_back(kILD0);
     }
+    copt.push_back(kPLE1);
     client_config_.SetConnectionOptionsToSend(copt);
 
     // Start the server first, because CreateQuicClient() attempts

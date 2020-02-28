@@ -105,7 +105,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_rttvar_multiplier_(4),
       num_tlp_timeout_ptos_(0),
       one_rtt_packet_acked_(false),
-      one_rtt_packet_sent_(false) {
+      one_rtt_packet_sent_(false),
+      arm_1st_pto_with_earliest_inflight_sent_time_(false) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -185,6 +186,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientSentConnectionOption(kPAG2, perspective)) {
       QUIC_CODE_COUNT(two_aggressive_ptos);
       num_tlp_timeout_ptos_ = 2;
+    }
+    if (GetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time) &&
+        config.HasClientSentConnectionOption(kPLE1, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_arm_pto_with_earliest_sent_time);
+      arm_1st_pto_with_earliest_inflight_sent_time_ = true;
     }
   }
 
@@ -997,6 +1003,19 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     }
     case PTO_MODE: {
       if (!supports_multiple_packet_number_spaces()) {
+        if (arm_1st_pto_with_earliest_inflight_sent_time_ &&
+            unacked_packets_.HasInFlightPackets() &&
+            consecutive_pto_count_ == 0) {
+          // Arm 1st PTO with earliest in flight sent time, and make sure at
+          // least half RTT has been passed since last sent packet.
+          return std::max(
+              clock_->ApproximateNow(),
+              std::max(unacked_packets_.GetFirstInFlightTransmissionInfo()
+                               ->sent_time +
+                           GetProbeTimeoutDelay(),
+                       unacked_packets_.GetLastInFlightPacketSentTime() +
+                           0.5 * rtt_stats_.SmoothedOrInitialRtt()));
+        }
         // Ensure PTO never gets set to a time in the past.
         return std::max(clock_->ApproximateNow(),
                         unacked_packets_.GetLastInFlightPacketSentTime() +
@@ -1004,9 +1023,30 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       }
 
       PacketNumberSpace packet_number_space;
+      // earliest_right_edge is the earliest sent time of the last in flight
+      // packet of all packet number spaces.
+      const QuicTime earliest_right_edge =
+          GetEarliestPacketSentTimeForPto(&packet_number_space);
+      if (arm_1st_pto_with_earliest_inflight_sent_time_ &&
+          packet_number_space == APPLICATION_DATA &&
+          consecutive_pto_count_ == 0) {
+        const QuicTransmissionInfo* first_application_info =
+            unacked_packets_.GetFirstInFlightTransmissionInfoOfSpace(
+                APPLICATION_DATA);
+        if (first_application_info != nullptr) {
+          // Arm 1st PTO with earliest in flight sent time, and make sure at
+          // least half RTT has been passed since last sent packet. Only do this
+          // for application data.
+          return std::max(
+              clock_->ApproximateNow(),
+              std::max(
+                  first_application_info->sent_time + GetProbeTimeoutDelay(),
+                  earliest_right_edge +
+                      0.5 * rtt_stats_.SmoothedOrInitialRtt()));
+        }
+      }
       return std::max(clock_->ApproximateNow(),
-                      GetEarliestPacketSentTimeForPto(&packet_number_space) +
-                          GetProbeTimeoutDelay());
+                      earliest_right_edge + GetProbeTimeoutDelay());
     }
   }
   DCHECK(false);
