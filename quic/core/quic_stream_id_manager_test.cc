@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
@@ -33,9 +34,14 @@ class MockDelegate : public QuicStreamIdManager::DelegateInterface {
 };
 
 struct TestParams {
-  TestParams(Perspective perspective, bool is_unidirectional)
-      : perspective(perspective), is_unidirectional(is_unidirectional) {}
+  TestParams(ParsedQuicVersion version,
+             Perspective perspective,
+             bool is_unidirectional)
+      : version(version),
+        perspective(perspective),
+        is_unidirectional(is_unidirectional) {}
 
+  ParsedQuicVersion version;
   Perspective perspective;
   bool is_unidirectional;
 };
@@ -43,16 +49,22 @@ struct TestParams {
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
   return quiche::QuicheStrCat(
+      ParsedQuicVersionToString(p.version), "_",
       (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"),
       (p.is_unidirectional ? "Unidirectional" : "Bidirectional"));
 }
 
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
-  for (Perspective perspective :
-       {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
-    for (bool is_unidirectional : {true, false}) {
-      params.push_back(TestParams(perspective, is_unidirectional));
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (!version.HasIetfQuicFrames()) {
+      continue;
+    }
+    for (Perspective perspective :
+         {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
+      for (bool is_unidirectional : {true, false}) {
+        params.push_back(TestParams(version, perspective, is_unidirectional));
+      }
     }
   }
   return params;
@@ -70,7 +82,9 @@ class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
     DCHECK(VersionHasIetfQuicFrames(transport_version()));
   }
 
-  QuicTransportVersion transport_version() const { return QUIC_VERSION_99; }
+  QuicTransportVersion transport_version() const {
+    return GetParam().version.transport_version;
+  }
 
   // Returns the stream ID for the Nth incoming stream (created by the peer)
   // of the corresponding directionality of this manager.

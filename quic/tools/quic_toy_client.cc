@@ -187,7 +187,16 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
   if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
     quic::QuicVersionInitializeSupportForIetfDraft();
-    versions = {{quic::PROTOCOL_TLS1_3, quic::QUIC_VERSION_99}};
+    versions = {};
+    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+      // Find the first version that supports IETF QUIC.
+      if (version.HasIetfQuicFrames() &&
+          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+        versions = {version};
+        break;
+      }
+    }
+    CHECK_EQ(versions.size(), 1u);
     quic::QuicEnableVersion(versions[0]);
 
   } else if (!quic_version_string.empty()) {

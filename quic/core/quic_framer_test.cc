@@ -9383,11 +9383,13 @@ TEST_P(QuicFramerTest, StopPacketProcessing) {
 
 static char kTestString[] = "At least 20 characters.";
 static QuicStreamId kTestQuicStreamId = 1;
-static bool ExpectedStreamFrame(const QuicStreamFrame& frame) {
-  return (frame.stream_id == kTestQuicStreamId ||
-          QuicUtils::IsCryptoStreamId(QUIC_VERSION_99, frame.stream_id)) &&
-         !frame.fin && frame.offset == 0 &&
-         std::string(frame.data_buffer, frame.data_length) == kTestString;
+
+MATCHER_P(ExpectedStreamFrame, version, "") {
+  return (arg.stream_id == kTestQuicStreamId ||
+          QuicUtils::IsCryptoStreamId(version.transport_version,
+                                      arg.stream_id)) &&
+         !arg.fin && arg.offset == 0 &&
+         std::string(arg.data_buffer, arg.data_length) == kTestString;
   // FIN is hard-coded false in ConstructEncryptedPacket.
   // Offset 0 is hard-coded in ConstructEncryptedPacket.
 }
@@ -9426,7 +9428,8 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   EXPECT_CALL(visitor, OnError(_)).Times(0);
   EXPECT_CALL(visitor, OnStreamFrame(_)).Times(0);
   if (!QuicVersionUsesCryptoFrames(framer_.version().transport_version)) {
-    EXPECT_CALL(visitor, OnStreamFrame(Truly(ExpectedStreamFrame))).Times(1);
+    EXPECT_CALL(visitor, OnStreamFrame(ExpectedStreamFrame(framer_.version())))
+        .Times(1);
   } else {
     EXPECT_CALL(visitor, OnCryptoFrame(_)).Times(1);
   }

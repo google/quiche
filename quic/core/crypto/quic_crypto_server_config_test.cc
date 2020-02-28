@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -482,15 +483,23 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
   CryptoHandshakeMessage client_hello;
   QuicIpAddress client_ip;
   QuicSocketAddress server_address;
-  QuicTransportVersion version = QUIC_VERSION_99;
+  QuicTransportVersion transport_version = QUIC_VERSION_UNSUPPORTED;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      transport_version = version.transport_version;
+      break;
+    }
+  }
+  ASSERT_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
   MockClock clock;
   QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config(
       new QuicSignedServerConfig);
   std::unique_ptr<ValidateClientHelloResultCallback> done_cb(
       new ValidateCallback);
   clock.AdvanceTime(QuicTime::Delta::FromSeconds(1100));
-  config_.ValidateClientHello(client_hello, client_ip, server_address, version,
-                              &clock, signed_config, std::move(done_cb));
+  config_.ValidateClientHello(client_hello, client_ip, server_address,
+                              transport_version, &clock, signed_config,
+                              std::move(done_cb));
   test_peer_.CheckConfigs({{"a", false}, {"b", true}});
 }
 

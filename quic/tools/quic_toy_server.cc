@@ -62,9 +62,14 @@ int QuicToyServer::Start() {
   ParsedQuicVersionVector supported_versions;
   if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
     QuicVersionInitializeSupportForIetfDraft();
-    supported_versions = {
-        ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99),
-        ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25)};
+    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+      // Add all versions that supports IETF QUIC.
+      if (version.HasIetfQuicFrames() &&
+          version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+        supported_versions.push_back(version);
+        break;
+      }
+    }
   } else {
     supported_versions = AllSupportedVersions();
   }

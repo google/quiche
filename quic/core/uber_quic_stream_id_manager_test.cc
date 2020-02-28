@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/uber_quic_stream_id_manager.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -15,6 +16,33 @@ using testing::StrictMock;
 namespace quic {
 namespace test {
 namespace {
+
+struct TestParams {
+  explicit TestParams(ParsedQuicVersion version, Perspective perspective)
+      : version(version), perspective(perspective) {}
+
+  ParsedQuicVersion version;
+  Perspective perspective;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return quiche::QuicheStrCat(
+      ParsedQuicVersionToString(p.version), "_",
+      (p.perspective == Perspective::IS_CLIENT ? "client" : "server"));
+}
+
+std::vector<TestParams> GetTestParams() {
+  std::vector<TestParams> params;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (!version.HasIetfQuicFrames()) {
+      continue;
+    }
+    params.push_back(TestParams(version, Perspective::IS_CLIENT));
+    params.push_back(TestParams(version, Perspective::IS_SERVER));
+  }
+  return params;
+}
 
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
@@ -27,7 +55,7 @@ class MockDelegate : public QuicStreamIdManager::DelegateInterface {
                void(QuicStreamCount stream_count, bool unidirectional));
 };
 
-class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
+class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
  protected:
   UberQuicStreamIdManagerTest()
       : manager_(perspective(),
@@ -63,22 +91,22 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
   }
 
   QuicStreamId GetNthPeerInitiatedBidirectionalStreamId(int n) {
-    return ((GetParam() == Perspective::IS_SERVER)
+    return ((perspective() == Perspective::IS_SERVER)
                 ? GetNthClientInitiatedBidirectionalId(n)
                 : GetNthServerInitiatedBidirectionalId(n));
   }
   QuicStreamId GetNthPeerInitiatedUnidirectionalStreamId(int n) {
-    return ((GetParam() == Perspective::IS_SERVER)
+    return ((perspective() == Perspective::IS_SERVER)
                 ? GetNthClientInitiatedUnidirectionalId(n)
                 : GetNthServerInitiatedUnidirectionalId(n));
   }
   QuicStreamId GetNthSelfInitiatedBidirectionalStreamId(int n) {
-    return ((GetParam() == Perspective::IS_CLIENT)
+    return ((perspective() == Perspective::IS_CLIENT)
                 ? GetNthClientInitiatedBidirectionalId(n)
                 : GetNthServerInitiatedBidirectionalId(n));
   }
   QuicStreamId GetNthSelfInitiatedUnidirectionalStreamId(int n) {
-    return ((GetParam() == Perspective::IS_CLIENT)
+    return ((perspective() == Perspective::IS_CLIENT)
                 ? GetNthClientInitiatedUnidirectionalId(n)
                 : GetNthServerInitiatedUnidirectionalId(n));
   }
@@ -93,10 +121,12 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
            ((stream_count - 1) * QuicUtils::StreamIdDelta(transport_version()));
   }
 
-  ParsedQuicVersion version() { return {PROTOCOL_TLS1_3, transport_version()}; }
-  QuicTransportVersion transport_version() { return QUIC_VERSION_99; }
+  ParsedQuicVersion version() { return GetParam().version; }
+  QuicTransportVersion transport_version() {
+    return version().transport_version;
+  }
 
-  Perspective perspective() { return GetParam(); }
+  Perspective perspective() { return GetParam().perspective; }
 
   testing::StrictMock<MockDelegate> delegate_;
   UberQuicStreamIdManager manager_;
@@ -104,8 +134,7 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<Perspective> {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          UberQuicStreamIdManagerTest,
-                         ::testing::ValuesIn({Perspective::IS_CLIENT,
-                                              Perspective::IS_SERVER}),
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(UberQuicStreamIdManagerTest, Initialization) {

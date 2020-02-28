@@ -8,7 +8,16 @@ namespace quic {
 
 ParsedQuicVersionVector MasqueSupportedVersions() {
   QuicVersionInitializeSupportForIetfDraft();
-  ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  ParsedQuicVersion version = UnsupportedQuicVersion();
+  for (const ParsedQuicVersion& vers : AllSupportedVersions()) {
+    // Find the first version that supports IETF QUIC.
+    if (vers.HasIetfQuicFrames() &&
+        vers.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+      version = vers;
+      break;
+    }
+  }
+  CHECK_NE(version.transport_version, QUIC_VERSION_UNSUPPORTED);
   QuicEnableVersion(version);
   return {version};
 }

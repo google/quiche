@@ -95,6 +95,7 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   void AttemptRequest(QuicSocketAddress addr,
                       std::string authority,
                       QuicServerId server_id,
+                      ParsedQuicVersion version,
                       bool test_version_negotiation,
                       bool attempt_rebind);
 
@@ -151,9 +152,9 @@ void QuicClientInteropRunner::AttemptResumption(QuicClient* client) {
 void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
                                              std::string authority,
                                              QuicServerId server_id,
+                                             ParsedQuicVersion version,
                                              bool test_version_negotiation,
                                              bool attempt_rebind) {
-  ParsedQuicVersion version(PROTOCOL_TLS1_3, QUIC_VERSION_99);
   ParsedQuicVersionVector versions = {version};
   if (test_version_negotiation) {
     versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
@@ -189,7 +190,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   }
   if (test_version_negotiation && !connect_result) {
     // Failed to negotiate version, retry without version negotiation.
-    AttemptRequest(addr, authority, server_id,
+    AttemptRequest(addr, authority, server_id, version,
                    /*test_version_negotiation=*/false, attempt_rebind);
     return;
   }
@@ -235,8 +236,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
         client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
         if (!client->connected()) {
           // Rebinding does not work, retry without attempting it.
-          AttemptRequest(addr, authority, server_id, test_version_negotiation,
-                         /*attempt_rebind=*/false);
+          AttemptRequest(addr, authority, server_id, version,
+                         test_version_negotiation, /*attempt_rebind=*/false);
           return;
         }
         InsertFeature(Feature::kRebinding);
@@ -263,7 +264,17 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
 std::set<Feature> ServerSupport(std::string host, int port) {
   // Enable IETF version support.
   QuicVersionInitializeSupportForIetfDraft();
-  QuicEnableVersion(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99));
+  ParsedQuicVersion version = UnsupportedQuicVersion();
+  for (const ParsedQuicVersion& vers : AllSupportedVersions()) {
+    // Find the first version that supports IETF QUIC.
+    if (vers.HasIetfQuicFrames() &&
+        vers.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+      version = vers;
+      break;
+    }
+  }
+  CHECK_NE(version.transport_version, QUIC_VERSION_UNSUPPORTED);
+  QuicEnableVersion(version);
 
   // Build the client, and try to connect.
   QuicSocketAddress addr =
@@ -277,7 +288,7 @@ std::set<Feature> ServerSupport(std::string host, int port) {
 
   QuicClientInteropRunner runner;
 
-  runner.AttemptRequest(addr, authority, server_id,
+  runner.AttemptRequest(addr, authority, server_id, version,
                         /*test_version_negotiation=*/true,
                         /*attempt_rebind=*/true);
 

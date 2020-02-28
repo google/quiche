@@ -328,19 +328,18 @@ void ExchangeHandshakeMessages(TestQuicCryptoStream* client,
   }
 }
 
-class TlsHandshakerTest : public QuicTest {
+class TlsHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   TlsHandshakerTest()
-      : client_conn_(new MockQuicConnection(
-            &conn_helper_,
-            &alarm_factory_,
-            Perspective::IS_CLIENT,
-            {ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)})),
-        server_conn_(new MockQuicConnection(
-            &conn_helper_,
-            &alarm_factory_,
-            Perspective::IS_SERVER,
-            {ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)})),
+      : version_(GetParam()),
+        client_conn_(new MockQuicConnection(&conn_helper_,
+                                            &alarm_factory_,
+                                            Perspective::IS_CLIENT,
+                                            {version_})),
+        server_conn_(new MockQuicConnection(&conn_helper_,
+                                            &alarm_factory_,
+                                            Perspective::IS_SERVER,
+                                            {version_})),
         client_session_(client_conn_, /*create_mock_crypto_stream=*/false),
         server_session_(server_conn_, /*create_mock_crypto_stream=*/false) {
     client_stream_ = new TestQuicCryptoClientStream(&client_session_);
@@ -394,6 +393,7 @@ class TlsHandshakerTest : public QuicTest {
     EXPECT_EQ(0, server_crypto_params.peer_signature_algorithm);
   }
 
+  ParsedQuicVersion version_;
   MockQuicConnectionHelper conn_helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* client_conn_;
@@ -406,7 +406,22 @@ class TlsHandshakerTest : public QuicTest {
   TestQuicCryptoServerStream* server_stream_;
 };
 
-TEST_F(TlsHandshakerTest, CryptoHandshake) {
+std::vector<ParsedQuicVersion> AllSupportedTlsVersions() {
+  std::vector<ParsedQuicVersion> tls_versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      tls_versions.push_back(version);
+    }
+  }
+  return tls_versions;
+}
+
+INSTANTIATE_TEST_SUITE_P(TlsHandshakerTests,
+                         TlsHandshakerTest,
+                         ::testing::ValuesIn(AllSupportedTlsVersions()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(TlsHandshakerTest, CryptoHandshake) {
   EXPECT_FALSE(client_conn_->IsHandshakeComplete());
   EXPECT_FALSE(server_conn_->IsHandshakeComplete());
 
@@ -419,7 +434,7 @@ TEST_F(TlsHandshakerTest, CryptoHandshake) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
+TEST_P(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it
@@ -439,7 +454,7 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofSource) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsHandshakerTest, CancelPendingProofSource) {
+TEST_P(TlsHandshakerTest, CancelPendingProofSource) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it
@@ -457,7 +472,7 @@ TEST_F(TlsHandshakerTest, CancelPendingProofSource) {
   proof_source->InvokePendingCallback(0);
 }
 
-TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
+TEST_P(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   // Enable TestProofVerifier to capture call to VerifyCertChain and run it
@@ -479,7 +494,7 @@ TEST_F(TlsHandshakerTest, HandshakeWithAsyncProofVerifier) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsHandshakerTest, ClientSendsNoSNI) {
+TEST_P(TlsHandshakerTest, ClientSendsNoSNI) {
   // Create a new client stream (and handshaker) with an empty server hostname.
   client_stream_ =
       new TestQuicCryptoClientStream(&client_session_, QuicServerId("", 443),
@@ -496,7 +511,7 @@ TEST_F(TlsHandshakerTest, ClientSendsNoSNI) {
   EXPECT_EQ(server_stream_->crypto_negotiated_params().sni, "");
 }
 
-TEST_F(TlsHandshakerTest, ServerExtractSNI) {
+TEST_P(TlsHandshakerTest, ServerExtractSNI) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(client_stream_->proof_handler(), OnProofVerifyDetailsAvailable);
@@ -507,7 +522,7 @@ TEST_F(TlsHandshakerTest, ServerExtractSNI) {
   EXPECT_EQ(server_stream_->crypto_negotiated_params().sni, "test.example.com");
 }
 
-TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
+TEST_P(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
   // Have client send ClientHello.
   client_stream_->CryptoConnect();
   EXPECT_CALL(*client_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
@@ -527,7 +542,7 @@ TEST_F(TlsHandshakerTest, ClientConnectionClosedOnTlsError) {
   EXPECT_FALSE(client_stream_->one_rtt_keys_available());
 }
 
-TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
+TEST_P(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   EXPECT_CALL(*server_conn_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
 
   // Send a zero-length ClientHello from client to server.
@@ -545,7 +560,7 @@ TEST_F(TlsHandshakerTest, ServerConnectionClosedOnTlsError) {
   EXPECT_FALSE(server_stream_->one_rtt_keys_available());
 }
 
-TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
+TEST_P(TlsHandshakerTest, ClientNotSendingALPN) {
   client_stream_->client_handshaker()->AllowEmptyAlpnForTests();
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>()));
@@ -563,7 +578,7 @@ TEST_F(TlsHandshakerTest, ClientNotSendingALPN) {
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 
-TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
+TEST_P(TlsHandshakerTest, ClientSendingBadALPN) {
   const std::string kTestBadClientAlpn = "bad-client-alpn";
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
@@ -581,7 +596,7 @@ TEST_F(TlsHandshakerTest, ClientSendingBadALPN) {
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 
-TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
+TEST_P(TlsHandshakerTest, ClientSendingTooManyALPNs) {
   std::string long_alpn(250, 'A');
   EXPECT_CALL(client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({
@@ -597,7 +612,7 @@ TEST_F(TlsHandshakerTest, ClientSendingTooManyALPNs) {
   EXPECT_QUIC_BUG(client_stream_->CryptoConnect(), "Failed to set ALPN");
 }
 
-TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
+TEST_P(TlsHandshakerTest, ServerRequiresCustomALPN) {
   const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
   EXPECT_CALL(server_session_, SelectAlpn(_))
       .WillOnce(
@@ -618,7 +633,7 @@ TEST_F(TlsHandshakerTest, ServerRequiresCustomALPN) {
   EXPECT_FALSE(server_stream_->encryption_established());
 }
 
-TEST_F(TlsHandshakerTest, CustomALPNNegotiation) {
+TEST_P(TlsHandshakerTest, CustomALPNNegotiation) {
   EXPECT_CALL(*client_conn_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_conn_, CloseConnection(_, _, _)).Times(0);
 

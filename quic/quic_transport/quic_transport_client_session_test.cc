@@ -36,7 +36,15 @@ url::Origin GetTestOrigin() {
 }
 
 ParsedQuicVersionVector GetVersions() {
-  return {ParsedQuicVersion{PROTOCOL_TLS1_3, QUIC_VERSION_99}};
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    // Find the first version that supports IETF QUIC.
+    if (version.HasIetfQuicFrames() &&
+        version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+      return {version};
+    }
+  }
+  CHECK(false);
+  return {};
 }
 
 std::string DataInStream(QuicStream* stream) {

@@ -2288,8 +2288,7 @@ class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {
 
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdyStreamIncrementalConsumptionTest,
-                         ::testing::Values(ParsedQuicVersion{PROTOCOL_TLS1_3,
-                                                             QUIC_VERSION_99}),
+                         ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
 // Test that stream bytes are consumed (by calling

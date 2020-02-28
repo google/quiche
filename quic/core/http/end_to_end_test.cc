@@ -979,8 +979,7 @@ TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
 }
 
 TEST_P(EndToEndTestWithTls, SimpleRequestResponseWithIetfDraftSupport) {
-  if (GetParam().negotiated_version.transport_version != QUIC_VERSION_99 ||
-      GetParam().negotiated_version.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!GetParam().negotiated_version.HasIetfQuicFrames()) {
     ASSERT_TRUE(Initialize());
     return;
   }
