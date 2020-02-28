@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 
 #include <memory>
 #include <string>
@@ -14,11 +14,11 @@
 
 namespace quic {
 
-class QuicCryptoServerHandshaker::ProcessClientHelloCallback
+class QuicCryptoServerStream::ProcessClientHelloCallback
     : public ProcessClientHelloResultCallback {
  public:
   ProcessClientHelloCallback(
-      QuicCryptoServerHandshaker* parent,
+      QuicCryptoServerStream* parent,
       const QuicReferenceCountedPointer<
           ValidateClientHelloResultCallback::Result>& result)
       : parent_(parent), result_(result) {}
@@ -41,12 +41,12 @@ class QuicCryptoServerHandshaker::ProcessClientHelloCallback
   void Cancel() { parent_ = nullptr; }
 
  private:
-  QuicCryptoServerHandshaker* parent_;
+  QuicCryptoServerStream* parent_;
   QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
       result_;
 };
 
-QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
+QuicCryptoServerStream::QuicCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     QuicSession* session,
@@ -72,11 +72,11 @@ QuicCryptoServerHandshaker::QuicCryptoServerHandshaker(
       one_rtt_packet_decrypted_(false),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters) {}
 
-QuicCryptoServerHandshaker::~QuicCryptoServerHandshaker() {
+QuicCryptoServerStream::~QuicCryptoServerStream() {
   CancelOutstandingCallbacks();
 }
 
-void QuicCryptoServerHandshaker::CancelOutstandingCallbacks() {
+void QuicCryptoServerStream::CancelOutstandingCallbacks() {
   // Detach from the validation callback.  Calling this multiple times is safe.
   if (validate_client_hello_cb_ != nullptr) {
     validate_client_hello_cb_->Cancel();
@@ -92,7 +92,7 @@ void QuicCryptoServerHandshaker::CancelOutstandingCallbacks() {
   }
 }
 
-void QuicCryptoServerHandshaker::OnHandshakeMessage(
+void QuicCryptoServerStream::OnHandshakeMessage(
     const CryptoHandshakeMessage& message) {
   QuicCryptoHandshaker::OnHandshakeMessage(message);
   ++num_handshake_messages_;
@@ -134,7 +134,7 @@ void QuicCryptoServerHandshaker::OnHandshakeMessage(
       session()->connection()->clock(), signed_config_, std::move(cb));
 }
 
-void QuicCryptoServerHandshaker::FinishProcessingHandshakeMessage(
+void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         result,
     std::unique_ptr<ProofSource::Details> details) {
@@ -149,7 +149,7 @@ void QuicCryptoServerHandshaker::FinishProcessingHandshakeMessage(
   ProcessClientHello(result, std::move(details), std::move(cb));
 }
 
-void QuicCryptoServerHandshaker::
+void QuicCryptoServerStream::
     FinishProcessingHandshakeMessageAfterProcessClientHello(
         const ValidateClientHelloResultCallback::Result& result,
         QuicErrorCode error,
@@ -226,7 +226,7 @@ void QuicCryptoServerHandshaker::
   delegate_->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
 }
 
-void QuicCryptoServerHandshaker::SendServerConfigUpdate(
+void QuicCryptoServerStream::SendServerConfigUpdate(
     const CachedNetworkParameters* cached_network_params) {
   if (!one_rtt_keys_available_) {
     return;
@@ -250,16 +250,16 @@ void QuicCryptoServerHandshaker::SendServerConfigUpdate(
       *crypto_negotiated_params_, cached_network_params, std::move(cb));
 }
 
-QuicCryptoServerHandshaker::SendServerConfigUpdateCallback::
-    SendServerConfigUpdateCallback(QuicCryptoServerHandshaker* parent)
+QuicCryptoServerStream::SendServerConfigUpdateCallback::
+    SendServerConfigUpdateCallback(QuicCryptoServerStream* parent)
     : parent_(parent) {}
 
-void QuicCryptoServerHandshaker::SendServerConfigUpdateCallback::Cancel() {
+void QuicCryptoServerStream::SendServerConfigUpdateCallback::Cancel() {
   parent_ = nullptr;
 }
 
 // From BuildServerConfigUpdateMessageResultCallback
-void QuicCryptoServerHandshaker::SendServerConfigUpdateCallback::Run(
+void QuicCryptoServerStream::SendServerConfigUpdateCallback::Run(
     bool ok,
     const CryptoHandshakeMessage& message) {
   if (parent_ == nullptr) {
@@ -268,7 +268,7 @@ void QuicCryptoServerHandshaker::SendServerConfigUpdateCallback::Run(
   parent_->FinishSendServerConfigUpdate(ok, message);
 }
 
-void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
+void QuicCryptoServerStream::FinishSendServerConfigUpdate(
     bool ok,
     const CryptoHandshakeMessage& message) {
   // Clear the callback that got us here.
@@ -293,50 +293,49 @@ void QuicCryptoServerHandshaker::FinishSendServerConfigUpdate(
   ++num_server_config_update_messages_sent_;
 }
 
-uint8_t QuicCryptoServerHandshaker::NumHandshakeMessages() const {
+uint8_t QuicCryptoServerStream::NumHandshakeMessages() const {
   return num_handshake_messages_;
 }
 
-uint8_t QuicCryptoServerHandshaker::NumHandshakeMessagesWithServerNonces()
-    const {
+uint8_t QuicCryptoServerStream::NumHandshakeMessagesWithServerNonces() const {
   return num_handshake_messages_with_server_nonces_;
 }
 
-int QuicCryptoServerHandshaker::NumServerConfigUpdateMessagesSent() const {
+int QuicCryptoServerStream::NumServerConfigUpdateMessagesSent() const {
   return num_server_config_update_messages_sent_;
 }
 
 const CachedNetworkParameters*
-QuicCryptoServerHandshaker::PreviousCachedNetworkParams() const {
+QuicCryptoServerStream::PreviousCachedNetworkParams() const {
   return previous_cached_network_params_.get();
 }
 
-bool QuicCryptoServerHandshaker::ZeroRttAttempted() const {
+bool QuicCryptoServerStream::ZeroRttAttempted() const {
   return zero_rtt_attempted_;
 }
 
-void QuicCryptoServerHandshaker::SetPreviousCachedNetworkParams(
+void QuicCryptoServerStream::SetPreviousCachedNetworkParams(
     CachedNetworkParameters cached_network_params) {
   previous_cached_network_params_.reset(
       new CachedNetworkParameters(cached_network_params));
 }
 
-void QuicCryptoServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
+void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
   if (level == ENCRYPTION_FORWARD_SECURE) {
     one_rtt_packet_decrypted_ = true;
     delegate_->NeuterHandshakeData();
   }
 }
 
-void QuicCryptoServerHandshaker::OnHandshakeDoneReceived() {
+void QuicCryptoServerStream::OnHandshakeDoneReceived() {
   DCHECK(false);
 }
 
-bool QuicCryptoServerHandshaker::ShouldSendExpectCTHeader() const {
+bool QuicCryptoServerStream::ShouldSendExpectCTHeader() const {
   return signed_config_->proof.send_expect_ct_header;
 }
 
-bool QuicCryptoServerHandshaker::GetBase64SHA256ClientChannelID(
+bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
     std::string* output) const {
   if (!encryption_established() ||
       crypto_negotiated_params_->channel_id.empty()) {
@@ -353,33 +352,33 @@ bool QuicCryptoServerHandshaker::GetBase64SHA256ClientChannelID(
   return true;
 }
 
-bool QuicCryptoServerHandshaker::encryption_established() const {
+bool QuicCryptoServerStream::encryption_established() const {
   return encryption_established_;
 }
 
-bool QuicCryptoServerHandshaker::one_rtt_keys_available() const {
+bool QuicCryptoServerStream::one_rtt_keys_available() const {
   return one_rtt_keys_available_;
 }
 
 const QuicCryptoNegotiatedParameters&
-QuicCryptoServerHandshaker::crypto_negotiated_params() const {
+QuicCryptoServerStream::crypto_negotiated_params() const {
   return *crypto_negotiated_params_;
 }
 
-CryptoMessageParser* QuicCryptoServerHandshaker::crypto_message_parser() {
+CryptoMessageParser* QuicCryptoServerStream::crypto_message_parser() {
   return QuicCryptoHandshaker::crypto_message_parser();
 }
 
-HandshakeState QuicCryptoServerHandshaker::GetHandshakeState() const {
+HandshakeState QuicCryptoServerStream::GetHandshakeState() const {
   return one_rtt_packet_decrypted_ ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
 }
 
-size_t QuicCryptoServerHandshaker::BufferSizeLimitForLevel(
+size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);
 }
 
-void QuicCryptoServerHandshaker::ProcessClientHello(
+void QuicCryptoServerStream::ProcessClientHello(
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         result,
     std::unique_ptr<ProofSource::Details> /*proof_source_details*/,
@@ -422,18 +421,18 @@ void QuicCryptoServerHandshaker::ProcessClientHello(
       chlo_packet_size_, std::move(done_cb));
 }
 
-void QuicCryptoServerHandshaker::OverrideQuicConfigDefaults(
+void QuicCryptoServerStream::OverrideQuicConfigDefaults(
     QuicConfig* /*config*/) {}
 
-QuicCryptoServerHandshaker::ValidateCallback::ValidateCallback(
-    QuicCryptoServerHandshaker* parent)
+QuicCryptoServerStream::ValidateCallback::ValidateCallback(
+    QuicCryptoServerStream* parent)
     : parent_(parent) {}
 
-void QuicCryptoServerHandshaker::ValidateCallback::Cancel() {
+void QuicCryptoServerStream::ValidateCallback::Cancel() {
   parent_ = nullptr;
 }
 
-void QuicCryptoServerHandshaker::ValidateCallback::Run(
+void QuicCryptoServerStream::ValidateCallback::Run(
     QuicReferenceCountedPointer<Result> result,
     std::unique_ptr<ProofSource::Details> details) {
   if (parent_ != nullptr) {
@@ -442,7 +441,7 @@ void QuicCryptoServerHandshaker::ValidateCallback::Run(
   }
 }
 
-const QuicSocketAddress QuicCryptoServerHandshaker::GetClientAddress() {
+const QuicSocketAddress QuicCryptoServerStream::GetClientAddress() {
   return session()->connection()->peer_address();
 }
 

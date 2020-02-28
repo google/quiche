@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_HANDSHAKER_H_
-#define QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_HANDSHAKER_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_
+#define QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_
 
 #include <string>
 
@@ -20,16 +20,14 @@ namespace test {
 class QuicCryptoServerStreamPeer;
 }  // namespace test
 
-// TODO(nharper): Rename this class to QuicCryptoServerStream.
-class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
+class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
     : public QuicCryptoServerStreamBase,
       public QuicCryptoHandshaker {
  public:
-  QuicCryptoServerHandshaker(const QuicCryptoServerHandshaker&) = delete;
-  QuicCryptoServerHandshaker& operator=(const QuicCryptoServerHandshaker&) =
-      delete;
+  QuicCryptoServerStream(const QuicCryptoServerStream&) = delete;
+  QuicCryptoServerStream& operator=(const QuicCryptoServerStream&) = delete;
 
-  ~QuicCryptoServerHandshaker() override;
+  ~QuicCryptoServerStream() override;
 
   // From HandshakerInterface
   void CancelOutstandingCallbacks() override;
@@ -70,10 +68,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   // |crypto_config| must outlive the stream.
   // |session| must outlive the stream.
   // |helper| must outlive the stream.
-  QuicCryptoServerHandshaker(const QuicCryptoServerConfig* crypto_config,
-                             QuicCompressedCertsCache* compressed_certs_cache,
-                             QuicSession* session,
-                             QuicCryptoServerStreamBase::Helper* helper);
+  QuicCryptoServerStream(const QuicCryptoServerConfig* crypto_config,
+                         QuicCompressedCertsCache* compressed_certs_cache,
+                         QuicSession* session,
+                         QuicCryptoServerStreamBase::Helper* helper);
 
   virtual void ProcessClientHello(
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
@@ -105,7 +103,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
   class QUIC_EXPORT_PRIVATE ValidateCallback
       : public ValidateClientHelloResultCallback {
    public:
-    explicit ValidateCallback(QuicCryptoServerHandshaker* parent);
+    explicit ValidateCallback(QuicCryptoServerStream* parent);
     ValidateCallback(const ValidateCallback&) = delete;
     ValidateCallback& operator=(const ValidateCallback&) = delete;
     // To allow the parent to detach itself from the callback before deletion.
@@ -116,13 +114,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
              std::unique_ptr<ProofSource::Details> details) override;
 
    private:
-    QuicCryptoServerHandshaker* parent_;
+    QuicCryptoServerStream* parent_;
   };
 
   class SendServerConfigUpdateCallback
       : public BuildServerConfigUpdateMessageResultCallback {
    public:
-    explicit SendServerConfigUpdateCallback(QuicCryptoServerHandshaker* parent);
+    explicit SendServerConfigUpdateCallback(QuicCryptoServerStream* parent);
     SendServerConfigUpdateCallback(const SendServerConfigUpdateCallback&) =
         delete;
     void operator=(const SendServerConfigUpdateCallback&) = delete;
@@ -134,7 +132,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
     void Run(bool ok, const CryptoHandshakeMessage& message) override;
 
    private:
-    QuicCryptoServerHandshaker* parent_;
+    QuicCryptoServerStream* parent_;
   };
 
   // Invoked by ValidateCallback::RunImpl once initial validation of
@@ -243,4 +241,4 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerHandshaker
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_HANDSHAKER_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_CRYPTO_SERVER_STREAM_H_

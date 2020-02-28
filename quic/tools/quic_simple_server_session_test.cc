@@ -13,7 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
@@ -79,22 +79,21 @@ namespace {
 
 const size_t kMaxStreamsForTest = 10;
 
-class MockQuicCryptoServerHandshaker : public QuicCryptoServerHandshaker {
+class MockQuicCryptoServerStream : public QuicCryptoServerStream {
  public:
-  explicit MockQuicCryptoServerHandshaker(
+  explicit MockQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache,
       QuicSession* session,
       QuicCryptoServerStreamBase::Helper* helper)
-      : QuicCryptoServerHandshaker(crypto_config,
-                                   compressed_certs_cache,
-                                   session,
-                                   helper) {}
-  MockQuicCryptoServerHandshaker(const MockQuicCryptoServerHandshaker&) =
+      : QuicCryptoServerStream(crypto_config,
+                               compressed_certs_cache,
+                               session,
+                               helper) {}
+  MockQuicCryptoServerStream(const MockQuicCryptoServerStream&) = delete;
+  MockQuicCryptoServerStream& operator=(const MockQuicCryptoServerStream&) =
       delete;
-  MockQuicCryptoServerHandshaker& operator=(
-      const MockQuicCryptoServerHandshaker&) = delete;
-  ~MockQuicCryptoServerHandshaker() override {}
+  ~MockQuicCryptoServerStream() override {}
 
   MOCK_METHOD1(SendServerConfigUpdate,
                void(const CachedNetworkParameters* cached_network_parameters));
@@ -125,7 +124,7 @@ QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
     QuicCryptoServerStreamBase::Helper* helper) {
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
-      return new MockQuicCryptoServerHandshaker(
+      return new MockQuicCryptoServerStream(
           crypto_config, compressed_certs_cache, session, helper);
     case PROTOCOL_TLS1_3:
       return new MockTlsServerHandshaker(session, crypto_config->ssl_ctx(),
