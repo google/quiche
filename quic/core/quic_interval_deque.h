@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
@@ -137,9 +138,9 @@ class QuicIntervalDequePeer;
 //   //   container -> {{2, [25, 30)}, {3, [35, 50)}}
 
 template <class T, class C = QUIC_NO_EXPORT QuicCircularDeque<T>>
-class QUIC_EXPORT_PRIVATE QuicIntervalDeque {
+class QUIC_NO_EXPORT QuicIntervalDeque {
  public:
-  class QUIC_EXPORT_PRIVATE Iterator {
+  class QUIC_NO_EXPORT Iterator {
    public:
     // Used by |std::lower_bound|
     using iterator_category = std::forward_iterator_tag;
@@ -241,7 +242,7 @@ class QUIC_EXPORT_PRIVATE QuicIntervalDeque {
   bool Empty() const;
 
  private:
-  struct QUIC_EXPORT_PRIVATE IntervalCompare {
+  struct QUIC_NO_EXPORT IntervalCompare {
     bool operator()(const T& item, std::size_t interval_begin) const {
       return item.interval().max() <= interval_begin;
     }
