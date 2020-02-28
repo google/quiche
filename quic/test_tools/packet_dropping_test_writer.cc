@@ -6,7 +6,6 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/quic/platform/impl/quic_socket_utils.h"
 
 namespace quic {
 namespace test {
