@@ -622,6 +622,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
     loss_algorithm_->SpuriousLossDetected(unacked_packets_, rtt_stats_,
                                           ack_receive_time, packet_number,
                                           previous_largest_acked);
+    ++stats_->packet_spuriously_detected_lost;
   }
 
   if (network_change_visitor_ != nullptr &&

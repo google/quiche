@@ -671,9 +671,11 @@ TEST_F(QuicSentPacketManagerTest, AckOriginalTransmission) {
                              clock_.Now());
     manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(5));
     manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+    EXPECT_EQ(0u, stats_.packet_spuriously_detected_lost);
     EXPECT_EQ(PACKETS_NEWLY_ACKED,
               manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
                                      ENCRYPTION_INITIAL));
+    EXPECT_EQ(1u, stats_.packet_spuriously_detected_lost);
     // Ack 3 will not cause 5 be considered as a spurious retransmission. Ack
     // 5 will cause 5 be considered as a spurious retransmission as no new
     // data gets acked.
