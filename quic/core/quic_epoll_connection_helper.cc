@@ -8,7 +8,6 @@
 #include <sys/socket.h>
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/quic/platform/impl/quic_socket_utils.h"
 
 namespace quic {
 
