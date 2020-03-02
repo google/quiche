@@ -143,22 +143,6 @@ class StatelessConnectionTerminator {
     framer_.set_data_producer(nullptr);
   }
 
-  // Serializes a packet containing CONNECTION_CLOSE frame and send it (without
-  // adding connection to the time wait).
-  void StatelesslyCloseConnection(const QuicSocketAddress& self_address,
-                                  const QuicSocketAddress& peer_address,
-                                  QuicErrorCode error_code,
-                                  const std::string& error_details) {
-    // TODO(rch): Remove this method when quic_drop_small_initial_packets is
-    // deprecated.
-    DCHECK(!GetQuicReloadableFlag(quic_drop_small_initial_packets));
-    SerializeConnectionClosePacket(error_code, error_details);
-
-    for (const auto& packet : *collector_.packets()) {
-      time_wait_list_manager_->SendPacket(self_address, peer_address, *packet);
-    }
-  }
-
   // Generates a packet containing a CONNECTION_CLOSE frame specifying
   // |error_code| and |error_details| and add the connection to time wait.
   void CloseConnection(QuicErrorCode error_code,
@@ -458,21 +442,9 @@ bool QuicDispatcher::MaybeDispatchPacket(
         packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
         packet_info.long_packet_type == INITIAL &&
         packet_info.packet.length() < kMinClientInitialPacketLength) {
-      if (GetQuicReloadableFlag(quic_drop_small_initial_packets)) {
-        QUIC_DVLOG(1) << "Dropping initial packet which is too short, length: "
-                      << packet_info.packet.length();
-        QUIC_CODE_COUNT(quic_drop_small_initial_packets);
-        QUIC_RELOADABLE_FLAG_COUNT(quic_drop_small_initial_packets);
-        return true;
-      }
-      StatelessConnectionTerminator terminator(
-          packet_info.destination_connection_id, packet_info.version,
-          helper_.get(), time_wait_list_manager_.get());
-      QUIC_DVLOG(1) << "Initial packet too small: "
+      QUIC_DVLOG(1) << "Dropping initial packet which is too short, length: "
                     << packet_info.packet.length();
-      terminator.StatelesslyCloseConnection(
-          packet_info.self_address, packet_info.peer_address,
-          IETF_QUIC_PROTOCOL_VIOLATION, "Initial packet too small");
+      QUIC_CODE_COUNT(quic_drop_small_initial_packets);
       return true;
     }
   }
