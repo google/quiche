@@ -36,15 +36,7 @@ url::Origin GetTestOrigin() {
 }
 
 ParsedQuicVersionVector GetVersions() {
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    // Find the first version that supports IETF QUIC.
-    if (version.HasIetfQuicFrames() &&
-        version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-      return {version};
-    }
-  }
-  CHECK(false);
-  return {};
+  return {DefaultVersionForQuicTransport()};
 }
 
 std::string DataInStream(QuicStream* stream) {
@@ -65,6 +57,7 @@ class QuicTransportClientSessionTest : public QuicTest {
                     Perspective::IS_CLIENT,
                     GetVersions()),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
+    QuicEnableVersion(DefaultVersionForQuicTransport());
     CreateSession(GetTestOrigin(), "");
   }
 

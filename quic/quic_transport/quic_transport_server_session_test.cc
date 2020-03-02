@@ -51,15 +51,7 @@ const std::string GetTestOriginClientIndication() {
 }
 
 ParsedQuicVersionVector GetVersions() {
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    // Find the first version that supports IETF QUIC.
-    if (version.HasIetfQuicFrames() &&
-        version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-      return {version};
-    }
-  }
-  CHECK(false);
-  return {};
+  return {DefaultVersionForQuicTransport()};
 }
 
 class QuicTransportServerSessionTest : public QuicTest {
@@ -75,6 +67,7 @@ class QuicTransportServerSessionTest : public QuicTest {
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
+    QuicEnableVersion(DefaultVersionForQuicTransport());
     connection_.AdvanceTime(QuicTime::Delta::FromSeconds(100000));
     crypto_test_utils::SetupCryptoServerConfigForTest(
         helper_.GetClock(), helper_.GetRandomGenerator(), &crypto_config_);

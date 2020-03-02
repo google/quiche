@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -271,24 +272,26 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                             const QuicServerId& server_id,
                             const FakeClientOptions& options,
                             std::string alpn) {
-  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
+  // This function does not do version negotiation; read the supported versions
+  // directly from the server connection instead.
+  ParsedQuicVersionVector supported_versions =
+      server_conn->supported_versions();
   if (options.only_tls_versions) {
-    supported_versions.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-        continue;
-      }
-      supported_versions.push_back(version);
-    }
+    supported_versions.erase(
+        std::remove_if(supported_versions.begin(), supported_versions.end(),
+                       [](const ParsedQuicVersion& version) {
+                         return version.handshake_protocol != PROTOCOL_TLS1_3;
+                       }),
+        supported_versions.end());
     CHECK(!options.only_quic_crypto_versions);
   } else if (options.only_quic_crypto_versions) {
-    supported_versions.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
-        continue;
-      }
-      supported_versions.push_back(version);
-    }
+    supported_versions.erase(
+        std::remove_if(supported_versions.begin(), supported_versions.end(),
+                       [](const ParsedQuicVersion& version) {
+                         return version.handshake_protocol !=
+                                PROTOCOL_QUIC_CRYPTO;
+                       }),
+        supported_versions.end());
   }
   PacketSavingConnection* client_conn = new PacketSavingConnection(
       helper, alarm_factory, Perspective::IS_CLIENT, supported_versions);

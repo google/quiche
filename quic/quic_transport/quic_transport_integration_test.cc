@@ -49,15 +49,7 @@ url::Origin GetTestOrigin() {
 }
 
 ParsedQuicVersionVector GetVersions() {
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    // Find the first version that supports IETF QUIC.
-    if (version.HasIetfQuicFrames() &&
-        version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-      return {version};
-    }
-  }
-  CHECK(false);
-  return {};
+  return {DefaultVersionForQuicTransport()};
 }
 
 class QuicTransportEndpointBase : public QuicEndpointBase {
@@ -67,6 +59,7 @@ class QuicTransportEndpointBase : public QuicEndpointBase {
                             const std::string& peer_name,
                             Perspective perspective)
       : QuicEndpointBase(simulator, name, peer_name) {
+    QuicEnableVersion(DefaultVersionForQuicTransport());
     connection_ = std::make_unique<QuicConnection>(
         TestConnectionId(0x10), simulator::GetAddressFromName(peer_name),
         simulator, simulator->GetAlarmFactory(), &writer_,
