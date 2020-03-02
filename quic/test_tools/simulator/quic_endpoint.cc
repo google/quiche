@@ -50,6 +50,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
                               std::make_unique<NullDecrypter>(perspective));
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_->OnHandshakeComplete();
   if (perspective == Perspective::IS_SERVER) {
     // Skip version negotiation.
     test::QuicConnectionPeer::SetNegotiatedVersion(connection_.get());
