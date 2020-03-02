@@ -46,13 +46,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
     CreateConnection();
   }
 
-  void CreateConnection() {
-    connection_ =
-        new PacketSavingConnection(&client_helper_, &alarm_factory_,
-                                   Perspective::IS_CLIENT, supported_versions_);
-    // Advance the time, because timers do not like uninitialized times.
-    connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-
+  void CreateSession() {
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         connection_, DefaultQuicConfig(), supported_versions_, server_id_,
         &crypto_config_);
@@ -61,10 +55,29 @@ class QuicCryptoClientStreamTest : public QuicTest {
             {AlpnForVersion(connection_->version())})));
   }
 
+  void CreateConnection() {
+    connection_ =
+        new PacketSavingConnection(&client_helper_, &alarm_factory_,
+                                   Perspective::IS_CLIENT, supported_versions_);
+    // Advance the time, because timers do not like uninitialized times.
+    connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    CreateSession();
+  }
+
   void UseTlsHandshake() {
     supported_versions_.clear();
     for (ParsedQuicVersion version : AllSupportedVersions()) {
       if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+        continue;
+      }
+      supported_versions_.push_back(version);
+    }
+  }
+
+  void UseQuicCryptoHandshake() {
+    supported_versions_.clear();
+    for (ParsedQuicVersion version : AllSupportedVersions()) {
+      if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
         continue;
       }
       supported_versions_.push_back(version);
@@ -165,6 +178,8 @@ TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {
+  UseQuicCryptoHandshake();
+  CreateConnection();
   CompleteCryptoHandshake();
 
   EXPECT_CALL(
@@ -176,6 +191,8 @@ TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, BadMessageType) {
+  UseQuicCryptoHandshake();
+  CreateConnection();
   stream()->CryptoConnect();
 
   message_.set_tag(kCHLO);
@@ -187,6 +204,8 @@ TEST_F(QuicCryptoClientStreamTest, BadMessageType) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, NegotiatedParameters) {
+  UseQuicCryptoHandshake();
+  CreateConnection();
   CompleteCryptoHandshake();
 
   const QuicConfig* config = session_->config();
@@ -199,6 +218,8 @@ TEST_F(QuicCryptoClientStreamTest, NegotiatedParameters) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ExpiredServerConfig) {
+  UseQuicCryptoHandshake();
+  CreateConnection();
   // Seed the config with a cached server config.
   CompleteCryptoHandshake();
 
@@ -257,6 +278,8 @@ TEST_F(QuicCryptoClientStreamTest, InvalidCachedServerConfig) {
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
   // Test that the crypto client stream can receive server config updates after
   // the connection has been established.
+  UseQuicCryptoHandshake();
+  CreateConnection();
   CompleteCryptoHandshake();
 
   QuicCryptoClientConfig::CachedState* state =
@@ -308,6 +331,8 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   // Test that the crypto client stream can receive and use server config
   // updates with certificates after the connection has been established.
+  UseQuicCryptoHandshake();
+  CreateConnection();
   CompleteCryptoHandshake();
 
   // Build a server config update message with certificates
@@ -363,6 +388,8 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
+  UseQuicCryptoHandshake();
+  CreateConnection();
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_CRYPTO_UPDATE_BEFORE_HANDSHAKE_COMPLETE, _, _));
@@ -375,14 +402,13 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
 TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
   // This mimics the case where client receives version negotiation packet, such
   // that, the preferred version is different from the packets' version.
+  UseQuicCryptoHandshake();
   connection_ = new PacketSavingConnection(
       &client_helper_, &alarm_factory_, Perspective::IS_CLIENT,
       ParsedVersionOfIndex(supported_versions_, 1));
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
-  session_ = std::make_unique<TestQuicSpdyClientSession>(
-      connection_, DefaultQuicConfig(), supported_versions_, server_id_,
-      &crypto_config_);
+  CreateSession();
   CompleteCryptoHandshake();
   // 2 CHLOs are sent.
   ASSERT_EQ(2u, session_->sent_crypto_handshake_messages().size());

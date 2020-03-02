@@ -280,6 +280,15 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
       }
       supported_versions.push_back(version);
     }
+    CHECK(!options.only_quic_crypto_versions);
+  } else if (options.only_quic_crypto_versions) {
+    supported_versions.clear();
+    for (ParsedQuicVersion version : AllSupportedVersions()) {
+      if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
+        continue;
+      }
+      supported_versions.push_back(version);
+    }
   }
   PacketSavingConnection* client_conn = new PacketSavingConnection(
       helper, alarm_factory, Perspective::IS_CLIENT, supported_versions);

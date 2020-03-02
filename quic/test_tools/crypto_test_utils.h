@@ -62,6 +62,10 @@ struct FakeClientOptions {
   // If only_tls_versions is set, then the client will only use TLS for the
   // crypto handshake.
   bool only_tls_versions = false;
+
+  // If only_quic_crypto_versions is set, then the client will only use
+  // PROTOCOL_QUIC_CRYPTO for the crypto handshake.
+  bool only_quic_crypto_versions = false;
 };
 
 // Returns a QuicCryptoServerConfig that is in a reasonable configuration to
