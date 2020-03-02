@@ -10,7 +10,8 @@
 
 namespace quic {
 
-void Bbr2ProbeRttMode::Enter(const Bbr2CongestionEvent& /*congestion_event*/) {
+void Bbr2ProbeRttMode::Enter(QuicTime /*now*/,
+                             const Bbr2CongestionEvent* /*congestion_event*/) {
   model_->set_pacing_gain(1.0);
   model_->set_cwnd_gain(1.0);
   exit_time_ = QuicTime::Zero();

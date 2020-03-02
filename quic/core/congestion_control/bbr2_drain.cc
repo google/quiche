@@ -9,8 +9,6 @@
 
 namespace quic {
 
-void Bbr2DrainMode::Enter(const Bbr2CongestionEvent& /*congestion_event*/) {}
-
 Bbr2Mode Bbr2DrainMode::OnCongestionEvent(
     QuicByteCount /*prior_in_flight*/,
     QuicTime /*event_time*/,

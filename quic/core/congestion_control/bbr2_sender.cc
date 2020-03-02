@@ -177,9 +177,9 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
 
     QUIC_DVLOG(2) << this << " Mode change:  " << mode_ << " ==> " << next_mode
                   << "  @ " << event_time;
-    BBR2_MODE_DISPATCH(Leave(congestion_event));
+    BBR2_MODE_DISPATCH(Leave(event_time, &congestion_event));
     mode_ = next_mode;
-    BBR2_MODE_DISPATCH(Enter(congestion_event));
+    BBR2_MODE_DISPATCH(Enter(event_time, &congestion_event));
     --mode_changes_allowed;
     if (mode_changes_allowed < 0) {
       QUIC_BUG << "Exceeded max number of mode changes per congestion event.";

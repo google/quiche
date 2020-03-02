@@ -20,8 +20,10 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
                   Bbr2NetworkModel* model,
                   QuicTime now);
 
-  void Enter(const Bbr2CongestionEvent& congestion_event) override;
-  void Leave(const Bbr2CongestionEvent& congestion_event) override;
+  void Enter(QuicTime now,
+             const Bbr2CongestionEvent* congestion_event) override;
+  void Leave(QuicTime now,
+             const Bbr2CongestionEvent* congestion_event) override;
 
   Bbr2Mode OnCongestionEvent(
       QuicByteCount prior_in_flight,

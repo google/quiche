@@ -17,8 +17,10 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeRttMode final : public Bbr2ModeBase {
  public:
   using Bbr2ModeBase::Bbr2ModeBase;
 
-  void Enter(const Bbr2CongestionEvent& congestion_event) override;
-  void Leave(const Bbr2CongestionEvent& /*congestion_event*/) override {}
+  void Enter(QuicTime now,
+             const Bbr2CongestionEvent* congestion_event) override;
+  void Leave(QuicTime /*now*/,
+             const Bbr2CongestionEvent* /*congestion_event*/) override {}
 
   Bbr2Mode OnCongestionEvent(
       QuicByteCount prior_in_flight,

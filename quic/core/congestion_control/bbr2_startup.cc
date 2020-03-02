@@ -27,13 +27,14 @@ Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
   sender_->connection_stats_->slowstart_duration.Start(now);
 }
 
-void Bbr2StartupMode::Enter(const Bbr2CongestionEvent& /*congestion_event*/) {
+void Bbr2StartupMode::Enter(QuicTime /*now*/,
+                            const Bbr2CongestionEvent* /*congestion_event*/) {
   QUIC_BUG << "Bbr2StartupMode::Enter should not be called";
 }
 
-void Bbr2StartupMode::Leave(const Bbr2CongestionEvent& congestion_event) {
-  sender_->connection_stats_->slowstart_duration.Stop(
-      congestion_event.event_time);
+void Bbr2StartupMode::Leave(QuicTime now,
+                            const Bbr2CongestionEvent* /*congestion_event*/) {
+  sender_->connection_stats_->slowstart_duration.Stop(now);
 }
 
 Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
