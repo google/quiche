@@ -125,7 +125,7 @@ QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
     QuicTransportVersion transport_version);
 
 // IETF draft version most closely approximated by TLS + v99.
-enum : int { kQuicIetfDraftVersion = 26 };
+enum : int { kQuicIetfDraftVersion = 27 };
 
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {
@@ -293,6 +293,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   // Returns true if this parsed version supports handshake done.
   bool HasHandshakeDone() const;
+
+  // Returns true if this version uses variable-length integers when
+  // encoding transport parameter types and lengths.
+  bool HasVarIntTransportParams() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

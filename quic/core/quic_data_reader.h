@@ -77,6 +77,16 @@ class QUIC_EXPORT_PRIVATE QuicDataReader : public quiche::QuicheDataReader {
   // and that the integers in the range 0 ... (2^62)-1.
   bool ReadVarInt62(uint64_t* result);
 
+  // Reads a string prefixed with a Variable Length integer length into the
+  // given output parameter.
+  //
+  // NOTE: Does not copy but rather references strings in the underlying buffer.
+  // This should be kept in mind when handling memory management!
+  //
+  // Forwards the internal iterator on success.
+  // Returns true on success, false otherwise.
+  bool ReadStringPieceVarInt62(quiche::QuicheStringPiece* result);
+
   // Convenience method that reads a uint32_t.
   // Attempts to read a varint into a uint32_t. using ReadVarInt62 and
   // returns false if there is a read error or if the value is

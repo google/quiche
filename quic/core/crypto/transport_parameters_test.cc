@@ -7,8 +7,8 @@
 #include <cstring>
 #include <utility>
 
-#include "third_party/boringssl/src/include/openssl/mem.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -22,7 +22,6 @@ namespace {
 using testing::Pair;
 using testing::UnorderedElementsAre;
 
-const ParsedQuicVersion kVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
 const QuicVersionLabel kFakeVersionLabel = 0x01234567;
 const QuicVersionLabel kFakeVersionLabel2 = 0x89ABCDEF;
 const uint64_t kFakeIdleTimeoutMilliseconds = 12012;
@@ -102,11 +101,31 @@ CreateFakePreferredAddress() {
       preferred_address);
 }
 
+std::vector<ParsedQuicVersion> AllSupportedTlsVersions() {
+  std::vector<ParsedQuicVersion> tls_versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      tls_versions.push_back(version);
+    }
+  }
+  return tls_versions;
+}
+
 }  // namespace
 
-class TransportParametersTest : public QuicTest {};
+class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
+ protected:
+  TransportParametersTest() : version_(GetParam()) {}
 
-TEST_F(TransportParametersTest, RoundTripClient) {
+  ParsedQuicVersion version_;
+};
+
+INSTANTIATE_TEST_SUITE_P(TransportParametersTests,
+                         TransportParametersTest,
+                         ::testing::ValuesIn(AllSupportedTlsVersions()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(TransportParametersTest, RoundTripClient) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
@@ -130,13 +149,15 @@ TEST_F(TransportParametersTest, RoundTripClient) {
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_CLIENT,
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
                                        serialized.data(), serialized.size(),
-                                       &new_params));
-
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_TRUE(new_params.supported_versions.empty());
@@ -167,7 +188,7 @@ TEST_F(TransportParametersTest, RoundTripClient) {
                            Pair(kCustomParameter2, kCustomParameter2Value)));
 }
 
-TEST_F(TransportParametersTest, RoundTripServer) {
+TEST_P(TransportParametersTest, RoundTripServer) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_SERVER;
   orig_params.version = kFakeVersionLabel;
@@ -194,13 +215,15 @@ TEST_F(TransportParametersTest, RoundTripServer) {
       kFakeActiveConnectionIdLimit);
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_SERVER,
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_SERVER,
                                        serialized.data(), serialized.size(),
-                                       &new_params));
-
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_EQ(2u, new_params.supported_versions.size());
@@ -240,50 +263,76 @@ TEST_F(TransportParametersTest, RoundTripServer) {
   EXPECT_EQ(0u, new_params.custom_parameters.size());
 }
 
-TEST_F(TransportParametersTest, IsValid) {
+TEST_P(TransportParametersTest, AreValid) {
   {
     TransportParameters params;
+    std::string error_details;
     params.perspective = Perspective::IS_CLIENT;
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
   }
   {
     TransportParameters params;
+    std::string error_details;
     params.perspective = Perspective::IS_CLIENT;
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.idle_timeout_milliseconds.set_value(601000);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
   }
   {
     TransportParameters params;
+    std::string error_details;
     params.perspective = Perspective::IS_CLIENT;
-    EXPECT_TRUE(params.AreValid());
-    params.max_packet_size.set_value(0);
-    EXPECT_FALSE(params.AreValid());
-    params.max_packet_size.set_value(1199);
-    EXPECT_FALSE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.max_packet_size.set_value(1200);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.max_packet_size.set_value(65535);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.max_packet_size.set_value(9999999);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+    params.max_packet_size.set_value(0);
+    error_details = "";
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(
+        error_details,
+        "Invalid transport parameters [Client max_packet_size 0 (Invalid)]");
+    params.max_packet_size.set_value(1199);
+    error_details = "";
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(
+        error_details,
+        "Invalid transport parameters [Client max_packet_size 1199 (Invalid)]");
   }
   {
     TransportParameters params;
+    std::string error_details;
     params.perspective = Perspective::IS_CLIENT;
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.ack_delay_exponent.set_value(0);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.ack_delay_exponent.set_value(20);
-    EXPECT_TRUE(params.AreValid());
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
     params.ack_delay_exponent.set_value(21);
-    EXPECT_FALSE(params.AreValid());
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details,
+              "Invalid transport parameters [Client ack_delay_exponent 21 "
+              "(Invalid)]");
   }
 }
 
-TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
+TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
@@ -292,12 +341,17 @@ TEST_F(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
 
   std::vector<uint8_t> out;
-  EXPECT_FALSE(SerializeTransportParameters(kVersion, orig_params, &out));
+  bool ok;
+  EXPECT_QUIC_BUG(
+      ok = SerializeTransportParameters(version_, orig_params, &out),
+      "Not serializing invalid transport parameters: Client cannot send "
+      "stateless reset token");
+  EXPECT_FALSE(ok);
 }
 
-TEST_F(TransportParametersTest, ParseClientParams) {
+TEST_P(TransportParametersTest, ParseClientParams) {
   // clang-format off
-  const uint8_t kClientParams[] = {
+  const uint8_t kClientParamsOld[] = {
       0x00, 0x49,              // length of the parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
@@ -351,13 +405,74 @@ TEST_F(TransportParametersTest, ParseClientParams) {
       0x00, 0x04,  // length
       0x01, 0x23, 0x45, 0x67,  // initial version
   };
+  const uint8_t kClientParams[] = {
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // max_packet_size
+      0x03,  // parameter id
+      0x02,  // length
+      0x63, 0x29,  // value
+      // initial_max_data
+      0x04,  // parameter id
+      0x02,  // length
+      0x40, 0x65,  // value
+      // initial_max_stream_data_bidi_local
+      0x05,  // parameter id
+      0x02,  // length
+      0x47, 0xD1,  // value
+      // initial_max_stream_data_bidi_remote
+      0x06,  // parameter id
+      0x02,  // length
+      0x47, 0xD2,  // value
+      // initial_max_stream_data_uni
+      0x07,  // parameter id
+      0x02,  // length
+      0x4B, 0xB8,  // value
+      // initial_max_streams_bidi
+      0x08,  // parameter id
+      0x01,  // length
+      0x15,  // value
+      // initial_max_streams_uni
+      0x09,  // parameter id
+      0x01,  // length
+      0x16,  // value
+      // ack_delay_exponent
+      0x0a,  // parameter id
+      0x01,  // length
+      0x0a,  // value
+      // max_ack_delay
+      0x0b,  // parameter id
+      0x01,  // length
+      0x33,  // value
+      // disable_migration
+      0x0c,  // parameter id
+      0x00,  // length
+      // active_connection_id_limit
+      0x0e,  // parameter id
+      0x01,  // length
+      0x34,  // value
+      // Google version extension
+      0x80, 0x00, 0x47, 0x52,  // parameter id
+      0x04,  // length
+      0x01, 0x23, 0x45, 0x67,  // initial version
+  };
   // clang-format on
-
+  const uint8_t* client_params =
+      reinterpret_cast<const uint8_t*>(kClientParams);
+  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParams);
+  if (!version_.HasVarIntTransportParams()) {
+    client_params = reinterpret_cast<const uint8_t*>(kClientParamsOld);
+    client_params_length = QUICHE_ARRAYSIZE(kClientParamsOld);
+  }
   TransportParameters new_params;
-  ASSERT_TRUE(
-      ParseTransportParameters(kVersion, Perspective::IS_CLIENT, kClientParams,
-                               QUICHE_ARRAYSIZE(kClientParams), &new_params));
-
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                       client_params, client_params_length,
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_TRUE(new_params.supported_versions.empty());
@@ -384,19 +499,18 @@ TEST_F(TransportParametersTest, ParseClientParams) {
             new_params.active_connection_id_limit.value());
 }
 
-TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
-  TransportParameters out_params;
-
+TEST_P(TransportParametersTest,
+       ParseClientParamsFailsWithFullStatelessResetToken) {
   // clang-format off
-  const uint8_t kClientParamsWithFullToken[] = {
+  const uint8_t kClientParamsWithFullTokenOld[] = {
       0x00, 0x26,  // length parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
       // stateless_reset_token
-      0x00, 0x02,
-      0x00, 0x10,
+      0x00, 0x02,  // parameter id
+      0x00, 0x10,  // length
       0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
       0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
       // max_packet_size
@@ -408,21 +522,53 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
       0x00, 0x02,  // length
       0x40, 0x65,  // value
   };
+  const uint8_t kClientParamsWithFullToken[] = {
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x02,  // parameter id
+      0x10,  // length
+      0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+      0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
+      // max_packet_size
+      0x03,  // parameter id
+      0x02,  // length
+      0x63, 0x29,  // value
+      // initial_max_data
+      0x04,  // parameter id
+      0x02,  // length
+      0x40, 0x65,  // value
+  };
   // clang-format on
+  const uint8_t* client_params =
+      reinterpret_cast<const uint8_t*>(kClientParamsWithFullToken);
+  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithFullToken);
+  if (!version_.HasVarIntTransportParams()) {
+    client_params =
+        reinterpret_cast<const uint8_t*>(kClientParamsWithFullTokenOld);
+    client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithFullTokenOld);
+  }
+  TransportParameters out_params;
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                        client_params, client_params_length,
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details, "Client cannot send stateless reset token");
+}
 
-  EXPECT_FALSE(ParseTransportParameters(
-      kVersion, Perspective::IS_CLIENT, kClientParamsWithFullToken,
-      QUICHE_ARRAYSIZE(kClientParamsWithFullToken), &out_params));
-
+TEST_P(TransportParametersTest,
+       ParseClientParamsFailsWithEmptyStatelessResetToken) {
   // clang-format off
-  const uint8_t kClientParamsWithEmptyToken[] = {
+  const uint8_t kClientParamsWithEmptyTokenOld[] = {
       0x00, 0x16,  // length parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
       // stateless_reset_token
-      0x00, 0x02,
+      0x00, 0x02,  // parameter id
       0x00, 0x00,
       // max_packet_size
       0x00, 0x03,  // parameter id
@@ -433,24 +579,49 @@ TEST_F(TransportParametersTest, ParseClientParamsFailsWithStatelessResetToken) {
       0x00, 0x02,  // length
       0x40, 0x65,  // value
   };
+  const uint8_t kClientParamsWithEmptyToken[] = {
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x02,  // parameter id
+      0x00,  // length
+      // max_packet_size
+      0x03,  // parameter id
+      0x02,  // length
+      0x63, 0x29,  // value
+      // initial_max_data
+      0x04,  // parameter id
+      0x02,  // length
+      0x40, 0x65,  // value
+  };
   // clang-format on
-
-  EXPECT_FALSE(ParseTransportParameters(
-      kVersion, Perspective::IS_CLIENT, kClientParamsWithEmptyToken,
-      QUICHE_ARRAYSIZE(kClientParamsWithEmptyToken), &out_params));
+  const uint8_t* client_params =
+      reinterpret_cast<const uint8_t*>(kClientParamsWithEmptyToken);
+  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithEmptyToken);
+  if (!version_.HasVarIntTransportParams()) {
+    client_params =
+        reinterpret_cast<const uint8_t*>(kClientParamsWithEmptyTokenOld);
+    client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithEmptyTokenOld);
+  }
+  TransportParameters out_params;
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                        client_params, client_params_length,
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details,
+            "Received stateless reset token of invalid length 0");
 }
 
-TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
+TEST_P(TransportParametersTest, ParseClientParametersRepeated) {
   // clang-format off
-  const uint8_t kClientParamsRepeated[] = {
-      0x00, 0x16,  // length parameters array that follows
+  const uint8_t kClientParamsRepeatedOld[] = {
+      0x00, 0x12,  // length parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
-      // stateless_reset_token
-      0x00, 0x02,
-      0x00, 0x00,
       // max_packet_size
       0x00, 0x03,  // parameter id
       0x00, 0x02,  // length
@@ -460,16 +631,39 @@ TEST_F(TransportParametersTest, ParseClientParametersRepeated) {
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
   };
+  const uint8_t kClientParamsRepeated[] = {
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // max_packet_size
+      0x03,  // parameter id
+      0x02,  // length
+      0x63, 0x29,  // value
+      // idle_timeout (repeated)
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+  };
   // clang-format on
+  const uint8_t* client_params =
+      reinterpret_cast<const uint8_t*>(kClientParamsRepeated);
+  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsRepeated);
+  if (!version_.HasVarIntTransportParams()) {
+    client_params = reinterpret_cast<const uint8_t*>(kClientParamsRepeatedOld);
+    client_params_length = QUICHE_ARRAYSIZE(kClientParamsRepeatedOld);
+  }
   TransportParameters out_params;
-  EXPECT_FALSE(ParseTransportParameters(
-      kVersion, Perspective::IS_CLIENT, kClientParamsRepeated,
-      QUICHE_ARRAYSIZE(kClientParamsRepeated), &out_params));
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                        client_params, client_params_length,
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details, "Received a second idle_timeout");
 }
 
-TEST_F(TransportParametersTest, ParseServerParams) {
+TEST_P(TransportParametersTest, ParseServerParams) {
   // clang-format off
-  const uint8_t kServerParams[] = {
+  const uint8_t kServerParamsOld[] = {
       0x00, 0xa7,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
@@ -480,8 +674,8 @@ TEST_F(TransportParametersTest, ParseServerParams) {
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
       // stateless_reset_token
-      0x00, 0x02,
-      0x00, 0x10,
+      0x00, 0x02,  // parameter id
+      0x00, 0x10,  // length
       0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
       0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
       // max_packet_size
@@ -547,13 +741,98 @@ TEST_F(TransportParametersTest, ParseServerParams) {
       0x01, 0x23, 0x45, 0x67,
       0x89, 0xab, 0xcd, 0xef,
   };
+  const uint8_t kServerParams[] = {
+      // original_connection_id
+      0x00,  // parameter id
+      0x08,  // length
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x37,
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x02,  // parameter id
+      0x10,  // length
+      0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+      0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
+      // max_packet_size
+      0x03,  // parameter id
+      0x02,  // length
+      0x63, 0x29,  // value
+      // initial_max_data
+      0x04,  // parameter id
+      0x02,  // length
+      0x40, 0x65,  // value
+      // initial_max_stream_data_bidi_local
+      0x05,  // parameter id
+      0x02,  // length
+      0x47, 0xD1,  // value
+      // initial_max_stream_data_bidi_remote
+      0x06,  // parameter id
+      0x02,  // length
+      0x47, 0xD2,  // value
+      // initial_max_stream_data_uni
+      0x07,  // parameter id
+      0x02,  // length
+      0x4B, 0xB8,  // value
+      // initial_max_streams_bidi
+      0x08,  // parameter id
+      0x01,  // length
+      0x15,  // value
+      // initial_max_streams_uni
+      0x09,  // parameter id
+      0x01,  // length
+      0x16,  // value
+      // ack_delay_exponent
+      0x0a,  // parameter id
+      0x01,  // length
+      0x0a,  // value
+      // max_ack_delay
+      0x0b,  // parameter id
+      0x01,  // length
+      0x33,  // value
+      // disable_migration
+      0x0c,  // parameter id
+      0x00,  // length
+      // preferred_address
+      0x0d,  // parameter id
+      0x31,  // length
+      0x41, 0x42, 0x43, 0x44,  // IPv4 address
+      0x48, 0x84,  // IPv4 port
+      0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,  // IPv6 address
+      0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+      0x63, 0x36,  // IPv6 port
+      0x08,        // connection ID length
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBE, 0xEF,  // connection ID
+      0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,  // stateless reset token
+      0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
+      // active_connection_id_limit
+      0x0e,  // parameter id
+      0x01,  // length
+      0x34,  // value
+      // Google version extension
+      0x80, 0x00, 0x47, 0x52,  // parameter id
+      0x0d,  // length
+      0x01, 0x23, 0x45, 0x67,  // negotiated_version
+      0x08,  // length of supported versions array
+      0x01, 0x23, 0x45, 0x67,
+      0x89, 0xab, 0xcd, 0xef,
+  };
   // clang-format on
-
+  const uint8_t* server_params =
+      reinterpret_cast<const uint8_t*>(kServerParams);
+  size_t server_params_length = QUICHE_ARRAYSIZE(kServerParams);
+  if (!version_.HasVarIntTransportParams()) {
+    server_params = reinterpret_cast<const uint8_t*>(kServerParamsOld);
+    server_params_length = QUICHE_ARRAYSIZE(kServerParamsOld);
+  }
   TransportParameters new_params;
-  ASSERT_TRUE(
-      ParseTransportParameters(kVersion, Perspective::IS_SERVER, kServerParams,
-                               QUICHE_ARRAYSIZE(kServerParams), &new_params));
-
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_SERVER,
+                                       server_params, server_params_length,
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
   EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_EQ(2u, new_params.supported_versions.size());
@@ -592,9 +871,9 @@ TEST_F(TransportParametersTest, ParseServerParams) {
             new_params.active_connection_id_limit.value());
 }
 
-TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
+TEST_P(TransportParametersTest, ParseServerParametersRepeated) {
   // clang-format off
-  const uint8_t kServerParamsRepeated[] = {
+  const uint8_t kServerParamsRepeatedOld[] = {
       0x00, 0x2c,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
@@ -605,8 +884,8 @@ TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
       // stateless_reset_token
-      0x00, 0x02,
-      0x00, 0x10,
+      0x00, 0x02,  // parameter id
+      0x00, 0x10,  // length
       0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
       0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
       // idle_timeout (repeated)
@@ -614,15 +893,42 @@ TEST_F(TransportParametersTest, ParseServerParametersRepeated) {
       0x00, 0x02,  // length
       0x6e, 0xec,  // value
   };
+  const uint8_t kServerParamsRepeated[] = {
+      // original_connection_id
+      0x00,  // parameter id
+      0x08,  // length
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x37,
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x02,  // parameter id
+      0x10,  // length
+      0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+      0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+      // idle_timeout (repeated)
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+  };
   // clang-format on
-
+  const uint8_t* server_params =
+      reinterpret_cast<const uint8_t*>(kServerParamsRepeated);
+  size_t server_params_length = QUICHE_ARRAYSIZE(kServerParamsRepeated);
+  if (!version_.HasVarIntTransportParams()) {
+    server_params = reinterpret_cast<const uint8_t*>(kServerParamsRepeatedOld);
+    server_params_length = QUICHE_ARRAYSIZE(kServerParamsRepeatedOld);
+  }
   TransportParameters out_params;
-  EXPECT_FALSE(ParseTransportParameters(
-      kVersion, Perspective::IS_SERVER, kServerParamsRepeated,
-      QUICHE_ARRAYSIZE(kServerParamsRepeated), &out_params));
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_SERVER,
+                                        server_params, server_params_length,
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details, "Received a second idle_timeout");
 }
 
-TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
+TEST_P(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
@@ -635,13 +941,15 @@ TEST_F(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   orig_params.google_quic_params->SetValue(1337, kTestValue);
 
   std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(kVersion, orig_params, &serialized));
+  ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
 
   TransportParameters new_params;
-  ASSERT_TRUE(ParseTransportParameters(kVersion, Perspective::IS_CLIENT,
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
                                        serialized.data(), serialized.size(),
-                                       &new_params));
-
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
   ASSERT_NE(new_params.google_quic_params.get(), nullptr);
   EXPECT_EQ(new_params.google_quic_params->tag(),
             orig_params.google_quic_params->tag());

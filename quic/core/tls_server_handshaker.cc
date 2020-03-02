@@ -225,11 +225,18 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   size_t params_bytes_len;
   SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
                                      &params_bytes_len);
-  if (params_bytes_len == 0 ||
-      !ParseTransportParameters(session()->connection()->version(),
+  if (params_bytes_len == 0) {
+    *error_details = "Client's transport parameters are missing";
+    return false;
+  }
+  std::string parse_error_details;
+  if (!ParseTransportParameters(session()->connection()->version(),
                                 Perspective::IS_CLIENT, client_params_bytes,
-                                params_bytes_len, &client_params)) {
-    *error_details = "Unable to parse Transport Parameters";
+                                params_bytes_len, &client_params,
+                                &parse_error_details)) {
+    DCHECK(!parse_error_details.empty());
+    *error_details =
+        "Unable to parse client's transport parameters: " + parse_error_details;
     return false;
   }
 

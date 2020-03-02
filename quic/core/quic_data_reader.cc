@@ -165,6 +165,15 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
   return false;
 }
 
+bool QuicDataReader::ReadStringPieceVarInt62(
+    quiche::QuicheStringPiece* result) {
+  uint64_t result_length;
+  if (!ReadVarInt62(&result_length)) {
+    return false;
+  }
+  return ReadStringPiece(result, result_length);
+}
+
 bool QuicDataReader::ReadVarIntU32(uint32_t* result) {
   uint64_t temp_uint64;
   // TODO(fkastenholz): We should disambiguate read-errors from

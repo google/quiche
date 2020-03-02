@@ -270,7 +270,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, true);
-  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -305,7 +305,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsNo99) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, false);
-  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -337,7 +337,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsNoFlags) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   SetQuicReloadableFlag(quic_enable_version_t099, false);
-  SetQuicReloadableFlag(quic_enable_version_draft_25_v2, false);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
   SetQuicReloadableFlag(quic_enable_version_t050, false);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
   SetQuicReloadableFlag(quic_disable_version_q049, false);
@@ -432,8 +432,8 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3-Q050", AlpnForVersion(parsed_version_q050));
   EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
   EXPECT_EQ("h3-25", AlpnForVersion(parsed_version_draft_25));
-  EXPECT_EQ("h3-26", AlpnForVersion(parsed_version_t099));
-  static_assert(kQuicIetfDraftVersion == 26,
+  EXPECT_EQ("h3-27", AlpnForVersion(parsed_version_t099));
+  static_assert(kQuicIetfDraftVersion == 27,
                 "ALPN does not match draft version");
 }
 
@@ -458,9 +458,9 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
 
   {
     QuicFlagSaver flag_saver;
-    SetQuicReloadableFlag(quic_enable_version_draft_25_v2, false);
+    SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
     QuicEnableVersion(parsed_version_draft_25);
-    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_draft_25_v2));
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_draft_25_v3));
   }
 
   {

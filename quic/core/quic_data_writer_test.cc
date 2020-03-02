@@ -1269,6 +1269,23 @@ TEST_P(QuicDataWriterTest, PayloadReads) {
       sizeof(buffer));
 }
 
+TEST_P(QuicDataWriterTest, StringPieceVarInt62) {
+  char inner_buffer[16] = {1, 2,  3,  4,  5,  6,  7,  8,
+                           9, 10, 11, 12, 13, 14, 15, 16};
+  quiche::QuicheStringPiece inner_payload_write(inner_buffer,
+                                                sizeof(inner_buffer));
+  char buffer[sizeof(inner_buffer) + sizeof(uint8_t)] = {};
+  QuicDataWriter writer(sizeof(buffer), buffer);
+  EXPECT_TRUE(writer.WriteStringPieceVarInt62(inner_payload_write));
+  EXPECT_EQ(0u, writer.remaining());
+  QuicDataReader reader(buffer, sizeof(buffer));
+  quiche::QuicheStringPiece inner_payload_read;
+  EXPECT_TRUE(reader.ReadStringPieceVarInt62(&inner_payload_read));
+  quiche::test::CompareCharArraysWithHexError(
+      "inner_payload", inner_payload_write.data(), inner_payload_write.length(),
+      inner_payload_read.data(), inner_payload_read.length());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
