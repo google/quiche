@@ -380,8 +380,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   int64_t loss_events_in_round() const { return loss_events_in_round_; }
 
-  bool always_count_loss_events() const { return always_count_loss_events_; }
-
   QuicPacketNumber end_of_app_limited_phase() const {
     return bandwidth_sampler_.end_of_app_limited_phase();
   }
@@ -437,9 +435,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   QuicByteCount bytes_lost_in_round_ = 0;
   // Number of loss marking events in the current round.
   int64_t loss_events_in_round_ = 0;
-  // Latched value of --quic_bbr2_always_count_loss_events.
-  const bool always_count_loss_events_ =
-      GetQuicReloadableFlag(quic_bbr2_always_count_loss_events);
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();

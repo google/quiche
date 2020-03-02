@@ -51,16 +51,11 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
 
   void CheckFullBandwidthReached(const Bbr2CongestionEvent& congestion_event);
 
-  void CheckExcessiveLosses(const LostPacketVector& lost_packets,
-                            const Bbr2CongestionEvent& congestion_event);
+  void CheckExcessiveLosses(const Bbr2CongestionEvent& congestion_event);
 
   bool full_bandwidth_reached_;
   QuicBandwidth full_bandwidth_baseline_;
   QuicRoundTripCount rounds_without_bandwidth_growth_;
-
-  // Number of loss events in the current round trip.
-  // TODO(wub): Remove when deprecating --quic_bbr2_always_count_loss_events.
-  int64_t loss_events_in_round_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(

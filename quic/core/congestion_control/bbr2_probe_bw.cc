@@ -156,12 +156,8 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
     return NOT_ADAPTED_INVALID_SAMPLE;
   }
 
-  bool has_enough_loss_events = true;
-  if (model_->always_count_loss_events()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_always_count_loss_events, 2, 2);
-    has_enough_loss_events =
-        model_->loss_events_in_round() >= Params().probe_bw_full_loss_count;
-  }
+  const bool has_enough_loss_events =
+      model_->loss_events_in_round() >= Params().probe_bw_full_loss_count;
 
   if (has_enough_loss_events && model_->IsInflightTooHigh(congestion_event)) {
     if (cycle_.is_sample_from_probing) {
