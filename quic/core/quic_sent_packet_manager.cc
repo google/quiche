@@ -106,7 +106,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       num_tlp_timeout_ptos_(0),
       one_rtt_packet_acked_(false),
       one_rtt_packet_sent_(false),
-      arm_1st_pto_with_earliest_inflight_sent_time_(false) {
+      first_pto_srtt_multiplier_(0) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -187,10 +187,16 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       QUIC_CODE_COUNT(two_aggressive_ptos);
       num_tlp_timeout_ptos_ = 2;
     }
-    if (GetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time) &&
-        config.HasClientSentConnectionOption(kPLE1, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_arm_pto_with_earliest_sent_time);
-      arm_1st_pto_with_earliest_inflight_sent_time_ = true;
+    if (GetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time)) {
+      if (config.HasClientSentConnectionOption(kPLE1, perspective)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_arm_pto_with_earliest_sent_time, 1,
+                                     2);
+        first_pto_srtt_multiplier_ = 0.5;
+      } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_arm_pto_with_earliest_sent_time, 2,
+                                     2);
+        first_pto_srtt_multiplier_ = 1.5;
+      }
     }
   }
 
@@ -1003,18 +1009,20 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     }
     case PTO_MODE: {
       if (!supports_multiple_packet_number_spaces()) {
-        if (arm_1st_pto_with_earliest_inflight_sent_time_ &&
+        if (first_pto_srtt_multiplier_ > 0 &&
             unacked_packets_.HasInFlightPackets() &&
             consecutive_pto_count_ == 0) {
           // Arm 1st PTO with earliest in flight sent time, and make sure at
-          // least half RTT has been passed since last sent packet.
+          // least first_pto_srtt_multiplier_ * RTT has been passed since last
+          // in flight packet.
           return std::max(
               clock_->ApproximateNow(),
               std::max(unacked_packets_.GetFirstInFlightTransmissionInfo()
                                ->sent_time +
                            GetProbeTimeoutDelay(),
                        unacked_packets_.GetLastInFlightPacketSentTime() +
-                           0.5 * rtt_stats_.SmoothedOrInitialRtt()));
+                           first_pto_srtt_multiplier_ *
+                               rtt_stats_.SmoothedOrInitialRtt()));
         }
         // Ensure PTO never gets set to a time in the past.
         return std::max(clock_->ApproximateNow(),
@@ -1027,7 +1035,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       // packet of all packet number spaces.
       const QuicTime earliest_right_edge =
           GetEarliestPacketSentTimeForPto(&packet_number_space);
-      if (arm_1st_pto_with_earliest_inflight_sent_time_ &&
+      if (first_pto_srtt_multiplier_ > 0 &&
           packet_number_space == APPLICATION_DATA &&
           consecutive_pto_count_ == 0) {
         const QuicTransmissionInfo* first_application_info =
@@ -1035,14 +1043,14 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
                 APPLICATION_DATA);
         if (first_application_info != nullptr) {
           // Arm 1st PTO with earliest in flight sent time, and make sure at
-          // least half RTT has been passed since last sent packet. Only do this
-          // for application data.
+          // least first_pto_srtt_multiplier_ * RTT has been passed since last
+          // in flight packet. Only do this for application data.
           return std::max(
               clock_->ApproximateNow(),
               std::max(
                   first_application_info->sent_time + GetProbeTimeoutDelay(),
-                  earliest_right_edge +
-                      0.5 * rtt_stats_.SmoothedOrInitialRtt()));
+                  earliest_right_edge + first_pto_srtt_multiplier_ *
+                                            rtt_stats_.SmoothedOrInitialRtt()));
         }
       }
       return std::max(clock_->ApproximateNow(),

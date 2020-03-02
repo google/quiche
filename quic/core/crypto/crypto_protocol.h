@@ -215,6 +215,12 @@ const QuicTag kPAG2 = TAG('P', 'A', 'G', '2');   // Make first 2 PTOs more
                                                  // aggressive
 const QuicTag kPLE1 = TAG('P', 'L', 'E', '1');   // Arm the 1st PTO with
                                                  // earliest in flight sent time
+                                                 // and at least 0.5*srtt from
+                                                 // last sent packet.
+const QuicTag kPLE2 = TAG('P', 'L', 'E', '2');   // Arm the 1st PTO with
+                                                 // earliest in flight sent time
+                                                 // and at least 1.5*srtt from
+                                                 // last sent packet.
 
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the

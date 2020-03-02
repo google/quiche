@@ -3423,6 +3423,89 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
+  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
+  EnablePto(k1PTO);
+  // Use PTOS and PLE2.
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kPTOS);
+  options.push_back(kPLE2);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(manager_.skip_packet_number_for_pto());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  SendDataPacket(1, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set.
+  QuicTime::Delta expected_pto_delay =
+      srtt + 4 * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  const QuicTime packet1_sent_time = clock_.Now();
+  EXPECT_EQ(packet1_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Sent a packet 10ms before PTO expiring.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(
+      expected_pto_delay.ToMilliseconds() - 10));
+  SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO expands to packet 2 sent time + 1.5 * srtt.
+  expected_pto_delay = 1.5 * rtt_stats->smoothed_rtt();
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+  EXPECT_EQ(0u, stats_.pto_count);
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
+  EXPECT_EQ(1u, stats_.pto_count);
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+  // Verify PTO period gets set to twice the expected value and based on
+  // packet3 (right edge).
+  expected_pto_delay =
+      srtt + 4 * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  QuicTime packet3_sent_time = clock_.Now();
+  EXPECT_EQ(packet3_sent_time + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+
+  // Received ACK for packets 1 and 2.
+  uint64_t acked[] = {1, 2};
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE));
+  expected_pto_delay =
+      rtt_stats->SmoothedOrInitialRtt() +
+      std::max(4 * rtt_stats->mean_deviation(),
+               QuicTime::Delta::FromMilliseconds(1)) +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+
+  // Verify PTO is correctly re-armed based on sent time of packet 3 (left
+  // edge).
+  EXPECT_EQ(packet3_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
 TEST_F(QuicSentPacketManagerTest,
        ComputingProbeTimeoutByLeftEdgeMultiplePacketNumberSpaces) {
   SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
@@ -3496,6 +3579,84 @@ TEST_F(QuicSentPacketManagerTest,
   SendDataPacket(5, ENCRYPTION_FORWARD_SECURE);
   // Verify PTO timeout is still based on packet 3.
   EXPECT_EQ(packet3_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       ComputingProbeTimeoutByLeftEdge2MultiplePacketNumberSpaces) {
+  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EnablePto(k1PTO);
+  // Use PTOS and PLE2.
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kPTOS);
+  options.push_back(kPLE2);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(manager_.skip_packet_number_for_pto());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  // Send packet 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  const QuicTime packet1_sent_time = clock_.Now();
+  // Verify PTO is correctly set.
+  QuicTime::Delta expected_pto_delay =
+      srtt + 4 * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(packet1_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 2 in handshake.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  const QuicTime packet2_sent_time = clock_.Now();
+  // Verify PTO timeout is still based on packet 1.
+  EXPECT_EQ(packet1_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Discard initial keys.
+  EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
+  manager_.NeuterUnencryptedPackets();
+
+  // Send packet 3 in 1-RTT.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(3, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO timeout is based on packet 2.
+  const QuicTime packet3_sent_time = clock_.Now();
+  EXPECT_EQ(packet2_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 4 in handshake.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(4, ENCRYPTION_HANDSHAKE);
+  // Verify PTO timeout is based on packet 4 as application data is ignored.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Discard handshake keys.
+  manager_.SetHandshakeConfirmed();
+  // Verify PTO timeout is now based on packet 3 as handshake is
+  // complete/confirmed.
+  EXPECT_EQ(packet3_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Send packet 5 10ms before PTO expiring.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(
+      expected_pto_delay.ToMilliseconds() - 10));
+  SendDataPacket(5, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO timeout expands to packet 5 sent time + 1.5 * srtt.
+  EXPECT_EQ(clock_.Now() + 1.5 * rtt_stats->smoothed_rtt(),
             manager_.GetRetransmissionTime());
 }
 
