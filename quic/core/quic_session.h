@@ -276,6 +276,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
       bool is_retransmission,
       quiche::QuicheOptional<EncryptionLevel> level) override;
 
+  size_t WriteCryptoData(EncryptionLevel level,
+                         size_t write_length,
+                         QuicStreamOffset offset) override;
+
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(
       const CryptoHandshakeMessage& message);

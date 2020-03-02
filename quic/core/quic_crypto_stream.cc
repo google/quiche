@@ -173,11 +173,8 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     return;
   }
 
-  EncryptionLevel current_level = session()->connection()->encryption_level();
-  session()->connection()->SetDefaultEncryptionLevel(level);
   size_t bytes_consumed =
-      session()->connection()->SendCryptoData(level, data.length(), offset);
-  session()->connection()->SetDefaultEncryptionLevel(current_level);
+      stream_delegate()->WriteCryptoData(level, data.length(), offset);
   send_buffer->OnStreamDataConsumed(bytes_consumed);
 }
 
@@ -246,15 +243,12 @@ bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
 void QuicCryptoStream::WritePendingCryptoRetransmission() {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames";
-  EncryptionLevel current_encryption_level =
-      session()->connection()->encryption_level();
   for (EncryptionLevel level :
        {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
-    session()->connection()->SetDefaultEncryptionLevel(level);
     while (send_buffer->HasPendingRetransmission()) {
       auto pending = send_buffer->NextPendingRetransmission();
-      size_t bytes_consumed = session()->connection()->SendCryptoData(
+      size_t bytes_consumed = stream_delegate()->WriteCryptoData(
           level, pending.length, pending.offset);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
       if (bytes_consumed < pending.length) {
@@ -262,7 +256,6 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
       }
     }
   }
-  session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
 }
 
 void QuicCryptoStream::WritePendingRetransmission() {
@@ -431,13 +424,10 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
   if (retransmission.Empty()) {
     return;
   }
-  EncryptionLevel current_encryption_level =
-      session()->connection()->encryption_level();
   for (const auto& interval : retransmission) {
     size_t retransmission_offset = interval.min();
     size_t retransmission_length = interval.max() - interval.min();
-    session()->connection()->SetDefaultEncryptionLevel(crypto_frame->level);
-    size_t bytes_consumed = session()->connection()->SendCryptoData(
+    size_t bytes_consumed = stream_delegate()->WriteCryptoData(
         crypto_frame->level, retransmission_length, retransmission_offset);
     send_buffer->OnStreamDataRetransmitted(retransmission_offset,
                                            bytes_consumed);
@@ -445,14 +435,11 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
       break;
     }
   }
-  session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
 }
 
 void QuicCryptoStream::WriteBufferedCryptoFrames() {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
-  EncryptionLevel current_encryption_level =
-      session()->connection()->encryption_level();
   for (EncryptionLevel level :
        {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
@@ -462,8 +449,7 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
       // No buffered data for this encryption level.
       continue;
     }
-    session()->connection()->SetDefaultEncryptionLevel(level);
-    size_t bytes_consumed = session()->connection()->SendCryptoData(
+    size_t bytes_consumed = stream_delegate()->WriteCryptoData(
         level, data_length, send_buffer->stream_bytes_written());
     send_buffer->OnStreamDataConsumed(bytes_consumed);
     if (bytes_consumed < data_length) {
@@ -471,7 +457,6 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
       break;
     }
   }
-  session()->connection()->SetDefaultEncryptionLevel(current_encryption_level);
 }
 
 bool QuicCryptoStream::HasBufferedCryptoFrames() const {

@@ -30,6 +30,10 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
       StreamSendingState state,
       bool is_retransmission,
       quiche::QuicheOptional<EncryptionLevel> level) = 0;
+  // Called to write crypto data.
+  virtual size_t WriteCryptoData(EncryptionLevel level,
+                                 size_t write_length,
+                                 QuicStreamOffset offset) = 0;
   // Called on stream creation.
   virtual void RegisterStreamPriority(
       QuicStreamId id,

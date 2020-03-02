@@ -768,6 +768,19 @@ QuicConsumedData QuicSession::WritevData(
   return data;
 }
 
+size_t QuicSession::WriteCryptoData(EncryptionLevel level,
+                                    size_t write_length,
+                                    QuicStreamOffset offset) {
+  DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
+  const auto current_level = connection()->encryption_level();
+  connection_->SetDefaultEncryptionLevel(level);
+  const auto bytes_consumed =
+      connection_->SendCryptoData(level, write_length, offset);
+  // Restores encryption level.
+  connection_->SetDefaultEncryptionLevel(current_level);
+  return bytes_consumed;
+}
+
 bool QuicSession::WriteControlFrame(const QuicFrame& frame) {
   return connection_->SendControlFrame(frame);
 }
