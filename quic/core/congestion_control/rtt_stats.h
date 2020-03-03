@@ -23,6 +23,24 @@ class RttStatsPeer;
 
 class QUIC_EXPORT_PRIVATE RttStats {
  public:
+  // Calculates running standard-deviation using Welford's algorithm:
+  // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#
+  // Welford's_Online_algorithm.
+  struct QUIC_EXPORT_PRIVATE StandardDeviationCaculator {
+    StandardDeviationCaculator() {}
+
+    // Called when a new RTT sample is available.
+    void OnNewRttSample(QuicTime::Delta rtt_sample,
+                        QuicTime::Delta smoothed_rtt);
+    // Calculates the standard deviation.
+    QuicTime::Delta CalculateStandardDeviation() const;
+
+    bool has_valid_standard_deviation = false;
+
+   private:
+    double m2 = 0;
+  };
+
   RttStats();
   RttStats(const RttStats&) = delete;
   RttStats& operator=(const RttStats&) = delete;
@@ -73,6 +91,10 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   QuicTime::Delta mean_deviation() const { return mean_deviation_; }
 
+  // Returns standard deviation if there is a valid one. Otherwise, returns
+  // mean_deviation_.
+  QuicTime::Delta GetStandardOrMeanDeviation() const;
+
   QuicTime last_update_time() const { return last_update_time_; }
 
   bool ignore_max_ack_delay() const { return ignore_max_ack_delay_; }
@@ -83,6 +105,10 @@ class QUIC_EXPORT_PRIVATE RttStats {
 
   void set_initial_max_ack_delay(QuicTime::Delta initial_max_ack_delay) {
     max_ack_delay_ = std::max(max_ack_delay_, initial_max_ack_delay);
+  }
+
+  void EnableStandardDeviationCalculation() {
+    calculate_standard_deviation_ = true;
   }
 
  private:
@@ -96,6 +122,10 @@ class QUIC_EXPORT_PRIVATE RttStats {
   // Approximation of standard deviation, the error is roughly 1.25 times
   // larger than the standard deviation, for a normally distributed signal.
   QuicTime::Delta mean_deviation_;
+  // Standard deviation calculator. Only used calculate_standard_deviation_ is
+  // true.
+  StandardDeviationCaculator standard_deviation_calculator_;
+  bool calculate_standard_deviation_;
   QuicTime::Delta initial_rtt_;
   // The maximum ack delay observed over the connection after excluding ack
   // delays that were too large to be included in an RTT measurement.

@@ -106,7 +106,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       num_tlp_timeout_ptos_(0),
       one_rtt_packet_acked_(false),
       one_rtt_packet_sent_(false),
-      first_pto_srtt_multiplier_(0) {
+      first_pto_srtt_multiplier_(0),
+      use_standard_deviation_for_pto_(false) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -197,6 +198,12 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
                                      2);
         first_pto_srtt_multiplier_ = 1.5;
       }
+    }
+    if (GetQuicReloadableFlag(quic_use_standard_deviation_for_pto) &&
+        config.HasClientSentConnectionOption(kPSDA, perspective)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_use_standard_deviation_for_pto);
+      use_standard_deviation_for_pto_ = true;
+      rtt_stats_.EnableStandardDeviationCalculation();
     }
   }
 
@@ -1143,10 +1150,12 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
     }
     return 2 * rtt_stats_.initial_rtt();
   }
+  const QuicTime::Delta rtt_var = use_standard_deviation_for_pto_
+                                      ? rtt_stats_.GetStandardOrMeanDeviation()
+                                      : rtt_stats_.mean_deviation();
   QuicTime::Delta pto_delay =
       rtt_stats_.smoothed_rtt() +
-      std::max(pto_rttvar_multiplier_ * rtt_stats_.mean_deviation(),
-               kAlarmGranularity) +
+      std::max(pto_rttvar_multiplier_ * rtt_var, kAlarmGranularity) +
       (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
   pto_delay =
       pto_delay * (1 << (consecutive_pto_count_ -

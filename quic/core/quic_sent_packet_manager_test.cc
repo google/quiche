@@ -3506,6 +3506,44 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutUsingStandardDeviation) {
+  SetQuicReloadableFlag(quic_use_standard_deviation_for_pto, true);
+  EnablePto(k1PTO);
+  // Use PTOS and PSDA.
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kPTOS);
+  options.push_back(kPSDA);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(manager_.skip_packet_number_for_pto());
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(50),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(50),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(75),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  SendDataPacket(1, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set using standard deviation.
+  QuicTime::Delta expected_pto_delay =
+      srtt + 4 * rtt_stats->GetStandardOrMeanDeviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
 TEST_F(QuicSentPacketManagerTest,
        ComputingProbeTimeoutByLeftEdgeMultiplePacketNumberSpaces) {
   SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);

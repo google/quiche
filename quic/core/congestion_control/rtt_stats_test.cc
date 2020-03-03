@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mock_log.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/rtt_stats_peer.h"
 
 using testing::_;
@@ -214,6 +215,55 @@ TEST_F(RttStatsTest, ResetAfterConnectionMigrations) {
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.latest_rtt());
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.smoothed_rtt());
   EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.min_rtt());
+}
+
+TEST_F(RttStatsTest, StandardDeviationCaculatorTest1) {
+  // All samples are the same.
+  rtt_stats_.EnableStandardDeviationCalculation();
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_EQ(rtt_stats_.mean_deviation(),
+            rtt_stats_.GetStandardOrMeanDeviation());
+
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_EQ(QuicTime::Delta::Zero(), rtt_stats_.GetStandardOrMeanDeviation());
+}
+
+TEST_F(RttStatsTest, StandardDeviationCaculatorTest2) {
+  // Small variance.
+  rtt_stats_.EnableStandardDeviationCalculation();
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(10),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(9),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(11),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_LT(QuicTime::Delta::FromMicroseconds(500),
+            rtt_stats_.GetStandardOrMeanDeviation());
+  EXPECT_GT(QuicTime::Delta::FromMilliseconds(1),
+            rtt_stats_.GetStandardOrMeanDeviation());
+}
+
+TEST_F(RttStatsTest, StandardDeviationCaculatorTest3) {
+  // Some variance.
+  rtt_stats_.EnableStandardDeviationCalculation();
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(50),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(50),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_APPROX_EQ(rtt_stats_.mean_deviation(),
+                   rtt_stats_.GetStandardOrMeanDeviation(), 0.25f);
 }
 
 }  // namespace test

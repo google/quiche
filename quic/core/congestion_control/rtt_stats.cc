@@ -27,6 +27,7 @@ RttStats::RttStats()
       smoothed_rtt_(QuicTime::Delta::Zero()),
       previous_srtt_(QuicTime::Delta::Zero()),
       mean_deviation_(QuicTime::Delta::Zero()),
+      calculate_standard_deviation_(false),
       initial_rtt_(QuicTime::Delta::FromMilliseconds(kInitialRttMs)),
       max_ack_delay_(QuicTime::Delta::Zero()),
       last_update_time_(QuicTime::Zero()),
@@ -77,6 +78,9 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
     }
   }
   latest_rtt_ = rtt_sample;
+  if (calculate_standard_deviation_) {
+    standard_deviation_calculator_.OnNewRttSample(rtt_sample, smoothed_rtt_);
+  }
   // First time call.
   if (smoothed_rtt_.IsZero()) {
     smoothed_rtt_ = rtt_sample;
@@ -99,6 +103,32 @@ void RttStats::OnConnectionMigration() {
   mean_deviation_ = QuicTime::Delta::Zero();
   initial_rtt_ = QuicTime::Delta::FromMilliseconds(kInitialRttMs);
   max_ack_delay_ = QuicTime::Delta::Zero();
+}
+
+QuicTime::Delta RttStats::GetStandardOrMeanDeviation() const {
+  DCHECK(calculate_standard_deviation_);
+  if (!standard_deviation_calculator_.has_valid_standard_deviation) {
+    return mean_deviation_;
+  }
+  return standard_deviation_calculator_.CalculateStandardDeviation();
+}
+
+void RttStats::StandardDeviationCaculator::OnNewRttSample(
+    QuicTime::Delta rtt_sample,
+    QuicTime::Delta smoothed_rtt) {
+  double new_value = rtt_sample.ToMicroseconds();
+  if (smoothed_rtt.IsZero()) {
+    return;
+  }
+  has_valid_standard_deviation = true;
+  const double delta = new_value - smoothed_rtt.ToMicroseconds();
+  m2 = kOneMinusBeta * m2 + kBeta * pow(delta, 2);
+}
+
+QuicTime::Delta
+RttStats::StandardDeviationCaculator::CalculateStandardDeviation() const {
+  DCHECK(has_valid_standard_deviation);
+  return QuicTime::Delta::FromMicroseconds(sqrt(m2));
 }
 
 }  // namespace quic

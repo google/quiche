@@ -213,6 +213,8 @@ const QuicTag kPVS1 = TAG('P', 'V', 'S', '1');   // Use 2 * rttvar when
 const QuicTag kPAG1 = TAG('P', 'A', 'G', '1');   // Make 1st PTO more aggressive
 const QuicTag kPAG2 = TAG('P', 'A', 'G', '2');   // Make first 2 PTOs more
                                                  // aggressive
+const QuicTag kPSDA = TAG('P', 'S', 'D', 'A');   // Use standard deviation when
+                                                 // calculating PTO timeout.
 const QuicTag kPLE1 = TAG('P', 'L', 'E', '1');   // Arm the 1st PTO with
                                                  // earliest in flight sent time
                                                  // and at least 0.5*srtt from
