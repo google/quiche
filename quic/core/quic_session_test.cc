@@ -150,8 +150,8 @@ class TestStream : public QuicStream {
   void OnDataAvailable() override {}
 
   MOCK_METHOD0(OnCanWrite, void());
-  MOCK_METHOD3(RetransmitStreamData,
-               bool(QuicStreamOffset, QuicByteCount, bool));
+  MOCK_METHOD4(RetransmitStreamData,
+               bool(QuicStreamOffset, QuicByteCount, bool, TransmissionType));
 
   MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
 };
@@ -267,13 +267,13 @@ class TestSession : public QuicSession {
       size_t write_length,
       QuicStreamOffset offset,
       StreamSendingState state,
-      bool is_retransmission,
+      TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) override {
     bool fin = state != NO_FIN;
     QuicConsumedData consumed(write_length, fin);
     if (!writev_consumes_all_data_) {
-      consumed = QuicSession::WritevData(id, write_length, offset, state,
-                                         is_retransmission, level);
+      consumed =
+          QuicSession::WritevData(id, write_length, offset, state, type, level);
     }
     QuicSessionPeer::GetWriteBlockedStreams(this)->UpdateBytesForStream(
         id, consumed.bytes_consumed);
@@ -295,8 +295,8 @@ class TestSession : public QuicSession {
     }
     MakeIOVector("not empty", &iov);
     QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
-    QuicConsumedData consumed = WritevData(
-        stream->id(), 9, 0, FIN, /*is_retransmission*/ false, QuicheNullOpt);
+    QuicConsumedData consumed =
+        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION, QuicheNullOpt);
     QuicStreamPeer::SendBuffer(stream).OnStreamDataConsumed(
         consumed.bytes_consumed);
     return consumed;
@@ -312,8 +312,8 @@ class TestSession : public QuicSession {
 
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
-    return WritevData(stream->id(), bytes, 0, FIN,
-                      /*is_retransmission*/ false, QuicheNullOpt);
+    return WritevData(stream->id(), bytes, 0, FIN, NOT_RETRANSMISSION,
+                      QuicheNullOpt);
   }
 
   bool UsesPendingStreams() const override { return uses_pending_streams_; }
@@ -2307,11 +2307,14 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
   frames.push_back(QuicFrame(frame3));
   EXPECT_FALSE(session_.WillingAndAbleToWrite());
 
-  EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
+  EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _, _))
+      .WillOnce(Return(true));
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
-  EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _)).WillOnce(Return(true));
+  EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _, _))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _, _))
+      .WillOnce(Return(true));
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));
   session_.RetransmitFrames(frames, TLP_RETRANSMISSION);
 }

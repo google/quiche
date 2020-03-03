@@ -376,10 +376,11 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
       .WillOnce(InvokeWithoutArgs([this]() {
         return session_.ConsumeData(
             QuicUtils::GetCryptoStreamId(connection_->transport_version()), 150,
-            1350, NO_FIN, 1350, QuicheNullOpt);
+            1350, NO_FIN, HANDSHAKE_RETRANSMISSION, QuicheNullOpt);
       }));
 
-  EXPECT_FALSE(stream_->RetransmitStreamData(1350, 1350, false));
+  EXPECT_FALSE(stream_->RetransmitStreamData(1350, 1350, false,
+                                             HANDSHAKE_RETRANSMISSION));
   // Verify connection's encryption level has restored.
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
@@ -394,13 +395,15 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
                  200, 2500, _, _, _))
       .WillOnce(Invoke(&session_, &MockQuicSpdySession::ConsumeData));
-  EXPECT_TRUE(stream_->RetransmitStreamData(1350, 1350, false));
+  EXPECT_TRUE(stream_->RetransmitStreamData(1350, 1350, false,
+                                            HANDSHAKE_RETRANSMISSION));
   // Verify connection's encryption level has restored.
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
   EXPECT_CALL(session_, WritevData(_, _, _, _, _, _)).Times(0);
   // Force to send an empty frame.
-  EXPECT_TRUE(stream_->RetransmitStreamData(0, 0, false));
+  EXPECT_TRUE(
+      stream_->RetransmitStreamData(0, 0, false, HANDSHAKE_RETRANSMISSION));
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
@@ -438,7 +441,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   QuicCryptoFrame frame_to_retransmit(ENCRYPTION_ZERO_RTT, 0, 150);
-  stream_->RetransmitData(&frame_to_retransmit);
+  stream_->RetransmitData(&frame_to_retransmit, HANDSHAKE_RETRANSMISSION);
 
   // Verify connection's encryption level has restored.
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
@@ -451,14 +454,14 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   frame_to_retransmit = QuicCryptoFrame(ENCRYPTION_ZERO_RTT, 0, 1350);
-  stream_->RetransmitData(&frame_to_retransmit);
+  stream_->RetransmitData(&frame_to_retransmit, HANDSHAKE_RETRANSMISSION);
   // Verify connection's encryption level has restored.
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
   // Force to send an empty frame.
   QuicCryptoFrame empty_frame(ENCRYPTION_FORWARD_SECURE, 0, 0);
-  stream_->RetransmitData(&empty_frame);
+  stream_->RetransmitData(&empty_frame, HANDSHAKE_RETRANSMISSION);
 }
 
 // Regression test for b/115926584.

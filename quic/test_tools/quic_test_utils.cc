@@ -582,7 +582,7 @@ QuicConsumedData MockQuicSession::ConsumeData(
     size_t write_length,
     QuicStreamOffset offset,
     StreamSendingState state,
-    bool /*is_retransmission*/,
+    TransmissionType /*type*/,
     quiche::QuicheOptional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
@@ -656,7 +656,7 @@ QuicConsumedData MockQuicSpdySession::ConsumeData(
     size_t write_length,
     QuicStreamOffset offset,
     StreamSendingState state,
-    bool /*is_retransmission*/,
+    TransmissionType /*type*/,
     quiche::QuicheOptional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);

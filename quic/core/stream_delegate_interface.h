@@ -22,18 +22,20 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   virtual void OnStreamError(QuicErrorCode error_code,
                              std::string error_details) = 0;
   // Called when the stream needs to write data. If |level| is present, the data
-  // will be written at the specified |level|.
+  // will be written at the specified |level|. The data will be written
+  // at specified transmission |type|.
   virtual QuicConsumedData WritevData(
       QuicStreamId id,
       size_t write_length,
       QuicStreamOffset offset,
       StreamSendingState state,
-      bool is_retransmission,
+      TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) = 0;
   // Called to write crypto data.
   virtual size_t WriteCryptoData(EncryptionLevel level,
                                  size_t write_length,
-                                 QuicStreamOffset offset) = 0;
+                                 QuicStreamOffset offset,
+                                 TransmissionType type) = 0;
   // Called on stream creation.
   virtual void RegisterStreamPriority(
       QuicStreamId id,

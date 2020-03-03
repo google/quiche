@@ -737,7 +737,7 @@ QuicConsumedData QuicSession::WritevData(
     size_t write_length,
     QuicStreamOffset offset,
     StreamSendingState state,
-    bool is_retransmission,
+    TransmissionType type,
     quiche::QuicheOptional<EncryptionLevel> level) {
   DCHECK(connection_->connected())
       << ENDPOINT << "Try to write stream data when connection is closed.";
@@ -755,7 +755,7 @@ QuicConsumedData QuicSession::WritevData(
 
   QuicConsumedData data =
       connection_->SendStreamData(id, write_length, offset, state);
-  if (!is_retransmission) {
+  if (type == NOT_RETRANSMISSION) {
     // This is new stream data.
     write_blocked_streams_.UpdateBytesForStream(id, data.bytes_consumed);
   }
@@ -770,8 +770,10 @@ QuicConsumedData QuicSession::WritevData(
 
 size_t QuicSession::WriteCryptoData(EncryptionLevel level,
                                     size_t write_length,
-                                    QuicStreamOffset offset) {
+                                    QuicStreamOffset offset,
+                                    TransmissionType /*type*/) {
   DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
+  // TODO(b/136274541): Set the transmission type here.
   const auto current_level = connection()->encryption_level();
   connection_->SetDefaultEncryptionLevel(level);
   const auto bytes_consumed =
@@ -781,7 +783,9 @@ size_t QuicSession::WriteCryptoData(EncryptionLevel level,
   return bytes_consumed;
 }
 
-bool QuicSession::WriteControlFrame(const QuicFrame& frame) {
+bool QuicSession::WriteControlFrame(const QuicFrame& frame,
+                                    TransmissionType /*type*/) {
+  // TODO(b/136274541): Set the transmission type here.
   return connection_->SendControlFrame(frame);
 }
 
@@ -1956,11 +1960,11 @@ void QuicSession::RetransmitFrames(const QuicFrames& frames,
       continue;
     }
     if (frame.type == CRYPTO_FRAME) {
-      GetMutableCryptoStream()->RetransmitData(frame.crypto_frame);
+      GetMutableCryptoStream()->RetransmitData(frame.crypto_frame, type);
       continue;
     }
     if (frame.type != STREAM_FRAME) {
-      if (!control_frame_manager_.RetransmitControlFrame(frame)) {
+      if (!control_frame_manager_.RetransmitControlFrame(frame, type)) {
         break;
       }
       continue;
@@ -1969,7 +1973,7 @@ void QuicSession::RetransmitFrames(const QuicFrames& frames,
     if (stream != nullptr &&
         !stream->RetransmitStreamData(frame.stream_frame.offset,
                                       frame.stream_frame.data_length,
-                                      frame.stream_frame.fin)) {
+                                      frame.stream_frame.fin, type)) {
       break;
     }
   }

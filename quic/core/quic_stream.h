@@ -313,10 +313,12 @@ class QUIC_EXPORT_PRIVATE QuicStream
                                  bool fin_lost);
 
   // Called to retransmit outstanding portion in data [offset, offset +
-  // data_length) and |fin|. Returns true if all data gets retransmitted.
+  // data_length) and |fin| with Transmission |type|.
+  // Returns true if all data gets retransmitted.
   virtual bool RetransmitStreamData(QuicStreamOffset offset,
                                     QuicByteCount data_length,
-                                    bool fin);
+                                    bool fin,
+                                    TransmissionType type);
 
   // Sets deadline of this stream to be now + |ttl|, returns true if the setting
   // succeeds.

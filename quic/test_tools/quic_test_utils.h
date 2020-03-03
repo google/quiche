@@ -638,7 +638,7 @@ class MockQuicSession : public QuicSession {
                                 size_t write_length,
                                 QuicStreamOffset offset,
                                 StreamSendingState state,
-                                bool is_retransmission,
+                                TransmissionType type,
                                 quiche::QuicheOptional<EncryptionLevel> level));
 
   MOCK_METHOD3(SendRstStream,
@@ -669,7 +669,7 @@ class MockQuicSession : public QuicSession {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state,
-                               bool is_retransmission,
+                               TransmissionType type,
                                quiche::QuicheOptional<EncryptionLevel> level);
 
   void ReallySendRstStream(QuicStreamId id,
@@ -739,7 +739,7 @@ class MockQuicSpdySession : public QuicSpdySession {
                                 size_t write_length,
                                 QuicStreamOffset offset,
                                 StreamSendingState state,
-                                bool is_retransmission,
+                                TransmissionType type,
                                 quiche::QuicheOptional<EncryptionLevel> level));
 
   MOCK_METHOD3(SendRstStream,
@@ -787,7 +787,7 @@ class MockQuicSpdySession : public QuicSpdySession {
                                size_t write_length,
                                QuicStreamOffset offset,
                                StreamSendingState state,
-                               bool is_retransmission,
+                               TransmissionType type,
                                quiche::QuicheOptional<EncryptionLevel> level);
 
   using QuicSession::ActivateStream;

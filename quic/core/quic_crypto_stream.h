@@ -119,13 +119,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Override to send unacked crypto data with the appropriate encryption level.
   bool RetransmitStreamData(QuicStreamOffset offset,
                             QuicByteCount data_length,
-                            bool fin) override;
+                            bool fin,
+                            TransmissionType type) override;
 
   // Sends stream retransmission data at |encryption_level|.
   QuicConsumedData RetransmitStreamDataAtLevel(
       QuicStreamOffset retransmission_offset,
       QuicByteCount retransmission_length,
-      EncryptionLevel encryption_level);
+      EncryptionLevel encryption_level,
+      TransmissionType type);
 
   // Returns the number of bytes of handshake data that have been received from
   // the peer in either CRYPTO or STREAM frames.
@@ -149,7 +151,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
 
   // Called to retransmit any outstanding data in the range indicated by the
   // encryption level, offset, and length in |crypto_frame|.
-  void RetransmitData(QuicCryptoFrame* crypto_frame);
+  void RetransmitData(QuicCryptoFrame* crypto_frame, TransmissionType type);
 
   // Called to write buffered crypto frames.
   void WriteBufferedCryptoFrames();

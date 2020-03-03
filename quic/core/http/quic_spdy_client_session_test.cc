@@ -231,8 +231,9 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   EXPECT_TRUE(session_->CreateOutgoingBidirectionalStream() == nullptr);
   // Verify that no data may be send on existing streams.
   char data[] = "hello world";
-  QuicConsumedData consumed = session_->WritevData(
-      stream->id(), QUICHE_ARRAYSIZE(data), 0, NO_FIN, false, QuicheNullOpt);
+  QuicConsumedData consumed =
+      session_->WritevData(stream->id(), QUICHE_ARRAYSIZE(data), 0, NO_FIN,
+                           NOT_RETRANSMISSION, QuicheNullOpt);
   EXPECT_FALSE(consumed.fin_consumed);
   EXPECT_EQ(0u, consumed.bytes_consumed);
 }

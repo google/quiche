@@ -87,7 +87,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // Retransmit |frame| if it is still outstanding. Returns false if the frame
   // does not get retransmitted because the connection is blocked. Otherwise,
   // returns true.
-  bool RetransmitControlFrame(const QuicFrame& frame);
+  bool RetransmitControlFrame(const QuicFrame& frame, TransmissionType type);
 
   // Returns true if |frame| is outstanding and waiting to be acked. Returns
   // false otherwise.

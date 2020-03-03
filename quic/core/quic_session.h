@@ -199,8 +199,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void OnMessageLost(QuicMessageId message_id);
 
   // Called by control frame manager when it wants to write control frames to
-  // the peer. Returns true if |frame| is consumed, false otherwise.
-  virtual bool WriteControlFrame(const QuicFrame& frame);
+  // the peer. Returns true if |frame| is consumed, false otherwise. The frame
+  // will be sent in specified transmission |type|.
+  bool WriteControlFrame(const QuicFrame& frame, TransmissionType type);
 
   // Close the stream in both directions.
   // TODO(renjietang): rename this method as it sends both RST_STREAM and
@@ -273,12 +274,13 @@ class QUIC_EXPORT_PRIVATE QuicSession
       size_t write_length,
       QuicStreamOffset offset,
       StreamSendingState state,
-      bool is_retransmission,
+      TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) override;
 
   size_t WriteCryptoData(EncryptionLevel level,
                          size_t write_length,
-                         QuicStreamOffset offset) override;
+                         QuicStreamOffset offset,
+                         TransmissionType type) override;
 
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(

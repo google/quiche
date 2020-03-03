@@ -135,7 +135,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
   auto save_write_data =
       [&writer, this](QuicStreamId /*id*/, size_t write_length,
                       QuicStreamOffset offset, StreamSendingState /*state*/,
-                      bool /*is_retransmission*/,
+                      TransmissionType /*type*/,
                       quiche::QuicheOptional<EncryptionLevel> /*level*/) {
         send_control_stream_->WriteStreamData(offset, write_length, &writer);
         return QuicConsumedData(/* bytes_consumed = */ write_length,

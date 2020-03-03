@@ -45,7 +45,7 @@ class MockQuicSession : public QboneSessionBase {
       size_t write_length,
       QuicStreamOffset offset,
       StreamSendingState state,
-      bool is_retransmission,
+      TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) override {
     if (!writable_) {
       return QuicConsumedData(0, false);

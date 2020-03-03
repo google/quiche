@@ -173,8 +173,8 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     return;
   }
 
-  size_t bytes_consumed =
-      stream_delegate()->WriteCryptoData(level, data.length(), offset);
+  size_t bytes_consumed = stream_delegate()->WriteCryptoData(
+      level, data.length(), offset, NOT_RETRANSMISSION);
   send_buffer->OnStreamDataConsumed(bytes_consumed);
 }
 
@@ -249,7 +249,7 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
     while (send_buffer->HasPendingRetransmission()) {
       auto pending = send_buffer->NextPendingRetransmission();
       size_t bytes_consumed = stream_delegate()->WriteCryptoData(
-          level, pending.length, pending.offset);
+          level, pending.length, pending.offset, HANDSHAKE_RETRANSMISSION);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
       if (bytes_consumed < pending.length) {
         break;
@@ -287,7 +287,7 @@ void QuicCryptoStream::WritePendingRetransmission() {
           retransmission_encryption_level);
       consumed = stream_delegate()->WritevData(
           id(), pending.length, pending.offset, NO_FIN,
-          /*is_retransmission*/ true, QuicheNullOpt);
+          HANDSHAKE_RETRANSMISSION, QuicheNullOpt);
       QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
                     << " tries to retransmit stream data [" << pending.offset
                     << ", " << pending.offset + pending.length
@@ -302,7 +302,8 @@ void QuicCryptoStream::WritePendingRetransmission() {
     } else {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_writevdata_at_level, 1, 2);
       consumed = RetransmitStreamDataAtLevel(pending.offset, pending.length,
-                                             retransmission_encryption_level);
+                                             retransmission_encryption_level,
+                                             HANDSHAKE_RETRANSMISSION);
     }
     if (consumed.bytes_consumed < pending.length) {
       // The connection is write blocked.
@@ -313,7 +314,9 @@ void QuicCryptoStream::WritePendingRetransmission() {
 
 bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
                                             QuicByteCount data_length,
-                                            bool /*fin*/) {
+                                            bool /*fin*/,
+                                            TransmissionType type) {
+  DCHECK_EQ(HANDSHAKE_RETRANSMISSION, type);
   QuicIntervalSet<QuicStreamOffset> retransmission(offset,
                                                    offset + data_length);
   // Determine the encryption level to send data. This only needs to be once as
@@ -335,9 +338,9 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
     if (!writevdata_at_level_) {
       // Set appropriate encryption level.
       session()->connection()->SetDefaultEncryptionLevel(send_encryption_level);
-      consumed = stream_delegate()->WritevData(
-          id(), retransmission_length, retransmission_offset, NO_FIN,
-          /*is_retransmission*/ true, QuicheNullOpt);
+      consumed = stream_delegate()->WritevData(id(), retransmission_length,
+                                               retransmission_offset, NO_FIN,
+                                               type, QuicheNullOpt);
       QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
                     << " is forced to retransmit stream data ["
                     << retransmission_offset << ", "
@@ -351,8 +354,9 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
           current_encryption_level);
     } else {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_writevdata_at_level, 2, 2);
-      consumed = RetransmitStreamDataAtLevel(
-          retransmission_offset, retransmission_length, send_encryption_level);
+      consumed = RetransmitStreamDataAtLevel(retransmission_offset,
+                                             retransmission_length,
+                                             send_encryption_level, type);
     }
     if (consumed.bytes_consumed < retransmission_length) {
       // The connection is write blocked.
@@ -366,11 +370,13 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
 QuicConsumedData QuicCryptoStream::RetransmitStreamDataAtLevel(
     QuicStreamOffset retransmission_offset,
     QuicByteCount retransmission_length,
-    EncryptionLevel encryption_level) {
+    EncryptionLevel encryption_level,
+    TransmissionType type) {
+  DCHECK_EQ(HANDSHAKE_RETRANSMISSION, type);
   DCHECK(writevdata_at_level_);
   const auto consumed = stream_delegate()->WritevData(
-      id(), retransmission_length, retransmission_offset, NO_FIN,
-      /*is_retransmission*/ true, encryption_level);
+      id(), retransmission_length, retransmission_offset, NO_FIN, type,
+      encryption_level);
   QUIC_DVLOG(1) << ENDPOINT << "stream " << id()
                 << " is forced to retransmit stream data ["
                 << retransmission_offset << ", "
@@ -413,7 +419,8 @@ void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
       crypto_frame->offset, crypto_frame->data_length);
 }
 
-void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
+void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
+                                      TransmissionType type) {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't retransmit CRYPTO frames";
   QuicIntervalSet<QuicStreamOffset> retransmission(
@@ -428,7 +435,8 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame) {
     size_t retransmission_offset = interval.min();
     size_t retransmission_length = interval.max() - interval.min();
     size_t bytes_consumed = stream_delegate()->WriteCryptoData(
-        crypto_frame->level, retransmission_length, retransmission_offset);
+        crypto_frame->level, retransmission_length, retransmission_offset,
+        type);
     send_buffer->OnStreamDataRetransmitted(retransmission_offset,
                                            bytes_consumed);
     if (bytes_consumed < retransmission_length) {
@@ -450,7 +458,8 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
       continue;
     }
     size_t bytes_consumed = stream_delegate()->WriteCryptoData(
-        level, data_length, send_buffer->stream_bytes_written());
+        level, data_length, send_buffer->stream_bytes_written(),
+        NOT_RETRANSMISSION);
     send_buffer->OnStreamDataConsumed(bytes_consumed);
     if (bytes_consumed < data_length) {
       // Connection is write blocked.

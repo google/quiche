@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -192,16 +193,19 @@ TEST_F(QuicControlFrameManagerTest, RetransmitControlFrame) {
   manager_->OnControlFrameAcked(QuicFrame(&goaway_));
   // Do not retransmit an acked frame.
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
-  EXPECT_TRUE(manager_->RetransmitControlFrame(QuicFrame(&goaway_)));
+  EXPECT_TRUE(manager_->RetransmitControlFrame(QuicFrame(&goaway_),
+                                               PTO_RETRANSMISSION));
 
   // Retransmit control frame 3.
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
-  EXPECT_TRUE(manager_->RetransmitControlFrame(QuicFrame(&window_update_)));
+  EXPECT_TRUE(manager_->RetransmitControlFrame(QuicFrame(&window_update_),
+                                               PTO_RETRANSMISSION));
 
   // Retransmit control frame 4, and connection is write blocked.
   EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
-  EXPECT_FALSE(manager_->RetransmitControlFrame(QuicFrame(&window_update_)));
+  EXPECT_FALSE(manager_->RetransmitControlFrame(QuicFrame(&window_update_),
+                                                PTO_RETRANSMISSION));
 }
 
 TEST_F(QuicControlFrameManagerTest, DonotSendPingWithBufferedFrames) {
