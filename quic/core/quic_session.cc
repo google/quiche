@@ -968,7 +968,8 @@ void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
 
   pending_stream_map_.erase(stream_id);
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      connection_->connected()) {
     v99_streamid_manager_.OnStreamClosed(stream_id);
   }
 }
