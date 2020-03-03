@@ -2403,6 +2403,11 @@ void QuicConnection::FlushPackets() {
 
   WriteResult result = writer_->Flush();
 
+  QUIC_HISTOGRAM_ENUM("QuicConnection.FlushPacketStatus", result.status,
+                      WRITE_STATUS_NUM_VALUES,
+                      "Status code returned by writer_->Flush() in "
+                      "QuicConnection::FlushPackets.");
+
   if (HandleWriteBlocked()) {
     DCHECK_EQ(WRITE_STATUS_BLOCKED, result.status)
         << "Unexpected flush result:" << result;
