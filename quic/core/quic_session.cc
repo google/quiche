@@ -175,7 +175,6 @@ void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
-  // TODO(rch) deal with the error case of stream id 0.
   QuicStreamId stream_id = frame.stream_id;
   if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
     connection()->CloseConnection(
@@ -203,12 +202,6 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
       QuicStreamOffset final_byte_offset = frame.offset + frame.data_length;
       OnFinalByteOffsetReceived(stream_id, final_byte_offset);
     }
-    return;
-  }
-  if (frame.fin && stream->is_static()) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Attempt to close a static stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
   stream->OnStreamFrame(frame);
@@ -290,28 +283,11 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  // Do not reset the sream if all data has been sent and acknowledged.
-  if (stream->write_side_closed() && !stream->IsWaitingForAcks()) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Ignoring STOP_SENDING for a write closed stream, id: "
-                  << stream_id;
+  if (!stream->OnStopSending(frame.application_error_code)) {
     return;
   }
 
-  if (stream->is_static()) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received STOP_SENDING for a static stream, id: "
-                  << stream_id << " Closing connection";
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Received STOP_SENDING for a static stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  stream->OnStopSending(frame.application_error_code);
-
-  stream->set_stream_error(
-      static_cast<QuicRstStreamErrorCode>(frame.application_error_code));
+  // TODO(renjietang): Consider moving those code into the
   if (connection()->connected()) {
     MaybeSendRstStreamFrame(
         stream->id(),

@@ -348,8 +348,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // this method or not.
   void SendStopSending(uint16_t code);
 
-  // Handle received StopSending frame.
-  virtual void OnStopSending(uint16_t /*code*/) {}
+  // Handle received StopSending frame. Returns true if the processing finishes
+  // gracefully.
+  virtual bool OnStopSending(uint16_t code);
 
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.

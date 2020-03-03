@@ -390,6 +390,12 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
 
   DCHECK(!(read_side_closed_ && write_side_closed_));
 
+  if (frame.fin && is_static_) {
+    OnUnrecoverableError(QUIC_INVALID_STREAM_ID,
+                         "Attempt to close a static stream");
+    return;
+  }
+
   if (type_ == WRITE_UNIDIRECTIONAL) {
     OnUnrecoverableError(QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM,
                          "Data received on write unidirectional stream");
@@ -458,6 +464,28 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   sequencer_.OnStreamFrame(frame);
+}
+
+bool QuicStream::OnStopSending(uint16_t code) {
+  // Do not reset the stream if all data has been sent and acknowledged.
+  if (write_side_closed() && !IsWaitingForAcks()) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Ignoring STOP_SENDING for a write closed stream, id: "
+                  << id_;
+    return false;
+  }
+
+  if (is_static_) {
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Received STOP_SENDING for a static stream, id: " << id_
+                  << " Closing connection";
+    OnUnrecoverableError(QUIC_INVALID_STREAM_ID,
+                         "Received STOP_SENDING for a static stream");
+    return false;
+  }
+
+  stream_error_ = static_cast<QuicRstStreamErrorCode>(code);
+  return true;
 }
 
 int QuicStream::num_frames_received() const {
