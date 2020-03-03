@@ -92,6 +92,15 @@ bool Bbr2ProbeBwMode::IsProbingForBandwidth() const {
          cycle_.phase == CyclePhase::PROBE_UP;
 }
 
+Bbr2Mode Bbr2ProbeBwMode::OnExitQuiescence(QuicTime now,
+                                           QuicTime quiescence_start_time) {
+  QUIC_DVLOG(3) << sender_ << " Postponing min_rtt_timestamp("
+                << model_->MinRttTimestamp() << ") by "
+                << now - quiescence_start_time;
+  model_->PostponeMinRttTimestamp(now - quiescence_start_time);
+  return Bbr2Mode::PROBE_BW;
+}
+
 void Bbr2ProbeBwMode::UpdateProbeDown(
     QuicByteCount prior_in_flight,
     const Bbr2CongestionEvent& congestion_event) {

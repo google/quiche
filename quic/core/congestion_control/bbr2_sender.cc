@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -196,6 +197,10 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   model_.OnCongestionEventFinish(unacked_packets_->GetLeastUnacked(),
                                  congestion_event);
   last_sample_is_app_limited_ = congestion_event.last_sample_is_app_limited;
+  if (avoid_unnecessary_probe_rtt_ && congestion_event.bytes_in_flight == 0) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 2, 2);
+    OnEnterQuiescence(event_time);
+  }
 
   QUIC_DVLOG(3)
       << this << " END CongestionEvent(acked:" << acked_packets
@@ -287,6 +292,10 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                 << ", total_acked:" << model_.total_bytes_acked()
                 << ", total_lost:" << model_.total_bytes_lost() << "  @ "
                 << sent_time;
+  if (avoid_unnecessary_probe_rtt_ && bytes_in_flight == 0) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 1, 2);
+    OnExitQuiescence(sent_time);
+  }
   model_.OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,
                       is_retransmittable);
 }
@@ -330,6 +339,23 @@ QuicByteCount Bbr2Sender::GetTargetBytesInflight() const {
 
 void Bbr2Sender::PopulateConnectionStats(QuicConnectionStats* stats) const {
   stats->num_ack_aggregation_epochs = model_.num_ack_aggregation_epochs();
+}
+
+void Bbr2Sender::OnEnterQuiescence(QuicTime now) {
+  last_quiescence_start_ = now;
+}
+
+void Bbr2Sender::OnExitQuiescence(QuicTime now) {
+  if (last_quiescence_start_ != QuicTime::Zero()) {
+    Bbr2Mode next_mode = BBR2_MODE_DISPATCH(
+        OnExitQuiescence(now, std::min(now, last_quiescence_start_)));
+    if (next_mode != mode_) {
+      BBR2_MODE_DISPATCH(Leave(now, nullptr));
+      mode_ = next_mode;
+      BBR2_MODE_DISPATCH(Enter(now, nullptr));
+    }
+    last_quiescence_start_ = QuicTime::Zero();
+  }
 }
 
 bool Bbr2Sender::ShouldSendProbingPacket() const {

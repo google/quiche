@@ -36,6 +36,9 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
 
   bool IsProbingForBandwidth() const override;
 
+  Bbr2Mode OnExitQuiescence(QuicTime now,
+                            QuicTime quiescence_start_time) override;
+
   enum class CyclePhase : uint8_t {
     PROBE_NOT_STARTED,
     PROBE_UP,

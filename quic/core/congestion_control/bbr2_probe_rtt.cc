@@ -53,6 +53,15 @@ Limits<QuicByteCount> Bbr2ProbeRttMode::GetCwndLimits() const {
   return NoGreaterThan(std::min(inflight_upper_bound, InflightTarget()));
 }
 
+Bbr2Mode Bbr2ProbeRttMode::OnExitQuiescence(
+    QuicTime now,
+    QuicTime /*quiescence_start_time*/) {
+  if (now > exit_time_) {
+    return Bbr2Mode::PROBE_BW;
+  }
+  return Bbr2Mode::PROBE_RTT;
+}
+
 Bbr2ProbeRttMode::DebugState Bbr2ProbeRttMode::ExportDebugState() const {
   DebugState s;
   s.inflight_target = InflightTarget();

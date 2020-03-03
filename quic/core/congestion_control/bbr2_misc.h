@@ -327,6 +327,12 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   QuicTime MinRttTimestamp() const { return min_rtt_filter_.GetTimestamp(); }
 
+  // TODO(wub): If we do this too frequently, we can potentailly postpone
+  // PROBE_RTT indefinitely. Observe how it works in production and improve it.
+  void PostponeMinRttTimestamp(QuicTime::Delta duration) {
+    min_rtt_filter_.ForceUpdate(MinRtt(), MinRttTimestamp() + duration);
+  }
+
   QuicBandwidth MaxBandwidth() const { return max_bandwidth_filter_.Get(); }
 
   QuicByteCount MaxAckHeight() const {
@@ -507,6 +513,9 @@ class QUIC_EXPORT_PRIVATE Bbr2ModeBase {
   virtual Limits<QuicByteCount> GetCwndLimits() const = 0;
 
   virtual bool IsProbingForBandwidth() const = 0;
+
+  virtual Bbr2Mode OnExitQuiescence(QuicTime now,
+                                    QuicTime quiescence_start_time) = 0;
 
  protected:
   const Bbr2Sender* const sender_;

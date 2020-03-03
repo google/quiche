@@ -35,6 +35,11 @@ class QUIC_EXPORT_PRIVATE Bbr2DrainMode final : public Bbr2ModeBase {
 
   bool IsProbingForBandwidth() const override { return false; }
 
+  Bbr2Mode OnExitQuiescence(QuicTime /*now*/,
+                            QuicTime /*quiescence_start_time*/) override {
+    return Bbr2Mode::DRAIN;
+  }
+
   struct QUIC_EXPORT_PRIVATE DebugState {
     QuicByteCount drain_target;
   };

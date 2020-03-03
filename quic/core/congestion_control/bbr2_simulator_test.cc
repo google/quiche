@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
@@ -816,16 +817,95 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   EXPECT_LT(2 * kDefaultMaxPacketSize, inflight_hi);
 }
 
+// After quiescence, if the sender is in PROBE_RTT, it should transition to
+// PROBE_BW immediately on the first sent packet after quiescence.
+TEST_F(Bbr2DefaultTopologyTest, ProbeRttAfterQuiescenceImmediatelyExits) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(15);
+  bool simulator_result;
+
+  // Keep sending until reach PROBE_RTT.
+  simulator_result = SendUntilOrTimeout(
+      [this]() {
+        return sender_->ExportDebugState().mode == Bbr2Mode::PROBE_RTT;
+      },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Wait for entering a quiescence of 5 seconds.
+  ASSERT_TRUE(simulator_.RunUntilOrTimeout(
+      [this]() {
+        return sender_unacked_map()->bytes_in_flight() == 0 &&
+               sender_->ExportDebugState().mode == Bbr2Mode::PROBE_RTT;
+      },
+      timeout));
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(5));
+
+  // Send one packet to exit quiescence.
+  EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_RTT);
+  sender_->OnPacketSent(SimulatedNow(), /*bytes_in_flight=*/0,
+                        sender_unacked_map()->largest_sent_packet() + 1,
+                        kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
+  if (GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt)) {
+    EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_BW);
+  } else {
+    EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_RTT);
+  }
+}
+
+TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result;
+
+  // Keep sending until reach PROBE_REFILL.
+  simulator_result = SendUntilOrTimeout(
+      [this]() {
+        return sender_->ExportDebugState().probe_bw.phase ==
+               CyclePhase::PROBE_REFILL;
+      },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  const QuicTime min_rtt_timestamp_before_idle =
+      sender_->ExportDebugState().min_rtt_timestamp;
+
+  // Wait for entering a quiescence of 15 seconds.
+  ASSERT_TRUE(simulator_.RunUntilOrTimeout(
+      [this]() { return sender_unacked_map()->bytes_in_flight() == 0; },
+      params.RTT()));
+
+  simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
+
+  // Send some data to exit quiescence.
+  SendBursts(params, 1, kDefaultTCPMSS, QuicTime::Delta::Zero());
+  const QuicTime min_rtt_timestamp_after_idle =
+      sender_->ExportDebugState().min_rtt_timestamp;
+  if (GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt)) {
+    EXPECT_LT(min_rtt_timestamp_before_idle + QuicTime::Delta::FromSeconds(14),
+              min_rtt_timestamp_after_idle);
+  } else {
+    EXPECT_EQ(min_rtt_timestamp_before_idle, min_rtt_timestamp_after_idle);
+  }
+}
+
 // All Bbr2MultiSenderTests uses the following network topology:
 //
 //   Sender 0  (A Bbr2Sender)
 //       |
 //       | <-- local_links[0]
 //       |
-//       |  Sender N (1 <= N < kNumLocalLinks) (May or may not be a Bbr2Sender)
-//       |      |
-//       |      | <-- local_links[N]
-//       |      |
+//       |  Sender N (1 <= N < kNumLocalLinks) (May or may not be a
+//       Bbr2Sender) |      | |      | <-- local_links[N] |      |
 //    Network switch
 //           *  <-- the bottleneck queue in the direction
 //           |          of the receiver

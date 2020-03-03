@@ -38,6 +38,11 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
 
   bool IsProbingForBandwidth() const override { return true; }
 
+  Bbr2Mode OnExitQuiescence(QuicTime /*now*/,
+                            QuicTime /*quiescence_start_time*/) override {
+    return Bbr2Mode::STARTUP;
+  }
+
   bool FullBandwidthReached() const { return full_bandwidth_reached_; }
 
   struct QUIC_EXPORT_PRIVATE DebugState {

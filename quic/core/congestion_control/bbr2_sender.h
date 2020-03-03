@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -133,6 +134,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void UpdatePacingRate(QuicByteCount bytes_acked);
   void UpdateCongestionWindow(QuicByteCount bytes_acked);
   QuicByteCount GetTargetCongestionWindow(float gain) const;
+  void OnEnterQuiescence(QuicTime now);
+  void OnExitQuiescence(QuicTime now);
 
   // Helper function for BBR2_MODE_DISPATCH.
   Bbr2ProbeRttMode& probe_rtt_or_die() {
@@ -176,6 +179,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   QuicByteCount cwnd_;
   QuicBandwidth pacing_rate_;
 
+  QuicTime last_quiescence_start_ = QuicTime::Zero();
+
   Bbr2StartupMode startup_;
   Bbr2DrainMode drain_;
   Bbr2ProbeBwMode probe_bw_;
@@ -187,6 +192,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
 
   // Debug only.
   bool last_sample_is_app_limited_;
+
+  const bool avoid_unnecessary_probe_rtt_ =
+      GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt);
 
   friend class Bbr2StartupMode;
   friend class Bbr2DrainMode;
