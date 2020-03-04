@@ -1136,6 +1136,7 @@ void QuicSession::OnConfigNegotiated() {
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
   is_configured_ = true;
+  connection()->OnConfigNegotiated();
 
   // Inform stream ID manager so that it can reevaluate any deferred
   // STREAMS_BLOCKED or MAX_STREAMS frames against the config and either send

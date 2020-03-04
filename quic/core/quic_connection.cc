@@ -523,6 +523,15 @@ void QuicConnection::AdjustNetworkParameters(
   sent_packet_manager_.AdjustNetworkParameters(params);
 }
 
+void QuicConnection::SetLossDetectionTuner(
+    std::unique_ptr<LossDetectionTunerInterface> tuner) {
+  sent_packet_manager_.SetLossDetectionTuner(std::move(tuner));
+}
+
+void QuicConnection::OnConfigNegotiated() {
+  sent_packet_manager_.OnConfigNegotiated();
+}
+
 QuicBandwidth QuicConnection::MaxPacingRate() const {
   return sent_packet_manager_.MaxPacingRate();
 }
@@ -3000,6 +3009,7 @@ void QuicConnection::TearDownLocalConnectionState(
   FlushPackets();
   connected_ = false;
   DCHECK(visitor_ != nullptr);
+  sent_packet_manager_.OnConnectionClosed();
   visitor_->OnConnectionClosed(frame, source);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionClosed(frame, source);

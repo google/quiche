@@ -39,6 +39,12 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
       QuicTime ack_receive_time,
       QuicPacketNumber packet_number,
       QuicPacketNumber previous_largest_acked) = 0;
+
+  virtual void OnConfigNegotiated() = 0;
+
+  virtual void OnMinRttAvailable() = 0;
+
+  virtual void OnConnectionClosed() = 0;
 };
 
 }  // namespace quic

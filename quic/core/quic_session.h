@@ -624,6 +624,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool MaybeSetStreamPriority(QuicStreamId stream_id,
                               const spdy::SpdyStreamPrecedence& precedence);
 
+  void SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface> tuner) {
+    connection()->SetLossDetectionTuner(std::move(tuner));
+  }
+
  private:
   friend class test::QuicSessionPeer;
 

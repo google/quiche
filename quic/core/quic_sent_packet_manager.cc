@@ -339,6 +339,19 @@ void QuicSentPacketManager::AdjustNetworkParameters(
   }
 }
 
+void QuicSentPacketManager::SetLossDetectionTuner(
+    std::unique_ptr<LossDetectionTunerInterface> tuner) {
+  uber_loss_algorithm_.SetLossDetectionTuner(std::move(tuner));
+}
+
+void QuicSentPacketManager::OnConfigNegotiated() {
+  loss_algorithm_->OnConfigNegotiated();
+}
+
+void QuicSentPacketManager::OnConnectionClosed() {
+  loss_algorithm_->OnConnectionClosed();
+}
+
 void QuicSentPacketManager::SetHandshakeConfirmed() {
   if (!handshake_finished_) {
     handshake_finished_ = true;
@@ -951,7 +964,12 @@ bool QuicSentPacketManager::MaybeUpdateRTT(QuicPacketNumber largest_acked,
   }
 
   QuicTime::Delta send_delta = ack_receive_time - transmission_info.sent_time;
+  const bool min_rtt_available = !rtt_stats_.min_rtt().IsZero();
   rtt_stats_.UpdateRtt(send_delta, ack_delay_time, ack_receive_time);
+
+  if (!min_rtt_available && !rtt_stats_.min_rtt().IsZero()) {
+    loss_algorithm_->OnMinRttAvailable();
+  }
 
   return true;
 }

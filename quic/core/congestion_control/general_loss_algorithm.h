@@ -47,12 +47,31 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
                             QuicPacketNumber packet_number,
                             QuicPacketNumber previous_largest_acked) override;
 
+  void OnConfigNegotiated() override {
+    DCHECK(false)
+        << "Unexpected call to GeneralLossAlgorithm::OnConfigNegotiated";
+  }
+
+  void OnMinRttAvailable() override {
+    DCHECK(false)
+        << "Unexpected call to GeneralLossAlgorithm::OnMinRttAvailable";
+  }
+
+  void OnConnectionClosed() override {
+    DCHECK(false)
+        << "Unexpected call to GeneralLossAlgorithm::OnConnectionClosed";
+  }
+
   void SetPacketNumberSpace(PacketNumberSpace packet_number_space);
 
   int reordering_shift() const { return reordering_shift_; }
 
   void set_reordering_shift(int reordering_shift) {
     reordering_shift_ = reordering_shift;
+  }
+
+  void set_reordering_threshold(QuicPacketCount reordering_threshold) {
+    reordering_threshold_ = reordering_threshold;
   }
 
   bool use_adaptive_reordering_threshold() const {

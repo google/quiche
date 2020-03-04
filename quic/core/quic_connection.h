@@ -388,6 +388,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                                QuicTime::Delta rtt,
                                bool allow_cwnd_to_decrease);
 
+  // Install a loss detection tuner. Must be called before OnConfigNegotiated.
+  void SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface> tuner);
+  // Called by the session when session->is_configured() becomes true.
+  void OnConfigNegotiated();
+
   // Returns the max pacing rate for the connection.
   virtual QuicBandwidth MaxPacingRate() const;
 

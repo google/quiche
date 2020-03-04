@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_UBER_LOSS_ALGORITHM_H_
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -14,6 +15,28 @@ namespace test {
 class QuicSentPacketManagerPeer;
 
 }  // namespace test
+
+struct QUIC_EXPORT_PRIVATE LossDetectionParameters {
+  // See GeneralLossAlgorithm for the meaning of reordering_(shift|threshold).
+  quiche::QuicheOptional<int> reordering_shift;
+  quiche::QuicheOptional<QuicPacketCount> reordering_threshold;
+};
+
+class QUIC_EXPORT_PRIVATE LossDetectionTunerInterface {
+ public:
+  virtual ~LossDetectionTunerInterface() {}
+
+  // Start the tuning by choosing parameters and saving them into |*params|.
+  // Called near the start of a QUIC session, see the .cc file for exactly
+  // where.
+  virtual bool Start(LossDetectionParameters* params) = 0;
+
+  // Finish tuning. The tuner is expected to use the actual loss detection
+  // performance(for its definition of performance) to improve the parameter
+  // selection for future QUIC sessions.
+  // Called when a QUIC session closes.
+  virtual void Finish(const LossDetectionParameters& params) = 0;
+};
 
 // This class comprises multiple loss algorithms, each per packet number space.
 class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
@@ -41,8 +64,17 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
                             QuicPacketNumber packet_number,
                             QuicPacketNumber previous_largest_acked) override;
 
+  void SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface> tuner);
+  void OnConfigNegotiated() override;
+  void OnMinRttAvailable() override;
+  void OnConnectionClosed() override;
+
   // Sets reordering_shift for all packet number spaces.
   void SetReorderingShift(int reordering_shift);
+
+  // Sets reordering_threshold for all packet number spaces.
+  void SetReorderingThreshold(QuicPacketCount reordering_threshold);
 
   // Enable adaptive reordering threshold of all packet number spaces.
   void EnableAdaptiveReorderingThreshold();

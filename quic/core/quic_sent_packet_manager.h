@@ -151,6 +151,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void AdjustNetworkParameters(
       const SendAlgorithmInterface::NetworkParams& params);
 
+  void SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface> tuner);
+  void OnConfigNegotiated();
+  void OnConnectionClosed();
+
   // Retransmits the oldest pending packet there is still a tail loss probe
   // pending.  Invoked after OnRetransmissionTimeout.
   bool MaybeRetransmitTailLossProbe();
@@ -538,7 +543,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicPacketCount initial_congestion_window_;
   RttStats rtt_stats_;
   std::unique_ptr<SendAlgorithmInterface> send_algorithm_;
-  // Not owned. Always points to |general_loss_algorithm_| outside of tests.
+  // Not owned. Always points to |uber_loss_algorithm_| outside of tests.
   LossDetectionInterface* loss_algorithm_;
   UberLossAlgorithm uber_loss_algorithm_;
 

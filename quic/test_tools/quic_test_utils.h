@@ -997,6 +997,10 @@ class MockLossAlgorithm : public LossDetectionInterface {
                     QuicTime,
                     QuicPacketNumber,
                     QuicPacketNumber));
+
+  MOCK_METHOD0(OnConfigNegotiated, void());
+  MOCK_METHOD0(OnMinRttAvailable, void());
+  MOCK_METHOD0(OnConnectionClosed, void());
 };
 
 class MockAckListener : public QuicAckListenerInterface {

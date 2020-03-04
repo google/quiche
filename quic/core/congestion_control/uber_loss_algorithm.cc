@@ -66,9 +66,25 @@ void UberLossAlgorithm::SpuriousLossDetected(
                             packet_number, previous_largest_acked);
 }
 
+void UberLossAlgorithm::SetLossDetectionTuner(
+    std::unique_ptr<LossDetectionTunerInterface> /*tuner*/) {}
+
+void UberLossAlgorithm::OnConfigNegotiated() {}
+
+void UberLossAlgorithm::OnMinRttAvailable() {}
+
+void UberLossAlgorithm::OnConnectionClosed() {}
+
 void UberLossAlgorithm::SetReorderingShift(int reordering_shift) {
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     general_loss_algorithms_[i].set_reordering_shift(reordering_shift);
+  }
+}
+
+void UberLossAlgorithm::SetReorderingThreshold(
+    QuicPacketCount reordering_threshold) {
+  for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+    general_loss_algorithms_[i].set_reordering_threshold(reordering_threshold);
   }
 }
 
