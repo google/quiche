@@ -229,6 +229,28 @@ QuicVersionLabelVector CreateQuicVersionLabelVector(
   return out;
 }
 
+ParsedQuicVersionVector AllSupportedVersionsWithQuicCrypto() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(versions.empty()) << "No version with QUIC crypto found.";
+  return versions;
+}
+
+ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(versions.empty()) << "No version with QUIC crypto found.";
+  return versions;
+}
+
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     if (version_label == CreateQuicVersionLabel(version)) {

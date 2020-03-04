@@ -47,19 +47,6 @@ namespace {
 
 static const QuicStreamId kStreamId = 5;
 
-ParsedQuicVersionVector GetTestParams() {
-  ParsedQuicVersionVector test_versions;
-
-  for (const auto& version : CurrentSupportedVersions()) {
-    // TODO(b/150224094): Enable versions with TLS handshake.
-    if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-      test_versions.push_back(version);
-    }
-  }
-
-  return test_versions;
-}
-
 // MockQuicSession that does not create streams and writes data from
 // QuicStream to a string.
 class MockQuicSession : public QuicSession {
@@ -285,10 +272,12 @@ class QuartcStreamTest : public QuicTestWithParam<ParsedQuicVersion>,
   MockClock clock_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuartcStreamTest,
-                         ::testing::ValuesIn(GetTestParams()),
-                         ::testing::PrintToStringParamName());
+// TODO(b/150224094): Enable versions with TLS handshake.
+INSTANTIATE_TEST_SUITE_P(
+    Tests,
+    QuartcStreamTest,
+    ::testing::ValuesIn(CurrentSupportedVersionsWithQuicCrypto()),
+    ::testing::PrintToStringParamName());
 
 // Write an entire string.
 TEST_P(QuartcStreamTest, WriteDataWhole) {

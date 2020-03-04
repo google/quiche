@@ -47,11 +47,8 @@ std::string TestPacketOut(const std::string& body) {
 ParsedQuicVersionVector GetTestParams() {
   ParsedQuicVersionVector test_versions;
 
-  for (const auto& version : CurrentSupportedVersions()) {
-    // TODO(b/113130636): Make QBONE work with TLS.
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-      continue;
-    }
+  // TODO(b/113130636): Make QBONE work with TLS.
+  for (const auto& version : CurrentSupportedVersionsWithQuicCrypto()) {
     // QBONE requires MESSAGE frames
     if (!version.SupportsMessageFrames()) {
       continue;
