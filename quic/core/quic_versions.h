@@ -108,8 +108,10 @@ enum QuicTransportVersion {
                          // header format from draft-ietf-quic-invariants-06.
   QUIC_VERSION_50 = 50,  // Header protection and initial obfuscators.
   QUIC_VERSION_IETF_DRAFT_25 = 70,  // draft-ietf-quic-transport-25.
-  QUIC_VERSION_99 = 99,  // Dumping ground for IETF QUIC changes which are not
-                         // yet ready for production.
+  QUIC_VERSION_IETF_DRAFT_27 = 71,  // draft-ietf-quic-transport-27.
+  // Version 99 was a dumping ground for IETF QUIC changes which were not yet
+  // yet ready for production between 2018-02 and 2020-02.
+
   // QUIC_VERSION_RESERVED_FOR_NEGOTIATION is sent over the wire as ?a?a?a?a
   // which is part of a range reserved by the IETF for version negotiation
   // testing (see the "Versions" section of draft-ietf-quic-transport).
@@ -123,9 +125,6 @@ enum QuicTransportVersion {
 // Returns strings corresponding to enum names (e.g. QUIC_VERSION_6).
 QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
     QuicTransportVersion transport_version);
-
-// IETF draft version most closely approximated by TLS + v99.
-enum : int { kQuicIetfDraftVersion = 27 };
 
 // The crypto handshake protocols that can be used with QUIC.
 enum HandshakeProtocol {
@@ -158,8 +157,7 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     case PROTOCOL_QUIC_CRYPTO:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_IETF_DRAFT_25 &&
-             // We explicitly removed support for Q099 to reduce test load.
-             transport_version != QUIC_VERSION_99;
+             transport_version != QUIC_VERSION_IETF_DRAFT_27;
     case PROTOCOL_TLS1_3:
       // The TLS handshake is only deployable if CRYPTO frames are also used.
       // We explicitly removed support for T048 and T049 to reduce test load.
@@ -321,7 +319,7 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 // See go/new-quic-version for more details on how to roll out new versions.
 constexpr std::array<QuicTransportVersion, 7> SupportedTransportVersions() {
   return std::array<QuicTransportVersion, 7>(
-      {QUIC_VERSION_99, QUIC_VERSION_IETF_DRAFT_25, QUIC_VERSION_50,
+      {QUIC_VERSION_IETF_DRAFT_27, QUIC_VERSION_IETF_DRAFT_25, QUIC_VERSION_50,
        QUIC_VERSION_49, QUIC_VERSION_48, QUIC_VERSION_46, QUIC_VERSION_43});
 }
 
@@ -338,7 +336,7 @@ constexpr std::array<ParsedQuicVersion, 8> SupportedVersions() {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99),
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
   });

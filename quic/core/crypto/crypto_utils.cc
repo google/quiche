@@ -115,8 +115,8 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 
 namespace {
 
-static_assert(kQuicIetfDraftVersion == 27, "Salts do not match draft version");
 // Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-25#section-5.2
+// and https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-5.2
 const uint8_t kDraft25InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
                                        0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
                                        0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
@@ -162,9 +162,8 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
         case QUIC_VERSION_IETF_DRAFT_25:
           *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
           return kDraft25InitialSalt;
-        case QUIC_VERSION_99:
-          // ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99) uses the IETF
-          // salt.
+        case QUIC_VERSION_IETF_DRAFT_27:
+          // draft-27 uses the same salt as draft-25.
           *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
           return kDraft25InitialSalt;
         default:
@@ -183,7 +182,7 @@ const char kPreSharedKeyLabel[] = "QUIC PSK";
 
 // Retry Integrity Protection Keys and Nonces.
 // https://tools.ietf.org/html/draft-ietf-quic-tls-25#section-5.8
-static_assert(kQuicIetfDraftVersion == 27, "Keys do not match draft version");
+// https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-5.8
 const uint8_t kDraft25RetryIntegrityKey[] = {0x4d, 0x32, 0xec, 0xdb, 0x2a, 0x21,
                                              0x33, 0xc8, 0x41, 0xe4, 0x04, 0x3d,
                                              0xf2, 0x7d, 0x44, 0x30};
@@ -218,7 +217,8 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
   }
   if (version ==
           ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25) ||
-      version == ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99)) {
+      version ==
+          ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27)) {
     *key = quiche::QuicheStringPiece(
         reinterpret_cast<const char*>(kDraft25RetryIntegrityKey),
         QUICHE_ARRAYSIZE(kDraft25RetryIntegrityKey));

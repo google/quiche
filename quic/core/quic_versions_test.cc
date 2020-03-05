@@ -269,7 +269,7 @@ TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
 TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_t099, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_27, true);
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
@@ -290,7 +290,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
   expected_parsed_versions.push_back(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
   expected_parsed_versions.push_back(
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99));
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
   expected_parsed_versions.push_back(
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
   expected_parsed_versions.push_back(
@@ -304,7 +304,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {
 TEST_F(QuicVersionsTest, FilterSupportedVersionsNo99) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
+  SetQuicReloadableFlag(quic_enable_version_draft_27, false);
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
@@ -336,7 +336,7 @@ TEST_F(QuicVersionsTest, FilterSupportedVersionsNo99) {
 TEST_F(QuicVersionsTest, FilterSupportedVersionsNoFlags) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
+  SetQuicReloadableFlag(quic_enable_version_draft_27, false);
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
   SetQuicReloadableFlag(quic_enable_version_t050, false);
   SetQuicReloadableFlag(quic_disable_version_q050, false);
@@ -408,7 +408,7 @@ TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
   EXPECT_EQ(QUIC_VERSION_49, 49);
   EXPECT_EQ(QUIC_VERSION_50, 50);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_25, 70);
-  EXPECT_EQ(QUIC_VERSION_99, 99);
+  EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_27, 71);
 }
 
 TEST_F(QuicVersionsTest, AlpnForVersion) {
@@ -424,24 +424,22 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50);
   ParsedQuicVersion parsed_version_draft_25 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25);
-  ParsedQuicVersion parsed_version_t099 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  ParsedQuicVersion parsed_version_draft_27 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27);
 
   EXPECT_EQ("h3-Q048", AlpnForVersion(parsed_version_q048));
   EXPECT_EQ("h3-Q049", AlpnForVersion(parsed_version_q049));
   EXPECT_EQ("h3-Q050", AlpnForVersion(parsed_version_q050));
   EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
   EXPECT_EQ("h3-25", AlpnForVersion(parsed_version_draft_25));
-  EXPECT_EQ("h3-27", AlpnForVersion(parsed_version_t099));
-  static_assert(kQuicIetfDraftVersion == 27,
-                "ALPN does not match draft version");
+  EXPECT_EQ("h3-27", AlpnForVersion(parsed_version_draft_27));
 }
 
 TEST_F(QuicVersionsTest, QuicEnableVersion) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  ParsedQuicVersion parsed_version_t099 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
+  ParsedQuicVersion parsed_version_draft_27 =
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27);
   ParsedQuicVersion parsed_version_draft_25 =
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25);
   ParsedQuicVersion parsed_version_q050 =
@@ -451,9 +449,9 @@ TEST_F(QuicVersionsTest, QuicEnableVersion) {
 
   {
     QuicFlagSaver flag_saver;
-    SetQuicReloadableFlag(quic_enable_version_t099, false);
-    QuicEnableVersion(parsed_version_t099);
-    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_t099));
+    SetQuicReloadableFlag(quic_enable_version_draft_27, false);
+    QuicEnableVersion(parsed_version_draft_27);
+    EXPECT_TRUE(GetQuicReloadableFlag(quic_enable_version_draft_27));
   }
 
   {

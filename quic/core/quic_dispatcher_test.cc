@@ -1277,7 +1277,6 @@ TEST_P(QuicDispatcherTestAllVersions, DoNotProcessSmallPacket) {
 }
 
 TEST_P(QuicDispatcherTestAllVersions, ProcessSmallCoalescedPacket) {
-  SetQuicReloadableFlag(quic_enable_version_t099, true);
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
@@ -2109,9 +2108,8 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
 
 // Regression test for b/117874922.
 TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
-  // Turn off version T099, so the preferred version is not supported by the
-  // server.
-  SetQuicReloadableFlag(quic_enable_version_t099, false);
+  // Ensure the preferred version is not supported by the server.
+  SetQuicReloadableFlag(quic_enable_version_draft_27, false);
   uint64_t last_connection_id = kMaxNumSessionsToCreate + 5;
   ParsedQuicVersionVector supported_versions = CurrentSupportedVersions();
   for (uint64_t conn_id = 1; conn_id <= last_connection_id; ++conn_id) {

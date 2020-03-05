@@ -155,7 +155,7 @@ bool ParsedQuicVersion::HasHandshakeDone() const {
 
 bool ParsedQuicVersion::HasVarIntTransportParams() const {
   DCHECK(IsKnown());
-  return transport_version >= QUIC_VERSION_99;
+  return transport_version >= QUIC_VERSION_IETF_DRAFT_27;
 }
 
 bool VersionHasLengthPrefixedConnectionIds(
@@ -202,11 +202,11 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
       }
       QUIC_BUG << "QUIC_VERSION_IETF_DRAFT_25 requires TLS";
       return 0;
-    case QUIC_VERSION_99:
+    case QUIC_VERSION_IETF_DRAFT_27:
       if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
-        return MakeVersionLabel(0xff, 0x00, 0x00, kQuicIetfDraftVersion);
+        return MakeVersionLabel(0xff, 0x00, 0x00, 27);
       }
-      QUIC_BUG << "Invalid ParsedQuicVersion: Q099";
+      QUIC_BUG << "QUIC_VERSION_IETF_DRAFT_27 requires TLS";
       return 0;
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
       return CreateRandomVersionLabelForNegotiation();
@@ -280,11 +280,6 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
       return version;
     }
   }
-  // Still recognize T099 even if flag quic_ietf_draft_version has been changed.
-  if (GetQuicReloadableFlag(quic_enable_version_t099) &&
-      version_string == "T099") {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_99);
-  }
   // Reading from the client so this should not be considered an ERROR.
   QUIC_DLOG(INFO) << "Unsupported QUIC version string: \"" << version_string
                   << "\".";
@@ -313,9 +308,9 @@ ParsedQuicVersionVector FilterSupportedVersions(
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (ParsedQuicVersion version : versions) {
-    if (version.transport_version == QUIC_VERSION_99) {
+    if (version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {
       QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3);
-      if (GetQuicReloadableFlag(quic_enable_version_t099)) {
+      if (GetQuicReloadableFlag(quic_enable_version_draft_27)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
@@ -448,7 +443,7 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_49);
     RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_25);
-    RETURN_STRING_LITERAL(QUIC_VERSION_99);
+    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_27);
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
@@ -555,9 +550,8 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
     if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
       return "h3-25";
     }
-    if (parsed_version.transport_version == QUIC_VERSION_99) {
-      return "h3-" +
-             quiche::QuicheTextUtils::Uint64ToString(kQuicIetfDraftVersion);
+    if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {
+      return "h3-27";
     }
   }
   return "h3-" + ParsedQuicVersionToString(parsed_version);
@@ -570,9 +564,9 @@ void QuicVersionInitializeSupportForIetfDraft() {
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  if (parsed_version.transport_version == QUIC_VERSION_99) {
+  if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {
     QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_enable_version_t099, true);
+    SetQuicReloadableFlag(quic_enable_version_draft_27, true);
   } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
     QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
     SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
