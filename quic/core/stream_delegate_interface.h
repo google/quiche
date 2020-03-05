@@ -32,10 +32,10 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
       TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) = 0;
   // Called to write crypto data.
-  virtual size_t WriteCryptoData(EncryptionLevel level,
-                                 size_t write_length,
-                                 QuicStreamOffset offset,
-                                 TransmissionType type) = 0;
+  virtual size_t SendCryptoData(EncryptionLevel level,
+                                size_t write_length,
+                                QuicStreamOffset offset,
+                                TransmissionType type) = 0;
   // Called on stream creation.
   virtual void RegisterStreamPriority(
       QuicStreamId id,

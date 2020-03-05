@@ -173,7 +173,7 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
     return;
   }
 
-  size_t bytes_consumed = stream_delegate()->WriteCryptoData(
+  size_t bytes_consumed = stream_delegate()->SendCryptoData(
       level, data.length(), offset, NOT_RETRANSMISSION);
   send_buffer->OnStreamDataConsumed(bytes_consumed);
 }
@@ -248,7 +248,7 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
     while (send_buffer->HasPendingRetransmission()) {
       auto pending = send_buffer->NextPendingRetransmission();
-      size_t bytes_consumed = stream_delegate()->WriteCryptoData(
+      size_t bytes_consumed = stream_delegate()->SendCryptoData(
           level, pending.length, pending.offset, HANDSHAKE_RETRANSMISSION);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
       if (bytes_consumed < pending.length) {
@@ -434,7 +434,7 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
   for (const auto& interval : retransmission) {
     size_t retransmission_offset = interval.min();
     size_t retransmission_length = interval.max() - interval.min();
-    size_t bytes_consumed = stream_delegate()->WriteCryptoData(
+    size_t bytes_consumed = stream_delegate()->SendCryptoData(
         crypto_frame->level, retransmission_length, retransmission_offset,
         type);
     send_buffer->OnStreamDataRetransmitted(retransmission_offset,
@@ -457,7 +457,7 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
       // No buffered data for this encryption level.
       continue;
     }
-    size_t bytes_consumed = stream_delegate()->WriteCryptoData(
+    size_t bytes_consumed = stream_delegate()->SendCryptoData(
         level, data_length, send_buffer->stream_bytes_written(),
         NOT_RETRANSMISSION);
     send_buffer->OnStreamDataConsumed(bytes_consumed);

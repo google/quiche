@@ -744,10 +744,10 @@ QuicConsumedData QuicSession::WritevData(
   return data;
 }
 
-size_t QuicSession::WriteCryptoData(EncryptionLevel level,
-                                    size_t write_length,
-                                    QuicStreamOffset offset,
-                                    TransmissionType /*type*/) {
+size_t QuicSession::SendCryptoData(EncryptionLevel level,
+                                   size_t write_length,
+                                   QuicStreamOffset offset,
+                                   TransmissionType /*type*/) {
   DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
   // TODO(b/136274541): Set the transmission type here.
   const auto current_level = connection()->encryption_level();

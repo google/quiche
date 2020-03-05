@@ -277,10 +277,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
       TransmissionType type,
       quiche::QuicheOptional<EncryptionLevel> level) override;
 
-  size_t WriteCryptoData(EncryptionLevel level,
-                         size_t write_length,
-                         QuicStreamOffset offset,
-                         TransmissionType type) override;
+  size_t SendCryptoData(EncryptionLevel level,
+                        size_t write_length,
+                        QuicStreamOffset offset,
+                        TransmissionType type) override;
 
   // Called by the QuicCryptoStream when a handshake message is sent.
   virtual void OnCryptoHandshakeMessageSent(
