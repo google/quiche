@@ -151,8 +151,7 @@ int TlsConnection::SetReadSecretCallback(SSL* ssl,
                                          size_t secret_length) {
   // TODO(nharper): replace this vector with a span (which unfortunately doesn't
   // yet exist in quic/platform/api).
-  std::vector<uint8_t> secret_vec(secret_length);
-  secret_vec.assign(secret, secret + secret_length);
+  std::vector<uint8_t> secret_vec(secret, secret + secret_length);
   TlsConnection::Delegate* delegate = ConnectionFromSsl(ssl)->delegate_;
   if (!delegate->SetReadSecret(QuicEncryptionLevel(level), cipher,
                                secret_vec)) {
@@ -169,8 +168,7 @@ int TlsConnection::SetWriteSecretCallback(SSL* ssl,
                                           size_t secret_length) {
   // TODO(nharper): replace this vector with a span (which unfortunately doesn't
   // yet exist in quic/platform/api).
-  std::vector<uint8_t> secret_vec(secret_length);
-  secret_vec.assign(secret, secret + secret_length);
+  std::vector<uint8_t> secret_vec(secret, secret + secret_length);
   TlsConnection::Delegate* delegate = ConnectionFromSsl(ssl)->delegate_;
   delegate->SetWriteSecret(QuicEncryptionLevel(level), cipher, secret_vec);
   return 1;
