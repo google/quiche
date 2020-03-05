@@ -1171,6 +1171,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
   QuicStreamId id;
+  std::string error_message;
   // Initialize HTTP/3 control stream.
   if (VersionUsesHttp3(transport_version())) {
     id = GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -1178,17 +1179,19 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
 
     QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
     session_.OnStreamFrame(data1);
+    error_message = "Attempt to reset receive control stream";
   } else {
     id = QuicUtils::GetHeadersStreamId(transport_version());
+    error_message = "Attempt to reset headers stream";
   }
 
   // Send two bytes of payload.
   QuicRstStreamFrame rst1(kInvalidControlFrameId, id,
                           QUIC_ERROR_PROCESSING_STREAM, 0);
-  EXPECT_CALL(*connection_,
-              CloseConnection(
-                  QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
-                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_INVALID_STREAM_ID, error_message,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnRstStream(rst1);
 }
 

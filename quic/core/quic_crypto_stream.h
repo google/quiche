@@ -57,6 +57,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   bool OnCryptoFrameAcked(const QuicCryptoFrame& frame,
                           QuicTime::Delta ack_delay_time);
 
+  void OnStreamReset(const QuicRstStreamFrame& frame) override;
+
   // Performs key extraction to derive a new secret of |result_len| bytes
   // dependent on |label|, |context|, and the stream's negotiated subkey secret.
   // Returns false if the handshake has not been confirmed or the parameters are

@@ -194,6 +194,11 @@ bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
   return newly_acked_length > 0;
 }
 
+void QuicCryptoStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
+  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                   "Attempt to reset crypto stream");
+}
+
 void QuicCryptoStream::NeuterUnencryptedStreamData() {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     for (const auto& interval : bytes_consumed_[ENCRYPTION_INITIAL]) {

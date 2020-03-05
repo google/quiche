@@ -19,6 +19,8 @@ class QUIC_EXPORT_PRIVATE QboneControlStreamBase : public QuicStream {
 
   void OnDataAvailable() override;
 
+  void OnStreamReset(const QuicRstStreamFrame& frame) override;
+
  protected:
   virtual void OnMessage(const std::string& data) = 0;
   bool SendMessage(const proto2::Message& proto);

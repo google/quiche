@@ -155,4 +155,9 @@ void QuicHeadersStream::OnDataBuffered(
   }
 }
 
+void QuicHeadersStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
+  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                   "Attempt to reset headers stream");
+}
+
 }  // namespace quic

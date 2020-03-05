@@ -65,4 +65,10 @@ bool QboneControlStreamBase::SendMessage(const proto2::Message& proto) {
   return true;
 }
 
+void QboneControlStreamBase::OnStreamReset(
+    const QuicRstStreamFrame& /*frame*/) {
+  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
+                                   "Attempt to reset control stream");
+}
+
 }  // namespace quic

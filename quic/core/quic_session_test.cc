@@ -1472,27 +1472,6 @@ TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
   session_.OnStreamFrame(data1);
 }
 
-TEST_P(QuicSessionTestServer, OnRstStreamStaticStreamId) {
-  if (VersionUsesHttp3(connection_->transport_version())) {
-    // The test relies on headers stream, which no longer exists in IETF QUIC.
-    return;
-  }
-  QuicStreamId headers_stream_id =
-      QuicUtils::GetHeadersStreamId(connection_->transport_version());
-  std::unique_ptr<TestStream> fake_headers_stream =
-      std::make_unique<TestStream>(headers_stream_id, &session_,
-                                   /*is_static*/ true, BIDIRECTIONAL);
-  QuicSessionPeer::ActivateStream(&session_, std::move(fake_headers_stream));
-  // Send two bytes of payload.
-  QuicRstStreamFrame rst1(kInvalidControlFrameId, headers_stream_id,
-                          QUIC_ERROR_PROCESSING_STREAM, 0);
-  EXPECT_CALL(*connection_,
-              CloseConnection(
-                  QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
-                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  session_.OnRstStream(rst1);
-}
-
 TEST_P(QuicSessionTestServer, OnStreamFrameInvalidStreamId) {
   // Send two bytes of payload.
   QuicStreamFrame data1(

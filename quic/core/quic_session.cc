@@ -366,12 +366,6 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
     HandleRstOnValidNonexistentStream(frame);
     return;  // Errors are handled by GetOrCreateStream.
   }
-  if (stream->is_static()) {
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Attempt to reset a static stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
   stream->OnStreamReset(frame);
 }
 

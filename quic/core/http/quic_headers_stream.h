@@ -50,6 +50,8 @@ class QUIC_EXPORT_PRIVATE QuicHeadersStream : public QuicStream {
                                   QuicByteCount data_length,
                                   bool fin_retransmitted) override;
 
+  void OnStreamReset(const QuicRstStreamFrame& frame) override;
+
  private:
   friend class test::QuicHeadersStreamPeer;
 
