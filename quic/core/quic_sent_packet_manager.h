@@ -345,10 +345,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return largest_packet_peer_knows_is_acked_;
   }
 
-  // TODO(fayang): Stop exposing this when deprecating
-  // quic_use_get_handshake_state.
-  bool handshake_finished() const { return handshake_finished_; }
-
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
   }
