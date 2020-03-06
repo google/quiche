@@ -391,9 +391,16 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     // TCP uses min_rtt instead of a full round:
     //   HasPhaseLasted(model_->MinRtt(), congestion_event)
   } else if (cycle_.rounds_in_phase > 0) {
-    QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
+    const QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
+    QuicByteCount queuing_threshold_extra_bytes = 2 * kDefaultTCPMSS;
+    if (add_ack_height_to_queueing_threshold_) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_bbr2_add_ack_height_to_queueing_threshold);
+      queuing_threshold_extra_bytes += model_->MaxAckHeight();
+    }
     QuicByteCount queuing_threshold =
-        (Params().probe_bw_probe_inflight_gain * bdp) + 2 * kDefaultTCPMSS;
+        (Params().probe_bw_probe_inflight_gain * bdp) +
+        queuing_threshold_extra_bytes;
     is_queuing = prior_in_flight >= queuing_threshold;
     QUIC_DVLOG(3) << sender_
                   << " Checking if building up a queue. prior_in_flight:"

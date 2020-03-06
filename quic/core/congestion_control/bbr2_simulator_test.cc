@@ -409,7 +409,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer) {
 
   // The margin here is quite high, since there exists a possibility that the
   // connection just exited high gain cycle.
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 0.2f);
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 1.0f);
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
@@ -487,7 +487,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferAckDecimation) {
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
-  EXPECT_GE(params.RTT() * 2, rtt_stats()->smoothed_rtt());
+  EXPECT_GE(params.RTT() * 3, rtt_stats()->smoothed_rtt());
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.1f);
 }
 
