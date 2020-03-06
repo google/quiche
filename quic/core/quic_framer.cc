@@ -468,12 +468,17 @@ size_t QuicFramer::GetMessageFrameSize(QuicTransportVersion version,
 // static
 size_t QuicFramer::GetMinAckFrameSize(
     QuicTransportVersion version,
+    const QuicAckFrame& ack_frame,
     QuicPacketNumberLength largest_observed_length) {
   if (VersionHasIetfQuicFrames(version)) {
     // The minimal ack frame consists of the following four fields: Largest
     // Acknowledged, ACK Delay, ACK Block Count, and First ACK Block. Minimum
     // size of each is 1 byte.
     return kQuicFrameTypeSize + 4;
+  }
+  if (GetQuicReloadableFlag(quic_use_ack_frame_to_get_min_size)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_ack_frame_to_get_min_size);
+    largest_observed_length = GetMinPacketNumberLength(LargestAcked(ack_frame));
   }
   size_t min_size = kQuicFrameTypeSize + largest_observed_length +
                     kQuicDeltaTimeLargestObservedSize;
@@ -793,6 +798,7 @@ size_t QuicFramer::GetSerializedFrameLength(
   bool can_truncate =
       frame.type == ACK_FRAME &&
       free_bytes >= GetMinAckFrameSize(version_.transport_version,
+                                       *frame.ack_frame,
                                        PACKET_6BYTE_PACKET_NUMBER);
   if (can_truncate) {
     // Truncate the frame so the packet will not exceed kMaxOutgoingPacketSize.
@@ -4675,7 +4681,7 @@ size_t QuicFramer::GetAckFrameSize(
       GetMinPacketNumberLength(QuicPacketNumber(ack_info.max_block_length));
 
   ack_size =
-      GetMinAckFrameSize(version_.transport_version, largest_acked_length);
+      GetMinAckFrameSize(version_.transport_version, ack, largest_acked_length);
   // First ack block length.
   ack_size += ack_block_length;
   if (ack_info.num_ack_blocks != 0) {
@@ -5140,7 +5146,8 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
   // Calculate available bytes for timestamps and ack blocks.
   int32_t available_timestamp_and_ack_block_bytes =
       writer->capacity() - writer->length() - ack_block_length -
-      GetMinAckFrameSize(version_.transport_version, largest_acked_length) -
+      GetMinAckFrameSize(version_.transport_version, frame,
+                         largest_acked_length) -
       (new_ack_info.num_ack_blocks != 0 ? kNumberOfAckBlocksSize : 0);
   DCHECK_LE(0, available_timestamp_and_ack_block_bytes);
 
