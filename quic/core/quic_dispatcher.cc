@@ -414,6 +414,26 @@ bool QuicDispatcher::MaybeDispatchPacket(
   }
 
   // The packet has an unknown connection ID.
+  if (!accept_new_connections_ && packet_info.version_flag) {
+    // If not accepting new connections, reject packets with version which can
+    // potentially result in new connection creation. But if the packet doesn't
+    // have version flag, leave it to ValidityChecks() to reset it.
+    // By adding the connection to time wait list, following packets on this
+    // connection will not reach ShouldAcceptNewConnections().
+    StatelesslyTerminateConnection(
+        packet_info.destination_connection_id, packet_info.form,
+        packet_info.version_flag, packet_info.use_length_prefix,
+        packet_info.version, QUIC_HANDSHAKE_FAILED,
+        "Stop accepting new connections",
+        quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
+    // Time wait list will reject the packet correspondingly..
+    time_wait_list_manager()->ProcessPacket(
+        packet_info.self_address, packet_info.peer_address,
+        packet_info.destination_connection_id, packet_info.form,
+        GetPerPacketContext());
+    OnNewConnectionRejected();
+    return true;
+  }
 
   // Unless the packet provides a version, assume that we can continue
   // processing using our preferred version.
@@ -590,8 +610,15 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   session_map_.erase(it);
 }
 
+void QuicDispatcher::StartAcceptingNewConnections() {
+  accept_new_connections_ = true;
+}
+
 void QuicDispatcher::StopAcceptingNewConnections() {
   accept_new_connections_ = false;
+  // No more CHLO will arrive and buffered CHLOs shouldn't be able to create
+  // connections.
+  buffered_packets_.DiscardAllPackets();
 }
 
 std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
@@ -870,22 +897,6 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
 
 void QuicDispatcher::ProcessChlo(const std::string& alpn,
                                  ReceivedPacketInfo* packet_info) {
-  if (!accept_new_connections_) {
-    // Don't any create new connection.
-    QUIC_CODE_COUNT(quic_reject_stop_accepting_new_connections);
-    StatelesslyTerminateConnection(
-        packet_info->destination_connection_id, packet_info->form,
-        /*version_flag=*/true, packet_info->use_length_prefix,
-        packet_info->version, QUIC_HANDSHAKE_FAILED,
-        "Stop accepting new connections",
-        quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
-    // Time wait list will reject the packet correspondingly.
-    time_wait_list_manager()->ProcessPacket(
-        packet_info->self_address, packet_info->peer_address,
-        packet_info->destination_connection_id, packet_info->form,
-        GetPerPacketContext());
-    return;
-  }
   if (!buffered_packets_.HasBufferedPackets(
           packet_info->destination_connection_id) &&
       !ShouldCreateOrBufferPacketForConnection(*packet_info)) {

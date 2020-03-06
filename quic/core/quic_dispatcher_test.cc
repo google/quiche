@@ -1324,6 +1324,72 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessSmallCoalescedPacket) {
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
 }
 
+TEST_P(QuicDispatcherTestAllVersions, StopAcceptingNewConnections) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(1), client_address,
+                                Eq(ExpectedAlpn()), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, TestConnectionId(1), client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+        ValidatePacket(TestConnectionId(1), packet);
+      })));
+  ProcessPacket(client_address, TestConnectionId(1), true, SerializeCHLO());
+
+  dispatcher_->StopAcceptingNewConnections();
+  EXPECT_FALSE(dispatcher_->accept_new_connections());
+
+  // No more new connections afterwards.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(2), client_address,
+                                Eq(ExpectedAlpn()), _))
+      .Times(0u);
+  ProcessPacket(client_address, TestConnectionId(2), true, SerializeCHLO());
+
+  // Existing connections should be able to continue.
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(1u)
+      .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+        ValidatePacket(TestConnectionId(1), packet);
+      })));
+  ProcessPacket(client_address, TestConnectionId(1), false, "data");
+}
+
+TEST_P(QuicDispatcherTestAllVersions, StartAcceptingNewConnections) {
+  dispatcher_->StopAcceptingNewConnections();
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  // No more new connections afterwards.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(2), client_address,
+                                Eq(ExpectedAlpn()), _))
+      .Times(0u);
+  ProcessPacket(client_address, TestConnectionId(2), true, SerializeCHLO());
+
+  dispatcher_->StartAcceptingNewConnections();
+  EXPECT_TRUE(dispatcher_->accept_new_connections());
+
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(TestConnectionId(1), client_address,
+                                Eq(ExpectedAlpn()), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, TestConnectionId(1), client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+        ValidatePacket(TestConnectionId(1), packet);
+      })));
+  ProcessPacket(client_address, TestConnectionId(1), true, SerializeCHLO());
+}
+
 // Verify the stopgap test: Packets with truncated connection IDs should be
 // dropped.
 class QuicDispatcherTestStrayPacketConnectionId

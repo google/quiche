@@ -139,6 +139,15 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Return true if there is CHLO buffered.
   virtual bool HasChlosBuffered() const;
 
+  // Start accepting new ConnectionIds.
+  void StartAcceptingNewConnections();
+
+  // Stop accepting new ConnectionIds, either as a part of the lame
+  // duck process or because explicitly configured.
+  void StopAcceptingNewConnections();
+
+  bool accept_new_connections() const { return accept_new_connections_; }
+
  protected:
   virtual std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
@@ -251,8 +260,6 @@ class QUIC_NO_EXPORT QuicDispatcher
                               QuicConnection* connection,
                               ConnectionCloseSource source);
 
-  void StopAcceptingNewConnections();
-
   // Called to terminate a connection statelessly. Depending on |format|, either
   // 1) send connection close with |error_code| and |error_details| and add
   // connection to time wait list or 2) directly add connection to time wait
@@ -287,6 +294,9 @@ class QUIC_NO_EXPORT QuicDispatcher
     allow_short_initial_server_connection_ids_ =
         allow_short_initial_server_connection_ids;
   }
+
+  // Called if a packet from an unseen connection is reset or rejected.
+  virtual void OnNewConnectionRejected() {}
 
  private:
   friend class test::QuicDispatcherPeer;
@@ -365,7 +375,8 @@ class QUIC_NO_EXPORT QuicDispatcher
   // event loop. When reaches 0, it means can't create sessions for now.
   int16_t new_sessions_allowed_per_event_loop_;
 
-  // True if this dispatcher is not draining.
+  // True if this dispatcher is accepting new ConnectionIds (new client
+  // connections), false otherwise.
   bool accept_new_connections_;
 
   // If false, the dispatcher follows the IETF spec and rejects packets with

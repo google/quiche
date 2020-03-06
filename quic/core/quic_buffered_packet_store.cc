@@ -175,6 +175,12 @@ void QuicBufferedPacketStore::DiscardPackets(QuicConnectionId connection_id) {
   connections_with_chlo_.erase(connection_id);
 }
 
+void QuicBufferedPacketStore::DiscardAllPackets() {
+  undecryptable_packets_.clear();
+  connections_with_chlo_.clear();
+  expiration_alarm_->Cancel();
+}
+
 void QuicBufferedPacketStore::OnExpirationTimeout() {
   QuicTime expiration_time = clock_->ApproximateNow() - connection_life_span_;
   while (!undecryptable_packets_.empty()) {

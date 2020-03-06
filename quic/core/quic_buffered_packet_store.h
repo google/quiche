@@ -122,6 +122,9 @@ class QUIC_EXPORT_PRIVATE QuicBufferedPacketStore {
   // Discards packets buffered for |connection_id|, if any.
   void DiscardPackets(QuicConnectionId connection_id);
 
+  // Discards all the packets.
+  void DiscardAllPackets();
+
   // Examines how long packets have been buffered in the store for each
   // connection. If they stay too long, removes them for new coming packets and
   // calls |visitor_|'s OnPotentialConnectionExpire().
