@@ -15,7 +15,9 @@ namespace quic {
 namespace test {
 namespace {
 
-using testing::_;
+using ::testing::_;
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 
 class QuicVersionsTest : public QuicTest {
  protected:
@@ -152,19 +154,110 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
             ParseQuicVersionString("Q043"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
+            ParseQuicVersionString("QUIC_VERSION_46"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
+            ParseQuicVersionString("46"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
             ParseQuicVersionString("Q046"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
             ParseQuicVersionString("Q048"));
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
             ParseQuicVersionString("Q050"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
+            ParseQuicVersionString("50"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
+            ParseQuicVersionString("h3-Q050"));
 
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString(""));
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString("Q 46"));
   EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString("Q046 "));
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString("99"));
+  EXPECT_EQ(UnsupportedQuicVersion(), ParseQuicVersionString("70"));
 
-  // Test a TLS version:
   EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
             ParseQuicVersionString("T050"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
+            ParseQuicVersionString("h3-T050"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
+            ParseQuicVersionString("ff00001b"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
+            ParseQuicVersionString("h3-27"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
+            ParseQuicVersionString("ff000019"));
+  EXPECT_EQ(ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
+            ParseQuicVersionString("h3-25"));
+}
+
+TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
+  ParsedQuicVersion version_q046(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46);
+  ParsedQuicVersion version_q050(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50);
+  ParsedQuicVersion version_t050(PROTOCOL_TLS1_3, QUIC_VERSION_50);
+  ParsedQuicVersion version_draft_25(PROTOCOL_TLS1_3,
+                                     QUIC_VERSION_IETF_DRAFT_25);
+  ParsedQuicVersion version_draft_27(PROTOCOL_TLS1_3,
+                                     QUIC_VERSION_IETF_DRAFT_27);
+
+  EXPECT_THAT(ParseQuicVersionVectorString(""), IsEmpty());
+
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-Q050"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-T050"),
+              ElementsAre(version_t050));
+
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-25, h3-27"),
+              ElementsAre(version_draft_25, version_draft_27));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-25,h3-27"),
+              ElementsAre(version_draft_25, version_draft_27));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-25,h3-27,h3-25"),
+              ElementsAre(version_draft_25, version_draft_27));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-25,h3-27, h3-25"),
+              ElementsAre(version_draft_25, version_draft_27));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-27,h3-25"),
+              ElementsAre(version_draft_27, version_draft_25));
+
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-27,50"),
+              ElementsAre(version_draft_27, version_q050));
+
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-Q050, h3-T050"),
+              ElementsAre(version_q050, version_t050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-T050, h3-Q050"),
+              ElementsAre(version_t050, version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50,h3-T050"),
+              ElementsAre(version_q050, version_t050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-T050,QUIC_VERSION_50"),
+              ElementsAre(version_t050, version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50, h3-T050"),
+              ElementsAre(version_q050, version_t050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-T050, QUIC_VERSION_50"),
+              ElementsAre(version_t050, version_q050));
+
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50,QUIC_VERSION_46"),
+              ElementsAre(version_q050, version_q046));
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_46,QUIC_VERSION_50"),
+              ElementsAre(version_q046, version_q050));
+
+  // Regression test for https://crbug.com/1044952.
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50, QUIC_VERSION_50"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-Q050, h3-Q050"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-T050, h3-T050"),
+              ElementsAre(version_t050));
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-Q050, QUIC_VERSION_50"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString(
+                  "QUIC_VERSION_50, h3-Q050, QUIC_VERSION_50, h3-Q050"),
+              ElementsAre(version_q050));
+  EXPECT_THAT(ParseQuicVersionVectorString("QUIC_VERSION_50, h3-T050, h3-Q050"),
+              ElementsAre(version_q050, version_t050));
+
+  EXPECT_THAT(ParseQuicVersionVectorString("99"), IsEmpty());
+  EXPECT_THAT(ParseQuicVersionVectorString("70"), IsEmpty());
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-01"), IsEmpty());
+  EXPECT_THAT(ParseQuicVersionVectorString("h3-01,h3-25"),
+              ElementsAre(version_draft_25));
 }
 
 TEST_F(QuicVersionsTest, CreateQuicVersionLabel) {

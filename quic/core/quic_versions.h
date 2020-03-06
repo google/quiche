@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -399,10 +400,17 @@ ParsedVersionsToTransportVersions(const ParsedQuicVersionVector& versions);
 QUIC_EXPORT_PRIVATE ParsedQuicVersion
 ParseQuicVersionLabel(QuicVersionLabel version_label);
 
-// Parses a QUIC version string such as "Q043" or "T099".
-// Also supports parsing numbers such as "44".
+// Parses a QUIC version string such as "Q043" or "T050". Also supports parsing
+// ALPN such as "h3-25" or "h3-Q050". For PROTOCOL_QUIC_CRYPTO versions, also
+// supports parsing numbers such as "46".
 QUIC_EXPORT_PRIVATE ParsedQuicVersion
-ParseQuicVersionString(std::string version_string);
+ParseQuicVersionString(quiche::QuicheStringPiece version_string);
+
+// Parses a comma-separated list of QUIC version strings. Supports parsing by
+// label, ALPN and numbers for PROTOCOL_QUIC_CRYPTO. Skips unknown versions.
+// For example: "h3-25,Q050,46".
+QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
+ParseQuicVersionVectorString(quiche::QuicheStringPiece versions_string);
 
 // Constructs a QuicVersionLabel from the provided ParsedQuicVersion.
 QUIC_EXPORT_PRIVATE QuicVersionLabel

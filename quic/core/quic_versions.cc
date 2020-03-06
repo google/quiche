@@ -263,7 +263,8 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   return UnsupportedQuicVersion();
 }
 
-ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
+ParsedQuicVersion ParseQuicVersionString(
+    quiche::QuicheStringPiece version_string) {
   if (version_string.empty()) {
     return UnsupportedQuicVersion();
   }
@@ -271,12 +272,26 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
   if (quiche::QuicheTextUtils::StringToInt(version_string,
                                            &quic_version_number) &&
       quic_version_number > 0) {
-    return ParsedQuicVersion(
-        PROTOCOL_QUIC_CRYPTO,
-        static_cast<QuicTransportVersion>(quic_version_number));
+    QuicTransportVersion transport_version =
+        static_cast<QuicTransportVersion>(quic_version_number);
+    bool transport_version_is_supported = false;
+    for (QuicTransportVersion transport_vers : SupportedTransportVersions()) {
+      if (transport_vers == transport_version) {
+        transport_version_is_supported = true;
+        break;
+      }
+    }
+    if (!transport_version_is_supported ||
+        !ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
+      return UnsupportedQuicVersion();
+    }
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version);
   }
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version_string == ParsedQuicVersionToString(version)) {
+    if (version_string == ParsedQuicVersionToString(version) ||
+        version_string == AlpnForVersion(version) ||
+        (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+         version_string == QuicVersionToString(version.transport_version))) {
       return version;
     }
   }
@@ -284,6 +299,25 @@ ParsedQuicVersion ParseQuicVersionString(std::string version_string) {
   QUIC_DLOG(INFO) << "Unsupported QUIC version string: \"" << version_string
                   << "\".";
   return UnsupportedQuicVersion();
+}
+
+ParsedQuicVersionVector ParseQuicVersionVectorString(
+    quiche::QuicheStringPiece versions_string) {
+  ParsedQuicVersionVector versions;
+  std::vector<quiche::QuicheStringPiece> version_strings =
+      quiche::QuicheTextUtils::Split(versions_string, ',');
+  for (quiche::QuicheStringPiece version_string : version_strings) {
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
+        &version_string);
+    ParsedQuicVersion version = ParseQuicVersionString(version_string);
+    if (version.transport_version == QUIC_VERSION_UNSUPPORTED ||
+        std::find(versions.begin(), versions.end(), version) !=
+            versions.end()) {
+      continue;
+    }
+    versions.push_back(version);
+  }
+  return versions;
 }
 
 QuicTransportVersionVector AllSupportedTransportVersions() {

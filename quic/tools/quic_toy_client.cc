@@ -184,30 +184,29 @@ int QuicToyClient::SendRequestsAndPrintResponses(
 
   quic::ParsedQuicVersionVector versions = quic::CurrentSupportedVersions();
 
-  std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
   if (GetQuicFlag(FLAGS_quic_ietf_draft)) {
     quic::QuicVersionInitializeSupportForIetfDraft();
     versions = {};
     for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      // Find the first version that supports IETF QUIC.
       if (version.HasIetfQuicFrames() &&
           version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
-        versions = {version};
-        break;
+        versions.push_back(version);
       }
     }
-    CHECK_EQ(versions.size(), 1u);
-    quic::QuicEnableVersion(versions[0]);
+  }
 
-  } else if (!quic_version_string.empty()) {
-    quic::ParsedQuicVersion parsed_quic_version =
-        quic::ParseQuicVersionString(quic_version_string);
-    if (parsed_quic_version.transport_version ==
-        quic::QUIC_VERSION_UNSUPPORTED) {
-      return 1;
-    }
-    versions = {parsed_quic_version};
-    quic::QuicEnableVersion(parsed_quic_version);
+  std::string quic_version_string = GetQuicFlag(FLAGS_quic_version);
+  if (!quic_version_string.empty()) {
+    versions = quic::ParseQuicVersionVectorString(quic_version_string);
+  }
+
+  if (versions.empty()) {
+    std::cerr << "No known version selected." << std::endl;
+    return 1;
+  }
+
+  for (const quic::ParsedQuicVersion& version : versions) {
+    quic::QuicEnableVersion(version);
   }
 
   if (GetQuicFlag(FLAGS_force_version_negotiation)) {

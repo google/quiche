@@ -36,8 +36,15 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               quic_ietf_draft,
                               false,
-                              "Use the IETF draft version. This also enables "
-                              "required internal QUIC flags.");
+                              "Only enable IETF draft versions. This also "
+                              "enables required internal QUIC flags.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    quic_versions,
+    "",
+    "QUIC versions to enable, e.g. \"h3-25,h3-27\". If not set, then all "
+    "available versions are enabled.");
 
 namespace quic {
 
@@ -72,6 +79,13 @@ int QuicToyServer::Start() {
     }
   } else {
     supported_versions = AllSupportedVersions();
+  }
+  std::string versions_string = GetQuicFlag(FLAGS_quic_versions);
+  if (!versions_string.empty()) {
+    supported_versions = ParseQuicVersionVectorString(versions_string);
+  }
+  if (supported_versions.empty()) {
+    return 1;
   }
   for (const auto& version : supported_versions) {
     QuicEnableVersion(version);
