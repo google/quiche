@@ -90,9 +90,7 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
   if (config.HasClientSentConnectionOption(kACKQ, perspective)) {
     fast_ack_after_quiescence_ = true;
   }
-  if (GetQuicReloadableFlag(quic_one_immediate_ack) &&
-      config.HasClientSentConnectionOption(k1ACK, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_one_immediate_ack);
+  if (config.HasClientSentConnectionOption(k1ACK, perspective)) {
     one_immediate_ack_ = true;
   }
 }
