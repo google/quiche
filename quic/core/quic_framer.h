@@ -317,6 +317,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   static size_t GetMinAckFrameSize(
       QuicTransportVersion version,
       const QuicAckFrame& ack_frame,
+      uint32_t local_ack_delay_exponent,
       QuicPacketNumberLength largest_observed_length);
   // Size in bytes of a stop waiting frame.
   static size_t GetStopWaitingFrameSize(
@@ -882,11 +883,6 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                                      QuicDataWriter* writer);
 
-  // Used by AppendIetfAckFrameAndTypeByte to figure out how many ack
-  // blocks can be included.
-  int CalculateIetfAckBlockCount(const QuicAckFrame& frame,
-                                 QuicDataWriter* writer,
-                                 size_t available_space);
   bool AppendStopWaitingFrame(const QuicPacketHeader& header,
                               const QuicStopWaitingFrame& frame,
                               QuicDataWriter* builder);

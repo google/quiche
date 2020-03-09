@@ -111,6 +111,22 @@ QuicAckFrame MakeAckFrameWithAckBlocks(size_t num_ack_blocks,
   return ack;
 }
 
+QuicAckFrame MakeAckFrameWithGaps(uint64_t gap_size,
+                                  size_t max_num_gaps,
+                                  uint64_t largest_acked) {
+  QuicAckFrame ack;
+  ack.largest_acked = QuicPacketNumber(largest_acked);
+  ack.packets.Add(QuicPacketNumber(largest_acked));
+  for (size_t i = 0; i < max_num_gaps; ++i) {
+    if (largest_acked <= gap_size) {
+      break;
+    }
+    largest_acked -= gap_size;
+    ack.packets.Add(QuicPacketNumber(largest_acked));
+  }
+  return ack;
+}
+
 EncryptionLevel HeaderToEncryptionLevel(const QuicPacketHeader& header) {
   if (header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
     return ENCRYPTION_FORWARD_SECURE;

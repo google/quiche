@@ -469,12 +469,34 @@ size_t QuicFramer::GetMessageFrameSize(QuicTransportVersion version,
 size_t QuicFramer::GetMinAckFrameSize(
     QuicTransportVersion version,
     const QuicAckFrame& ack_frame,
+    uint32_t local_ack_delay_exponent,
     QuicPacketNumberLength largest_observed_length) {
   if (VersionHasIetfQuicFrames(version)) {
-    // The minimal ack frame consists of the following four fields: Largest
-    // Acknowledged, ACK Delay, ACK Block Count, and First ACK Block. Minimum
-    // size of each is 1 byte.
-    return kQuicFrameTypeSize + 4;
+    // The minimal ack frame consists of the following fields: Largest
+    // Acknowledged, ACK Delay, 0 ACK Block Count, First ACK Block and ECN
+    // counts.
+    // Type byte + largest acked.
+    size_t min_size =
+        kQuicFrameTypeSize +
+        QuicDataWriter::GetVarInt62Len(LargestAcked(ack_frame).ToUint64());
+    // Ack delay.
+    min_size += QuicDataWriter::GetVarInt62Len(
+        ack_frame.ack_delay_time.ToMicroseconds() >> local_ack_delay_exponent);
+    // 0 ack block count.
+    min_size += QuicDataWriter::GetVarInt62Len(0);
+    // First ack block.
+    min_size += QuicDataWriter::GetVarInt62Len(
+        ack_frame.packets.Empty() ? 0
+                                  : ack_frame.packets.rbegin()->Length() - 1);
+    // ECN counts.
+    if (ack_frame.ecn_counters_populated &&
+        (ack_frame.ect_0_count || ack_frame.ect_1_count ||
+         ack_frame.ecn_ce_count)) {
+      min_size += (QuicDataWriter::GetVarInt62Len(ack_frame.ect_0_count) +
+                   QuicDataWriter::GetVarInt62Len(ack_frame.ect_1_count) +
+                   QuicDataWriter::GetVarInt62Len(ack_frame.ecn_ce_count));
+    }
+    return min_size;
   }
   if (GetQuicReloadableFlag(quic_use_ack_frame_to_get_min_size)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_use_ack_frame_to_get_min_size);
@@ -797,9 +819,9 @@ size_t QuicFramer::GetSerializedFrameLength(
   }
   bool can_truncate =
       frame.type == ACK_FRAME &&
-      free_bytes >= GetMinAckFrameSize(version_.transport_version,
-                                       *frame.ack_frame,
-                                       PACKET_6BYTE_PACKET_NUMBER);
+      free_bytes >= GetMinAckFrameSize(
+                        version_.transport_version, *frame.ack_frame,
+                        local_ack_delay_exponent_, PACKET_6BYTE_PACKET_NUMBER);
   if (can_truncate) {
     // Truncate the frame so the packet will not exceed kMaxOutgoingPacketSize.
     // Note that we may not use every byte of the writer in this case.
@@ -3739,26 +3761,6 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     ack_frame->ack_delay_time =
         QuicTime::Delta::FromMicroseconds(ack_delay_time_in_us);
   }
-  if (frame_type == IETF_ACK_ECN) {
-    ack_frame->ecn_counters_populated = true;
-    if (!reader->ReadVarInt62(&ack_frame->ect_0_count)) {
-      set_detailed_error("Unable to read ack ect_0_count.");
-      return false;
-    }
-    if (!reader->ReadVarInt62(&ack_frame->ect_1_count)) {
-      set_detailed_error("Unable to read ack ect_1_count.");
-      return false;
-    }
-    if (!reader->ReadVarInt62(&ack_frame->ecn_ce_count)) {
-      set_detailed_error("Unable to read ack ecn_ce_count.");
-      return false;
-    }
-  } else {
-    ack_frame->ecn_counters_populated = false;
-    ack_frame->ect_0_count = 0;
-    ack_frame->ect_1_count = 0;
-    ack_frame->ecn_ce_count = 0;
-  }
   if (!visitor_->OnAckFrameStart(QuicPacketNumber(largest_acked),
                                  ack_frame->ack_delay_time)) {
     // The visitor suppresses further processing of the packet. Although this is
@@ -3872,6 +3874,27 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     ack_block_count--;
   }
 
+  if (frame_type == IETF_ACK_ECN) {
+    ack_frame->ecn_counters_populated = true;
+    if (!reader->ReadVarInt62(&ack_frame->ect_0_count)) {
+      set_detailed_error("Unable to read ack ect_0_count.");
+      return false;
+    }
+    if (!reader->ReadVarInt62(&ack_frame->ect_1_count)) {
+      set_detailed_error("Unable to read ack ect_1_count.");
+      return false;
+    }
+    if (!reader->ReadVarInt62(&ack_frame->ecn_ce_count)) {
+      set_detailed_error("Unable to read ack ecn_ce_count.");
+      return false;
+    }
+  } else {
+    ack_frame->ecn_counters_populated = false;
+    ack_frame->ect_0_count = 0;
+    ack_frame->ect_1_count = 0;
+    ack_frame->ecn_ce_count = 0;
+  }
+  // TODO(fayang): Report ECN counts to visitor when they are actually used.
   if (!visitor_->OnAckFrameEnd(QuicPacketNumber(block_low))) {
     set_detailed_error(
         "Error occurs when visitor finishes processing the ACK frame.");
@@ -4587,79 +4610,37 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
   ack_delay_time_us = ack_delay_time_us >> local_ack_delay_exponent_;
   ack_frame_size += QuicDataWriter::GetVarInt62Len(ack_delay_time_us);
 
-  // If |ecn_counters_populated| is true and any of the ecn counters is non-0
-  // then the ecn counters are included...
+  if (frame.packets.Empty() || frame.packets.Max() != largest_acked) {
+    QUIC_BUG << "Malformed ack frame";
+    // ACK frame serialization will fail and connection will be closed.
+    return ack_frame_size;
+  }
+
+  // Ack block count.
+  ack_frame_size +=
+      QuicDataWriter::GetVarInt62Len(frame.packets.NumIntervals() - 1);
+
+  // First Ack range.
+  auto iter = frame.packets.rbegin();
+  ack_frame_size += QuicDataWriter::GetVarInt62Len(iter->Length() - 1);
+  QuicPacketNumber previous_smallest = iter->min();
+  ++iter;
+
+  // Ack blocks.
+  for (; iter != frame.packets.rend(); ++iter) {
+    const uint64_t gap = previous_smallest - iter->max() - 1;
+    const uint64_t ack_range = iter->Length() - 1;
+    ack_frame_size += (QuicDataWriter::GetVarInt62Len(gap) +
+                       QuicDataWriter::GetVarInt62Len(ack_range));
+    previous_smallest = iter->min();
+  }
+
+  // ECN counts.
   if (frame.ecn_counters_populated &&
       (frame.ect_0_count || frame.ect_1_count || frame.ecn_ce_count)) {
     ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ect_0_count);
     ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ect_1_count);
     ack_frame_size += QuicDataWriter::GetVarInt62Len(frame.ecn_ce_count);
-  }
-
-  // The rest (ack_block_count, first_ack_block, and additional ack
-  // blocks, if any) depends:
-  uint64_t ack_block_count = frame.packets.NumIntervals();
-  if (ack_block_count == 0) {
-    // If the QuicAckFrame has no Intervals, then it is interpreted
-    // as an ack of a single packet at QuicAckFrame.largest_acked.
-    // The resulting ack will consist of only the frame's
-    // largest_ack & first_ack_block fields. The first ack block will be 0
-    // (indicating a single packet) and the ack block_count will be 0.
-    // Each 0 takes 1 byte when VarInt62 encoded.
-    ack_frame_size += 2;
-    return ack_frame_size;
-  }
-
-  auto itr = frame.packets.rbegin();
-  QuicPacketNumber ack_block_largest = largest_acked;
-  QuicPacketNumber ack_block_smallest;
-  if ((itr->max() - 1) == largest_acked) {
-    // If largest_acked + 1 is equal to the Max() of the first Interval
-    // in the QuicAckFrame then the first Interval is the first ack block of the
-    // frame; remaining Intervals are additional ack blocks.  The QuicAckFrame's
-    // first Interval is encoded in the frame's largest_acked/first_ack_block,
-    // the remaining Intervals are encoded in additional ack blocks in the
-    // frame, and the packet's ack_block_count is the number of QuicAckFrame
-    // Intervals - 1.
-    ack_block_smallest = itr->min();
-    itr++;
-    ack_block_count--;
-  } else {
-    // If QuicAckFrame.largest_acked is NOT equal to the Max() of
-    // the first Interval then it is interpreted as acking a single
-    // packet at QuicAckFrame.largest_acked, with additional
-    // Intervals indicating additional ack blocks. The encoding is
-    //  a) The packet's largest_acked is the QuicAckFrame's largest
-    //     acked,
-    //  b) the first ack block size is 0,
-    //  c) The packet's ack_block_count is the number of QuicAckFrame
-    //     Intervals, and
-    //  d) The QuicAckFrame Intervals are encoded in additional ack
-    //     blocks in the packet.
-    ack_block_smallest = largest_acked;
-  }
-  size_t ack_block_count_size = QuicDataWriter::GetVarInt62Len(ack_block_count);
-  ack_frame_size += ack_block_count_size;
-
-  uint64_t first_ack_block = ack_block_largest - ack_block_smallest;
-  size_t first_ack_block_size = QuicDataWriter::GetVarInt62Len(first_ack_block);
-  ack_frame_size += first_ack_block_size;
-
-  // Account for the remaining Intervals, if any.
-  while (ack_block_count != 0) {
-    uint64_t gap_size = ack_block_smallest - itr->max();
-    // Decrement per the protocol specification
-    size_t size_of_gap_size = QuicDataWriter::GetVarInt62Len(gap_size - 1);
-    ack_frame_size += size_of_gap_size;
-
-    uint64_t block_size = itr->max() - itr->min();
-    // Decrement per the protocol specification
-    size_t size_of_block_size = QuicDataWriter::GetVarInt62Len(block_size - 1);
-    ack_frame_size += size_of_block_size;
-
-    ack_block_smallest = itr->min();
-    itr++;
-    ack_block_count--;
   }
 
   return ack_frame_size;
@@ -4681,7 +4662,8 @@ size_t QuicFramer::GetAckFrameSize(
       GetMinPacketNumberLength(QuicPacketNumber(ack_info.max_block_length));
 
   ack_size =
-      GetMinAckFrameSize(version_.transport_version, ack, largest_acked_length);
+      GetMinAckFrameSize(version_.transport_version, ack,
+                         local_ack_delay_exponent_, largest_acked_length);
   // First ack block length.
   ack_size += ack_block_length;
   if (ack_info.num_ack_blocks != 0) {
@@ -5147,13 +5129,10 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
   int32_t available_timestamp_and_ack_block_bytes =
       writer->capacity() - writer->length() - ack_block_length -
       GetMinAckFrameSize(version_.transport_version, frame,
-                         largest_acked_length) -
+                         local_ack_delay_exponent_, largest_acked_length) -
       (new_ack_info.num_ack_blocks != 0 ? kNumberOfAckBlocksSize : 0);
   DCHECK_LE(0, available_timestamp_and_ack_block_bytes);
 
-  // Write out the type byte by setting the low order bits and doing shifts
-  // to make room for the next bit flags to be set.
-  // Whether there are multiple ack blocks.
   uint8_t type_byte = 0;
   SetBit(&type_byte, new_ack_info.num_ack_blocks != 0,
          kQuicHasMultipleAckBlocksOffset);
@@ -5374,57 +5353,17 @@ bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
   return true;
 }
 
-int QuicFramer::CalculateIetfAckBlockCount(const QuicAckFrame& frame,
-                                           QuicDataWriter* /*writer*/,
-                                           size_t available_space) {
-  // Number of blocks requested in the frame
-  uint64_t ack_block_count = frame.packets.NumIntervals();
-
-  auto itr = frame.packets.rbegin();
-
-  int actual_block_count = 1;
-  uint64_t block_length = itr->max() - itr->min();
-  size_t encoded_size = QuicDataWriter::GetVarInt62Len(block_length);
-  if (encoded_size > available_space) {
-    return 0;
-  }
-  available_space -= encoded_size;
-  QuicPacketNumber previous_ack_end = itr->min();
-  ack_block_count--;
-
-  while (ack_block_count) {
-    // Each block is a gap followed by another ACK. Calculate each value,
-    // determine the encoded lengths, and check against the available space.
-    itr++;
-    size_t gap = previous_ack_end - itr->max() - 1;
-    encoded_size = QuicDataWriter::GetVarInt62Len(gap);
-
-    // Add the ACK block.
-    block_length = itr->max() - itr->min();
-    encoded_size += QuicDataWriter::GetVarInt62Len(block_length);
-
-    if (encoded_size > available_space) {
-      // No room for this block, so what we've
-      // done up to now is all that can be done.
-      return actual_block_count;
-    }
-    available_space -= encoded_size;
-    actual_block_count++;
-    previous_ack_end = itr->min();
-    ack_block_count--;
-  }
-  // Ran through the whole thing! We can do all blocks.
-  return actual_block_count;
-}
-
 bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                                                QuicDataWriter* writer) {
-  // Assume frame is an IETF_ACK frame. If |ecn_counters_populated| is true and
-  // any of the ECN counters is non-0 then turn it into an IETF_ACK+ECN frame.
   uint8_t type = IETF_ACK;
+  uint64_t ecn_size = 0;
   if (frame.ecn_counters_populated &&
       (frame.ect_0_count || frame.ect_1_count || frame.ecn_ce_count)) {
+    // Change frame type to ACK_ECN if any ECN count is available.
     type = IETF_ACK_ECN;
+    ecn_size = (QuicDataWriter::GetVarInt62Len(frame.ect_0_count) +
+                QuicDataWriter::GetVarInt62Len(frame.ect_1_count) +
+                QuicDataWriter::GetVarInt62Len(frame.ecn_ce_count));
   }
 
   if (!writer->WriteUInt8(type)) {
@@ -5449,8 +5388,67 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
     set_detailed_error("No room for ack-delay in ack frame");
     return false;
   }
+
+  if (frame.packets.Empty() || frame.packets.Max() != largest_acked) {
+    QUIC_BUG << "Malformed ack frame: " << frame;
+    set_detailed_error("Malformed ack frame");
+    return false;
+  }
+
+  // Latch ack_block_count for potential truncation.
+  const uint64_t ack_block_count = frame.packets.NumIntervals() - 1;
+  QuicDataWriter count_writer(QuicDataWriter::GetVarInt62Len(ack_block_count),
+                              writer->data() + writer->length());
+  if (!writer->WriteVarInt62(ack_block_count)) {
+    set_detailed_error("No room for ack block count in ack frame");
+    return false;
+  }
+  auto iter = frame.packets.rbegin();
+  if (!writer->WriteVarInt62(iter->Length() - 1)) {
+    set_detailed_error("No room for first ack block in ack frame");
+    return false;
+  }
+  QuicPacketNumber previous_smallest = iter->min();
+  ++iter;
+  // Append remaining ACK blocks.
+  uint64_t appended_ack_blocks = 0;
+  for (; iter != frame.packets.rend(); ++iter) {
+    const uint64_t gap = previous_smallest - iter->max() - 1;
+    const uint64_t ack_range = iter->Length() - 1;
+
+    if (writer->remaining() < ecn_size ||
+        writer->remaining() - ecn_size <
+            QuicDataWriter::GetVarInt62Len(gap) +
+                QuicDataWriter::GetVarInt62Len(ack_range)) {
+      // ACK range does not fit, truncate it.
+      break;
+    }
+    const bool success =
+        writer->WriteVarInt62(gap) && writer->WriteVarInt62(ack_range);
+    DCHECK(success);
+    previous_smallest = iter->min();
+    ++appended_ack_blocks;
+  }
+
+  if (appended_ack_blocks < ack_block_count) {
+    // Truncation is needed, rewrite the ack block count.
+    if (QuicDataWriter::GetVarInt62Len(appended_ack_blocks) !=
+            QuicDataWriter::GetVarInt62Len(ack_block_count) ||
+        !count_writer.WriteVarInt62(appended_ack_blocks)) {
+      // This should never happen as ack_block_count is limited by
+      // max_ack_ranges_.
+      QUIC_BUG << "Ack frame truncation fails. ack_block_count: "
+               << ack_block_count
+               << ", appended count: " << appended_ack_blocks;
+      set_detailed_error("ACK frame truncation fails");
+      return false;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "ACK ranges get truncated from "
+                    << ack_block_count << " to " << appended_ack_blocks;
+  }
+
   if (type == IETF_ACK_ECN) {
-    // Encode the ACK ECN fields
+    // Encode the ECN counts.
     if (!writer->WriteVarInt62(frame.ect_0_count)) {
       set_detailed_error("No room for ect_0_count in ack frame");
       return false;
@@ -5465,84 +5463,6 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
     }
   }
 
-  uint64_t ack_block_count = frame.packets.NumIntervals();
-  if (ack_block_count == 0) {
-    // If the QuicAckFrame has no Intervals, then it is interpreted
-    // as an ack of a single packet at QuicAckFrame.largest_acked.
-    // The resulting ack will consist of only the frame's
-    // largest_ack & first_ack_block fields. The first ack block will be 0
-    // (indicating a single packet) and the ack block_count will be 0.
-    if (!writer->WriteVarInt62(0)) {
-      set_detailed_error("No room for ack block count in ack frame");
-      return false;
-    }
-    // size of the first block is 1 packet
-    if (!writer->WriteVarInt62(0)) {
-      set_detailed_error("No room for first ack block in ack frame");
-      return false;
-    }
-    return true;
-  }
-  // Case 2 or 3
-  auto itr = frame.packets.rbegin();
-
-  QuicPacketNumber ack_block_largest(largest_acked);
-  QuicPacketNumber ack_block_smallest;
-  if ((itr->max() - 1) == QuicPacketNumber(largest_acked)) {
-    // If largest_acked + 1 is equal to the Max() of the first Interval
-    // in the QuicAckFrame then the first Interval is the first ack block of the
-    // frame; remaining Intervals are additional ack blocks.  The QuicAckFrame's
-    // first Interval is encoded in the frame's largest_acked/first_ack_block,
-    // the remaining Intervals are encoded in additional ack blocks in the
-    // frame, and the packet's ack_block_count is the number of QuicAckFrame
-    // Intervals - 1.
-    ack_block_smallest = itr->min();
-    itr++;
-    ack_block_count--;
-  } else {
-    // If QuicAckFrame.largest_acked is NOT equal to the Max() of
-    // the first Interval then it is interpreted as acking a single
-    // packet at QuicAckFrame.largest_acked, with additional
-    // Intervals indicating additional ack blocks. The encoding is
-    //  a) The packet's largest_acked is the QuicAckFrame's largest
-    //     acked,
-    //  b) the first ack block size is 0,
-    //  c) The packet's ack_block_count is the number of QuicAckFrame
-    //     Intervals, and
-    //  d) The QuicAckFrame Intervals are encoded in additional ack
-    //     blocks in the packet.
-    ack_block_smallest = largest_acked;
-  }
-
-  if (!writer->WriteVarInt62(ack_block_count)) {
-    set_detailed_error("No room for ack block count in ack frame");
-    return false;
-  }
-
-  uint64_t first_ack_block = ack_block_largest - ack_block_smallest;
-  if (!writer->WriteVarInt62(first_ack_block)) {
-    set_detailed_error("No room for first ack block in ack frame");
-    return false;
-  }
-
-  // For the remaining QuicAckFrame Intervals, if any
-  while (ack_block_count != 0) {
-    uint64_t gap_size = ack_block_smallest - itr->max();
-    if (!writer->WriteVarInt62(gap_size - 1)) {
-      set_detailed_error("No room for gap block in ack frame");
-      return false;
-    }
-
-    uint64_t block_size = itr->max() - itr->min();
-    if (!writer->WriteVarInt62(block_size - 1)) {
-      set_detailed_error("No room for nth ack block in ack frame");
-      return false;
-    }
-
-    ack_block_smallest = itr->min();
-    itr++;
-    ack_block_count--;
-  }
   return true;
 }
 

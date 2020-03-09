@@ -324,7 +324,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ack_frame.ack_delay_time = ack_delay_time;
     ack_frames_.push_back(std::make_unique<QuicAckFrame>(ack_frame));
     if (VersionHasIetfQuicFrames(transport_version_)) {
-      EXPECT_EQ(IETF_ACK, framer_->current_received_frame_type());
+      EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
+                  IETF_ACK_ECN == framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
     }
@@ -335,7 +336,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     DCHECK(!ack_frames_.empty());
     ack_frames_[ack_frames_.size() - 1]->packets.AddRange(start, end);
     if (VersionHasIetfQuicFrames(transport_version_)) {
-      EXPECT_EQ(IETF_ACK, framer_->current_received_frame_type());
+      EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
+                  IETF_ACK_ECN == framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
     }
@@ -9146,6 +9148,56 @@ TEST_P(QuicFramerTest, AckTruncationLargePacket) {
   ASSERT_EQ(256u, processed_ack_frame.packets.NumPacketsSlow());
   EXPECT_EQ(QuicPacketNumber(90u), processed_ack_frame.packets.Min());
   EXPECT_EQ(QuicPacketNumber(600u), processed_ack_frame.packets.Max());
+}
+
+// Regression test for b/150386368.
+TEST_P(QuicFramerTest, IetfAckFrameTruncation) {
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame;
+  // Create a packet with just the ack.
+  ack_frame = MakeAckFrameWithGaps(/*gap_size=*/0xffffffff,
+                                   /*max_num_gaps=*/200,
+                                   /*largest_acked=*/kMaxIetfVarInt);
+  ack_frame.ecn_counters_populated = true;
+  ack_frame.ect_0_count = 100;
+  ack_frame.ect_1_count = 10000;
+  ack_frame.ecn_ce_count = 1000000;
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+  // Build an ACK packet.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> raw_ack_packet(BuildDataPacket(header, frames));
+  ASSERT_TRUE(raw_ack_packet != nullptr);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number,
+                             *raw_ack_packet, buffer, kMaxOutgoingPacketSize);
+  ASSERT_NE(0u, encrypted_length);
+  // Now make sure we can turn our ack packet back into an ack frame.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  ASSERT_TRUE(framer_.ProcessPacket(
+      QuicEncryptedPacket(buffer, encrypted_length, false)));
+  ASSERT_EQ(1u, visitor_.ack_frames_.size());
+  QuicAckFrame& processed_ack_frame = *visitor_.ack_frames_[0];
+  EXPECT_EQ(QuicPacketNumber(kMaxIetfVarInt),
+            LargestAcked(processed_ack_frame));
+  // Verify ACK frame gets truncated.
+  ASSERT_LT(processed_ack_frame.packets.NumPacketsSlow(),
+            ack_frame.packets.NumIntervals());
+  EXPECT_EQ(157u, processed_ack_frame.packets.NumPacketsSlow());
+  EXPECT_LT(processed_ack_frame.packets.NumIntervals(),
+            ack_frame.packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(kMaxIetfVarInt),
+            processed_ack_frame.packets.Max());
 }
 
 TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
