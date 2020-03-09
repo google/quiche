@@ -248,38 +248,9 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     visitor_->OnStopSendingReceived(frame);
   }
 
-  // If stream is closed, ignore the frame
-  if (IsClosedStream(stream_id)) {
-    QUIC_DVLOG(1)
-        << ENDPOINT
-        << "Received STOP_SENDING for closed or non-existent stream, id: "
-        << stream_id << " Ignoring.";
-    return;
-  }
-  // If stream is non-existent, close the connection.
-  // TODO(b/148842616): IETF QUIC allows a STOP_SENDING to arrive before a
-  // STREAM frame for peer-intiated bidirectional steams
-  StreamMap::iterator it = stream_map_.find(stream_id);
-  if (it == stream_map_.end()) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received STOP_SENDING for non-existent stream, id: "
-                  << stream_id << " Closing connection";
-    connection()->CloseConnection(
-        IETF_QUIC_PROTOCOL_VIOLATION,
-        "Received STOP_SENDING for a non-existent stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-
-  QuicStream* stream = it->second.get();
-  // If the stream is null, it's an implementation error.
-  if (stream == nullptr) {
-    QUIC_BUG << ENDPOINT
-             << "Received STOP_SENDING for NULL QuicStream, stream_id: "
-             << stream_id << ". Ignoring.";
-    connection()->CloseConnection(
-        QUIC_INTERNAL_ERROR, "Received STOP_SENDING for a null stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  QuicStream* stream = GetOrCreateStream(stream_id);
+  if (!stream) {
+    // Errors are handled by GetOrCreateStream.
     return;
   }
 
@@ -287,7 +258,7 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  // TODO(renjietang): Consider moving those code into the
+  // TODO(renjietang): Consider moving those code into the stream.
   if (connection()->connected()) {
     MaybeSendRstStreamFrame(
         stream->id(),

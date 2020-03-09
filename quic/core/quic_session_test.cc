@@ -2695,20 +2695,38 @@ TEST_P(QuicSessionTestServer, OnStopSendingClosedStream) {
   session_.OnStopSendingFrame(frame);
 }
 
-// If stream id is a nonexistent stream, return false and close the connection.
-TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentStream) {
+// If stream id is a nonexistent local stream, return false and close the
+// connection.
+TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentLocalStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
 
   QuicStopSendingFrame frame(1, GetNthServerInitiatedBidirectionalId(123456),
                              123);
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
-                      "Received STOP_SENDING for a non-existent stream", _))
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
+                                            "Data for nonexistent stream", _))
       .Times(1);
   session_.OnStopSendingFrame(frame);
+}
+
+// If a STOP_SENDING is received for a peer initiated stream, the new stream
+// will be created.
+TEST_P(QuicSessionTestServer, OnStopSendingNewStream) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  QuicStopSendingFrame frame(1, GetNthClientInitiatedBidirectionalId(1), 123);
+
+  // A Rst will be sent as a response for STOP_SENDING.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
+  session_.OnStopSendingFrame(frame);
+
+  QuicStream* stream =
+      session_.GetOrCreateStream(GetNthClientInitiatedBidirectionalId(1));
+  EXPECT_TRUE(stream);
+  EXPECT_TRUE(stream->write_side_closed());
 }
 
 // For a valid stream, ensure that all works
