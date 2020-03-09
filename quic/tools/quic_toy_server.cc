@@ -74,7 +74,6 @@ int QuicToyServer::Start() {
       if (version.HasIetfQuicFrames() &&
           version.handshake_protocol == quic::PROTOCOL_TLS1_3) {
         supported_versions.push_back(version);
-        break;
       }
     }
   } else {
