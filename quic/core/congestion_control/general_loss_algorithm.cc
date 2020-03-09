@@ -18,6 +18,7 @@ GeneralLossAlgorithm::GeneralLossAlgorithm()
       reordering_threshold_(kNumberOfNacksBeforeRetransmission),
       use_adaptive_reordering_threshold_(true),
       use_adaptive_time_threshold_(false),
+      use_packet_threshold_for_runt_packets_(true),
       least_in_flight_(1),
       packet_number_space_(NUM_PACKET_NUMBER_SPACES) {}
 
@@ -80,7 +81,17 @@ void GeneralLossAlgorithm::DetectLosses(
       continue;
     }
     // Packet threshold loss detection.
-    if (largest_newly_acked - packet_number >= reordering_threshold_) {
+    // Skip packet threshold loss detection if largest_newly_acked is a runt.
+    const bool skip_packet_threshold_detection =
+        !use_packet_threshold_for_runt_packets_ &&
+        it->bytes_sent >
+            unacked_packets.GetTransmissionInfo(largest_newly_acked).bytes_sent;
+    if (skip_packet_threshold_detection) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_skip_packet_threshold_loss_detection_with_runt, 2, 2);
+    }
+    if (!skip_packet_threshold_detection &&
+        largest_newly_acked - packet_number >= reordering_threshold_) {
       packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
       continue;
     }

@@ -85,6 +85,9 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   // Enable adaptive time threshold of all packet number spaces.
   void EnableAdaptiveTimeThreshold();
 
+  // Disable packet threshold loss detection for *runt* packets.
+  void DisablePacketThresholdForRuntPackets();
+
  private:
   friend class test::QuicSentPacketManagerPeer;
 

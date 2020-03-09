@@ -101,6 +101,9 @@ class QuicSentPacketManagerPeer {
 
   static bool AdaptiveTimeThresholdEnabled(
       QuicSentPacketManager* sent_packet_manager);
+
+  static bool UsePacketThresholdForRuntPackets(
+      QuicSentPacketManager* sent_packet_manager);
 };
 
 }  // namespace test

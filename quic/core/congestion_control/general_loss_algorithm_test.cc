@@ -32,17 +32,22 @@ class GeneralLossAlgorithmTest : public QuicTest {
 
   ~GeneralLossAlgorithmTest() override {}
 
-  void SendDataPacket(uint64_t packet_number) {
+  void SendDataPacket(uint64_t packet_number,
+                      QuicPacketLength encrypted_length) {
     QuicStreamFrame frame;
     frame.stream_id = QuicUtils::GetFirstBidirectionalStreamId(
         CurrentSupportedVersions()[0].transport_version,
         Perspective::IS_CLIENT);
     SerializedPacket packet(QuicPacketNumber(packet_number),
-                            PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
-                            false, false);
+                            PACKET_1BYTE_PACKET_NUMBER, nullptr,
+                            encrypted_length, false, false);
     packet.retransmittable_frames.push_back(QuicFrame(frame));
     unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
                                    true);
+  }
+
+  void SendDataPacket(uint64_t packet_number) {
+    SendDataPacket(packet_number, kDefaultLength);
   }
 
   void SendAckPacket(uint64_t packet_number) {
@@ -428,6 +433,30 @@ TEST_F(GeneralLossAlgorithmTest, IetfLossDetectionWithOneFourthRttDelay) {
   clock_.AdvanceTime(rtt_stats_.smoothed_rtt() +
                      (rtt_stats_.smoothed_rtt() >> 2));
   VerifyLosses(2, packets_acked, {1});
+  EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
+}
+
+TEST_F(GeneralLossAlgorithmTest, NoPacketThresholdForRuntPackets) {
+  loss_algorithm_.disable_packet_threshold_for_runt_packets();
+  for (size_t i = 1; i <= 6; ++i) {
+    SendDataPacket(i);
+  }
+  // Send a small packet.
+  SendDataPacket(7, /*encrypted_length=*/kDefaultLength / 2);
+  // No packet threshold for runt packet.
+  AckedPacketVector packets_acked;
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(7));
+  packets_acked.push_back(AckedPacket(
+      QuicPacketNumber(7), kMaxOutgoingPacketSize, QuicTime::Zero()));
+  // Verify no packet is detected lost because packet 7 is a runt.
+  VerifyLosses(7, packets_acked, std::vector<uint64_t>{});
+  EXPECT_EQ(clock_.Now() + rtt_stats_.smoothed_rtt() +
+                (rtt_stats_.smoothed_rtt() >> 2),
+            loss_algorithm_.GetLossTimeout());
+  clock_.AdvanceTime(rtt_stats_.smoothed_rtt() +
+                     (rtt_stats_.smoothed_rtt() >> 2));
+  // Verify packets are declared lost because time threshold has passed.
+  VerifyLosses(7, packets_acked, {1, 2, 3, 4, 5, 6});
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
 

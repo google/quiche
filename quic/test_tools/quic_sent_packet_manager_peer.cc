@@ -221,5 +221,12 @@ bool QuicSentPacketManagerPeer::AdaptiveTimeThresholdEnabled(
       .use_adaptive_time_threshold();
 }
 
+// static
+bool QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(
+    QuicSentPacketManager* sent_packet_manager) {
+  return sent_packet_manager->uber_loss_algorithm_.general_loss_algorithms_[0]
+      .use_packet_threshold_for_runt_packets();
+}
+
 }  // namespace test
 }  // namespace quic

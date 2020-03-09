@@ -106,4 +106,10 @@ void UberLossAlgorithm::EnableAdaptiveTimeThreshold() {
   }
 }
 
+void UberLossAlgorithm::DisablePacketThresholdForRuntPackets() {
+  for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+    general_loss_algorithms_[i].disable_packet_threshold_for_runt_packets();
+  }
+}
+
 }  // namespace quic

@@ -182,6 +182,8 @@ const QuicTag kILD4 = TAG('I', 'L', 'D', '4');   // IETF style loss detection
                                                  // threshold (default 1/4 RTT)
                                                  // and adaptive packet
                                                  // threshold
+const QuicTag kRUNT = TAG('R', 'U', 'N', 'T');   // No packet threshold loss
+                                                 // detection for "runt" packet.
 // TODO(fayang): Remove this connection option when QUIC_VERSION_35, is removed
 // Since MAX_HEADER_LIST_SIZE settings frame is supported instead.
 const QuicTag kSMHL = TAG('S', 'M', 'H', 'L');   // Support MAX_HEADER_LIST_SIZE

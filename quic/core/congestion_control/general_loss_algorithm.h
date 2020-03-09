@@ -88,6 +88,14 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
   void enable_adaptive_time_threshold() { use_adaptive_time_threshold_ = true; }
 
+  bool use_packet_threshold_for_runt_packets() const {
+    return use_packet_threshold_for_runt_packets_;
+  }
+
+  void disable_packet_threshold_for_runt_packets() {
+    use_packet_threshold_for_runt_packets_ = false;
+  }
+
  private:
   QuicTime loss_detection_timeout_;
   // Fraction of a max(SRTT, latest_rtt) to permit reordering before declaring
@@ -100,6 +108,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
   bool use_adaptive_reordering_threshold_;
   // If true, uses adaptive time threshold for time based loss detection.
   bool use_adaptive_time_threshold_;
+  // If true, uses packet threshold when largest acked is a runt packet.
+  bool use_packet_threshold_for_runt_packets_;
   // The least in flight packet. Loss detection should start from this. Please
   // note, least_in_flight_ could be largest packet ever sent + 1.
   QuicPacketNumber least_in_flight_;

@@ -3745,6 +3745,24 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
   manager_.NeuterUnencryptedPackets();
 }
 
+TEST_F(QuicSentPacketManagerTest, NoPacketThresholdDetectionForRuntPackets) {
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));
+
+  SetQuicReloadableFlag(quic_skip_packet_threshold_loss_detection_with_runt,
+                        true);
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kRUNT);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_FALSE(
+      QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
