@@ -649,8 +649,9 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   }
 
   for (const auto& kv : in.custom_parameters) {
-    QUIC_BUG_IF(kv.first < 0xff00) << "custom_parameters should not be used "
-                                      "for non-private use parameters";
+    QUIC_BUG_IF(static_cast<uint64_t>(kv.first) < 0xff00)
+        << "custom_parameters should not be used "
+           "for non-private use parameters";
     if (!WriteTransportParameterId(&writer, kv.first, version) ||
         !WriteTransportParameterStringPiece(&writer, kv.second, version)) {
       QUIC_BUG << "Failed to write custom parameter " << kv.first;
