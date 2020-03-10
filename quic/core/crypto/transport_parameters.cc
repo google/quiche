@@ -163,7 +163,6 @@ bool ReadTransportParameterId(
   if (version.HasVarIntTransportParams()) {
     uint64_t param_id64;
     if (!reader->ReadVarInt62(&param_id64)) {
-      QUIC_BUG << "Failed to read param_id";
       return false;
     }
     *out_param_id =
@@ -171,7 +170,6 @@ bool ReadTransportParameterId(
   } else {
     uint16_t param_id16;
     if (!reader->ReadUInt16(&param_id16)) {
-      QUIC_BUG << "Failed to read param_id16";
       return false;
     }
     *out_param_id =
