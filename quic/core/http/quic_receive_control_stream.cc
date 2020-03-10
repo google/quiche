@@ -60,11 +60,6 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return stream_->OnSettingsFrame(frame);
   }
 
-  bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
-    OnWrongFrame("Duplicate Push");
-    return false;
-  }
-
   bool OnDataFrameStart(QuicByteCount /*header_length*/) override {
     OnWrongFrame("Data");
     return false;

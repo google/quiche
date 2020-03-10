@@ -132,23 +132,6 @@ TEST(HttpEncoderTest, SerializeMaxPushIdFrame) {
       "MAX_PUSH_ID", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
 }
 
-TEST(HttpEncoderTest, SerializeDuplicatePushFrame) {
-  DuplicatePushFrame duplicate_push;
-  duplicate_push.push_id = 0x1;
-  char output[] = {// type (DUPLICATE_PUSH)
-                   0x0E,
-                   // length
-                   0x1,
-                   // Push Id
-                   0x01};
-  std::unique_ptr<char[]> buffer;
-  uint64_t length =
-      HttpEncoder::SerializeDuplicatePushFrame(duplicate_push, &buffer);
-  EXPECT_EQ(QUICHE_ARRAYSIZE(output), length);
-  quiche::test::CompareCharArraysWithHexError(
-      "DUPLICATE_PUSH", buffer.get(), length, output, QUICHE_ARRAYSIZE(output));
-}
-
 TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
   PriorityUpdateFrame priority_update1;
   priority_update1.prioritized_element_type = REQUEST_STREAM;

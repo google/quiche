@@ -26,7 +26,6 @@ enum class HttpFrameType : uint8_t {
   PUSH_PROMISE = 0x5,
   GOAWAY = 0x7,
   MAX_PUSH_ID = 0xD,
-  DUPLICATE_PUSH = 0xE,
   PRIORITY_UPDATE = 0XF,
 };
 
@@ -126,19 +125,6 @@ struct QUIC_EXPORT_PRIVATE MaxPushIdFrame {
   PushId push_id;
 
   bool operator==(const MaxPushIdFrame& rhs) const {
-    return push_id == rhs.push_id;
-  }
-};
-
-// 7.2.8.  DUPLICATE_PUSH
-//
-//  The DUPLICATE_PUSH frame (type=0xE) is used by servers to indicate
-//  that an existing pushed resource is related to multiple client
-//  requests.
-struct QUIC_EXPORT_PRIVATE DuplicatePushFrame {
-  PushId push_id;
-
-  bool operator==(const DuplicatePushFrame& rhs) const {
     return push_id == rhs.push_id;
   }
 };

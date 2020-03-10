@@ -164,8 +164,6 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       break;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
       break;
-    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
-      break;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
       continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
       break;
@@ -289,10 +287,6 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       BufferFramePayload(reader);
       break;
     }
-    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH): {
-      BufferFramePayload(reader);
-      break;
-    }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
       // TODO(bnc): Avoid buffering if the entire frame is present, and
       // instead parse directly out of |reader|.
@@ -396,22 +390,6 @@ bool HttpDecoder::FinishParsing() {
         return false;
       }
       continue_processing = visitor_->OnMaxPushIdFrame(frame);
-      break;
-    }
-    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH): {
-      QuicDataReader reader(buffer_.data(), current_frame_length_);
-      DuplicatePushFrame frame;
-      if (!reader.ReadVarInt62(&frame.push_id)) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Unable to read DUPLICATE_PUSH push_id.");
-        return false;
-      }
-      if (!reader.IsDoneReading()) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR,
-                   "Superfluous data in DUPLICATE_PUSH frame.");
-        return false;
-      }
-      continue_processing = visitor_->OnDuplicatePushFrame(frame);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE): {
@@ -570,8 +548,6 @@ QuicByteCount HttpDecoder::MaxFrameLength(uint64_t frame_type) {
     case static_cast<uint64_t>(HttpFrameType::GOAWAY):
       return VARIABLE_LENGTH_INTEGER_LENGTH_8;
     case static_cast<uint64_t>(HttpFrameType::MAX_PUSH_ID):
-      return sizeof(PushId);
-    case static_cast<uint64_t>(HttpFrameType::DUPLICATE_PUSH):
       return sizeof(PushId);
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE):
       // This limit is arbitrary.

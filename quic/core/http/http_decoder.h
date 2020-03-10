@@ -54,9 +54,6 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a SETTINGS frame has been successfully parsed.
     virtual bool OnSettingsFrame(const SettingsFrame& frame) = 0;
 
-    // Called when a DUPLICATE_PUSH frame has been successfully parsed.
-    virtual bool OnDuplicatePushFrame(const DuplicatePushFrame& frame) = 0;
-
     // Called when a DATA frame has been received.
     // |header_length| contains DATA frame length and payload length.
     virtual bool OnDataFrameStart(QuicByteCount header_length) = 0;

@@ -69,12 +69,6 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnDuplicatePushFrame(const DuplicatePushFrame& /*frame*/) override {
-    // TODO(b/137554973): Consume frame.
-    CloseConnectionOnWrongFrame("Duplicate Push");
-    return false;
-  }
-
   bool OnDataFrameStart(QuicByteCount header_length) override {
     return stream_->OnDataFrameStart(header_length);
   }

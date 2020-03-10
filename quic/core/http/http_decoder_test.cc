@@ -46,7 +46,6 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnGoAwayFrame, bool(const GoAwayFrame& frame));
   MOCK_METHOD1(OnSettingsFrameStart, bool(QuicByteCount header_length));
   MOCK_METHOD1(OnSettingsFrame, bool(const SettingsFrame& frame));
-  MOCK_METHOD1(OnDuplicatePushFrame, bool(const DuplicatePushFrame& frame));
 
   MOCK_METHOD1(OnDataFrameStart, bool(QuicByteCount header_length));
   MOCK_METHOD1(OnDataFramePayload, bool(quiche::QuicheStringPiece payload));
@@ -79,7 +78,6 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrame(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnDuplicatePushFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFrameEnd()).WillByDefault(Return(true));
@@ -342,33 +340,6 @@ TEST_F(HttpDecoderTest, MaxPushId) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnMaxPushIdFrame(MaxPushIdFrame({1})));
-  ProcessInputCharByChar(input);
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-}
-
-TEST_F(HttpDecoderTest, DuplicatePush) {
-  InSequence s;
-  std::string input = quiche::QuicheTextUtils::HexDecode(
-      "0E"    // type (DUPLICATE_PUSH)
-      "01"    // length
-      "01");  // Push Id
-
-  // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnDuplicatePushFrame(DuplicatePushFrame({1})))
-      .WillOnce(Return(false));
-  EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the full frame.
-  EXPECT_CALL(visitor_, OnDuplicatePushFrame(DuplicatePushFrame({1})));
-  EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsQuicNoError());
-  EXPECT_EQ("", decoder_.error_detail());
-
-  // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnDuplicatePushFrame(DuplicatePushFrame({1})));
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
@@ -829,15 +800,6 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                     "\x05"  // valid push id
                     "foo",  // superfluous data
                     "Superfluous data in MAX_PUSH_ID frame."},
-                   {"\x0E"   // type (DUPLICATE_PUSH)
-                    "\x01"   // length
-                    "\x40",  // first byte of two-byte varint push id
-                    "Unable to read DUPLICATE_PUSH push_id."},
-                   {"\x0E"  // type (DUPLICATE_PUSH)
-                    "\x04"  // length
-                    "\x05"  // valid push id
-                    "foo",  // superfluous data
-                    "Superfluous data in DUPLICATE_PUSH frame."},
                    {"\x07"   // type (GOAWAY)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint stream id
@@ -930,17 +892,6 @@ TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
   EXPECT_EQ("Unable to read MAX_PUSH_ID push_id.", decoder_.error_detail());
-}
-
-TEST_F(HttpDecoderTest, EmptyDuplicatePushFrame) {
-  std::string input = quiche::QuicheTextUtils::HexDecode(
-      "0e"    // type (DUPLICATE_PUSH)
-      "00");  // frame length
-
-  EXPECT_CALL(visitor_, OnError(&decoder_));
-  EXPECT_EQ(input.size(), ProcessInput(input));
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-  EXPECT_EQ("Unable to read DUPLICATE_PUSH push_id.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {

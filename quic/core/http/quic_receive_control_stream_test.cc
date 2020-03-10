@@ -233,11 +233,11 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveWrongFrame) {
-  DuplicatePushFrame dup;
-  dup.push_id = 0x1;
+  CancelPushFrame cancel;
+  cancel.push_id = 0x1;
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
-      HttpEncoder::SerializeDuplicatePushFrame(dup, &buffer);
+      HttpEncoder::SerializeCancelPushFrame(cancel, &buffer);
   std::string data = std::string(buffer.get(), header_length);
 
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);

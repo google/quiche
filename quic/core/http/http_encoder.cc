@@ -197,28 +197,6 @@ QuicByteCount HttpEncoder::SerializeMaxPushIdFrame(
 }
 
 // static
-QuicByteCount HttpEncoder::SerializeDuplicatePushFrame(
-    const DuplicatePushFrame& duplicate_push,
-    std::unique_ptr<char[]>* output) {
-  QuicByteCount payload_length =
-      QuicDataWriter::GetVarInt62Len(duplicate_push.push_id);
-  QuicByteCount total_length =
-      GetTotalLength(payload_length, HttpFrameType::DUPLICATE_PUSH);
-
-  output->reset(new char[total_length]);
-  QuicDataWriter writer(total_length, output->get());
-
-  if (WriteFrameHeader(payload_length, HttpFrameType::DUPLICATE_PUSH,
-                       &writer) &&
-      writer.WriteVarInt62(duplicate_push.push_id)) {
-    return total_length;
-  }
-  QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
-                      "duplicate push frame.";
-  return 0;
-}
-
-// static
 QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
     const PriorityUpdateFrame& priority_update,
     std::unique_ptr<char[]>* output) {
