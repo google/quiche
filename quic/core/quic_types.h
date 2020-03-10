@@ -86,7 +86,7 @@ enum QuicAsyncStatus {
 };
 
 // TODO(wtc): see if WriteStatus can be replaced by QuicAsyncStatus.
-enum WriteStatus {
+enum WriteStatus : int16_t {
   WRITE_STATUS_OK,
   // Write is blocked, caller needs to retry.
   WRITE_STATUS_BLOCKED,
@@ -102,6 +102,8 @@ enum WriteStatus {
 };
 
 std::string HistogramEnumString(WriteStatus enum_value);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             const WriteStatus& status);
 
 inline std::string HistogramEnumDescription(WriteStatus /*dummy*/) {
   return "status";
@@ -143,6 +145,9 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
                                                       const WriteResult& s);
 
   WriteStatus status;
+  // Number of packets dropped as a result of this write.
+  // Only used by batch writers. Otherwise always 0.
+  uint16_t dropped_packets = 0;
   union {
     int bytes_written;  // only valid when status is WRITE_STATUS_OK
     int error_code;     // only valid when status is WRITE_STATUS_ERROR

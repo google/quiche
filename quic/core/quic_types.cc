@@ -57,8 +57,14 @@ std::string HistogramEnumString(WriteStatus enum_value) {
     case WRITE_STATUS_NUM_VALUES:
       return "NUM_VALUES";
   }
-  QUIC_DLOG(ERROR) << "Invalid WriteStatus value: " << enum_value;
+  QUIC_DLOG(ERROR) << "Invalid WriteStatus value: "
+                   << static_cast<int16_t>(enum_value);
   return "<invalid>";
+}
+
+std::ostream& operator<<(std::ostream& os, const WriteStatus& status) {
+  os << HistogramEnumString(status);
+  return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const WriteResult& s) {
