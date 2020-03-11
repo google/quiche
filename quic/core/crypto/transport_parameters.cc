@@ -118,7 +118,8 @@ bool WriteTransportParameterId(
       return false;
     }
   } else {
-    if (param_id > std::numeric_limits<uint16_t>::max()) {
+    if (static_cast<uint64_t>(param_id) >
+        std::numeric_limits<uint16_t>::max()) {
       QUIC_BUG << "Cannot serialize transport parameter "
                << TransportParameterIdToString(param_id) << " with version "
                << version;
