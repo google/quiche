@@ -422,6 +422,9 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
   if (sample.last_packet_send_state.is_valid) {
     last_sample_is_app_limited_ = sample.last_packet_send_state.is_app_limited;
     has_non_app_limited_sample_ |= !last_sample_is_app_limited_;
+    if (stats_) {
+      stats_->has_non_app_limited_sample = has_non_app_limited_sample_;
+    }
   }
   if (!sample.sample_is_app_limited ||
       sample.sample_max_bandwidth > max_bandwidth_.GetBest()) {

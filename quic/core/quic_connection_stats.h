@@ -130,6 +130,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Whether overshooting is detected (and pacing rate decreases) during start
   // up with network parameters adjusted.
   bool overshooting_detected_with_network_parameters_adjusted = false;
+
+  // Whether there is any non app-limited bandwidth sample.
+  bool has_non_app_limited_sample = false;
 };
 
 }  // namespace quic
