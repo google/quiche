@@ -3693,13 +3693,18 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnRTO) {
 
   // Fire the RTO and verify that the RST_STREAM is resent, the stream data
   // is sent.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(2));
+  const size_t num_retransmissions =
+      connection_.SupportsMultiplePacketNumberSpaces() ? 1 : 2;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(num_retransmissions));
   clock_.AdvanceTime(DefaultRetransmissionTime());
   connection_.GetRetransmissionAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
-  ASSERT_EQ(1u, writer_->rst_stream_frames().size());
-  EXPECT_EQ(stream_id, writer_->rst_stream_frames().front().stream_id);
+  if (num_retransmissions == 2) {
+    ASSERT_EQ(1u, writer_->rst_stream_frames().size());
+    EXPECT_EQ(stream_id, writer_->rst_stream_frames().front().stream_id);
+  }
 }
 
 TEST_P(QuicConnectionTest, DoNotSendPendingRetransmissionForResetStream) {
@@ -3916,7 +3921,10 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
   writer_->SetWritable();
   connection_.OnCanWrite();
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_, 2));
+  const uint64_t retransmission =
+      connection_.SupportsMultiplePacketNumberSpaces() ? 3 : 2;
+  EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_,
+                                                            retransmission));
 }
 
 TEST_P(QuicConnectionTest, AlarmsWhenWriteBlocked) {
@@ -4155,9 +4163,11 @@ TEST_P(QuicConnectionTest, TLP) {
   // Simulate the retransmission alarm firing and sending a tlp,
   // so send algorithm's OnRetransmissionTimeout is not called.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2), _, _));
+  const QuicPacketNumber retransmission(
+      connection_.SupportsMultiplePacketNumberSpaces() ? 3 : 2);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, retransmission, _, _));
   connection_.GetRetransmissionAlarm()->Fire();
-  EXPECT_EQ(QuicPacketNumber(2u), writer_->header().packet_number);
+  EXPECT_EQ(retransmission, writer_->header().packet_number);
   // We do not raise the high water mark yet.
   EXPECT_EQ(QuicPacketNumber(1u), stop_waiting()->least_unacked);
 }
@@ -9714,6 +9724,7 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   if (!connection_.version().SupportsAntiAmplificationLimit()) {
     return;
   }
+  SetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number, true);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -9735,7 +9746,7 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
 
   // PTO fires, verify a PING packet gets sent because there is no data to send.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(2), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
   EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
@@ -9977,7 +9988,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 
@@ -9990,7 +10001,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data again.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(5), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(7), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 
@@ -10001,7 +10012,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit application data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(6), _, _));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(9), _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
