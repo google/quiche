@@ -416,6 +416,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual bool ShouldYield(QuicStreamId stream_id);
 
   // Set transmission type of next sending packets.
+  // TODO(b/136274541): Remove this method or or make it private after
+  // gfe2_reloadable_flag_quic_write_with_transmission is deprecated.
   void SetTransmissionType(TransmissionType type);
 
   // Clean up closed_streams_.
@@ -481,6 +483,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Called when the ALPN of the connection is established for a connection that
   // uses TLS handshake.
   virtual void OnAlpnSelected(quiche::QuicheStringPiece alpn);
+
+  bool write_with_transmission() const { return write_with_transmission_; }
 
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
@@ -814,6 +818,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // If true, enables round robin scheduling.
   bool enable_round_robin_scheduling_;
+
+  // Latched value of gfe2_reloadable_flag_quic_write_with_transmission.
+  const bool write_with_transmission_;
 };
 
 }  // namespace quic

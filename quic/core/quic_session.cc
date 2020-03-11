@@ -45,6 +45,24 @@ class ClosedStreamsCleanUpDelegate : public QuicAlarm::Delegate {
   QuicSession* session_;
 };
 
+// TODO(renjietang): remove this function once
+// gfe2_reloadable_flag_quic_write_with_transmission is deprecated.
+void CountTransmissionTypeFlag(TransmissionType type) {
+  switch (type) {
+    case NOT_RETRANSMISSION:
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_with_transmission, 1, 4);
+      break;
+    case HANDSHAKE_RETRANSMISSION:
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_with_transmission, 2, 4);
+      break;
+    case LOSS_RETRANSMISSION:
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_with_transmission, 3, 4);
+      break;
+    default:
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_write_with_transmission, 4, 4);
+  }
+}
+
 }  // namespace
 
 #define ENDPOINT \
@@ -100,7 +118,9 @@ QuicSession::QuicSession(
       is_configured_(false),
       num_expected_unidirectional_static_streams_(
           num_expected_unidirectional_static_streams),
-      enable_round_robin_scheduling_(false) {
+      enable_round_robin_scheduling_(false),
+      write_with_transmission_(
+          GetQuicReloadableFlag(quic_write_with_transmission)) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -537,7 +557,9 @@ void QuicSession::OnCanWrite() {
                      "write blocked.";
     return;
   }
-  SetTransmissionType(NOT_RETRANSMISSION);
+  if (!write_with_transmission_) {
+    SetTransmissionType(NOT_RETRANSMISSION);
+  }
   // We limit the number of writes to the number of pending streams. If more
   // streams become pending, WillingAndAbleToWrite will be true, which will
   // cause the connection to request resumption before yielding to other
@@ -689,6 +711,10 @@ QuicConsumedData QuicSession::WritevData(
     return QuicConsumedData(0, false);
   }
 
+  if (write_with_transmission_) {
+    SetTransmissionType(type);
+    CountTransmissionTypeFlag(type);
+  }
   const auto current_level = connection()->encryption_level();
   if (level.has_value()) {
     connection()->SetDefaultEncryptionLevel(level.value());
@@ -712,9 +738,12 @@ QuicConsumedData QuicSession::WritevData(
 size_t QuicSession::SendCryptoData(EncryptionLevel level,
                                    size_t write_length,
                                    QuicStreamOffset offset,
-                                   TransmissionType /*type*/) {
+                                   TransmissionType type) {
   DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
-  // TODO(b/136274541): Set the transmission type here.
+  if (write_with_transmission_) {
+    SetTransmissionType(type);
+    CountTransmissionTypeFlag(type);
+  }
   const auto current_level = connection()->encryption_level();
   connection_->SetDefaultEncryptionLevel(level);
   const auto bytes_consumed =
@@ -725,8 +754,11 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
 }
 
 bool QuicSession::WriteControlFrame(const QuicFrame& frame,
-                                    TransmissionType /*type*/) {
-  // TODO(b/136274541): Set the transmission type here.
+                                    TransmissionType type) {
+  if (write_with_transmission_) {
+    SetTransmissionType(type);
+    CountTransmissionTypeFlag(type);
+  }
   return connection_->SendControlFrame(frame);
 }
 
@@ -1895,7 +1927,9 @@ void QuicSession::OnFrameLost(const QuicFrame& frame) {
 void QuicSession::RetransmitFrames(const QuicFrames& frames,
                                    TransmissionType type) {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
-  SetTransmissionType(type);
+  if (!write_with_transmission_) {
+    SetTransmissionType(type);
+  }
   for (const QuicFrame& frame : frames) {
     if (frame.type == MESSAGE_FRAME) {
       // Do not retransmit MESSAGE frames.
@@ -1989,14 +2023,18 @@ bool QuicSession::RetransmitLostData() {
   bool uses_crypto_frames = QuicVersionUsesCryptoFrames(transport_version());
   QuicCryptoStream* crypto_stream = GetMutableCryptoStream();
   if (uses_crypto_frames && crypto_stream->HasPendingCryptoRetransmission()) {
-    SetTransmissionType(HANDSHAKE_RETRANSMISSION);
+    if (!write_with_transmission_) {
+      SetTransmissionType(HANDSHAKE_RETRANSMISSION);
+    }
     crypto_stream->WritePendingCryptoRetransmission();
   }
   // Retransmit crypto data in stream 1 frames (version < 47).
   if (!uses_crypto_frames &&
       QuicContainsKey(streams_with_pending_retransmission_,
                       QuicUtils::GetCryptoStreamId(transport_version()))) {
-    SetTransmissionType(HANDSHAKE_RETRANSMISSION);
+    if (!write_with_transmission_) {
+      SetTransmissionType(HANDSHAKE_RETRANSMISSION);
+    }
     // Retransmit crypto data first.
     QuicStream* crypto_stream =
         GetStream(QuicUtils::GetCryptoStreamId(transport_version()));
@@ -2011,7 +2049,9 @@ bool QuicSession::RetransmitLostData() {
     }
   }
   if (control_frame_manager_.HasPendingRetransmission()) {
-    SetTransmissionType(LOSS_RETRANSMISSION);
+    if (!write_with_transmission_) {
+      SetTransmissionType(LOSS_RETRANSMISSION);
+    }
     control_frame_manager_.OnCanWrite();
     if (control_frame_manager_.HasPendingRetransmission()) {
       return false;
@@ -2025,7 +2065,9 @@ bool QuicSession::RetransmitLostData() {
     const QuicStreamId id = streams_with_pending_retransmission_.begin()->first;
     QuicStream* stream = GetStream(id);
     if (stream != nullptr) {
-      SetTransmissionType(LOSS_RETRANSMISSION);
+      if (!write_with_transmission_) {
+        SetTransmissionType(LOSS_RETRANSMISSION);
+      }
       stream->OnCanWrite();
       DCHECK(CheckStreamWriteBlocked(stream));
       if (stream->HasPendingRetransmission()) {
