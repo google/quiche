@@ -2634,7 +2634,7 @@ void QuicConnection::OnRetransmissionTimeout() {
   }
 #endif
 
-  const QuicPacketNumber previous_created_packet_number =
+  QuicPacketNumber previous_created_packet_number =
       packet_creator_.packet_number();
   if (close_connection_after_five_rtos_ &&
       sent_packet_manager_.GetConsecutiveRtoCount() >= 4) {
@@ -2663,6 +2663,10 @@ void QuicConnection::OnRetransmissionTimeout() {
     packet_creator_.SkipNPacketNumbers(
         num_packet_numbers_to_skip, sent_packet_manager_.GetLeastUnacked(),
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
+    if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_send_ping_when_pto_skips_packet_number);
+      previous_created_packet_number += num_packet_numbers_to_skip;
+    }
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
     }
@@ -2689,17 +2693,11 @@ void QuicConnection::OnRetransmissionTimeout() {
        retransmission_mode == QuicSentPacketManager::RTO_MODE ||
        retransmission_mode == QuicSentPacketManager::PTO_MODE) &&
       !visitor_->WillingAndAbleToWrite()) {
-    // Send PING if timer fires in RTO or PTO mode but there is no data to
+    // Send PING if timer fires in TLP/RTO/PTO mode but there is no data to
     // send.
-    // When TLP fires, either new data or tail loss probe should be sent.
-    // There is corner case where TLP fires after RTO because packets get
-    // acked. Two packets are marked RTO_RETRANSMITTED, but the first packet
-    // is retransmitted as two packets because of packet number length
-    // increases (please see QuicConnectionTest.RtoPacketAsTwo).
-    QUIC_DLOG_IF(WARNING,
-                 retransmission_mode == QuicSentPacketManager::TLP_MODE &&
-                     stats_.rto_count == 0)
-        << "No packet gets sent when timer fires in TLP mode, sending PING";
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "No packet gets sent when timer fires in mode "
+                    << retransmission_mode << ", send PING";
     DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
     visitor_->SendPing();
   }

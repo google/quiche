@@ -1380,6 +1380,16 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void SendPing() { notifier_.WriteOrBufferPing(); }
 
+  MessageStatus SendMessage(quiche::QuicheStringPiece message) {
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
+    return connection_.SendMessage(
+        1,
+        MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(), message,
+                 &storage),
+        false);
+  }
+
   void ProcessAckPacket(uint64_t packet_number, QuicAckFrame* frame) {
     if (packet_number > 1) {
       QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, packet_number - 1);
@@ -10156,6 +10166,44 @@ TEST_P(QuicConnectionTest,
   // Verify ack is bundled.
   EXPECT_EQ(1u, writer_->ack_frames().size());
   ASSERT_TRUE(writer_->coalesced_packet() == nullptr);
+}
+
+// Regression test for b/151220135.
+TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
+  if (!VersionSupportsMessageFrames(connection_.transport_version())) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kPTOS);
+  connection_options.push_back(k1PTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  EXPECT_EQ(MESSAGE_STATUS_SUCCESS, SendMessage("message"));
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Although there are bytes in flight, no packet gets sent on PTO firing.
+  if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
+    // PTO fires, verify a PING packet gets sent because there is no data to
+    // send.
+    EXPECT_CALL(*send_algorithm_,
+                OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
+      SendPing();
+    }));
+  } else {
+    // No packet gets sent.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  }
+  connection_.GetRetransmissionAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
+    EXPECT_EQ(1u, connection_.GetStats().pto_count);
+    EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
+    EXPECT_EQ(1u, writer_->ping_frames().size());
+  }
 }
 
 }  // namespace
