@@ -471,6 +471,14 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {false,
               {static_cast<uint64_t>(
                   QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
     case QUIC_HPACK_INDEX_VARINT_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_HPACK_INDEX_VARINT_ERROR)}};
     case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:

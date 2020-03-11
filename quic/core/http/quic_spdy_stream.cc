@@ -844,9 +844,9 @@ void QuicSpdyStream::ClearSession() {
 bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (!headers_decompressed_ || trailers_decompressed_) {
-    // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
-    stream_delegate()->OnStreamError(QUIC_INVALID_HEADERS_STREAM_DATA,
-                                     "Unexpected DATA frame received.");
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+        "Unexpected DATA frame received.");
     return false;
   }
 
@@ -925,9 +925,8 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
   DCHECK(!qpack_decoded_headers_accumulator_);
 
   if (trailers_decompressed_) {
-    // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
     stream_delegate()->OnStreamError(
-        QUIC_INVALID_HEADERS_STREAM_DATA,
+        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
         "HEADERS frame received after trailing HEADERS.");
     return false;
   }

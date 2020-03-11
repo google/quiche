@@ -122,8 +122,7 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
   bool OnUnknownFrameStart(uint64_t /* frame_type */,
                            QuicByteCount /* header_length */) override {
-    // Ignore unknown frame types.
-    return true;
+    return stream_->OnUnknownFrameStart();
   }
 
   bool OnUnknownFramePayload(quiche::QuicheStringPiece /* payload */) override {
@@ -190,9 +189,9 @@ void QuicReceiveControlStream::OnDataAvailable() {
 bool QuicReceiveControlStream::OnSettingsFrameStart(
     QuicByteCount /* header_length */) {
   if (settings_frame_received_) {
-    // TODO(renjietang): Change error code to HTTP_UNEXPECTED_FRAME.
-    stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
-                                     "Settings frames are received twice.");
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+        "Settings frames are received twice.");
     return false;
   }
 
@@ -217,7 +216,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
     QuicByteCount /* header_length */) {
   if (!settings_frame_received_) {
     stream_delegate()->OnStreamError(
-        QUIC_INVALID_STREAM_ID,
+        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
         "PRIORITY_UPDATE frame received before SETTINGS.");
     return false;
   }
@@ -260,6 +259,17 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
   }
 
   // Ignore frame if no urgency parameter can be parsed.
+  return true;
+}
+
+bool QuicReceiveControlStream::OnUnknownFrameStart() {
+  if (!settings_frame_received_) {
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+        "Unknown frame received before SETTINGS.");
+    return false;
+  }
+
   return true;
 }
 

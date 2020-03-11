@@ -2473,10 +2473,9 @@ TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
 
   // Closing the connection is mocked out in tests.  Instead, simply stop
   // reading data at the stream level to prevent QuicSpdyStream from blowing up.
-  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
@@ -2523,10 +2522,9 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
 
   // Closing the connection is mocked out in tests.  Instead, simply stop
   // reading data at the stream level to prevent QuicSpdyStream from blowing up.
-  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "HEADERS frame received after trailing HEADERS.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
@@ -2574,10 +2572,9 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
 
   // Closing the connection is mocked out in tests.  Instead, simply stop
   // reading data at the stream level to prevent QuicSpdyStream from blowing up.
-  // TODO(b/124216424): Change error code to HTTP_UNEXPECTED_FRAME.
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_HEADERS_STREAM_DATA,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
       .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));

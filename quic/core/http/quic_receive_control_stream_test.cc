@@ -197,9 +197,10 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   EXPECT_EQ(settings_frame.size() + 1, NumBytesConsumed());
 
   // Second SETTINGS frame causes the connection to be closed.
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
-                              "Settings frames are received twice.", _))
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+                      "Settings frames are received twice.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
@@ -255,7 +256,7 @@ TEST_P(QuicReceiveControlStreamTest,
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_STREAM_ID,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
                       "PRIORITY_UPDATE frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
@@ -310,18 +311,51 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
 
 // Regression test for b/137554973: unknown frames should be consumed.
 TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
+  EXPECT_EQ(1u, NumBytesConsumed());
+
+  // Receive SETTINGS frame.
+  SettingsFrame settings;
+  std::string settings_frame = EncodeSettings(settings);
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 1, settings_frame));
+
+  // SETTINGS frame is consumed.
+  EXPECT_EQ(1 + settings_frame.size(), NumBytesConsumed());
+
+  // Receive unknown frame.
   std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
       "21"        // reserved frame type
       "03"        // payload length
       "666f6f");  // payload "foo"
 
-  EXPECT_EQ(1u, NumBytesConsumed());
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 1 + settings_frame.size(), unknown_frame));
+
+  // Unknown frame is consumed.
+  EXPECT_EQ(1 + settings_frame.size() + unknown_frame.size(),
+            NumBytesConsumed());
+}
+
+TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
+  std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
+      "21"        // reserved frame type
+      "03"        // payload length
+      "666f6f");  // payload "foo"
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+                      "Unknown frame received before SETTINGS.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
                       /* offset = */ 1, unknown_frame));
-
-  EXPECT_EQ(unknown_frame.size() + 1, NumBytesConsumed());
 }
 
 }  // namespace

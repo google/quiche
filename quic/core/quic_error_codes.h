@@ -356,8 +356,16 @@ enum QuicErrorCode {
   // Internal error codes for HTTP/3 errors.
   QUIC_HTTP_FRAME_TOO_LARGE = 131,
   QUIC_HTTP_FRAME_ERROR = 132,
+  // A frame that is never allowed on a request stream is received.
   QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM = 133,
+  // A frame that is never allowed on the control stream is received.
   QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM = 134,
+  // An invalid sequence of frames normally allowed on a request stream is
+  // received.
+  QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM = 151,
+  // An invalid sequence of frames normally allowed on the control stream is
+  // received.
+  QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM = 152,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -394,7 +402,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 151,
+  QUIC_LAST_ERROR = 153,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

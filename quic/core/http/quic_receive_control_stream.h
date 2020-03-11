@@ -43,6 +43,7 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   bool OnSettingsFrame(const SettingsFrame& settings);
   bool OnPriorityUpdateFrameStart(QuicByteCount header_length);
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& priority);
+  bool OnUnknownFrameStart();
 
   // False until a SETTINGS frame is received.
   bool settings_frame_received_;
