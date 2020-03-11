@@ -483,50 +483,24 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
-TEST_P(QuicStreamIdManagerTest, HoldMaxStreamsFrame) {
-  // The config has not been negotiated so the MAX_STREAMS frame will not be
-  // sent.
+TEST_P(QuicStreamIdManagerTest, NoMaxStreamsFrameBeforeConfigured) {
+  // The config has not been negotiated so QUIC_BUG will be triggered.
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
   QuicStreamsBlockedFrame frame(1u, 0u, IsUnidirectional());
-  // Should cause change in pending_max_streams.
-  stream_id_manager_.OnStreamsBlockedFrame(frame);
-
-  EXPECT_CALL(delegate_, SendMaxStreams(_, IsUnidirectional()));
-
-  // MAX_STREAMS will be sent now that the config has been negotiated.
-  stream_id_manager_.OnConfigNegotiated();
+  // Trigger sending of MAX_STREAMS.
+  EXPECT_QUIC_BUG(
+      stream_id_manager_.OnStreamsBlockedFrame(frame),
+      "Attempt to send Max Streams Frame before config is negotiated");
 }
 
-TEST_P(QuicStreamIdManagerTest, HoldStreamsBlockedFrameXmit) {
+TEST_P(QuicStreamIdManagerTest, NoStreamCreationBeforeConfigured) {
   // We should not see a STREAMS_BLOCKED frame because we're not configured..
   EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
 
-  // Since the stream limit is 0 and no sreams can be created this should return
-  // false and have forced a STREAMS_BLOCKED to be queued up, with the
-  // blocked stream id == 0.
-  EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
-
-  // Since the steam limit has not been increased when the config was negotiated
-  // a STREAMS_BLOCKED frame should be sent.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional()));
-  stream_id_manager_.OnConfigNegotiated();
-}
-
-TEST_P(QuicStreamIdManagerTest, HoldStreamsBlockedFrameNoXmit) {
-  // We should not see a STREAMS_BLOCKED frame because we're not configured..
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional())).Times(0);
-
-  // Since the stream limit is 0 and no sreams can be created this should return
-  // false and have forced a STREAMS_BLOCKED to be queued up, with the
-  // blocked stream id == 0.
-  EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
-
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  stream_id_manager_.SetMaxOpenOutgoingStreams(10);
-  // Since the stream limit has been increase which allows streams to be created
-  // no STREAMS_BLOCKED should be send.
-  stream_id_manager_.OnConfigNegotiated();
+  EXPECT_QUIC_BUG(
+      stream_id_manager_.CanOpenNextOutgoingStream(),
+      "Creating streams before Quic session is configured is prohibitied");
 }
 
 TEST_P(QuicStreamIdManagerTest, CheckMaxAllowedOutgoingInitialization) {

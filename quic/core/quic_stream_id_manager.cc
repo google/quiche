@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "net/third_party/quiche/src/quic/core/quic_stream_id_manager.h"
 
+#include <cstdint>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -42,10 +43,7 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
           QuicUtils::GetInvalidStreamId(transport_version)),
-      max_streams_window_(0),
-      pending_max_streams_(false),
-      pending_streams_blocked_(
-          QuicUtils::GetInvalidStreamId(transport_version)) {
+      max_streams_window_(0) {
   CalculateIncomingMaxStreamsWindow();
 }
 
@@ -142,7 +140,7 @@ void QuicStreamIdManager::SendMaxStreamsFrame() {
     // MAX STREAMS frame yet. Record that we would have sent one and then
     // return. A new frame will be generated once the configuration is
     // received.
-    pending_max_streams_ = true;
+    QUIC_BUG << "Attempt to send Max Streams Frame before config is negotiated";
     return;
   }
   incoming_advertised_max_streams_ = incoming_actual_max_streams_;
@@ -188,15 +186,12 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
   if (outgoing_stream_count_ < outgoing_max_streams_) {
     return true;
   }
-  // Next stream ID would exceed the limit, need to inform the peer.
-
   if (!is_config_negotiated_) {
-    // The config is not negotiated, so we can not send the STREAMS_BLOCKED
-    // frame yet. Record that we would have sent one, and what the limit was
-    // when we were blocked, and return.
-    pending_streams_blocked_ = outgoing_max_streams_;
+    QUIC_BUG
+        << "Creating streams before Quic session is configured is prohibitied";
     return false;
   }
+  // Next stream ID would exceed the limit, need to inform the peer.
   delegate_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
   QUIC_CODE_COUNT(quic_reached_outgoing_stream_id_limit);
   return false;
@@ -326,23 +321,6 @@ void QuicStreamIdManager::CalculateIncomingMaxStreamsWindow() {
 
 void QuicStreamIdManager::OnConfigNegotiated() {
   is_config_negotiated_ = true;
-  // If a STREAMS_BLOCKED or MAX_STREAMS is pending, send it and clear
-  // the pending state.
-  if (pending_streams_blocked_ !=
-      QuicUtils::GetInvalidStreamId(transport_version_)) {
-    if (pending_streams_blocked_ >= outgoing_max_streams_) {
-      // There is a pending STREAMS_BLOCKED frame and the current limit does not
-      // let new streams be formed. Regenerate and send the frame.
-      delegate_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
-    }
-    pending_streams_blocked_ =
-        QuicUtils::GetInvalidStreamId(transport_version_);
-  }
-  if (pending_max_streams_) {
-    // Generate a MAX_STREAMS using the current stream limits.
-    SendMaxStreamsFrame();
-    pending_max_streams_ = false;
-  }
 }
 
 }  // namespace quic

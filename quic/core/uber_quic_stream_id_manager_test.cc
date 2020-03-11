@@ -145,6 +145,7 @@ TEST_P(UberQuicStreamIdManagerTest, Initialization) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
+  manager_.OnConfigNegotiated();
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure
   // that they are managed separately.
@@ -171,6 +172,7 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
   manager_.GetNextOutgoingUnidirectionalStreamId();
 
   // Both should be exhausted...
+  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(2);
   EXPECT_FALSE(manager_.CanOpenNextOutgoingUnidirectionalStream());
   EXPECT_FALSE(manager_.CanOpenNextOutgoingBidirectionalStream());
 }
@@ -351,6 +353,7 @@ TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
+  manager_.OnConfigNegotiated();
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure
   // that they are managed separately.
@@ -377,6 +380,7 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
   manager_.GetNextOutgoingUnidirectionalStreamId();
 
   // Both should be exhausted...
+  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(3);
   EXPECT_FALSE(manager_.CanOpenNextOutgoingUnidirectionalStream());
   EXPECT_FALSE(manager_.CanOpenNextOutgoingBidirectionalStream());
 
