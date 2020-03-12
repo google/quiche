@@ -189,7 +189,8 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       num_tlp_timeout_ptos_ = 2;
     }
     if (GetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time)) {
-      if (config.HasClientSentConnectionOption(kPLE1, perspective)) {
+      if (config.HasClientSentConnectionOption(kPLE1, perspective) ||
+          config.HasClientSentConnectionOption(kTLPR, perspective)) {
         QUIC_RELOADABLE_FLAG_COUNT_N(quic_arm_pto_with_earliest_sent_time, 1,
                                      2);
         first_pto_srtt_multiplier_ = 0.5;
