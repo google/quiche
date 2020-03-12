@@ -16,10 +16,12 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/windowed_filter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -387,6 +389,9 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // If true, will not exit low gain mode until bytes_in_flight drops below BDP
   // or it's time for high gain mode.
   bool drain_to_target_;
+
+  const bool fix_zero_bw_on_loss_only_event_ =
+      GetQuicReloadableFlag(quic_bbr_fix_zero_bw_on_loss_only_event);
 
   // True if network parameters are adjusted, and this will be reset if
   // overshooting is detected and pacing rate gets slowed.

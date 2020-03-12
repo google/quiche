@@ -817,6 +817,44 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   EXPECT_LT(2 * kDefaultMaxPacketSize, inflight_hi);
 }
 
+// Ensures bandwidth estimate does not change after a loss only event.
+TEST_F(Bbr2DefaultTopologyTest, LossOnlyCongestionEvent) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+
+  // Send some bursts, each burst increments round count by 1, since it only
+  // generates small, app-limited samples, the max_bandwidth_filter_ will not be
+  // updated.
+  SendBursts(params, 20, 512, QuicTime::Delta::FromSeconds(3));
+
+  // Run until we have something in flight.
+  sender_endpoint_.AddBytesToTransfer(50 * 1024 * 1024);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [&]() { return sender_unacked_map()->bytes_in_flight() > 0; },
+      QuicTime::Delta::FromSeconds(5));
+  ASSERT_TRUE(simulator_result);
+
+  const QuicBandwidth prior_bandwidth_estimate = sender_->BandwidthEstimate();
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(), prior_bandwidth_estimate,
+                   0.01f);
+
+  // Lose the least unacked packet.
+  LostPacketVector lost_packets;
+  lost_packets.emplace_back(
+      sender_connection()->sent_packet_manager().GetLeastUnacked(),
+      kDefaultMaxPacketSize);
+
+  QuicTime now = simulator_.GetClock()->Now() + params.RTT() * 0.25;
+  sender_->OnCongestionEvent(false, sender_unacked_map()->bytes_in_flight(),
+                             now, {}, lost_packets);
+
+  // Bandwidth estimate should not change for the loss only event.
+  EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
+}
+
 // After quiescence, if the sender is in PROBE_RTT, it should transition to
 // PROBE_BW immediately on the first sent packet after quiescence.
 TEST_F(Bbr2DefaultTopologyTest, ProbeRttAfterQuiescenceImmediatelyExits) {

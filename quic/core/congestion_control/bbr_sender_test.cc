@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
+#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -1518,6 +1519,49 @@ TEST_F(BbrSenderTest, 100InitialCongestionWindowWithNetworkParameterAdjusted) {
   EXPECT_EQ(100 * kDefaultTCPMSS,
             sender_->ExportDebugState().congestion_window);
   EXPECT_GT(1024 * kTestLinkBandwidth, sender_->PacingRate(0));
+}
+
+// Ensures bandwidth estimate does not change after a loss only event.
+// Regression test for b/151239871.
+TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
+  CreateDefaultSetup();
+
+  DriveOutOfStartup();
+  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+
+  // Send some bursts, each burst increments round count by 1, since it only
+  // generates small, app-limited samples, the max_bandwidth_ will not be
+  // updated. At the end of all bursts, all estimates in max_bandwidth_ will
+  // look very old such that any Update() will reset all estimates.
+  SendBursts(20, 512, QuicTime::Delta::FromSeconds(3));
+
+  QuicUnackedPacketMap* unacked_packets =
+      QuicSentPacketManagerPeer::GetUnackedPacketMap(
+          QuicConnectionPeer::GetSentPacketManager(bbr_sender_.connection()));
+  // Run until we have something in flight.
+  bbr_sender_.AddBytesToTransfer(50 * 1024 * 1024);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [&]() { return unacked_packets->bytes_in_flight() > 0; },
+      QuicTime::Delta::FromSeconds(5));
+  ASSERT_TRUE(simulator_result);
+
+  const QuicBandwidth prior_bandwidth_estimate = sender_->BandwidthEstimate();
+  EXPECT_APPROX_EQ(kTestLinkBandwidth, prior_bandwidth_estimate, 0.01f);
+
+  // Lose the least unacked packet.
+  LostPacketVector lost_packets;
+  lost_packets.emplace_back(
+      bbr_sender_.connection()->sent_packet_manager().GetLeastUnacked(),
+      kDefaultMaxPacketSize);
+
+  QuicTime now = simulator_.GetClock()->Now() + kTestRtt * 0.25;
+  sender_->OnCongestionEvent(false, unacked_packets->bytes_in_flight(), now, {},
+                             lost_packets);
+
+  // Bandwidth estimate should not change for the loss only event.
+  if (GetQuicReloadableFlag(quic_bbr_fix_zero_bw_on_loss_only_event)) {
+    EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
+  }
 }
 
 }  // namespace test
