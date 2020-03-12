@@ -1068,7 +1068,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
                             GetProbeTimeoutDelay());
       }
 
-      PacketNumberSpace packet_number_space;
+      PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
       // earliest_right_edge is the earliest sent time of the last in flight
       // packet of all packet number spaces.
       const QuicTime earliest_right_edge =
