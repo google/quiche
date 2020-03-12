@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -231,11 +232,10 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   EXPECT_TRUE(session_->CreateOutgoingBidirectionalStream() == nullptr);
   // Verify that no data may be send on existing streams.
   char data[] = "hello world";
-  QuicConsumedData consumed =
+  EXPECT_QUIC_BUG(
       session_->WritevData(stream->id(), QUICHE_ARRAYSIZE(data), 0, NO_FIN,
-                           NOT_RETRANSMISSION, QuicheNullOpt);
-  EXPECT_FALSE(consumed.fin_consumed);
-  EXPECT_EQ(0u, consumed.bytes_consumed);
+                           NOT_RETRANSMISSION, QuicheNullOpt),
+      "Client: Try to send data of stream");
 }
 
 TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {

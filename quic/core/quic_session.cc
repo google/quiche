@@ -708,6 +708,8 @@ QuicConsumedData QuicSession::WritevData(
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
     // up write blocked until OnCanWrite is next called.
+    QUIC_BUG << ENDPOINT << "Try to send data of stream " << id
+             << " before encryption is established.";
     return QuicConsumedData(0, false);
   }
 
