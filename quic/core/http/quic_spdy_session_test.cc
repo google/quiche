@@ -2227,7 +2227,17 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
     // A STOP_SENDING frame is sent in response to the unknown stream type.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+        .WillOnce(Invoke([stream_id](const QuicFrame& frame) {
+          EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
+
+          QuicStopSendingFrame* stop_sending = frame.stop_sending_frame;
+          EXPECT_EQ(stream_id, stop_sending->stream_id);
+          EXPECT_EQ(QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR,
+                    static_cast<QuicHttp3ErrorCode>(
+                        stop_sending->application_error_code));
+
+          return ClearControlFrame(frame);
+        }));
     session_.OnStreamFrame(frame);
 
     PendingStream* pending =

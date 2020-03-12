@@ -57,9 +57,6 @@ namespace {
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
-// TODO(b/124216424): remove this once HTTP/3 error codes are adopted.
-const uint16_t kHttpUnknownStreamType = 0x0D;
-
 class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
  public:
   HeaderTableDebugVisitor(const QuicClock* clock,
@@ -1109,7 +1106,10 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     default:
-      SendStopSending(kHttpUnknownStreamType, pending->id());
+      SendStopSending(
+          static_cast<QuicApplicationErrorCode>(
+              QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR),
+          pending->id());
       pending->StopReading();
   }
   return false;
