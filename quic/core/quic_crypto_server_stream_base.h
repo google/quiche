@@ -62,9 +62,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStreamBase : public QuicCryptoStream {
   virtual void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) = 0;
 
-  // These are all accessors and setters to their respective counters.
-  virtual uint8_t NumHandshakeMessages() const = 0;
-  virtual uint8_t NumHandshakeMessagesWithServerNonces() const = 0;
+  virtual bool IsZeroRtt() const = 0;
   virtual bool ZeroRttAttempted() const = 0;
   virtual const CachedNetworkParameters* PreviousCachedNetworkParams()
       const = 0;

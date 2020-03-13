@@ -83,14 +83,9 @@ void TlsServerHandshaker::SendServerConfigUpdate(
   // SCUP messages aren't supported when using the TLS handshake.
 }
 
-uint8_t TlsServerHandshaker::NumHandshakeMessages() const {
-  // TODO(nharper): Return a sensible value here.
-  return 0;
-}
-
-uint8_t TlsServerHandshaker::NumHandshakeMessagesWithServerNonces() const {
-  // TODO(nharper): Return a sensible value here.
-  return 0;
+bool TlsServerHandshaker::IsZeroRtt() const {
+  // TODO(nharper): Support 0-RTT with TLS 1.3 in QUIC.
+  return false;
 }
 
 int TlsServerHandshaker::NumServerConfigUpdateMessagesSent() const {

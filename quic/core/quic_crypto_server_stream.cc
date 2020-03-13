@@ -293,12 +293,9 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
   ++num_server_config_update_messages_sent_;
 }
 
-uint8_t QuicCryptoServerStream::NumHandshakeMessages() const {
-  return num_handshake_messages_;
-}
-
-uint8_t QuicCryptoServerStream::NumHandshakeMessagesWithServerNonces() const {
-  return num_handshake_messages_with_server_nonces_;
+bool QuicCryptoServerStream::IsZeroRtt() const {
+  return num_handshake_messages_ == 1 &&
+         num_handshake_messages_with_server_nonces_ == 0;
 }
 
 int QuicCryptoServerStream::NumServerConfigUpdateMessagesSent() const {
