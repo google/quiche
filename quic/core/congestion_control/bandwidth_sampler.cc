@@ -300,6 +300,7 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // current packet was sent. In that case, there is no bandwidth sample to
   // make.
   if (sent_packet.last_acked_packet_sent_time == QuicTime::Zero()) {
+    QUIC_BUG << "sent_packet.last_acked_packet_sent_time is zero";
     return BandwidthSample();
   }
 
@@ -334,11 +335,10 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     } else {
       QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 2, 2);
     }
-    QUIC_LOG_EVERY_N_SEC(ERROR, 60)
-        << "Time of the previously acked packet:"
-        << a0.ack_time.ToDebuggingValue()
-        << " is larger than the ack time of the current packet:"
-        << ack_time.ToDebuggingValue();
+    QUIC_BUG << "Time of the previously acked packet:"
+             << a0.ack_time.ToDebuggingValue()
+             << " is larger than the ack time of the current packet:"
+             << ack_time.ToDebuggingValue();
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(
@@ -351,6 +351,9 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // on low bandwidth connections.
   sample.rtt = ack_time - sent_packet.sent_time;
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
+
+  QUIC_BUG_IF(sample.bandwidth.IsZero())
+      << "ack_rate: " << ack_rate << ", send_rate: " << send_rate;
   return sample;
 }
 
