@@ -238,7 +238,7 @@ class QuicSimpleServerSessionTest
         kInitialStreamFlowControlWindowForTest);
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (VersionUsesHttp3(GetParam().transport_version)) {
+    if (VersionUsesHttp3(transport_version())) {
       QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
           &config_, kMaxStreamsForTest + 3);
     } else {
@@ -268,17 +268,16 @@ class QuicSimpleServerSessionTest
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
-    return GetNthClientInitiatedBidirectionalStreamId(
-        connection_->transport_version(), n);
+    return GetNthClientInitiatedBidirectionalStreamId(transport_version(), n);
   }
 
   QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
     return quic::test::GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), n);
+        transport_version(), n);
   }
 
   QuicTransportVersion transport_version() const {
-    return connection_->transport_version();
+    return GetParam().transport_version;
   }
 
   void InjectStopSending(QuicStreamId stream_id,
@@ -508,9 +507,9 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
   EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
   EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
 
-  if (!VersionUsesHttp3(connection_->transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     session_->UnregisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true);
   }
   // Assume encryption already established.
@@ -519,9 +518,9 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
       CreateMockCryptoServerStream(&crypto_config_, &compressed_certs_cache_,
                                    session_.get(), &stream_helper_);
   QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
-  if (!VersionUsesHttp3(connection_->transport_version())) {
+  if (!VersionUsesHttp3(transport_version())) {
     session_->RegisterStreamPriority(
-        QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+        QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true,
         spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
   }
@@ -531,7 +530,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateOutgoingDynamicStreamUptoLimit) {
     QuicSpdyStream* created_stream =
         QuicSimpleServerSessionPeer::CreateOutgoingUnidirectionalStream(
             session_.get());
-    if (VersionUsesHttp3(connection_->transport_version())) {
+    if (VersionUsesHttp3(transport_version())) {
       EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(i + 3),
                 created_stream->id());
     } else {
@@ -588,7 +587,7 @@ class QuicSimpleServerSessionServerPushTest
   QuicSimpleServerSessionServerPushTest() {
     // Reset stream level flow control window to be 32KB.
     if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-      if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+      if (VersionHasIetfQuicFrames(transport_version())) {
         QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesUnidirectional(
             &config_, kStreamFlowControlWindowSize);
       } else {
@@ -624,9 +623,9 @@ class QuicSimpleServerSessionServerPushTest
     }
     session_->OnConfigNegotiated();
 
-    if (!VersionUsesHttp3(connection_->transport_version())) {
+    if (!VersionUsesHttp3(transport_version())) {
       session_->UnregisterStreamPriority(
-          QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+          QuicUtils::GetHeadersStreamId(transport_version()),
           /*is_static=*/true);
     }
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), nullptr);
@@ -636,9 +635,9 @@ class QuicSimpleServerSessionServerPushTest
                                      session_.get(), &stream_helper_);
 
     QuicSimpleServerSessionPeer::SetCryptoStream(session_.get(), crypto_stream);
-    if (!VersionUsesHttp3(connection_->transport_version())) {
+    if (!VersionUsesHttp3(transport_version())) {
       session_->RegisterStreamPriority(
-          QuicUtils::GetHeadersStreamId(connection_->transport_version()),
+          QuicUtils::GetHeadersStreamId(transport_version()),
           /*is_static=*/true,
           spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority));
     }
@@ -673,7 +672,7 @@ class QuicSimpleServerSessionServerPushTest
     QuicByteCount data_frame_header_length = 0;
     for (unsigned int i = 1; i <= num_resources; ++i) {
       QuicStreamId stream_id;
-      if (VersionUsesHttp3(connection_->transport_version())) {
+      if (VersionUsesHttp3(transport_version())) {
         stream_id = GetNthServerInitiatedUnidirectionalId(i + 2);
       } else {
         stream_id = GetNthServerInitiatedUnidirectionalId(i - 1);
@@ -685,7 +684,7 @@ class QuicSimpleServerSessionServerPushTest
       std::string body(body_size, 'a');
       std::string data;
       data_frame_header_length = 0;
-      if (VersionUsesHttp3(connection_->transport_version())) {
+      if (VersionUsesHttp3(transport_version())) {
         std::unique_ptr<char[]> buffer;
         data_frame_header_length =
             HttpEncoder::SerializeDataFrameHeader(body.length(), &buffer);
@@ -708,13 +707,13 @@ class QuicSimpleServerSessionServerPushTest
         // Since flow control window is smaller than response body, not the
         // whole body will be sent.
         QuicStreamOffset offset = 0;
-        if (VersionUsesHttp3(connection_->transport_version())) {
+        if (VersionUsesHttp3(transport_version())) {
           EXPECT_CALL(*connection_,
                       SendStreamData(stream_id, 1, offset, NO_FIN));
           offset++;
         }
 
-        if (VersionUsesHttp3(connection_->transport_version())) {
+        if (VersionUsesHttp3(transport_version())) {
           EXPECT_CALL(*connection_,
                       SendStreamData(stream_id, kHeadersFrameHeaderLength,
                                      offset, NO_FIN));
@@ -724,7 +723,7 @@ class QuicSimpleServerSessionServerPushTest
                                      offset, NO_FIN));
           offset += kHeadersFramePayloadLength;
         }
-        if (VersionUsesHttp3(connection_->transport_version())) {
+        if (VersionUsesHttp3(transport_version())) {
           EXPECT_CALL(*connection_,
                       SendStreamData(stream_id, data_frame_header_length,
                                      offset, NO_FIN));
@@ -744,9 +743,9 @@ class QuicSimpleServerSessionServerPushTest
   }
 
   void MaybeConsumeHeadersStreamData() {
-    if (!VersionUsesHttp3(connection_->transport_version())) {
+    if (!VersionUsesHttp3(transport_version())) {
       QuicStreamId headers_stream_id =
-          QuicUtils::GetHeadersStreamId(connection_->transport_version());
+          QuicUtils::GetHeadersStreamId(transport_version());
       EXPECT_CALL(*connection_, SendStreamData(headers_stream_id, _, _, _))
           .Times(AtLeast(1));
     }
@@ -777,7 +776,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     next_out_going_stream_id =
         GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 3);
   } else {
@@ -788,12 +787,12 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // After an open stream is marked draining, a new stream is expected to be
   // created and a response sent on the stream.
   QuicStreamOffset offset = 0;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(next_out_going_stream_id, 1, offset, NO_FIN));
     offset++;
   }
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(next_out_going_stream_id,
                                kHeadersFrameHeaderLength, offset, NO_FIN));
@@ -803,7 +802,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
                                kHeadersFramePayloadLength, offset, NO_FIN));
     offset += kHeadersFramePayloadLength;
   }
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(next_out_going_stream_id,
                                data_frame_header_length, offset, NO_FIN));
@@ -827,7 +826,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
         QuicMaxStreamsFrame(0, num_resources + 3, /*unidirectional=*/true));
   }
 
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(3));
   } else {
     session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
@@ -864,7 +863,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 
   // Reset the last stream in the queue. It should be marked cancelled.
   QuicStreamId stream_got_reset;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     stream_got_reset =
         GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 4);
   } else {
@@ -884,7 +883,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // be created. But since one of them was marked cancelled due to RST frame,
   // only one queued resource will be sent out.
   QuicStreamId stream_not_reset;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     stream_not_reset =
         GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 3);
   } else {
@@ -893,7 +892,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   }
   InSequence s;
   QuicStreamOffset offset = 0;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_not_reset, 1, offset, NO_FIN));
     offset++;
@@ -944,7 +943,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId stream_to_open;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     stream_to_open =
         GetNthServerInitiatedUnidirectionalId(kMaxStreamsForTest + 3);
   } else {
@@ -962,7 +961,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
                 OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   }
   QuicStreamOffset offset = 0;
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionUsesHttp3(transport_version())) {
     EXPECT_CALL(*connection_,
                 SendStreamData(stream_to_open, 1, offset, NO_FIN));
     offset++;
