@@ -366,6 +366,13 @@ enum QuicErrorCode {
   // An invalid sequence of frames normally allowed on the control stream is
   // received.
   QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM = 152,
+  // A second instance of a unidirectional stream of a certain type is created.
+  QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM = 153,
+  // Client receives a server-initiated bidirectional stream.
+  QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM = 154,
+  // Server opens stream with stream ID corresponding to client-initiated
+  // stream or vice versa.
+  QUIC_HTTP_STREAM_WRONG_DIRECTION = 155,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -402,7 +409,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 153,
+  QUIC_LAST_ERROR = 156,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

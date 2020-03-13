@@ -895,7 +895,9 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseInvalidHost) {
 TEST_P(QuicSpdyClientSessionTest,
        TryToCreateServerInitiatedBidirectionalStream) {
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM, _, _));
   } else {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   }

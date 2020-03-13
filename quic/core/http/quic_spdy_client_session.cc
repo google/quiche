@@ -135,9 +135,8 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
                     << "Already received goaway.";
     return false;
   }
-  if (QuicUtils::IsClientInitiatedStreamId(transport_version(), id) ||
-      (VersionHasIetfQuicFrames(transport_version()) &&
-       QuicUtils::IsBidirectionalStreamId(id))) {
+
+  if (QuicUtils::IsClientInitiatedStreamId(transport_version(), id)) {
     QUIC_LOG(WARNING) << "Received invalid push stream id " << id;
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
@@ -145,6 +144,16 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
+
+  if (VersionHasIetfQuicFrames(transport_version()) &&
+      QuicUtils::IsBidirectionalStreamId(id)) {
+    connection()->CloseConnection(
+        QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM,
+        "Server created bidirectional stream.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+
   return true;
 }
 

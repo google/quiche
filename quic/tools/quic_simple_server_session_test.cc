@@ -564,7 +564,10 @@ TEST_P(QuicSimpleServerSessionTest, OnStreamFrameWithEvenStreamId) {
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
   // Tests that calling GetOrCreateStream() on an outgoing stream not
   // promised yet should result close connection.
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
+  const QuicErrorCode expected_error = VersionUsesHttp3(transport_version())
+                                           ? QUIC_HTTP_STREAM_WRONG_DIRECTION
+                                           : QUIC_INVALID_STREAM_ID;
+  EXPECT_CALL(*connection_, CloseConnection(expected_error,
                                             "Data for nonexistent stream", _));
   EXPECT_EQ(nullptr,
             QuicSessionPeer::GetOrCreateStream(

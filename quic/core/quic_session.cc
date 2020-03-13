@@ -1182,6 +1182,12 @@ void QuicSession::HandleFrameOnNonexistentOutgoingStream(
   DCHECK(!IsClosedStream(stream_id));
   // Received a frame for a locally-created stream that is not currently
   // active. This is an error.
+  if (VersionHasIetfQuicFrames(transport_version())) {
+    connection()->CloseConnection(
+        QUIC_HTTP_STREAM_WRONG_DIRECTION, "Data for nonexistent stream",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
   connection()->CloseConnection(
       QUIC_INVALID_STREAM_ID, "Data for nonexistent stream",
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

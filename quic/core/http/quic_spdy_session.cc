@@ -1186,9 +1186,8 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
     quiche::QuicheStringPiece type) {
   QUIC_PEER_BUG << quiche::QuicheStrCat("Received a duplicate ", type,
                                         " stream: Closing connection.");
-  // TODO(b/124216424): Change to HTTP_STREAM_CREATION_ERROR.
   CloseConnectionWithDetails(
-      QUIC_INVALID_STREAM_ID,
+      QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
       quiche::QuicheStrCat(type, " stream is received twice."));
 }
 

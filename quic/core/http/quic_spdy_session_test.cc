@@ -2698,7 +2698,7 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   QuicStreamFrame data2(id2, false, 0, quiche::QuicheStringPiece(type1, 1));
   EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(id2)).Times(0);
   EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
+              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
                               "Control stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
       session_.OnStreamFrame(data2),
@@ -2717,7 +2717,7 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   QuicStreamFrame data4(id4, false, 0, quiche::QuicheStringPiece(type2, 1));
   EXPECT_CALL(debug_visitor, OnPeerQpackEncoderStreamCreated(id4)).Times(0);
   EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
+              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
                               "QPACK encoder stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
       session_.OnStreamFrame(data4),
@@ -2736,7 +2736,7 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   QuicStreamFrame data6(id6, false, 0, quiche::QuicheStringPiece(type3, 1));
   EXPECT_CALL(debug_visitor, OnPeerQpackDecoderStreamCreated(id6)).Times(0);
   EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
+              CloseConnection(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
                               "QPACK decoder stream is received twice.", _));
   EXPECT_QUIC_PEER_BUG(
       session_.OnStreamFrame(data6),

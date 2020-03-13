@@ -2055,6 +2055,22 @@ TEST_P(QuicSessionTestClient, RecordFinAfterReadSideClosed) {
       QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).size());
 }
 
+TEST_P(QuicSessionTestClient, IncomingStreamWithClientInitiatedStreamId) {
+  const QuicErrorCode expected_error =
+      VersionHasIetfQuicFrames(transport_version())
+          ? QUIC_HTTP_STREAM_WRONG_DIRECTION
+          : QUIC_INVALID_STREAM_ID;
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(expected_error, "Data for nonexistent stream",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+
+  QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(1),
+                        /* fin = */ false, /* offset = */ 0,
+                        quiche::QuicheStringPiece("foo"));
+  session_.OnStreamFrame(frame);
+}
+
 TEST_P(QuicSessionTestServer, ZombieStreams) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);
@@ -2704,7 +2720,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentLocalStream) {
 
   QuicStopSendingFrame frame(1, GetNthServerInitiatedBidirectionalId(123456),
                              123);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID,
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_STREAM_WRONG_DIRECTION,
                                             "Data for nonexistent stream", _))
       .Times(1);
   session_.OnStopSendingFrame(frame);
@@ -2831,6 +2847,22 @@ TEST_P(QuicSessionTestServer, DecryptionKeyAvailableBeforeEncryptionKey) {
   EXPECT_FALSE(session_.OnNewDecryptionKeyAvailable(
       ENCRYPTION_HANDSHAKE, /*decrypter=*/nullptr,
       /*set_alternative_decrypter=*/false, /*latch_once_used=*/false));
+}
+
+TEST_P(QuicSessionTestServer, IncomingStreamWithServerInitiatedStreamId) {
+  const QuicErrorCode expected_error =
+      VersionHasIetfQuicFrames(transport_version())
+          ? QUIC_HTTP_STREAM_WRONG_DIRECTION
+          : QUIC_INVALID_STREAM_ID;
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(expected_error, "Data for nonexistent stream",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+
+  QuicStreamFrame frame(GetNthServerInitiatedBidirectionalId(1),
+                        /* fin = */ false, /* offset = */ 0,
+                        quiche::QuicheStringPiece("foo"));
+  session_.OnStreamFrame(frame);
 }
 
 // A client test class that can be used when the automatic configuration is not
