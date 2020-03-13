@@ -86,7 +86,8 @@ TEST_P(QpackReceiveStreamTest, ResetQpackReceiveStream) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId,
                                qpack_receive_stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM, _, _));
   qpack_receive_stream_->OnStreamReset(rst_frame);
 }
 

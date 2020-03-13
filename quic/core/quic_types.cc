@@ -489,6 +489,10 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
                   QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR)}};
     case QUIC_HTTP_STREAM_WRONG_DIRECTION:
       return {true, {static_cast<uint64_t>(STREAM_STATE_ERROR)}};
+    case QUIC_HTTP_CLOSED_CRITICAL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_CLOSED_CRITICAL_STREAM)}};
     case QUIC_HPACK_INDEX_VARINT_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_HPACK_INDEX_VARINT_ERROR)}};
     case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:

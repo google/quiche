@@ -30,9 +30,10 @@ class QUIC_EXPORT_PRIVATE QpackSendStream : public QuicStream,
   QpackSendStream& operator=(const QpackSendStream&) = delete;
   ~QpackSendStream() override = default;
 
-  // Overriding QuicStream::OnStreamReset to make sure QPACK stream is
-  // never closed before connection.
+  // Overriding QuicStream::OnStopSending() to make sure QPACK stream is never
+  // closed before connection.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
+  bool OnStopSending(uint16_t code) override;
 
   // The send QPACK stream is write unidirectional, so this method
   // should never be called.

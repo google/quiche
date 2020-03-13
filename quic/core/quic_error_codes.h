@@ -373,6 +373,9 @@ enum QuicErrorCode {
   // Server opens stream with stream ID corresponding to client-initiated
   // stream or vice versa.
   QUIC_HTTP_STREAM_WRONG_DIRECTION = 155,
+  // Peer closes one of the six critical unidirectional streams (control, QPACK
+  // encoder or decoder, in either direction).
+  QUIC_HTTP_CLOSED_CRITICAL_STREAM = 156,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -409,7 +412,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 156,
+  QUIC_LAST_ERROR = 157,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

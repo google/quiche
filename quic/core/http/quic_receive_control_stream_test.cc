@@ -147,7 +147,8 @@ TEST_P(QuicReceiveControlStreamTest, ResetControlStream) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId,
                                receive_control_stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM, _, _));
   receive_control_stream_->OnStreamReset(rst_frame);
 }
 

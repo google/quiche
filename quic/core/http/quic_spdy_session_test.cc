@@ -1187,6 +1187,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
   QuicStreamId id;
+  QuicErrorCode expected_error;
   std::string error_message;
   // Initialize HTTP/3 control stream.
   if (VersionUsesHttp3(transport_version())) {
@@ -1195,9 +1196,11 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
 
     QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
     session_.OnStreamFrame(data1);
-    error_message = "Attempt to reset receive control stream";
+    expected_error = QUIC_HTTP_CLOSED_CRITICAL_STREAM;
+    error_message = "RESET_STREAM received for receive control stream";
   } else {
     id = QuicUtils::GetHeadersStreamId(transport_version());
+    expected_error = QUIC_INVALID_STREAM_ID;
     error_message = "Attempt to reset headers stream";
   }
 
@@ -1206,7 +1209,7 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_INVALID_STREAM_ID, error_message,
+      CloseConnection(expected_error, error_message,
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnRstStream(rst1);
 }
@@ -2877,6 +2880,82 @@ TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
                       "SPDY framing error: HPACK_INVALID_INDEX",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnStreamFrame(data);
+}
+
+TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  struct {
+    char type;
+    const char* error_details;
+  } kTestData[] = {
+      {kControlStream, "RESET_STREAM received for receive control stream"},
+      {kQpackEncoderStream, "RESET_STREAM received for QPACK receive stream"},
+      {kQpackDecoderStream, "RESET_STREAM received for QPACK receive stream"},
+  };
+  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kTestData); ++i) {
+    QuicStreamId stream_id =
+        GetNthClientInitiatedUnidirectionalStreamId(transport_version(), i + 1);
+    const QuicByteCount data_length = 1;
+    QuicStreamFrame data(
+        stream_id, false, 0,
+        quiche::QuicheStringPiece(&kTestData[i].type, data_length));
+    session_.OnStreamFrame(data);
+
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+                                              kTestData[i].error_details, _));
+
+    QuicRstStreamFrame rst(kInvalidControlFrameId, stream_id,
+                           QUIC_STREAM_CANCELLED, data_length);
+    session_.OnRstStream(rst);
+  }
+}
+
+TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  QuicSendControlStream* control_stream =
+      QuicSpdySessionPeer::GetSendControlStream(&session_);
+  ASSERT_TRUE(control_stream);
+
+  QuicStopSendingFrame stop_sending_control_stream(
+      kInvalidControlFrameId, control_stream->id(),
+      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+                      "STOP_SENDING received for send control stream", _));
+  session_.OnStopSendingFrame(stop_sending_control_stream);
+
+  QpackSendStream* decoder_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_);
+  ASSERT_TRUE(decoder_stream);
+
+  QuicStopSendingFrame stop_sending_decoder_stream(
+      kInvalidControlFrameId, decoder_stream->id(),
+      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+                      "STOP_SENDING received for QPACK send stream", _));
+  session_.OnStopSendingFrame(stop_sending_decoder_stream);
+
+  QpackSendStream* encoder_stream =
+      QuicSpdySessionPeer::GetQpackEncoderSendStream(&session_);
+  ASSERT_TRUE(encoder_stream);
+
+  QuicStopSendingFrame stop_sending_encoder_stream(
+      kInvalidControlFrameId, encoder_stream->id(),
+      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+                      "STOP_SENDING received for QPACK send stream", _));
+  session_.OnStopSendingFrame(stop_sending_encoder_stream);
 }
 
 }  // namespace

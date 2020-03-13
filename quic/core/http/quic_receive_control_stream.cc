@@ -160,10 +160,9 @@ QuicReceiveControlStream::~QuicReceiveControlStream() {}
 
 void QuicReceiveControlStream::OnStreamReset(
     const QuicRstStreamFrame& /*frame*/) {
-  // TODO(renjietang) Change the error code to H/3 specific
-  // HTTP_CLOSED_CRITICAL_STREAM.
-  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
-                                   "Attempt to reset receive control stream");
+  stream_delegate()->OnStreamError(
+      QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+      "RESET_STREAM received for receive control stream");
 }
 
 void QuicReceiveControlStream::OnDataAvailable() {

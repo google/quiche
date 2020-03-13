@@ -185,13 +185,11 @@ TEST_P(QuicSendControlStreamTest, WritePriorityBeforeSettings) {
   send_control_stream_->WritePriorityUpdate(frame);
 }
 
-TEST_P(QuicSendControlStreamTest, ResetControlStream) {
+TEST_P(QuicSendControlStreamTest, CloseControlStream) {
   Initialize();
-  QuicRstStreamFrame rst_frame(kInvalidControlFrameId,
-                               send_control_stream_->id(),
-                               QUIC_STREAM_CANCELLED, 1234);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
-  send_control_stream_->OnStreamReset(rst_frame);
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM, _, _));
+  send_control_stream_->OnStopSending(QUIC_STREAM_CANCELLED);
 }
 
 TEST_P(QuicSendControlStreamTest, ReceiveDataOnSendControlStream) {

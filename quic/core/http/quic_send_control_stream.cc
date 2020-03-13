@@ -32,10 +32,14 @@ QuicSendControlStream::QuicSendControlStream(
       max_inbound_header_list_size_(max_inbound_header_list_size) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
-  // TODO(renjietang) Change the error code to H/3 specific
-  // HTTP_CLOSED_CRITICAL_STREAM.
-  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
-                                   "Attempt to reset send control stream");
+  QUIC_BUG << "OnStreamReset() called for write unidirectional stream.";
+}
+
+bool QuicSendControlStream::OnStopSending(uint16_t /* code */) {
+  stream_delegate()->OnStreamError(
+      QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+      "STOP_SENDING received for send control stream");
+  return false;
 }
 
 void QuicSendControlStream::MaybeSendSettingsFrame() {

@@ -30,9 +30,10 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;
   ~QuicSendControlStream() override = default;
 
-  // Overriding QuicStream::OnStreamReset to make sure control stream is never
+  // Overriding QuicStream::OnStopSending() to make sure control stream is never
   // closed before connection.
   void OnStreamReset(const QuicRstStreamFrame& frame) override;
+  bool OnStopSending(uint16_t code) override;
 
   // Send SETTINGS frame if it hasn't been sent yet. Settings frame must be the
   // first frame sent on this stream.

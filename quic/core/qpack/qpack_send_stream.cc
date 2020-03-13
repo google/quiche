@@ -17,10 +17,14 @@ QpackSendStream::QpackSendStream(QuicStreamId id,
       stream_type_sent_(false) {}
 
 void QpackSendStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
-  // TODO(renjietang) Change the error code to H/3 specific
-  // HTTP_CLOSED_CRITICAL_STREAM.
-  stream_delegate()->OnStreamError(QUIC_INVALID_STREAM_ID,
-                                   "Attempt to reset qpack send stream");
+  QUIC_BUG << "OnStreamReset() called for write unidirectional stream.";
+}
+
+bool QpackSendStream::OnStopSending(uint16_t /* code */) {
+  stream_delegate()->OnStreamError(
+      QUIC_HTTP_CLOSED_CRITICAL_STREAM,
+      "STOP_SENDING received for QPACK send stream");
+  return false;
 }
 
 void QpackSendStream::WriteStreamData(quiche::QuicheStringPiece data) {
