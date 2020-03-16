@@ -162,6 +162,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   // Cwnd limits imposed by caller.
   const Limits<QuicByteCount>& cwnd_limits() const;
 
+  const Bbr2Params& params() const { return params_; }
+
   Bbr2Mode mode_;
 
   const RttStats* const rtt_stats_;
@@ -169,7 +171,9 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   QuicRandom* random_;
   QuicConnectionStats* connection_stats_;
 
-  const Bbr2Params params_;
+  // Don't use it directly outside of SetFromConfig. Instead, use params() to
+  // get read-only access.
+  Bbr2Params params_;
 
   Bbr2NetworkModel model_;
 
@@ -186,15 +190,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   Bbr2ProbeBwMode probe_bw_;
   Bbr2ProbeRttMode probe_rtt_;
 
-  // Indicates app-limited calls should be ignored as long as there's
-  // enough data inflight to see more bandwidth when necessary.
-  bool flexible_app_limited_;
-
   // Debug only.
   bool last_sample_is_app_limited_;
-
-  const bool avoid_unnecessary_probe_rtt_ =
-      GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt);
 
   friend class Bbr2StartupMode;
   friend class Bbr2DrainMode;

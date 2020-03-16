@@ -126,9 +126,6 @@ class QUIC_EXPORT_PRIVATE Bbr2ProbeBwMode final : public Bbr2ModeBase {
 
   bool last_cycle_probed_too_high_;
   bool last_cycle_stopped_risky_probe_;
-
-  const bool add_ack_height_to_queueing_threshold_ =
-      GetQuicReloadableFlag(quic_bbr2_add_ack_height_to_queueing_threshold);
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(

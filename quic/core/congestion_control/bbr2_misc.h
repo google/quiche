@@ -161,6 +161,22 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   float beta = 0.3;
 
   Limits<QuicByteCount> cwnd_limits;
+
+  /*
+   * Experimental flags from QuicConfig.
+   */
+
+  // Indicates app-limited calls should be ignored as long as there's
+  // enough data inflight to see more bandwidth when necessary.
+  bool flexible_app_limited = false;
+
+  // Can be disabled by connection option 'B2NA'.
+  bool add_ack_height_to_queueing_threshold =
+      GetQuicReloadableFlag(quic_bbr2_add_ack_height_to_queueing_threshold);
+
+  // Can be disabled by connection option 'B2RP'.
+  bool avoid_unnecessary_probe_rtt =
+      GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt);
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {

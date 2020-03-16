@@ -121,6 +121,10 @@ const QuicTag kIW10 = TAG('I', 'W', '1', '0');   // Force ICWND to 10
 const QuicTag kIW20 = TAG('I', 'W', '2', '0');   // Force ICWND to 20
 const QuicTag kIW50 = TAG('I', 'W', '5', '0');   // Force ICWND to 50
 const QuicTag kB2ON = TAG('B', '2', 'O', 'N');   // Enable BBRv2
+const QuicTag kB2NA = TAG('B', '2', 'N', 'A');   // For BBRv2, do not add ack
+                                                 // height to queueing threshold
+const QuicTag kB2RP = TAG('B', '2', 'R', 'P');   // For BBRv2, run PROBE_RTT on
+                                                 // the regular schedule
 const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // Bandwidth Sampler with ack
                                                  // aggregation

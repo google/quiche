@@ -81,7 +81,6 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
       drain_(this, &model_),
       probe_bw_(this, &model_),
       probe_rtt_(this, &model_),
-      flexible_app_limited_(false),
       last_sample_is_app_limited_(false) {
   QUIC_DVLOG(2) << this << " Initializing Bbr2Sender. mode:" << mode_
                 << ", PacingRate:" << pacing_rate_ << ", Cwnd:" << cwnd_
@@ -92,7 +91,7 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
 void Bbr2Sender::SetFromConfig(const QuicConfig& config,
                                Perspective perspective) {
   if (config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
-    flexible_app_limited_ = true;
+    params_.flexible_app_limited = true;
   }
   if (GetQuicReloadableFlag(
           quic_avoid_overestimate_bandwidth_with_aggregation) &&
@@ -100,6 +99,12 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT_N(
         quic_avoid_overestimate_bandwidth_with_aggregation, 4, 4);
     model_.EnableOverestimateAvoidance();
+  }
+  if (config.HasClientRequestedIndependentOption(kB2NA, perspective)) {
+    params_.add_ack_height_to_queueing_threshold = false;
+  }
+  if (config.HasClientRequestedIndependentOption(kB2RP, perspective)) {
+    params_.avoid_unnecessary_probe_rtt = false;
   }
 }
 
@@ -120,7 +125,7 @@ Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
 }
 
 const Limits<QuicByteCount>& Bbr2Sender::cwnd_limits() const {
-  return params_.cwnd_limits;
+  return params().cwnd_limits;
 }
 
 void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
@@ -197,7 +202,8 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   model_.OnCongestionEventFinish(unacked_packets_->GetLeastUnacked(),
                                  congestion_event);
   last_sample_is_app_limited_ = congestion_event.last_sample_is_app_limited;
-  if (avoid_unnecessary_probe_rtt_ && congestion_event.bytes_in_flight == 0) {
+  if (congestion_event.bytes_in_flight == 0 &&
+      params().avoid_unnecessary_probe_rtt) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 2, 2);
     OnEnterQuiescence(event_time);
   }
@@ -292,7 +298,7 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                 << ", total_acked:" << model_.total_bytes_acked()
                 << ", total_lost:" << model_.total_bytes_lost() << "  @ "
                 << sent_time;
-  if (avoid_unnecessary_probe_rtt_ && bytes_in_flight == 0) {
+  if (bytes_in_flight == 0 && params().avoid_unnecessary_probe_rtt) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 1, 2);
     OnExitQuiescence(sent_time);
   }
@@ -322,7 +328,7 @@ void Bbr2Sender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
   if (bytes_in_flight >= GetCongestionWindow()) {
     return;
   }
-  if (flexible_app_limited_ && IsPipeSufficientlyFull()) {
+  if (params().flexible_app_limited && IsPipeSufficientlyFull()) {
     return;
   }
 
@@ -367,12 +373,12 @@ bool Bbr2Sender::ShouldSendProbingPacket() const {
   // TODO(b/77975811): If the pipe is highly under-utilized, consider not
   // sending a probing transmission, because the extra bandwidth is not needed.
   // If flexible_app_limited is enabled, check if the pipe is sufficiently full.
-  if (flexible_app_limited_) {
+  if (params().flexible_app_limited) {
     const bool is_pipe_sufficiently_full = IsPipeSufficientlyFull();
     QUIC_DVLOG(3) << this << " CWND: " << GetCongestionWindow()
                   << ", inflight: " << unacked_packets_->bytes_in_flight()
                   << ", pacing_rate: " << PacingRate(0)
-                  << ", flexible_app_limited_: true, ShouldSendProbingPacket: "
+                  << ", flexible_app_limited: true, ShouldSendProbingPacket: "
                   << !is_pipe_sufficiently_full;
     return !is_pipe_sufficiently_full;
   } else {
