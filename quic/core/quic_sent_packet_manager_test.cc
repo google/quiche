@@ -3728,14 +3728,10 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
   SendCryptoPacket(1);
   SendPingPacket(2, ENCRYPTION_INITIAL);
   // Crypto data has been discarded but ping does not.
-  if (GetQuicReloadableFlag(quic_neuter_unencrypted_control_frames)) {
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _))
-        .Times(2)
-        .WillOnce(Return(false))
-        .WillOnce(Return(true));
-  } else {
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
-  }
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _))
+      .Times(2)
+      .WillOnce(Return(false))
+      .WillOnce(Return(true));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   if (GetQuicReloadableFlag(
           quic_avoid_overestimate_bandwidth_with_aggregation)) {
