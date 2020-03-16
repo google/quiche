@@ -679,6 +679,15 @@ void QuicPacketCreator::SerializePacket(char* encrypted_buffer,
                 << QuicFramesToString(queued_frames_) << " at encryption_level "
                 << EncryptionLevelToString(packet_.encryption_level);
 
+  if (!framer_->HasEncrypterOfEncryptionLevel(packet_.encryption_level)) {
+    QUIC_BUG << ENDPOINT << "Attempting to serialize " << header
+             << QuicFramesToString(queued_frames_)
+             << " at missing encryption_level "
+             << EncryptionLevelToString(packet_.encryption_level) << " using "
+             << framer_->version();
+    return;
+  }
+
   DCHECK_GE(max_plaintext_size_, packet_size_);
   // Use the packet_size_ instead of the buffer size to ensure smaller
   // packet sizes are properly used.

@@ -4256,6 +4256,14 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
     return false;
   }
 
+  if (encrypter_[level] == nullptr) {
+    QUIC_BUG
+        << ENDPOINT
+        << "Attempted to apply header protection without encrypter at level "
+        << EncryptionLevelToString(level) << " using " << version_;
+    return false;
+  }
+
   std::string mask = encrypter_[level]->GenerateHeaderProtectionMask(sample);
   if (mask.empty()) {
     QUIC_BUG << "Unable to generate header protection mask.";
@@ -4475,6 +4483,12 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
 
 size_t QuicFramer::GetCiphertextSize(EncryptionLevel level,
                                      size_t plaintext_size) const {
+  if (encrypter_[level] == nullptr) {
+    QUIC_BUG << ENDPOINT
+             << "Attempted to get ciphertext size without encrypter at level "
+             << EncryptionLevelToString(level) << " using " << version_;
+    return plaintext_size;
+  }
   return encrypter_[level]->GetCiphertextSize(plaintext_size);
 }
 
