@@ -335,9 +335,7 @@ QuicConnection::QuicConnection(
       check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
           quic_check_handshake_timeout_before_idle_timeout)),
       batch_writer_flush_after_mtu_probe_(
-          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)),
-      better_mtu_packet_check_(
-          GetQuicReloadableFlag(quic_better_mtu_packet_check)) {
+          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -350,10 +348,6 @@ QuicConnection::QuicConnection(
   if (check_handshake_timeout_before_idle_timeout_) {
     QUIC_RELOADABLE_FLAG_COUNT(
         quic_check_handshake_timeout_before_idle_timeout);
-  }
-
-  if (better_mtu_packet_check_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_better_mtu_packet_check);
   }
 
   framer_.set_visitor(this);
@@ -2171,14 +2165,9 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
   }
-  const bool looks_like_mtu_probe = packet->retransmittable_frames.empty() &&
-                                    packet->encrypted_length > long_term_mtu_;
-  const bool is_mtu_discovery =
-      better_mtu_packet_check_
-          ? QuicUtils::ContainsFrameType(packet->nonretransmittable_frames,
-                                         MTU_DISCOVERY_FRAME)
-          : looks_like_mtu_probe;
-  DCHECK_EQ(looks_like_mtu_probe, is_mtu_discovery);
+
+  const bool is_mtu_discovery = QuicUtils::ContainsFrameType(
+      packet->nonretransmittable_frames, MTU_DISCOVERY_FRAME);
 
   SerializedPacketFate fate = DeterminePacketFate(is_mtu_discovery);
   // Termination packets are encrypted and saved, so don't exit early.

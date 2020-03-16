@@ -1546,9 +1546,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Latched value of quic_batch_writer_flush_after_mtu_probe.
   const bool batch_writer_flush_after_mtu_probe_;
-
-  // Latched value of quic_better_mtu_packet_check.
-  const bool better_mtu_packet_check_;
 };
 
 }  // namespace quic
