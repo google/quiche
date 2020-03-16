@@ -319,19 +319,22 @@ using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
 //
 // See go/new-quic-version for more details on how to roll out new versions.
 constexpr std::array<QuicTransportVersion, 7> SupportedTransportVersions() {
-  return std::array<QuicTransportVersion, 7>(
-      {QUIC_VERSION_IETF_DRAFT_27, QUIC_VERSION_IETF_DRAFT_25, QUIC_VERSION_50,
-       QUIC_VERSION_49, QUIC_VERSION_48, QUIC_VERSION_46, QUIC_VERSION_43});
+  return {QUIC_VERSION_IETF_DRAFT_27,
+          QUIC_VERSION_IETF_DRAFT_25,
+          QUIC_VERSION_50,
+          QUIC_VERSION_49,
+          QUIC_VERSION_48,
+          QUIC_VERSION_46,
+          QUIC_VERSION_43};
 }
 
 // This vector contains all crypto handshake protocols that are supported.
 constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
-  return std::array<HandshakeProtocol, 2>(
-      {PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3});
+  return {PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
 }
 
 constexpr std::array<ParsedQuicVersion, 8> SupportedVersions() {
-  return std::array<ParsedQuicVersion, 8>({
+  return {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
@@ -340,7 +343,7 @@ constexpr std::array<ParsedQuicVersion, 8> SupportedVersions() {
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
-  });
+  };
 }
 
 using QuicTransportVersionVector = std::vector<QuicTransportVersion>;
