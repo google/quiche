@@ -1541,9 +1541,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
 
-  // Latched value of quic_check_handshake_timeout_before_idle_timeout.
-  const bool check_handshake_timeout_before_idle_timeout_;
-
   // Latched value of quic_batch_writer_flush_after_mtu_probe.
   const bool batch_writer_flush_after_mtu_probe_;
 };

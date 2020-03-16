@@ -332,8 +332,6 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      check_handshake_timeout_before_idle_timeout_(GetQuicReloadableFlag(
-          quic_check_handshake_timeout_before_idle_timeout)),
       batch_writer_flush_after_mtu_probe_(
           GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
@@ -345,10 +343,6 @@ QuicConnection::QuicConnection(
       << "QuicConnection: attempted to use server connection ID "
       << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
-  if (check_handshake_timeout_before_idle_timeout_) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_check_handshake_timeout_before_idle_timeout);
-  }
 
   framer_.set_visitor(this);
   stats_.connection_creation_time = clock_->ApproximateNow();
@@ -3069,8 +3063,7 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 
 void QuicConnection::CheckForTimeout() {
   QuicTime now = clock_->ApproximateNow();
-  if (check_handshake_timeout_before_idle_timeout_ &&
-      !handshake_timeout_.IsInfinite()) {
+  if (!handshake_timeout_.IsInfinite()) {
     QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
     QUIC_DVLOG(1) << ENDPOINT
                   << "connection time: " << connected_duration.ToMicroseconds()
@@ -3117,25 +3110,6 @@ void QuicConnection::CheckForTimeout() {
                       idle_timeout_connection_close_behavior_);
     }
     return;
-  }
-
-  if (!check_handshake_timeout_before_idle_timeout_ &&
-      !handshake_timeout_.IsInfinite()) {
-    QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "connection time: " << connected_duration.ToMicroseconds()
-                  << " handshake timeout: "
-                  << handshake_timeout_.ToMicroseconds();
-    if (connected_duration >= handshake_timeout_) {
-      const std::string error_details = quiche::QuicheStrCat(
-          "Handshake timeout expired after ",
-          connected_duration.ToDebuggingValue(),
-          ". Timeout:", handshake_timeout_.ToDebuggingValue());
-      QUIC_DVLOG(1) << ENDPOINT << error_details;
-      CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
   }
 
   SetTimeoutAlarm();

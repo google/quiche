@@ -3689,7 +3689,6 @@ TEST_P(EndToEndTest, LastPacketSentIsConnectivityProbing) {
 }
 
 TEST_P(EndToEndTest, PreSharedKey) {
-  SetQuicReloadableFlag(quic_check_handshake_timeout_before_idle_timeout, true);
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(5));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3704,7 +3703,6 @@ TEST_P(EndToEndTest, PreSharedKey) {
 
 // TODO: reenable once we have a way to make this run faster.
 TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
-  SetQuicReloadableFlag(quic_check_handshake_timeout_before_idle_timeout, true);
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3724,7 +3722,6 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
 
 // TODO: reenable once we have a way to make this run faster.
 TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
-  SetQuicReloadableFlag(quic_check_handshake_timeout_before_idle_timeout, true);
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
@@ -3737,7 +3734,6 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
 
 // TODO: reenable once we have a way to make this run faster.
 TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
-  SetQuicReloadableFlag(quic_check_handshake_timeout_before_idle_timeout, true);
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
