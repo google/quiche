@@ -192,9 +192,7 @@ QuicByteCount QuicFlowController::WindowUpdateThreshold() {
 }
 
 void QuicFlowController::MaybeSendWindowUpdate() {
-  if (GetQuicReloadableFlag(quic_no_window_update_if_disconnected) &&
-      !session_->connection()->connected()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_no_window_update_if_disconnected);
+  if (!session_->connection()->connected()) {
     return;
   }
   // Send WindowUpdate to increase receive window if
