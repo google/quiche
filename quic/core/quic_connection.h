@@ -1545,9 +1545,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicCoalescedPacket coalesced_packet_;
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
-
-  // Latched value of quic_batch_writer_flush_after_mtu_probe.
-  const bool batch_writer_flush_after_mtu_probe_;
 };
 
 }  // namespace quic

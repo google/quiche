@@ -331,9 +331,7 @@ QuicConnection::QuicConnection(
       max_consecutive_ptos_(0),
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
-      address_validated_(false),
-      batch_writer_flush_after_mtu_probe_(
-          GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
+      address_validated_(false) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -2264,9 +2262,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // be closed. By manually flush the writer here, the MTU probe is sent in
       // a normal(non-GSO) packet, so the kernel can return EMSGSIZE and we will
       // not close the connection.
-      if (batch_writer_flush_after_mtu_probe_ && is_mtu_discovery &&
-          writer_->IsBatchMode()) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_batch_writer_flush_after_mtu_probe);
+      if (is_mtu_discovery && writer_->IsBatchMode()) {
         result = writer_->Flush();
       }
       break;

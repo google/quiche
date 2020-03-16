@@ -5024,9 +5024,7 @@ TEST_P(QuicConnectionTest, BatchWriterFlushedAfterMtuDiscoveryPacket) {
   const uint32_t prior_flush_attempts = writer_->flush_attempts();
   connection_.SendMtuDiscoveryPacket(target_mtu);
   EXPECT_EQ(target_mtu, mtu_probe_size);
-  if (GetQuicReloadableFlag(quic_batch_writer_flush_after_mtu_probe)) {
-    EXPECT_EQ(writer_->flush_attempts(), prior_flush_attempts + 1);
-  }
+  EXPECT_EQ(writer_->flush_attempts(), prior_flush_attempts + 1);
 }
 
 // Tests whether MTU discovery does not happen when it is not explicitly enabled
