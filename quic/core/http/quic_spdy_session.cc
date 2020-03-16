@@ -703,6 +703,11 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
   stream->WritePushPromise(frame);
 }
 
+bool QuicSpdySession::server_push_enabled() const {
+  // TODO(b/151641466): Improve and enable server push for IETF QUIC.
+  return VersionUsesHttp3(transport_version()) ? false : server_push_enabled_;
+}
+
 void QuicSpdySession::SendInitialData() {
   if (!VersionUsesHttp3(transport_version())) {
     return;

@@ -179,7 +179,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   const QuicHeadersStream* headers_stream() const { return headers_stream_; }
 
-  bool server_push_enabled() const { return server_push_enabled_; }
+  bool server_push_enabled() const;
 
   // Called when a setting is parsed from an incoming SETTINGS frame.
   void OnSetting(uint64_t id, uint64_t value);
