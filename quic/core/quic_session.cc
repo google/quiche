@@ -1376,6 +1376,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
         // to the client.
         control_frame_manager_.WriteOrBufferHandshakeDone();
       }
+      connection_->ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
       break;
     default:
       QUIC_BUG << "Unknown encryption level: "
