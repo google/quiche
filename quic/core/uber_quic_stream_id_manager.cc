@@ -121,17 +121,6 @@ UberQuicStreamIdManager::GetMaxAllowdIncomingUnidirectionalStreams() const {
   return unidirectional_stream_id_manager_.incoming_initial_max_open_streams();
 }
 
-void UberQuicStreamIdManager::SetLargestPeerCreatedStreamId(
-    QuicStreamId largest_peer_created_stream_id) {
-  if (QuicUtils::IsBidirectionalStreamId(largest_peer_created_stream_id)) {
-    bidirectional_stream_id_manager_.set_largest_peer_created_stream_id(
-        largest_peer_created_stream_id);
-    return;
-  }
-  unidirectional_stream_id_manager_.set_largest_peer_created_stream_id(
-      largest_peer_created_stream_id);
-}
-
 QuicStreamId UberQuicStreamIdManager::GetLargestPeerCreatedStreamId(
     bool unidirectional) const {
   if (unidirectional) {

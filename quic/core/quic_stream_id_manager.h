@@ -146,11 +146,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Number of streams that the peer believes that it can still create.
   QuicStreamCount available_incoming_streams();
 
-  void set_largest_peer_created_stream_id(
-      QuicStreamId largest_peer_created_stream_id) {
-    largest_peer_created_stream_id_ = largest_peer_created_stream_id;
-  }
-
   QuicStreamId largest_peer_created_stream_id() const {
     return largest_peer_created_stream_id_;
   }

@@ -120,8 +120,7 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
   }
   incoming_actual_max_streams_ = new_max;
   incoming_advertised_max_streams_ = new_max;
-  incoming_initial_max_open_streams_ =
-      std::min(max_open_streams, implementation_max);
+  incoming_initial_max_open_streams_ = new_max;
   CalculateIncomingMaxStreamsWindow();
 }
 
