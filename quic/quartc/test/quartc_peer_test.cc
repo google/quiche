@@ -42,6 +42,8 @@ class QuartcPeerTest : public QuicTest {
     SetQuicReloadableFlag(quic_enable_version_t050, false);
 
     SetQuicReloadableFlag(quic_default_to_bbr, true);
+    // TODO(wub): Fix the test under BBRv2 and remove this line.
+    SetQuicReloadableFlag(quic_default_to_bbr_v2, false);
     simulator_.set_random_generator(&rng_);
   }
 

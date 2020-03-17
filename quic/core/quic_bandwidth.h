@@ -54,8 +54,8 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   // Create a new QuicBandwidth based on the bytes per the elapsed delta.
   static inline QuicBandwidth FromBytesAndTimeDelta(QuicByteCount bytes,
                                                     QuicTime::Delta delta) {
-    return QuicBandwidth((bytes * kNumMicrosPerSecond) /
-                         delta.ToMicroseconds() * 8);
+    return QuicBandwidth((8 * bytes * kNumMicrosPerSecond) /
+                         delta.ToMicroseconds());
   }
 
   inline int64_t ToBitsPerSecond() const { return bits_per_second_; }
