@@ -2802,6 +2802,14 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   session_.OnHttp3GoAway(stream_id);
 }
 
+TEST_P(QuicSpdySessionTestServer, ServerPushEnabledDefaultValue) {
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_FALSE(session_.server_push_enabled());
+  } else {
+    EXPECT_TRUE(session_.server_push_enabled());
+  }
+}
+
 TEST_P(QuicSpdySessionTestServer, OnSetting) {
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
