@@ -249,6 +249,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
           client_params, CLIENT, error_details) != QUIC_NO_ERROR) {
     return false;
   }
+  ProcessAdditionalTransportParameters(client_params);
 
   session()->OnConfigNegotiated();
   return true;

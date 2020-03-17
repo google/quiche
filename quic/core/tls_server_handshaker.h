@@ -64,6 +64,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     return &tls_connection_;
   }
 
+  virtual void ProcessAdditionalTransportParameters(
+      const TransportParameters& /*params*/) {}
+
   // Override of TlsHandshaker::SetReadSecret so that setting the read secret
   // for ENCRYPTION_FORWARD_SECURE can be delayed until the handshake is
   // complete.
