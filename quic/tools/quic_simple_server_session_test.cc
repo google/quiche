@@ -443,17 +443,6 @@ TEST_P(QuicSimpleServerSessionTest, CreateIncomingStreamDisconnected) {
   EXPECT_EQ(initial_num_open_stream, session_->GetNumOpenIncomingStreams());
 }
 
-TEST_P(QuicSimpleServerSessionTest, CreateEvenIncomingDynamicStream) {
-  // Tests that incoming stream creation fails when given stream id is even.
-  size_t initial_num_open_stream = session_->GetNumOpenIncomingStreams();
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
-                              "Client created even numbered stream", _));
-  QuicSimpleServerSessionPeer::CreateIncomingStream(
-      session_.get(), GetNthServerInitiatedUnidirectionalId(0));
-  EXPECT_EQ(initial_num_open_stream, session_->GetNumOpenIncomingStreams());
-}
-
 TEST_P(QuicSimpleServerSessionTest, CreateIncomingStream) {
   QuicSpdyStream* stream = QuicSimpleServerSessionPeer::CreateIncomingStream(
       session_.get(), GetNthClientInitiatedBidirectionalId(0));
@@ -561,9 +550,10 @@ TEST_P(QuicSimpleServerSessionTest, OnStreamFrameWithEvenStreamId) {
   session_->OnStreamFrame(frame);
 }
 
+// Tests that calling GetOrCreateStream() on an outgoing stream not promised yet
+// should result close connection.
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
-  // Tests that calling GetOrCreateStream() on an outgoing stream not
-  // promised yet should result close connection.
+  const size_t initial_num_open_stream = session_->GetNumOpenIncomingStreams();
   const QuicErrorCode expected_error = VersionUsesHttp3(transport_version())
                                            ? QUIC_HTTP_STREAM_WRONG_DIRECTION
                                            : QUIC_INVALID_STREAM_ID;
@@ -572,6 +562,7 @@ TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
   EXPECT_EQ(nullptr,
             QuicSessionPeer::GetOrCreateStream(
                 session_.get(), GetNthServerInitiatedUnidirectionalId(3)));
+  EXPECT_EQ(initial_num_open_stream, session_->GetNumOpenIncomingStreams());
 }
 
 // In order to test the case where server push stream creation goes beyond

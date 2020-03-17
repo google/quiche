@@ -136,6 +136,17 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
     return false;
   }
 
+  if (GetQuicReloadableFlag(quic_create_incoming_stream_bug)) {
+    if (QuicUtils::IsClientInitiatedStreamId(transport_version(), id)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_create_incoming_stream_bug, 1, 2);
+      QUIC_BUG << "ShouldCreateIncomingStream called with client initiated "
+                  "stream ID.";
+      return false;
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_create_incoming_stream_bug, 2, 2);
+    }
+  }
+
   if (QuicUtils::IsClientInitiatedStreamId(transport_version(), id)) {
     QUIC_LOG(WARNING) << "Received invalid push stream id " << id;
     connection()->CloseConnection(
