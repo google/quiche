@@ -324,8 +324,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
 
-  bool supports_push_promise() { return supports_push_promise_; }
-
   // Optional, enables instrumentation related to go/quic-hpack.
   void SetHpackEncoderDebugVisitor(
       std::unique_ptr<QuicHpackDebugVisitor> visitor);
@@ -429,8 +427,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QuicStreamId promised_stream_id_;
   bool fin_;
   size_t frame_len_;
-
-  bool supports_push_promise_;
 
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;

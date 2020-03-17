@@ -283,7 +283,7 @@ class QuicSpdySession::SpdyFramerVisitor
                      SpdyStreamId promised_stream_id,
                      bool /*end*/) override {
     DCHECK(!VersionUsesHttp3(session_->transport_version()));
-    if (!session_->supports_push_promise()) {
+    if (session_->perspective() != Perspective::IS_CLIENT) {
       CloseConnection("PUSH_PROMISE not supported.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
       return;
@@ -395,7 +395,6 @@ QuicSpdySession::QuicSpdySession(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       fin_(false),
       frame_len_(0),
-      supports_push_promise_(perspective() == Perspective::IS_CLIENT),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       max_allowed_push_id_(0),
