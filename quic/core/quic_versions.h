@@ -172,7 +172,10 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
       transport_version == QUIC_VERSION_UNSUPPORTED ||
       transport_version == QUIC_VERSION_RESERVED_FOR_NEGOTIATION;
   if (!transport_version_is_valid) {
-    for (QuicTransportVersion trans_vers : SupportedTransportVersions()) {
+    // Iterators are not constexpr in C++14 which Chrome uses.
+    constexpr auto supported_transport_versions = SupportedTransportVersions();
+    for (size_t i = 0; i < supported_transport_versions.size(); ++i) {
+      const QuicTransportVersion& trans_vers = supported_transport_versions[i];
       if (trans_vers == transport_version) {
         transport_version_is_valid = true;
         break;

@@ -70,6 +70,17 @@ TEST_F(QuicVersionsTest, KnownAndValid) {
   EXPECT_TRUE(reserved.IsKnown());
   EXPECT_TRUE(ParsedQuicVersionIsValid(reserved.handshake_protocol,
                                        reserved.transport_version));
+  // Check that invalid combinations are not valid.
+  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_TLS1_3, QUIC_VERSION_43));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
+                                        QUIC_VERSION_IETF_DRAFT_27));
+  // Check that deprecated versions are not valid.
+  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
+                                        static_cast<QuicTransportVersion>(33)));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
+                                        static_cast<QuicTransportVersion>(99)));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_TLS1_3,
+                                        static_cast<QuicTransportVersion>(99)));
 }
 
 TEST_F(QuicVersionsTest, QuicVersionLabelToQuicTransportVersion) {
