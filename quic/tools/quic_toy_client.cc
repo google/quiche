@@ -242,15 +242,15 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!client->Connect()) {
     quic::QuicErrorCode error = client->session()->error();
     if (error == quic::QUIC_INVALID_VERSION) {
-      std::cerr << "Server talks QUIC, but none of the versions supported by "
-                << "this client: " << ParsedQuicVersionVectorToString(versions)
-                << std::endl;
+      std::cerr << "Failed to negotiate version with " << host << ":" << port
+                << ". " << client->session()->error_details() << std::endl;
       // 0: No error.
       // 20: Failed to connect due to QUIC_INVALID_VERSION.
       return GetQuicFlag(FLAGS_version_mismatch_ok) ? 0 : 20;
     }
-    std::cerr << "Failed to connect to " << host << ":" << port
-              << ". Error: " << quic::QuicErrorCodeToString(error) << std::endl;
+    std::cerr << "Failed to connect to " << host << ":" << port << ". "
+              << quic::QuicErrorCodeToString(error) << " "
+              << client->session()->error_details() << std::endl;
     return 1;
   }
   std::cerr << "Connected to " << host << ":" << port << std::endl;

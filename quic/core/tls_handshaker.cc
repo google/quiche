@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -89,16 +90,18 @@ void TlsHandshaker::WriteMessage(EncryptionLevel level,
 
 void TlsHandshaker::FlushFlight() {}
 
-void TlsHandshaker::SendAlert(EncryptionLevel /*level*/, uint8_t desc) {
-  // TODO(nharper): Alerts should be sent on the wire as a 16-bit QUIC error
-  // code computed to be 0x100 | desc (draft-ietf-quic-tls-14, section 4.8).
+void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
+  // TODO(b/151676147): Alerts should be sent on the wire as a varint QUIC error
+  // code computed to be 0x100 | desc (draft-ietf-quic-tls-27, section 4.9).
   // This puts it in the range reserved for CRYPTO_ERROR
-  // (draft-ietf-quic-transport-14, section 11.3). However, according to
+  // (draft-ietf-quic-transport-27, section 20). However, according to
   // quic_error_codes.h, this QUIC implementation only sends 1-byte error codes
   // right now.
-  QUIC_DLOG(INFO) << "TLS failing handshake due to alert "
-                  << static_cast<int>(desc);
-  CloseConnection(QUIC_HANDSHAKE_FAILED, "TLS handshake failure");
+  std::string error_details = quiche::QuicheStrCat(
+      "TLS handshake failure (", EncryptionLevelToString(level), ") ",
+      static_cast<int>(desc), ": ", SSL_alert_desc_string_long(desc));
+  QUIC_DLOG(ERROR) << error_details;
+  CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
 }
 
 }  // namespace quic

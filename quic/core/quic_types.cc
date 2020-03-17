@@ -95,15 +95,6 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     if (strcmp("unknown", tls_error_description) != 0) {
       return quiche::QuicheStrCat("CRYPTO_ERROR(", tls_error_description, ")");
     }
-    // SSL_alert_desc_string_long doesn't currently support these two errors.
-    // TODO(dschinazi) remove this once BoringSSL supports them.
-    // https://boringssl-review.googlesource.com/c/boringssl/+/39784
-    if (tls_error == SSL_AD_MISSING_EXTENSION) {
-      return "CRYPTO_ERROR(missing extension)";
-    }
-    if (tls_error == 120) {
-      return "CRYPTO_ERROR(no application protocol)";
-    }
     return quiche::QuicheStrCat("CRYPTO_ERROR(unknown(", tls_error, "))");
   }
 
