@@ -194,6 +194,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
                             TransmissionType /*transmission_type*/,
                             QuicTime /*sent_time*/) {}
 
+  // Called when a coalesced packet has been sent.
+  virtual void OnCoalescedPacketSent(
+      const QuicCoalescedPacket& /*coalesced_packet*/,
+      size_t /*length*/) {}
+
   // Called when a PING frame has been sent.
   virtual void OnPingSent() {}
 

@@ -3941,6 +3941,9 @@ bool QuicConnection::FlushCoalescedPacket() {
     buffered_packets_.emplace_back(buffer, length,
                                    coalesced_packet_.self_address(),
                                    coalesced_packet_.peer_address());
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
+    }
     return true;
   }
 
@@ -3960,6 +3963,9 @@ bool QuicConnection::FlushCoalescedPacket() {
                                      coalesced_packet_.self_address(),
                                      coalesced_packet_.peer_address());
     }
+  }
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
   }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {

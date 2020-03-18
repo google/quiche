@@ -1047,6 +1047,8 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
   MOCK_METHOD3(OnPacketSent,
                void(const SerializedPacket&, TransmissionType, QuicTime));
 
+  MOCK_METHOD2(OnCoalescedPacketSent, void(const QuicCoalescedPacket&, size_t));
+
   MOCK_METHOD0(OnPingSent, void());
 
   MOCK_METHOD3(OnPacketReceived,

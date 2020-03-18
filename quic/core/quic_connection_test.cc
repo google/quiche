@@ -9902,6 +9902,10 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   if (!connection_.version().CanSendCoalescedPackets()) {
     return;
   }
+  MockQuicConnectionDebugVisitor debug_visitor;
+  connection_.set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(3);
+  EXPECT_CALL(debug_visitor, OnCoalescedPacketSent(_, _)).Times(1);
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     use_tagging_decrypter();
