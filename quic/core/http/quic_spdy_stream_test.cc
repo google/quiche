@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
@@ -51,6 +52,81 @@ namespace {
 
 const bool kShouldProcessData = true;
 const char kDataFramePayload[] = "some data";
+
+class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
+ public:
+  explicit TestCryptoStream(QuicSession* session)
+      : QuicCryptoStream(session),
+        QuicCryptoHandshaker(this, session),
+        encryption_established_(false),
+        one_rtt_keys_available_(false),
+        params_(new QuicCryptoNegotiatedParameters) {
+    // Simulate a negotiated cipher_suite with a fake value.
+    params_->cipher_suite = 1;
+  }
+
+  void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
+    encryption_established_ = true;
+    one_rtt_keys_available_ = true;
+    QuicErrorCode error;
+    std::string error_details;
+    session()->config()->SetInitialStreamFlowControlWindowToSend(
+        kInitialStreamFlowControlWindowForTest);
+    session()->config()->SetInitialSessionFlowControlWindowToSend(
+        kInitialSessionFlowControlWindowForTest);
+    if (session()->connection()->version().handshake_protocol ==
+        PROTOCOL_TLS1_3) {
+      TransportParameters transport_parameters;
+      EXPECT_TRUE(
+          session()->config()->FillTransportParameters(&transport_parameters));
+      error = session()->config()->ProcessTransportParameters(
+          transport_parameters, CLIENT, &error_details);
+    } else {
+      CryptoHandshakeMessage msg;
+      session()->config()->ToHandshakeMessage(&msg, transport_version());
+      error =
+          session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
+    }
+    EXPECT_THAT(error, IsQuicNoError());
+    session()->OnConfigNegotiated();
+    session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+  }
+
+  // QuicCryptoStream implementation
+  bool encryption_established() const override {
+    return encryption_established_;
+  }
+  bool one_rtt_keys_available() const override {
+    return one_rtt_keys_available_;
+  }
+  HandshakeState GetHandshakeState() const override {
+    return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
+  }
+  const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
+      const override {
+    return *params_;
+  }
+  CryptoMessageParser* crypto_message_parser() override {
+    return QuicCryptoHandshaker::crypto_message_parser();
+  }
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakeDoneReceived() override {}
+
+  MOCK_METHOD0(OnCanWrite, void());
+
+  bool HasPendingCryptoRetransmission() const override { return false; }
+
+  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+
+ private:
+  using QuicCryptoStream::session;
+
+  bool encryption_established_;
+  bool one_rtt_keys_available_;
+  QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+};
 
 class TestStream : public QuicSpdyStream {
  public:
@@ -105,6 +181,24 @@ class TestStream : public QuicSpdyStream {
   bool should_process_data_;
   spdy::SpdyHeaderBlock saved_headers_;
   std::string data_;
+};
+
+class TestSession : public MockQuicSpdySession {
+ public:
+  explicit TestSession(QuicConnection* connection)
+      : MockQuicSpdySession(connection, /*create_mock_crypto_stream=*/false),
+        crypto_stream_(this) {}
+
+  TestCryptoStream* GetMutableCryptoStream() override {
+    return &crypto_stream_;
+  }
+
+  const TestCryptoStream* GetCryptoStream() const override {
+    return &crypto_stream_;
+  }
+
+ private:
+  StrictMock<TestCryptoStream> crypto_stream_;
 };
 
 class TestMockUpdateStreamSession : public MockQuicSpdySession {
@@ -200,7 +294,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                                  Perspective perspective) {
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, perspective, SupportedVersions(GetParam()));
-    session_ = std::make_unique<StrictMock<MockQuicSpdySession>>(connection_);
+    session_ = std::make_unique<StrictMock<TestSession>>(connection_);
     session_->Initialize();
     ON_CALL(*session_, WritevData(_, _, _, _, _, _))
         .WillByDefault(
@@ -224,9 +318,6 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_->config(), 10);
     session_->OnConfigNegotiated();
-    if (session_->perspective() == Perspective::IS_CLIENT) {
-      EXPECT_CALL(*connection_, OnCanWrite());
-    }
     if (UsesHttp3()) {
       // The control stream will write the stream type, a greased frame, and
       // SETTINGS frame.
@@ -249,8 +340,17 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*session_,
                   WritevData(qpack_encoder_stream->id(), 1, 0, _, _, _));
     }
-    static_cast<QuicSession*>(session_.get())
-        ->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+    TestCryptoStream* crypto_stream = session_->GetMutableCryptoStream();
+    EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
+        .Times(testing::AnyNumber());
+
+    if (connection_->version().HasHandshakeDone() &&
+        session_->perspective() == Perspective::IS_SERVER) {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&ClearControlFrame));
+    }
+    CryptoHandshakeMessage message;
+    session_->GetMutableCryptoStream()->OnHandshakeMessage(message);
   }
 
   QuicHeaderList ProcessHeaders(bool fin, const SpdyHeaderBlock& headers) {
@@ -324,7 +424,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;
-  std::unique_ptr<MockQuicSpdySession> session_;
+  std::unique_ptr<TestSession> session_;
 
   // Owned by the |session_|.
   TestStream* stream_;
@@ -476,8 +576,8 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
     return;
   }
 
-  testing::InSequence s;
   Initialize(kShouldProcessData);
+  testing::InSequence s;
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   GoAwayFrame goaway;
   goaway.stream_id = 0x1;
@@ -754,8 +854,8 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
 // Tests that we send a BLOCKED frame to the peer when we attempt to write, but
 // are flow control blocked.
 TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
-  testing::InSequence seq;
   Initialize(kShouldProcessData);
+  testing::InSequence seq;
 
   // Set a small flow control limit.
   const uint64_t kWindow = 36;
@@ -1585,8 +1685,8 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
 }
 
 TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
-  testing::InSequence seq;
   Initialize(kShouldProcessData);
+  testing::InSequence seq;
 
   if (UsesHttp3()) {
     EXPECT_CALL(*session_, WritevData(_, 2, _, NO_FIN, _, _));
@@ -1931,9 +2031,8 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
     return;
   }
 
-  testing::InSequence s;
-
   Initialize(kShouldProcessData);
+  testing::InSequence s;
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
   // Random bad headers.
@@ -2015,8 +2114,8 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
     return;
   }
 
-  testing::InSequence s;
   Initialize(kShouldProcessData);
+  testing::InSequence s;
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   auto decoder_send_stream =
@@ -2070,8 +2169,8 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
     return;
   }
 
-  testing::InSequence s;
   Initialize(kShouldProcessData);
+  testing::InSequence s;
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame referencing first dynamic table entry.
@@ -2189,8 +2288,8 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
     return;
   }
 
-  testing::InSequence s;
   Initialize(kShouldProcessData);
+  testing::InSequence s;
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame referencing first dynamic table entry.
