@@ -170,10 +170,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   Perspective perspective() const;
   Perspective peer_perspective() const;
 
-  // Called when session has been configured. Causes the Stream ID manager to
-  // send out any pending MAX_STREAMS and STREAMS_BLOCKED frames.
-  void OnConfigNegotiated();
-
  private:
   friend class test::QuicSessionPeer;
   friend class test::QuicStreamIdManagerPeer;
@@ -203,9 +199,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   // Transport version used for this manager.
   const QuicTransportVersion transport_version_;
-
-  // True if the config has been negotiated_;
-  bool is_config_negotiated_;
 
   // This is the number of streams that this node can initiate.
   // This limit is:

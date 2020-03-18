@@ -185,9 +185,6 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesIncoming) {
 // the count most recently advertised in a MAX_STREAMS frame. This should cause
 // a MAX_STREAMS frame with the most recently advertised count to be sent.
 TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedOk) {
-  // Set the config negotiated so that the MAX_STREAMS is transmitted.
-  stream_id_manager_.OnConfigNegotiated();
-
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams();
   QuicStreamsBlockedFrame frame(0, stream_count - 1, IsUnidirectional());
@@ -283,9 +280,6 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   QuicStreamCount advertised_stream_count =
       stream_id_manager_.incoming_advertised_max_streams();
 
-  // Set the config negotiated to allow frame transmission.
-  stream_id_manager_.OnConfigNegotiated();
-
   QuicStreamsBlockedFrame frame;
 
   frame.unidirectional = IsUnidirectional();
@@ -346,8 +340,6 @@ TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(kDefaultMaxStreamsPerConnection);
 
-  stream_id_manager_.OnConfigNegotiated();
-
   QuicStreamId stream_id =
       IsUnidirectional()
           ? QuicUtils::GetFirstUnidirectionalStreamId(
@@ -391,9 +383,6 @@ TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
 }
 
 TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
-  // Set the config negotiated to allow frame transmission.
-  stream_id_manager_.OnConfigNegotiated();
-
   // Test that a MAX_STREAMS frame is generated when the peer has less than
   // |max_streams_window_| streams left that it can initiate.
 
@@ -460,9 +449,6 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
 }
 
 TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
-  // Set the config negotiated to allow frame transmission.
-  stream_id_manager_.OnConfigNegotiated();
-
   QuicStreamsBlockedFrame frame;
   frame.unidirectional = IsUnidirectional();
 
@@ -483,26 +469,6 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
-TEST_P(QuicStreamIdManagerTest, NoMaxStreamsFrameBeforeConfigured) {
-  // The config has not been negotiated so QUIC_BUG will be triggered.
-  EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
-
-  QuicStreamsBlockedFrame frame(1u, 0u, IsUnidirectional());
-  // Trigger sending of MAX_STREAMS.
-  EXPECT_QUIC_BUG(
-      stream_id_manager_.OnStreamsBlockedFrame(frame),
-      "Attempt to send Max Streams Frame before config is negotiated");
-}
-
-TEST_P(QuicStreamIdManagerTest, NoStreamCreationBeforeConfigured) {
-  // We should not see a STREAMS_BLOCKED frame because we're not configured..
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
-
-  EXPECT_QUIC_BUG(
-      stream_id_manager_.CanOpenNextOutgoingStream(),
-      "Creating streams before Quic session is configured is prohibitied");
-}
-
 TEST_P(QuicStreamIdManagerTest, CheckMaxAllowedOutgoingInitialization) {
   const size_t kIncomingStreamCount = 123;
   EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
@@ -514,9 +480,6 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxAllowedOutgoingInitialization) {
 // available. This has a useful side effect of testing that when streams are
 // closed, the number of available stream ids increases.
 TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
-  // Simulate config being negotiated, causing the limits all to be initialized.
-  stream_id_manager_.OnConfigNegotiated();
-
   QuicStreamCount first_advert =
       stream_id_manager_.incoming_advertised_max_streams();
 
@@ -544,7 +507,6 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
 TEST_P(QuicStreamIdManagerTest, NewStreamDoesNotExceedLimit) {
   EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
   stream_id_manager_.SetMaxOpenOutgoingStreams(100);
-  stream_id_manager_.OnConfigNegotiated();
 
   size_t stream_count = stream_id_manager_.outgoing_max_streams();
   EXPECT_NE(0u, stream_count);

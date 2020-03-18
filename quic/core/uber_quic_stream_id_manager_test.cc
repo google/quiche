@@ -145,7 +145,6 @@ TEST_P(UberQuicStreamIdManagerTest, Initialization) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreams) {
-  manager_.OnConfigNegotiated();
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure
   // that they are managed separately.
@@ -318,9 +317,6 @@ TEST_P(UberQuicStreamIdManagerTest, OnMaxStreamsFrame) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
-  // Allow MAX_STREAMS frame transmission
-  manager_.OnConfigNegotiated();
-
   QuicStreamCount stream_count =
       manager_.advertised_max_incoming_bidirectional_streams() - 1;
 
@@ -353,7 +349,6 @@ TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {
 }
 
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
-  manager_.OnConfigNegotiated();
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure
   // that they are managed separately.

@@ -86,11 +86,6 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   QuicStreamCount advertised_max_incoming_bidirectional_streams() const;
   QuicStreamCount advertised_max_incoming_unidirectional_streams() const;
 
-  void OnConfigNegotiated() {
-    bidirectional_stream_id_manager_.OnConfigNegotiated();
-    unidirectional_stream_id_manager_.OnConfigNegotiated();
-  }
-
  private:
   friend class test::QuicSessionPeer;
   friend class test::UberQuicStreamIdManagerPeer;

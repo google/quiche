@@ -840,11 +840,19 @@ void QuicSession::OnStreamError(QuicErrorCode error_code,
 
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
                                  bool unidirectional) {
+  if (!is_configured_) {
+    QUIC_BUG << "Try to send max streams before config negotiated.";
+    return;
+  }
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
 }
 
 void QuicSession::SendStreamsBlocked(QuicStreamCount stream_count,
                                      bool unidirectional) {
+  if (!is_configured_) {
+    QUIC_BUG << "Try to send stream blocked before config negotiated.";
+    return;
+  }
   control_frame_manager_.WriteOrBufferStreamsBlocked(stream_count,
                                                      unidirectional);
 }
@@ -1136,14 +1144,6 @@ void QuicSession::OnConfigNegotiated() {
   }
   is_configured_ = true;
   connection()->OnConfigNegotiated();
-
-  // Inform stream ID manager so that it can reevaluate any deferred
-  // STREAMS_BLOCKED or MAX_STREAMS frames against the config and either send
-  // the frames or discard them.
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    QuicConnection::ScopedPacketFlusher flusher(connection());
-    v99_streamid_manager_.OnConfigNegotiated();
-  }
 
   // Ask flow controllers to try again since the config could have unblocked us.
   if (connection_->version().AllowsLowFlowControlLimits()) {

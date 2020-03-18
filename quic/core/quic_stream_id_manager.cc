@@ -31,7 +31,6 @@ QuicStreamIdManager::QuicStreamIdManager(
       unidirectional_(unidirectional),
       perspective_(perspective),
       transport_version_(transport_version),
-      is_config_negotiated_(false),
       outgoing_max_streams_(max_allowed_outgoing_streams),
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
       outgoing_stream_count_(0),
@@ -134,14 +133,6 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
-  if (!is_config_negotiated_) {
-    // The config has not yet been negotiated, so we can not send the
-    // MAX STREAMS frame yet. Record that we would have sent one and then
-    // return. A new frame will be generated once the configuration is
-    // received.
-    QUIC_BUG << "Attempt to send Max Streams Frame before config is negotiated";
-    return;
-  }
   incoming_advertised_max_streams_ = incoming_actual_max_streams_;
   delegate_->SendMaxStreams(incoming_advertised_max_streams_, unidirectional_);
 }
@@ -184,11 +175,6 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
   DCHECK(VersionHasIetfQuicFrames(transport_version_));
   if (outgoing_stream_count_ < outgoing_max_streams_) {
     return true;
-  }
-  if (!is_config_negotiated_) {
-    QUIC_BUG
-        << "Creating streams before Quic session is configured is prohibitied";
-    return false;
   }
   // Next stream ID would exceed the limit, need to inform the peer.
   delegate_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
@@ -316,10 +302,6 @@ void QuicStreamIdManager::CalculateIncomingMaxStreamsWindow() {
   if (max_streams_window_ == 0) {
     max_streams_window_ = 1;
   }
-}
-
-void QuicStreamIdManager::OnConfigNegotiated() {
-  is_config_negotiated_ = true;
 }
 
 }  // namespace quic
