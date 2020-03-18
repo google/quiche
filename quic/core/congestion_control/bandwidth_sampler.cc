@@ -78,7 +78,7 @@ BandwidthSampler::BandwidthSampler(
       total_bytes_sent_at_last_acked_packet_(0),
       last_acked_packet_sent_time_(QuicTime::Zero()),
       last_acked_packet_ack_time_(QuicTime::Zero()),
-      is_app_limited_(false),
+      is_app_limited_(started_as_app_limited_),
       connection_state_map_(),
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
@@ -289,11 +289,26 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     recent_ack_points_.Update(ack_time, total_bytes_acked_);
   }
 
-  // Exit app-limited phase once a packet that was sent while the connection is
-  // not app-limited is acknowledged.
-  if (is_app_limited_ && end_of_app_limited_phase_.IsInitialized() &&
-      packet_number > end_of_app_limited_phase_) {
-    is_app_limited_ = false;
+  if (started_as_app_limited_) {
+    if (is_app_limited_) {
+      // Exit app-limited phase in two cases:
+      // (1) end_of_app_limited_phase_ is not initialized, i.e., so far all
+      // packets are sent while there are buffered packets or pending data.
+      // (2) The current acked packet is after the sent packet marked as the end
+      // of the app limit phase.
+      if (!end_of_app_limited_phase_.IsInitialized() ||
+          packet_number > end_of_app_limited_phase_) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_bw_sampler_app_limited_starting_value);
+        is_app_limited_ = false;
+      }
+    }
+  } else {
+    // Exit app-limited phase once a packet that was sent while the connection
+    // is not app-limited is acknowledged.
+    if (is_app_limited_ && end_of_app_limited_phase_.IsInitialized() &&
+        packet_number > end_of_app_limited_phase_) {
+      is_app_limited_ = false;
+    }
   }
 
   // There might have been no packets acknowledged at the moment when the

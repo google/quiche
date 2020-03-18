@@ -39,6 +39,7 @@ class BandwidthSamplerTest : public QuicTest {
  protected:
   BandwidthSamplerTest()
       : sampler_(nullptr, /*max_height_tracker_window_length=*/0),
+        sampler_app_limited_at_start_(sampler_.is_app_limited()),
         bytes_in_flight_(0),
         max_bandwidth_(QuicBandwidth::Zero()),
         est_bandwidth_upper_bound_(QuicBandwidth::Infinite()),
@@ -53,6 +54,7 @@ class BandwidthSamplerTest : public QuicTest {
 
   MockClock clock_;
   BandwidthSampler sampler_;
+  bool sampler_app_limited_at_start_;
   QuicByteCount bytes_in_flight_;
   QuicBandwidth max_bandwidth_;  // Max observed bandwidth from acks.
   QuicBandwidth est_bandwidth_upper_bound_;
@@ -89,6 +91,7 @@ class BandwidthSamplerTest : public QuicTest {
     bandwidth_sample.bandwidth = sample.sample_max_bandwidth;
     bandwidth_sample.rtt = sample.sample_rtt;
     bandwidth_sample.state_at_send = sample.last_packet_send_state;
+    EXPECT_TRUE(bandwidth_sample.state_at_send.is_valid);
     return bandwidth_sample;
   }
 
@@ -107,8 +110,6 @@ class BandwidthSamplerTest : public QuicTest {
   // Acknowledge receipt of a packet and expect it to be not app-limited.
   QuicBandwidth AckPacket(uint64_t packet_number) {
     BandwidthSample sample = AckPacketInner(packet_number);
-    EXPECT_TRUE(sample.state_at_send.is_valid);
-    EXPECT_FALSE(sample.state_at_send.is_app_limited);
     return sample.bandwidth;
   }
 
@@ -446,14 +447,29 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
   QuicBandwidth expected_bandwidth =
       QuicBandwidth::FromKBytesPerSecond(kRegularPacketSize);
 
-  Send40PacketsAndAckFirst20(time_between_packets);
+  // Send 20 packets at a constant inter-packet time.
+  for (int i = 1; i <= 20; i++) {
+    SendPacket(i);
+    clock_.AdvanceTime(time_between_packets);
+  }
+
+  // Ack packets 1 to 20, while sending new packets at the same rate as
+  // before.
+  for (int i = 1; i <= 20; i++) {
+    BandwidthSample sample = AckPacketInner(i);
+    EXPECT_EQ(sample.state_at_send.is_app_limited,
+              sampler_app_limited_at_start_);
+    SendPacket(i + 20);
+    clock_.AdvanceTime(time_between_packets);
+  }
 
   // We are now app-limited. Ack 21 to 40 as usual, but do not send anything for
   // now.
   sampler_.OnAppLimited();
   for (int i = 21; i <= 40; i++) {
-    QuicBandwidth current_sample = AckPacket(i);
-    EXPECT_EQ(expected_bandwidth, current_sample);
+    BandwidthSample sample = AckPacketInner(i);
+    EXPECT_FALSE(sample.state_at_send.is_app_limited);
+    EXPECT_EQ(expected_bandwidth, sample.bandwidth);
     clock_.AdvanceTime(time_between_packets);
   }
 
@@ -480,8 +496,9 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
   // Run out of packets, and then ack packet 61 to 80, all of which should have
   // correct non-app-limited samples.
   for (int i = 61; i <= 80; i++) {
-    QuicBandwidth last_bandwidth = AckPacket(i);
-    EXPECT_EQ(expected_bandwidth, last_bandwidth);
+    BandwidthSample sample = AckPacketInner(i);
+    EXPECT_FALSE(sample.state_at_send.is_app_limited);
+    EXPECT_EQ(sample.bandwidth, expected_bandwidth);
     clock_.AdvanceTime(time_between_packets);
   }
   sampler_.RemoveObsoletePackets(QuicPacketNumber(81));
