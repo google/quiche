@@ -48,7 +48,7 @@ bool TunDevicePacketExchanger::WritePacket(const char* packet,
     }
     return false;
   }
-  stats_->OnPacketWritten();
+  stats_->OnPacketWritten(result);
 
   return true;
 }
@@ -78,7 +78,7 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(
     }
     return nullptr;
   }
-  stats_->OnPacketRead();
+  stats_->OnPacketRead(result);
   return std::make_unique<QuicData>(read_buffer.release(), result, true);
 }
 

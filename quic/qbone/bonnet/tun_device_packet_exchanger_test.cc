@@ -79,7 +79,7 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsTrueOnSuccessfulWrite) {
         return count;
       }));
 
-  EXPECT_CALL(mock_stats_, OnPacketWritten()).Times(1);
+  EXPECT_CALL(mock_stats_, OnPacketWritten(_)).Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -112,7 +112,7 @@ TEST_F(TunDevicePacketExchangerTest,
         return packet.size();
       }));
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead()).Times(1);
+  EXPECT_CALL(mock_stats_, OnPacketRead(_)).Times(1);
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 

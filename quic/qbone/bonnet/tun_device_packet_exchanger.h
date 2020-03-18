@@ -26,8 +26,8 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
     virtual ~StatsInterface() = default;
 
-    virtual void OnPacketRead() = 0;
-    virtual void OnPacketWritten() = 0;
+    virtual void OnPacketRead(size_t count) = 0;
+    virtual void OnPacketWritten(size_t count) = 0;
     virtual void OnReadError(std::string* error) = 0;
     virtual void OnWriteError(std::string* error) = 0;
 
