@@ -30,8 +30,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
-    OnWrongFrame("Cancel Push");
-    return false;
+    // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
+    return true;
   }
 
   bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {

@@ -2802,6 +2802,36 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   session_.OnHttp3GoAway(stream_id);
 }
 
+// Test that receipt of CANCEL_PUSH frame does not result in closing the
+// connection.
+// TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
+TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  // Create control stream.
+  QuicStreamId receive_control_stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  quiche::QuicheStringPiece stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, /* fin = */ false, offset,
+                        stream_type);
+  offset += stream_type.length();
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(receive_control_stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  CancelPushFrame cancel_push{/* push_id = */ 0};
+  std::unique_ptr<char[]> buffer;
+  auto frame_length =
+      HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
+  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+                        quiche::QuicheStringPiece(buffer.get(), frame_length));
+  session_.OnStreamFrame(data2);
+}
+
 TEST_P(QuicSpdySessionTestServer, ServerPushEnabledDefaultValue) {
   if (VersionUsesHttp3(transport_version())) {
     EXPECT_FALSE(session_.server_push_enabled());
@@ -2964,6 +2994,36 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
       CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
                       "STOP_SENDING received for QPACK send stream", _));
   session_.OnStopSendingFrame(stop_sending_encoder_stream);
+}
+
+// Test that receipt of CANCEL_PUSH frame does not result in closing the
+// connection.
+// TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
+TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  // Create control stream.
+  QuicStreamId receive_control_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  quiche::QuicheStringPiece stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, /* fin = */ false, offset,
+                        stream_type);
+  offset += stream_type.length();
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(receive_control_stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  CancelPushFrame cancel_push{/* push_id = */ 0};
+  std::unique_ptr<char[]> buffer;
+  auto frame_length =
+      HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
+  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+                        quiche::QuicheStringPiece(buffer.get(), frame_length));
+  session_.OnStreamFrame(data2);
 }
 
 }  // namespace
