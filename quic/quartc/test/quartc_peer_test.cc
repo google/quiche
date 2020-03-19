@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/quartc/quartc_endpoint.h"
 #include "net/third_party/quiche/src/quic/quartc/simulated_packet_transport.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
@@ -19,6 +20,11 @@
 namespace quic {
 namespace test {
 namespace {
+
+using ::testing::_;
+using ::testing::Return;
+
+constexpr QuicBandwidth kLinkBandwidth = QuicBandwidth::FromKBitsPerSecond(512);
 
 class QuartcPeerTest : public QuicTest {
  protected:
@@ -33,7 +39,7 @@ class QuartcPeerTest : public QuicTest {
                           10 * kDefaultMaxPacketSize),
         client_server_link_(&client_transport_,
                             &server_transport_,
-                            QuicBandwidth::FromKBitsPerSecond(512),
+                            kLinkBandwidth,
                             QuicTime::Delta::FromMilliseconds(100)) {
     // TODO(b/150224094): Re-enable TLS handshake.
     // TODO(b/150236522): Parametrize by QUIC version.
@@ -41,9 +47,6 @@ class QuartcPeerTest : public QuicTest {
     SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
     SetQuicReloadableFlag(quic_enable_version_t050, false);
 
-    SetQuicReloadableFlag(quic_default_to_bbr, true);
-    // TODO(wub): Fix the test under BBRv2 and remove this line.
-    SetQuicReloadableFlag(quic_default_to_bbr_v2, false);
     simulator_.set_random_generator(&rng_);
   }
 
@@ -75,16 +78,39 @@ class QuartcPeerTest : public QuicTest {
     client_endpoint_->Connect(&client_transport_);
   }
 
-  void RampUpBandwidth() {
-    // Run long enough for the bandwidth estimate to ramp up.
-    simulator_.RunUntilOrTimeout(
+  void SetMockBandwidth(MockSendAlgorithm* send_algorithm,
+                        QuicBandwidth bandwidth) {
+    ON_CALL(*send_algorithm, BandwidthEstimate())
+        .WillByDefault(Return(bandwidth));
+    ON_CALL(*send_algorithm, PacingRate(_)).WillByDefault(Return(bandwidth));
+    ON_CALL(*send_algorithm, CanSend(_)).WillByDefault(Return(true));
+  }
+
+  void RampUpBandwidth(QuicBandwidth bandwidth) {
+    ASSERT_TRUE(simulator_.RunUntilOrTimeout(
         [this] {
-          return client_peer_->last_available_bandwidth() ==
-                     client_server_link_.bandwidth() &&
-                 server_peer_->last_available_bandwidth() ==
-                     client_server_link_.bandwidth();
+          return client_peer_->session() != nullptr &&
+                 server_peer_->session() != nullptr;
         },
-        QuicTime::Delta::FromSeconds(60));
+        QuicTime::Delta::FromSeconds(60)));
+
+    MockSendAlgorithm* client_send_algorithm = new MockSendAlgorithm();
+    SetMockBandwidth(client_send_algorithm, bandwidth);
+    QuicConnectionPeer::SetSendAlgorithm(client_peer_->session()->connection(),
+                                         client_send_algorithm);
+
+    MockSendAlgorithm* server_send_algorithm = new MockSendAlgorithm();
+    SetMockBandwidth(server_send_algorithm, bandwidth);
+    QuicConnectionPeer::SetSendAlgorithm(server_peer_->session()->connection(),
+                                         server_send_algorithm);
+  }
+
+  void WaitForMessages() {
+    simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
+    ASSERT_TRUE(simulator_.RunUntil([this] {
+      return !client_peer_->received_messages().empty() &&
+             !server_peer_->received_messages().empty();
+    }));
   }
 
   SimpleRandom rng_;
@@ -118,11 +144,7 @@ TEST_F(QuartcPeerTest, SendReceiveMessages) {
 
   CreatePeers({config});
   Connect();
-
-  ASSERT_TRUE(simulator_.RunUntil([this] {
-    return !client_peer_->received_messages().empty() &&
-           !server_peer_->received_messages().empty();
-  }));
+  WaitForMessages();
 
   QuicTime end_time = simulator_.GetClock()->Now();
 
@@ -151,7 +173,8 @@ TEST_F(QuartcPeerTest, MaxFrameSizeUnset) {
 
   CreatePeers({config});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   // The peers generate frames that fit in one packet.
   EXPECT_LT(client_peer_->received_messages().back().frame.size,
@@ -168,7 +191,8 @@ TEST_F(QuartcPeerTest, MaxFrameSizeLargerThanPacketSize) {
 
   CreatePeers({config});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   // The peers generate frames that fit in one packet.
   EXPECT_LT(client_peer_->received_messages().back().frame.size,
@@ -187,7 +211,8 @@ TEST_F(QuartcPeerTest, MaxFrameSizeSmallerThanPacketSize) {
 
   CreatePeers({config});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   EXPECT_EQ(client_peer_->received_messages().back().frame.size, 100u);
   EXPECT_EQ(server_peer_->received_messages().back().frame.size, 100u);
@@ -200,7 +225,8 @@ TEST_F(QuartcPeerTest, MaxFrameSizeSmallerThanFrameHeader) {
 
   CreatePeers({config});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   // Max frame sizes smaller than the header are ignored, and the frame size is
   // limited by packet size.
@@ -286,7 +312,8 @@ TEST_F(QuartcPeerTest, BandwidthAllocationWithEnoughAvailable) {
 
   CreatePeers({config_1, config_2, config_3});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   // The last message from each source should be the size allowed by that
   // source's maximum bandwidth and frame interval.
@@ -336,7 +363,8 @@ TEST_F(QuartcPeerTest, BandwidthAllocationWithoutEnoughAvailable) {
 
   CreatePeers({config_1, config_2, config_3});
   Connect();
-  RampUpBandwidth();
+  RampUpBandwidth(kLinkBandwidth);
+  WaitForMessages();
 
   const std::vector<ReceivedMessage>& client_messages =
       client_peer_->received_messages();
@@ -383,9 +411,7 @@ TEST_F(QuartcPeerTest, DisableAndDrainMessages) {
 
   CreatePeers({config});
   Connect();
-
-  // Note: this time is completely arbitrary, to allow messages to be sent.
-  simulator_.RunFor(QuicTime::Delta::FromSeconds(10));
+  WaitForMessages();
 
   // After these calls, we should observe no new messages.
   server_peer_->SetEnabled(false);

@@ -72,6 +72,8 @@ class QuartcPeer : public QuartcEndpoint::Delegate,
 
   QuicBandwidth last_available_bandwidth() { return last_available_; }
 
+  QuartcSession* session() const { return session_; }
+
   // QuartcEndpoint::Delegate overrides.
   void OnSessionCreated(QuartcSession* session) override;
 
