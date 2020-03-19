@@ -3158,7 +3158,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_DATA_BLOCKED: {
           QuicBlockedFrame frame;
-          if (!ProcessIetfBlockedFrame(reader, &frame)) {
+          if (!ProcessDataBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_BLOCKED_DATA);
           }
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF blocked frame "
@@ -3172,7 +3172,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_STREAM_DATA_BLOCKED: {
           QuicBlockedFrame frame;
-          if (!ProcessStreamBlockedFrame(reader, &frame)) {
+          if (!ProcessStreamDataBlockedFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_STREAM_BLOCKED_DATA);
           }
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF stream blocked frame "
@@ -5549,9 +5549,9 @@ bool QuicFramer::AppendBlockedFrame(const QuicBlockedFrame& frame,
                                     QuicDataWriter* writer) {
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
     if (frame.stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
-      return AppendIetfBlockedFrame(frame, writer);
+      return AppendDataBlockedFrame(frame, writer);
     }
-    return AppendStreamBlockedFrame(frame, writer);
+    return AppendStreamDataBlockedFrame(frame, writer);
   }
   uint32_t stream_id = static_cast<uint32_t>(frame.stream_id);
   if (!writer->WriteUInt32(stream_id)) {
@@ -5908,7 +5908,7 @@ bool QuicFramer::ProcessMaxStreamsFrame(QuicDataReader* reader,
   return true;
 }
 
-bool QuicFramer::AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
+bool QuicFramer::AppendDataBlockedFrame(const QuicBlockedFrame& frame,
                                         QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.offset)) {
     set_detailed_error("Can not write blocked offset.");
@@ -5917,7 +5917,7 @@ bool QuicFramer::AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
   return true;
 }
 
-bool QuicFramer::ProcessIetfBlockedFrame(QuicDataReader* reader,
+bool QuicFramer::ProcessDataBlockedFrame(QuicDataReader* reader,
                                          QuicBlockedFrame* frame) {
   // Indicates that it is a BLOCKED frame (as opposed to STREAM_BLOCKED).
   frame->stream_id = QuicUtils::GetInvalidStreamId(transport_version());
@@ -5928,8 +5928,8 @@ bool QuicFramer::ProcessIetfBlockedFrame(QuicDataReader* reader,
   return true;
 }
 
-bool QuicFramer::AppendStreamBlockedFrame(const QuicBlockedFrame& frame,
-                                          QuicDataWriter* writer) {
+bool QuicFramer::AppendStreamDataBlockedFrame(const QuicBlockedFrame& frame,
+                                              QuicDataWriter* writer) {
   if (!writer->WriteVarInt62(frame.stream_id)) {
     set_detailed_error("Can not write stream blocked stream id.");
     return false;
@@ -5941,8 +5941,8 @@ bool QuicFramer::AppendStreamBlockedFrame(const QuicBlockedFrame& frame,
   return true;
 }
 
-bool QuicFramer::ProcessStreamBlockedFrame(QuicDataReader* reader,
-                                           QuicBlockedFrame* frame) {
+bool QuicFramer::ProcessStreamDataBlockedFrame(QuicDataReader* reader,
+                                               QuicBlockedFrame* frame) {
   if (!reader->ReadVarIntU32(&frame->stream_id)) {
     set_detailed_error("Can not read stream blocked stream id.");
     return false;

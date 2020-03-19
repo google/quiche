@@ -951,14 +951,14 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                               QuicMaxStreamsFrame* frame,
                               uint64_t frame_type);
 
-  bool AppendIetfBlockedFrame(const QuicBlockedFrame& frame,
+  bool AppendDataBlockedFrame(const QuicBlockedFrame& frame,
                               QuicDataWriter* writer);
-  bool ProcessIetfBlockedFrame(QuicDataReader* reader, QuicBlockedFrame* frame);
+  bool ProcessDataBlockedFrame(QuicDataReader* reader, QuicBlockedFrame* frame);
 
-  bool AppendStreamBlockedFrame(const QuicBlockedFrame& frame,
-                                QuicDataWriter* writer);
-  bool ProcessStreamBlockedFrame(QuicDataReader* reader,
-                                 QuicBlockedFrame* frame);
+  bool AppendStreamDataBlockedFrame(const QuicBlockedFrame& frame,
+                                    QuicDataWriter* writer);
+  bool ProcessStreamDataBlockedFrame(QuicDataReader* reader,
+                                     QuicBlockedFrame* frame);
 
   bool AppendStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
                                  QuicDataWriter* writer);
