@@ -29,8 +29,6 @@ class MockDelegate : public QuicStreamIdManager::DelegateInterface {
                void(QuicErrorCode error_code, std::string error_details));
   MOCK_METHOD2(SendMaxStreams,
                void(QuicStreamCount stream_count, bool unidirectional));
-  MOCK_METHOD2(SendStreamsBlocked,
-               void(QuicStreamCount stream_count, bool unidirectional));
 };
 
 struct TestParams {
@@ -208,7 +206,6 @@ TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedNoOp) {
 TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedTooBig) {
   EXPECT_CALL(delegate_, OnStreamIdManagerError(QUIC_STREAMS_BLOCKED_ERROR, _));
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams() + 1;
   QuicStreamsBlockedFrame frame(0, stream_count, IsUnidirectional());
@@ -287,7 +284,6 @@ TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // If the peer is saying it's blocked on the stream count that
   // we've advertised, it's a noop since the peer has the correct information.
   frame.stream_count = advertised_stream_count;
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame));
 
   // If the peer is saying it's blocked on a stream count that is larger
@@ -356,9 +352,7 @@ TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   }
 
   // If we try to check that the next outgoing stream id is available it should
-  // A) fail and B) generate a STREAMS_BLOCKED frame.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(kDefaultMaxStreamsPerConnection,
-                                            IsUnidirectional()));
+  // fail.
   EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
 
   // If we try to get the next id (above the limit), it should cause a quic-bug.
@@ -395,7 +389,6 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
 
   // Should not get a control-frame transmission since the peer should have
   // "plenty" of stream IDs to use.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
 
   // Get the first incoming stream ID to try and allocate.
@@ -455,7 +448,6 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 does nothing
   // when max_allowed_incoming_streams is 0.
   EXPECT_CALL(delegate_, SendMaxStreams(_, _)).Times(0);
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   stream_id_manager_.SetMaxOpenIncomingStreams(0);
   frame.stream_count = 0;
   stream_id_manager_.OnStreamsBlockedFrame(frame);
@@ -463,7 +455,6 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 invokes a
   // MAX STREAMS, count = 123, when the MaxOpen... is set to 123.
   EXPECT_CALL(delegate_, SendMaxStreams(123u, IsUnidirectional()));
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, _)).Times(0);
   stream_id_manager_.SetMaxOpenIncomingStreams(123);
   frame.stream_count = 0;
   stream_id_manager_.OnStreamsBlockedFrame(frame);
@@ -519,9 +510,7 @@ TEST_P(QuicStreamIdManagerTest, NewStreamDoesNotExceedLimit) {
 
   EXPECT_EQ(stream_id_manager_.outgoing_stream_count(),
             stream_id_manager_.outgoing_max_streams());
-  // Create another, it should fail. Should also send a STREAMS_BLOCKED
-  // control frame.
-  EXPECT_CALL(delegate_, SendStreamsBlocked(_, IsUnidirectional()));
+  // Create another, it should fail.
   EXPECT_FALSE(stream_id_manager_.CanOpenNextOutgoingStream());
 }
 

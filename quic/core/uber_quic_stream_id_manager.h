@@ -39,10 +39,10 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
       QuicStreamCount max_open_streams);
 
   // Returns true if next outgoing bidirectional stream ID can be allocated.
-  bool CanOpenNextOutgoingBidirectionalStream();
+  bool CanOpenNextOutgoingBidirectionalStream() const;
 
   // Returns true if next outgoing unidirectional stream ID can be allocated.
-  bool CanOpenNextOutgoingUnidirectionalStream();
+  bool CanOpenNextOutgoingUnidirectionalStream() const;
 
   // Returns the next outgoing bidirectional stream id.
   QuicStreamId GetNextOutgoingBidirectionalStreamId();

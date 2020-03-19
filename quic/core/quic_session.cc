@@ -847,16 +847,6 @@ void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
 }
 
-void QuicSession::SendStreamsBlocked(QuicStreamCount stream_count,
-                                     bool unidirectional) {
-  if (!is_configured_) {
-    QUIC_BUG << "Try to send stream blocked before config negotiated.";
-    return;
-  }
-  control_frame_manager_.WriteOrBufferStreamsBlocked(stream_count,
-                                                     unidirectional);
-}
-
 void QuicSession::CloseStream(QuicStreamId stream_id) {
   CloseStreamInner(stream_id, false);
 }
@@ -1497,19 +1487,37 @@ QuicStreamId QuicSession::GetNextOutgoingUnidirectionalStreamId() {
 }
 
 bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    return v99_streamid_manager_.CanOpenNextOutgoingBidirectionalStream();
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return stream_id_manager_.CanOpenNextOutgoingStream(
+        GetNumOpenOutgoingStreams());
   }
-  return stream_id_manager_.CanOpenNextOutgoingStream(
-      GetNumOpenOutgoingStreams());
+  if (v99_streamid_manager_.CanOpenNextOutgoingBidirectionalStream()) {
+    return true;
+  }
+  if (is_configured_) {
+    // Send STREAM_BLOCKED after config negotiated.
+    control_frame_manager_.WriteOrBufferStreamsBlocked(
+        v99_streamid_manager_.max_outgoing_bidirectional_streams(),
+        /*unidirectional=*/false);
+  }
+  return false;
 }
 
 bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    return v99_streamid_manager_.CanOpenNextOutgoingUnidirectionalStream();
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return stream_id_manager_.CanOpenNextOutgoingStream(
+        GetNumOpenOutgoingStreams());
   }
-  return stream_id_manager_.CanOpenNextOutgoingStream(
-      GetNumOpenOutgoingStreams());
+  if (v99_streamid_manager_.CanOpenNextOutgoingUnidirectionalStream()) {
+    return true;
+  }
+  if (is_configured_) {
+    // Send STREAM_BLOCKED after config negotiated.
+    control_frame_manager_.WriteOrBufferStreamsBlocked(
+        v99_streamid_manager_.max_outgoing_unidirectional_streams(),
+        /*unidirectional=*/true);
+  }
+  return false;
 }
 
 QuicStreamCount QuicSession::GetAdvertisedMaxIncomingBidirectionalStreams()

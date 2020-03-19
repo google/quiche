@@ -171,15 +171,9 @@ QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
   return id;
 }
 
-bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
+bool QuicStreamIdManager::CanOpenNextOutgoingStream() const {
   DCHECK(VersionHasIetfQuicFrames(transport_version_));
-  if (outgoing_stream_count_ < outgoing_max_streams_) {
-    return true;
-  }
-  // Next stream ID would exceed the limit, need to inform the peer.
-  delegate_->SendStreamsBlocked(outgoing_max_streams_, unidirectional_);
-  QUIC_CODE_COUNT(quic_reached_outgoing_stream_id_limit);
-  return false;
+  return outgoing_stream_count_ < outgoing_max_streams_;
 }
 
 bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(

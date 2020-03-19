@@ -48,10 +48,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
     // Send a MAX_STREAMS frame.
     virtual void SendMaxStreams(QuicStreamCount stream_count,
                                 bool unidirectional) = 0;
-
-    // Send a STREAMS_BLOCKED frame.
-    virtual void SendStreamsBlocked(QuicStreamCount stream_count,
-                                    bool unidirectional) = 0;
   };
 
   QuicStreamIdManager(DelegateInterface* delegate,
@@ -94,7 +90,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame);
 
   // Indicates whether the next outgoing stream ID can be allocated or not.
-  bool CanOpenNextOutgoingStream();
+  bool CanOpenNextOutgoingStream() const;
 
   // Generate and send a MAX_STREAMS frame.
   void SendMaxStreamsFrame();

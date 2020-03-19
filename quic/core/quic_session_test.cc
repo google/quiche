@@ -327,8 +327,11 @@ class TestSession : public QuicSession {
   }
 
   using QuicSession::ActivateStream;
+  using QuicSession::CanOpenNextOutgoingBidirectionalStream;
   using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
   using QuicSession::closed_streams;
+  using QuicSession::GetNextOutgoingBidirectionalStreamId;
+  using QuicSession::GetNextOutgoingUnidirectionalStreamId;
   using QuicSession::zombie_streams;
 
  private:
@@ -1209,6 +1212,41 @@ TEST_P(QuicSessionTestServer, OnCanWriteWriterBlocks) {
 
   session_.OnCanWrite();
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
+}
+
+TEST_P(QuicSessionTestServer, SendStreamsBlocked) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  for (size_t i = 0; i < kDefaultMaxStreamsPerConnection; ++i) {
+    ASSERT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());
+    session_.GetNextOutgoingBidirectionalStreamId();
+  }
+  // Next checking causes STREAMS_BLOCKED to be sent.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(Invoke([](const QuicFrame& frame) {
+        EXPECT_FALSE(frame.streams_blocked_frame.unidirectional);
+        EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+                  frame.streams_blocked_frame.stream_count);
+        ClearControlFrame(frame);
+        return true;
+      }));
+  EXPECT_FALSE(session_.CanOpenNextOutgoingBidirectionalStream());
+
+  for (size_t i = 0; i < kDefaultMaxStreamsPerConnection; ++i) {
+    ASSERT_TRUE(session_.CanOpenNextOutgoingUnidirectionalStream());
+    session_.GetNextOutgoingUnidirectionalStreamId();
+  }
+  // Next checking causes STREAM_BLOCKED to be sent.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(Invoke([](const QuicFrame& frame) {
+        EXPECT_TRUE(frame.streams_blocked_frame.unidirectional);
+        EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+                  frame.streams_blocked_frame.stream_count);
+        ClearControlFrame(frame);
+        return true;
+      }));
+  EXPECT_FALSE(session_.CanOpenNextOutgoingUnidirectionalStream());
 }
 
 TEST_P(QuicSessionTestServer, BufferedHandshake) {

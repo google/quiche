@@ -48,11 +48,11 @@ void UberQuicStreamIdManager::SetMaxOpenIncomingUnidirectionalStreams(
   unidirectional_stream_id_manager_.SetMaxOpenIncomingStreams(max_open_streams);
 }
 
-bool UberQuicStreamIdManager::CanOpenNextOutgoingBidirectionalStream() {
+bool UberQuicStreamIdManager::CanOpenNextOutgoingBidirectionalStream() const {
   return bidirectional_stream_id_manager_.CanOpenNextOutgoingStream();
 }
 
-bool UberQuicStreamIdManager::CanOpenNextOutgoingUnidirectionalStream() {
+bool UberQuicStreamIdManager::CanOpenNextOutgoingUnidirectionalStream() const {
   return unidirectional_stream_id_manager_.CanOpenNextOutgoingStream();
 }
 
