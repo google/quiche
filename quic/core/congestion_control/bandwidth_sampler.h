@@ -48,6 +48,9 @@ struct QUIC_EXPORT_PRIVATE SendTimeState {
 
   SendTimeState(const SendTimeState& other) = default;
 
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                                      const SendTimeState& s);
+
   // Whether other states in this object is valid.
   bool is_valid;
 
@@ -456,6 +459,18 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
           total_bytes_sent_at_last_acked_packet(0),
           last_acked_packet_sent_time(QuicTime::Zero()),
           last_acked_packet_ack_time(QuicTime::Zero()) {}
+
+    friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+        std::ostream& os,
+        const ConnectionStateOnSentPacket& p) {
+      os << "{sent_time:" << p.sent_time << ", size:" << p.size
+         << ", total_bytes_sent_at_last_acked_packet:"
+         << p.total_bytes_sent_at_last_acked_packet
+         << ", last_acked_packet_sent_time:" << p.last_acked_packet_sent_time
+         << ", last_acked_packet_ack_time:" << p.last_acked_packet_ack_time
+         << ", send_time_state:" << p.send_time_state << "}";
+      return os;
+    }
   };
 
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,

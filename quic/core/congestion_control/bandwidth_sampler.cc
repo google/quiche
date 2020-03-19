@@ -14,6 +14,15 @@
 
 namespace quic {
 
+std::ostream& operator<<(std::ostream& os, const SendTimeState& s) {
+  os << "{valid:" << s.is_valid << ", app_limited:" << s.is_app_limited
+     << ", total_sent:" << s.total_bytes_sent
+     << ", total_acked:" << s.total_bytes_acked
+     << ", total_lost:" << s.total_bytes_lost
+     << ", inflight:" << s.bytes_in_flight << "}";
+  return os;
+}
+
 QuicByteCount MaxAckHeightTracker::Update(QuicBandwidth bandwidth_estimate,
                                           QuicRoundTripCount round_trip_count,
                                           QuicTime ack_time,
@@ -353,7 +362,11 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     QUIC_BUG << "Time of the previously acked packet:"
              << a0.ack_time.ToDebuggingValue()
              << " is larger than the ack time of the current packet:"
-             << ack_time.ToDebuggingValue();
+             << ack_time.ToDebuggingValue()
+             << ". acked packet number:" << packet_number
+             << ", total_bytes_acked_:" << total_bytes_acked_
+             << ", overestimate_avoidance_:" << overestimate_avoidance_
+             << ", sent_packet:" << sent_packet;
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(
@@ -368,7 +381,12 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
 
   QUIC_BUG_IF(sample.bandwidth.IsZero())
-      << "ack_rate: " << ack_rate << ", send_rate: " << send_rate;
+      << "ack_rate: " << ack_rate << ", send_rate: " << send_rate
+      << ". acked packet number:" << packet_number
+      << ", overestimate_avoidance_:" << overestimate_avoidance_ << "a1:{"
+      << total_bytes_acked_ << "@" << ack_time << "}, a0:{"
+      << a0.total_bytes_acked << "@" << a0.ack_time
+      << "}, sent_packet:" << sent_packet;
   return sample;
 }
 
