@@ -309,6 +309,7 @@ QuicConnection::QuicConnection(
       connected_(true),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
       mtu_probe_count_(0),
+      previous_validated_mtu_(0),
       peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
@@ -2313,13 +2314,25 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   if (IsWriteError(result.status)) {
-    OnWriteError(result.error_code);
     QUIC_LOG_FIRST_N(ERROR, 10)
         << ENDPOINT << "Failed writing packet " << packet_number << " of "
         << encrypted_length << " bytes from " << self_address().host() << " to "
         << peer_address() << ", with error code " << result.error_code
         << ". long_term_mtu_:" << long_term_mtu_
+        << ", previous_validated_mtu_:" << previous_validated_mtu_
+        << ", max_packet_length():" << max_packet_length()
         << ", is_mtu_discovery:" << is_mtu_discovery;
+    if (previous_validated_mtu_ != 0 &&
+        GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
+      QUIC_CODE_COUNT(quic_ignore_one_write_error_after_mtu_probe);
+      SetMaxPacketLength(previous_validated_mtu_);
+      mtu_discoverer_.Disable();
+      mtu_discovery_alarm_->Cancel();
+      previous_validated_mtu_ = 0;
+      return true;
+    }
+
+    OnWriteError(result.error_code);
     return false;
   }
 
@@ -2535,9 +2548,9 @@ void QuicConnection::OnCongestionChange() {
 
 void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
   if (packet_size > max_packet_length()) {
-    const QuicByteCount old_max_packet_length = max_packet_length();
+    previous_validated_mtu_ = max_packet_length();
     SetMaxPacketLength(packet_size);
-    mtu_discoverer_.OnMaxPacketLengthUpdated(old_max_packet_length,
+    mtu_discoverer_.OnMaxPacketLengthUpdated(previous_validated_mtu_,
                                              max_packet_length());
   }
 }

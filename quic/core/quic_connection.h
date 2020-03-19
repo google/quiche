@@ -1434,6 +1434,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // The number of MTU probes already sent.
   size_t mtu_probe_count_;
 
+  // The value of |long_term_mtu_| prior to the last successful MTU increase.
+  // 0 means either
+  // - MTU discovery has never been enabled, or
+  // - MTU discovery has been enabled, but the connection got a packet write
+  //   error with a new (successfully probed) MTU, so it reverted
+  //   |long_term_mtu_| to the value before the increase.
+  QuicPacketLength previous_validated_mtu_;
   // The value of the MTU regularly used by the connection. This is different
   // from the value returned by max_packet_size(), as max_packet_size() returns
   // the value of the MTU as currently used by the serializer, so if

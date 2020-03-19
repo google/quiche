@@ -1677,6 +1677,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     // same overhead, either 12 bytes for ones using Google QUIC crypto, or 16
     // bytes for ones using TLS.
     connection_.SetEncrypter(ENCRYPTION_INITIAL, nullptr);
+    // Prevent packets from being coalesced.
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
     EXPECT_TRUE(connection_.connected());
   }
 
@@ -5086,6 +5089,7 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   EXPECT_EQ(1u, connection_.mtu_probe_count());
 
   QuicStreamOffset stream_offset = packets_between_probes_base;
+  QuicByteCount last_probe_size = 0;
   for (size_t num_probes = 1; num_probes < kMtuDiscoveryAttempts;
        ++num_probes) {
     // Send just enough packets without triggering the next probe.
@@ -5112,11 +5116,30 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
     EXPECT_EQ(new_probe_size, connection_.max_packet_length());
     EXPECT_EQ(0u, connection_.GetBytesInFlight());
 
+    last_probe_size = probe_size;
     probe_size = new_probe_size;
   }
 
   // The last probe size should be equal to the target.
   EXPECT_EQ(probe_size, kMtuDiscoveryTargetPacketSizeHigh);
+
+  if (GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
+    writer_->SetShouldWriteFail();
+
+    // Ignore PACKET_WRITE_ERROR once.
+    SendStreamDataToPeer(3, "(", stream_offset++, NO_FIN, nullptr);
+    EXPECT_EQ(last_probe_size, connection_.max_packet_length());
+    EXPECT_TRUE(connection_.connected());
+
+    // Close connection on another PACKET_WRITE_ERROR.
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
+        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+    SendStreamDataToPeer(3, ")", stream_offset++, NO_FIN, nullptr);
+    EXPECT_EQ(last_probe_size, connection_.max_packet_length());
+    EXPECT_FALSE(connection_.connected());
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_PACKET_WRITE_ERROR));
+  }
 }
 
 // Simulate the case where the first attempt to send a probe is write blocked,
