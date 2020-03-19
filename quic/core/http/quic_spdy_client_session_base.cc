@@ -203,7 +203,7 @@ void QuicSpdyClientSessionBase::ResetPromised(
     QuicRstStreamErrorCode error_code) {
   DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
   SendRstStream(id, error_code, 0);
-  if (!IsOpenStream(id)) {
+  if (!IsOpenStream(id) && !IsClosedStream(id)) {
     MaybeIncreaseLargestPeerStreamId(id);
   }
 }
