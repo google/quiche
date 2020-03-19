@@ -149,7 +149,7 @@ bool QuicStreamSendBuffer::OnStreamDataAcked(
     if (stream_bytes_outstanding_ < data_length) {
       return false;
     }
-    bytes_acked_.Add(offset, offset + data_length);
+    bytes_acked_.AddOptimizedForAppend(offset, offset + data_length);
     *newly_acked_length = data_length;
     stream_bytes_outstanding_ -= data_length;
     pending_retransmissions_.Difference(offset, offset + data_length);
