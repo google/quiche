@@ -182,44 +182,34 @@ bool QuicStreamIdManager::CanOpenNextOutgoingStream() {
   return false;
 }
 
-// Stream_id is the id of a new incoming stream. Check if it can be
-// created (doesn't violate limits, etc).
 bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     const QuicStreamId stream_id) {
   // |stream_id| must be an incoming stream of the right directionality.
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
   DCHECK_NE(QuicUtils::IsServerInitiatedStreamId(transport_version_, stream_id),
             perspective() == Perspective::IS_SERVER);
-  available_streams_.erase(stream_id);
-
-  if (largest_peer_created_stream_id_ !=
-          QuicUtils::GetInvalidStreamId(transport_version_) &&
-      stream_id <= largest_peer_created_stream_id_) {
+  if (available_streams_.erase(stream_id) == 1) {
+    // stream_id is available.
     return true;
   }
 
-  QuicStreamCount stream_count_increment;
   if (largest_peer_created_stream_id_ !=
       QuicUtils::GetInvalidStreamId(transport_version_)) {
-    stream_count_increment = (stream_id - largest_peer_created_stream_id_) /
-                             QuicUtils::StreamIdDelta(transport_version_);
-  } else {
-    // Largest_peer_created_stream_id is the invalid ID,
-    // which means that the peer has not created any stream IDs.
-    // The "+1" is because the first stream ID has not yet
-    // been used. For example, if the FirstIncoming ID is 1
-    // and stream_id is 1, then we want the increment to be 1.
-    stream_count_increment = ((stream_id - GetFirstIncomingStreamId()) /
-                              QuicUtils::StreamIdDelta(transport_version_)) +
-                             1;
+    DCHECK_GT(stream_id, largest_peer_created_stream_id_);
   }
 
-  // If already at, or over, the limit, close the connection/etc.
-  if (((incoming_stream_count_ + stream_count_increment) >
-       incoming_advertised_max_streams_) ||
-      ((incoming_stream_count_ + stream_count_increment) <
-       incoming_stream_count_)) {
-    // This stream would exceed the limit. do not increase.
+  // Calculate increment of incoming_stream_count_ by creating stream_id.
+  const QuicStreamCount delta = QuicUtils::StreamIdDelta(transport_version_);
+  const QuicStreamId least_new_stream_id =
+      largest_peer_created_stream_id_ ==
+              QuicUtils::GetInvalidStreamId(transport_version_)
+          ? GetFirstIncomingStreamId()
+          : largest_peer_created_stream_id_ + delta;
+  const QuicStreamCount stream_count_increment =
+      (stream_id - least_new_stream_id) / delta + 1;
+
+  if (incoming_stream_count_ + stream_count_increment >
+      incoming_advertised_max_streams_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Failed to create a new incoming stream with id:"
                     << stream_id << ", reaching MAX_STREAMS limit: "
@@ -232,14 +222,7 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     return false;
   }
 
-  QuicStreamId id = GetFirstIncomingStreamId();
-  if (largest_peer_created_stream_id_ !=
-      QuicUtils::GetInvalidStreamId(transport_version_)) {
-    id = largest_peer_created_stream_id_ +
-         QuicUtils::StreamIdDelta(transport_version_);
-  }
-
-  for (; id < stream_id; id += QuicUtils::StreamIdDelta(transport_version_)) {
+  for (QuicStreamId id = least_new_stream_id; id < stream_id; id += delta) {
     available_streams_.insert(id);
   }
   incoming_stream_count_ += stream_count_increment;
