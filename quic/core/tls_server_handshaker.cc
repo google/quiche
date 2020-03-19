@@ -54,11 +54,6 @@ TlsServerHandshaker::TlsServerHandshaker(QuicSession* session,
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
-
-  if (!SetTransportParameters()) {
-    CloseConnection(QUIC_HANDSHAKE_FAILED,
-                    "Server failed to set Transport Parameters");
-  }
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() {
@@ -154,6 +149,8 @@ size_t TlsServerHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return TlsHandshaker::BufferSizeLimitForLevel(level);
 }
+
+void TlsServerHandshaker::OverrideQuicConfigDefaults(QuicConfig* /*config*/) {}
 
 bool TlsServerHandshaker::SetReadSecret(
     EncryptionLevel level,
@@ -388,6 +385,11 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
   if (!ProcessTransportParameters(&error_details)) {
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     *out_alert = SSL_AD_INTERNAL_ERROR;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+  OverrideQuicConfigDefaults(session()->config());
+  if (!SetTransportParameters()) {
+    QUIC_LOG(ERROR) << "Failed to set transport parameters";
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 

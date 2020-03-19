@@ -60,6 +60,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
  protected:
+  // Hook to allow the server to override parts of the QuicConfig based on SNI
+  // before we generate transport parameters.
+  virtual void OverrideQuicConfigDefaults(QuicConfig* config);
+
   const TlsConnection* tls_connection() const override {
     return &tls_connection_;
   }
