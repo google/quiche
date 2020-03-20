@@ -323,6 +323,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
+  void OnOneRttKeysAvailable() override;
 
   // Optional, enables instrumentation related to go/quic-hpack.
   void SetHpackEncoderDebugVisitor(

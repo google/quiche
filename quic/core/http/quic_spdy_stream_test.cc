@@ -89,7 +89,12 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     }
     EXPECT_THAT(error, IsQuicNoError());
     session()->OnConfigNegotiated();
-    session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    if (session()->connection()->version().handshake_protocol ==
+        PROTOCOL_TLS1_3) {
+      session()->OnOneRttKeysAvailable();
+    } else {
+      session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    }
     session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
   }
 

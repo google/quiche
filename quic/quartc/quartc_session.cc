@@ -185,6 +185,18 @@ void QuartcSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
   }
 }
 
+void QuartcSession::OnOneRttKeysAvailable() {
+  QuicSession::OnOneRttKeysAvailable();
+  // On the server, handshake confirmed is the first time when you can start
+  // writing packets.
+  DCHECK(IsEncryptionEstablished());
+  DCHECK(OneRttKeysAvailable());
+
+  DCHECK(session_delegate_);
+  session_delegate_->OnConnectionWritable();
+  session_delegate_->OnCryptoHandshakeComplete();
+}
+
 void QuartcSession::CancelStream(QuicStreamId stream_id) {
   ResetStream(stream_id, QuicRstStreamErrorCode::QUIC_STREAM_CANCELLED);
 }

@@ -764,6 +764,11 @@ void QuicSpdySession::SetDefaultEncryptionLevel(quic::EncryptionLevel level) {
   SendInitialData();
 }
 
+void QuicSpdySession::OnOneRttKeysAvailable() {
+  QuicSession::OnOneRttKeysAvailable();
+  SendInitialData();
+}
+
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
   if (!VersionUsesHttp3(transport_version())) {

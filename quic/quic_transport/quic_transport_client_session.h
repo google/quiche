@@ -95,6 +95,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   }
 
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
+  void OnOneRttKeysAvailable() override;
   void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
   // Return the earliest incoming stream that has been received by the session

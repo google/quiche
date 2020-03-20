@@ -75,6 +75,7 @@ class QuartcSession : public QuicSession,
   }
 
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
+  void OnOneRttKeysAvailable() override;
 
   // QuicConnectionVisitorInterface overrides.
   void OnCongestionWindowChange(QuicTime now) override;

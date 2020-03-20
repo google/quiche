@@ -310,7 +310,7 @@ void TlsServerHandshaker::FinishHandshake() {
     app_data_read_secret_.clear();
   }
 
-  handshaker_delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  handshaker_delegate()->OnOneRttKeysAvailable();
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }

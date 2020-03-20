@@ -104,6 +104,11 @@ void QuicTransportClientSession::SetDefaultEncryptionLevel(
   }
 }
 
+void QuicTransportClientSession::OnOneRttKeysAvailable() {
+  QuicSession::OnOneRttKeysAvailable();
+  SendClientIndication();
+}
+
 QuicTransportStream*
 QuicTransportClientSession::AcceptIncomingBidirectionalStream() {
   if (incoming_bidirectional_streams_.empty()) {

@@ -400,7 +400,7 @@ void TlsClientHandshaker::FinishHandshake() {
   crypto_negotiated_params_->peer_signature_algorithm =
       SSL_get_peer_signature_algorithm(ssl());
 
-  handshaker_delegate()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  handshaker_delegate()->OnOneRttKeysAvailable();
 }
 
 enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {

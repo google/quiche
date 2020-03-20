@@ -1334,6 +1334,7 @@ void QuicSession::OnNewEncryptionKeyAvailable(
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
+  DCHECK_EQ(PROTOCOL_QUIC_CRYPTO, connection_->version().handshake_protocol);
   QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
                 << EncryptionLevelToString(level);
   connection()->SetDefaultEncryptionLevel(level);
@@ -1353,19 +1354,8 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_HANDSHAKE:
       break;
     case ENCRYPTION_FORWARD_SECURE:
-      if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
-        QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
-            << ENDPOINT
-            << "Handshake confirmed without cipher suite negotiation.";
-      }
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
-      if (connection()->version().HasHandshakeDone() &&
-          perspective_ == Perspective::IS_SERVER) {
-        // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
-        // to the client.
-        control_frame_manager_.WriteOrBufferHandshakeDone();
-      }
       if (!GetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value)) {
         connection_->ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
       }
@@ -1373,6 +1363,27 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     default:
       QUIC_BUG << "Unknown encryption level: "
                << EncryptionLevelToString(level);
+  }
+}
+
+void QuicSession::OnOneRttKeysAvailable() {
+  DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
+  QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
+                << EncryptionLevelToString(ENCRYPTION_FORWARD_SECURE);
+  connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
+      << ENDPOINT << "Handshake completes without cipher suite negotiation.";
+  QUIC_BUG_IF(!config_.negotiated())
+      << ENDPOINT << "Handshake completes without parameter negotiation.";
+  if (connection()->version().HasHandshakeDone() &&
+      perspective_ == Perspective::IS_SERVER) {
+    // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
+    // to the client.
+    control_frame_manager_.WriteOrBufferHandshakeDone();
+  }
+  if (!GetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value)) {
+    connection_->ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
   }
 }
 
