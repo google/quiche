@@ -573,9 +573,11 @@ TEST_P(TlsHandshakerTest, ClientNotSendingALPN) {
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_FALSE(client_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            client_stream_->encryption_established());
   EXPECT_FALSE(server_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(server_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            server_stream_->encryption_established());
 }
 
 TEST_P(TlsHandshakerTest, ClientSendingBadALPN) {
@@ -591,9 +593,11 @@ TEST_P(TlsHandshakerTest, ClientSendingBadALPN) {
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_FALSE(client_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            client_stream_->encryption_established());
   EXPECT_FALSE(server_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(server_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            server_stream_->encryption_established());
 }
 
 TEST_P(TlsHandshakerTest, ClientSendingTooManyALPNs) {
@@ -628,9 +632,11 @@ TEST_P(TlsHandshakerTest, ServerRequiresCustomALPN) {
   ExchangeHandshakeMessages(client_stream_, server_stream_);
 
   EXPECT_FALSE(client_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(client_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            client_stream_->encryption_established());
   EXPECT_FALSE(server_stream_->one_rtt_keys_available());
-  EXPECT_FALSE(server_stream_->encryption_established());
+  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
+            server_stream_->encryption_established());
 }
 
 TEST_P(TlsHandshakerTest, CustomALPNNegotiation) {

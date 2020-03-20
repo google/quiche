@@ -104,6 +104,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
           session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     }
     EXPECT_THAT(error, IsQuicNoError());
+    session()->OnNewEncryptionKeyAvailable(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(session()->perspective()));
     session()->OnConfigNegotiated();
     if (session()->connection()->version().handshake_protocol ==
         PROTOCOL_TLS1_3) {

@@ -276,6 +276,23 @@ bool TlsServerHandshaker::SetTransportParameters() {
   return true;
 }
 
+void TlsServerHandshaker::SetWriteSecret(
+    EncryptionLevel level,
+    const SSL_CIPHER* cipher,
+    const std::vector<uint8_t>& write_secret) {
+  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available) &&
+      level == ENCRYPTION_FORWARD_SECURE) {
+    encryption_established_ = true;
+    // Fill crypto_negotiated_params_:
+    const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+    if (cipher) {
+      crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+    }
+    crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+  }
+  TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
+}
+
 void TlsServerHandshaker::FinishHandshake() {
   if (!valid_alpn_received_) {
     QUIC_DLOG(ERROR)
@@ -290,15 +307,19 @@ void TlsServerHandshaker::FinishHandshake() {
   QUIC_LOG(INFO) << "Server: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
 
-  encryption_established_ = true;
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    encryption_established_ = true;
+  }
   one_rtt_keys_available_ = true;
 
-  // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
-  if (cipher) {
-    crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    // Fill crypto_negotiated_params_:
+    if (cipher) {
+      crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+    }
+    crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
   }
-  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
 
   if (!app_data_read_secret_.empty()) {
     if (!SetReadSecret(ENCRYPTION_FORWARD_SECURE, cipher,

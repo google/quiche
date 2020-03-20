@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -88,6 +89,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
           session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     }
     EXPECT_THAT(error, IsQuicNoError());
+    session()->OnNewEncryptionKeyAvailable(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(session()->perspective()));
     session()->OnConfigNegotiated();
     if (session()->connection()->version().handshake_protocol ==
         PROTOCOL_TLS1_3) {

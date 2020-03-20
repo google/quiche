@@ -55,6 +55,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnOneRttPacketAcknowledged() override;
   void OnHandshakeDoneReceived() override;
+  void SetWriteSecret(EncryptionLevel level,
+                      const SSL_CIPHER* cipher,
+                      const std::vector<uint8_t>& write_secret) override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
   void WriteMessage(EncryptionLevel level,

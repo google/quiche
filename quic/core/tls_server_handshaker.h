@@ -58,6 +58,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   CryptoMessageParser* crypto_message_parser() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+  void SetWriteSecret(EncryptionLevel level,
+                      const SSL_CIPHER* cipher,
+                      const std::vector<uint8_t>& write_secret) override;
 
  protected:
   // Hook to allow the server to override parts of the QuicConfig based on SNI

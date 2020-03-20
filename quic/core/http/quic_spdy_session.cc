@@ -759,14 +759,30 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
   return static_cast<QuicSpdyStream*>(stream);
 }
 
+void QuicSpdySession::OnNewEncryptionKeyAvailable(
+    EncryptionLevel level,
+    std::unique_ptr<QuicEncrypter> encrypter) {
+  QuicSession::OnNewEncryptionKeyAvailable(level, std::move(encrypter));
+  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available) &&
+      IsEncryptionEstablished()) {
+    // Send H3 SETTINGs once encryption is established.
+    QUIC_RESTART_FLAG_COUNT_N(quic_send_settings_on_write_key_available, 2, 2);
+    SendInitialData();
+  }
+}
+
 void QuicSpdySession::SetDefaultEncryptionLevel(quic::EncryptionLevel level) {
   QuicSession::SetDefaultEncryptionLevel(level);
-  SendInitialData();
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    SendInitialData();
+  }
 }
 
 void QuicSpdySession::OnOneRttKeysAvailable() {
   QuicSession::OnOneRttKeysAvailable();
-  SendInitialData();
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    SendInitialData();
+  }
 }
 
 // True if there are open HTTP requests.

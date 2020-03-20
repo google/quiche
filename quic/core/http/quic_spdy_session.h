@@ -322,6 +322,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       bool exclusive,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
+  void OnNewEncryptionKeyAvailable(
+      EncryptionLevel level,
+      std::unique_ptr<QuicEncrypter> encrypter) override;
+
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
   void OnOneRttKeysAvailable() override;
 

@@ -286,6 +286,17 @@ void TlsClientHandshaker::OnHandshakeDoneReceived() {
   OnHandshakeConfirmed();
 }
 
+void TlsClientHandshaker::SetWriteSecret(
+    EncryptionLevel level,
+    const SSL_CIPHER* cipher,
+    const std::vector<uint8_t>& write_secret) {
+  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available) &&
+      level == ENCRYPTION_FORWARD_SECURE) {
+    encryption_established_ = true;
+  }
+  TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
+}
+
 void TlsClientHandshaker::OnHandshakeConfirmed() {
   DCHECK(one_rtt_keys_available_);
   if (handshake_confirmed_) {
@@ -352,6 +363,16 @@ void TlsClientHandshaker::CloseConnection(QuicErrorCode error,
 void TlsClientHandshaker::FinishHandshake() {
   QUIC_LOG(INFO) << "Client: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
+  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    // Fill crypto_negotiated_params_:
+    const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+    if (cipher) {
+      crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+    }
+    crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+    crypto_negotiated_params_->peer_signature_algorithm =
+        SSL_get_peer_signature_algorithm(ssl());
+  }
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
@@ -388,17 +409,21 @@ void TlsClientHandshaker::FinishHandshake() {
   QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
                   << "'";
 
-  encryption_established_ = true;
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    encryption_established_ = true;
+  }
   one_rtt_keys_available_ = true;
 
-  // Fill crypto_negotiated_params_:
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
-  if (cipher) {
-    crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
+    // Fill crypto_negotiated_params_:
+    const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+    if (cipher) {
+      crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+    }
+    crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+    crypto_negotiated_params_->peer_signature_algorithm =
+        SSL_get_peer_signature_algorithm(ssl());
   }
-  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
-  crypto_negotiated_params_->peer_signature_algorithm =
-      SSL_get_peer_signature_algorithm(ssl());
 
   handshaker_delegate()->OnOneRttKeysAvailable();
 }
