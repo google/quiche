@@ -90,7 +90,6 @@ bool QuicClientEpollNetworkHelper::CreateUDPSocketAndBind(
   }
 
   fd_address_map_[fd] = client_address;
-
   epoll_server_->RegisterFD(fd, this, kEpollFlags);
   return true;
 }
@@ -130,9 +129,7 @@ void QuicClientEpollNetworkHelper::OnUnregistration(int /*fd*/,
 void QuicClientEpollNetworkHelper::OnShutdown(QuicEpollServer* /*eps*/,
                                               int /*fd*/) {}
 
-void QuicClientEpollNetworkHelper::OnEvent(int fd, QuicEpollEvent* event) {
-  DCHECK_EQ(fd, GetLatestFD());
-
+void QuicClientEpollNetworkHelper::OnEvent(int /*fd*/, QuicEpollEvent* event) {
   if (event->in_events & EPOLLIN) {
     QUIC_DVLOG(1) << "Read packets on EPOLLIN";
     int times_to_read = max_reads_per_epoll_loop_;
