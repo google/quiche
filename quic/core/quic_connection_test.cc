@@ -452,6 +452,9 @@ class TestPacketWriter : public QuicPacketWriter {
       SetWriteBlocked();
       return WriteResult(WRITE_STATUS_BLOCKED, /*errno*/ -1);
     }
+    if (write_should_fail_) {
+      return WriteResult(WRITE_STATUS_ERROR, /*errno*/ -1);
+    }
     int bytes_flushed = bytes_buffered_;
     bytes_buffered_ = 0;
     return WriteResult(WRITE_STATUS_OK, bytes_flushed);
@@ -5136,6 +5139,79 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
         .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
     SendStreamDataToPeer(3, ")", stream_offset++, NO_FIN, nullptr);
     EXPECT_EQ(last_probe_size, connection_.max_packet_length());
+    EXPECT_FALSE(connection_.connected());
+    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+                IsError(QUIC_PACKET_WRITE_ERROR));
+  }
+}
+
+// After a successful MTU probe, one and only one write error should be ignored
+// if it happened in QuicConnection::FlushPacket.
+TEST_P(QuicConnectionTest,
+       MtuDiscoveryIgnoreOneWriteErrorInFlushAfterSuccessfulProbes) {
+  MtuDiscoveryTestInit();
+  writer_->SetBatchMode(true);
+
+  const QuicPacketCount packets_between_probes_base = 5;
+  set_packets_between_probes_base(packets_between_probes_base);
+
+  connection_.EnablePathMtuDiscovery(send_algorithm_);
+
+  const QuicByteCount original_max_packet_length =
+      connection_.max_packet_length();
+  // Send enough packets so that the next one triggers path MTU discovery.
+  for (QuicPacketCount i = 0; i < packets_between_probes_base - 1; i++) {
+    SendStreamDataToPeer(3, ".", i, NO_FIN, nullptr);
+    ASSERT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
+  }
+
+  // Trigger the probe.
+  SendStreamDataToPeer(3, "!", packets_between_probes_base - 1, NO_FIN,
+                       nullptr);
+  ASSERT_TRUE(connection_.GetMtuDiscoveryAlarm()->IsSet());
+  QuicByteCount probe_size;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(SaveArg<3>(&probe_size));
+  connection_.GetMtuDiscoveryAlarm()->Fire();
+
+  EXPECT_THAT(probe_size, InRange(connection_.max_packet_length(),
+                                  kMtuDiscoveryTargetPacketSizeHigh));
+
+  const QuicPacketNumber probe_packet_number =
+      FirstSendingPacketNumber() + packets_between_probes_base;
+  ASSERT_EQ(probe_packet_number, creator_->packet_number());
+
+  // Acknowledge all packets sent so far.
+  QuicAckFrame probe_ack = InitAckFrame(probe_packet_number);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _))
+      .Times(AnyNumber());
+  ProcessAckPacket(&probe_ack);
+  EXPECT_EQ(probe_size, connection_.max_packet_length());
+  EXPECT_EQ(0u, connection_.GetBytesInFlight());
+
+  EXPECT_EQ(1u, connection_.mtu_probe_count());
+
+  if (GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
+    writer_->SetShouldWriteFail();
+
+    // Ignore PACKET_WRITE_ERROR once.
+    {
+      QuicConnection::ScopedPacketFlusher flusher(&connection_);
+      // flusher's destructor will call connection_.FlushPackets, which should
+      // get a WRITE_STATUS_ERROR from the writer and ignore it.
+    }
+    EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
+    EXPECT_TRUE(connection_.connected());
+
+    // Close connection on another PACKET_WRITE_ERROR.
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
+        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+    {
+      QuicConnection::ScopedPacketFlusher flusher(&connection_);
+      // flusher's destructor will call connection_.FlushPackets, which should
+      // get a WRITE_STATUS_ERROR from the writer and ignore it.
+    }
+    EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
     EXPECT_FALSE(connection_.connected());
     EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
                 IsError(QUIC_PACKET_WRITE_ERROR));

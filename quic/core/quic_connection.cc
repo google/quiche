@@ -2322,13 +2322,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         << ", previous_validated_mtu_:" << previous_validated_mtu_
         << ", max_packet_length():" << max_packet_length()
         << ", is_mtu_discovery:" << is_mtu_discovery;
-    if (previous_validated_mtu_ != 0 &&
-        GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
-      QUIC_CODE_COUNT(quic_ignore_one_write_error_after_mtu_probe);
-      SetMaxPacketLength(previous_validated_mtu_);
-      mtu_discoverer_.Disable();
-      mtu_discovery_alarm_->Cancel();
-      previous_validated_mtu_ = 0;
+    if (ShouldIgnoreWriteError()) {
       return true;
     }
 
@@ -2420,7 +2414,7 @@ void QuicConnection::FlushPackets() {
     return;
   }
 
-  if (IsWriteError(result.status)) {
+  if (IsWriteError(result.status) && !ShouldIgnoreWriteError()) {
     OnWriteError(result.error_code);
   }
 }
@@ -2449,6 +2443,20 @@ bool QuicConnection::ShouldDiscardPacket(const SerializedPacket& packet) {
   }
 
   return false;
+}
+
+bool QuicConnection::ShouldIgnoreWriteError() {
+  if (!GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe) ||
+      previous_validated_mtu_ == 0) {
+    return false;
+  }
+
+  QUIC_CODE_COUNT(quic_ignore_one_write_error_after_mtu_probe);
+  SetMaxPacketLength(previous_validated_mtu_);
+  mtu_discoverer_.Disable();
+  mtu_discovery_alarm_->Cancel();
+  previous_validated_mtu_ = 0;
+  return true;
 }
 
 void QuicConnection::OnWriteError(int error_code) {

@@ -1216,6 +1216,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Whether connection is limited by amplification factor.
   bool LimitedByAmplificationFactor() const;
 
+  // We've got a packet write error, should we ignore it?
+  // NOTE: This is not a const function - if return true, the max packet size is
+  // reverted to a previous(smaller) value to avoid write errors in the future.
+  bool ShouldIgnoreWriteError();
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1439,7 +1444,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // - MTU discovery has never been enabled, or
   // - MTU discovery has been enabled, but the connection got a packet write
   //   error with a new (successfully probed) MTU, so it reverted
-  //   |long_term_mtu_| to the value before the increase.
+  //   |long_term_mtu_| to the value before the last increase.
   QuicPacketLength previous_validated_mtu_;
   // The value of the MTU regularly used by the connection. This is different
   // from the value returned by max_packet_size(), as max_packet_size() returns
