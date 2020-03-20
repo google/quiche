@@ -22,6 +22,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::NiceMock;
 using ::testing::Return;
 
 constexpr QuicBandwidth kLinkBandwidth = QuicBandwidth::FromKBitsPerSecond(512);
@@ -94,12 +95,14 @@ class QuartcPeerTest : public QuicTest {
         },
         QuicTime::Delta::FromSeconds(60)));
 
-    MockSendAlgorithm* client_send_algorithm = new MockSendAlgorithm();
+    MockSendAlgorithm* client_send_algorithm =
+        new NiceMock<MockSendAlgorithm>();
     SetMockBandwidth(client_send_algorithm, bandwidth);
     QuicConnectionPeer::SetSendAlgorithm(client_peer_->session()->connection(),
                                          client_send_algorithm);
 
-    MockSendAlgorithm* server_send_algorithm = new MockSendAlgorithm();
+    MockSendAlgorithm* server_send_algorithm =
+        new NiceMock<MockSendAlgorithm>();
     SetMockBandwidth(server_send_algorithm, bandwidth);
     QuicConnectionPeer::SetSendAlgorithm(server_peer_->session()->connection(),
                                          server_send_algorithm);
