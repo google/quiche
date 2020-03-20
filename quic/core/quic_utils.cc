@@ -586,12 +586,7 @@ QuicUint128 QuicUtils::GenerateStatelessResetToken(
 }
 
 // static
-QuicStreamCount QuicUtils::GetMaxStreamCount(bool unidirectional,
-                                             Perspective perspective) {
-  // gQUIC uses one client initiated bidi stream for the crypto stream.
-  if (!unidirectional && perspective == Perspective::IS_CLIENT) {
-    return kMaxQuicStreamCount >> 2;
-  }
+QuicStreamCount QuicUtils::GetMaxStreamCount() {
   return (kMaxQuicStreamCount >> 2) + 1;
 }
 

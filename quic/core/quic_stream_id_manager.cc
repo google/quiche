@@ -97,8 +97,7 @@ bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(
   // This implementation only supports 32 bit Stream IDs, so limit max streams
   // if it would exceed the max 32 bits can express.
   outgoing_max_streams_ =
-      std::min(max_open_streams,
-               QuicUtils::GetMaxStreamCount(unidirectional_, perspective_));
+      std::min(max_open_streams, QuicUtils::GetMaxStreamCount());
 
   // Inform the higher layers that the stream limit has increased and that
   // new streams may be created.
@@ -109,17 +108,14 @@ bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(
 
 void QuicStreamIdManager::SetMaxOpenIncomingStreams(
     QuicStreamCount max_open_streams) {
-  QuicStreamCount implementation_max =
-      QuicUtils::GetMaxStreamCount(unidirectional_, perspective());
-  QuicStreamCount new_max = std::min(implementation_max, max_open_streams);
-  if (new_max < incoming_stream_count_) {
+  if (max_open_streams < incoming_stream_count_) {
     delegate_->OnStreamIdManagerError(
         QUIC_MAX_STREAMS_ERROR, "Stream limit less than existing stream count");
     return;
   }
-  incoming_actual_max_streams_ = new_max;
-  incoming_advertised_max_streams_ = new_max;
-  incoming_initial_max_open_streams_ = new_max;
+  incoming_actual_max_streams_ = max_open_streams;
+  incoming_advertised_max_streams_ = max_open_streams;
+  incoming_initial_max_open_streams_ = max_open_streams;
   CalculateIncomingMaxStreamsWindow();
 }
 
@@ -146,8 +142,7 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
   // If the stream is inbound, we can increase the actual stream limit and maybe
   // advertise the new limit to the peer.  Have to check to make sure that we do
   // not exceed the maximum.
-  if (incoming_actual_max_streams_ ==
-      QuicUtils::GetMaxStreamCount(unidirectional_, perspective())) {
+  if (incoming_actual_max_streams_ == QuicUtils::GetMaxStreamCount()) {
     // Reached the maximum stream id value that the implementation
     // supports. Nothing can be done here.
     return;

@@ -135,8 +135,7 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsWindowForSingleStream) {
 }
 
 TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
-  QuicStreamCount implementation_max =
-      QuicUtils::GetMaxStreamCount(IsUnidirectional(), perspective());
+  QuicStreamCount implementation_max = QuicUtils::GetMaxStreamCount();
   // Ensure that the limit is less than the implementation maximum.
   EXPECT_LT(stream_id_manager_.outgoing_max_streams(), implementation_max);
 
@@ -144,39 +143,6 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
   stream_id_manager_.SetMaxOpenOutgoingStreams(implementation_max + 1);
   // Should be pegged at the max.
   EXPECT_EQ(implementation_max, stream_id_manager_.outgoing_max_streams());
-}
-
-// Now do the same for the incoming streams
-TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesIncoming) {
-  QuicStreamCount implementation_max =
-      QuicUtils::GetMaxStreamCount(IsUnidirectional(), perspective());
-  stream_id_manager_.SetMaxOpenIncomingStreams(implementation_max - 1u);
-  EXPECT_EQ(implementation_max - 1u,
-            stream_id_manager_.incoming_initial_max_open_streams());
-  EXPECT_EQ(implementation_max - 1u,
-            stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ((implementation_max - 1u) / 2u,
-            stream_id_manager_.max_streams_window());
-
-  stream_id_manager_.SetMaxOpenIncomingStreams(implementation_max);
-  EXPECT_EQ(implementation_max,
-            stream_id_manager_.incoming_initial_max_open_streams());
-  EXPECT_EQ(implementation_max,
-            stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ(implementation_max / 2, stream_id_manager_.max_streams_window());
-
-  // Reset to 1 so that we can detect the change.
-  stream_id_manager_.SetMaxOpenIncomingStreams(1u);
-  EXPECT_EQ(1u, stream_id_manager_.incoming_initial_max_open_streams());
-  EXPECT_EQ(1u, stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ(1u, stream_id_manager_.max_streams_window());
-  // Now try to exceed the max, without wrapping.
-  stream_id_manager_.SetMaxOpenIncomingStreams(implementation_max + 1);
-  EXPECT_EQ(implementation_max,
-            stream_id_manager_.incoming_initial_max_open_streams());
-  EXPECT_EQ(implementation_max,
-            stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ(implementation_max / 2u, stream_id_manager_.max_streams_window());
 }
 
 // Check the case of the stream count in a STREAMS_BLOCKED frame is less than

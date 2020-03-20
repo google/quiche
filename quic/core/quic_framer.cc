@@ -5970,19 +5970,14 @@ bool QuicFramer::ProcessStreamsBlockedFrame(QuicDataReader* reader,
     set_detailed_error("Can not read STREAMS_BLOCKED stream count.");
     return false;
   }
-  frame->unidirectional = (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL);
-  if (frame->stream_count >
-      QuicUtils::GetMaxStreamCount(
-          (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL),
-          ((perspective_ == Perspective::IS_CLIENT)
-               ? Perspective::IS_SERVER
-               : Perspective::IS_CLIENT))) {
+  if (frame->stream_count > QuicUtils::GetMaxStreamCount()) {
     // If stream count is such that the resulting stream ID would exceed our
     // implementation limit, generate an error.
     set_detailed_error(
         "STREAMS_BLOCKED stream count exceeds implementation limit.");
     return false;
   }
+  frame->unidirectional = (frame_type == IETF_STREAMS_BLOCKED_UNIDIRECTIONAL);
   return true;
 }
 

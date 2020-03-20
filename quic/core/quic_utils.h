@@ -219,8 +219,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // Get the maximum value for a V99/IETF QUIC stream count. If a count
   // exceeds this value, it will result in a stream ID that exceeds the
   // implementation limit on stream ID size.
-  static QuicStreamCount GetMaxStreamCount(bool unidirectional,
-                                           Perspective perspective);
+  static QuicStreamCount GetMaxStreamCount();
 };
 
 template <typename Mask>
