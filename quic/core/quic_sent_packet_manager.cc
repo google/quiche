@@ -1101,14 +1101,8 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
 }
 
 const QuicTime::Delta QuicSentPacketManager::GetPathDegradingDelay() const {
-  QuicTime::Delta delay = QuicTime::Delta::Zero();
-  for (size_t i = 0; i < max_tail_loss_probes_; ++i) {
-    delay = delay + GetTailLossProbeDelay(i);
-  }
-  for (size_t i = 0; i < kNumRetransmissionDelaysForPathDegradingDelay; ++i) {
-    delay = delay + GetRetransmissionDelay(i);
-  }
-  return delay;
+  return GetNConsecutiveRetransmissionTimeoutDelay(
+      max_tail_loss_probes_ + kNumRetransmissionDelaysForPathDegradingDelay);
 }
 
 const QuicTime::Delta QuicSentPacketManager::GetCryptoRetransmissionDelay()
@@ -1130,10 +1124,9 @@ const QuicTime::Delta QuicSentPacketManager::GetCryptoRetransmissionDelay()
       delay_ms << consecutive_crypto_retransmission_count_);
 }
 
-const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay(
-    size_t consecutive_tlp_count) const {
+const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay() const {
   QuicTime::Delta srtt = rtt_stats_.SmoothedOrInitialRtt();
-  if (enable_half_rtt_tail_loss_probe_ && consecutive_tlp_count == 0u) {
+  if (enable_half_rtt_tail_loss_probe_ && consecutive_tlp_count_ == 0u) {
     if (unacked_packets().HasUnackedStreamData()) {
       // Enable TLPR if there are pending data packets.
       return std::max(min_tlp_timeout_, srtt * 0.5);
@@ -1148,8 +1141,7 @@ const QuicTime::Delta QuicSentPacketManager::GetTailLossProbeDelay(
   return std::max(min_tlp_timeout_, 2 * srtt);
 }
 
-const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
-    size_t consecutive_rto_count) const {
+const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay() const {
   QuicTime::Delta retransmission_delay = QuicTime::Delta::Zero();
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     // We are in the initial state, use default timeout values.
@@ -1166,7 +1158,7 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay(
   // Calculate exponential back off.
   retransmission_delay =
       retransmission_delay *
-      (1 << std::min<size_t>(consecutive_rto_count, kMaxRetransmissions));
+      (1 << std::min<size_t>(consecutive_rto_count_, kMaxRetransmissions));
 
   if (retransmission_delay.ToMilliseconds() > kMaxRetransmissionTimeMs) {
     return QuicTime::Delta::FromMilliseconds(kMaxRetransmissionTimeMs);
@@ -1431,6 +1423,40 @@ QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
   DCHECK(supports_multiple_packet_number_spaces());
   return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
       decrypted_packet_level)];
+}
+
+QuicTime::Delta
+QuicSentPacketManager::GetNConsecutiveRetransmissionTimeoutDelay(
+    int num_timeouts) const {
+  QuicTime::Delta total_delay = QuicTime::Delta::Zero();
+  const QuicTime::Delta srtt = rtt_stats_.SmoothedOrInitialRtt();
+  int num_tlps =
+      std::min(num_timeouts, static_cast<int>(max_tail_loss_probes_));
+  num_timeouts -= num_tlps;
+  if (num_tlps > 0) {
+    if (enable_half_rtt_tail_loss_probe_ &&
+        unacked_packets().HasUnackedStreamData()) {
+      total_delay = total_delay + std::max(min_tlp_timeout_, srtt * 0.5);
+      --num_tlps;
+    }
+    if (num_tlps > 0) {
+      const QuicTime::Delta tlp_delay =
+          std::max(2 * srtt, unacked_packets_.HasMultipleInFlightPackets()
+                                 ? min_tlp_timeout_
+                                 : (1.5 * srtt + (min_rto_timeout_ * 0.5)));
+      total_delay = total_delay + num_tlps * tlp_delay;
+    }
+  }
+  if (num_timeouts == 0) {
+    return total_delay;
+  }
+
+  const QuicTime::Delta retransmission_delay =
+      rtt_stats_.smoothed_rtt().IsZero()
+          ? QuicTime::Delta::FromMilliseconds(kDefaultRetransmissionTimeMs)
+          : std::max(srtt + 4 * rtt_stats_.mean_deviation(), min_rto_timeout_);
+  total_delay = total_delay + ((1 << num_timeouts) - 1) * retransmission_delay;
+  return total_delay;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

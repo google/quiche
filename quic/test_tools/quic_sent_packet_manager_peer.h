@@ -55,13 +55,7 @@ class QuicSentPacketManagerPeer {
                                     TransmissionType transmission_type);
 
   static QuicTime::Delta GetRetransmissionDelay(
-      const QuicSentPacketManager* sent_packet_manager,
-      size_t consecutive_rto_count);
-  static QuicTime::Delta GetRetransmissionDelay(
       const QuicSentPacketManager* sent_packet_manager);
-  static QuicTime::Delta GetTailLossProbeDelay(
-      const QuicSentPacketManager* sent_packet_manager,
-      size_t consecutive_tlp_count);
   static QuicTime::Delta GetTailLossProbeDelay(
       const QuicSentPacketManager* sent_packet_manager);
 

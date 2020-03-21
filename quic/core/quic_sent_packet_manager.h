@@ -417,28 +417,13 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Returns the timeout for retransmitting crypto handshake packets.
   const QuicTime::Delta GetCryptoRetransmissionDelay() const;
 
-  // Returns the timeout for a new tail loss probe. |consecutive_tlp_count| is
-  // the number of consecutive tail loss probes that have already been sent.
-  const QuicTime::Delta GetTailLossProbeDelay(
-      size_t consecutive_tlp_count) const;
-
   // Calls GetTailLossProbeDelay() with values from the current state of this
   // packet manager as its params.
-  const QuicTime::Delta GetTailLossProbeDelay() const {
-    return GetTailLossProbeDelay(consecutive_tlp_count_);
-  }
-
-  // Returns the retransmission timeout, after which a full RTO occurs.
-  // |consecutive_rto_count| is the number of consecutive RTOs that have already
-  // occurred.
-  const QuicTime::Delta GetRetransmissionDelay(
-      size_t consecutive_rto_count) const;
+  const QuicTime::Delta GetTailLossProbeDelay() const;
 
   // Calls GetRetransmissionDelay() with values from the current state of this
   // packet manager as its params.
-  const QuicTime::Delta GetRetransmissionDelay() const {
-    return GetRetransmissionDelay(consecutive_rto_count_);
-  }
+  const QuicTime::Delta GetRetransmissionDelay() const;
 
   // Returns the probe timeout.
   const QuicTime::Delta GetProbeTimeoutDelay() const;
@@ -519,6 +504,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Returns true if application data should be used to arm PTO. Only used when
   // multiple packet number space is enabled.
   bool ShouldArmPtoForApplicationData() const;
+
+  // A helper function to return total delay of |num_timeouts| retransmission
+  // timeout with TLP and RTO mode.
+  QuicTime::Delta GetNConsecutiveRetransmissionTimeoutDelay(
+      int num_timeouts) const;
 
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is

@@ -102,22 +102,8 @@ void QuicSentPacketManagerPeer::MarkForRetransmission(
 
 // static
 QuicTime::Delta QuicSentPacketManagerPeer::GetRetransmissionDelay(
-    const QuicSentPacketManager* sent_packet_manager,
-    size_t consecutive_rto_count) {
-  return sent_packet_manager->GetRetransmissionDelay(consecutive_rto_count);
-}
-
-// static
-QuicTime::Delta QuicSentPacketManagerPeer::GetRetransmissionDelay(
     const QuicSentPacketManager* sent_packet_manager) {
   return sent_packet_manager->GetRetransmissionDelay();
-}
-
-// static
-QuicTime::Delta QuicSentPacketManagerPeer::GetTailLossProbeDelay(
-    const QuicSentPacketManager* sent_packet_manager,
-    size_t consecutive_tlp_count) {
-  return sent_packet_manager->GetTailLossProbeDelay(consecutive_tlp_count);
 }
 
 // static

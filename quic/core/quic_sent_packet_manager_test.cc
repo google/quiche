@@ -1659,8 +1659,6 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayMin) {
   for (int i = 0; i < 5; ++i) {
     EXPECT_EQ(delay,
               QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-    EXPECT_EQ(delay,
-              QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, i));
     delay = delay + delay;
     EXPECT_CALL(notifier_, RetransmitFrames(_, _))
         .WillOnce(WithArgs<1>(Invoke([this, i](TransmissionType type) {
@@ -1679,8 +1677,6 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayMax) {
 
   EXPECT_EQ(QuicTime::Delta::FromSeconds(60),
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromSeconds(60),
-            QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
 }
 
 TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayExponentialBackoff) {
@@ -1691,8 +1687,6 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionDelayExponentialBackoff) {
   for (int i = 0; i < 5; ++i) {
     EXPECT_EQ(delay,
               QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-    EXPECT_EQ(delay,
-              QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, i));
     delay = delay + delay;
     EXPECT_CALL(notifier_, RetransmitFrames(_, _))
         .WillOnce(WithArgs<1>(Invoke([this, i](TransmissionType type) {
@@ -1717,8 +1711,6 @@ TEST_F(QuicSentPacketManagerTest, RetransmissionDelay) {
       QuicTime::Delta::FromMilliseconds(kRttMs + kRttMs / 2 * 4);
   EXPECT_EQ(expected_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(expected_delay,
-            QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
 
   for (int i = 0; i < 100; ++i) {
     // Run to make sure that we converge.
@@ -1736,8 +1728,6 @@ TEST_F(QuicSentPacketManagerTest, RetransmissionDelay) {
               QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_)
                   .ToMilliseconds(),
               1);
-  EXPECT_EQ(QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0),
-            QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
 }
 
 TEST_F(QuicSentPacketManagerTest, GetLossDelay) {
@@ -1986,8 +1976,6 @@ TEST_F(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtServer) {
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(200ms).
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 
   // Send two packets, and the TLP should be 1ms.
   QuicTime::Delta expected_tlp_delay = QuicTime::Delta::FromMilliseconds(1);
@@ -1995,8 +1983,6 @@ TEST_F(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtServer) {
   SendDataPacket(2);
   EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(expected_tlp_delay,
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtClient) {
@@ -2019,16 +2005,12 @@ TEST_F(QuicSentPacketManagerTest, NegotiateNoMinTLPFromOptionsAtClient) {
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(200ms).
   EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(100002),
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
   // Send two packets, and the TLP should be 1ms.
   QuicTime::Delta expected_tlp_delay = QuicTime::Delta::FromMilliseconds(1);
   SendDataPacket(1);
   SendDataPacket(2);
   EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(expected_tlp_delay,
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtServer) {
@@ -2047,14 +2029,10 @@ TEST_F(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtServer) {
   QuicTime::Delta expected_rto_delay = QuicTime::Delta::FromMilliseconds(1);
   EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(expected_rto_delay,
-            QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(0ms).
   QuicTime::Delta expected_tlp_delay = QuicTime::Delta::FromMicroseconds(502);
   EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(expected_tlp_delay,
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtClient) {
@@ -2074,14 +2052,10 @@ TEST_F(QuicSentPacketManagerTest, NegotiateNoMinRTOFromOptionsAtClient) {
   QuicTime::Delta expected_rto_delay = QuicTime::Delta::FromMilliseconds(1);
   EXPECT_EQ(expected_rto_delay,
             QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_));
-  EXPECT_EQ(expected_rto_delay,
-            QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_, 0));
   // The TLP with fewer than 2 packets outstanding includes 1/2 min RTO(0ms).
   QuicTime::Delta expected_tlp_delay = QuicTime::Delta::FromMicroseconds(502);
   EXPECT_EQ(expected_tlp_delay,
             QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_));
-  EXPECT_EQ(expected_tlp_delay,
-            QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_, 0));
 }
 
 TEST_F(QuicSentPacketManagerTest, NegotiateNoTLPFromOptionsAtServer) {
@@ -3757,6 +3731,49 @@ TEST_F(QuicSentPacketManagerTest, NoPacketThresholdDetectionForRuntPackets) {
 
   EXPECT_FALSE(
       QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));
+}
+
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
+  QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
+  // Before RTT sample is available.
+  // 2 TLPs + 2 RTOs.
+  QuicTime::Delta expected_delay = QuicTime::Delta::Zero();
+  for (size_t i = 0; i < 2; ++i) {
+    QuicSentPacketManagerPeer::SetConsecutiveTlpCount(&manager_, i);
+    expected_delay =
+        expected_delay +
+        QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_);
+  }
+  for (size_t i = 0; i < 2; ++i) {
+    QuicSentPacketManagerPeer::SetConsecutiveRtoCount(&manager_, i);
+    expected_delay =
+        expected_delay +
+        QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_);
+  }
+  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
+
+  expected_delay = QuicTime::Delta::Zero();
+  QuicSentPacketManagerPeer::SetConsecutiveTlpCount(&manager_, 0);
+  QuicSentPacketManagerPeer::SetConsecutiveRtoCount(&manager_, 0);
+
+  // After RTT sample is available.
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  // 2 TLPs + 2 RTOs.
+  for (size_t i = 0; i < 2; ++i) {
+    QuicSentPacketManagerPeer::SetConsecutiveTlpCount(&manager_, i);
+    expected_delay =
+        expected_delay +
+        QuicSentPacketManagerPeer::GetTailLossProbeDelay(&manager_);
+  }
+  for (size_t i = 0; i < 2; ++i) {
+    QuicSentPacketManagerPeer::SetConsecutiveRtoCount(&manager_, i);
+    expected_delay =
+        expected_delay +
+        QuicSentPacketManagerPeer::GetRetransmissionDelay(&manager_);
+  }
+  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
 }  // namespace
