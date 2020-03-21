@@ -60,20 +60,73 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
 
   virtual ~Http3DebugVisitor();
 
+  // TODO(https://crbug.com/1062700): Remove default implementation of all
+  // methods after Chrome's QuicHttp3Logger has overrides.  This is to make sure
+  // QUICHE merge is not blocked on having to add those overrides, they can
+  // happen asynchronously.
+
+  // Creation of unidirectional streams.
+
+  // Called when locally-initiated control stream is created.
+  virtual void OnControlStreamCreated(QuicStreamId /*stream_id*/) {}
+  // Called when locally-initiated QPACK encoder stream is created.
+  virtual void OnQpackEncoderStreamCreated(QuicStreamId /*stream_id*/) {}
+  // Called when locally-initiated QPACK decoder stream is created.
+  virtual void OnQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) {}
   // Called when peer's control stream type is received.
   virtual void OnPeerControlStreamCreated(QuicStreamId /*stream_id*/) = 0;
-
   // Called when peer's QPACK encoder stream type is received.
   virtual void OnPeerQpackEncoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
-
   // Called when peer's QPACK decoder stream type is received.
   virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
 
-  // Called when SETTINGS frame is received.
+  // Incoming HTTP/3 frames on the control stream.
+  virtual void OnCancelPushFrameReceived(CancelPushFrame /*frame*/) {}
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
+  virtual void OnGoAwayFrameReceived(GoAwayFrame /*frame*/) {}
+  virtual void OnMaxPushIdFrameReceived(MaxPushIdFrame /*frame*/) {}
+  virtual void OnPriorityUpdateFrameReceived(PriorityUpdateFrame /*frame*/) {}
 
-  // Called when SETTINGS frame is sent.
+  // Incoming HTTP/3 frames on request or push streams.
+  virtual void OnDataFrameStart(QuicStreamId /*stream_id*/) {}
+  virtual void OnDataFramePayload(QuicStreamId /*stream_id*/,
+                                  QuicByteCount /*payload_fragment_length*/) {}
+  virtual void OnDataFrameEnd(QuicStreamId /*stream_id*/) {}
+  virtual void OnHeadersFrameReceived(QuicStreamId /*stream_id*/,
+                                      QuicByteCount /*payload_length*/) {}
+  virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
+                                QuicHeaderList /*headers*/) {}
+  virtual void OnPushPromiseFrameReceived(QuicStreamId /*stream_id*/,
+                                          QuicStreamId /*push_id*/) {}
+  virtual void OnPushPromiseDecoded(QuicStreamId /*stream_id*/,
+                                    QuicStreamId /*push_id*/,
+                                    QuicHeaderList /*headers*/) {}
+
+  // Incoming HTTP/3 frames of unknown type on any stream.
+  virtual void OnUnknownFrameStart(QuicStreamId /*stream_id*/,
+                                   uint64_t /*frame_type*/) {}
+  virtual void OnUnknownFramePayload(
+      QuicStreamId /*stream_id*/,
+      QuicByteCount /*payload_fragment_length*/) {}
+  virtual void OnUnknownFrameEnd(QuicStreamId /*stream_id*/) {}
+
+  // Outgoing HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
+  virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) {}
+  virtual void OnMaxPushIdFrameSent(MaxPushIdFrame /*frame*/) {}
+  virtual void OnPriorityUpdateFrameSent(PriorityUpdateFrame /*frame*/) {}
+
+  // Outgoing HTTP/3 frames on request or push streams.
+  virtual void OnDataFrameSent(QuicStreamId /*stream_id*/,
+                               QuicByteCount /*payload_length*/) {}
+  virtual void OnHeadersFrameSent(
+      QuicStreamId /*stream_id*/,
+      const spdy::SpdyHeaderBlock& /*header_block*/) {}
+  virtual void OnPushPromiseFrameSent(
+      QuicStreamId /*stream_id*/,
+      QuicStreamId
+      /*push_id*/,
+      const spdy::SpdyHeaderBlock& /*header_block*/) {}
 };
 
 // A QUIC session for HTTP.

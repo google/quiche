@@ -19,6 +19,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::StrictMock;
 
@@ -199,6 +200,22 @@ TEST_P(QuicSendControlStreamTest, ReceiveDataOnSendControlStream) {
       *connection_,
       CloseConnection(QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM, _, _));
   send_control_stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicSendControlStreamTest, SendGoAway) {
+  Initialize();
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  QuicStreamId stream_id = 4;
+
+  EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(stream_id));
+
+  send_control_stream_->SendGoAway(stream_id);
 }
 
 }  // namespace

@@ -160,19 +160,6 @@ class TestHeadersStream : public QuicHeadersStream {
   MOCK_METHOD0(OnCanWrite, void());
 };
 
-class MockHttp3DebugVisitor : public Http3DebugVisitor {
- public:
-  MOCK_METHOD1(OnPeerControlStreamCreated, void(QuicStreamId));
-
-  MOCK_METHOD1(OnPeerQpackEncoderStreamCreated, void(QuicStreamId));
-
-  MOCK_METHOD1(OnPeerQpackDecoderStreamCreated, void(QuicStreamId));
-
-  MOCK_METHOD1(OnSettingsFrameReceived, void(const SettingsFrame&));
-
-  MOCK_METHOD1(OnSettingsFrameSent, void(const SettingsFrame&));
-};
-
 class TestStream : public QuicSpdyStream {
  public:
   TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
@@ -1040,6 +1027,10 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
@@ -1048,9 +1039,12 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   if (connection_->version().HasHandshakeDone()) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
   }
+
   CryptoHandshakeMessage message;
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
 
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
   session_.SendHttp3GoAway();
   EXPECT_TRUE(session_.http3_goaway_sent());
 
@@ -2227,6 +2221,9 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
     return;
   }
 
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   // Create control stream.
   QuicStreamId receive_control_stream_id =
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -2235,6 +2232,8 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   QuicStreamOffset offset = 0;
   QuicStreamFrame data1(receive_control_stream_id, false, offset, stream_type);
   offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(receive_control_stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
@@ -2244,6 +2243,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   QuicStreamFrame data2(receive_control_stream_id, false, offset,
                         serialized_settings);
   offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
   session_.OnStreamFrame(data2);
 
   // PRIORITY_UPDATE frame for first request stream.
@@ -2262,6 +2262,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
   EXPECT_EQ(QuicStream::kDefaultUrgency,
             stream1->precedence().spdy3_priority());
+  EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_.OnStreamFrame(data3);
   EXPECT_EQ(2u, stream1->precedence().spdy3_priority());
 
@@ -2279,6 +2280,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives before stream creation,
   // priority value is buffered.
+  EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update2));
   session_.OnStreamFrame(stream_frame3);
   // Priority is applied upon stream construction.
   TestStream* stream2 = session_.CreateIncomingStream(stream_id2);
@@ -2420,16 +2422,21 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
       .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
 
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillRepeatedly(Invoke(&ClearControlFrame));
   CryptoHandshakeMessage message;
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
-  MockHttp3DebugVisitor debug_visitor;
+
   // Use an arbitrary stream id.
   QuicStreamId stream_id =
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -2437,12 +2444,11 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
 
   QuicStreamFrame data1(stream_id, false, 0,
                         quiche::QuicheStringPiece(type, 1));
-  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id)).Times(0);
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
-  session_.set_debug_visitor(&debug_visitor);
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 512;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
@@ -2694,7 +2700,7 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
     return;
   }
 
-  MockHttp3DebugVisitor debug_visitor;
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
   QuicStreamId id1 =
@@ -2818,6 +2824,9 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
     return;
   }
 
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   // Create control stream.
   QuicStreamId receive_control_stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -2827,6 +2836,8 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
   QuicStreamFrame data1(receive_control_stream_id, /* fin = */ false, offset,
                         stream_type);
   offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(receive_control_stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
@@ -2837,6 +2848,7 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
       HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
   QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
                         quiche::QuicheStringPiece(buffer.get(), frame_length));
+  EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
   session_.OnStreamFrame(data2);
 }
 

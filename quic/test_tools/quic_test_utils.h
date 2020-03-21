@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
@@ -800,6 +801,48 @@ class MockQuicSpdySession : public QuicSpdySession {
 
  private:
   std::unique_ptr<QuicCryptoStream> crypto_stream_;
+};
+
+class MockHttp3DebugVisitor : public Http3DebugVisitor {
+ public:
+  MOCK_METHOD1(OnControlStreamCreated, void(QuicStreamId));
+  MOCK_METHOD1(OnQpackEncoderStreamCreated, void(QuicStreamId));
+  MOCK_METHOD1(OnQpackDecoderStreamCreated, void(QuicStreamId));
+  MOCK_METHOD1(OnPeerControlStreamCreated, void(QuicStreamId));
+  MOCK_METHOD1(OnPeerQpackEncoderStreamCreated, void(QuicStreamId));
+  MOCK_METHOD1(OnPeerQpackDecoderStreamCreated, void(QuicStreamId));
+
+  MOCK_METHOD1(OnCancelPushFrameReceived, void(CancelPushFrame));
+  MOCK_METHOD1(OnSettingsFrameReceived, void(const SettingsFrame&));
+  MOCK_METHOD1(OnGoAwayFrameReceived, void(GoAwayFrame));
+  MOCK_METHOD1(OnMaxPushIdFrameReceived, void(MaxPushIdFrame));
+  MOCK_METHOD1(OnPriorityUpdateFrameReceived, void(PriorityUpdateFrame));
+
+  MOCK_METHOD1(OnDataFrameStart, void(QuicStreamId));
+  MOCK_METHOD2(OnDataFramePayload, void(QuicStreamId, QuicByteCount));
+  MOCK_METHOD1(OnDataFrameEnd, void(QuicStreamId));
+
+  MOCK_METHOD2(OnHeadersFrameReceived, void(QuicStreamId, QuicByteCount));
+  MOCK_METHOD2(OnHeadersDecoded, void(QuicStreamId, QuicHeaderList));
+
+  MOCK_METHOD2(OnPushPromiseFrameReceived, void(QuicStreamId, QuicStreamId));
+  MOCK_METHOD3(OnPushPromiseDecoded,
+               void(QuicStreamId, QuicStreamId, QuicHeaderList));
+
+  MOCK_METHOD2(OnUnknownFrameStart, void(QuicStreamId, uint64_t));
+  MOCK_METHOD2(OnUnknownFramePayload, void(QuicStreamId, QuicByteCount));
+  MOCK_METHOD1(OnUnknownFrameEnd, void(QuicStreamId));
+
+  MOCK_METHOD1(OnSettingsFrameSent, void(const SettingsFrame&));
+  MOCK_METHOD1(OnGoAwayFrameSent, void(QuicStreamId));
+  MOCK_METHOD1(OnMaxPushIdFrameSent, void(MaxPushIdFrame));
+  MOCK_METHOD1(OnPriorityUpdateFrameSent, void(PriorityUpdateFrame));
+
+  MOCK_METHOD2(OnDataFrameSent, void(QuicStreamId, QuicByteCount));
+  MOCK_METHOD2(OnHeadersFrameSent,
+               void(QuicStreamId, const spdy::SpdyHeaderBlock&));
+  MOCK_METHOD3(OnPushPromiseFrameSent,
+               void(QuicStreamId, QuicStreamId, const spdy::SpdyHeaderBlock&));
 };
 
 class TestQuicSpdyServerSession : public QuicServerSessionBase {

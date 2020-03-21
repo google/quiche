@@ -20,16 +20,17 @@ namespace quic {
 
 QuicSendControlStream::QuicSendControlStream(
     QuicStreamId id,
-    QuicSession* session,
+    QuicSpdySession* spdy_session,
     uint64_t qpack_maximum_dynamic_table_capacity,
     uint64_t qpack_maximum_blocked_streams,
     uint64_t max_inbound_header_list_size)
-    : QuicStream(id, session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
+    : QuicStream(id, spdy_session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false),
       qpack_maximum_dynamic_table_capacity_(
           qpack_maximum_dynamic_table_capacity),
       qpack_maximum_blocked_streams_(qpack_maximum_blocked_streams),
-      max_inbound_header_list_size_(max_inbound_header_list_size) {}
+      max_inbound_header_list_size_(max_inbound_header_list_size),
+      spdy_session_(spdy_session) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   QUIC_BUG << "OnStreamReset() called for write unidirectional stream.";
@@ -80,9 +81,8 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
       HttpEncoder::SerializeSettingsFrame(settings, &buffer);
   QUIC_DVLOG(1) << "Control stream " << id() << " is writing settings frame "
                 << settings;
-  QuicSpdySession* spdy_session = static_cast<QuicSpdySession*>(session());
-  if (spdy_session->debug_visitor() != nullptr) {
-    spdy_session->debug_visitor()->OnSettingsFrameSent(settings);
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnSettingsFrameSent(settings);
   }
   WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
@@ -101,6 +101,11 @@ void QuicSendControlStream::WritePriorityUpdate(
     const PriorityUpdateFrame& priority_update) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();
+
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnPriorityUpdateFrameSent(priority_update);
+  }
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializePriorityUpdateFrame(priority_update, &buffer);
@@ -112,10 +117,14 @@ void QuicSendControlStream::WritePriorityUpdate(
 
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
-
   MaybeSendSettingsFrame();
+
   MaxPushIdFrame frame;
   frame.push_id = max_push_id;
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMaxPushIdFrameSent(frame);
+  }
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeMaxPushIdFrame(frame, &buffer);
@@ -125,8 +134,8 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
 
 void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
-
   MaybeSendSettingsFrame();
+
   GoAwayFrame frame;
   // If the peer hasn't created any stream yet. Use stream id 0 to indicate no
   // request is accepted.
@@ -135,6 +144,10 @@ void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
     stream_id = 0;
   }
   frame.stream_id = stream_id;
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnGoAwayFrameSent(stream_id);
+  }
+
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeGoAwayFrame(frame, &buffer);

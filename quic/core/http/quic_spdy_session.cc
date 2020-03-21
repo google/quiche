@@ -672,13 +672,6 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  if (VersionUsesHttp3(transport_version()) &&
-      promised_stream_id > max_allowed_push_id()) {
-    QUIC_BUG
-        << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
-    return;
-  }
-
   if (!VersionUsesHttp3(transport_version())) {
     SpdyPushPromiseIR push_promise(original_stream_id, promised_stream_id,
                                    std::move(headers));
@@ -692,9 +685,21 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
+  if (promised_stream_id > max_allowed_push_id()) {
+    QUIC_BUG
+        << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
+    return;
+  }
+
   // Encode header list.
   std::string encoded_headers =
       qpack_encoder_->EncodeHeaderList(original_stream_id, headers, nullptr);
+
+  if (debug_visitor_) {
+    debug_visitor_->OnPushPromiseFrameSent(original_stream_id,
+                                           promised_stream_id, headers);
+  }
+
   PushPromiseFrame frame;
   frame.push_id = promised_stream_id;
   frame.headers = encoded_headers;
@@ -1149,6 +1154,9 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
         max_inbound_header_list_size_);
     send_control_stream_ = send_control.get();
     ActivateStream(std::move(send_control));
+    if (debug_visitor_) {
+      debug_visitor_->OnControlStreamCreated(send_control_stream_->id());
+    }
   }
 
   if (!qpack_decoder_send_stream_ &&
@@ -1159,6 +1167,10 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     ActivateStream(std::move(decoder_send));
     qpack_decoder_->set_qpack_stream_sender_delegate(
         qpack_decoder_send_stream_);
+    if (debug_visitor_) {
+      debug_visitor_->OnQpackDecoderStreamCreated(
+          qpack_decoder_send_stream_->id());
+    }
   }
 
   if (!qpack_encoder_send_stream_ &&
@@ -1169,6 +1181,10 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
     ActivateStream(std::move(encoder_send));
     qpack_encoder_->set_qpack_stream_sender_delegate(
         qpack_encoder_send_stream_);
+    if (debug_visitor_) {
+      debug_visitor_->OnQpackEncoderStreamCreated(
+          qpack_encoder_send_stream_->id());
+    }
   }
 }
 

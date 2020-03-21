@@ -267,6 +267,9 @@ TEST_P(QuicReceiveControlStreamTest,
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   GoAwayFrame goaway;
   goaway.stream_id = 0x00;
 
@@ -282,6 +285,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
+  } else {
+    EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
   }
 
   receive_control_stream_->OnStreamFrame(frame);
@@ -336,6 +341,35 @@ TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
   // Unknown frame is consumed.
   EXPECT_EQ(1 + settings_frame.size() + unknown_frame.size(),
             NumBytesConsumed());
+}
+
+TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  const QuicStreamId id = receive_control_stream_->id();
+
+  // Receive SETTINGS frame.
+  SettingsFrame settings;
+  std::string settings_frame = EncodeSettings(settings);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  receive_control_stream_->OnStreamFrame(QuicStreamFrame(id, /* fin = */ false,
+                                                         /* offset = */ 1,
+                                                         settings_frame));
+
+  // Receive unknown frame.
+  std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
+      "21"        // reserved frame type
+      "03"        // payload length
+      "666f6f");  // payload "foo"
+
+  EXPECT_CALL(debug_visitor, OnUnknownFrameStart(id, /* frame_type = */ 0x21));
+  EXPECT_CALL(debug_visitor,
+              OnUnknownFramePayload(id, /* payload_length = */ 3));
+  EXPECT_CALL(debug_visitor, OnUnknownFrameEnd(id));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false,
+                      /* offset = */ 1 + settings_frame.size(), unknown_frame));
 }
 
 TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {

@@ -29,25 +29,41 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     stream_->OnUnrecoverableError(decoder->error(), decoder->error_detail());
   }
 
-  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
+  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnCancelPushFrameReceived(
+          frame);
+    }
+
     // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
     return true;
   }
 
   bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
-    if (stream_->spdy_session()->perspective() == Perspective::IS_SERVER) {
-      stream_->spdy_session()->SetMaxAllowedPushId(frame.push_id);
-      return true;
+    if (stream_->spdy_session()->perspective() == Perspective::IS_CLIENT) {
+      OnWrongFrame("Max Push Id");
+      return false;
     }
-    OnWrongFrame("Max Push Id");
-    return false;
+
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
+    }
+
+    stream_->spdy_session()->SetMaxAllowedPushId(frame.push_id);
+    return true;
   }
 
   bool OnGoAwayFrame(const GoAwayFrame& frame) override {
+    // TODO(bnc): Check if SETTINGS frame has been received.
     if (stream_->spdy_session()->perspective() == Perspective::IS_SERVER) {
       OnWrongFrame("Go Away");
       return false;
     }
+
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
+    }
+
     stream_->spdy_session()->OnHttp3GoAway(frame.stream_id);
     return true;
   }
@@ -120,17 +136,32 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return stream_->OnPriorityUpdateFrame(frame);
   }
 
-  bool OnUnknownFrameStart(uint64_t /* frame_type */,
+  bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount /* header_length */) override {
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnUnknownFrameStart(
+          stream_->id(), frame_type);
+    }
+
     return stream_->OnUnknownFrameStart();
   }
 
-  bool OnUnknownFramePayload(quiche::QuicheStringPiece /* payload */) override {
+  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) override {
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnUnknownFramePayload(
+          stream_->id(), payload.length());
+    }
+
     // Ignore unknown frame types.
     return true;
   }
 
   bool OnUnknownFrameEnd() override {
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnUnknownFrameEnd(
+          stream_->id());
+    }
+
     // Ignore unknown frame types.
     return true;
   }
@@ -224,6 +255,10 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
 
 bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     const PriorityUpdateFrame& priority) {
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(priority);
+  }
+
   // TODO(b/147306124): Use a proper structured headers parser instead.
   for (auto key_value :
        quiche::QuicheTextUtils::Split(priority.priority_field_value, ',')) {
