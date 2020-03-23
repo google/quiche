@@ -245,7 +245,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         negotiated_version_(UnsupportedQuicVersion()),
         chlo_multiplier_(0),
         stream_factory_(nullptr),
-        support_server_push_(false),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
     client_supported_versions_ = GetParam().client_supported_versions;
     server_supported_versions_ = GetParam().server_supported_versions;
@@ -292,9 +291,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
     client->UseConnectionIdLength(override_server_connection_id_length_);
     client->UseClientConnectionIdLength(override_client_connection_id_length_);
-    if (support_server_push_) {
-      client->client()->SetMaxAllowedPushId(kMaxQuicStreamId);
-    }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
     client->Connect();
     return client;
@@ -613,7 +609,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   ParsedQuicVersion negotiated_version_;
   size_t chlo_multiplier_;
   QuicTestServer::StreamFactory* stream_factory_;
-  bool support_server_push_;
   std::string pre_shared_key_client_;
   std::string pre_shared_key_server_;
   int override_server_connection_id_length_ = -1;
@@ -3089,6 +3084,7 @@ TEST_P(EndToEndTestWithTls, Trailers) {
   EXPECT_EQ(trailers, client_->response_trailers());
 }
 
+// TODO(b/151749109): Test server push for IETF QUIC.
 class EndToEndTestServerPush : public EndToEndTest {
  protected:
   const size_t kNumMaxStreams = 10;
@@ -3098,7 +3094,6 @@ class EndToEndTestServerPush : public EndToEndTest {
     server_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
     client_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
     server_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
-    support_server_push_ = true;
   }
 
   // Add a request with its response and |num_resources| push resources into
