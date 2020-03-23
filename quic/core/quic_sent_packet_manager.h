@@ -213,6 +213,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // notify the session that this connection is degrading.
   const QuicTime::Delta GetPathDegradingDelay() const;
 
+  // Returns the current delay for detecting network blackhole.
+  const QuicTime::Delta GetNetworkBlackholeDelay() const;
+
   const RttStats* GetRttStats() const { return &rtt_stats_; }
 
   // Returns the estimated bandwidth calculated by the congestion algorithm.

@@ -135,6 +135,15 @@ class QuicConnectionPeer {
                                         const std::string& details);
 
   static size_t GetNumEncryptionLevels(QuicConnection* connection);
+
+  static QuicNetworkBlackholeDetector& GetBlackholeDetector(
+      QuicConnection* connection);
+
+  static QuicAlarm* GetBlackholeDetectorAlarm(QuicConnection* connection);
+
+  static QuicTime GetPathDegradingDeadline(QuicConnection* connection);
+
+  static QuicTime GetBlackholeDetectionDeadline(QuicConnection* connection);
 };
 
 }  // namespace test

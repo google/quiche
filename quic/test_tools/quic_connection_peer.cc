@@ -348,5 +348,29 @@ size_t QuicConnectionPeer::GetNumEncryptionLevels(QuicConnection* connection) {
   return count;
 }
 
+// static
+QuicNetworkBlackholeDetector& QuicConnectionPeer::GetBlackholeDetector(
+    QuicConnection* connection) {
+  return connection->blackhole_detector_;
+}
+
+// static
+QuicAlarm* QuicConnectionPeer::GetBlackholeDetectorAlarm(
+    QuicConnection* connection) {
+  return connection->blackhole_detector_.alarm_.get();
+}
+
+// static
+QuicTime QuicConnectionPeer::GetPathDegradingDeadline(
+    QuicConnection* connection) {
+  return connection->blackhole_detector_.path_degrading_deadline_;
+}
+
+// static
+QuicTime QuicConnectionPeer::GetBlackholeDetectionDeadline(
+    QuicConnection* connection) {
+  return connection->blackhole_detector_.blackhole_deadline_;
+}
+
 }  // namespace test
 }  // namespace quic

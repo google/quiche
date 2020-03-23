@@ -36,6 +36,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
+#include "net/third_party/quiche/src/quic/core/quic_network_blackhole_detector.h"
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
@@ -348,7 +349,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     : public QuicFramerVisitorInterface,
       public QuicBlockedWriterInterface,
       public QuicPacketCreator::DelegateInterface,
-      public QuicSentPacketManager::NetworkChangeVisitor {
+      public QuicSentPacketManager::NetworkChangeVisitor,
+      public QuicNetworkBlackholeDetector::Delegate {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -574,6 +576,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
   void OnPathMtuIncreased(QuicPacketLength packet_size) override;
+
+  // QuicNetworkBlackholeDetector::Delegate
+  void OnPathDegradingDetected() override;
+  void OnBlackholeDetected() override;
 
   // Please note, this is not a const function. For logging purpose, please use
   // ack_frame().
@@ -1221,6 +1227,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // reverted to a previous(smaller) value to avoid write errors in the future.
   bool ShouldIgnoreWriteError();
 
+  // Returns path degrading deadline. QuicTime::Zero() means no path degrading
+  // detection is needed.
+  QuicTime GetPathDegradingDeadline() const;
+
+  // Returns true if path degrading should be detected.
+  bool ShouldDetectPathDegrading() const;
+
+  // Returns network blackhole deadline. QuicTime::Zero() means no blackhole
+  // detection is needed.
+  QuicTime GetNetworkBlackholeDeadline() const;
+
+  // Returns true if network blackhole should be detected.
+  bool ShouldDetectBlackhole() const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1379,6 +1399,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that fires when an MTU probe should be sent.
   QuicArenaScopedPtr<QuicAlarm> mtu_discovery_alarm_;
   // An alarm that fires when this connection is considered degrading.
+  // TODO(fayang): Remove this when deprecating quic_use_blackhole_detector
+  // flag.
   QuicArenaScopedPtr<QuicAlarm> path_degrading_alarm_;
   // An alarm that fires to process undecryptable packets when new decyrption
   // keys are available.
@@ -1562,6 +1584,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicCoalescedPacket coalesced_packet_;
 
   QuicConnectionMtuDiscoverer mtu_discoverer_;
+
+  QuicNetworkBlackholeDetector blackhole_detector_;
+
+  const bool use_blackhole_detector_ =
+      GetQuicReloadableFlag(quic_use_blackhole_detector);
 };
 
 }  // namespace quic

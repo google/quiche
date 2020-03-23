@@ -32,6 +32,9 @@ static const size_t kMaxRetransmissionsOnTimeout = 2;
 // The path degrading delay is the sum of this number of consecutive RTO delays.
 const size_t kNumRetransmissionDelaysForPathDegradingDelay = 2;
 
+// The blachkhole delay is the sum of this number of consecutive RTO delays.
+const size_t kNumRetransmissionDelaysForBlackholeDelay = 5;
+
 // Ensure the handshake timer isnt't faster than 10ms.
 // This limits the tenth retransmitted packet to 10s after the initial CHLO.
 static const int64_t kMinHandshakeTimeoutMs = 10;
@@ -1105,6 +1108,11 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
 const QuicTime::Delta QuicSentPacketManager::GetPathDegradingDelay() const {
   return GetNConsecutiveRetransmissionTimeoutDelay(
       max_tail_loss_probes_ + kNumRetransmissionDelaysForPathDegradingDelay);
+}
+
+const QuicTime::Delta QuicSentPacketManager::GetNetworkBlackholeDelay() const {
+  return GetNConsecutiveRetransmissionTimeoutDelay(
+      max_tail_loss_probes_ + kNumRetransmissionDelaysForBlackholeDelay);
 }
 
 const QuicTime::Delta QuicSentPacketManager::GetCryptoRetransmissionDelay()
