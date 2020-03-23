@@ -46,8 +46,9 @@ class MockDebugDelegate : public QuicSentPacketManager::DebugDelegate {
   MOCK_METHOD2(OnSpuriousPacketRetransmission,
                void(TransmissionType transmission_type,
                     QuicByteCount byte_size));
-  MOCK_METHOD3(OnPacketLoss,
+  MOCK_METHOD4(OnPacketLoss,
                void(QuicPacketNumber lost_packet_number,
+                    EncryptionLevel encryption_level,
                     TransmissionType transmission_type,
                     QuicTime detection_time));
 };
@@ -599,7 +600,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   SendDataPacket(5);
   ExpectAckAndLoss(true, 5, 2);
   EXPECT_CALL(debug_delegate,
-              OnPacketLoss(QuicPacketNumber(2), LOSS_RETRANSMISSION, _));
+              OnPacketLoss(QuicPacketNumber(2), _, LOSS_RETRANSMISSION, _));
   // Frames in all packets are acked.
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
   // Notify session that stream frame in packet 2 gets lost although it is
@@ -1209,7 +1210,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmissionTimeout) {
   // packets lost.
   for (int i = 1; i <= 99; ++i) {
     EXPECT_CALL(debug_delegate,
-                OnPacketLoss(QuicPacketNumber(i), LOSS_RETRANSMISSION, _));
+                OnPacketLoss(QuicPacketNumber(i), _, LOSS_RETRANSMISSION, _));
   }
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
   // Packets [1, 99] are considered as lost, although stream frame in packet

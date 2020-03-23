@@ -162,5 +162,21 @@ TEST_F(QuicTraceVisitorTest, TransportState) {
             acks.rbegin()->transport_state().min_rtt_us());
 }
 
+TEST_F(QuicTraceVisitorTest, EncryptionLevels) {
+  for (const auto& event : trace_.events()) {
+    switch (event.event_type()) {
+      case quic_trace::PACKET_SENT:
+      case quic_trace::PACKET_RECEIVED:
+      case quic_trace::PACKET_LOST:
+        ASSERT_TRUE(event.has_encryption_level());
+        ASSERT_NE(event.encryption_level(), quic_trace::ENCRYPTION_UNKNOWN);
+        break;
+
+      default:
+        break;
+    }
+  }
+}
+
 }  // namespace
 }  // namespace quic

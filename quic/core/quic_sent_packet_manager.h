@@ -57,6 +57,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
         QuicByteCount /*byte_size*/) {}
 
     virtual void OnIncomingAck(QuicPacketNumber /*ack_packet_number*/,
+                               EncryptionLevel /*ack_decrypted_level*/,
                                const QuicAckFrame& /*ack_frame*/,
                                QuicTime /*ack_receive_time*/,
                                QuicPacketNumber /*largest_observed*/,
@@ -65,6 +66,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     }
 
     virtual void OnPacketLoss(QuicPacketNumber /*lost_packet_number*/,
+                              EncryptionLevel /*encryption_level*/,
                               TransmissionType /*transmission_type*/,
                               QuicTime /*detection_time*/) {}
 
@@ -470,6 +472,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Called after packets have been marked handled with last received ack frame.
   void PostProcessNewlyAckedPackets(QuicPacketNumber ack_packet_number,
+                                    EncryptionLevel ack_decrypted_level,
                                     const QuicAckFrame& ack_frame,
                                     QuicTime ack_receive_time,
                                     bool rtt_updated,

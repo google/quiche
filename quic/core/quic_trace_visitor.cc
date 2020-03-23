@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 
 namespace quic {
@@ -227,6 +228,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
 
 void QuicTraceVisitor::OnIncomingAck(
     QuicPacketNumber /*ack_packet_number*/,
+    EncryptionLevel ack_decrypted_level,
     const QuicAckFrame& ack_frame,
     QuicTime ack_receive_time,
     QuicPacketNumber /*largest_observed*/,
@@ -236,6 +238,7 @@ void QuicTraceVisitor::OnIncomingAck(
   event->set_time_us(ConvertTimestampToRecordedFormat(ack_receive_time));
   event->set_packet_number(connection_->GetLargestReceivedPacket().ToUint64());
   event->set_event_type(quic_trace::PACKET_RECEIVED);
+  event->set_encryption_level(EncryptionLevelToProto(ack_decrypted_level));
 
   // TODO(vasilvv): consider removing this copy.
   QuicAckFrame copy_of_ack = ack_frame;
@@ -244,6 +247,7 @@ void QuicTraceVisitor::OnIncomingAck(
 }
 
 void QuicTraceVisitor::OnPacketLoss(QuicPacketNumber lost_packet_number,
+                                    EncryptionLevel encryption_level,
                                     TransmissionType /*transmission_type*/,
                                     QuicTime detection_time) {
   quic_trace::Event* event = trace_.add_events();
@@ -251,6 +255,7 @@ void QuicTraceVisitor::OnPacketLoss(QuicPacketNumber lost_packet_number,
   event->set_event_type(quic_trace::PACKET_LOST);
   event->set_packet_number(lost_packet_number.ToUint64());
   PopulateTransportState(event->mutable_transport_state());
+  event->set_encryption_level(EncryptionLevelToProto(encryption_level));
 }
 
 void QuicTraceVisitor::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame,

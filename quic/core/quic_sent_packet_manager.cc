@@ -369,6 +369,7 @@ void QuicSentPacketManager::SetHandshakeConfirmed() {
 
 void QuicSentPacketManager::PostProcessNewlyAckedPackets(
     QuicPacketNumber ack_packet_number,
+    EncryptionLevel ack_decrypted_level,
     const QuicAckFrame& ack_frame,
     QuicTime ack_receive_time,
     bool rtt_updated,
@@ -413,9 +414,9 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
   }
 
   if (debug_delegate_ != nullptr) {
-    debug_delegate_->OnIncomingAck(ack_packet_number, ack_frame,
-                                   ack_receive_time, LargestAcked(ack_frame),
-                                   rtt_updated, GetLeastUnacked());
+    debug_delegate_->OnIncomingAck(
+        ack_packet_number, ack_decrypted_level, ack_frame, ack_receive_time,
+        LargestAcked(ack_frame), rtt_updated, GetLeastUnacked());
   }
   // Remove packets below least unacked from all_packets_acked_ and
   // last_ack_frame_.
@@ -946,7 +947,8 @@ void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
           stats_->total_loss_detection_time + (time - info->sent_time);
     }
     if (debug_delegate_ != nullptr) {
-      debug_delegate_->OnPacketLoss(packet.packet_number, LOSS_RETRANSMISSION,
+      debug_delegate_->OnPacketLoss(packet.packet_number,
+                                    info->encryption_level, LOSS_RETRANSMISSION,
                                     time);
     }
     unacked_packets_.RemoveFromInFlight(info);
@@ -1372,8 +1374,8 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                       acked_packet.receive_timestamp);
   }
   const bool acked_new_packet = !packets_acked_.empty();
-  PostProcessNewlyAckedPackets(ack_packet_number, last_ack_frame_,
-                               ack_receive_time, rtt_updated_,
+  PostProcessNewlyAckedPackets(ack_packet_number, ack_decrypted_level,
+                               last_ack_frame_, ack_receive_time, rtt_updated_,
                                prior_bytes_in_flight);
 
   return acked_new_packet ? PACKETS_NEWLY_ACKED : NO_PACKETS_NEWLY_ACKED;

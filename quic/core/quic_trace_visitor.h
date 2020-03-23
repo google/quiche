@@ -23,6 +23,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
                     QuicTime sent_time) override;
 
   void OnIncomingAck(QuicPacketNumber ack_packet_number,
+                     EncryptionLevel ack_decrypted_level,
                      const QuicAckFrame& ack_frame,
                      QuicTime ack_receive_time,
                      QuicPacketNumber largest_observed,
@@ -30,6 +31,7 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
                      QuicPacketNumber least_unacked_sent_packet) override;
 
   void OnPacketLoss(QuicPacketNumber lost_packet_number,
+                    EncryptionLevel encryption_level,
                     TransmissionType transmission_type,
                     QuicTime detection_time) override;
 
