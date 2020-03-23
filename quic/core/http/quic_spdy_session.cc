@@ -388,7 +388,6 @@ QuicSpdySession::QuicSpdySession(
       qpack_maximum_blocked_streams_(kDefaultMaximumBlockedStreams),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
       max_outbound_header_list_size_(std::numeric_limits<size_t>::max()),
-      server_push_enabled_(true),
       stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       promised_stream_id_(
@@ -397,6 +396,8 @@ QuicSpdySession::QuicSpdySession(
       frame_len_(0),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
+      server_push_enabled_(true),
+      ietf_server_push_enabled_(false),
       max_allowed_push_id_(0),
       destruction_indicator_(123456789),
       debug_visitor_(nullptr),
@@ -708,8 +709,8 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 }
 
 bool QuicSpdySession::server_push_enabled() const {
-  // TODO(b/151641466): Improve and enable server push for IETF QUIC.
-  return VersionUsesHttp3(transport_version()) ? false : server_push_enabled_;
+  return VersionUsesHttp3(transport_version()) ? ietf_server_push_enabled_
+                                               : server_push_enabled_;
 }
 
 void QuicSpdySession::SendInitialData() {
@@ -1221,6 +1222,13 @@ void QuicSpdySession::SetMaxAllowedPushId(QuicStreamId max_allowed_push_id) {
 void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
   send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id_);
+}
+
+void QuicSpdySession::EnableServerPush() {
+  DCHECK(VersionUsesHttp3(transport_version()));
+  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+
+  ietf_server_push_enabled_ = true;
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(

@@ -296,6 +296,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
 
+  // Enables server push.
+  // Must only be called when using IETF QUIC, for which server push is disabled
+  // by default.  Server push defaults to enabled and cannot be disabled for
+  // Google QUIC.
+  // Must only be called for a server.  A client can effectively disable push by
+  // never calling SetMaxAllowedPushId().
+  void EnableServerPush();
+
   int32_t destruction_indicator() const { return destruction_indicator_; }
 
   void set_debug_visitor(Http3DebugVisitor* debug_visitor) {
@@ -476,10 +484,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // TODO(b/148616439): Honor this field when sending headers.
   size_t max_outbound_header_list_size_;
 
-  // Set during handshake. If true, resources in x-associated-content and link
-  // headers will be pushed.
-  bool server_push_enabled_;
-
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;
   QuicStreamId promised_stream_id_;
@@ -489,6 +493,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
+
+  // Used in Google QUIC only.  Set every time SETTINGS_ENABLE_PUSH is received.
+  // Defaults to true.
+  bool server_push_enabled_;
+
+  // Used in IETF QUIC only, and only for servers.  Set locally via
+  // EnableServerPush(), not influenced by data received from the client.
+  // Defaults to false.
+  bool ietf_server_push_enabled_;
+
   QuicStreamId max_allowed_push_id_;
 
   // An integer used for live check. The indicator is assigned a value in

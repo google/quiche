@@ -754,13 +754,11 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 // PUSH_PROMISE's will be sent out and only kMaxStreamsForTest streams will be
 // opened and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
-  // TODO(b/151641466): Re-enable server push for IETF QUIC.
-  if (VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
   MaybeConsumeHeadersStreamData();
-  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  if (VersionUsesHttp3(transport_version())) {
+    session_->EnableServerPush();
+    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  }
   size_t num_resources = kMaxStreamsForTest + 5;
   PromisePushResources(num_resources);
   EXPECT_EQ(kMaxStreamsForTest, session_->GetNumOpenOutgoingStreams());
@@ -770,13 +768,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
 // draining, a queued promised stream will become open and send push response.
 TEST_P(QuicSimpleServerSessionServerPushTest,
        HandlePromisedPushRequestsAfterStreamDraining) {
-  // TODO(b/151641466): Re-enable server push for IETF QUIC.
-  if (VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
   MaybeConsumeHeadersStreamData();
-  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  if (VersionUsesHttp3(transport_version())) {
+    session_->EnableServerPush();
+    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  }
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId next_out_going_stream_id;
@@ -851,7 +847,10 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     return;
   }
   MaybeConsumeHeadersStreamData();
-  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  if (VersionUsesHttp3(transport_version())) {
+    session_->EnableServerPush();
+    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  }
 
   // Having two extra resources to be send later. One of them will be reset, so
   // when opened stream become close, only one will become open.
@@ -935,13 +934,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
 // the queue to be send out.
 TEST_P(QuicSimpleServerSessionServerPushTest,
        CloseStreamToHandleMorePromisedStream) {
-  // TODO(b/151641466): Re-enable server push for IETF QUIC.
-  if (VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
   MaybeConsumeHeadersStreamData();
-  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  if (VersionUsesHttp3(transport_version())) {
+    session_->EnableServerPush();
+    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  }
   size_t num_resources = kMaxStreamsForTest + 1;
   if (VersionHasIetfQuicFrames(transport_version())) {
     // V99 will send out a stream-id-blocked frame when the we desired to exceed
