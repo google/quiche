@@ -91,8 +91,15 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
  private:
   friend class test::QuicSentPacketManagerPeer;
 
+  void MaybeStartTuning();
+
   // One loss algorithm per packet number space.
   GeneralLossAlgorithm general_loss_algorithms_[NUM_PACKET_NUMBER_SPACES];
+
+  // Used to tune reordering_shift and reordering_threshold.
+  std::unique_ptr<LossDetectionTunerInterface> tuner_;
+  LossDetectionParameters tuned_parameters_;
+  bool tuner_started_ = false;
 };
 
 }  // namespace quic

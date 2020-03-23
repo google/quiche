@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+
 namespace quic {
 
 UberLossAlgorithm::UberLossAlgorithm() {
@@ -67,13 +69,33 @@ void UberLossAlgorithm::SpuriousLossDetected(
 }
 
 void UberLossAlgorithm::SetLossDetectionTuner(
-    std::unique_ptr<LossDetectionTunerInterface> /*tuner*/) {}
+    std::unique_ptr<LossDetectionTunerInterface> tuner) {
+  if (tuner_ != nullptr) {
+    QUIC_BUG << "LossDetectionTuner can only be set once when session begins.";
+    return;
+  }
+  tuner_ = std::move(tuner);
+}
+
+void UberLossAlgorithm::MaybeStartTuning() {
+  if (tuner_ == nullptr || tuner_started_) {
+    return;
+  }
+
+  tuner_started_ = tuner_->Start(&tuned_parameters_);
+}
 
 void UberLossAlgorithm::OnConfigNegotiated() {}
 
-void UberLossAlgorithm::OnMinRttAvailable() {}
+void UberLossAlgorithm::OnMinRttAvailable() {
+  MaybeStartTuning();
+}
 
-void UberLossAlgorithm::OnConnectionClosed() {}
+void UberLossAlgorithm::OnConnectionClosed() {
+  if (tuner_ != nullptr && tuner_started_) {
+    tuner_->Finish(tuned_parameters_);
+  }
+}
 
 void UberLossAlgorithm::SetReorderingShift(int reordering_shift) {
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
