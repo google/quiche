@@ -3441,8 +3441,7 @@ bool QuicFramer::ProcessIetfStreamFrame(QuicDataReader* reader,
                                         uint8_t frame_type,
                                         QuicStreamFrame* frame) {
   // Read stream id from the frame. It's always present.
-  if (!reader->ReadVarIntU32(&frame->stream_id)) {
-    set_detailed_error("Unable to read stream_id.");
+  if (!ReadUint32FromVarint62(reader, IETF_STREAM, &frame->stream_id)) {
     return false;
   }
 
@@ -5776,8 +5775,7 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
   // Get Stream ID from frame. ReadVarIntStreamID returns false
   // if either A) there is a read error or B) the resulting value of
   // the Stream ID is larger than the maximum allowed value.
-  if (!reader->ReadVarIntU32(&frame->stream_id)) {
-    set_detailed_error("Unable to read rst stream stream id.");
+  if (!ReadUint32FromVarint62(reader, IETF_RST_STREAM, &frame->stream_id)) {
     return false;
   }
 
@@ -5804,8 +5802,8 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
 bool QuicFramer::ProcessStopSendingFrame(
     QuicDataReader* reader,
     QuicStopSendingFrame* stop_sending_frame) {
-  if (!reader->ReadVarIntU32(&stop_sending_frame->stream_id)) {
-    set_detailed_error("Unable to read stop sending stream id.");
+  if (!ReadUint32FromVarint62(reader, IETF_STOP_SENDING,
+                              &stop_sending_frame->stream_id)) {
     return false;
   }
 
@@ -5877,8 +5875,8 @@ bool QuicFramer::AppendMaxStreamDataFrame(const QuicWindowUpdateFrame& frame,
 
 bool QuicFramer::ProcessMaxStreamDataFrame(QuicDataReader* reader,
                                            QuicWindowUpdateFrame* frame) {
-  if (!reader->ReadVarIntU32(&frame->stream_id)) {
-    set_detailed_error("Can not read MAX_STREAM_DATA stream id");
+  if (!ReadUint32FromVarint62(reader, IETF_MAX_STREAM_DATA,
+                              &frame->stream_id)) {
     return false;
   }
   if (!reader->ReadVarInt62(&frame->max_data)) {
@@ -5900,8 +5898,9 @@ bool QuicFramer::AppendMaxStreamsFrame(const QuicMaxStreamsFrame& frame,
 bool QuicFramer::ProcessMaxStreamsFrame(QuicDataReader* reader,
                                         QuicMaxStreamsFrame* frame,
                                         uint64_t frame_type) {
-  if (!reader->ReadVarIntU32(&frame->stream_count)) {
-    set_detailed_error("Can not read MAX_STREAMS stream count.");
+  if (!ReadUint32FromVarint62(reader,
+                              static_cast<QuicIetfFrameType>(frame_type),
+                              &frame->stream_count)) {
     return false;
   }
   frame->unidirectional = (frame_type == IETF_MAX_STREAMS_UNIDIRECTIONAL);
@@ -5943,8 +5942,8 @@ bool QuicFramer::AppendStreamDataBlockedFrame(const QuicBlockedFrame& frame,
 
 bool QuicFramer::ProcessStreamDataBlockedFrame(QuicDataReader* reader,
                                                QuicBlockedFrame* frame) {
-  if (!reader->ReadVarIntU32(&frame->stream_id)) {
-    set_detailed_error("Can not read stream blocked stream id.");
+  if (!ReadUint32FromVarint62(reader, IETF_STREAM_DATA_BLOCKED,
+                              &frame->stream_id)) {
     return false;
   }
   if (!reader->ReadVarInt62(&frame->offset)) {
@@ -5966,8 +5965,9 @@ bool QuicFramer::AppendStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
 bool QuicFramer::ProcessStreamsBlockedFrame(QuicDataReader* reader,
                                             QuicStreamsBlockedFrame* frame,
                                             uint64_t frame_type) {
-  if (!reader->ReadVarIntU32(&frame->stream_count)) {
-    set_detailed_error("Can not read STREAMS_BLOCKED stream count.");
+  if (!ReadUint32FromVarint62(reader,
+                              static_cast<QuicIetfFrameType>(frame_type),
+                              &frame->stream_count)) {
     return false;
   }
   if (frame->stream_count > QuicUtils::GetMaxStreamCount()) {
@@ -6061,6 +6061,24 @@ bool QuicFramer::ProcessRetireConnectionIdFrame(
         "Unable to read retire connection ID frame sequence number.");
     return false;
   }
+  return true;
+}
+
+bool QuicFramer::ReadUint32FromVarint62(QuicDataReader* reader,
+                                        QuicIetfFrameType type,
+                                        QuicStreamId* id) {
+  uint64_t temp_uint64;
+  if (!reader->ReadVarInt62(&temp_uint64)) {
+    set_detailed_error("Unable to read " + QuicIetfFrameTypeString(type) +
+                       " frame stream id/count.");
+    return false;
+  }
+  if (temp_uint64 > kMaxQuicStreamId) {
+    set_detailed_error("Stream id/count of " + QuicIetfFrameTypeString(type) +
+                       "frame is too large.");
+    return false;
+  }
+  *id = static_cast<uint32_t>(temp_uint64);
   return true;
 }
 

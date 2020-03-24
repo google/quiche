@@ -37,7 +37,6 @@
 
 using testing::_;
 using testing::Return;
-using testing::Truly;
 
 namespace quic {
 namespace test {
@@ -2223,7 +2222,7 @@ TEST_P(QuicFramerTest, StreamFrame) {
       {"",
        { 0x08 | 0x01 | 0x02 | 0x04 }},
       // stream id
-      {"Unable to read stream_id.",
+      {"Unable to read IETF_STREAM frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // offset
       {"Unable to read stream data offset.",
@@ -2288,7 +2287,7 @@ TEST_P(QuicFramerTest, EmptyStreamFrame) {
       {"",
        { 0x08 | 0x01 | 0x02 | 0x04 }},
       // stream id
-      {"Unable to read stream_id.",
+      {"Unable to read IETF_STREAM frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // offset
       {"Unable to read stream data offset.",
@@ -2546,7 +2545,7 @@ TEST_P(QuicFramerTest, StreamFrame2ByteStreamId) {
       {"",
        {0x08 | 0x01 | 0x02 | 0x04}},
       // stream id
-      {"Unable to read stream_id.",
+      {"Unable to read IETF_STREAM frame stream id/count.",
        {kVarInt62TwoBytes + 0x03, 0x04}},
       // offset
       {"Unable to read stream data offset.",
@@ -2666,7 +2665,7 @@ TEST_P(QuicFramerTest, StreamFrame1ByteStreamId) {
       {"",
        {0x08 | 0x01 | 0x02 | 0x04}},
       // stream id
-      {"Unable to read stream_id.",
+      {"Unable to read IETF_STREAM frame stream id/count.",
        {kVarInt62OneByte + 0x04}},
       // offset
       {"Unable to read stream data offset.",
@@ -4303,7 +4302,7 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
       {"",
        {0x04}},
       // stream id
-      {"Unable to read rst stream stream id.",
+      {"Unable to read IETF_RST_STREAM frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // application error code
       {"Unable to read rst stream error code.",
@@ -4947,7 +4946,7 @@ TEST_P(QuicFramerTest, MaxStreamDataFrame) {
       {"",
        {0x11}},
       // stream id
-      {"Can not read MAX_STREAM_DATA stream id",
+      {"Unable to read IETF_MAX_STREAM_DATA frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // byte offset
       {"Can not read MAX_STREAM_DATA byte-count",
@@ -5025,7 +5024,7 @@ TEST_P(QuicFramerTest, BlockedFrame) {
       {"",
        {0x15}},
       // stream id
-      {"Can not read stream blocked stream id.",
+      {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       // Offset
       {"Can not read stream blocked offset.",
@@ -9636,7 +9635,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
       {"",
        {0x15}},
       // blocked offset
-      {"Can not read stream blocked stream id.",
+      {"Unable to read IETF_STREAM_DATA_BLOCKED frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       {"Can not read stream blocked offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}},
@@ -9724,7 +9723,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
       {"",
        {0x12}},
       // max. streams
-      {"Can not read MAX_STREAMS stream count.",
+      {"Unable to read IETF_MAX_STREAMS_BIDIRECTIONAL frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -9764,7 +9763,7 @@ TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
       {"",
        {0x13}},
       // max. streams
-      {"Can not read MAX_STREAMS stream count.",
+      {"Unable to read IETF_MAX_STREAMS_UNIDIRECTIONAL frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -9807,7 +9806,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
       {"",
        {0x13}},
       // max. streams
-      {"Can not read MAX_STREAMS stream count.",
+      {"Unable to read IETF_MAX_STREAMS_UNIDIRECTIONAL frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -9847,7 +9846,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
       {"",
        {0x13}},
       // max. streams
-      {"Can not read MAX_STREAMS stream count.",
+      {"Unable to read IETF_MAX_STREAMS_UNIDIRECTIONAL frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10079,7 +10078,7 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
       {"",
        {0x13}},
       // stream count
-      {"Can not read MAX_STREAMS stream count.",
+      {"Unable to read IETF_MAX_STREAMS_UNIDIRECTIONAL frame stream id/count.",
        {kVarInt62OneByte + 0x00}},
   };
   // clang-format on
@@ -10122,7 +10121,8 @@ TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
       {"",
        {0x16}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream count.",
+      {"Unable to read IETF_STREAMS_BLOCKED_BIDIRECTIONAL "
+       "frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10165,7 +10165,8 @@ TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
       {"",
        {0x17}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream count.",
+      {"Unable to read IETF_STREAMS_BLOCKED_UNIDIRECTIONAL "
+       "frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10205,7 +10206,8 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
       {"",
        {0x17}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream count.",
+      {"Unable to read IETF_STREAMS_BLOCKED_UNIDIRECTIONAL "
+       "frame stream id/count.",
        {kVarInt62OneByte + 0x03}},
   };
   // clang-format on
@@ -10288,7 +10290,8 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
       {"",
        {0x17}},
       // stream id
-      {"Can not read STREAMS_BLOCKED stream count.",
+      {"Unable to read IETF_STREAMS_BLOCKED_UNIDIRECTIONAL "
+       "frame stream id/count.",
        {kVarInt62OneByte + 0x00}},
   };
   // clang-format on
@@ -10865,7 +10868,7 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
       {"",
        {0x05}},
       // stream id
-      {"Unable to read stop sending stream id.",
+      {"Unable to read IETF_STOP_SENDING frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
       {"Unable to read stop sending application error code.",
        {kVarInt62FourBytes + 0x00, 0x00, 0x76, 0x54}},

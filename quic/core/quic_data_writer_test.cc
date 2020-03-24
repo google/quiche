@@ -9,6 +9,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -1081,7 +1082,7 @@ TEST_P(QuicDataWriterTest, VarIntFixedLength) {
 }
 
 // Test encoding/decoding stream-id values.
-void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
+void EncodeDecodeStreamId(uint64_t value_in) {
   char buffer[1 * kMultiVarCount];
   memset(buffer, 0, sizeof(buffer));
 
@@ -1093,35 +1094,28 @@ void EncodeDecodeStreamId(uint64_t value_in, bool expected_decode_result) {
   QuicDataReader reader(buffer, sizeof(buffer),
                         quiche::Endianness::NETWORK_BYTE_ORDER);
   QuicStreamId received_stream_id;
-  bool read_result = reader.ReadVarIntU32(&received_stream_id);
-  EXPECT_EQ(expected_decode_result, read_result);
-  if (read_result) {
-    EXPECT_EQ(value_in, received_stream_id);
-  }
+  uint64_t temp;
+  EXPECT_TRUE(reader.ReadVarInt62(&temp));
+  received_stream_id = static_cast<QuicStreamId>(temp);
+  EXPECT_EQ(value_in, received_stream_id);
 }
 
 // Test writing & reading stream-ids of various value.
 TEST_P(QuicDataWriterTest, StreamId1) {
   // Check a 1-byte QuicStreamId, should work
-  EncodeDecodeStreamId(UINT64_C(0x15), true);
+  EncodeDecodeStreamId(UINT64_C(0x15));
 
   // Check a 2-byte QuicStream ID. It should work.
-  EncodeDecodeStreamId(UINT64_C(0x1567), true);
+  EncodeDecodeStreamId(UINT64_C(0x1567));
 
   // Check a QuicStreamId that requires 4 bytes of encoding
   // This should work.
-  EncodeDecodeStreamId(UINT64_C(0x34567890), true);
+  EncodeDecodeStreamId(UINT64_C(0x34567890));
 
   // Check a QuicStreamId that requires 8 bytes of encoding
   // but whose value is in the acceptable range.
   // This should work.
-  EncodeDecodeStreamId(UINT64_C(0xf4567890), true);
-
-  // Check QuicStreamIds that require 8 bytes of encoding
-  // and whose value is not acceptable.
-  // This should fail.
-  EncodeDecodeStreamId(UINT64_C(0x100000000), false);
-  EncodeDecodeStreamId(UINT64_C(0x3fffffffffffffff), false);
+  EncodeDecodeStreamId(UINT64_C(0xf4567890));
 }
 
 TEST_P(QuicDataWriterTest, WriteRandomBytes) {
@@ -1167,9 +1161,7 @@ TEST_P(QuicDataWriterTest, PeekVarInt62Length) {
   EXPECT_EQ(8, reader4.PeekVarInt62Length());
 }
 
-// Test that ReadVarIntU32 works properly. Tests a valid stream count
-// (a 32 bit number) and an invalid one (a >32 bit number)
-TEST_P(QuicDataWriterTest, ValidU32) {
+TEST_P(QuicDataWriterTest, ValidStreamCount) {
   char buffer[1024];
   memset(buffer, 0, sizeof(buffer));
   QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
@@ -1178,21 +1170,10 @@ TEST_P(QuicDataWriterTest, ValidU32) {
   const QuicStreamCount write_stream_count = 0xffeeddcc;
   EXPECT_TRUE(writer.WriteVarInt62(write_stream_count));
   QuicStreamCount read_stream_count;
-  EXPECT_TRUE(reader.ReadVarIntU32(&read_stream_count));
+  uint64_t temp;
+  EXPECT_TRUE(reader.ReadVarInt62(&temp));
+  read_stream_count = static_cast<QuicStreamId>(temp);
   EXPECT_EQ(write_stream_count, read_stream_count);
-}
-
-TEST_P(QuicDataWriterTest, InvalidU32) {
-  char buffer[1024];
-  memset(buffer, 0, sizeof(buffer));
-  QuicDataWriter writer(sizeof(buffer), static_cast<char*>(buffer),
-                        quiche::Endianness::NETWORK_BYTE_ORDER);
-  QuicDataReader reader(buffer, sizeof(buffer));
-  EXPECT_TRUE(writer.WriteVarInt62(UINT64_C(0x1ffeeddcc)));
-  QuicStreamCount read_stream_count = 123456;
-  EXPECT_FALSE(reader.ReadVarIntU32(&read_stream_count));
-  // If the value is bad, read_stream_count ought not change.
-  EXPECT_EQ(123456u, read_stream_count);
 }
 
 TEST_P(QuicDataWriterTest, Seek) {

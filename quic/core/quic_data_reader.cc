@@ -174,19 +174,5 @@ bool QuicDataReader::ReadStringPieceVarInt62(
   return ReadStringPiece(result, result_length);
 }
 
-bool QuicDataReader::ReadVarIntU32(uint32_t* result) {
-  uint64_t temp_uint64;
-  // TODO(fkastenholz): We should disambiguate read-errors from
-  // value errors.
-  if (!this->ReadVarInt62(&temp_uint64)) {
-    return false;
-  }
-  if (temp_uint64 > kMaxQuicStreamId) {
-    return false;
-  }
-  *result = static_cast<uint32_t>(temp_uint64);
-  return true;
-}
-
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

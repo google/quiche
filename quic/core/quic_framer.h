@@ -996,6 +996,11 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void set_detailed_error(const char* error) { detailed_error_ = error; }
   void set_detailed_error(std::string error) { detailed_error_ = error; }
 
+  // Returns false if the reading fails.
+  bool ReadUint32FromVarint62(QuicDataReader* reader,
+                              QuicIetfFrameType type,
+                              QuicStreamId* id);
+
   std::string detailed_error_;
   QuicFramerVisitorInterface* visitor_;
   QuicErrorCode error_;
