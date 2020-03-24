@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_streams_blocked_frame.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
@@ -674,6 +675,37 @@ TEST_P(QuicSpdySessionTestServer, OnCanWrite) {
   // 4 will not get called, as we exceeded the loop limit.
   session_.OnCanWrite();
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
+}
+
+TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
+  // STREAMS_BLOCKED frame is IETF QUIC only.
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
+      QuicConnectionPeer::GetWriter(session_.connection()));
+  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  if (connection_->version().HasHandshakeDone()) {
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  }
+
+  CryptoHandshakeMessage message;
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+
+  // Simualte the situation where the incoming stream count is at its limit and
+  // the peer is blocked.
+  QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
+      static_cast<QuicSession*>(&session_), QuicUtils::GetMaxStreamCount());
+  QuicStreamsBlockedFrame frame;
+  frame.stream_count = QuicUtils::GetMaxStreamCount();
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
+  session_.OnStreamsBlockedFrame(frame);
 }
 
 TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {

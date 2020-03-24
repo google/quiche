@@ -657,6 +657,22 @@ void QuicSpdySession::OnHttp3GoAway(QuicStreamId stream_id) {
   http3_goaway_received_ = true;
 }
 
+bool QuicSpdySession::OnStreamsBlockedFrame(
+    const QuicStreamsBlockedFrame& frame) {
+  if (!QuicSession::OnStreamsBlockedFrame(frame)) {
+    return false;
+  }
+
+  // The peer asked for stream space more than this implementation has. Send
+  // goaway.
+  if (perspective() == Perspective::IS_SERVER &&
+      frame.stream_count >= QuicUtils::GetMaxStreamCount()) {
+    DCHECK_EQ(frame.stream_count, QuicUtils::GetMaxStreamCount());
+    SendHttp3GoAway();
+  }
+  return true;
+}
+
 void QuicSpdySession::SendHttp3GoAway() {
   DCHECK_EQ(perspective(), Perspective::IS_SERVER);
   DCHECK(VersionUsesHttp3(transport_version()));

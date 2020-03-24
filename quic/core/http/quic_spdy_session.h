@@ -217,6 +217,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // the client side.
   virtual void OnHttp3GoAway(QuicStreamId stream_id);
 
+  // Send GOAWAY if the peer is blocked on the implementation max.
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
+
   // Write the GOAWAY |frame| on control stream.
   void SendHttp3GoAway();
 
