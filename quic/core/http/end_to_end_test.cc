@@ -84,13 +84,11 @@ struct TestParams {
   TestParams(const ParsedQuicVersionVector& client_supported_versions,
              const ParsedQuicVersionVector& server_supported_versions,
              ParsedQuicVersion negotiated_version,
-             QuicTag congestion_control_tag,
-             QuicTag priority_tag)
+             QuicTag congestion_control_tag)
       : client_supported_versions(client_supported_versions),
         server_supported_versions(server_supported_versions),
         negotiated_version(negotiated_version),
-        congestion_control_tag(congestion_control_tag),
-        priority_tag(priority_tag) {}
+        congestion_control_tag(congestion_control_tag) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
     os << "{ server_supported_versions: "
@@ -100,8 +98,7 @@ struct TestParams {
     os << " negotiated_version: "
        << ParsedQuicVersionToString(p.negotiated_version);
     os << " congestion_control_tag: "
-       << QuicTagToString(p.congestion_control_tag);
-    os << " priority_tag: " << QuicTagToString(p.priority_tag) << " }";
+       << QuicTagToString(p.congestion_control_tag) << " }";
     return os;
   }
 
@@ -109,7 +106,6 @@ struct TestParams {
   ParsedQuicVersionVector server_supported_versions;
   ParsedQuicVersion negotiated_version;
   QuicTag congestion_control_tag;
-  QuicTag priority_tag;
 };
 
 // Used by ::testing::PrintToStringParamName().
@@ -118,8 +114,7 @@ std::string PrintToString(const TestParams& p) {
       ParsedQuicVersionToString(p.negotiated_version), "_Server_",
       ParsedQuicVersionVectorToString(p.server_supported_versions), "_Client_",
       ParsedQuicVersionVectorToString(p.client_supported_versions), "_",
-      QuicTagToString(p.congestion_control_tag), "_",
-      QuicTagToString(p.priority_tag));
+      QuicTagToString(p.congestion_control_tag));
   std::replace(rv.begin(), rv.end(), ',', '_');
   std::replace(rv.begin(), rv.end(), ' ', '_');
   return rv;
@@ -160,8 +155,7 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
   }
 
   std::vector<TestParams> params;
-  for (const QuicTag congestion_control_tag :
-       {kRENO, kTBBR, kQBIC, kTPCC, kB2ON}) {
+  for (const QuicTag congestion_control_tag : {kRENO, kTBBR, kQBIC, kB2ON}) {
     if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
         congestion_control_tag == kB2ON) {
       continue;
@@ -170,32 +164,27 @@ std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
       if (FilterSupportedVersions(client_versions).empty()) {
         continue;
       }
-      for (const QuicTag priority_tag :
-           {/*no tag*/ static_cast<QuicTag>(0), kH2PR, kFIFO, kLIFO}) {
-        // Add an entry for server and client supporting all versions.
-        params.push_back(TestParams(client_versions, all_supported_versions,
-                                    client_versions.front(),
-                                    congestion_control_tag, priority_tag));
-
-        // Test client supporting all versions and server supporting
-        // 1 version. Simulate an old server and exercise version
-        // downgrade in the client. Protocol negotiation should
-        // occur.  Skip the i = 0 case because it is essentially the
-        // same as the default case.
-        for (size_t i = 1; i < client_versions.size(); ++i) {
-          ParsedQuicVersionVector server_supported_versions;
-          server_supported_versions.push_back(client_versions[i]);
-          if (FilterSupportedVersions(server_supported_versions).empty()) {
-            continue;
-          }
-          params.push_back(TestParams(client_versions,
-                                      server_supported_versions,
-                                      server_supported_versions.front(),
-                                      congestion_control_tag, priority_tag));
-        }  // End of inner version loop.
-      }    // End of priority_tag loop.
-    }      // End of outer version loop.
-  }        // End of congestion_control_tag loop.
+      // Add an entry for server and client supporting all versions.
+      params.push_back(TestParams(client_versions, all_supported_versions,
+                                  client_versions.front(),
+                                  congestion_control_tag));
+      // Test client supporting all versions and server supporting
+      // 1 version. Simulate an old server and exercise version
+      // downgrade in the client. Protocol negotiation should
+      // occur.  Skip the i = 0 case because it is essentially the
+      // same as the default case.
+      for (size_t i = 1; i < client_versions.size(); ++i) {
+        ParsedQuicVersionVector server_supported_versions;
+        server_supported_versions.push_back(client_versions[i]);
+        if (FilterSupportedVersions(server_supported_versions).empty()) {
+          continue;
+        }
+        params.push_back(TestParams(client_versions, server_supported_versions,
+                                    server_supported_versions.front(),
+                                    congestion_control_tag));
+      }  // End of inner version loop.
+    }    // End of outer version loop.
+  }      // End of congestion_control_tag loop.
 
   return params;
 }
@@ -387,11 +376,6 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // TODO(nimia): Consider setting the congestion control algorithm for the
     // client as well according to the test parameter.
     copt.push_back(GetParam().congestion_control_tag);
-    if (GetParam().congestion_control_tag == kTPCC &&
-        GetQuicReloadableFlag(quic_enable_pcc3)) {
-      copt.push_back(kTPCC);
-    }
-    copt.push_back(GetParam().priority_tag);
     copt.push_back(k2PTO);
     if (VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
       copt.push_back(kILD0);
@@ -1796,12 +1780,6 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
 
 TEST_P(EndToEndTest, NegotiateCongestionControl) {
   ASSERT_TRUE(Initialize());
-
-  // For PCC, the underlying implementation may be a stub with a
-  // different name-tag.  Skip the rest of this test.
-  if (GetParam().congestion_control_tag == kTPCC) {
-    return;
-  }
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
