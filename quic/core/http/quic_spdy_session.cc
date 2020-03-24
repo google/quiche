@@ -398,7 +398,7 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       server_push_enabled_(true),
       ietf_server_push_enabled_(false),
-      max_allowed_push_id_(0),
+      max_push_id_(0),
       destruction_indicator_(123456789),
       debug_visitor_(nullptr),
       http3_goaway_received_(false),
@@ -1211,33 +1211,43 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   }
 }
 
-void QuicSpdySession::SetMaxAllowedPushId(QuicStreamId max_allowed_push_id) {
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
+void QuicSpdySession::SetMaxPushId(QuicStreamId max_push_id) {
+  DCHECK(VersionUsesHttp3(transport_version()));
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+  DCHECK_GE(max_push_id, max_push_id_);
 
-  QuicStreamId old_max_allowed_push_id = max_allowed_push_id_;
-  max_allowed_push_id_ = max_allowed_push_id;
-  QUIC_DVLOG(1) << ENDPOINT
-                << "Setting max_allowed_push_id to:  " << max_allowed_push_id_
-                << " from: " << old_max_allowed_push_id;
+  QuicStreamId old_max_push_id = max_push_id_;
+  max_push_id_ = max_push_id;
+  QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id_
+                << " from: " << old_max_push_id;
 
-  if (perspective() == Perspective::IS_SERVER) {
-    if (max_allowed_push_id_ > old_max_allowed_push_id) {
-      OnCanCreateNewOutgoingStream(true);
-    }
-    return;
-  }
-
-  DCHECK(perspective() == Perspective::IS_CLIENT);
   if (OneRttKeysAvailable()) {
     SendMaxPushId();
   }
 }
 
+bool QuicSpdySession::OnMaxPushIdFrame(QuicStreamId max_push_id) {
+  DCHECK(VersionUsesHttp3(transport_version()));
+  DCHECK_EQ(Perspective::IS_SERVER, perspective());
+
+  QuicStreamId old_max_push_id = max_push_id_;
+  max_push_id_ = max_push_id;
+  QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id_
+                << " from: " << old_max_push_id;
+
+  if (max_push_id_ > old_max_push_id) {
+    OnCanCreateNewOutgoingStream(true);
+    return true;
+  }
+
+  // Equal value is not considered an error.
+  return max_push_id >= old_max_push_id;
+}
+
 void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
-  send_control_stream_->SendMaxPushIdFrame(max_allowed_push_id_);
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+  send_control_stream_->SendMaxPushIdFrame(max_push_id_);
 }
 
 void QuicSpdySession::EnableServerPush() {

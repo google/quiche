@@ -49,7 +49,9 @@ class QuicReceiveControlStream::HttpDecoderVisitor
       stream_->spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
     }
 
-    stream_->spdy_session()->SetMaxAllowedPushId(frame.push_id);
+    // TODO(b/124216424): Signal error if received push ID is smaller than a
+    // previously received value.
+    stream_->spdy_session()->OnMaxPushIdFrame(frame.push_id);
     return true;
   }
 

@@ -757,7 +757,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest, TestPromisePushResources) {
   MaybeConsumeHeadersStreamData();
   if (VersionUsesHttp3(transport_version())) {
     session_->EnableServerPush();
-    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
   }
   size_t num_resources = kMaxStreamsForTest + 5;
   PromisePushResources(num_resources);
@@ -771,7 +771,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   MaybeConsumeHeadersStreamData();
   if (VersionUsesHttp3(transport_version())) {
     session_->EnableServerPush();
-    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
   }
   size_t num_resources = kMaxStreamsForTest + 1;
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
@@ -849,7 +849,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   MaybeConsumeHeadersStreamData();
   if (VersionUsesHttp3(transport_version())) {
     session_->EnableServerPush();
-    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
   }
 
   // Having two extra resources to be send later. One of them will be reset, so
@@ -937,7 +937,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   MaybeConsumeHeadersStreamData();
   if (VersionUsesHttp3(transport_version())) {
     session_->EnableServerPush();
-    session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+    session_->OnMaxPushIdFrame(kMaxQuicStreamId);
   }
   size_t num_resources = kMaxStreamsForTest + 1;
   if (VersionHasIetfQuicFrames(transport_version())) {

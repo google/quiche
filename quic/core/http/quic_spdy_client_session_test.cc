@@ -583,8 +583,10 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
 
-  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 10));
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 10));
+  }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
       session_->CreateOutgoingBidirectionalStream());
@@ -603,9 +605,9 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
-  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 10));
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 10));
     // TODO(b/136295430) Use PushId to represent Push IDs instead of
     // QuicStreamId.
     EXPECT_CALL(
@@ -644,8 +646,10 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
   // Initialize crypto before the client session will create a stream.
   CompleteCryptoHandshake();
 
-  session_->SetMaxAllowedPushId(GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 10));
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
+        connection_->transport_version(), 10));
+  }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
       session_->CreateOutgoingBidirectionalStream());
@@ -914,7 +918,9 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
-  session_->SetMaxAllowedPushId(kMaxQuicStreamId);
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    session_->SetMaxPushId(kMaxQuicStreamId);
+  }
 
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM));
 

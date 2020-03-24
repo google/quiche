@@ -4193,7 +4193,7 @@ TEST_P(EndToEndTest, TestMaxPushId) {
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   static_cast<QuicSpdySession*>(client_->client()->session())
-      ->SetMaxAllowedPushId(kMaxQuicStreamId);
+      ->SetMaxPushId(kMaxQuicStreamId);
 
   client_->SendSynchronousRequest("/foo");
 

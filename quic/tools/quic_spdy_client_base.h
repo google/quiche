@@ -139,6 +139,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   bool drop_response_body() const { return drop_response_body_; }
 
   // Set the max promise id for the client session.
+  // TODO(b/151641466): Rename this method.
   void SetMaxAllowedPushId(QuicStreamId max) { max_allowed_push_id_ = max; }
 
   // Disables the use of the QPACK dynamic table and of blocked streams.

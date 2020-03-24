@@ -295,16 +295,30 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // those streams are not initialized yet.
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
-  void SetMaxAllowedPushId(QuicStreamId max_allowed_push_id);
+  // Sets |max_push_id_| and sends a MAX_PUSH_ID frame.
+  // This method must only be called if protocol is IETF QUIC and perspective is
+  // client.  |max_push_id| must be greater than or equal to current
+  // |max_push_id_|.
+  void SetMaxPushId(QuicStreamId max_push_id);
 
-  QuicStreamId max_allowed_push_id() { return max_allowed_push_id_; }
+  // Sets |max_push_id_|.
+  // This method must only be called if protocol is IETF QUIC and perspective is
+  // server.  It must only be called if a MAX_PUSH_ID frame is received.
+  // Returns whether |max_push_id| is greater than or equal to current
+  // |max_push_id_|.
+  bool OnMaxPushIdFrame(QuicStreamId max_push_id);
+
+  // TODO(b/151451061): Change this API to distinguish between having received
+  // no MAX_PUSH_ID frame and one MAX_PUSH_ID frame with push ID 0.
+  // TODO(b/136295430): Use sequential PUSH IDs instead of stream IDs.
+  QuicStreamId max_allowed_push_id() { return max_push_id_; }
 
   // Enables server push.
   // Must only be called when using IETF QUIC, for which server push is disabled
   // by default.  Server push defaults to enabled and cannot be disabled for
   // Google QUIC.
   // Must only be called for a server.  A client can effectively disable push by
-  // never calling SetMaxAllowedPushId().
+  // never calling SetMaxPushId().
   void EnableServerPush();
 
   int32_t destruction_indicator() const { return destruction_indicator_; }
@@ -506,7 +520,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Defaults to false.
   bool ietf_server_push_enabled_;
 
-  QuicStreamId max_allowed_push_id_;
+  QuicStreamId max_push_id_;
 
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate

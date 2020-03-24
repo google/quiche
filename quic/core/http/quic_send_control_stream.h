@@ -40,7 +40,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   void MaybeSendSettingsFrame();
 
   // Send a MAX_PUSH_ID frame on this stream, and a SETTINGS frame beforehand if
-  // one has not been already sent.
+  // one has not been already sent.  Must only be called for a client.
   void SendMaxPushIdFrame(PushId max_push_id);
 
   // Send a PRIORITY_UPDATE frame on this stream, and a SETTINGS frame
