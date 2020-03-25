@@ -359,6 +359,8 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .Times(testing::AnyNumber());
+    writer_ = static_cast<MockPacketWriter*>(
+        QuicConnectionPeer::GetWriter(session_.connection()));
   }
 
   void CheckClosedStreams() {
@@ -440,11 +442,28 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return id;
   }
 
+  void CompleteHandshake() {
+    if (VersionHasIetfQuicFrames(transport_version())) {
+      EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+          .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+    }
+    if (connection_->version().HasHandshakeDone()) {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&ClearControlFrame));
+    }
+
+    CryptoHandshakeMessage message;
+    session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+    testing::Mock::VerifyAndClearExpectations(writer_);
+    testing::Mock::VerifyAndClearExpectations(connection_);
+  }
+
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   StrictMock<MockQuicConnection>* connection_;
   TestSession session_;
   std::set<QuicStreamId> closed_streams_;
+  MockPacketWriter* writer_;
 };
 
 class QuicSpdySessionTestServer : public QuicSpdySessionTestBase {
@@ -475,19 +494,8 @@ TEST_P(QuicSpdySessionTestServer, SelfAddress) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OneRttKeysAvailable) {
-  if (VersionUsesHttp3(transport_version())) {
-    MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-        QuicConnectionPeer::GetWriter(session_.connection()));
-    EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-        .Times(1)
-        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  }
   EXPECT_FALSE(session_.OneRttKeysAvailable());
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-  }
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
 
@@ -683,20 +691,9 @@ TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
     return;
   }
 
+  CompleteHandshake();
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-  }
-
-  CryptoHandshakeMessage message;
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
 
   // Simualte the situation where the incoming stream count is at its limit and
   // the peer is blocked.
@@ -704,6 +701,8 @@ TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
       static_cast<QuicSession*>(&session_), QuicUtils::GetMaxStreamCount());
   QuicStreamsBlockedFrame frame;
   frame.stream_count = QuicUtils::GetMaxStreamCount();
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
   session_.OnStreamsBlockedFrame(frame);
 }
@@ -775,24 +774,8 @@ TEST_P(QuicSpdySessionTestServer, TestBatchedWrites) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
-  if (VersionHasIetfQuicFrames(transport_version())) {
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillRepeatedly(Invoke(
-            this, &QuicSpdySessionTestServer::ClearMaxStreamsControlFrame));
-  }
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillRepeatedly(Invoke(&ClearControlFrame));
-  }
   // Encryption needs to be established before data can be sent.
-  CryptoHandshakeMessage msg;
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .Times(testing::AnyNumber())
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
-  testing::Mock::VerifyAndClearExpectations(writer);
+  CompleteHandshake();
 
   // Drive congestion control manually.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -822,7 +805,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
 
   // Expect that we only send one packet, the writes from different streams
   // should be bundled together.
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(*send_algorithm, OnPacketSent(_, _, _, _, _));
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));
@@ -884,10 +867,8 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWriterBlocks) {
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillRepeatedly(Return(true));
 
   // Drive packet writer manually.
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, IsWriteBlocked()).WillRepeatedly(Return(true));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(*writer_, IsWriteBlocked()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _)).Times(0);
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
 
@@ -1036,9 +1017,7 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -1060,22 +1039,12 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
     return;
   }
 
+  CompleteHandshake();
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-  }
-
-  CryptoHandshakeMessage message;
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
-
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
   session_.SendHttp3GoAway();
   EXPECT_TRUE(session_.http3_goaway_sent());
@@ -1132,33 +1101,15 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
-  if (VersionUsesHttp3(transport_version())) {
-    MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-        QuicConnectionPeer::GetWriter(session_.connection()));
-    EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-        .Times(1)
-        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  }
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-  }
-  CryptoHandshakeMessage msg;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+  CompleteHandshake();
   EXPECT_EQ(kMaximumIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
 }
 
 TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         quiche::QuicheStringPiece("HT"));
@@ -1171,6 +1122,14 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0), _));
   }
+
+  // In HTTP/3, Qpack stream will send data on stream reset and cause packet to
+  // be flushed.
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
+  EXPECT_CALL(*connection_, SendControlFrame(_));
   QuicRstStreamFrame rst1(kInvalidControlFrameId,
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
@@ -1298,8 +1257,7 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
   // Now complete the crypto handshake, resulting in an increased flow control
   // send window.
-  CryptoHandshakeMessage msg;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+  CompleteHandshake();
   EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(&session_, stream2->id()));
   // Stream is now unblocked.
   EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
@@ -1350,8 +1308,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Now complete the crypto handshake, resulting in an increased flow control
   // send window.
-  CryptoHandshakeMessage msg;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+  CompleteHandshake();
   EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(
       &session_, QuicUtils::GetCryptoStreamId(transport_version())));
   // Stream is now unblocked and will no longer have buffered data.
@@ -1422,8 +1379,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Now complete the crypto handshake, resulting in an increased flow control
   // send window.
-  CryptoHandshakeMessage msg;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+  CompleteHandshake();
 
   // Stream is now unblocked and will no longer have buffered data.
   EXPECT_FALSE(headers_stream->flow_controller()->IsBlocked());
@@ -1437,15 +1393,9 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer,
        ConnectionFlowControlAccountingRstOutOfOrder) {
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   // Test that when we receive an out of order stream RST we correctly adjust
   // our connection level flow control receive window.
   // On close, the stream should mark as consumed all bytes between the highest
@@ -1459,6 +1409,10 @@ TEST_P(QuicSpdySessionTestServer,
     // For version99 the call to OnStreamReset happens as a result of receiving
     // the STOP_SENDING, so set up the EXPECT there.
     EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
+    EXPECT_CALL(*connection_, SendControlFrame(_));
+  } else {
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   }
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
                                QUIC_STREAM_CANCELLED, kByteOffset);
@@ -1475,6 +1429,7 @@ TEST_P(QuicSpdySessionTestServer,
     // STOP_SENDING.
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream->id(), QUIC_STREAM_CANCELLED));
+    EXPECT_CALL(*connection_, SendControlFrame(_));
     session_.OnStopSendingFrame(stop_sending);
   }
 
@@ -1509,15 +1464,9 @@ TEST_P(QuicSpdySessionTestServer,
 }
 
 TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
+  CompleteHandshake();
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
   // Test that when we RST the stream (and tear down stream state), and then
   // receive a FIN from the peer, we correctly adjust our connection level flow
   // control receive window.
@@ -1534,6 +1483,10 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
 
   // Reset our stream: this results in the stream being closed locally.
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
 
@@ -1556,15 +1509,7 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingFinAfterRst) {
 }
 
 TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingRstAfterRst) {
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   // Test that when we RST the stream (and tear down stream state), and then
   // receive a RST from the peer, we correctly adjust our connection level flow
   // control receive window.
@@ -1581,6 +1526,10 @@ TEST_P(QuicSpdySessionTestServer, ConnectionFlowControlAccountingRstAfterRst) {
 
   // Reset our stream: this results in the stream being closed locally.
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
@@ -1656,15 +1605,7 @@ TEST_P(QuicSpdySessionTestServer, CustomFlowControlWindow) {
 }
 
 TEST_P(QuicSpdySessionTestServer, FlowControlWithInvalidFinalOffset) {
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   // Test that if we receive a stream RST with a highest byte offset that
   // violates flow control, that we close the connection.
   const uint64_t kLargeOffset = kInitialSessionFlowControlWindowForTest + 1;
@@ -1674,6 +1615,11 @@ TEST_P(QuicSpdySessionTestServer, FlowControlWithInvalidFinalOffset) {
 
   // Check that stream frame + FIN results in connection close.
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  if (VersionUsesHttp3(transport_version())) {
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  }
+  EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
   stream->Reset(QUIC_STREAM_CANCELLED);
   QuicStreamFrame frame(stream->id(), true, kLargeOffset,
@@ -1901,19 +1847,11 @@ TEST_P(QuicSpdySessionTestClient, TooLargeHeadersMustNotCauseWriteAfterReset) {
   if (VersionUsesHttp3(transport_version())) {
     return;
   }
-
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
-
+  CompleteHandshake();
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
 
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   // Write headers with FIN set to close write side of stream.
   // Header block does not matter.
   stream->WriteHeaders(SpdyHeaderBlock(), /* fin = */ true, nullptr);
@@ -1965,15 +1903,7 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
     // IETF QUIC currently doesn't support PRIORITY.
     return;
   }
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
 
   TestHeadersStream* headers_stream;
   QuicSpdySessionPeer::SetHeadersStream(&session_, nullptr);
@@ -1981,7 +1911,7 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
   QuicSpdySessionPeer::SetHeadersStream(&session_, headers_stream);
 
   // Make packet writer blocked so |headers_stream| will buffer its write data.
-  EXPECT_CALL(*writer, IsWriteBlocked()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*writer_, IsWriteBlocked()).WillRepeatedly(Return(true));
 
   const QuicStreamId id = 4;
   const QuicStreamId parent_stream_id = 9;
@@ -2455,19 +2385,9 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
     return;
   }
 
+  CompleteHandshake();
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
-
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
 
   // Use an arbitrary stream id.
   QuicStreamId stream_id =
@@ -2497,6 +2417,8 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   EXPECT_NE(5u, session_.max_outbound_header_list_size());
   EXPECT_NE(42u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
 
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
   session_.OnStreamFrame(frame);
 
@@ -2893,21 +2815,15 @@ TEST_P(QuicSpdySessionTestServer, ServerPushEnabledDefaultValue) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnSetting) {
-  MockPacketWriter* writer = static_cast<MockPacketWriter*>(
-      QuicConnectionPeer::GetWriter(session_.connection()));
-  EXPECT_CALL(*writer, WritePacket(_, _, _, _, _))
-      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
-
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  CryptoHandshakeMessage message;
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   if (VersionUsesHttp3(transport_version())) {
     EXPECT_EQ(std::numeric_limits<size_t>::max(),
               session_.max_outbound_header_list_size());
     session_.OnSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 5);
     EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
     QpackEncoder* qpack_encoder = session_.qpack_encoder();
     EXPECT_EQ(0u, QpackEncoderPeer::maximum_blocked_streams(qpack_encoder));
     session_.OnSetting(SETTINGS_QPACK_BLOCKED_STREAMS, 12);
