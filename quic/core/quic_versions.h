@@ -392,10 +392,12 @@ AllSupportedVersionsWithQuicCrypto();
 
 // Returns a subset of CurrentSupportedVersions() with
 // handshake_protocol == PROTOCOL_QUIC_CRYPTO, in the same order.
-// Deprecated; only to be used in components that do not yet support
-// PROTOCOL_TLS1_3.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
 CurrentSupportedVersionsWithQuicCrypto();
+
+// Returns a subset of CurrentSupportedVersions() with handshake_protocol ==
+// PROTOCOL_TLS1_3.
+QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersionsWithTls();
 
 // Returns QUIC version of |index| in result of |versions|. Returns
 // QUIC_VERSION_UNSUPPORTED if |index| is out of bounds.

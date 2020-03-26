@@ -251,6 +251,17 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
   return versions;
 }
 
+ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
+  ParsedQuicVersionVector versions;
+  for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
+    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+      versions.push_back(version);
+    }
+  }
+  QUIC_BUG_IF(versions.empty()) << "No version with TLS handshake found.";
+  return versions;
+}
+
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     if (version_label == CreateQuicVersionLabel(version)) {
