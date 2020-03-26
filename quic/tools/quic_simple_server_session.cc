@@ -74,10 +74,14 @@ void QuicSimpleServerSession::PromisePushResources(
   for (QuicBackendResponse::ServerPushInfo resource : resources) {
     spdy::SpdyHeaderBlock headers = SynthesizePushRequestHeaders(
         request_url, resource, original_request_headers);
+    // TODO(b/136295430): Use sequential push IDs for IETF QUIC.
+    // TODO(bnc): If |highest_promised_stream_id_| is too large, it will always
+    // be skipped.  Fix it by not incrementing if CanCreatePushStreamWithId()
+    // returns false.
     highest_promised_stream_id_ +=
         QuicUtils::StreamIdDelta(transport_version());
     if (VersionUsesHttp3(transport_version()) &&
-        highest_promised_stream_id_ > max_allowed_push_id()) {
+        !CanCreatePushStreamWithId(highest_promised_stream_id_)) {
       return;
     }
     SendPushPromise(original_stream_id, highest_promised_stream_id_,

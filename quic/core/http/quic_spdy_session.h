@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
@@ -235,6 +236,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   const QuicHeadersStream* headers_stream() const { return headers_stream_; }
 
+  // Returns whether server push is enabled.
+  // For a Google QUIC client this always returns false.
+  // For a Google QUIC server this is set by incoming SETTINGS_ENABLE_PUSH.
+  // For an IETF QUIC client this returns true if SetMaxPushId() has ever been
+  // called.
+  // For an IETF QUIC server this returns true if EnableServerPush() has been
+  // called and the server has received at least one MAX_PUSH_ID frame from the
+  // client.
   bool server_push_enabled() const;
 
   // Called when a setting is parsed from an incoming SETTINGS frame.
@@ -308,11 +317,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // |max_push_id_|.
   bool OnMaxPushIdFrame(QuicStreamId max_push_id);
 
-  // TODO(b/151451061): Change this API to distinguish between having received
-  // no MAX_PUSH_ID frame and one MAX_PUSH_ID frame with push ID 0.
-  // TODO(b/136295430): Use sequential PUSH IDs instead of stream IDs.
-  QuicStreamId max_allowed_push_id() { return max_push_id_; }
-
   // Enables server push.
   // Must only be called when using IETF QUIC, for which server push is disabled
   // by default.  Server push defaults to enabled and cannot be disabled for
@@ -320,6 +324,16 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Must only be called for a server.  A client can effectively disable push by
   // never calling SetMaxPushId().
   void EnableServerPush();
+
+  // Returns true if push is enabled and a push with |push_id| can be created.
+  // For a server this means that EnableServerPush() has been called, at least
+  // one MAX_PUSH_ID frame has been received, and the largest received
+  // MAX_PUSH_ID value is greater than or equal to |push_id|.
+  // For a client this means that SetMaxPushId() has been called with
+  // |max_push_id| greater than or equal to |push_id|.
+  // Must only be called when using IETF QUIC.
+  // TODO(b/136295430): Use sequential PUSH IDs instead of stream IDs.
+  bool CanCreatePushStreamWithId(QuicStreamId push_id);
 
   int32_t destruction_indicator() const { return destruction_indicator_; }
 
@@ -515,12 +529,18 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Defaults to true.
   bool server_push_enabled_;
 
-  // Used in IETF QUIC only, and only for servers.  Set locally via
-  // EnableServerPush(), not influenced by data received from the client.
-  // Defaults to false.
+  // Used in IETF QUIC only.  Defaults to false.
+  // Server push is enabled for a server by calling EnableServerPush().
+  // Server push is enabled for a client by calling SetMaxPushId().
   bool ietf_server_push_enabled_;
 
-  QuicStreamId max_push_id_;
+  // Used in IETF QUIC only.  Unset until a MAX_PUSH_ID frame is received/sent.
+  // For a server, the push ID in the most recently received MAX_PUSH_ID frame.
+  // For a client before 1-RTT keys are available, the push ID to be sent in the
+  // initial MAX_PUSH_ID frame.
+  // For a client after 1-RTT keys are available, the push ID in the most
+  // recently sent MAX_PUSH_ID frame.
+  quiche::QuicheOptional<QuicStreamId> max_push_id_;
 
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate
@@ -535,7 +555,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If the endpoint has sent HTTP/3 GOAWAY frame.
   bool http3_goaway_sent_;
 
-  // If the endpoint has sent the initial HTTP/3 MAX_PUSH_ID frame.
+  // If SendMaxPushId() has been called from SendInitialData().  Note that a
+  // MAX_PUSH_ID frame is only sent if SetMaxPushId() had been called
+  // beforehand.
   bool http3_max_push_id_sent_;
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not

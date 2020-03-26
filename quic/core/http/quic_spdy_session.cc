@@ -398,7 +398,6 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       server_push_enabled_(true),
       ietf_server_push_enabled_(false),
-      max_push_id_(0),
       destruction_indicator_(123456789),
       debug_visitor_(nullptr),
       http3_goaway_received_(false),
@@ -702,7 +701,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
     return;
   }
 
-  if (promised_stream_id > max_allowed_push_id()) {
+  if (!max_push_id_.has_value() || promised_stream_id > max_push_id_.value()) {
     QUIC_BUG
         << "Server shouldn't send push id higher than client's MAX_PUSH_ID.";
     return;
@@ -725,8 +724,9 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 }
 
 bool QuicSpdySession::server_push_enabled() const {
-  return VersionUsesHttp3(transport_version()) ? ietf_server_push_enabled_
-                                               : server_push_enabled_;
+  return VersionUsesHttp3(transport_version())
+             ? ietf_server_push_enabled_ && max_push_id_.has_value()
+             : server_push_enabled_;
 }
 
 void QuicSpdySession::SendInitialData() {
@@ -1214,12 +1214,20 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
 void QuicSpdySession::SetMaxPushId(QuicStreamId max_push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
-  DCHECK_GE(max_push_id, max_push_id_);
+  if (max_push_id_.has_value()) {
+    DCHECK_GE(max_push_id, max_push_id_.value());
+  }
 
-  QuicStreamId old_max_push_id = max_push_id_;
+  ietf_server_push_enabled_ = true;
+
+  if (max_push_id_.has_value()) {
+    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
+                  << " from: " << max_push_id_.value();
+  } else {
+    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
+                  << " from unset";
+  }
   max_push_id_ = max_push_id;
-  QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id_
-                << " from: " << old_max_push_id;
 
   if (OneRttKeysAvailable()) {
     SendMaxPushId();
@@ -1230,24 +1238,32 @@ bool QuicSpdySession::OnMaxPushIdFrame(QuicStreamId max_push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_SERVER, perspective());
 
-  QuicStreamId old_max_push_id = max_push_id_;
+  if (max_push_id_.has_value()) {
+    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
+                  << " from: " << max_push_id_.value();
+  } else {
+    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
+                  << " from unset";
+  }
+  quiche::QuicheOptional<QuicStreamId> old_max_push_id = max_push_id_;
   max_push_id_ = max_push_id;
-  QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id_
-                << " from: " << old_max_push_id;
 
-  if (max_push_id_ > old_max_push_id) {
+  if (!old_max_push_id.has_value() ||
+      max_push_id_.value() > old_max_push_id.value()) {
     OnCanCreateNewOutgoingStream(true);
     return true;
   }
 
   // Equal value is not considered an error.
-  return max_push_id >= old_max_push_id;
+  return max_push_id_.value() >= old_max_push_id.value();
 }
 
 void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
-  send_control_stream_->SendMaxPushIdFrame(max_push_id_);
+  // TODO(bnc): Do not send a MAX_PUSH_ID frame if SetMaxPushId() has not been
+  // called yet.
+  send_control_stream_->SendMaxPushIdFrame(max_push_id_.value_or(0));
 }
 
 void QuicSpdySession::EnableServerPush() {
@@ -1255,6 +1271,13 @@ void QuicSpdySession::EnableServerPush() {
   DCHECK_EQ(perspective(), Perspective::IS_SERVER);
 
   ietf_server_push_enabled_ = true;
+}
+
+bool QuicSpdySession::CanCreatePushStreamWithId(QuicStreamId push_id) {
+  DCHECK(VersionUsesHttp3(transport_version()));
+
+  return ietf_server_push_enabled_ && max_push_id_.has_value() &&
+         max_push_id_.value() >= push_id;
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(

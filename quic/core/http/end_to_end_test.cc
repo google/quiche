@@ -4175,13 +4175,11 @@ TEST_P(EndToEndTest, TestMaxPushId) {
 
   client_->SendSynchronousRequest("/foo");
 
-  EXPECT_EQ(kMaxQuicStreamId,
-            static_cast<QuicSpdySession*>(client_->client()->session())
-                ->max_allowed_push_id());
+  EXPECT_TRUE(static_cast<QuicSpdySession*>(client_->client()->session())
+                  ->CanCreatePushStreamWithId(kMaxQuicStreamId));
 
-  EXPECT_EQ(
-      kMaxQuicStreamId,
-      static_cast<QuicSpdySession*>(GetServerSession())->max_allowed_push_id());
+  EXPECT_TRUE(static_cast<QuicSpdySession*>(GetServerSession())
+                  ->CanCreatePushStreamWithId(kMaxQuicStreamId));
 }
 
 TEST_P(EndToEndTest, CustomTransportParameters) {
