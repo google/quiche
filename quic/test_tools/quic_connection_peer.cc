@@ -51,6 +51,9 @@ QuicSentPacketManager* QuicConnectionPeer::GetSentPacketManager(
 // static
 QuicTime::Delta QuicConnectionPeer::GetNetworkTimeout(
     QuicConnection* connection) {
+  if (connection->use_idle_network_detector_) {
+    return connection->idle_network_detector_.idle_network_timeout_;
+  }
   return connection->idle_network_timeout_;
 }
 
@@ -370,6 +373,12 @@ QuicTime QuicConnectionPeer::GetPathDegradingDeadline(
 QuicTime QuicConnectionPeer::GetBlackholeDetectionDeadline(
     QuicConnection* connection) {
   return connection->blackhole_detector_.blackhole_deadline_;
+}
+
+// static
+QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
+    QuicConnection* connection) {
+  return connection->idle_network_detector_.alarm_.get();
 }
 
 }  // namespace test

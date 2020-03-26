@@ -333,7 +333,11 @@ QuicConnection::QuicConnection(
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
-      blackhole_detector_(this, &arena_, alarm_factory_) {
+      blackhole_detector_(this, &arena_, alarm_factory_),
+      idle_network_detector_(this,
+                             clock_->ApproximateNow(),
+                             &arena_,
+                             alarm_factory_) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -875,7 +879,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   // frames, since the processing may result in sending a bundled ack.
   uber_received_packet_manager_.RecordPacketReceived(
       last_decrypted_packet_level_, last_header_,
-      time_of_last_received_packet_);
+      GetTimeOfLastReceivedPacket());
   DCHECK(connected_);
   return true;
 }
@@ -976,7 +980,7 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
   }
   processing_ack_frame_ = true;
   sent_packet_manager_.OnAckFrameStart(largest_acked, ack_delay_time,
-                                       time_of_last_received_packet_);
+                                       GetTimeOfLastReceivedPacket());
   return true;
 }
 
@@ -1022,7 +1026,7 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   const bool one_rtt_packet_was_acked =
       sent_packet_manager_.one_rtt_packet_acked();
   const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
-      time_of_last_received_packet_, last_header_.packet_number,
+      GetTimeOfLastReceivedPacket(), last_header_.packet_number,
       last_decrypted_packet_level_);
   if (ack_result != PACKETS_NEWLY_ACKED &&
       ack_result != NO_PACKETS_NEWLY_ACKED) {
@@ -1298,7 +1302,7 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
   UpdatePacketContent(NOT_PADDED_PING);
 
   if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnWindowUpdateFrame(frame, time_of_last_received_packet_);
+    debug_visitor_->OnWindowUpdateFrame(frame, GetTimeOfLastReceivedPacket());
   }
   QUIC_DVLOG(1) << ENDPOINT << "WINDOW_UPDATE_FRAME received " << frame;
   visitor_->OnWindowUpdateFrame(frame);
@@ -1455,7 +1459,7 @@ void QuicConnection::OnPacketComplete() {
   // never process a packet while an ACK for it cannot be encrypted.
   uber_received_packet_manager_.MaybeUpdateAckTimeout(
       should_last_packet_instigate_acks_, last_decrypted_packet_level_,
-      last_header_.packet_number, time_of_last_received_packet_,
+      last_header_.packet_number, GetTimeOfLastReceivedPacket(),
       clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
 
   ClearLastFrames();
@@ -1791,9 +1795,14 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
              << " too far from current time:"
              << clock_->ApproximateNow().ToDebuggingValue();
   }
-  time_of_last_received_packet_ = packet.receipt_time();
+  if (use_idle_network_detector_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 1, 6);
+    idle_network_detector_.OnPacketReceived(packet.receipt_time());
+  } else {
+    time_of_last_received_packet_ = packet.receipt_time();
+  }
   QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
-                << time_of_last_received_packet_.ToDebuggingValue();
+                << GetTimeOfLastReceivedPacket().ToDebuggingValue();
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
@@ -2358,12 +2367,15 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       SetPathDegradingAlarm();
     }
 
-    // Update |time_of_first_packet_sent_after_receiving_| if this is the
-    // first packet sent after the last packet was received. If it were
-    // updated on every sent packet, then sending into a black hole might
-    // never timeout.
-    if (time_of_first_packet_sent_after_receiving_ <
-        time_of_last_received_packet_) {
+    if (use_idle_network_detector_) {
+      idle_network_detector_.OnPacketSent(packet_send_time);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 2, 6);
+    } else if (time_of_first_packet_sent_after_receiving_ <
+               time_of_last_received_packet_) {
+      // Update |time_of_first_packet_sent_after_receiving_| if this is the
+      // first packet sent after the last packet was received. If it were
+      // updated on every sent packet, then sending into a black hole might
+      // never timeout.
       time_of_first_packet_sent_after_receiving_ = packet_send_time;
     }
   }
@@ -3058,6 +3070,10 @@ void QuicConnection::CancelAllAlarms() {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_blackhole_detector, 4, 4);
     blackhole_detector_.StopDetection();
   }
+  if (use_idle_network_detector_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 3, 6);
+    idle_network_detector_.StopDetection();
+  }
 }
 
 QuicByteCount QuicConnection::max_packet_length() const {
@@ -3102,6 +3118,11 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
   } else if (idle_timeout > QuicTime::Delta::FromSeconds(1)) {
     idle_timeout = idle_timeout - QuicTime::Delta::FromSeconds(1);
   }
+  if (use_idle_network_detector_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 4, 6);
+    idle_network_detector_.SetTimeouts(handshake_timeout, idle_timeout);
+    return;
+  }
   handshake_timeout_ = handshake_timeout;
   idle_network_timeout_ = idle_timeout;
 
@@ -3109,6 +3130,7 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 }
 
 void QuicConnection::CheckForTimeout() {
+  DCHECK(!use_idle_network_detector_);
   QuicTime now = clock_->ApproximateNow();
   if (!handshake_timeout_.IsInfinite()) {
     QuicTime::Delta connected_duration = now - stats_.connection_creation_time;
@@ -3163,6 +3185,7 @@ void QuicConnection::CheckForTimeout() {
 }
 
 void QuicConnection::SetTimeoutAlarm() {
+  DCHECK(!use_idle_network_detector_);
   QuicTime time_of_last_packet =
       std::max(time_of_last_received_packet_,
                time_of_first_packet_sent_after_receiving_);
@@ -4190,6 +4213,43 @@ void QuicConnection::OnBlackholeDetected() {
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
+void QuicConnection::OnHandshakeTimeout() {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 5, 6);
+  DCHECK(use_idle_network_detector_);
+  const QuicTime::Delta duration =
+      clock_->ApproximateNow() - stats_.connection_creation_time;
+  const std::string error_details = quiche::QuicheStrCat(
+      "Handshake timeout expired after ", duration.ToDebuggingValue(),
+      ". Timeout:",
+      idle_network_detector_.handshake_timeout().ToDebuggingValue());
+  QUIC_DVLOG(1) << ENDPOINT << error_details;
+  CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
+                  ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
+void QuicConnection::OnIdleNetworkDetected() {
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 6, 6);
+  DCHECK(use_idle_network_detector_);
+  const QuicTime::Delta duration =
+      clock_->ApproximateNow() -
+      idle_network_detector_.last_network_activity_time();
+  const std::string error_details = quiche::QuicheStrCat(
+      "No recent network activity after ", duration.ToDebuggingValue(),
+      ". Timeout:",
+      idle_network_detector_.idle_network_timeout().ToDebuggingValue());
+  QUIC_DVLOG(1) << ENDPOINT << error_details;
+  if ((sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
+       sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
+       sent_packet_manager_.GetConsecutivePtoCount() > 0 ||
+       visitor_->ShouldKeepConnectionAlive())) {
+    CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT, error_details,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT, error_details,
+                  idle_timeout_connection_close_behavior_);
+}
+
 QuicTime QuicConnection::GetPathDegradingDeadline() const {
   DCHECK(use_blackhole_detector_);
   if (!ShouldDetectPathDegrading()) {
@@ -4201,8 +4261,14 @@ QuicTime QuicConnection::GetPathDegradingDeadline() const {
 
 bool QuicConnection::ShouldDetectPathDegrading() const {
   DCHECK(use_blackhole_detector_);
-  return connected_ && handshake_timeout_.IsInfinite() &&
-         perspective_ == Perspective::IS_CLIENT && !is_path_degrading_;
+  if (!connected_) {
+    return false;
+  }
+  // No path degrading detection before handshake completes.
+  if (!GetHandshakeTimeout().IsInfinite()) {
+    return false;
+  }
+  return perspective_ == Perspective::IS_CLIENT && !is_path_degrading_;
 }
 
 QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
@@ -4219,12 +4285,26 @@ bool QuicConnection::ShouldDetectBlackhole() const {
   if (!connected_) {
     return false;
   }
-  if (!handshake_timeout_.IsInfinite()) {
-    // No blackhole detection before handshake completes.
+  // No blackhole detection before handshake completes.
+  if (!GetHandshakeTimeout().IsInfinite()) {
     return false;
   }
   return close_connection_after_five_rtos_ ||
          (sent_packet_manager_.pto_enabled() && max_consecutive_ptos_ > 0);
+}
+
+QuicTime::Delta QuicConnection::GetHandshakeTimeout() const {
+  if (use_idle_network_detector_) {
+    return idle_network_detector_.handshake_timeout();
+  }
+  return handshake_timeout_;
+}
+
+QuicTime QuicConnection::GetTimeOfLastReceivedPacket() const {
+  if (use_idle_network_detector_) {
+    return idle_network_detector_.time_of_last_received_packet();
+  }
+  return time_of_last_received_packet_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

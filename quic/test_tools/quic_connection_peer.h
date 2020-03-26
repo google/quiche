@@ -144,6 +144,8 @@ class QuicConnectionPeer {
   static QuicTime GetPathDegradingDeadline(QuicConnection* connection);
 
   static QuicTime GetBlackholeDetectionDeadline(QuicConnection* connection);
+
+  static QuicAlarm* GetIdleNetworkDetectorAlarm(QuicConnection* connection);
 };
 
 }  // namespace test

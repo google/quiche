@@ -35,6 +35,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
+#include "net/third_party/quiche/src/quic/core/quic_idle_network_detector.h"
 #include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
 #include "net/third_party/quiche/src/quic/core/quic_network_blackhole_detector.h"
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
@@ -350,7 +351,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicBlockedWriterInterface,
       public QuicPacketCreator::DelegateInterface,
       public QuicSentPacketManager::NetworkChangeVisitor,
-      public QuicNetworkBlackholeDetector::Delegate {
+      public QuicNetworkBlackholeDetector::Delegate,
+      public QuicIdleNetworkDetector::Delegate {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -580,6 +582,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicNetworkBlackholeDetector::Delegate
   void OnPathDegradingDetected() override;
   void OnBlackholeDetected() override;
+
+  // QuicIdleNetworkDetector::Delegate
+  void OnHandshakeTimeout() override;
+  void OnIdleNetworkDetected() override;
 
   // Please note, this is not a const function. For logging purpose, please use
   // ack_frame().
@@ -1241,6 +1247,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if network blackhole should be detected.
   bool ShouldDetectBlackhole() const;
 
+  // Remove these two when deprecating quic_use_idle_network_detector.
+  QuicTime::Delta GetHandshakeTimeout() const;
+  QuicTime GetTimeOfLastReceivedPacket() const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1393,6 +1403,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that is scheduled when the connection can still write and there
   // may be more data to send.
   // An alarm that fires when the connection may have timed out.
+  // TODO(fayang): Remove this when deprecating quic_use_idle_network_detector.
   QuicArenaScopedPtr<QuicAlarm> timeout_alarm_;
   // An alarm that fires when a ping should be sent.
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
@@ -1411,6 +1422,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicPacketCreator packet_creator_;
 
+  // TODO(fayang): Remove these two when deprecating
+  // quic_use_idle_network_detector.
   // Network idle time before this connection is closed.
   QuicTime::Delta idle_network_timeout_;
   // The connection will wait this long for the handshake to complete.
@@ -1422,6 +1435,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Timestamps used for timeouts.
   // The time of the first retransmittable packet that was sent after the most
   // recently received packet.
+  // TODO(fayang): Remove these two when deprecating
+  // quic_use_idle_network_detector.
   QuicTime time_of_first_packet_sent_after_receiving_;
   // The time that a packet is received for this connection. Initialized to
   // connection creation time.
@@ -1587,8 +1602,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicNetworkBlackholeDetector blackhole_detector_;
 
+  QuicIdleNetworkDetector idle_network_detector_;
+
   const bool use_blackhole_detector_ =
       GetQuicReloadableFlag(quic_use_blackhole_detector);
+
+  const bool use_idle_network_detector_ =
+      use_blackhole_detector_ &&
+      GetQuicReloadableFlag(quic_use_idle_network_detector);
 };
 
 }  // namespace quic
