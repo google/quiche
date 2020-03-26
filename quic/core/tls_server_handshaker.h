@@ -71,6 +71,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     return &tls_connection_;
   }
 
+  ProofSource::Details* proof_source_details() const {
+    return proof_source_details_.get();
+  }
+
   virtual void ProcessAdditionalTransportParameters(
       const TransportParameters& /*params*/) {}
 
@@ -109,7 +113,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       : public ProofSource::SignatureCallback {
    public:
     explicit SignatureCallback(TlsServerHandshaker* handshaker);
-    void Run(bool ok, std::string signature) override;
+    void Run(bool ok,
+             std::string signature,
+             std::unique_ptr<ProofSource::Details> details) override;
 
     // If called, Cancel causes the pending callback to be a no-op.
     void Cancel();
@@ -142,6 +148,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   std::string hostname_;
   std::string cert_verify_sig_;
+  std::unique_ptr<ProofSource::Details> proof_source_details_;
 
   // Used to hold the ENCRYPTION_FORWARD_SECURE read secret until the handshake
   // is complete. This is temporary until

@@ -30,7 +30,7 @@ void FailingProofSource::ComputeTlsSignature(
     uint16_t /*signature_algorithm*/,
     quiche::QuicheStringPiece /*in*/,
     std::unique_ptr<SignatureCallback> callback) {
-  callback->Run(false, "");
+  callback->Run(false, "", nullptr);
 }
 
 }  // namespace test

@@ -39,7 +39,7 @@ void DummyProofSource::ComputeTlsSignature(
     uint16_t /*signature_algorithm*/,
     quiche::QuicheStringPiece /*in*/,
     std::unique_ptr<SignatureCallback> callback) {
-  callback->Run(true, "Dummy signature");
+  callback->Run(true, "Dummy signature", /*details=*/nullptr);
 }
 
 QuicAsyncStatus InsecureProofVerifier::VerifyProof(

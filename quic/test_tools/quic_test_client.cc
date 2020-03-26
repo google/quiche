@@ -57,6 +57,44 @@ class RecordingProofVerifier : public ProofVerifier {
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
+    QuicAsyncStatus process_certs_result = ProcessCerts(certs, cert_sct);
+    if (process_certs_result != QUIC_SUCCESS) {
+      return process_certs_result;
+    }
+
+    if (!verifier_) {
+      return QUIC_SUCCESS;
+    }
+
+    return verifier_->VerifyProof(hostname, port, server_config,
+                                  transport_version, chlo_hash, certs, cert_sct,
+                                  signature, context, error_details, details,
+                                  std::move(callback));
+  }
+
+  QuicAsyncStatus VerifyCertChain(
+      const std::string& /*hostname*/,
+      const std::vector<std::string>& certs,
+      const std::string& /*ocsp_response*/,
+      const std::string& cert_sct,
+      const ProofVerifyContext* /*context*/,
+      std::string* /*error_details*/,
+      std::unique_ptr<ProofVerifyDetails>* /*details*/,
+      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
+    return ProcessCerts(certs, cert_sct);
+  }
+
+  std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {
+    return verifier_ != nullptr ? verifier_->CreateDefaultContext() : nullptr;
+  }
+
+  const std::string& common_name() const { return common_name_; }
+
+  const std::string& cert_sct() const { return cert_sct_; }
+
+ private:
+  QuicAsyncStatus ProcessCerts(const std::vector<std::string>& certs,
+                               const std::string& cert_sct) {
     common_name_.clear();
     if (certs.empty()) {
       return QUIC_FAILURE;
@@ -79,38 +117,9 @@ class RecordingProofVerifier : public ProofVerifier {
 
     common_name_ = buf;
     cert_sct_ = cert_sct;
-
-    if (!verifier_) {
-      return QUIC_SUCCESS;
-    }
-
-    return verifier_->VerifyProof(hostname, port, server_config,
-                                  transport_version, chlo_hash, certs, cert_sct,
-                                  signature, context, error_details, details,
-                                  std::move(callback));
-  }
-
-  QuicAsyncStatus VerifyCertChain(
-      const std::string& /*hostname*/,
-      const std::vector<std::string>& /*certs*/,
-      const std::string& /*ocsp_response*/,
-      const std::string& /*cert_sct*/,
-      const ProofVerifyContext* /*context*/,
-      std::string* /*error_details*/,
-      std::unique_ptr<ProofVerifyDetails>* /*details*/,
-      std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
     return QUIC_SUCCESS;
   }
 
-  std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {
-    return verifier_ != nullptr ? verifier_->CreateDefaultContext() : nullptr;
-  }
-
-  const std::string& common_name() const { return common_name_; }
-
-  const std::string& cert_sct() const { return cert_sct_; }
-
- private:
   std::unique_ptr<ProofVerifier> verifier_;
   std::string common_name_;
   std::string cert_sct_;

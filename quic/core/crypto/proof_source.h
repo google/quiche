@@ -85,7 +85,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     //
     // |signature| contains the signature of the data provided to
     // ComputeTlsSignature. Its value is undefined if |ok| is false.
-    virtual void Run(bool ok, std::string signature) = 0;
+    //
+    // |details| holds a pointer to an object representing the statistics, if
+    // any, gathered during the operation of ComputeTlsSignature.  If no stats
+    // are available, this will be nullptr.
+    virtual void Run(bool ok,
+                     std::string signature,
+                     std::unique_ptr<Details> details) = 0;
 
    private:
     SignatureCallback(const SignatureCallback&) = delete;

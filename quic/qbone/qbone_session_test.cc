@@ -100,7 +100,7 @@ class FakeProofSource : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override {
-    callback->Run(true, "Signature");
+    callback->Run(true, "Signature", /*details=*/nullptr);
   }
 
  private:

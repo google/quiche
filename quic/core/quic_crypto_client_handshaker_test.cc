@@ -99,7 +99,7 @@ class DummyProofSource : public ProofSource {
       uint16_t /*signature_algorit*/,
       quiche::QuicheStringPiece /*in*/,
       std::unique_ptr<SignatureCallback> callback) override {
-    callback->Run(true, "Dummy signature");
+    callback->Run(true, "Dummy signature", /*details=*/nullptr);
   }
 };
 

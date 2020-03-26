@@ -21,13 +21,16 @@ TlsServerHandshaker::SignatureCallback::SignatureCallback(
     TlsServerHandshaker* handshaker)
     : handshaker_(handshaker) {}
 
-void TlsServerHandshaker::SignatureCallback::Run(bool ok,
-                                                 std::string signature) {
+void TlsServerHandshaker::SignatureCallback::Run(
+    bool ok,
+    std::string signature,
+    std::unique_ptr<ProofSource::Details> details) {
   if (handshaker_ == nullptr) {
     return;
   }
   if (ok) {
     handshaker_->cert_verify_sig_ = std::move(signature);
+    handshaker_->proof_source_details_ = std::move(details);
   }
   State last_state = handshaker_->state_;
   handshaker_->state_ = STATE_SIGNATURE_COMPLETE;
@@ -414,7 +417,8 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  QUIC_LOG(INFO) << "Set " << chain->certs.size() << " certs for server";
+  QUIC_LOG(INFO) << "Set " << chain->certs.size() << " certs for server "
+                 << "with hostname " << hostname_;
   return SSL_TLSEXT_ERR_OK;
 }
 
