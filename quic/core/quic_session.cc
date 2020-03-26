@@ -89,7 +89,8 @@ QuicSession::QuicSession(
                             0,
                             num_expected_unidirectional_static_streams,
                             config_.GetMaxBidirectionalStreamsToSend(),
-                            config_.GetMaxUnidirectionalStreamsToSend()),
+                            config_.GetMaxUnidirectionalStreamsToSend() +
+                                num_expected_unidirectional_static_streams),
       num_dynamic_incoming_streams_(0),
       num_draining_incoming_streams_(0),
       num_outgoing_static_streams_(0),

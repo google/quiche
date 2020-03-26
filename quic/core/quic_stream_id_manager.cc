@@ -113,6 +113,11 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
         QUIC_MAX_STREAMS_ERROR, "Stream limit less than existing stream count");
     return;
   }
+  QUIC_LOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
+      << quiche::QuicheStrCat(
+             unidirectional_ ? "unidirectional " : "bidirectional: ",
+             "incoming stream limit changed from ",
+             incoming_initial_max_open_streams_, " to ", max_open_streams);
   incoming_actual_max_streams_ = max_open_streams;
   incoming_advertised_max_streams_ = max_open_streams;
   incoming_initial_max_open_streams_ = max_open_streams;
