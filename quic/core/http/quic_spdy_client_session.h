@@ -71,6 +71,8 @@ class QUIC_NO_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
 
   int GetNumReceivedServerConfigUpdates() const;
 
+  using QuicSession::CanOpenNextOutgoingBidirectionalStream;
+
   void set_respect_goaway(bool respect_goaway) {
     respect_goaway_ = respect_goaway;
   }
