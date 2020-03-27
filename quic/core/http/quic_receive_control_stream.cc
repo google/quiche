@@ -40,13 +40,13 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
+    }
+
     if (stream_->spdy_session()->perspective() == Perspective::IS_CLIENT) {
       OnWrongFrame("Max Push Id");
       return false;
-    }
-
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
     }
 
     // TODO(b/124216424): Signal error if received push ID is smaller than a
@@ -57,13 +57,13 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
   bool OnGoAwayFrame(const GoAwayFrame& frame) override {
     // TODO(bnc): Check if SETTINGS frame has been received.
+    if (stream_->spdy_session()->debug_visitor()) {
+      stream_->spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
+    }
+
     if (stream_->spdy_session()->perspective() == Perspective::IS_SERVER) {
       OnWrongFrame("Go Away");
       return false;
-    }
-
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
     }
 
     stream_->spdy_session()->OnHttp3GoAway(frame.stream_id);
@@ -144,31 +144,21 @@ class QuicReceiveControlStream::HttpDecoderVisitor
 
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount /* header_length */,
-                           QuicByteCount /* payload_length */) override {
+                           QuicByteCount payload_length) override {
     if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnUnknownFrameStart(
-          stream_->id(), frame_type);
+      stream_->spdy_session()->debug_visitor()->OnUnknownFrameReceived(
+          stream_->id(), frame_type, payload_length);
     }
 
     return stream_->OnUnknownFrameStart();
   }
 
-  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) override {
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnUnknownFramePayload(
-          stream_->id(), payload.length());
-    }
-
+  bool OnUnknownFramePayload(quiche::QuicheStringPiece /* payload */) override {
     // Ignore unknown frame types.
     return true;
   }
 
   bool OnUnknownFrameEnd() override {
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnUnknownFrameEnd(
-          stream_->id());
-    }
-
     // Ignore unknown frame types.
     return true;
   }

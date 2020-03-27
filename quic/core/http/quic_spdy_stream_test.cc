@@ -2148,12 +2148,13 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 
   // HEADERS frame referencing first dynamic table entry.
-  EXPECT_CALL(debug_visitor, OnHeadersFrameReceived(stream_->id(), _));
+  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string headers = HeadersFrame(encoded_headers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
   // Decoder stream type and header acknowledgement.
   EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _, _));
   EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("020080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
   // Headers can be decoded immediately.
@@ -2165,10 +2166,8 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
 
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
-  EXPECT_CALL(debug_visitor, OnDataFrameStart(stream_->id()));
   EXPECT_CALL(debug_visitor,
-              OnDataFramePayload(stream_->id(), strlen(kDataFramePayload)));
-  EXPECT_CALL(debug_visitor, OnDataFrameEnd(stream_->id()));
+              OnDataFrameReceived(stream_->id(), strlen(kDataFramePayload)));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
@@ -2177,12 +2176,13 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
 
   // Trailing HEADERS frame referencing second dynamic table entry.
-  EXPECT_CALL(debug_visitor, OnHeadersFrameReceived(stream_->id(), _));
+  std::string encoded_trailers = quiche::QuicheTextUtils::HexDecode("030080");
+  std::string trailers = HeadersFrame(encoded_trailers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_trailers.length()));
   // Header acknowledgement.
   EXPECT_CALL(*session_, WritevData(decoder_send_stream->id(), _, _, _, _, _));
   EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
-  std::string trailers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("030080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
                                          headers.length() + data.length(),
                                          trailers));
@@ -2208,9 +2208,10 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   session_->set_debug_visitor(&debug_visitor);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("020080"));
-  EXPECT_CALL(debug_visitor, OnHeadersFrameReceived(stream_->id(), _));
+  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string headers = HeadersFrame(encoded_headers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
   // Decoding is blocked because dynamic table entry has not been received yet.
@@ -2232,18 +2233,17 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
 
   // DATA frame.
   std::string data = DataFrame(kDataFramePayload);
-  EXPECT_CALL(debug_visitor, OnDataFrameStart(stream_->id()));
   EXPECT_CALL(debug_visitor,
-              OnDataFramePayload(stream_->id(), strlen(kDataFramePayload)));
-  EXPECT_CALL(debug_visitor, OnDataFrameEnd(stream_->id()));
+              OnDataFrameReceived(stream_->id(), strlen(kDataFramePayload)));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, /* offset = */
                                          headers.length(), data));
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
   // Trailing HEADERS frame referencing second dynamic table entry.
-  std::string trailers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("030080"));
-  EXPECT_CALL(debug_visitor, OnHeadersFrameReceived(stream_->id(), _));
+  std::string encoded_trailers = quiche::QuicheTextUtils::HexDecode("030080");
+  std::string trailers = HeadersFrame(encoded_trailers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_trailers.length()));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
                                          headers.length() + data.length(),
                                          trailers));
@@ -2506,11 +2506,8 @@ TEST_P(QuicSpdyStreamIncrementalConsumptionTest, ReceiveUnknownFrame) {
   session_->set_debug_visitor(&debug_visitor);
 
   EXPECT_CALL(debug_visitor,
-              OnUnknownFrameStart(stream_->id(), /* frame_type = */ 0x21));
-  EXPECT_CALL(debug_visitor,
-              OnUnknownFramePayload(stream_->id(), /* payload_length = */ 3));
-  EXPECT_CALL(debug_visitor, OnUnknownFrameEnd(stream_->id()));
-
+              OnUnknownFrameReceived(stream_->id(), /* frame_type = */ 0x21,
+                                     /* payload_length = */ 3));
   std::string unknown_frame = UnknownFrame(0x21, "foo");
   OnStreamFrame(unknown_frame);
 }
@@ -2623,8 +2620,8 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   std::string data = std::string(buffer.get(), length) + headers;
   QuicStreamFrame frame(stream_->id(), false, 0, data);
 
-  EXPECT_CALL(debug_visitor,
-              OnPushPromiseFrameReceived(stream_->id(), push_id));
+  EXPECT_CALL(debug_visitor, OnPushPromiseFrameReceived(stream_->id(), push_id,
+                                                        headers.length()));
   EXPECT_CALL(debug_visitor,
               OnPushPromiseDecoded(stream_->id(), push_id,
                                    AsHeaderList(pushed_headers)));

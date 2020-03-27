@@ -82,40 +82,40 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
 
   // Incoming HTTP/3 frames on the control stream.
-  virtual void OnCancelPushFrameReceived(CancelPushFrame /*frame*/) {}
+  virtual void OnCancelPushFrameReceived(const CancelPushFrame& /*frame*/) {}
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
-  virtual void OnGoAwayFrameReceived(GoAwayFrame /*frame*/) {}
-  virtual void OnMaxPushIdFrameReceived(MaxPushIdFrame /*frame*/) {}
-  virtual void OnPriorityUpdateFrameReceived(PriorityUpdateFrame /*frame*/) {}
+  virtual void OnGoAwayFrameReceived(const GoAwayFrame& /*frame*/) {}
+  virtual void OnMaxPushIdFrameReceived(const MaxPushIdFrame& /*frame*/) {}
+  virtual void OnPriorityUpdateFrameReceived(
+      const PriorityUpdateFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on request or push streams.
-  virtual void OnDataFrameStart(QuicStreamId /*stream_id*/) {}
-  virtual void OnDataFramePayload(QuicStreamId /*stream_id*/,
-                                  QuicByteCount /*payload_fragment_length*/) {}
-  virtual void OnDataFrameEnd(QuicStreamId /*stream_id*/) {}
-  virtual void OnHeadersFrameReceived(QuicStreamId /*stream_id*/,
-                                      QuicByteCount /*payload_length*/) {}
+  virtual void OnDataFrameReceived(QuicStreamId /*stream_id*/,
+                                   QuicByteCount /*payload_length*/) {}
+  virtual void OnHeadersFrameReceived(
+      QuicStreamId /*stream_id*/,
+      QuicByteCount /*compressed_headers_length*/) {}
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
                                 QuicHeaderList /*headers*/) {}
   virtual void OnPushPromiseFrameReceived(QuicStreamId /*stream_id*/,
-                                          QuicStreamId /*push_id*/) {}
+                                          QuicStreamId /*push_id*/,
+                                          QuicByteCount
+                                          /*compressed_headers_length*/) {}
   virtual void OnPushPromiseDecoded(QuicStreamId /*stream_id*/,
                                     QuicStreamId /*push_id*/,
                                     QuicHeaderList /*headers*/) {}
 
   // Incoming HTTP/3 frames of unknown type on any stream.
-  virtual void OnUnknownFrameStart(QuicStreamId /*stream_id*/,
-                                   uint64_t /*frame_type*/) {}
-  virtual void OnUnknownFramePayload(
-      QuicStreamId /*stream_id*/,
-      QuicByteCount /*payload_fragment_length*/) {}
-  virtual void OnUnknownFrameEnd(QuicStreamId /*stream_id*/) {}
+  virtual void OnUnknownFrameReceived(QuicStreamId /*stream_id*/,
+                                      uint64_t /*frame_type*/,
+                                      QuicByteCount /*payload_length*/) {}
 
   // Outgoing HTTP/3 frames on the control stream.
   virtual void OnSettingsFrameSent(const SettingsFrame& /*frame*/) = 0;
   virtual void OnGoAwayFrameSent(QuicStreamId /*stream_id*/) {}
-  virtual void OnMaxPushIdFrameSent(MaxPushIdFrame /*frame*/) {}
-  virtual void OnPriorityUpdateFrameSent(PriorityUpdateFrame /*frame*/) {}
+  virtual void OnMaxPushIdFrameSent(const MaxPushIdFrame& /*frame*/) {}
+  virtual void OnPriorityUpdateFrameSent(const PriorityUpdateFrame& /*frame*/) {
+  }
 
   // Outgoing HTTP/3 frames on request or push streams.
   virtual void OnDataFrameSent(QuicStreamId /*stream_id*/,

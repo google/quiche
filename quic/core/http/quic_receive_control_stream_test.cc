@@ -281,12 +281,12 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
   EXPECT_FALSE(session_.http3_goaway_received());
 
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
+
   if (perspective() == Perspective::IS_SERVER) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
-  } else {
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
   }
 
   receive_control_stream_->OnStreamFrame(frame);
@@ -363,10 +363,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
       "03"        // payload length
       "666f6f");  // payload "foo"
 
-  EXPECT_CALL(debug_visitor, OnUnknownFrameStart(id, /* frame_type = */ 0x21));
-  EXPECT_CALL(debug_visitor,
-              OnUnknownFramePayload(id, /* payload_length = */ 3));
-  EXPECT_CALL(debug_visitor, OnUnknownFrameEnd(id));
+  EXPECT_CALL(debug_visitor, OnUnknownFrameReceived(id, /* frame_type = */ 0x21,
+                                                    /* payload_length = */ 3));
   receive_control_stream_->OnStreamFrame(
       QuicStreamFrame(id, /* fin = */ false,
                       /* offset = */ 1 + settings_frame.size(), unknown_frame));

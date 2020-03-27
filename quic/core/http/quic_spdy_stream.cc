@@ -867,17 +867,18 @@ void QuicSpdyStream::ClearSession() {
 }
 
 bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
-                                      QuicByteCount /*payload_length*/) {
+                                      QuicByteCount payload_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
+
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnDataFrameReceived(id(), payload_length);
+  }
+
   if (!headers_decompressed_ || trailers_decompressed_) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
         "Unexpected DATA frame received.");
     return false;
-  }
-
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnDataFrameStart(id());
   }
 
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
@@ -888,10 +889,6 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
 bool QuicSpdyStream::OnDataFramePayload(quiche::QuicheStringPiece payload) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnDataFramePayload(id(), payload.length());
-  }
-
   body_manager_.OnBody(payload);
 
   return true;
@@ -899,10 +896,6 @@ bool QuicSpdyStream::OnDataFramePayload(quiche::QuicheStringPiece payload) {
 
 bool QuicSpdyStream::OnDataFrameEnd() {
   DCHECK(VersionUsesHttp3(transport_version()));
-
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnDataFrameEnd(id());
-  }
 
   QUIC_DVLOG(1) << ENDPOINT
                 << "Reaches the end of a data frame. Total bytes received are "
@@ -960,9 +953,14 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
 }
 
 bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
-                                         QuicByteCount /*payload_length*/) {
+                                         QuicByteCount payload_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
+
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnHeadersFrameReceived(id(),
+                                                           payload_length);
+  }
 
   if (trailers_decompressed_) {
     stream_delegate()->OnStreamError(
@@ -1009,18 +1007,6 @@ bool QuicSpdyStream::OnHeadersFrameEnd() {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
 
-  if (spdy_session_->debug_visitor()) {
-    if (spdy_session_->promised_stream_id() ==
-        QuicUtils::GetInvalidStreamId(transport_version())) {
-      spdy_session_->debug_visitor()->OnHeadersFrameReceived(
-          id(), headers_decompressed_ ? trailers_payload_length_
-                                      : headers_payload_length_);
-    } else {
-      spdy_session_->debug_visitor()->OnPushPromiseFrameReceived(
-          id(), spdy_session_->promised_stream_id());
-    }
-  }
-
   qpack_decoded_headers_accumulator_->EndHeaderBlock();
 
   // If decoding is complete or an error is detected, then
@@ -1045,9 +1031,14 @@ bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
 bool QuicSpdyStream::OnPushPromiseFramePushId(
     PushId push_id,
     QuicByteCount push_id_length,
-    QuicByteCount /*header_block_length*/) {
+    QuicByteCount header_block_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
+
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnPushPromiseFrameReceived(
+        id(), push_id, header_block_length);
+  }
 
   // TODO(renjietang): Check max push id and handle errors.
   spdy_session_->OnPushPromise(id(), push_id);
@@ -1075,9 +1066,10 @@ bool QuicSpdyStream::OnPushPromiseFrameEnd() {
 
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
                                          QuicByteCount header_length,
-                                         QuicByteCount /*payload_length*/) {
+                                         QuicByteCount payload_length) {
   if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnUnknownFrameStart(id(), frame_type);
+    spdy_session_->debug_visitor()->OnUnknownFrameReceived(id(), frame_type,
+                                                           payload_length);
   }
 
   // Ignore unknown frames, but consume frame header.
@@ -1089,10 +1081,6 @@ bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
 }
 
 bool QuicSpdyStream::OnUnknownFramePayload(quiche::QuicheStringPiece payload) {
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnUnknownFramePayload(id(), payload.size());
-  }
-
   // Ignore unknown frames, but consume frame payload.
   QUIC_DVLOG(1) << ENDPOINT << "Discarding " << payload.size()
                 << " bytes of payload of frame of unknown type.";
@@ -1101,10 +1089,6 @@ bool QuicSpdyStream::OnUnknownFramePayload(quiche::QuicheStringPiece payload) {
 }
 
 bool QuicSpdyStream::OnUnknownFrameEnd() {
-  if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnUnknownFrameEnd(id());
-  }
-
   return true;
 }
 

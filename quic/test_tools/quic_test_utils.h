@@ -812,31 +812,26 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
   MOCK_METHOD1(OnPeerQpackEncoderStreamCreated, void(QuicStreamId));
   MOCK_METHOD1(OnPeerQpackDecoderStreamCreated, void(QuicStreamId));
 
-  MOCK_METHOD1(OnCancelPushFrameReceived, void(CancelPushFrame));
+  MOCK_METHOD1(OnCancelPushFrameReceived, void(const CancelPushFrame&));
   MOCK_METHOD1(OnSettingsFrameReceived, void(const SettingsFrame&));
-  MOCK_METHOD1(OnGoAwayFrameReceived, void(GoAwayFrame));
-  MOCK_METHOD1(OnMaxPushIdFrameReceived, void(MaxPushIdFrame));
-  MOCK_METHOD1(OnPriorityUpdateFrameReceived, void(PriorityUpdateFrame));
+  MOCK_METHOD1(OnGoAwayFrameReceived, void(const GoAwayFrame&));
+  MOCK_METHOD1(OnMaxPushIdFrameReceived, void(const MaxPushIdFrame&));
+  MOCK_METHOD1(OnPriorityUpdateFrameReceived, void(const PriorityUpdateFrame&));
 
-  MOCK_METHOD1(OnDataFrameStart, void(QuicStreamId));
-  MOCK_METHOD2(OnDataFramePayload, void(QuicStreamId, QuicByteCount));
-  MOCK_METHOD1(OnDataFrameEnd, void(QuicStreamId));
-
+  MOCK_METHOD2(OnDataFrameReceived, void(QuicStreamId, QuicByteCount));
   MOCK_METHOD2(OnHeadersFrameReceived, void(QuicStreamId, QuicByteCount));
   MOCK_METHOD2(OnHeadersDecoded, void(QuicStreamId, QuicHeaderList));
-
-  MOCK_METHOD2(OnPushPromiseFrameReceived, void(QuicStreamId, QuicStreamId));
+  MOCK_METHOD3(OnPushPromiseFrameReceived,
+               void(QuicStreamId, QuicStreamId, QuicByteCount));
   MOCK_METHOD3(OnPushPromiseDecoded,
                void(QuicStreamId, QuicStreamId, QuicHeaderList));
-
-  MOCK_METHOD2(OnUnknownFrameStart, void(QuicStreamId, uint64_t));
-  MOCK_METHOD2(OnUnknownFramePayload, void(QuicStreamId, QuicByteCount));
-  MOCK_METHOD1(OnUnknownFrameEnd, void(QuicStreamId));
+  MOCK_METHOD3(OnUnknownFrameReceived,
+               void(QuicStreamId, uint64_t, QuicByteCount));
 
   MOCK_METHOD1(OnSettingsFrameSent, void(const SettingsFrame&));
   MOCK_METHOD1(OnGoAwayFrameSent, void(QuicStreamId));
-  MOCK_METHOD1(OnMaxPushIdFrameSent, void(MaxPushIdFrame));
-  MOCK_METHOD1(OnPriorityUpdateFrameSent, void(PriorityUpdateFrame));
+  MOCK_METHOD1(OnMaxPushIdFrameSent, void(const MaxPushIdFrame&));
+  MOCK_METHOD1(OnPriorityUpdateFrameSent, void(const PriorityUpdateFrame&));
 
   MOCK_METHOD2(OnDataFrameSent, void(QuicStreamId, QuicByteCount));
   MOCK_METHOD2(OnHeadersFrameSent,
