@@ -26,7 +26,7 @@ void FailingHttp2FrameDecoderListener::OnDataStart(
   FAIL() << "OnDataStart: " << header;
 }
 
-void FailingHttp2FrameDecoderListener::OnDataPayload(const char* data,
+void FailingHttp2FrameDecoderListener::OnDataPayload(const char* /*data*/,
                                                      size_t len) {
   FAIL() << "OnDataPayload: len=" << len;
 }
@@ -45,7 +45,7 @@ void FailingHttp2FrameDecoderListener::OnHeadersPriority(
   FAIL() << "OnHeadersPriority: " << priority;
 }
 
-void FailingHttp2FrameDecoderListener::OnHpackFragment(const char* data,
+void FailingHttp2FrameDecoderListener::OnHpackFragment(const char* /*data*/,
                                                        size_t len) {
   FAIL() << "OnHpackFragment: len=" << len;
 }
@@ -73,7 +73,7 @@ void FailingHttp2FrameDecoderListener::OnPadLength(size_t trailing_length) {
   FAIL() << "OnPadLength: trailing_length=" << trailing_length;
 }
 
-void FailingHttp2FrameDecoderListener::OnPadding(const char* padding,
+void FailingHttp2FrameDecoderListener::OnPadding(const char* /*padding*/,
                                                  size_t skipped_length) {
   FAIL() << "OnPadding: skipped_length=" << skipped_length;
 }
@@ -131,7 +131,7 @@ void FailingHttp2FrameDecoderListener::OnGoAwayStart(
   FAIL() << "OnGoAwayStart: " << header << "; goaway: " << goaway;
 }
 
-void FailingHttp2FrameDecoderListener::OnGoAwayOpaqueData(const char* data,
+void FailingHttp2FrameDecoderListener::OnGoAwayOpaqueData(const char* /*data*/,
                                                           size_t len) {
   FAIL() << "OnGoAwayOpaqueData: len=" << len;
 }
@@ -154,12 +154,12 @@ void FailingHttp2FrameDecoderListener::OnAltSvcStart(
          << "; value_length: " << value_length;
 }
 
-void FailingHttp2FrameDecoderListener::OnAltSvcOriginData(const char* data,
+void FailingHttp2FrameDecoderListener::OnAltSvcOriginData(const char* /*data*/,
                                                           size_t len) {
   FAIL() << "OnAltSvcOriginData: len=" << len;
 }
 
-void FailingHttp2FrameDecoderListener::OnAltSvcValueData(const char* data,
+void FailingHttp2FrameDecoderListener::OnAltSvcValueData(const char* /*data*/,
                                                          size_t len) {
   FAIL() << "OnAltSvcValueData: len=" << len;
 }
@@ -173,7 +173,7 @@ void FailingHttp2FrameDecoderListener::OnUnknownStart(
   FAIL() << "OnUnknownStart: " << header;
 }
 
-void FailingHttp2FrameDecoderListener::OnUnknownPayload(const char* data,
+void FailingHttp2FrameDecoderListener::OnUnknownPayload(const char* /*data*/,
                                                         size_t len) {
   FAIL() << "OnUnknownPayload: len=" << len;
 }

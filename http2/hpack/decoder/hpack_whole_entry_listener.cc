@@ -10,18 +10,18 @@ HpackWholeEntryListener::~HpackWholeEntryListener() = default;
 
 HpackWholeEntryNoOpListener::~HpackWholeEntryNoOpListener() = default;
 
-void HpackWholeEntryNoOpListener::OnIndexedHeader(size_t index) {}
+void HpackWholeEntryNoOpListener::OnIndexedHeader(size_t /*index*/) {}
 void HpackWholeEntryNoOpListener::OnNameIndexAndLiteralValue(
-    HpackEntryType entry_type,
-    size_t name_index,
-    HpackDecoderStringBuffer* value_buffer) {}
+    HpackEntryType /*entry_type*/,
+    size_t /*name_index*/,
+    HpackDecoderStringBuffer* /*value_buffer*/) {}
 void HpackWholeEntryNoOpListener::OnLiteralNameAndValue(
-    HpackEntryType entry_type,
-    HpackDecoderStringBuffer* name_buffer,
-    HpackDecoderStringBuffer* value_buffer) {}
-void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t size) {}
-void HpackWholeEntryNoOpListener::OnHpackDecodeError(HpackDecodingError error) {
-}
+    HpackEntryType /*entry_type*/,
+    HpackDecoderStringBuffer* /*name_buffer*/,
+    HpackDecoderStringBuffer* /*value_buffer*/) {}
+void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t /*size*/) {}
+void HpackWholeEntryNoOpListener::OnHpackDecodeError(
+    HpackDecodingError /*error*/) {}
 
 // static
 HpackWholeEntryNoOpListener* HpackWholeEntryNoOpListener::NoOpListener() {

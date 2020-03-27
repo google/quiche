@@ -167,7 +167,7 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
   // Returns true if the listener wants the decoding to continue, and
   // false otherwise, in which case status set.
   template <class Listener>
-  void OnStringStart(Listener* cb, DecodeStatus* status) {
+  void OnStringStart(Listener* cb, DecodeStatus* /*status*/) {
     // TODO(vasilvv): fail explicitly in case of truncation.
     remaining_ = static_cast<size_t>(length_decoder_.value());
     // Make callback so consumer knows what is coming.

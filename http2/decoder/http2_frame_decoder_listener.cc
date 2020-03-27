@@ -7,7 +7,7 @@
 namespace http2 {
 
 bool Http2FrameDecoderNoOpListener::OnFrameHeader(
-    const Http2FrameHeader& header) {
+    const Http2FrameHeader& /*header*/) {
   return true;
 }
 

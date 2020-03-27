@@ -103,8 +103,8 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
     // Validate that structure_ matches the expected value, if provided.
     Validator validator;
     if (expected != nullptr) {
-      validator = [expected, this](const DecodeBuffer& db,
-                                   DecodeStatus status) -> AssertionResult {
+      validator = [expected, this](const DecodeBuffer& /*db*/,
+                                   DecodeStatus /*status*/) -> AssertionResult {
         VERIFY_EQ(*expected, *structure_);
         return AssertionSuccess();
       };

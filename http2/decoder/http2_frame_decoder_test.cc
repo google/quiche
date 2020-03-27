@@ -131,7 +131,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   AssertionResult DecodePayloadAndValidateSeveralWays(
       quiche::QuicheStringPiece payload,
       const FrameParts& expected) {
-    auto validator = [&expected, this](const DecodeBuffer& input,
+    auto validator = [&expected, this](const DecodeBuffer& /*input*/,
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeDone);
       VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
@@ -175,7 +175,7 @@ class Http2FrameDecoderTest : public RandomDecoderTest {
   template <size_t N>
   AssertionResult DecodePayloadExpectingError(const char (&buf)[N],
                                               const FrameParts& expected) {
-    auto validator = [&expected, this](const DecodeBuffer& input,
+    auto validator = [&expected, this](const DecodeBuffer& /*input*/,
                                        DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(status, DecodeStatus::kDecodeError);
       VERIFY_AND_RETURN_SUCCESS(VerifyCollected(expected));
