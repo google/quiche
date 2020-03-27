@@ -14,8 +14,6 @@
 namespace quic {
 namespace {
 
-using ::testing::Test;
-
 class TestProofHandler : public QuicCryptoClientStream::ProofHandler {
  public:
   ~TestProofHandler() override {}
@@ -123,7 +121,7 @@ class Handshaker : public QuicCryptoClientHandshaker {
   }
 };
 
-class QuicCryptoClientHandshakerTest : public Test {
+class QuicCryptoClientHandshakerTest : public QuicTest {
  protected:
   QuicCryptoClientHandshakerTest()
       : proof_handler_(),

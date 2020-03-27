@@ -16,6 +16,7 @@ using testing::ElementsAre;
 
 namespace quic {
 namespace test {
+namespace {
 
 template <typename T, template <typename> class BaseAllocator = std::allocator>
 class CountingAllocator : public BaseAllocator<T> {
@@ -105,7 +106,9 @@ void ShiftLeft(Deque* dq, bool emplace) {
   }
 }
 
-TEST(QuicCircularDeque, Empty) {
+class QuicCircularDequeTest : public QuicTest {};
+
+TEST_F(QuicCircularDequeTest, Empty) {
   QuicCircularDeque<int> dq;
   EXPECT_TRUE(dq.empty());
   EXPECT_EQ(0u, dq.size());
@@ -125,7 +128,7 @@ TEST(QuicCircularDeque, Empty) {
   EXPECT_QUIC_DEBUG_DEATH(dq[0], "");
 }
 
-TEST(QuicCircularDeque, Constructor) {
+TEST_F(QuicCircularDequeTest, Constructor) {
   QuicCircularDeque<int> dq;
   EXPECT_TRUE(dq.empty());
 
@@ -173,7 +176,7 @@ TEST(QuicCircularDeque, Constructor) {
   EXPECT_THAT(dq9, ElementsAre(3, 4, 5, 6, 7));
 }
 
-TEST(QuicCircularDeque, Assign) {
+TEST_F(QuicCircularDequeTest, Assign) {
   // assign()
   QuicCircularDeque<int, 3, CountingAllocator<int>> dq;
   dq.assign(7, 1);
@@ -264,7 +267,7 @@ TEST(QuicCircularDeque, Assign) {
   EXPECT_TRUE(dq12.empty());
 }
 
-TEST(QuicCircularDeque, Access) {
+TEST_F(QuicCircularDequeTest, Access) {
   // at()
   // operator[]
   // front()
@@ -366,7 +369,7 @@ TEST(QuicCircularDeque, Access) {
   EXPECT_EQ(1u, dq.get_allocator().allocate_count());
 }
 
-TEST(QuicCircularDeque, Iterate) {
+TEST_F(QuicCircularDequeTest, Iterate) {
   QuicCircularDeque<int> dq;
   EXPECT_EQ(dq.begin(), dq.end());
   EXPECT_EQ(dq.cbegin(), dq.cend());
@@ -428,7 +431,7 @@ TEST(QuicCircularDeque, Iterate) {
   }
 }
 
-TEST(QuicCircularDeque, Iterator) {
+TEST_F(QuicCircularDequeTest, Iterator) {
   // Default constructed iterators of the same type compare equal.
   EXPECT_EQ(QuicCircularDeque<int>::iterator(),
             QuicCircularDeque<int>::iterator());
@@ -491,7 +494,7 @@ TEST(QuicCircularDeque, Iterator) {
   }
 }
 
-TEST(QuicCircularDeque, Resize) {
+TEST_F(QuicCircularDequeTest, Resize) {
   QuicCircularDeque<int, 3, CountingAllocator<int>> dq;
   dq.resize(8);
   EXPECT_THAT(dq, ElementsAre(0, 0, 0, 0, 0, 0, 0, 0));
@@ -572,7 +575,7 @@ class Foo {
 };
 }  // namespace
 
-TEST(QuicCircularDeque, RelocateNonTriviallyCopyable) {
+TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
   // When relocating non-trivially-copyable objects:
   // - Move constructor is preferred, if available.
   // - Copy constructor is used otherwise.
@@ -620,7 +623,7 @@ TEST(QuicCircularDeque, RelocateNonTriviallyCopyable) {
   }
 }
 
-TEST(QuicCircularDeque, PushPop) {
+TEST_F(QuicCircularDequeTest, PushPop) {
   // (push|pop|emplace)_(back|front)
 
   {
@@ -697,7 +700,7 @@ TEST(QuicCircularDeque, PushPop) {
   }
 }
 
-TEST(QuicCircularDeque, Allocation) {
+TEST_F(QuicCircularDequeTest, Allocation) {
   CountingAllocator<int> alloc;
 
   {
@@ -729,6 +732,7 @@ TEST(QuicCircularDeque, Allocation) {
   EXPECT_EQ(7u, alloc.deallocate_count());
 }
 
+}  // namespace
 }  // namespace test
 }  // namespace quic
 
@@ -759,7 +763,9 @@ using UnswappableUnequalAllocator = quic::test::ConfigurableAllocator<
     /*propagate_on_swap=*/std::false_type,
     /*equality_result=*/false>;
 
-TEST(QuicCircularDeque, Swap) {
+using quic::test::QuicCircularDequeTest;
+
+TEST_F(QuicCircularDequeTest, Swap) {
   using std::swap;
 
   quic::QuicCircularDeque<int64_t, 3, SwappableAllocator<int64_t>> dq1, dq2;
