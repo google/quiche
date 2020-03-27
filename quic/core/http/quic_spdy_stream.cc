@@ -69,8 +69,9 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnDataFrameStart(QuicByteCount header_length) override {
-    return stream_->OnDataFrameStart(header_length);
+  bool OnDataFrameStart(QuicByteCount header_length,
+                        QuicByteCount payload_length) override {
+    return stream_->OnDataFrameStart(header_length, payload_length);
   }
 
   bool OnDataFramePayload(quiche::QuicheStringPiece payload) override {
@@ -80,12 +81,13 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
 
   bool OnDataFrameEnd() override { return stream_->OnDataFrameEnd(); }
 
-  bool OnHeadersFrameStart(QuicByteCount header_length) override {
+  bool OnHeadersFrameStart(QuicByteCount header_length,
+                           QuicByteCount payload_length) override {
     if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Headers");
       return false;
     }
-    return stream_->OnHeadersFrameStart(header_length);
+    return stream_->OnHeadersFrameStart(header_length, payload_length);
   }
 
   bool OnHeadersFramePayload(quiche::QuicheStringPiece payload) override {
@@ -114,12 +116,14 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnPushPromiseFramePushId(PushId push_id,
-                                QuicByteCount push_id_length) override {
+                                QuicByteCount push_id_length,
+                                QuicByteCount header_block_length) override {
     if (!VersionUsesHttp3(stream_->transport_version())) {
       CloseConnectionOnWrongFrame("Push Promise");
       return false;
     }
-    return stream_->OnPushPromiseFramePushId(push_id, push_id_length);
+    return stream_->OnPushPromiseFramePushId(push_id, push_id_length,
+                                             header_block_length);
   }
 
   bool OnPushPromiseFramePayload(quiche::QuicheStringPiece payload) override {
@@ -150,8 +154,10 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   }
 
   bool OnUnknownFrameStart(uint64_t frame_type,
-                           QuicByteCount header_length) override {
-    return stream_->OnUnknownFrameStart(frame_type, header_length);
+                           QuicByteCount header_length,
+                           QuicByteCount payload_length) override {
+    return stream_->OnUnknownFrameStart(frame_type, header_length,
+                                        payload_length);
   }
 
   bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) override {
@@ -860,7 +866,8 @@ void QuicSpdyStream::ClearSession() {
   spdy_session_ = nullptr;
 }
 
-bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length) {
+bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
+                                      QuicByteCount /*payload_length*/) {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (!headers_decompressed_ || trailers_decompressed_) {
     stream_delegate()->OnStreamError(
@@ -952,7 +959,8 @@ QuicByteCount QuicSpdyStream::GetNumFrameHeadersInInterval(
   return header_acked_length;
 }
 
-bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length) {
+bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
+                                         QuicByteCount /*payload_length*/) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
@@ -977,6 +985,9 @@ bool QuicSpdyStream::OnHeadersFramePayload(quiche::QuicheStringPiece payload) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
 
+  // TODO(b/152518220): Save |payload_length| argument of OnHeadersFrameStart()
+  // instead of accumulating payload length in |headers_payload_length_| or
+  // |trailers_payload_length_|.
   if (headers_decompressed_) {
     trailers_payload_length_ += payload.length();
   } else {
@@ -1031,8 +1042,10 @@ bool QuicSpdyStream::OnPushPromiseFrameStart(QuicByteCount header_length) {
   return true;
 }
 
-bool QuicSpdyStream::OnPushPromiseFramePushId(PushId push_id,
-                                              QuicByteCount push_id_length) {
+bool QuicSpdyStream::OnPushPromiseFramePushId(
+    PushId push_id,
+    QuicByteCount push_id_length,
+    QuicByteCount /*header_block_length*/) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(!qpack_decoded_headers_accumulator_);
 
@@ -1061,7 +1074,8 @@ bool QuicSpdyStream::OnPushPromiseFrameEnd() {
 }
 
 bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
-                                         QuicByteCount header_length) {
+                                         QuicByteCount header_length,
+                                         QuicByteCount /*payload_length*/) {
   if (spdy_session_->debug_visitor()) {
     spdy_session_->debug_visitor()->OnUnknownFrameStart(id(), frame_type);
   }

@@ -78,7 +78,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return stream_->OnSettingsFrame(frame);
   }
 
-  bool OnDataFrameStart(QuicByteCount /*header_length*/) override {
+  bool OnDataFrameStart(QuicByteCount /*header_length*/, QuicByteCount
+                        /*payload_length*/) override {
     OnWrongFrame("Data");
     return false;
   }
@@ -93,7 +94,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnHeadersFrameStart(QuicByteCount /*header_length*/) override {
+  bool OnHeadersFrameStart(QuicByteCount /*header_length*/, QuicByteCount
+                           /*payload_length*/) override {
     OnWrongFrame("Headers");
     return false;
   }
@@ -113,8 +115,10 @@ class QuicReceiveControlStream::HttpDecoderVisitor
     return false;
   }
 
-  bool OnPushPromiseFramePushId(PushId /*push_id*/,
-                                QuicByteCount /*push_id_length*/) override {
+  bool OnPushPromiseFramePushId(
+      PushId /*push_id*/,
+      QuicByteCount /*push_id_length*/,
+      QuicByteCount /*header_block_length*/) override {
     OnWrongFrame("Push Promise");
     return false;
   }
@@ -139,7 +143,8 @@ class QuicReceiveControlStream::HttpDecoderVisitor
   }
 
   bool OnUnknownFrameStart(uint64_t frame_type,
-                           QuicByteCount /* header_length */) override {
+                           QuicByteCount /* header_length */,
+                           QuicByteCount /* payload_length */) override {
     if (stream_->spdy_session()->debug_visitor()) {
       stream_->spdy_session()->debug_visitor()->OnUnknownFrameStart(
           stream_->id(), frame_type);

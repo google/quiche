@@ -47,17 +47,21 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnSettingsFrameStart, bool(QuicByteCount header_length));
   MOCK_METHOD1(OnSettingsFrame, bool(const SettingsFrame& frame));
 
-  MOCK_METHOD1(OnDataFrameStart, bool(QuicByteCount header_length));
+  MOCK_METHOD2(OnDataFrameStart,
+               bool(QuicByteCount header_length, QuicByteCount payload_length));
   MOCK_METHOD1(OnDataFramePayload, bool(quiche::QuicheStringPiece payload));
   MOCK_METHOD0(OnDataFrameEnd, bool());
 
-  MOCK_METHOD1(OnHeadersFrameStart, bool(QuicByteCount header_length));
+  MOCK_METHOD2(OnHeadersFrameStart,
+               bool(QuicByteCount header_length, QuicByteCount payload_length));
   MOCK_METHOD1(OnHeadersFramePayload, bool(quiche::QuicheStringPiece payload));
   MOCK_METHOD0(OnHeadersFrameEnd, bool());
 
   MOCK_METHOD1(OnPushPromiseFrameStart, bool(QuicByteCount header_length));
-  MOCK_METHOD2(OnPushPromiseFramePushId,
-               bool(PushId push_id, QuicByteCount push_id_length));
+  MOCK_METHOD3(OnPushPromiseFramePushId,
+               bool(PushId push_id,
+                    QuicByteCount push_id_length,
+                    QuicByteCount header_block_length));
   MOCK_METHOD1(OnPushPromiseFramePayload,
                bool(quiche::QuicheStringPiece payload));
   MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
@@ -65,8 +69,11 @@ class MockVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD1(OnPriorityUpdateFrameStart, bool(QuicByteCount header_length));
   MOCK_METHOD1(OnPriorityUpdateFrame, bool(const PriorityUpdateFrame& frame));
 
-  MOCK_METHOD2(OnUnknownFrameStart, bool(uint64_t, QuicByteCount));
-  MOCK_METHOD1(OnUnknownFramePayload, bool(quiche::QuicheStringPiece));
+  MOCK_METHOD3(OnUnknownFrameStart,
+               bool(uint64_t frame_type,
+                    QuicByteCount header_length,
+                    QuicByteCount payload_length));
+  MOCK_METHOD1(OnUnknownFramePayload, bool(quiche::QuicheStringPiece payload));
   MOCK_METHOD0(OnUnknownFrameEnd, bool());
 };
 
@@ -78,21 +85,21 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrame(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnDataFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnDataFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFrameEnd()).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnHeadersFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnHeadersFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnHeadersFrameEnd()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameStart(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnPushPromiseFramePushId(_, _))
+    ON_CALL(visitor_, OnPushPromiseFramePushId(_, _, _))
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPushPromiseFrameEnd()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityUpdateFrameStart(_))
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnUnknownFrameStart(_, _)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnUnknownFrameStart(_, _, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
   }
@@ -168,7 +175,8 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
         writer.WriteStringPiece(data);
       }
 
-      EXPECT_CALL(visitor_, OnUnknownFrameStart(frame_type, header_length));
+      EXPECT_CALL(visitor_, OnUnknownFrameStart(frame_type, header_length,
+                                                payload_length));
       if (payload_length > 0) {
         EXPECT_CALL(visitor_, OnUnknownFramePayload(Eq(data)));
       }
@@ -220,7 +228,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2)).WillOnce(Return(false));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8))
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7))
       .WillOnce(Return(false));
   quiche::QuicheStringPiece remaining_input(input);
   QuicByteCount processed_bytes =
@@ -244,7 +252,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
   EXPECT_CALL(visitor_,
               OnPushPromiseFramePayload(quiche::QuicheStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
@@ -254,7 +262,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
   EXPECT_CALL(visitor_,
               OnPushPromiseFramePayload(quiche::QuicheStringPiece("H")));
   EXPECT_CALL(visitor_,
@@ -276,7 +284,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
 
   // Process push id incrementally and append headers with last byte of push id.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
   EXPECT_CALL(visitor_,
               OnPushPromiseFramePayload(quiche::QuicheStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
@@ -452,7 +460,7 @@ TEST_F(HttpDecoderTest, DataFrame) {
       "Data!");                                  // data
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 5)).WillOnce(Return(false));
   quiche::QuicheStringPiece remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
@@ -470,7 +478,7 @@ TEST_F(HttpDecoderTest, DataFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
   EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("Data!")));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
@@ -478,7 +486,7 @@ TEST_F(HttpDecoderTest, DataFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
   EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("D")));
   EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("a")));
   EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("t")));
@@ -504,7 +512,7 @@ TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Send the rest of the header.
-  EXPECT_CALL(visitor_, OnDataFrameStart(3));
+  EXPECT_CALL(visitor_, OnDataFrameStart(3, input.length()));
   EXPECT_EQ(header_length - 1,
             decoder_.ProcessInput(header.data() + 1, header_length - 1));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -531,7 +539,8 @@ TEST_F(HttpDecoderTest, PartialDeliveryOfLargeFrameType) {
   writer.WriteVarInt62(frame_type);
   writer.WriteVarInt62(payload_length);
 
-  EXPECT_CALL(visitor_, OnUnknownFrameStart(frame_type, header_length));
+  EXPECT_CALL(visitor_,
+              OnUnknownFrameStart(frame_type, header_length, payload_length));
   EXPECT_CALL(visitor_, OnUnknownFrameEnd());
 
   auto raw_input = input.get();
@@ -580,7 +589,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
       "Headers");                                // headers
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7)).WillOnce(Return(false));
   quiche::QuicheStringPiece remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
@@ -599,7 +608,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
   EXPECT_CALL(visitor_,
               OnHeadersFramePayload(quiche::QuicheStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
@@ -608,7 +617,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("H")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("e")));
   EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("a")));
@@ -629,7 +638,7 @@ TEST_F(HttpDecoderTest, EmptyDataFrame) {
       "00");  // length
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 0)).WillOnce(Return(false));
   EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
 
   EXPECT_CALL(visitor_, OnDataFrameEnd()).WillOnce(Return(false));
@@ -638,14 +647,14 @@ TEST_F(HttpDecoderTest, EmptyDataFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 0));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 0));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -659,7 +668,7 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
       "00");  // length
 
   // Visitor pauses processing.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 0)).WillOnce(Return(false));
   EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
 
   EXPECT_CALL(visitor_, OnHeadersFrameEnd()).WillOnce(Return(false));
@@ -668,14 +677,14 @@ TEST_F(HttpDecoderTest, EmptyHeadersFrame) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the full frame.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 0));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
 
   // Process the frame incrementally.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 0));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -691,7 +700,8 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1, 0))
+      .WillOnce(Return(false));
   EXPECT_EQ(input.size(), ProcessInputWithGarbageAppended(input));
 
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd()).WillOnce(Return(false));
@@ -701,7 +711,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1, 0));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -709,7 +719,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrameNoHeaders) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
-  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePushId(1, 1, 0));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -754,7 +764,7 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
       "Data!");                                  // data
 
   // Visitor pauses processing, maybe because header decompression is blocked.
-  EXPECT_CALL(visitor_, OnHeadersFrameStart(2));
+  EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
   EXPECT_CALL(visitor_,
               OnHeadersFramePayload(quiche::QuicheStringPiece("Headers")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd()).WillOnce(Return(false));
@@ -765,7 +775,7 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
   remaining_input = remaining_input.substr(processed_bytes);
 
   // Process DATA frame.
-  EXPECT_CALL(visitor_, OnDataFrameStart(2));
+  EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
   EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("Data!")));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
 
