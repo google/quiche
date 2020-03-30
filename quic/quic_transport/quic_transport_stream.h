@@ -63,8 +63,11 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
   using QuicStream::WriteMemSlices;
   using QuicStream::WriteOrBufferData;
 
+  void MaybeNotifyFinRead();
+
   QuicTransportSessionInterface* session_interface_;
   std::unique_ptr<Visitor> visitor_ = nullptr;
+  bool fin_read_notified_ = false;
 };
 
 }  // namespace quic
