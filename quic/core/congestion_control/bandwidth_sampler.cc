@@ -95,6 +95,29 @@ BandwidthSampler::BandwidthSampler(
       total_bytes_acked_after_last_ack_event_(0),
       overestimate_avoidance_(false) {}
 
+BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
+    : total_bytes_sent_(other.total_bytes_sent_),
+      total_bytes_acked_(other.total_bytes_acked_),
+      total_bytes_lost_(other.total_bytes_lost_),
+      total_bytes_neutered_(other.total_bytes_neutered_),
+      total_bytes_sent_at_last_acked_packet_(
+          other.total_bytes_sent_at_last_acked_packet_),
+      last_acked_packet_sent_time_(other.last_acked_packet_sent_time_),
+      last_acked_packet_ack_time_(other.last_acked_packet_ack_time_),
+      last_sent_packet_(other.last_sent_packet_),
+      started_as_app_limited_(other.started_as_app_limited_),
+      is_app_limited_(other.is_app_limited_),
+      end_of_app_limited_phase_(other.end_of_app_limited_phase_),
+      connection_state_map_(other.connection_state_map_),
+      recent_ack_points_(other.recent_ack_points_),
+      a0_candidates_(other.a0_candidates_),
+      max_tracked_packets_(other.max_tracked_packets_),
+      unacked_packet_map_(other.unacked_packet_map_),
+      max_ack_height_tracker_(other.max_ack_height_tracker_),
+      total_bytes_acked_after_last_ack_event_(
+          other.total_bytes_acked_after_last_ack_event_),
+      overestimate_avoidance_(other.overestimate_avoidance_) {}
+
 void BandwidthSampler::EnableOverestimateAvoidance() {
   if (overestimate_avoidance_) {
     return;

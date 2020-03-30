@@ -26,7 +26,8 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     CongestionControlType congestion_control_type,
     QuicRandom* random,
     QuicConnectionStats* stats,
-    QuicPacketCount initial_congestion_window) {
+    QuicPacketCount initial_congestion_window,
+    SendAlgorithmInterface* old_send_algorithm) {
   QuicPacketCount max_congestion_window =
       GetQuicFlag(FLAGS_quic_max_congestion_window);
   switch (congestion_control_type) {
@@ -36,9 +37,13 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
                            initial_congestion_window, max_congestion_window,
                            random, stats);
     case kBBRv2:
-      return new Bbr2Sender(clock->ApproximateNow(), rtt_stats, unacked_packets,
-                            initial_congestion_window, max_congestion_window,
-                            random, stats);
+      return new Bbr2Sender(
+          clock->ApproximateNow(), rtt_stats, unacked_packets,
+          initial_congestion_window, max_congestion_window, random, stats,
+          old_send_algorithm &&
+                  old_send_algorithm->GetCongestionControlType() == kBBR
+              ? static_cast<BbrSender*>(old_send_algorithm)
+              : nullptr);
     case kPCC:
       if (GetQuicReloadableFlag(quic_enable_pcc3)) {
         return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,

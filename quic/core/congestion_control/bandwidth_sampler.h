@@ -304,6 +304,10 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
  public:
   BandwidthSampler(const QuicUnackedPacketMap* unacked_packet_map,
                    QuicRoundTripCount max_height_tracker_window_length);
+
+  // Copy states from |other|. This is useful when changing send algorithms in
+  // the middle of a connection.
+  BandwidthSampler(const BandwidthSampler& other);
   ~BandwidthSampler() override;
 
   void OnPacketSent(QuicTime sent_time,

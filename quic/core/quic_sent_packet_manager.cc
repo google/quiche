@@ -1237,7 +1237,7 @@ void QuicSentPacketManager::SetSendAlgorithm(
 
   SetSendAlgorithm(SendAlgorithmInterface::Create(
       clock_, &rtt_stats_, &unacked_packets_, congestion_control_type, random_,
-      stats_, initial_congestion_window_));
+      stats_, initial_congestion_window_, send_algorithm_.get()));
 }
 
 void QuicSentPacketManager::SetSendAlgorithm(

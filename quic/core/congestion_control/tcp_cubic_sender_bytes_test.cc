@@ -786,7 +786,7 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
   QuicConnectionStats stats;
   std::unique_ptr<SendAlgorithmInterface> sender(SendAlgorithmInterface::Create(
       &clock_, &rtt_stats, /*unacked_packets=*/nullptr, kCubicBytes,
-      QuicRandom::GetInstance(), &stats, kInitialCongestionWindow));
+      QuicRandom::GetInstance(), &stats, kInitialCongestionWindow, nullptr));
 
   AckedPacketVector acked_packets;
   LostPacketVector missing_packets;

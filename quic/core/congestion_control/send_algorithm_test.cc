@@ -171,7 +171,7 @@ class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
             QuicConnectionPeer::GetSentPacketManager(
                 quic_sender_.connection())),
         GetParam().congestion_control_type, &random_, &stats_,
-        kInitialCongestionWindowPackets);
+        kInitialCongestionWindowPackets, nullptr);
     quic_sender_.RecordTrace();
 
     QuicConnectionPeer::SetSendAlgorithm(quic_sender_.connection(), sender_);

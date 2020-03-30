@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_probe_bw.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_probe_rtt.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_startup.h"
+#include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/windowed_filter.h"
@@ -31,7 +32,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
              QuicPacketCount initial_cwnd_in_packets,
              QuicPacketCount max_cwnd_in_packets,
              QuicRandom* random,
-             QuicConnectionStats* stats);
+             QuicConnectionStats* stats,
+             BbrSender* old_sender);
 
   ~Bbr2Sender() override = default;
 

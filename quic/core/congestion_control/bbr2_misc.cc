@@ -55,9 +55,19 @@ Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
                                    QuicTime::Delta initial_rtt,
                                    QuicTime initial_rtt_timestamp,
                                    float cwnd_gain,
-                                   float pacing_gain)
+                                   float pacing_gain,
+                                   const BandwidthSampler* old_sampler)
     : params_(params),
-      bandwidth_sampler_(nullptr, params->initial_max_ack_height_filter_window),
+      bandwidth_sampler_([](QuicRoundTripCount max_height_tracker_window_length,
+                            const BandwidthSampler* old_sampler) {
+        if (GetQuicReloadableFlag(quic_bbr_copy_sampler_state_from_v1_to_v2) &&
+            old_sampler != nullptr) {
+          QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_copy_sampler_state_from_v1_to_v2);
+          return BandwidthSampler(*old_sampler);
+        }
+        return BandwidthSampler(/*unacked_packet_map=*/nullptr,
+                                max_height_tracker_window_length);
+      }(params->initial_max_ack_height_filter_window, old_sampler)),
       min_rtt_filter_(initial_rtt, initial_rtt_timestamp),
       cwnd_gain_(cwnd_gain),
       pacing_gain_(pacing_gain) {}

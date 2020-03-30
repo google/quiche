@@ -78,7 +78,8 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
       CongestionControlType type,
       QuicRandom* random,
       QuicConnectionStats* stats,
-      QuicPacketCount initial_congestion_window);
+      QuicPacketCount initial_congestion_window,
+      SendAlgorithmInterface* old_send_algorithm);
 
   virtual ~SendAlgorithmInterface() {}
 

@@ -299,7 +299,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
                    QuicTime::Delta initial_rtt,
                    QuicTime initial_rtt_timestamp,
                    float cwnd_gain,
-                   float pacing_gain);
+                   float pacing_gain,
+                   const BandwidthSampler* old_sampler);
 
   void OnPacketSent(QuicTime sent_time,
                     QuicByteCount bytes_in_flight,

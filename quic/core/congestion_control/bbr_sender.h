@@ -171,6 +171,9 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   DebugState ExportDebugState() const;
 
  private:
+  // For switching send algorithm mid connection.
+  friend class Bbr2Sender;
+
   typedef WindowedFilter<QuicBandwidth,
                          MaxFilter<QuicBandwidth>,
                          QuicRoundTripCount,

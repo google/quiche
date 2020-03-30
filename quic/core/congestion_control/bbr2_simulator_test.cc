@@ -172,7 +172,7 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
                            "Sender",
                            Perspective::IS_SERVER,
                            TestConnectionId(42)) {
-    sender_ = SetupBbr2Sender(&sender_endpoint_);
+    sender_ = SetupBbr2Sender(&sender_endpoint_, /*old_sender=*/nullptr);
   }
 
   ~Bbr2DefaultTopologyTest() {
@@ -192,14 +192,15 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
         QuicConnectionPeer::GetSentPacketManager(connection));
   }
 
-  Bbr2Sender* SetupBbr2Sender(simulator::QuicEndpoint* endpoint) {
+  Bbr2Sender* SetupBbr2Sender(simulator::QuicEndpoint* endpoint,
+                              BbrSender* old_sender) {
     // Ownership of the sender will be overtaken by the endpoint.
     Bbr2Sender* sender = new Bbr2Sender(
         endpoint->connection()->clock()->Now(),
         endpoint->connection()->sent_packet_manager().GetRttStats(),
         GetUnackedMap(endpoint->connection()), kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
-        QuicConnectionPeer::GetStats(endpoint->connection()));
+        QuicConnectionPeer::GetStats(endpoint->connection()), old_sender);
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
@@ -936,6 +937,90 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
   }
 }
 
+// Regression test for http://shortn/_Jt1QWtshAM.
+TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
+  if (!GetQuicReloadableFlag(quic_bbr_copy_sampler_state_from_v1_to_v2)) {
+    return;
+  }
+  QuicTime now = QuicTime::Zero();
+  BbrSender old_sender(sender_connection()->clock()->Now(),
+                       sender_connection()->sent_packet_manager().GetRttStats(),
+                       GetUnackedMap(sender_connection()),
+                       kDefaultInitialCwndPackets,
+                       GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
+                       QuicConnectionPeer::GetStats(sender_connection()));
+
+  QuicPacketNumber next_packet_number(1);
+
+  // Send packets 1-4.
+  while (next_packet_number < QuicPacketNumber(5)) {
+    now = now + QuicTime::Delta::FromMilliseconds(10);
+
+    old_sender.OnPacketSent(now, /*bytes_in_flight=*/0, next_packet_number++,
+                            /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+  }
+
+  // Switch from |old_sender| to |sender_|.
+  sender_ = SetupBbr2Sender(&sender_endpoint_, &old_sender);
+
+  // Send packets 5-7.
+  now = now + QuicTime::Delta::FromMilliseconds(10);
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/1350, next_packet_number++,
+                        /*bytes=*/23, NO_RETRANSMITTABLE_DATA);
+
+  now = now + QuicTime::Delta::FromMilliseconds(10);
+  sender_->OnPacketSent(now, /*bytes_in_flight=*/1350, next_packet_number++,
+                        /*bytes=*/767, HAS_RETRANSMITTABLE_DATA);
+
+  QuicByteCount bytes_in_flight = 767;
+  while (next_packet_number < QuicPacketNumber(30)) {
+    now = now + QuicTime::Delta::FromMilliseconds(10);
+    bytes_in_flight += 1350;
+    sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
+                          /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+  }
+
+  // Ack 1 & 2.
+  AckedPacketVector acked = {
+      AckedPacket(QuicPacketNumber(1), /*bytes_acked=*/0, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(2), /*bytes_acked=*/0, QuicTime::Zero()),
+  };
+  now = now + QuicTime::Delta::FromMilliseconds(2000);
+  sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {});
+
+  // Send 30-41.
+  while (next_packet_number < QuicPacketNumber(42)) {
+    now = now + QuicTime::Delta::FromMilliseconds(10);
+    bytes_in_flight += 1350;
+    sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
+                          /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+  }
+
+  // Ack 3.
+  acked = {
+      AckedPacket(QuicPacketNumber(3), /*bytes_acked=*/0, QuicTime::Zero()),
+  };
+  now = now + QuicTime::Delta::FromMilliseconds(2000);
+  sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {});
+
+  // Send 42.
+  now = now + QuicTime::Delta::FromMilliseconds(10);
+  bytes_in_flight += 1350;
+  sender_->OnPacketSent(now, bytes_in_flight, next_packet_number++,
+                        /*bytes=*/1350, HAS_RETRANSMITTABLE_DATA);
+
+  // Ack 4-7.
+  acked = {
+      AckedPacket(QuicPacketNumber(4), /*bytes_acked=*/0, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(5), /*bytes_acked=*/0, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(6), /*bytes_acked=*/767, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(7), /*bytes_acked=*/1350, QuicTime::Zero()),
+  };
+  now = now + QuicTime::Delta::FromMilliseconds(2000);
+  sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {});
+  EXPECT_FALSE(sender_->BandwidthEstimate().IsZero());
+}
+
 // All Bbr2MultiSenderTests uses the following network topology:
 //
 //   Sender 0  (A Bbr2Sender)
@@ -1049,7 +1134,7 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
             QuicConnectionPeer::GetSentPacketManager(endpoint->connection())),
         kDefaultInitialCwndPackets,
         GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
-        QuicConnectionPeer::GetStats(endpoint->connection()));
+        QuicConnectionPeer::GetStats(endpoint->connection()), nullptr);
     QuicConnectionPeer::SetSendAlgorithm(endpoint->connection(), sender);
     endpoint->RecordTrace();
     return sender;
