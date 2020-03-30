@@ -1261,9 +1261,10 @@ bool QuicSpdySession::OnMaxPushIdFrame(QuicStreamId max_push_id) {
 void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
-  // TODO(bnc): Do not send a MAX_PUSH_ID frame if SetMaxPushId() has not been
-  // called yet.
-  send_control_stream_->SendMaxPushIdFrame(max_push_id_.value_or(0));
+
+  if (max_push_id_.has_value()) {
+    send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
+  }
 }
 
 void QuicSpdySession::EnableServerPush() {

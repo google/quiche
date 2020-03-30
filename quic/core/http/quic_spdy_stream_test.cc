@@ -332,10 +332,6 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       // The control stream will write the stream type, a greased frame, and
       // SETTINGS frame.
       int num_control_stream_writes = 3;
-      if (session_->perspective() == Perspective::IS_CLIENT) {
-        // The control stream also writes the max push id frame.
-        num_control_stream_writes++;
-      }
       auto send_control_stream =
           QuicSpdySessionPeer::GetSendControlStream(session_.get());
       EXPECT_CALL(*session_,

@@ -447,7 +447,9 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
           .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
     }
-    if (connection_->version().HasHandshakeDone()) {
+    // HANDSHAKE_DONE frame sent by the server.
+    if (connection_->version().HasHandshakeDone() &&
+        connection_->perspective() == Perspective::IS_SERVER) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillOnce(Invoke(&ClearControlFrame));
     }
@@ -2992,6 +2994,39 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
   QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
                         quiche::QuicheStringPiece(buffer.get(), frame_length));
   session_.OnStreamFrame(data2);
+}
+
+TEST_P(QuicSpdySessionTestClient, SendInitialMaxPushIdIfSet) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  const QuicStreamId max_push_id = 5;
+  session_.SetMaxPushId(max_push_id);
+
+  InSequence s;
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  const MaxPushIdFrame max_push_id_frame{max_push_id};
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(max_push_id_frame));
+
+  CompleteHandshake();
+}
+
+TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  InSequence s;
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+
+  CompleteHandshake();
 }
 
 }  // namespace
