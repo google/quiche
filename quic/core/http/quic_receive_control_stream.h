@@ -16,7 +16,9 @@ class QuicSpdySession;
 
 // 3.2.1 Control Stream.
 // The receive control stream is peer initiated and is read only.
-class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
+class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
+    : public QuicStream,
+      public HttpDecoder::Visitor {
  public:
   explicit QuicReceiveControlStream(PendingStream* pending,
                                     QuicSpdySession* spdy_session);
@@ -31,27 +33,46 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream : public QuicStream {
   // Implementation of QuicStream.
   void OnDataAvailable() override;
 
+  // HttpDecoderVisitor implementation.
+  void OnError(HttpDecoder* decoder) override;
+  bool OnCancelPushFrame(const CancelPushFrame& frame) override;
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override;
+  bool OnGoAwayFrame(const GoAwayFrame& frame) override;
+  bool OnSettingsFrameStart(QuicByteCount header_length) override;
+  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnDataFrameStart(QuicByteCount header_length,
+                        QuicByteCount payload_length) override;
+  bool OnDataFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnDataFrameEnd() override;
+  bool OnHeadersFrameStart(QuicByteCount header_length,
+                           QuicByteCount payload_length) override;
+  bool OnHeadersFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnHeadersFrameEnd() override;
+  bool OnPushPromiseFrameStart(QuicByteCount header_length) override;
+  bool OnPushPromiseFramePushId(PushId push_id,
+                                QuicByteCount push_id_length,
+                                QuicByteCount header_block_length) override;
+  bool OnPushPromiseFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnPushPromiseFrameEnd() override;
+  bool OnPriorityUpdateFrameStart(QuicByteCount header_length) override;
+  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override;
+  bool OnUnknownFrameStart(uint64_t frame_type,
+                           QuicByteCount header_length,
+                           QuicByteCount payload_length) override;
+  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnUnknownFrameEnd() override;
+
   void SetUnblocked() { sequencer()->SetUnblocked(); }
 
   QuicSpdySession* spdy_session() { return spdy_session_; }
 
  private:
-  class HttpDecoderVisitor;
-
-  // Called from HttpDecoderVisitor.
-  bool OnSettingsFrameStart(QuicByteCount header_length);
-  bool OnSettingsFrame(const SettingsFrame& settings);
-  bool OnPriorityUpdateFrameStart(QuicByteCount header_length);
-  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& priority);
-  bool OnUnknownFrameStart();
+  void OnWrongFrame(quiche::QuicheStringPiece frame_type);
 
   // False until a SETTINGS frame is received.
   bool settings_frame_received_;
 
-  // HttpDecoder and its visitor.
-  std::unique_ptr<HttpDecoderVisitor> http_decoder_visitor_;
   HttpDecoder decoder_;
-
   QuicSpdySession* const spdy_session_;
 };
 

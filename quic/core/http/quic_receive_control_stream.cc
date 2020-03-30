@@ -15,171 +15,12 @@
 
 namespace quic {
 
-// Visitor of HttpDecoder that passes data frame to QuicSpdyStream and closes
-// the connection on unexpected frames.
-class QuicReceiveControlStream::HttpDecoderVisitor
-    : public HttpDecoder::Visitor {
- public:
-  explicit HttpDecoderVisitor(QuicReceiveControlStream* stream)
-      : stream_(stream) {}
-  HttpDecoderVisitor(const HttpDecoderVisitor&) = delete;
-  HttpDecoderVisitor& operator=(const HttpDecoderVisitor&) = delete;
-
-  void OnError(HttpDecoder* decoder) override {
-    stream_->OnUnrecoverableError(decoder->error(), decoder->error_detail());
-  }
-
-  bool OnCancelPushFrame(const CancelPushFrame& frame) override {
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnCancelPushFrameReceived(
-          frame);
-    }
-
-    // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
-    return true;
-  }
-
-  bool OnMaxPushIdFrame(const MaxPushIdFrame& frame) override {
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
-    }
-
-    if (stream_->spdy_session()->perspective() == Perspective::IS_CLIENT) {
-      OnWrongFrame("Max Push Id");
-      return false;
-    }
-
-    // TODO(b/124216424): Signal error if received push ID is smaller than a
-    // previously received value.
-    stream_->spdy_session()->OnMaxPushIdFrame(frame.push_id);
-    return true;
-  }
-
-  bool OnGoAwayFrame(const GoAwayFrame& frame) override {
-    // TODO(bnc): Check if SETTINGS frame has been received.
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
-    }
-
-    if (stream_->spdy_session()->perspective() == Perspective::IS_SERVER) {
-      OnWrongFrame("Go Away");
-      return false;
-    }
-
-    stream_->spdy_session()->OnHttp3GoAway(frame.stream_id);
-    return true;
-  }
-
-  bool OnSettingsFrameStart(QuicByteCount header_length) override {
-    return stream_->OnSettingsFrameStart(header_length);
-  }
-
-  bool OnSettingsFrame(const SettingsFrame& frame) override {
-    return stream_->OnSettingsFrame(frame);
-  }
-
-  bool OnDataFrameStart(QuicByteCount /*header_length*/, QuicByteCount
-                        /*payload_length*/) override {
-    OnWrongFrame("Data");
-    return false;
-  }
-
-  bool OnDataFramePayload(quiche::QuicheStringPiece /*payload*/) override {
-    OnWrongFrame("Data");
-    return false;
-  }
-
-  bool OnDataFrameEnd() override {
-    OnWrongFrame("Data");
-    return false;
-  }
-
-  bool OnHeadersFrameStart(QuicByteCount /*header_length*/, QuicByteCount
-                           /*payload_length*/) override {
-    OnWrongFrame("Headers");
-    return false;
-  }
-
-  bool OnHeadersFramePayload(quiche::QuicheStringPiece /*payload*/) override {
-    OnWrongFrame("Headers");
-    return false;
-  }
-
-  bool OnHeadersFrameEnd() override {
-    OnWrongFrame("Headers");
-    return false;
-  }
-
-  bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
-    OnWrongFrame("Push Promise");
-    return false;
-  }
-
-  bool OnPushPromiseFramePushId(
-      PushId /*push_id*/,
-      QuicByteCount /*push_id_length*/,
-      QuicByteCount /*header_block_length*/) override {
-    OnWrongFrame("Push Promise");
-    return false;
-  }
-
-  bool OnPushPromiseFramePayload(
-      quiche::QuicheStringPiece /*payload*/) override {
-    OnWrongFrame("Push Promise");
-    return false;
-  }
-
-  bool OnPushPromiseFrameEnd() override {
-    OnWrongFrame("Push Promise");
-    return false;
-  }
-
-  bool OnPriorityUpdateFrameStart(QuicByteCount header_length) override {
-    return stream_->OnPriorityUpdateFrameStart(header_length);
-  }
-
-  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override {
-    return stream_->OnPriorityUpdateFrame(frame);
-  }
-
-  bool OnUnknownFrameStart(uint64_t frame_type,
-                           QuicByteCount /* header_length */,
-                           QuicByteCount payload_length) override {
-    if (stream_->spdy_session()->debug_visitor()) {
-      stream_->spdy_session()->debug_visitor()->OnUnknownFrameReceived(
-          stream_->id(), frame_type, payload_length);
-    }
-
-    return stream_->OnUnknownFrameStart();
-  }
-
-  bool OnUnknownFramePayload(quiche::QuicheStringPiece /* payload */) override {
-    // Ignore unknown frame types.
-    return true;
-  }
-
-  bool OnUnknownFrameEnd() override {
-    // Ignore unknown frame types.
-    return true;
-  }
-
- private:
-  void OnWrongFrame(quiche::QuicheStringPiece frame_type) {
-    stream_->OnUnrecoverableError(
-        QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
-        quiche::QuicheStrCat(frame_type, " frame received on control stream"));
-  }
-
-  QuicReceiveControlStream* stream_;
-};
-
 QuicReceiveControlStream::QuicReceiveControlStream(
     PendingStream* pending,
     QuicSpdySession* spdy_session)
     : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
       settings_frame_received_(false),
-      http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
-      decoder_(http_decoder_visitor_.get()),
+      decoder_(this),
       spdy_session_(spdy_session) {
   sequencer()->set_level_triggered(true);
 }
@@ -213,8 +54,52 @@ void QuicReceiveControlStream::OnDataAvailable() {
   }
 }
 
+void QuicReceiveControlStream::OnError(HttpDecoder* decoder) {
+  OnUnrecoverableError(decoder->error(), decoder->error_detail());
+}
+
+bool QuicReceiveControlStream::OnCancelPushFrame(const CancelPushFrame& frame) {
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnCancelPushFrameReceived(frame);
+  }
+
+  // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
+  return true;
+}
+
+bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
+  }
+
+  if (spdy_session()->perspective() == Perspective::IS_CLIENT) {
+    OnWrongFrame("Max Push Id");
+    return false;
+  }
+
+  // TODO(b/124216424): Signal error if received push ID is smaller than a
+  // previously received value.
+  spdy_session()->OnMaxPushIdFrame(frame.push_id);
+  return true;
+}
+
+bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {
+  // TODO(bnc): Check if SETTINGS frame has been received.
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
+  }
+
+  if (spdy_session()->perspective() == Perspective::IS_SERVER) {
+    OnWrongFrame("Go Away");
+    return false;
+  }
+
+  spdy_session()->OnHttp3GoAway(frame.stream_id);
+  return true;
+}
+
 bool QuicReceiveControlStream::OnSettingsFrameStart(
-    QuicByteCount /* header_length */) {
+    QuicByteCount /*header_length*/) {
   if (settings_frame_received_) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
@@ -227,20 +112,82 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
   return true;
 }
 
-bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& settings) {
+bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& frame) {
   QUIC_DVLOG(1) << "Control Stream " << id()
-                << " received settings frame: " << settings;
+                << " received settings frame: " << frame;
   if (spdy_session_->debug_visitor() != nullptr) {
-    spdy_session_->debug_visitor()->OnSettingsFrameReceived(settings);
+    spdy_session_->debug_visitor()->OnSettingsFrameReceived(frame);
   }
-  for (const auto& setting : settings.values) {
+  for (const auto& setting : frame.values) {
     spdy_session_->OnSetting(setting.first, setting.second);
   }
   return true;
 }
 
+bool QuicReceiveControlStream::OnDataFrameStart(QuicByteCount /*header_length*/,
+                                                QuicByteCount
+                                                /*payload_length*/) {
+  OnWrongFrame("Data");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnDataFramePayload(
+    quiche::QuicheStringPiece /*payload*/) {
+  OnWrongFrame("Data");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnDataFrameEnd() {
+  OnWrongFrame("Data");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnHeadersFrameStart(
+    QuicByteCount /*header_length*/,
+    QuicByteCount
+    /*payload_length*/) {
+  OnWrongFrame("Headers");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnHeadersFramePayload(
+    quiche::QuicheStringPiece /*payload*/) {
+  OnWrongFrame("Headers");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnHeadersFrameEnd() {
+  OnWrongFrame("Headers");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnPushPromiseFrameStart(
+    QuicByteCount /*header_length*/) {
+  OnWrongFrame("Push Promise");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnPushPromiseFramePushId(
+    PushId /*push_id*/,
+    QuicByteCount /*push_id_length*/,
+    QuicByteCount /*header_block_length*/) {
+  OnWrongFrame("Push Promise");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnPushPromiseFramePayload(
+    quiche::QuicheStringPiece /*payload*/) {
+  OnWrongFrame("Push Promise");
+  return false;
+}
+
+bool QuicReceiveControlStream::OnPushPromiseFrameEnd() {
+  OnWrongFrame("Push Promise");
+  return false;
+}
+
 bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
-    QuicByteCount /* header_length */) {
+    QuicByteCount /*header_length*/) {
   if (!settings_frame_received_) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
@@ -251,14 +198,14 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
 }
 
 bool QuicReceiveControlStream::OnPriorityUpdateFrame(
-    const PriorityUpdateFrame& priority) {
+    const PriorityUpdateFrame& frame) {
   if (spdy_session()->debug_visitor()) {
-    spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(priority);
+    spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
   // TODO(b/147306124): Use a proper structured headers parser instead.
   for (auto key_value :
-       quiche::QuicheTextUtils::Split(priority.priority_field_value, ',')) {
+       quiche::QuicheTextUtils::Split(frame.priority_field_value, ',')) {
     auto key_and_value = quiche::QuicheTextUtils::Split(key_value, '=');
     if (key_and_value.size() != 2) {
       continue;
@@ -280,12 +227,12 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
       return false;
     }
 
-    if (priority.prioritized_element_type == REQUEST_STREAM) {
+    if (frame.prioritized_element_type == REQUEST_STREAM) {
       return spdy_session_->OnPriorityUpdateForRequestStream(
-          priority.prioritized_element_id, urgency);
+          frame.prioritized_element_id, urgency);
     } else {
       return spdy_session_->OnPriorityUpdateForPushStream(
-          priority.prioritized_element_id, urgency);
+          frame.prioritized_element_id, urgency);
     }
   }
 
@@ -293,7 +240,15 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
   return true;
 }
 
-bool QuicReceiveControlStream::OnUnknownFrameStart() {
+bool QuicReceiveControlStream::OnUnknownFrameStart(
+    uint64_t frame_type,
+    QuicByteCount /*header_length*/,
+    QuicByteCount payload_length) {
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnUnknownFrameReceived(id(), frame_type,
+                                                            payload_length);
+  }
+
   if (!settings_frame_received_) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
@@ -302,6 +257,24 @@ bool QuicReceiveControlStream::OnUnknownFrameStart() {
   }
 
   return true;
+}
+
+bool QuicReceiveControlStream::OnUnknownFramePayload(
+    quiche::QuicheStringPiece /*payload*/) {
+  // Ignore unknown frame types.
+  return true;
+}
+
+bool QuicReceiveControlStream::OnUnknownFrameEnd() {
+  // Ignore unknown frame types.
+  return true;
+}
+
+void QuicReceiveControlStream::OnWrongFrame(
+    quiche::QuicheStringPiece frame_type) {
+  OnUnrecoverableError(
+      QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
+      quiche::QuicheStrCat(frame_type, " frame received on control stream"));
 }
 
 }  // namespace quic
