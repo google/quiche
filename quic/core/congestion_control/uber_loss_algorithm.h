@@ -88,6 +88,9 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   // Disable packet threshold loss detection for *runt* packets.
   void DisablePacketThresholdForRuntPackets();
 
+  // Called to reset loss detection of |space|.
+  void ResetLossDetection(PacketNumberSpace space);
+
  private:
   friend class test::QuicSentPacketManagerPeer;
 

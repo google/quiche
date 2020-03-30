@@ -157,4 +157,9 @@ void GeneralLossAlgorithm::SetPacketNumberSpace(
   packet_number_space_ = packet_number_space;
 }
 
+void GeneralLossAlgorithm::Reset() {
+  loss_detection_timeout_ = QuicTime::Zero();
+  least_in_flight_.Clear();
+}
+
 }  // namespace quic

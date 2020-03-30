@@ -483,6 +483,10 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
       send_algorithm_->OnPacketNeutered(packet_number);
     }
   }
+  if (handshake_mode_disabled_) {
+    consecutive_pto_count_ = 0;
+    uber_loss_algorithm_.ResetLossDetection(INITIAL_DATA);
+  }
 }
 
 void QuicSentPacketManager::NeuterHandshakePackets() {
@@ -493,6 +497,10 @@ void QuicSentPacketManager::NeuterHandshakePackets() {
           quic_avoid_overestimate_bandwidth_with_aggregation, 2, 4);
       send_algorithm_->OnPacketNeutered(packet_number);
     }
+  }
+  if (handshake_mode_disabled_) {
+    consecutive_pto_count_ = 0;
+    uber_loss_algorithm_.ResetLossDetection(HANDSHAKE_DATA);
   }
 }
 

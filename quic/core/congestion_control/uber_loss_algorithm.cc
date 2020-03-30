@@ -134,4 +134,12 @@ void UberLossAlgorithm::DisablePacketThresholdForRuntPackets() {
   }
 }
 
+void UberLossAlgorithm::ResetLossDetection(PacketNumberSpace space) {
+  if (space >= NUM_PACKET_NUMBER_SPACES) {
+    QUIC_BUG << "Invalid packet number space: " << space;
+    return;
+  }
+  general_loss_algorithms_[space].Reset();
+}
+
 }  // namespace quic

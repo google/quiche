@@ -64,6 +64,8 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
 
   void SetPacketNumberSpace(PacketNumberSpace packet_number_space);
 
+  void Reset();
+
   int reordering_shift() const { return reordering_shift_; }
 
   void set_reordering_shift(int reordering_shift) {

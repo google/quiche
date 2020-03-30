@@ -3231,6 +3231,7 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   // Send packet 4 in application data with 0-RTT.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   SendDataPacket(4, ENCRYPTION_ZERO_RTT);
+  const QuicTime packet4_sent_time = clock_.Now();
   // Verify PTO timeout is still based on packet 3.
   EXPECT_EQ(packet3_sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
@@ -3261,8 +3262,9 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
 
   // Neuter handshake key.
   manager_.SetHandshakeConfirmed();
-  // Verify PTO timeout remains unchanged.
-  EXPECT_EQ(packet6_sent_time + expected_pto_delay * 2,
+  // Forward progress has been made, verify PTO counter gets reset. PTO timeout
+  // is armed by left edge.
+  EXPECT_EQ(packet4_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 }
 
