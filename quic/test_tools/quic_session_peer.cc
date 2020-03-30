@@ -75,10 +75,6 @@ void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
     QUIC_BUG << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC";
-    session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
-        max_streams);
-    session->v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(
-        max_streams);
     return;
   }
   session->stream_id_manager_.set_max_open_outgoing_streams(max_streams);
@@ -91,7 +87,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(
+  session->v99_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
       max_streams);
 }
 // static
@@ -101,7 +97,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(
+  session->v99_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
       max_streams);
 }
 

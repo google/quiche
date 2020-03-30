@@ -139,8 +139,8 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
   // Ensure that the limit is less than the implementation maximum.
   EXPECT_LT(stream_id_manager_.outgoing_max_streams(), implementation_max);
 
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  stream_id_manager_.SetMaxOpenOutgoingStreams(implementation_max + 1);
+  EXPECT_TRUE(
+      stream_id_manager_.MaybeAllowNewOutgoingStreams(implementation_max + 1));
   // Should be pegged at the max.
   EXPECT_EQ(implementation_max, stream_id_manager_.outgoing_max_streams());
 }
@@ -210,34 +210,6 @@ TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdInValidAboveLimit) {
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id));
 }
 
-TEST_P(QuicStreamIdManagerTest, OnMaxStreamsFrame) {
-  QuicMaxStreamsFrame frame;
-  frame.stream_count = 10;
-
-  frame.unidirectional = IsUnidirectional();
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
-  EXPECT_EQ(10u, stream_id_manager_.outgoing_max_streams());
-
-  QuicStreamCount save_outgoing_max_streams =
-      stream_id_manager_.outgoing_max_streams();
-  // Now that there has been one MAX STREAMS frame, we should not
-  // accept a MAX_STREAMS that reduces the limit...
-  frame.stream_count = 8;
-  frame.unidirectional = IsUnidirectional();
-  EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
-  // should not change from previous setting.
-  EXPECT_EQ(save_outgoing_max_streams,
-            stream_id_manager_.outgoing_max_streams());
-
-  // A stream count greater than the current limit should increase the limit.
-  frame.stream_count = 12;
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  EXPECT_TRUE(stream_id_manager_.OnMaxStreamsFrame(frame));
-
-  EXPECT_EQ(12u, stream_id_manager_.outgoing_max_streams());
-}
-
 TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   // Get the current maximum allowed incoming stream count.
   QuicStreamCount advertised_stream_count =
@@ -299,8 +271,8 @@ TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   // opening...
   size_t number_of_streams = kDefaultMaxStreamsPerConnection;
 
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  stream_id_manager_.SetMaxOpenOutgoingStreams(kDefaultMaxStreamsPerConnection);
+  EXPECT_TRUE(
+      stream_id_manager_.MaybeAllowNewOutgoingStreams(number_of_streams));
 
   QuicStreamId stream_id =
       IsUnidirectional()
@@ -426,13 +398,6 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   stream_id_manager_.OnStreamsBlockedFrame(frame);
 }
 
-TEST_P(QuicStreamIdManagerTest, CheckMaxAllowedOutgoingInitialization) {
-  const size_t kIncomingStreamCount = 123;
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  stream_id_manager_.SetMaxOpenOutgoingStreams(kIncomingStreamCount);
-  EXPECT_EQ(kIncomingStreamCount, stream_id_manager_.outgoing_max_streams());
-}
-
 // Test that a MAX_STREAMS frame is generated when half the stream ids become
 // available. This has a useful side effect of testing that when streams are
 // closed, the number of available stream ids increases.
@@ -462,8 +427,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
 }
 
 TEST_P(QuicStreamIdManagerTest, NewStreamDoesNotExceedLimit) {
-  EXPECT_CALL(delegate_, OnCanCreateNewOutgoingStream(IsUnidirectional()));
-  stream_id_manager_.SetMaxOpenOutgoingStreams(100);
+  EXPECT_TRUE(stream_id_manager_.MaybeAllowNewOutgoingStreams(100));
 
   size_t stream_count = stream_id_manager_.outgoing_max_streams();
   EXPECT_NE(0u, stream_count);

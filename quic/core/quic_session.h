@@ -156,7 +156,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
                       bool unidirectional) override;
   // The default implementation does nothing. Subclasses should override if
   // for example they queue up stream requests.
-  void OnCanCreateNewOutgoingStream(bool unidirectional) override;
+  virtual void OnCanCreateNewOutgoingStream(bool /*unidirectional*/) {}
 
   // Called on every incoming packet. Passes |packet| through to |connection_|.
   virtual void ProcessUdpPacket(const QuicSocketAddress& self_address,

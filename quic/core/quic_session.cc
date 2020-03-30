@@ -1013,7 +1013,10 @@ void QuicSession::OnConfigNegotiated() {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Bidirectional outgoing_max_streams_ to "
                   << max_streams;
-    v99_streamid_manager_.SetMaxOpenOutgoingBidirectionalStreams(max_streams);
+    if (v99_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
+            max_streams)) {
+      OnCanCreateNewOutgoingStream(/*unidirectional = */ false);
+    }
 
     max_streams = 0;
     if (config_.HasReceivedMaxUnidirectionalStreams()) {
@@ -1031,7 +1034,10 @@ void QuicSession::OnConfigNegotiated() {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Unidirectional outgoing_max_streams_ to "
                   << max_streams;
-    v99_streamid_manager_.SetMaxOpenOutgoingUnidirectionalStreams(max_streams);
+    if (v99_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
+            max_streams)) {
+      OnCanCreateNewOutgoingStream(/*unidirectional = */ true);
+    }
   } else {
     uint32_t max_streams = 0;
     if (config_.HasReceivedMaxBidirectionalStreams()) {
@@ -2188,8 +2194,6 @@ void QuicSession::SendStopSending(uint16_t code, QuicStreamId stream_id) {
   control_frame_manager_.WriteOrBufferStopSending(code, stream_id);
 }
 
-void QuicSession::OnCanCreateNewOutgoingStream(bool /*unidirectional*/) {}
-
 QuicStreamId QuicSession::next_outgoing_bidirectional_stream_id() const {
   if (VersionHasIetfQuicFrames(transport_version())) {
     return v99_streamid_manager_.next_outgoing_bidirectional_stream_id();
@@ -2205,7 +2209,17 @@ QuicStreamId QuicSession::next_outgoing_unidirectional_stream_id() const {
 }
 
 bool QuicSession::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
-  return v99_streamid_manager_.OnMaxStreamsFrame(frame);
+  const bool allow_new_streams =
+      frame.unidirectional
+          ? v99_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
+                frame.stream_count)
+          : v99_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
+                frame.stream_count);
+  if (allow_new_streams) {
+    OnCanCreateNewOutgoingStream(frame.unidirectional);
+  }
+
+  return true;
 }
 
 bool QuicSession::OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) {

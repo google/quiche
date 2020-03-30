@@ -30,10 +30,15 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
       QuicStreamCount max_open_incoming_bidirectional_streams,
       QuicStreamCount max_open_incoming_unidirectional_streams);
 
-  // Sets the limits to max_open_streams.
-  void SetMaxOpenOutgoingBidirectionalStreams(QuicStreamCount max_open_streams);
-  void SetMaxOpenOutgoingUnidirectionalStreams(
+  // Called on |max_open_streams| outgoing streams can be created because of 1)
+  // config negotiated or 2) MAX_STREAMS received. Returns true if new
+  // streams can be created.
+  bool MaybeAllowNewOutgoingBidirectionalStreams(
       QuicStreamCount max_open_streams);
+  bool MaybeAllowNewOutgoingUnidirectionalStreams(
+      QuicStreamCount max_open_streams);
+
+  // Sets the limits to max_open_streams.
   void SetMaxOpenIncomingBidirectionalStreams(QuicStreamCount max_open_streams);
   void SetMaxOpenIncomingUnidirectionalStreams(
       QuicStreamCount max_open_streams);
@@ -55,9 +60,6 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
 
   // Called when |id| is released.
   void OnStreamClosed(QuicStreamId id);
-
-  // Called when a MAX_STREAMS frame is received.
-  bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame);
 
   // Called when a STREAMS_BLOCKED frame is received.
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame);

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -364,6 +365,10 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialSessionFlowControlWindowForTest);
 
     if (configure_session) {
+      if (VersionHasIetfQuicFrames(transport_version())) {
+        EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
+        EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(true)).Times(1);
+      }
       QuicConfigPeer::SetReceivedMaxBidirectionalStreams(
           session_.config(), kDefaultMaxStreamsPerConnection);
       QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
@@ -382,6 +387,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .Times(testing::AnyNumber());
+    testing::Mock::VerifyAndClearExpectations(&session_);
   }
 
   ~QuicSessionTestBase() {
@@ -2047,6 +2053,23 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
   // And 5 should be not available.
   EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(1)));
+}
+
+TEST_P(QuicSessionTestClient, OnMaxStreamFrame) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  QuicMaxStreamsFrame frame;
+  frame.unidirectional = false;
+  frame.stream_count = 120;
+  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
+  session_.OnMaxStreamsFrame(frame);
+
+  QuicMaxStreamsFrame frame2;
+  frame2.unidirectional = false;
+  frame2.stream_count = 110;
+  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(0);
+  session_.OnMaxStreamsFrame(frame2);
 }
 
 TEST_P(QuicSessionTestClient, AvailableUnidirectionalStreamsClient) {

@@ -31,13 +31,15 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
 
-void UberQuicStreamIdManager::SetMaxOpenOutgoingBidirectionalStreams(
+bool UberQuicStreamIdManager::MaybeAllowNewOutgoingBidirectionalStreams(
     QuicStreamCount max_open_streams) {
-  bidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
+  return bidirectional_stream_id_manager_.MaybeAllowNewOutgoingStreams(
+      max_open_streams);
 }
-void UberQuicStreamIdManager::SetMaxOpenOutgoingUnidirectionalStreams(
+bool UberQuicStreamIdManager::MaybeAllowNewOutgoingUnidirectionalStreams(
     QuicStreamCount max_open_streams) {
-  unidirectional_stream_id_manager_.SetMaxOpenOutgoingStreams(max_open_streams);
+  return unidirectional_stream_id_manager_.MaybeAllowNewOutgoingStreams(
+      max_open_streams);
 }
 void UberQuicStreamIdManager::SetMaxOpenIncomingBidirectionalStreams(
     QuicStreamCount max_open_streams) {
@@ -79,14 +81,6 @@ void UberQuicStreamIdManager::OnStreamClosed(QuicStreamId id) {
     return;
   }
   unidirectional_stream_id_manager_.OnStreamClosed(id);
-}
-
-bool UberQuicStreamIdManager::OnMaxStreamsFrame(
-    const QuicMaxStreamsFrame& frame) {
-  if (frame.unidirectional) {
-    return unidirectional_stream_id_manager_.OnMaxStreamsFrame(frame);
-  }
-  return bidirectional_stream_id_manager_.OnMaxStreamsFrame(frame);
 }
 
 bool UberQuicStreamIdManager::OnStreamsBlockedFrame(

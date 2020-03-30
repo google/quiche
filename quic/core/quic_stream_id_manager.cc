@@ -48,17 +48,6 @@ QuicStreamIdManager::QuicStreamIdManager(
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
-bool QuicStreamIdManager::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
-  // Ensure that the frame has the correct directionality.
-  DCHECK_EQ(frame.unidirectional, unidirectional_);
-  QUIC_CODE_COUNT_N(quic_max_streams_received, 2, 2);
-
-  // Set the limit to be exactly the stream count in the frame.
-  // Also informs the higher layers that they can create more
-  // streams if the limit is increased.
-  return SetMaxOpenOutgoingStreams(frame.stream_count);
-}
-
 // The peer sends a streams blocked frame when it can not open any more
 // streams because it has runs into the limit.
 bool QuicStreamIdManager::OnStreamsBlockedFrame(
@@ -83,25 +72,17 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
   return true;
 }
 
-// Used when configuration has been done and we have an initial
-// maximum stream count from the peer.
-bool QuicStreamIdManager::SetMaxOpenOutgoingStreams(
+bool QuicStreamIdManager::MaybeAllowNewOutgoingStreams(
     QuicStreamCount max_open_streams) {
   if (max_open_streams <= outgoing_max_streams_) {
     // Only update the stream count if it would increase the limit.
-    // If it decreases the limit, or doesn't change it, then do not update.
-    // Note that this handles the case of receiving a count of 0 in the frame
-    return true;
+    return false;
   }
 
   // This implementation only supports 32 bit Stream IDs, so limit max streams
   // if it would exceed the max 32 bits can express.
   outgoing_max_streams_ =
       std::min(max_open_streams, QuicUtils::GetMaxStreamCount());
-
-  // Inform the higher layers that the stream limit has increased and that
-  // new streams may be created.
-  delegate_->OnCanCreateNewOutgoingStream(unidirectional_);
 
   return true;
 }
