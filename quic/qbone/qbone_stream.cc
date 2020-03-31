@@ -11,14 +11,17 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
+ABSL_FLAG(int, qbone_stream_ttl_secs, 3, "The QBONE Stream TTL in seconds.");
+
 namespace quic {
 
 QboneWriteOnlyStream::QboneWriteOnlyStream(QuicStreamId id,
                                            QuicSession* session)
     : QuicStream(id, session, /*is_static=*/false, WRITE_UNIDIRECTIONAL) {
   // QBONE uses a LIFO queue to try to always make progress. An individual
-  // packet may persist for upto to 10 seconds in memory.
-  MaybeSetTtl(QuicTime::Delta::FromSeconds(10));
+  // packet may persist for upto to qbone_stream_ttl_secs seconds in memory.
+  MaybeSetTtl(
+      QuicTime::Delta::FromSeconds(GetQuicFlag(FLAGS_qbone_stream_ttl_secs)));
 }
 
 void QboneWriteOnlyStream::WritePacketToQuicStream(
@@ -36,11 +39,10 @@ QboneReadOnlyStream::QboneReadOnlyStream(QuicStreamId id,
                  READ_UNIDIRECTIONAL),
       session_(session) {
   // QBONE uses a LIFO queue to try to always make progress. An individual
-  // packet may persist for upto to 10 seconds in memory.
-  MaybeSetTtl(QuicTime::Delta::FromSeconds(10));
+  // packet may persist for upto to qbone_stream_ttl_secs seconds in memory.
+  MaybeSetTtl(
+      QuicTime::Delta::FromSeconds(GetQuicFlag(FLAGS_qbone_stream_ttl_secs)));
 }
-
-QboneReadOnlyStream::~QboneReadOnlyStream() {}
 
 void QboneReadOnlyStream::OnDataAvailable() {
   // Read in data and buffer it, attempt to frame to see if there's a packet.

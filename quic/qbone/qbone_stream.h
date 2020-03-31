@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QboneReadOnlyStream : public QuicStream {
  public:
   QboneReadOnlyStream(QuicStreamId id, QboneSessionBase* session);
 
-  ~QboneReadOnlyStream() override;
+  ~QboneReadOnlyStream() override = default;
 
   // QuicStream overrides.
   // OnDataAvailable is called when there is data in the quic stream buffer.
