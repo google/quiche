@@ -641,10 +641,9 @@ TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
 
 TEST_P(QuicSpdySessionTestServer,
        DebugDFatalIfMarkingClosedStreamWriteBlocked) {
-  // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
-  if (GetParam() != AllSupportedVersions()[0]) {
-    return;
-  }
+  CompleteHandshake();
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
 
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId closed_stream_id = stream2->id();
