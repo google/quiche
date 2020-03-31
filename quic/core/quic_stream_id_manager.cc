@@ -89,11 +89,8 @@ bool QuicStreamIdManager::MaybeAllowNewOutgoingStreams(
 
 void QuicStreamIdManager::SetMaxOpenIncomingStreams(
     QuicStreamCount max_open_streams) {
-  if (max_open_streams < incoming_stream_count_) {
-    delegate_->OnStreamIdManagerError(
-        QUIC_MAX_STREAMS_ERROR, "Stream limit less than existing stream count");
-    return;
-  }
+  QUIC_BUG_IF(incoming_stream_count_ > 0)
+      << "non-zero stream count when setting max incoming stream.";
   QUIC_LOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
       << quiche::QuicheStrCat(
              unidirectional_ ? "unidirectional " : "bidirectional: ",
