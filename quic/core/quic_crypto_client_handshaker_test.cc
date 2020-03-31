@@ -121,16 +121,19 @@ class Handshaker : public QuicCryptoClientHandshaker {
   }
 };
 
-class QuicCryptoClientHandshakerTest : public QuicTest {
+class QuicCryptoClientHandshakerTest
+    : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
   QuicCryptoClientHandshakerTest()
-      : proof_handler_(),
+      : version_(GetParam()),
+        proof_handler_(),
         helper_(),
         alarm_factory_(),
         server_id_("host", 123),
         connection_(new test::MockQuicConnection(&helper_,
                                                  &alarm_factory_,
-                                                 Perspective::IS_CLIENT)),
+                                                 Perspective::IS_CLIENT,
+                                                 {version_})),
         session_(connection_, false),
         crypto_client_config_(std::make_unique<InsecureProofVerifier>()),
         client_stream_(new QuicCryptoClientStream(server_id_,
@@ -163,6 +166,7 @@ class QuicCryptoClientHandshakerTest : public QuicTest {
     state_.SetProofValid();
   }
 
+  ParsedQuicVersion version_;
   TestProofHandler proof_handler_;
   test::MockQuicConnectionHelper helper_;
   test::MockAlarmFactory alarm_factory_;
@@ -176,19 +180,25 @@ class QuicCryptoClientHandshakerTest : public QuicTest {
   QuicCryptoClientConfig::CachedState state_;
 };
 
-TEST_F(QuicCryptoClientHandshakerTest, TestSendFullPaddingInInchoateHello) {
+INSTANTIATE_TEST_SUITE_P(
+    QuicCryptoClientHandshakerTests,
+    QuicCryptoClientHandshakerTest,
+    ::testing::ValuesIn(AllSupportedVersionsWithQuicCrypto()),
+    ::testing::PrintToStringParamName());
+
+TEST_P(QuicCryptoClientHandshakerTest, TestSendFullPaddingInInchoateHello) {
   handshaker_.DoSendCHLOTest(&state_);
 
   EXPECT_TRUE(connection_->fully_pad_during_crypto_handshake());
 }
 
-TEST_F(QuicCryptoClientHandshakerTest, TestDisabledPaddingInInchoateHello) {
+TEST_P(QuicCryptoClientHandshakerTest, TestDisabledPaddingInInchoateHello) {
   crypto_client_config_.set_pad_inchoate_hello(false);
   handshaker_.DoSendCHLOTest(&state_);
   EXPECT_FALSE(connection_->fully_pad_during_crypto_handshake());
 }
 
-TEST_F(QuicCryptoClientHandshakerTest,
+TEST_P(QuicCryptoClientHandshakerTest,
        TestPaddingInFullHelloEvenIfInchoateDisabled) {
   // Disable inchoate, but full hello should still be padded.
   crypto_client_config_.set_pad_inchoate_hello(false);
@@ -199,7 +209,7 @@ TEST_F(QuicCryptoClientHandshakerTest,
   EXPECT_TRUE(connection_->fully_pad_during_crypto_handshake());
 }
 
-TEST_F(QuicCryptoClientHandshakerTest, TestNoPaddingInFullHelloWhenDisabled) {
+TEST_P(QuicCryptoClientHandshakerTest, TestNoPaddingInFullHelloWhenDisabled) {
   crypto_client_config_.set_pad_full_hello(false);
 
   InitializeServerParametersToEnableFullHello();
