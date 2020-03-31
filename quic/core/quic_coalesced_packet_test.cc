@@ -15,6 +15,8 @@ namespace {
 
 TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   QuicCoalescedPacket coalesced;
+  EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
+            coalesced.ToString(0));
   SimpleBufferAllocator allocator;
   EXPECT_EQ(0u, coalesced.length());
   char buffer[1000];
@@ -30,6 +32,9 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
                                             &allocator, 1500));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(500u, coalesced.length());
+  EXPECT_EQ(
+      "total_length: 1500 padding_size: 1000 packets: {ENCRYPTION_INITIAL}",
+      coalesced.ToString(1500));
 
   // Cannot coalesce packet of the same encryption level.
   SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
@@ -45,6 +50,10 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
                                             &allocator, 1500));
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
+  EXPECT_EQ(
+      "total_length: 1500 padding_size: 500 packets: {ENCRYPTION_INITIAL, "
+      "ENCRYPTION_ZERO_RTT}",
+      coalesced.ToString(1500));
 
   SerializedPacket packet4(QuicPacketNumber(4), PACKET_4BYTE_PACKET_NUMBER,
                            buffer, 500, false, false);

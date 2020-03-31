@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -49,9 +50,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
       QUIC_BUG << "Max packet length changes in the middle of the write path";
       return false;
     }
-    if (!encrypted_buffers_[packet.encryption_level].empty() ||
-        (packet.encryption_level == ENCRYPTION_INITIAL &&
-         initial_packet_ != nullptr)) {
+    if (ContainsPacketOfEncryptionLevel(packet.encryption_level)) {
       // Do not coalesce packets of the same encryption level.
       return false;
     }
@@ -114,6 +113,31 @@ bool QuicCoalescedPacket::CopyEncryptedBuffers(char* buffer,
     *length_copied += packet.length();
   }
   return true;
+}
+
+bool QuicCoalescedPacket::ContainsPacketOfEncryptionLevel(
+    EncryptionLevel level) const {
+  return !encrypted_buffers_[level].empty() ||
+         (level == ENCRYPTION_INITIAL && initial_packet_ != nullptr);
+}
+
+std::string QuicCoalescedPacket::ToString(size_t serialized_length) const {
+  // Total length and padding size.
+  std::string info = quiche::QuicheStrCat(
+      "total_length: ", serialized_length,
+      " padding_size: ", serialized_length - length_, " packets: {");
+  // Packets' encryption levels.
+  bool first_packet = true;
+  for (int8_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    if (ContainsPacketOfEncryptionLevel(static_cast<EncryptionLevel>(i))) {
+      info = quiche::QuicheStrCat(
+          info, first_packet ? "" : ", ",
+          EncryptionLevelToString(static_cast<EncryptionLevel>(i)));
+      first_packet = false;
+    }
+  }
+  info = quiche::QuicheStrCat(info, "}");
+  return info;
 }
 
 }  // namespace quic

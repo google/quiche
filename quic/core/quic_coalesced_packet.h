@@ -34,6 +34,8 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
                             size_t buffer_len,
                             size_t* length_copied) const;
 
+  std::string ToString(size_t serialized_length) const;
+
   const SerializedPacket* initial_packet() const {
     return initial_packet_.get();
   }
@@ -47,6 +49,9 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   QuicPacketLength max_packet_length() const { return max_packet_length_; }
 
  private:
+  // Returns true if this coalesced packet contains packet of |level|.
+  bool ContainsPacketOfEncryptionLevel(EncryptionLevel level) const;
+
   // self/peer addresses are set when trying to coalesce the first packet.
   // Packets with different self/peer addresses cannot be coalesced.
   QuicSocketAddress self_address_;
