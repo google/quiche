@@ -812,14 +812,6 @@ ParsedQuicVersion QuicVersionMin() {
   return AllSupportedVersions().back();
 }
 
-QuicTransportVersion QuicTransportVersionMax() {
-  return AllSupportedTransportVersions().front();
-}
-
-QuicTransportVersion QuicTransportVersionMin() {
-  return AllSupportedTransportVersions().back();
-}
-
 QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicConnectionId destination_connection_id,
     QuicConnectionId source_connection_id,

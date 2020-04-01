@@ -65,14 +65,6 @@ ParsedQuicVersion QuicVersionMax();
 // Lower limit on versions we support.
 ParsedQuicVersion QuicVersionMin();
 
-// Upper limit on versions we support.
-// TODO(nharper): Remove this function when it is no longer used.
-QuicTransportVersion QuicTransportVersionMax();
-
-// Lower limit on versions we support.
-// TODO(nharper): Remove this function when it is no longer used.
-QuicTransportVersion QuicTransportVersionMin();
-
 // Create an encrypted packet for testing.
 // If versions == nullptr, uses &AllSupportedVersions().
 // Note that the packet is encrypted with NullEncrypter, so to decrypt the
