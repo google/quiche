@@ -815,9 +815,7 @@ TEST_P(QuicSessionTestServer, ManyAvailableBidirectionalStreams) {
         *connection_,
         CloseConnection(QUIC_INVALID_STREAM_ID,
                         "Stream id 798 would exceed stream count limit 50",
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET
-
-                        ))
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
         .Times(1);
     EXPECT_EQ(nullptr, session_.GetOrCreateStream(
                            GetNthClientInitiatedUnidirectionalId(199)));

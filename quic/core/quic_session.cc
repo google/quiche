@@ -825,13 +825,6 @@ void QuicSession::SendWindowUpdate(QuicStreamId id,
   control_frame_manager_.WriteOrBufferWindowUpdate(id, byte_offset);
 }
 
-void QuicSession::OnStreamIdManagerError(QuicErrorCode error_code,
-                                         std::string error_details) {
-  connection_->CloseConnection(
-      error_code, error_details,
-      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-}
-
 void QuicSession::OnStreamError(QuicErrorCode error_code,
                                 std::string error_details) {
   connection_->CloseConnection(
@@ -1630,7 +1623,15 @@ void QuicSession::StreamDraining(QuicStreamId stream_id) {
 bool QuicSession::MaybeIncreaseLargestPeerStreamId(
     const QuicStreamId stream_id) {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return v99_streamid_manager_.MaybeIncreaseLargestPeerStreamId(stream_id);
+    std::string error_details;
+    if (v99_streamid_manager_.MaybeIncreaseLargestPeerStreamId(
+            stream_id, &error_details)) {
+      return true;
+    }
+    connection()->CloseConnection(
+        QUIC_INVALID_STREAM_ID, error_details,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
   }
   if (!stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id)) {
     connection()->CloseConnection(
@@ -2223,7 +2224,14 @@ bool QuicSession::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
 }
 
 bool QuicSession::OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) {
-  return v99_streamid_manager_.OnStreamsBlockedFrame(frame);
+  std::string error_details;
+  if (v99_streamid_manager_.OnStreamsBlockedFrame(frame, &error_details)) {
+    return true;
+  }
+  connection_->CloseConnection(
+      QUIC_STREAMS_BLOCKED_ERROR, error_details,
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  return false;
 }
 
 size_t QuicSession::max_open_incoming_bidirectional_streams() const {

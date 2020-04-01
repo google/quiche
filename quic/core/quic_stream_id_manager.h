@@ -33,10 +33,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
    public:
     virtual ~DelegateInterface() = default;
 
-    // Closes the connection when an error is encountered.
-    virtual void OnStreamIdManagerError(QuicErrorCode error_code,
-                                        std::string error_details) = 0;
-
     // Send a MAX_STREAMS frame.
     virtual void SendMaxStreams(QuicStreamCount stream_count,
                                 bool unidirectional) = 0;
@@ -69,11 +65,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
         ", max_streams_window_: ", max_streams_window_, " }");
   }
 
-  // Processes the STREAMS_BLOCKED frame, invoked from
-  // QuicSession::OnStreamsBlockedFrame. It has the same semantics as the
-  // QuicFramerVisitorInterface, returning true if the framer should continue
-  // processing the packet, false if not.
-  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame);
+  // Processes the STREAMS_BLOCKED frame. If error is encountered, populates
+  // |error_details| and returns false.
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
+                             std::string* error_details);
 
   // Indicates whether the next outgoing stream ID can be allocated or not.
   bool CanOpenNextOutgoingStream() const;
@@ -100,12 +95,13 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   bool MaybeAllowNewOutgoingStreams(QuicStreamCount max_open_streams);
 
   // Checks if the incoming stream ID exceeds the MAX_STREAMS limit.  If the
-  // limit is exceeded, closes the connection and returns false.  Uses the
+  // limit is exceeded, populates |error_detials| and returns false.  Uses the
   // actual maximium, not the most recently advertised value, in order to
   // enforce the Google-QUIC number of open streams behavior.
   // This method should be called exactly once for each incoming stream
   // creation.
-  bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id);
+  bool MaybeIncreaseLargestPeerStreamId(const QuicStreamId stream_id,
+                                        std::string* error_details);
 
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;

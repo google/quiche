@@ -149,9 +149,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool HasUnackedCryptoData() const override;
   bool HasUnackedStreamData() const override;
 
-  // QuicStreamIdManager::DelegateInterface methods:
-  void OnStreamIdManagerError(QuicErrorCode error_code,
-                              std::string error_details) override;
   void SendMaxStreams(QuicStreamCount stream_count,
                       bool unidirectional) override;
   // The default implementation does nothing. Subclasses should override if

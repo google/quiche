@@ -67,12 +67,14 @@ QuicStreamId UberQuicStreamIdManager::GetNextOutgoingUnidirectionalStreamId() {
 }
 
 bool UberQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
-    QuicStreamId id) {
+    QuicStreamId id,
+    std::string* error_details) {
   if (QuicUtils::IsBidirectionalStreamId(id)) {
     return bidirectional_stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
-        id);
+        id, error_details);
   }
-  return unidirectional_stream_id_manager_.MaybeIncreaseLargestPeerStreamId(id);
+  return unidirectional_stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
+      id, error_details);
 }
 
 void UberQuicStreamIdManager::OnStreamClosed(QuicStreamId id) {
@@ -84,11 +86,14 @@ void UberQuicStreamIdManager::OnStreamClosed(QuicStreamId id) {
 }
 
 bool UberQuicStreamIdManager::OnStreamsBlockedFrame(
-    const QuicStreamsBlockedFrame& frame) {
+    const QuicStreamsBlockedFrame& frame,
+    std::string* error_details) {
   if (frame.unidirectional) {
-    return unidirectional_stream_id_manager_.OnStreamsBlockedFrame(frame);
+    return unidirectional_stream_id_manager_.OnStreamsBlockedFrame(
+        frame, error_details);
   }
-  return bidirectional_stream_id_manager_.OnStreamsBlockedFrame(frame);
+  return bidirectional_stream_id_manager_.OnStreamsBlockedFrame(frame,
+                                                                error_details);
 }
 
 bool UberQuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {

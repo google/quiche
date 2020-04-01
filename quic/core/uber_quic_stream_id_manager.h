@@ -56,13 +56,15 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   QuicStreamId GetNextOutgoingUnidirectionalStreamId();
 
   // Returns true if the incoming |id| is within the limit.
-  bool MaybeIncreaseLargestPeerStreamId(QuicStreamId id);
+  bool MaybeIncreaseLargestPeerStreamId(QuicStreamId id,
+                                        std::string* error_details);
 
   // Called when |id| is released.
   void OnStreamClosed(QuicStreamId id);
 
   // Called when a STREAMS_BLOCKED frame is received.
-  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame);
+  bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
+                             std::string* error_details);
 
   // Return true if |id| is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
