@@ -784,7 +784,12 @@ MockPacketWriter::MockPacketWriter() {
 
 MockPacketWriter::~MockPacketWriter() {}
 
-MockSendAlgorithm::MockSendAlgorithm() {}
+MockSendAlgorithm::MockSendAlgorithm() {
+  ON_CALL(*this, PacingRate(_))
+      .WillByDefault(testing::Return(QuicBandwidth::Zero()));
+  ON_CALL(*this, BandwidthEstimate())
+      .WillByDefault(testing::Return(QuicBandwidth::Zero()));
+}
 
 MockSendAlgorithm::~MockSendAlgorithm() {}
 
