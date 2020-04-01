@@ -1758,7 +1758,10 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         visitor_->OnUndecryptablePacket(
             QuicEncryptedPacket(encrypted_reader->FullPayload()),
             decryption_level, has_decryption_key);
-        set_detailed_error("Unable to decrypt header protection.");
+        set_detailed_error(quiche::QuicheStrCat(
+            "Unable to decrypt ", EncryptionLevelToString(decryption_level),
+            " header protection", has_decryption_key ? "" : " (missing key)",
+            "."));
         return RaiseError(QUIC_DECRYPTION_FAILURE);
       }
       RecordDroppedPacketReason(DroppedPacketReason::INVALID_PACKET_NUMBER);
@@ -1823,7 +1826,13 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     visitor_->OnUndecryptablePacket(
         QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
         has_decryption_key);
-    set_detailed_error("Unable to decrypt payload.");
+    set_detailed_error(quiche::QuicheStrCat(
+        "Unable to decrypt ", EncryptionLevelToString(decryption_level),
+        " payload",
+        has_decryption_key || !version_.KnowsWhichDecrypterToUse()
+            ? ""
+            : " (missing key)",
+        "."));
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     return RaiseError(QUIC_DECRYPTION_FAILURE);
   }
@@ -1914,7 +1923,9 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
         QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
         has_decryption_key);
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
-    set_detailed_error("Unable to decrypt payload.");
+    set_detailed_error(quiche::QuicheStrCat(
+        "Unable to decrypt ", EncryptionLevelToString(decryption_level),
+        " payload."));
     return RaiseError(QUIC_DECRYPTION_FAILURE);
   }
 

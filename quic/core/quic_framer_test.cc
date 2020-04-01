@@ -2399,7 +2399,8 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   if (framer_.version().HasHeaderProtection()) {
     EXPECT_THAT(framer_.error(), IsError(QUIC_DECRYPTION_FAILURE));
-    EXPECT_EQ("Unable to decrypt header protection.", framer_.detailed_error());
+    EXPECT_EQ("Unable to decrypt ENCRYPTION_ZERO_RTT header protection.",
+              framer_.detailed_error());
   } else if (framer_.transport_version() >= QUIC_VERSION_46) {
     // Cannot read diversification nonce.
     EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
