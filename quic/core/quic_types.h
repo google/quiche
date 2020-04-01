@@ -148,6 +148,9 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
   // Number of packets dropped as a result of this write.
   // Only used by batch writers. Otherwise always 0.
   uint16_t dropped_packets = 0;
+  // TODO(wub): In some cases, WRITE_STATUS_ERROR may set an error_code and
+  // WRITE_STATUS_BLOCKED_DATA_BUFFERED may set bytes_written. This may need
+  // some cleaning up so that perhaps both values can be set and valid.
   union {
     int bytes_written;  // only valid when status is WRITE_STATUS_OK
     int error_code;     // only valid when status is WRITE_STATUS_ERROR

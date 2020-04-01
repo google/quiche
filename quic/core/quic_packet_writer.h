@@ -78,6 +78,26 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   //
   // Options must be either null, or created for the particular QuicPacketWriter
   // implementation. Options may be ignored, depending on the implementation.
+  //
+  // Some comment about memory management if |buffer| was previously acquired
+  // by a call to "GetNextWriteLocation()":
+  //
+  // a) When WRITE_STATUS_OK is returned, the caller expects the writer owns the
+  // packet buffers and they will be released when the write finishes.
+  //
+  // b) When this function returns any status >= WRITE_STATUS_ERROR, the caller
+  // expects the writer releases the buffer (if needed) before the function
+  // returns.
+  //
+  // c) When WRITE_STATUS_BLOCKED is returned, the caller makes a copy of the
+  // buffer and will retry after unblock, so if |payload| is allocated from
+  // GetNextWriteLocation(), it
+  //    1) needs to be released before return, and
+  //    2) the content of |payload| should not change after return.
+  //
+  // d) When WRITE_STATUS_BLOCKED_DATA_BUFFERED is returned, the caller expects
+  // 1) the writer owns the packet buffers, and 2) the writer will re-send the
+  // packet when it unblocks.
   virtual WriteResult WritePacket(const char* buffer,
                                   size_t buf_len,
                                   const QuicIpAddress& self_address,
@@ -121,9 +141,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   // Try send all buffered packets.
   // - Return WriteResult(WRITE_STATUS_OK, <bytes_flushed>) if all buffered
   //   packets were sent successfully.
-  // - Return WRITE_STATUS_BLOCKED, or an error status, if the underlying socket
-  //   is blocked or returned an error while sending. Some packets may have been
-  //   sent, packets not sent will stay in the internal buffer.
+  // - Return WRITE_STATUS_BLOCKED if the underlying socket is blocked while
+  //   sending. Some packets may have been sent, packets not sent will stay in
+  //   the internal buffer.
+  // - Return a status >= WRITE_STATUS_ERROR if an error was encuontered while
+  //   sending. As this is not a re-tryable error, any batched packets which
+  //   were on memory acquired via GetNextWriteLocation() should be released and
+  //   the batch should be dropped.
   virtual WriteResult Flush() = 0;
 };
 
