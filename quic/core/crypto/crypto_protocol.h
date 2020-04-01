@@ -88,10 +88,8 @@ const QuicTag kBBS2 = TAG('B', 'B', 'S', '2');   // More aggressive packet
                                                  // conservation in BBR STARTUP
 const QuicTag kBBS3 = TAG('B', 'B', 'S', '3');   // Slowstart packet
                                                  // conservation in BBR STARTUP
-const QuicTag kBBS4 = TAG('B', 'B', 'S', '4');   // Reduce rate in STARTUP by
-                                                 // bytes_lost / CWND.
-const QuicTag kBBS5 = TAG('B', 'B', 'S', '5');   // Reduce rate in STARTUP by
-                                                 // 2 * bytes_lost / CWND.
+const QuicTag kBBS4 = TAG('B', 'B', 'S', '4');   // DEPRECATED
+const QuicTag kBBS5 = TAG('B', 'B', 'S', '5');   // DEPRECATED
 const QuicTag kBBRR = TAG('B', 'B', 'R', 'R');   // Rate-based recovery in BBR
 const QuicTag kBBR1 = TAG('B', 'B', 'R', '1');   // DEPRECATED
 const QuicTag kBBR2 = TAG('B', 'B', 'R', '2');   // DEPRECATED

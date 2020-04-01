@@ -377,11 +377,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool slower_startup_;
   // When true, disables packet conservation in STARTUP.
   bool rate_based_startup_;
-  // When non-zero, decreases the rate in STARTUP by the total number of bytes
-  // lost in STARTUP divided by CWND.
-  uint8_t startup_rate_reduction_multiplier_;
-  // Sum of bytes lost in STARTUP.
-  QuicByteCount startup_bytes_lost_;
 
   // When true, add the most recent ack aggregation measurement during STARTUP.
   bool enable_ack_aggregation_during_startup_;

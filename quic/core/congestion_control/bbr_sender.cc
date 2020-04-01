@@ -122,8 +122,6 @@ BbrSender::BbrSender(QuicTime now,
       recovery_window_(max_congestion_window_),
       slower_startup_(false),
       rate_based_startup_(false),
-      startup_rate_reduction_multiplier_(0),
-      startup_bytes_lost_(0),
       enable_ack_aggregation_during_startup_(false),
       expire_ack_aggregation_in_startup_(false),
       drain_to_target_(false),
@@ -267,20 +265,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
   if (config.HasClientRequestedIndependentOption(kBBS1, perspective)) {
     rate_based_startup_ = true;
-  }
-  if (GetQuicReloadableFlag(quic_bbr_startup_rate_reduction) &&
-      config.HasClientRequestedIndependentOption(kBBS4, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_startup_rate_reduction, 1, 2);
-    rate_based_startup_ = true;
-    // Hits 1.25x pacing multiplier when ~2/3 CWND is lost.
-    startup_rate_reduction_multiplier_ = 1;
-  }
-  if (GetQuicReloadableFlag(quic_bbr_startup_rate_reduction) &&
-      config.HasClientRequestedIndependentOption(kBBS5, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_startup_rate_reduction, 2, 2);
-    rate_based_startup_ = true;
-    // Hits 1.25x pacing multiplier when ~1/3 CWND is lost.
-    startup_rate_reduction_multiplier_ = 2;
   }
   if (GetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample)) {
     if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
@@ -458,9 +442,6 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
     if (stats_) {
       stats_->slowstart_packets_lost += lost_packets.size();
       stats_->slowstart_bytes_lost += bytes_lost;
-    }
-    if (startup_rate_reduction_multiplier_ != 0) {
-      startup_bytes_lost_ += bytes_lost;
     }
   }
   excess_acked = sample.extra_acked;
@@ -848,20 +829,6 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
   if (slower_startup_ && has_ever_detected_loss &&
       has_non_app_limited_sample_) {
     pacing_rate_ = kStartupAfterLossGain * BandwidthEstimate();
-    return;
-  }
-
-  // Slow the pacing rate in STARTUP by the bytes_lost / CWND.
-  if (startup_rate_reduction_multiplier_ != 0 && has_ever_detected_loss &&
-      has_non_app_limited_sample_) {
-    pacing_rate_ =
-        (1 - (startup_bytes_lost_ * startup_rate_reduction_multiplier_ * 1.0f /
-              congestion_window_)) *
-        target_rate;
-    // Ensure the pacing rate doesn't drop below the startup growth target times
-    // the bandwidth estimate.
-    pacing_rate_ =
-        std::max(pacing_rate_, kStartupGrowthTarget * BandwidthEstimate());
     return;
   }
 
