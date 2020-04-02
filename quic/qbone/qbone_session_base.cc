@@ -18,6 +18,12 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
+ABSL_FLAG(
+    bool,
+    qbone_close_ephemeral_frames,
+    true,
+    "If true, we'll call CloseStream even when we receive ephemeral frames.");
+
 namespace quic {
 
 #define ENDPOINT \
@@ -84,6 +90,11 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
     ProcessPacketFromPeer(
         quiche::QuicheStringPiece(frame.data_buffer, frame.data_length));
     flow_controller()->AddBytesConsumed(frame.data_length);
+    // TODO(b/147817422): Add a counter for how many streams were actually
+    // closed here.
+    if (GetQuicFlag(FLAGS_qbone_close_ephemeral_frames)) {
+      CloseStream(frame.stream_id);
+    }
     return;
   }
   QuicSession::OnStreamFrame(frame);
