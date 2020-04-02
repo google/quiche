@@ -64,25 +64,25 @@ class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {
     return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
                                                     Perspective::IS_CLIENT) +
-           kV99StreamIdIncrement * n;
+           QuicUtils::StreamIdDelta(transport_version()) * n;
   }
 
   QuicStreamId GetNthClientInitiatedUnidirectionalId(int n) {
     return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
                                                      Perspective::IS_CLIENT) +
-           kV99StreamIdIncrement * n;
+           QuicUtils::StreamIdDelta(transport_version()) * n;
   }
 
   QuicStreamId GetNthServerInitiatedBidirectionalId(int n) {
     return QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
                                                     Perspective::IS_SERVER) +
-           kV99StreamIdIncrement * n;
+           QuicUtils::StreamIdDelta(transport_version()) * n;
   }
 
   QuicStreamId GetNthServerInitiatedUnidirectionalId(int n) {
     return QuicUtils::GetFirstUnidirectionalStreamId(transport_version(),
                                                      Perspective::IS_SERVER) +
-           kV99StreamIdIncrement * n;
+           QuicUtils::StreamIdDelta(transport_version()) * n;
   }
 
   QuicStreamId GetNthPeerInitiatedBidirectionalStreamId(int n) {

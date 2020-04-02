@@ -84,7 +84,7 @@ class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
   // Returns the stream ID for the Nth incoming stream (created by the peer)
   // of the corresponding directionality of this manager.
   QuicStreamId GetNthIncomingStreamId(int n) {
-    return kV99StreamIdIncrement * n +
+    return QuicUtils::StreamIdDelta(transport_version()) * n +
            (IsUnidirectional()
                 ? QuicUtils::GetFirstUnidirectionalStreamId(
                       transport_version(),
@@ -290,7 +290,7 @@ TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   while (number_of_streams) {
     EXPECT_TRUE(stream_id_manager_.CanOpenNextOutgoingStream());
     EXPECT_EQ(stream_id, stream_id_manager_.GetNextOutgoingStreamId());
-    stream_id += kV99StreamIdIncrement;
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
     number_of_streams--;
   }
 
@@ -316,11 +316,13 @@ TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
   // A bad stream ID results in a closed connection.
   std::string error_details;
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
-      max_stream_id + kV99StreamIdIncrement, &error_details));
-  EXPECT_EQ(
-      error_details,
-      quiche::QuicheStrCat("Stream id ", max_stream_id + kV99StreamIdIncrement,
-                           " would exceed stream count limit 100"));
+      max_stream_id + QuicUtils::StreamIdDelta(transport_version()),
+      &error_details));
+  EXPECT_EQ(error_details,
+            quiche::QuicheStrCat(
+                "Stream id ",
+                max_stream_id + QuicUtils::StreamIdDelta(transport_version()),
+                " would exceed stream count limit 100"));
 }
 
 TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
@@ -353,7 +355,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
               stream_id_manager_.available_incoming_streams());
 
     stream_count--;
-    stream_id += kV99StreamIdIncrement;
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
   }
 
   // Now close them, still should get no MAX_STREAMS
@@ -366,7 +368,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
   while (stream_count) {
     stream_id_manager_.OnStreamClosed(stream_id);
     stream_count--;
-    stream_id += kV99StreamIdIncrement;
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
     expected_actual_max++;
     EXPECT_EQ(expected_actual_max,
               stream_id_manager_.incoming_actual_max_streams());
@@ -435,7 +437,7 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
         stream_id_manager_.MaybeIncreaseLargestPeerStreamId(id, nullptr));
     stream_id_manager_.OnStreamClosed(id);
     i--;
-    id += kV99StreamIdIncrement;
+    id += QuicUtils::StreamIdDelta(transport_version());
   }
 }
 

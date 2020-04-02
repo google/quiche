@@ -17,10 +17,6 @@ class QuicSessionPeer;
 class QuicStreamIdManagerPeer;
 }  // namespace test
 
-// Amount to increment a stream ID value to get the next stream ID in
-// the stream ID space.
-const QuicStreamId kV99StreamIdIncrement = 4;
-
 // This constant controls the size of the window when deciding whether
 // to generate a MAX_STREAMS frame or not. See the discussion of the
 // window, below, for more details.
