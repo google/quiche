@@ -145,7 +145,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   void RegisterStream(QuicStreamId stream_id,
                       bool is_static_stream,
                       const spdy::SpdyStreamPrecedence& precedence) {
-    DCHECK(!priority_write_scheduler_->StreamRegistered(stream_id));
+    DCHECK(!priority_write_scheduler_->StreamRegistered(stream_id))
+        << "stream " << stream_id << " already registered";
     DCHECK(PrecedenceMatchesSchedulerType(precedence));
     if (is_static_stream) {
       static_stream_collection_.Register(stream_id);
