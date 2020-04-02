@@ -256,7 +256,7 @@ TEST_P(QuicReceiveControlStreamTest,
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+      CloseConnection(QUIC_HTTP_MISSING_SETTINGS_FRAME,
                       "PRIORITY_UPDATE frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
@@ -270,15 +270,25 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  GoAwayFrame goaway;
-  goaway.stream_id = 0x00;
+  QuicStreamOffset offset = 1;
+
+  // Receive SETTINGS frame.
+  SettingsFrame settings;
+  std::string settings_frame = EncodeSettings(settings);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
+                      settings_frame));
+  offset += settings_frame.length();
+
+  GoAwayFrame goaway{/* stream_id = */ 0};
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);
   std::string data = std::string(buffer.get(), header_length);
 
-  QuicStreamFrame frame(receive_control_stream_->id(), false, 1, data);
+  QuicStreamFrame frame(receive_control_stream_->id(), false, offset, data);
   EXPECT_FALSE(session_.http3_goaway_received());
 
   EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
@@ -370,16 +380,34 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
                       /* offset = */ 1 + settings_frame.size(), unknown_frame));
 }
 
+TEST_P(QuicReceiveControlStreamTest, CancelPushFrameBeforeSettings) {
+  std::string cancel_push_frame = quiche::QuicheTextUtils::HexDecode(
+      "03"    // type CANCEL_PUSH
+      "01"    // payload length
+      "01");  // push ID
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_MISSING_SETTINGS_FRAME,
+                              "CANCEL_PUSH frame received before SETTINGS.", _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(session_, OnConnectionClosed(_, _));
+
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
+                      /* offset = */ 1, cancel_push_frame));
+}
+
 TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
   std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
       "21"        // reserved frame type
       "03"        // payload length
       "666f6f");  // payload "foo"
 
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
-                      "Unknown frame received before SETTINGS.", _))
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_MISSING_SETTINGS_FRAME,
+                              "Unknown frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));

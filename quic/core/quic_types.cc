@@ -484,6 +484,14 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {false,
               {static_cast<uint64_t>(
                   QuicHttp3ErrorCode::IETF_QUIC_HTTP3_CLOSED_CRITICAL_STREAM)}};
+    case QUIC_HTTP_MISSING_SETTINGS_FRAME:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_MISSING_SETTINGS)}};
+    case QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_SETTINGS_ERROR)}};
     case QUIC_HPACK_INDEX_VARINT_ERROR:
       return {false, {static_cast<uint64_t>(QUIC_HPACK_INDEX_VARINT_ERROR)}};
     case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:

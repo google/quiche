@@ -2797,14 +2797,22 @@ TEST_P(QuicSpdySessionTestClient, IgnoreCancelPush) {
   EXPECT_EQ(receive_control_stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
 
+  // First frame has to be SETTINGS.
+  std::string serialized_settings = EncodeSettings({});
+  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+  session_.OnStreamFrame(data2);
+
   CancelPushFrame cancel_push{/* push_id = */ 0};
   std::unique_ptr<char[]> buffer;
   auto frame_length =
       HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
-  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+  QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         quiche::QuicheStringPiece(buffer.get(), frame_length));
   EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
-  session_.OnStreamFrame(data2);
+  session_.OnStreamFrame(data3);
 }
 
 TEST_P(QuicSpdySessionTestServer, ServerPushEnabledDefaultValue) {
@@ -2973,6 +2981,9 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
     return;
   }
 
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
   // Create control stream.
   QuicStreamId receive_control_stream_id =
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
@@ -2982,17 +2993,28 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
   QuicStreamFrame data1(receive_control_stream_id, /* fin = */ false, offset,
                         stream_type);
   offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
   session_.OnStreamFrame(data1);
   EXPECT_EQ(receive_control_stream_id,
             QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  // First frame has to be SETTINGS.
+  std::string serialized_settings = EncodeSettings({});
+  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+  session_.OnStreamFrame(data2);
 
   CancelPushFrame cancel_push{/* push_id = */ 0};
   std::unique_ptr<char[]> buffer;
   auto frame_length =
       HttpEncoder::SerializeCancelPushFrame(cancel_push, &buffer);
-  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+  QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
                         quiche::QuicheStringPiece(buffer.get(), frame_length));
-  session_.OnStreamFrame(data2);
+  EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
+  session_.OnStreamFrame(data3);
 }
 
 TEST_P(QuicSpdySessionTestClient, SendInitialMaxPushIdIfSet) {

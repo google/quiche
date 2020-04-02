@@ -448,7 +448,8 @@ TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
 
   EXPECT_EQ(input.size(), ProcessInput(input));
 
-  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+  EXPECT_THAT(decoder_.error(),
+              IsError(QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER));
   EXPECT_EQ("Duplicate setting identifier.", decoder_.error_detail());
 }
 

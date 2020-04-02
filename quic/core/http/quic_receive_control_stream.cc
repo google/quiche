@@ -63,6 +63,13 @@ bool QuicReceiveControlStream::OnCancelPushFrame(const CancelPushFrame& frame) {
     spdy_session()->debug_visitor()->OnCancelPushFrameReceived(frame);
   }
 
+  if (!settings_frame_received_) {
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_MISSING_SETTINGS_FRAME,
+        "CANCEL_PUSH frame received before SETTINGS.");
+    return false;
+  }
+
   // TODO(b/151841240): Handle CANCEL_PUSH frames instead of ignoring them.
   return true;
 }
@@ -70,6 +77,13 @@ bool QuicReceiveControlStream::OnCancelPushFrame(const CancelPushFrame& frame) {
 bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnMaxPushIdFrameReceived(frame);
+  }
+
+  if (!settings_frame_received_) {
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_MISSING_SETTINGS_FRAME,
+        "MAX_PUSH_ID frame received before SETTINGS.");
+    return false;
   }
 
   if (spdy_session()->perspective() == Perspective::IS_CLIENT) {
@@ -84,9 +98,14 @@ bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
 }
 
 bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {
-  // TODO(bnc): Check if SETTINGS frame has been received.
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnGoAwayFrameReceived(frame);
+  }
+
+  if (!settings_frame_received_) {
+    stream_delegate()->OnStreamError(QUIC_HTTP_MISSING_SETTINGS_FRAME,
+                                     "GOAWAY frame received before SETTINGS.");
+    return false;
   }
 
   if (spdy_session()->perspective() == Perspective::IS_SERVER) {
@@ -190,7 +209,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrameStart(
     QuicByteCount /*header_length*/) {
   if (!settings_frame_received_) {
     stream_delegate()->OnStreamError(
-        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
+        QUIC_HTTP_MISSING_SETTINGS_FRAME,
         "PRIORITY_UPDATE frame received before SETTINGS.");
     return false;
   }
@@ -250,9 +269,8 @@ bool QuicReceiveControlStream::OnUnknownFrameStart(
   }
 
   if (!settings_frame_received_) {
-    stream_delegate()->OnStreamError(
-        QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM,
-        "Unknown frame received before SETTINGS.");
+    stream_delegate()->OnStreamError(QUIC_HTTP_MISSING_SETTINGS_FRAME,
+                                     "Unknown frame received before SETTINGS.");
     return false;
   }
 

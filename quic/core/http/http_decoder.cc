@@ -504,7 +504,8 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader* reader,
     }
     auto result = frame->values.insert({id, content});
     if (!result.second) {
-      RaiseError(QUIC_HTTP_FRAME_ERROR, "Duplicate setting identifier.");
+      RaiseError(QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER,
+                 "Duplicate setting identifier.");
       return false;
     }
   }

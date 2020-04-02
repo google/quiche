@@ -363,8 +363,7 @@ enum QuicErrorCode {
   // An invalid sequence of frames normally allowed on a request stream is
   // received.
   QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM = 151,
-  // An invalid sequence of frames normally allowed on the control stream is
-  // received.
+  // A second SETTINGS frame is received on the control stream.
   QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM = 152,
   // A second instance of a unidirectional stream of a certain type is created.
   QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM = 153,
@@ -376,6 +375,10 @@ enum QuicErrorCode {
   // Peer closes one of the six critical unidirectional streams (control, QPACK
   // encoder or decoder, in either direction).
   QUIC_HTTP_CLOSED_CRITICAL_STREAM = 156,
+  // The first frame received on the control stream is not a SETTINGS frame.
+  QUIC_HTTP_MISSING_SETTINGS_FRAME = 157,
+  // The received SETTINGS frame contains duplicate setting identifiers.
+  QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER = 158,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -412,7 +415,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 157,
+  QUIC_LAST_ERROR = 159,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
