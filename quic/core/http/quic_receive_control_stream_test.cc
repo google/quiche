@@ -187,15 +187,17 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
 
   std::string settings_frame = EncodeSettings(settings);
 
-  EXPECT_EQ(1u, NumBytesConsumed());
+  QuicStreamOffset offset = 1;
+  EXPECT_EQ(offset, NumBytesConsumed());
 
   // Receive first SETTINGS frame.
   receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 1, settings_frame));
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
+                      settings_frame));
+  offset += settings_frame.length();
 
   // First SETTINGS frame is consumed.
-  EXPECT_EQ(settings_frame.size() + 1, NumBytesConsumed());
+  EXPECT_EQ(offset, NumBytesConsumed());
 
   // Second SETTINGS frame causes the connection to be closed.
   EXPECT_CALL(
@@ -208,14 +210,13 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   // Receive second SETTINGS frame.
-  receive_control_stream_->OnStreamFrame(QuicStreamFrame(
-      receive_control_stream_->id(), /* fin = */ false,
-      /* offset = */ settings_frame.size() + 1, settings_frame));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
+                      settings_frame));
 
   // Frame header of second SETTINGS frame is consumed, but not frame payload.
   QuicByteCount settings_frame_header_length = 2;
-  EXPECT_EQ(settings_frame.size() + settings_frame_header_length + 1,
-            NumBytesConsumed());
+  EXPECT_EQ(offset + settings_frame_header_length, NumBytesConsumed());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsFragments) {
@@ -328,15 +329,17 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
 TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
   EXPECT_EQ(1u, NumBytesConsumed());
 
+  QuicStreamOffset offset = 1;
+
   // Receive SETTINGS frame.
-  SettingsFrame settings;
-  std::string settings_frame = EncodeSettings(settings);
+  std::string settings_frame = EncodeSettings({});
   receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 1, settings_frame));
+      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false, offset,
+                      settings_frame));
+  offset += settings_frame.length();
 
   // SETTINGS frame is consumed.
-  EXPECT_EQ(1 + settings_frame.size(), NumBytesConsumed());
+  EXPECT_EQ(offset, NumBytesConsumed());
 
   // Receive unknown frame.
   std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
@@ -344,13 +347,12 @@ TEST_P(QuicReceiveControlStreamTest, ConsumeUnknownFrame) {
       "03"        // payload length
       "666f6f");  // payload "foo"
 
-  receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(receive_control_stream_->id(), /* fin = */ false,
-                      /* offset = */ 1 + settings_frame.size(), unknown_frame));
+  receive_control_stream_->OnStreamFrame(QuicStreamFrame(
+      receive_control_stream_->id(), /* fin = */ false, offset, unknown_frame));
+  offset += unknown_frame.size();
 
   // Unknown frame is consumed.
-  EXPECT_EQ(1 + settings_frame.size() + unknown_frame.size(),
-            NumBytesConsumed());
+  EXPECT_EQ(offset, NumBytesConsumed());
 }
 
 TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
@@ -358,14 +360,15 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
   session_.set_debug_visitor(&debug_visitor);
 
   const QuicStreamId id = receive_control_stream_->id();
+  QuicStreamOffset offset = 1;
 
   // Receive SETTINGS frame.
   SettingsFrame settings;
   std::string settings_frame = EncodeSettings(settings);
   EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
-  receive_control_stream_->OnStreamFrame(QuicStreamFrame(id, /* fin = */ false,
-                                                         /* offset = */ 1,
-                                                         settings_frame));
+  receive_control_stream_->OnStreamFrame(
+      QuicStreamFrame(id, /* fin = */ false, offset, settings_frame));
+  offset += settings_frame.length();
 
   // Receive unknown frame.
   std::string unknown_frame = quiche::QuicheTextUtils::HexDecode(
@@ -376,8 +379,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveUnknownFrame) {
   EXPECT_CALL(debug_visitor, OnUnknownFrameReceived(id, /* frame_type = */ 0x21,
                                                     /* payload_length = */ 3));
   receive_control_stream_->OnStreamFrame(
-      QuicStreamFrame(id, /* fin = */ false,
-                      /* offset = */ 1 + settings_frame.size(), unknown_frame));
+      QuicStreamFrame(id, /* fin = */ false, offset, unknown_frame));
 }
 
 TEST_P(QuicReceiveControlStreamTest, CancelPushFrameBeforeSettings) {
