@@ -82,8 +82,7 @@ const QuicTag kTBBR = TAG('T', 'B', 'B', 'R');   // Reduced Buffer Bloat TCP
 const QuicTag k1RTT = TAG('1', 'R', 'T', 'T');   // STARTUP in BBR for 1 RTT
 const QuicTag k2RTT = TAG('2', 'R', 'T', 'T');   // STARTUP in BBR for 2 RTTs
 const QuicTag kLRTT = TAG('L', 'R', 'T', 'T');   // Exit STARTUP in BBR on loss
-const QuicTag kBBS1 = TAG('B', 'B', 'S', '1');   // Rate-based recovery in
-                                                 // BBR STARTUP
+const QuicTag kBBS1 = TAG('B', 'B', 'S', '1');   // DEPRECATED
 const QuicTag kBBS2 = TAG('B', 'B', 'S', '2');   // More aggressive packet
                                                  // conservation in BBR STARTUP
 const QuicTag kBBS3 = TAG('B', 'B', 'S', '3');   // Slowstart packet
@@ -99,8 +98,7 @@ const QuicTag kBBR4 = TAG('B', 'B', 'R', '4');   // 20 RTT ack aggregation
 const QuicTag kBBR5 = TAG('B', 'B', 'R', '5');   // 40 RTT ack aggregation
 const QuicTag kBBR9 = TAG('B', 'B', 'R', '9');   // Ignore app-limited calls in
                                                  // BBR if enough inflight.
-const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // Use 1.5x pacing in startup
-                                                 // after a loss has occurred.
+const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // DEPRECATED
 const QuicTag kBBQ1 = TAG('B', 'B', 'Q', '1');   // BBR with lower 2.77 STARTUP
                                                  // pacing and CWND gain.
 const QuicTag kBBQ2 = TAG('B', 'B', 'Q', '2');   // BBR with lower 2.0 STARTUP

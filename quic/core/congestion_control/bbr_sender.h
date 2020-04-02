@@ -324,6 +324,8 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   const float congestion_window_gain_constant_;
   // The number of RTTs to stay in STARTUP mode.  Defaults to 3.
   QuicRoundTripCount num_startup_rtts_;
+
+  // Latched value of --quic_bbr_default_exit_startup_on_loss.
   // If true, exit startup if all of the following conditions are met:
   // - 1RTT has passed with no bandwidth increase,
   // - Some number of congestion events happened with loss, in the last round.
