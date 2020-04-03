@@ -397,7 +397,8 @@ QuicSpdySession::QuicSpdySession(
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
       server_push_enabled_(true),
-      ietf_server_push_enabled_(false),
+      ietf_server_push_enabled_(
+          GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
       destruction_indicator_(123456789),
       debug_visitor_(nullptr),
       http3_goaway_received_(false),
