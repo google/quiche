@@ -31,7 +31,7 @@ void GeneralLossAlgorithm::DetectLosses(
     const AckedPacketVector& packets_acked,
     LostPacketVector* packets_lost) {
   loss_detection_timeout_ = QuicTime::Zero();
-  if (!packets_acked.empty() &&
+  if (!packets_acked.empty() && least_in_flight_.IsInitialized() &&
       packets_acked.front().packet_number == least_in_flight_) {
     if (packets_acked.back().packet_number == largest_newly_acked &&
         least_in_flight_ + packets_acked.size() - 1 == largest_newly_acked) {
