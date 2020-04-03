@@ -44,9 +44,11 @@ QboneSessionBase::QboneSessionBase(
   const uint32_t max_streams =
       (std::numeric_limits<uint32_t>::max() / kMaxAvailableStreamsMultiplier) -
       1;
-  this->config()->SetMaxBidirectionalStreamsToSend(max_streams);
   if (VersionHasIetfQuicFrames(transport_version())) {
-    ConfigureMaxDynamicStreamsToSend(max_streams);
+    ConfigureMaxBidirectionalStreamsToSend(max_streams);
+    ConfigureMaxUnidirectionalStreamsToSend(max_streams);
+  } else {
+    this->config()->SetMaxBidirectionalStreamsToSend(max_streams);
   }
 }
 

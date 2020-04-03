@@ -448,7 +448,7 @@ void QuicSpdySession::Initialize() {
     headers_stream_ = headers_stream.get();
     ActivateStream(std::move(headers_stream));
   } else {
-    ConfigureMaxDynamicStreamsToSend(
+    ConfigureMaxUnidirectionalStreamsToSend(
         config()->GetMaxUnidirectionalStreamsToSend());
     qpack_encoder_ = std::make_unique<QpackEncoder>(this);
     qpack_decoder_ =

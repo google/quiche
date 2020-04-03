@@ -457,10 +457,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return num_expected_unidirectional_static_streams_;
   }
 
-  // Set the number of unidirectional stream that the peer is allowed to open to
-  // be |max_stream| + |num_expected_static_streams_|.
-  void ConfigureMaxDynamicStreamsToSend(QuicStreamCount max_stream) {
+  // Set the number of streams that the peer is allowed to open.
+  void ConfigureMaxBidirectionalStreamsToSend(QuicStreamCount max_stream) {
+    config_.SetMaxBidirectionalStreamsToSend(max_stream);
+    v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(max_stream);
+  }
+  void ConfigureMaxUnidirectionalStreamsToSend(QuicStreamCount max_stream) {
     config_.SetMaxUnidirectionalStreamsToSend(
+        max_stream + num_expected_unidirectional_static_streams_);
+    v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
         max_stream + num_expected_unidirectional_static_streams_);
   }
 
