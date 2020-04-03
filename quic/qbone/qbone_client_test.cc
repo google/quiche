@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor_test_tools.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_server_session.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_server_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
@@ -169,11 +170,6 @@ class QboneTestServer : public QuicServer {
 
   std::vector<std::string> data() { return writer_.data(); }
 
-  void WaitForDataSize(int n) {
-    while (data().size() != n) {
-    }
-  }
-
  private:
   quic::QuicMemoryCacheBackend response_cache_;
   DataSavingQbonePacketWriter writer_;
@@ -208,10 +204,19 @@ class QboneTestClient : public QboneClient {
     }
   }
 
-  void WaitForDataSize(int n) {
-    while (data().size() != n) {
+  // Returns true when the data size is reached or false on timeouts.
+  bool WaitForDataSize(int n, QuicTime::Delta timeout) {
+    const QuicClock* clock =
+        quic::test::QuicConnectionPeer::GetHelper(session()->connection())
+            ->GetClock();
+    const QuicTime deadline = clock->Now() + timeout;
+    while (data().size() < n) {
+      if (clock->Now() > deadline) {
+        return false;
+      }
       WaitForEvents();
     }
+    return true;
   }
 
   std::vector<std::string> data() { return qbone_writer_.data(); }
@@ -247,24 +252,30 @@ TEST_P(QboneClientTest, SendDataFromClient) {
   client.SendData(TestPacketIn("hello"));
   client.SendData(TestPacketIn("world"));
   client.WaitForWriteToFlush();
-  server->WaitForDataSize(2);
-  EXPECT_THAT(server->data()[0], testing::Eq(TestPacketOut("hello")));
-  EXPECT_THAT(server->data()[1], testing::Eq(TestPacketOut("world")));
-  auto server_session =
-      static_cast<QboneServerSession*>(QuicServerPeer::GetDispatcher(server)
-                                           ->session_map()
-                                           .begin()
-                                           ->second.get());
+
+  // Wait until the server has received at least two packets, timeout after 5s.
+  ASSERT_TRUE(
+      server_thread.WaitUntil([&] { return server->data().size() >= 2; },
+                              QuicTime::Delta::FromSeconds(5)));
+
   std::string long_data(
       QboneConstants::kMaxQbonePacketBytes - sizeof(ip6_hdr) - 1, 'A');
+
   // Pretend the server gets data.
-  server_thread.Schedule([&server_session, &long_data]() {
+  server_thread.Schedule([&server, &long_data]() {
+    EXPECT_THAT(server->data()[0], testing::Eq(TestPacketOut("hello")));
+    EXPECT_THAT(server->data()[1], testing::Eq(TestPacketOut("world")));
+    auto server_session =
+        static_cast<QboneServerSession*>(QuicServerPeer::GetDispatcher(server)
+                                             ->session_map()
+                                             .begin()
+                                             ->second.get());
     server_session->ProcessPacketFromNetwork(
         TestPacketIn("Somethingsomething"));
     server_session->ProcessPacketFromNetwork(TestPacketIn(long_data));
     server_session->ProcessPacketFromNetwork(TestPacketIn(long_data));
   });
-  client.WaitForDataSize(3);
+  ASSERT_TRUE(client.WaitForDataSize(3, QuicTime::Delta::FromSeconds(5)));
   EXPECT_THAT(client.data()[0],
               testing::Eq(TestPacketOut("Somethingsomething")));
   EXPECT_THAT(client.data()[1], testing::Eq(TestPacketOut(long_data)));
