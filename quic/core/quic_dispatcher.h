@@ -210,6 +210,8 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   const ParsedQuicVersionVector& GetSupportedVersions();
 
+  const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();
+
   const QuicConfig& config() const { return *config_; }
 
   const QuicCryptoServerConfig* crypto_config() const { return crypto_config_; }

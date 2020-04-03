@@ -41,30 +41,44 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
 
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions,
+            manager.GetSupportedVersionsWithQuicCrypto());
 
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
 
   SetQuicReloadableFlag(quic_enable_version_draft_27, true);
   expected_parsed_versions.push_back(
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions.size() - 1,
+            manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
 
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   expected_parsed_versions.push_back(
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
-  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
-            manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions.size() - 2,
+            manager.GetSupportedVersionsWithQuicCrypto().size());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
 
   SetQuicReloadableFlag(quic_enable_version_t050, true);
   expected_parsed_versions.push_back(
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions.size() - 3,
+            manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
 }
 
 }  // namespace

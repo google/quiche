@@ -26,6 +26,9 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // as the versions passed to the constructor.
   const ParsedQuicVersionVector& GetSupportedVersions();
 
+  // Returns currently supported versions using QUIC crypto.
+  const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();
+
  protected:
   // If the value of any reloadable flag is different from the cached value,
   // re-filter |filtered_supported_versions_| and update the cached flag values.
@@ -63,6 +66,8 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // This vector contains QUIC versions which are currently supported based on
   // flags.
   ParsedQuicVersionVector filtered_supported_versions_;
+  // Currently supported versions using QUIC crypto.
+  ParsedQuicVersionVector filtered_supported_versions_with_quic_crypto_;
   // This vector contains the transport versions from
   // |filtered_supported_versions_|. No guarantees are made that the same
   // transport version isn't repeated.

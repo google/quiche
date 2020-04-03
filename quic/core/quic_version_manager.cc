@@ -44,6 +44,12 @@ const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
   return filtered_supported_versions_;
 }
 
+const ParsedQuicVersionVector&
+QuicVersionManager::GetSupportedVersionsWithQuicCrypto() {
+  MaybeRefilterSupportedVersions();
+  return filtered_supported_versions_with_quic_crypto_;
+}
+
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
@@ -80,6 +86,7 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
 void QuicVersionManager::RefilterSupportedVersions() {
   filtered_supported_versions_ =
       FilterSupportedVersions(allowed_supported_versions_);
+  filtered_supported_versions_with_quic_crypto_.clear();
   filtered_transport_versions_.clear();
   for (ParsedQuicVersion version : filtered_supported_versions_) {
     auto transport_version = version.transport_version;
@@ -87,6 +94,9 @@ void QuicVersionManager::RefilterSupportedVersions() {
                   filtered_transport_versions_.end(),
                   transport_version) == filtered_transport_versions_.end()) {
       filtered_transport_versions_.push_back(transport_version);
+    }
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      filtered_supported_versions_with_quic_crypto_.push_back(version);
     }
   }
 }
