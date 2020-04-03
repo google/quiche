@@ -108,18 +108,10 @@ TlsConnection* TlsConnection::ConnectionFromSsl(const SSL* ssl) {
       ssl, SslIndexSingleton::GetInstance()->ssl_ex_data_index_connection()));
 }
 
-// TODO(nharper): Once
-// https://boringssl-review.googlesource.com/c/boringssl/+/40127 lands and is
-// rolled into google3, remove the BORINGSSL_API_VERSION check.
 const SSL_QUIC_METHOD TlsConnection::kSslQuicMethod{
-#if BORINGSSL_API_VERSION < 10
-  TlsConnection::SetEncryptionSecretCallback,
-#else
-  TlsConnection::SetReadSecretCallback, TlsConnection::SetWriteSecretCallback,
-#endif
-      TlsConnection::WriteMessageCallback, TlsConnection::FlushFlightCallback,
-      TlsConnection::SendAlertCallback
-};
+    TlsConnection::SetReadSecretCallback, TlsConnection::SetWriteSecretCallback,
+    TlsConnection::WriteMessageCallback, TlsConnection::FlushFlightCallback,
+    TlsConnection::SendAlertCallback};
 
 // static
 int TlsConnection::SetEncryptionSecretCallback(
