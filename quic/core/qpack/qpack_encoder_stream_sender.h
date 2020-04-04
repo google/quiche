@@ -38,9 +38,11 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamSender {
   // 5.2.4. Set Dynamic Table Capacity
   void SendSetDynamicTableCapacity(uint64_t capacity);
 
+  // Returns number of buffered bytes.
+  QuicByteCount BufferedByteCount() const { return buffer_.size(); }
+
   // Writes all buffered instructions on the encoder stream.
-  // Returns the number of bytes written.
-  QuicByteCount Flush();
+  void Flush();
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {

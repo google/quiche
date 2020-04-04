@@ -740,8 +740,6 @@ void QuicSpdySession::SendInitialData() {
     SendMaxPushId();
     http3_max_push_id_sent_ = true;
   }
-  qpack_decoder_send_stream_->MaybeSendStreamType();
-  qpack_encoder_send_stream_->MaybeSendStreamType();
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {

@@ -80,6 +80,11 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     const spdy::SpdyHeaderBlock& header_list,
     QpackBlockingManager::IndexSet* referred_indices,
     QuicByteCount* encoder_stream_sent_byte_count) {
+  // If previous instructions are buffered in |encoder_stream_sender_|,
+  // do not count them towards the current header block.
+  const QuicByteCount initial_encoder_stream_buffered_byte_count =
+      encoder_stream_sender_.BufferedByteCount();
+
   Instructions instructions;
   instructions.reserve(header_list.size());
 
@@ -266,10 +271,16 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
     }
   }
 
-  const QuicByteCount sent_byte_count = encoder_stream_sender_.Flush();
+  const QuicByteCount encoder_stream_buffered_byte_count =
+      encoder_stream_sender_.BufferedByteCount();
+  DCHECK_GE(encoder_stream_buffered_byte_count,
+            initial_encoder_stream_buffered_byte_count);
   if (encoder_stream_sent_byte_count) {
-    *encoder_stream_sent_byte_count = sent_byte_count;
+    *encoder_stream_sent_byte_count =
+        encoder_stream_buffered_byte_count -
+        initial_encoder_stream_buffered_byte_count;
   }
+  encoder_stream_sender_.Flush();
 
   ++header_list_count_;
 
@@ -374,7 +385,8 @@ void QpackEncoder::SetMaximumDynamicTableCapacity(
 
 void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
   encoder_stream_sender_.SendSetDynamicTableCapacity(dynamic_table_capacity);
-  encoder_stream_sender_.Flush();
+  // Do not flush encoder stream.  This write can safely be delayed until more
+  // instructions are written.
 
   bool success = header_table_.SetDynamicTableCapacity(dynamic_table_capacity);
   DCHECK(success);

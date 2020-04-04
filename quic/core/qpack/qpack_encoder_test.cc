@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -213,11 +214,6 @@ TEST_F(QpackEncoderTest, InvalidHeaderAcknowledgement) {
 TEST_F(QpackEncoderTest, DynamicTable) {
   encoder_.SetMaximumBlockedStreams(1);
   encoder_.SetMaximumDynamicTableCapacity(4096);
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(
-      encoder_stream_sender_delegate_,
-      WriteStreamData(Eq(quiche::QuicheTextUtils::HexDecode("3fe11f"))));
   encoder_.SetDynamicTableCapacity(4096);
 
   spdy::SpdyHeaderBlock header_list;
@@ -226,6 +222,9 @@ TEST_F(QpackEncoderTest, DynamicTable) {
                                      "baz");  // name matches dynamic entry
   header_list["cookie"] = "baz";              // name matches static entry
 
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity =
+      quiche::QuicheTextUtils::HexDecode("3fe11f");
   // Insert three entries into the dynamic table.
   std::string insert_entries = quiche::QuicheTextUtils::HexDecode(
       "62"          // insert without name reference
@@ -236,7 +235,8 @@ TEST_F(QpackEncoderTest, DynamicTable) {
       "c5"          // insert with name reference, static index 5
       "0362617a");  // value "baz"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(insert_entries)));
+              WriteStreamData(Eq(quiche::QuicheStrCat(
+                  set_dyanamic_table_capacity, insert_entries))));
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode(
                 "0400"      // prefix
@@ -250,10 +250,6 @@ TEST_F(QpackEncoderTest, DynamicTable) {
 TEST_F(QpackEncoderTest, SmallDynamicTable) {
   encoder_.SetMaximumBlockedStreams(1);
   encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(quiche::QuicheTextUtils::HexDecode("3f07"))));
   encoder_.SetDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
 
   spdy::SpdyHeaderBlock header_list;
@@ -263,13 +259,17 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
   header_list["cookie"] = "baz";              // name matches static entry
   header_list["bar"] = "baz";                 // no match
 
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity =
+      quiche::QuicheTextUtils::HexDecode("3f07");
   // Insert one entry into the dynamic table.
   std::string insert_entry = quiche::QuicheTextUtils::HexDecode(
       "62"          // insert without name reference
       "94e7"        // Huffman-encoded name "foo"
       "03626172");  // value "bar"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(insert_entry)));
+              WriteStreamData(Eq(quiche::QuicheStrCat(
+                  set_dyanamic_table_capacity, insert_entry))));
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode(
                 "0200"        // prefix
@@ -288,23 +288,22 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
 TEST_F(QpackEncoderTest, BlockedStream) {
   encoder_.SetMaximumBlockedStreams(1);
   encoder_.SetMaximumDynamicTableCapacity(4096);
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(
-      encoder_stream_sender_delegate_,
-      WriteStreamData(Eq(quiche::QuicheTextUtils::HexDecode("3fe11f"))));
   encoder_.SetDynamicTableCapacity(4096);
 
   spdy::SpdyHeaderBlock header_list1;
   header_list1["foo"] = "bar";
 
+  // Set Dynamic Table Capacity instruction.
+  std::string set_dyanamic_table_capacity =
+      quiche::QuicheTextUtils::HexDecode("3fe11f");
   // Insert one entry into the dynamic table.
   std::string insert_entry1 = quiche::QuicheTextUtils::HexDecode(
       "62"          // insert without name reference
       "94e7"        // Huffman-encoded name "foo"
       "03626172");  // value "bar"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(insert_entry1)));
+              WriteStreamData(Eq(quiche::QuicheStrCat(
+                  set_dyanamic_table_capacity, insert_entry1))));
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode("0200"  // prefix
                                                "80"),  // dynamic entry 0
@@ -420,12 +419,10 @@ TEST_F(QpackEncoderTest, Draining) {
   }
   maximum_dynamic_table_capacity += QpackEntry::Size("one", "foo");
   encoder_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_));
   encoder_.SetDynamicTableCapacity(maximum_dynamic_table_capacity);
 
-  // Insert ten entries into the dynamic table.
+  // Set Dynamic Table Capacity instruction and insert ten entries into the
+  // dynamic table.
   EXPECT_CALL(encoder_stream_sender_delegate_, WriteStreamData(_));
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode(
@@ -466,10 +463,6 @@ TEST_F(QpackEncoderTest, Draining) {
 
 TEST_F(QpackEncoderTest, DynamicTableCapacityLessThanMaximum) {
   encoder_.SetMaximumDynamicTableCapacity(1024);
-
-  // Set Dynamic Table Capacity instruction.
-  EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(quiche::QuicheTextUtils::HexDecode("3e"))));
   encoder_.SetDynamicTableCapacity(30);
 
   QpackHeaderTable* header_table = QpackEncoderPeer::header_table(&encoder_);

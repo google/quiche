@@ -44,15 +44,13 @@ void QpackEncoderStreamSender::SendSetDynamicTableCapacity(uint64_t capacity) {
       QpackInstructionWithValues::SetDynamicTableCapacity(capacity), &buffer_);
 }
 
-QuicByteCount QpackEncoderStreamSender::Flush() {
+void QpackEncoderStreamSender::Flush() {
   if (buffer_.empty()) {
-    return 0;
+    return;
   }
 
   delegate_->WriteStreamData(buffer_);
-  const QuicByteCount bytes_written = buffer_.size();
   buffer_.clear();
-  return bytes_written;
 }
 
 }  // namespace quic
