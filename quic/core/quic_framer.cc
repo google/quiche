@@ -541,16 +541,13 @@ size_t QuicFramer::GetConnectionCloseFrameSize(
   // Prepend the extra error information to the string and get the result's
   // length.
   const size_t truncated_error_string_size = TruncatedErrorStringSize(
-      GenerateErrorString(frame.error_details, frame.extracted_error_code));
+      GenerateErrorString(frame.error_details, frame.quic_error_code));
 
   const size_t frame_size =
       truncated_error_string_size +
       QuicDataWriter::GetVarInt62Len(truncated_error_string_size) +
       kQuicFrameTypeSize +
-      QuicDataWriter::GetVarInt62Len(
-          (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
-              ? frame.transport_error_code
-              : frame.application_error_code);
+      QuicDataWriter::GetVarInt62Len(frame.wire_error_code);
   if (frame.close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
     return frame_size;
   }
@@ -3975,12 +3972,10 @@ bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
     error_code = QUIC_LAST_ERROR;
   }
 
+  // For Google QUIC connection closes, |wire_error_code| and |quic_error_code|
+  // must have the same value.
+  frame->wire_error_code = error_code;
   frame->quic_error_code = static_cast<QuicErrorCode>(error_code);
-
-  // For Google QUIC connection closes, copy the Google QUIC error code to
-  // the extracted error code field so that the Google QUIC error code is always
-  // available in extracted_error_code.
-  frame->extracted_error_code = frame->quic_error_code;
 
   quiche::QuicheStringPiece error_details;
   if (!reader->ReadStringPiece16(&error_details)) {
@@ -5517,7 +5512,7 @@ bool QuicFramer::AppendConnectionCloseFrame(
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
     return AppendIetfConnectionCloseFrame(frame, writer);
   }
-  uint32_t error_code = static_cast<uint32_t>(frame.quic_error_code);
+  uint32_t error_code = static_cast<uint32_t>(frame.wire_error_code);
   if (!writer->WriteUInt32(error_code)) {
     return false;
   }
@@ -5642,10 +5637,7 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
     return false;
   }
 
-  if (!writer->WriteVarInt62(
-          (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE)
-              ? frame.transport_error_code
-              : frame.application_error_code)) {
+  if (!writer->WriteVarInt62(frame.wire_error_code)) {
     set_detailed_error("Can not write connection close frame error code");
     return false;
   }
@@ -5663,7 +5655,7 @@ bool QuicFramer::AppendIetfConnectionCloseFrame(
   // code. Encode the error information in the reason phrase and serialize the
   // result.
   std::string final_error_string =
-      GenerateErrorString(frame.error_details, frame.extracted_error_code);
+      GenerateErrorString(frame.error_details, frame.quic_error_code);
   if (!writer->WriteStringPieceVarInt62(
           TruncateErrorString(final_error_string))) {
     set_detailed_error("Can not write connection close phrase");
@@ -5684,12 +5676,7 @@ bool QuicFramer::ProcessIetfConnectionCloseFrame(
     return false;
   }
 
-  if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
-    frame->transport_error_code =
-        static_cast<QuicIetfTransportErrorCodes>(error_code);
-  } else if (frame->close_type == IETF_QUIC_APPLICATION_CONNECTION_CLOSE) {
-    frame->application_error_code = error_code;
-  }
+  frame->wire_error_code = error_code;
 
   if (type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
     // The frame-type of the frame causing the error is present only
@@ -6626,10 +6613,10 @@ void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
   if (ed.size() < 2 || !quiche::QuicheTextUtils::IsAllDigits(ed[0]) ||
       !quiche::QuicheTextUtils::StringToUint64(ed[0], &extracted_error_code)) {
     if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE &&
-        frame->transport_error_code == NO_IETF_QUIC_ERROR) {
-      frame->extracted_error_code = QUIC_NO_ERROR;
+        frame->wire_error_code == NO_IETF_QUIC_ERROR) {
+      frame->quic_error_code = QUIC_NO_ERROR;
     } else {
-      frame->extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+      frame->quic_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
     }
     return;
   }
@@ -6641,8 +6628,7 @@ void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
   quiche::QuicheStringPiece x = quiche::QuicheStringPiece(frame->error_details);
   x.remove_prefix(ed[0].length() + 1);
   frame->error_details = std::string(x);
-  frame->extracted_error_code =
-      static_cast<QuicErrorCode>(extracted_error_code);
+  frame->quic_error_code = static_cast<QuicErrorCode>(extracted_error_code);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

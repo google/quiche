@@ -365,7 +365,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool goaway_received() const { return goaway_received_; }
 
   // Returns the Google QUIC error code
-  QuicErrorCode error() const { return on_closed_frame_.extracted_error_code; }
+  QuicErrorCode error() const { return on_closed_frame_.quic_error_code; }
   const std::string& error_details() const {
     return on_closed_frame_.error_details;
   }
@@ -374,12 +374,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   }
   QuicConnectionCloseType close_type() const {
     return on_closed_frame_.close_type;
-  }
-  QuicIetfTransportErrorCodes transport_error_code() const {
-    return on_closed_frame_.transport_error_code;
-  }
-  uint16_t application_error_code() const {
-    return on_closed_frame_.application_error_code;
   }
 
   Perspective perspective() const { return perspective_; }

@@ -1097,9 +1097,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 // This text, inserted by the peer if it's using Google's QUIC implementation,
 // contains additional error information that narrows down the exact error. The
 // extracted error code and (possibly updated) error_details string are returned
-// in |*frame|. If an error code is not found in the error details then the
-// extracted_error_code is set to QuicErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING.
-// If there is an error code in the string then it is removed from the string.
+// in |*frame|. If an error code is not found in the error details, then
+// frame->quic_error_code is set to
+// QuicErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING.  If there is an error code in
+// the string then it is removed from the string.
 QUIC_EXPORT_PRIVATE void MaybeExtractQuicErrorCode(
     QuicConnectionCloseFrame* frame);
 

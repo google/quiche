@@ -4442,19 +4442,18 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0x11u, static_cast<unsigned>(
-                       visitor_.connection_close_frame_.quic_error_code));
+                       visitor_.connection_close_frame_.wire_error_code));
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
-    EXPECT_THAT(visitor_.connection_close_frame_.extracted_error_code,
+    EXPECT_THAT(visitor_.connection_close_frame_.quic_error_code,
                 IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   } else {
-    // For Google QUIC closes, the error code is copied into
-    // extracted_error_code.
-    EXPECT_EQ(0x11u,
-              static_cast<unsigned>(
-                  visitor_.connection_close_frame_.extracted_error_code));
+    // For Google QUIC frame, |quic_error_code| and |wire_error_code| has the
+    // same value.
+    EXPECT_EQ(0x11u, static_cast<unsigned>(
+                         visitor_.connection_close_frame_.quic_error_code));
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -4576,15 +4575,15 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGCuic) {
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ(0x11u, static_cast<unsigned>(
-                       visitor_.connection_close_frame_.quic_error_code));
+                       visitor_.connection_close_frame_.wire_error_code));
 
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
-    EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
+    EXPECT_EQ(17767u, visitor_.connection_close_frame_.quic_error_code);
     EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
   } else {
-    EXPECT_EQ(0x11u, visitor_.connection_close_frame_.extracted_error_code);
+    EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
     // Error code is not prepended in GQUIC, so it is not removed and should
     // remain in the reason phrase.
     EXPECT_EQ("17767:because I can",
@@ -4648,8 +4647,8 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
 
   EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
             visitor_.connection_close_frame_.close_type);
-  EXPECT_EQ(122u, visitor_.connection_close_frame_.extracted_error_code);
-  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ(122u, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.wire_error_code);
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -4710,8 +4709,8 @@ TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
 
   EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
             visitor_.connection_close_frame_.close_type);
-  EXPECT_EQ(17767u, visitor_.connection_close_frame_.extracted_error_code);
-  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ(17767u, visitor_.connection_close_frame_.quic_error_code);
+  EXPECT_EQ(0x11u, visitor_.connection_close_frame_.wire_error_code);
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -7528,12 +7527,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame close_frame(
-      framer_.transport_version(),
-      static_cast<QuicErrorCode>(
-          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x11
-                                                                : 0x05060708),
-      "because I can", 0x05);
-  close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+      framer_.transport_version(), QUIC_INTERNAL_ERROR, "because I can", 0x05);
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7548,7 +7542,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     // frame type (connection close frame)
     0x02,
     // error code
-    0x05, 0x06, 0x07, 0x08,
+    0x00, 0x00, 0x00, 0x01,
     // error details length
     0x00, 0x0d,
     // error details
@@ -7569,7 +7563,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     // frame type (connection close frame)
     0x02,
     // error code
-    0x05, 0x06, 0x07, 0x08,
+    0x00, 0x00, 0x00, 0x01,
     // error details length
     0x00, 0x0d,
     // error details
@@ -7590,16 +7584,16 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
     // frame type (IETF_CONNECTION_CLOSE frame)
     0x1c,
     // error code
-    kVarInt62OneByte + 0x11,
+    kVarInt62OneByte + 0x01,
     // Frame type within the CONNECTION_CLOSE frame
     kVarInt62OneByte + 0x05,
     // error details length
-    kVarInt62OneByte + 0x0d,
+    kVarInt62OneByte + 0x0f,
     // error details
-    'b',  'e',  'c',  'a',
-    'u',  's',  'e',  ' ',
-    'I',  ' ',  'c',  'a',
-    'n',
+    '1',  ':',  'b',  'e',
+    'c',  'a',  'u',  's',
+    'e',  ' ',  'I',  ' ',
+    'c',  'a',  'n',
   };
   // clang-format on
 
@@ -7636,7 +7630,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
       "because I can", 0x05);
   // Set this so that it is "there" for both Google QUIC and IETF QUIC
   // framing. It better not show up for Google QUIC!
-  close_frame.extracted_error_code = static_cast<QuicErrorCode>(0x4567);
+  close_frame.quic_error_code = static_cast<QuicErrorCode>(0x4567);
 
   QuicFrames frames = {QuicFrame(&close_frame)};
 
@@ -7733,13 +7727,9 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicConnectionCloseFrame close_frame(
-      framer_.transport_version(),
-      static_cast<QuicErrorCode>(
-          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0xa
-                                                                : 0x05060708),
-      std::string(2048, 'A'), 0x05);
-  close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+  QuicConnectionCloseFrame close_frame(framer_.transport_version(),
+                                       QUIC_INTERNAL_ERROR,
+                                       std::string(2048, 'A'), 0x05);
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7754,7 +7744,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
     // frame type (connection close frame)
     0x02,
     // error code
-    0x05, 0x06, 0x07, 0x08,
+    0x00, 0x00, 0x00, 0x01,
     // error details length
     0x01, 0x00,
     // error details (truncated to 256 bytes)
@@ -7803,7 +7793,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
     // frame type (connection close frame)
     0x02,
     // error code
-    0x05, 0x06, 0x07, 0x08,
+    0x00, 0x00, 0x00, 0x01,
     // error details length
     0x01, 0x00,
     // error details (truncated to 256 bytes)
@@ -7852,13 +7842,13 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
     // frame type (IETF_CONNECTION_CLOSE frame)
     0x1c,
     // error code
-    kVarInt62OneByte + 0x0a,
+    kVarInt62OneByte + 0x01,
     // Frame type within the CONNECTION_CLOSE frame
     kVarInt62OneByte + 0x05,
     // error details length
     kVarInt62TwoBytes + 0x01, 0x00,
     // error details (truncated to 256 bytes)
-    'A',  'A',  'A',  'A',  'A',  'A',  'A',  'A',
+    '1',  ':',  'A',  'A',  'A',  'A',  'A',  'A',
     'A',  'A',  'A',  'A',  'A',  'A',  'A',  'A',
     'A',  'A',  'A',  'A',  'A',  'A',  'A',  'A',
     'A',  'A',  'A',  'A',  'A',  'A',  'A',  'A',
@@ -7923,8 +7913,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame app_close_frame;
-  app_close_frame.application_error_code =
-      static_cast<uint64_t>(QUIC_INVALID_STREAM_ID);
+  app_close_frame.wire_error_code = 0x11;
   app_close_frame.error_details = "because I can";
   app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
 
@@ -7975,13 +7964,12 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame app_close_frame;
-  app_close_frame.application_error_code =
-      static_cast<uint64_t>(QUIC_INVALID_STREAM_ID);
+  app_close_frame.wire_error_code = 0x11;
   app_close_frame.error_details = std::string(2048, 'A');
   app_close_frame.close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
   // Setting to missing ensures that if it is missing, the extended
   // code is not added to the text message.
-  app_close_frame.extracted_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
+  app_close_frame.quic_error_code = QUIC_IETF_GQUIC_ERROR_MISSING;
 
   QuicFrames frames = {QuicFrame(&app_close_frame)};
 
@@ -14254,84 +14242,77 @@ TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
 
   frame.error_details = "this has no error code info in it";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ("this has no error code info in it", frame.error_details);
 
   frame.error_details = "1234this does not have the colon in it";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ("1234this does not have the colon in it", frame.error_details);
 
   frame.error_details = "1a234:this has a colon, but a malformed error number";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ("1a234:this has a colon, but a malformed error number",
             frame.error_details);
 
   frame.error_details = "1234:this is good";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_EQ(1234u, frame.extracted_error_code);
+  EXPECT_EQ(1234u, frame.quic_error_code);
   EXPECT_EQ("this is good", frame.error_details);
 
   frame.error_details =
       "1234 :this is not good, space between last digit and colon";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ("1234 :this is not good, space between last digit and colon",
             frame.error_details);
 
   frame.error_details = "123456789";
   MaybeExtractQuicErrorCode(&frame);
   EXPECT_THAT(
-      frame.extracted_error_code,
+      frame.quic_error_code,
       IsError(QUIC_IETF_GQUIC_ERROR_MISSING));  // Not good, all numbers, no :
   EXPECT_EQ("123456789", frame.error_details);
 
   frame.error_details = "1234:";
   MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(1234u,
-            frame.extracted_error_code);  // corner case.
+            frame.quic_error_code);  // corner case.
   EXPECT_EQ("", frame.error_details);
 
   frame.error_details = "1234:5678";
   MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(1234u,
-            frame.extracted_error_code);  // another corner case.
+            frame.quic_error_code);  // another corner case.
   EXPECT_EQ("5678", frame.error_details);
 
   frame.error_details = "12345 6789:";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
+  EXPECT_THAT(frame.quic_error_code,
               IsError(QUIC_IETF_GQUIC_ERROR_MISSING));  // Not good
   EXPECT_EQ("12345 6789:", frame.error_details);
 
   frame.error_details = ":no numbers, is not good";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ(":no numbers, is not good", frame.error_details);
 
   frame.error_details = "qwer:also no numbers, is not good";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ("qwer:also no numbers, is not good", frame.error_details);
 
   frame.error_details = " 1234:this is not good, space before first digit";
   MaybeExtractQuicErrorCode(&frame);
-  EXPECT_THAT(frame.extracted_error_code,
-              IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
+  EXPECT_THAT(frame.quic_error_code, IsError(QUIC_IETF_GQUIC_ERROR_MISSING));
   EXPECT_EQ(" 1234:this is not good, space before first digit",
             frame.error_details);
 
   frame.error_details = "1234:";
   MaybeExtractQuicErrorCode(&frame);
   EXPECT_EQ(1234u,
-            frame.extracted_error_code);  // this is good
+            frame.quic_error_code);  // this is good
   EXPECT_EQ("", frame.error_details);
 }
 

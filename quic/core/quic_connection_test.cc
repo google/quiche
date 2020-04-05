@@ -1670,8 +1670,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     const std::vector<QuicConnectionCloseFrame>& connection_close_frames =
         writer_->connection_close_frames();
     ASSERT_EQ(1u, connection_close_frames.size());
+
+    EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+
     if (!VersionHasIetfQuicFrames(version().transport_version)) {
-      EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+      EXPECT_EQ(expected_code, connection_close_frames[0].wire_error_code);
       EXPECT_EQ(GOOGLE_QUIC_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
       return;
@@ -1685,16 +1688,13 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
       EXPECT_EQ(mapping.transport_error_code_,
-                connection_close_frames[0].transport_error_code);
-      // TODO(fkastenholz): when the extracted error code CL lands,
-      // need to test that extracted==expected.
+                connection_close_frames[0].wire_error_code);
     } else {
       // This maps to an application close.
-      EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
       EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
-      // TODO(fkastenholz): when the extracted error code CL lands,
-      // need to test that extracted==expected.
+      EXPECT_EQ(mapping.application_error_code_,
+                connection_close_frames[0].wire_error_code);
     }
   }
 
@@ -7621,7 +7621,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
       kSelfAddress, kPeerAddress,
       QuicReceivedPacket(buffer, encrypted_length, QuicTime::Zero(), false));
   EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_THAT(saved_connection_close_frame_.extracted_error_code,
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(QUIC_PEER_GOING_AWAY));
 }
 
@@ -10134,7 +10134,7 @@ TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {
   ASSERT_EQ(1u, connection_close_frames.size());
   EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
             connection_close_frames[0].close_type);
-  EXPECT_EQ(kQuicErrorCode, connection_close_frames[0].extracted_error_code);
+  EXPECT_EQ(kQuicErrorCode, connection_close_frames[0].quic_error_code);
   EXPECT_EQ(kTransportCloseFrameType,
             connection_close_frames[0].transport_close_frame_type);
 }

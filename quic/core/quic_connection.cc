@@ -1226,31 +1226,30 @@ bool QuicConnection::OnConnectionCloseFrame(
     case GOOGLE_QUIC_CONNECTION_CLOSE:
       QUIC_DLOG(INFO) << ENDPOINT << "Received ConnectionClose for connection: "
                       << connection_id() << ", with error: "
-                      << QuicErrorCodeToString(frame.extracted_error_code)
-                      << " (" << frame.error_details << ")";
+                      << QuicErrorCodeToString(frame.quic_error_code) << " ("
+                      << frame.error_details << ")";
       break;
     case IETF_QUIC_TRANSPORT_CONNECTION_CLOSE:
       QUIC_DLOG(INFO) << ENDPOINT
                       << "Received Transport ConnectionClose for connection: "
                       << connection_id() << ", with error: "
-                      << QuicErrorCodeToString(frame.extracted_error_code)
-                      << " (" << frame.error_details << ")"
-                      << ", transport error code: "
-                      << frame.transport_error_code << ", error frame type: "
+                      << QuicErrorCodeToString(frame.quic_error_code) << " ("
+                      << frame.error_details << ")"
+                      << ", transport error code: " << frame.wire_error_code
+                      << ", error frame type: "
                       << frame.transport_close_frame_type;
       break;
     case IETF_QUIC_APPLICATION_CONNECTION_CLOSE:
       QUIC_DLOG(INFO) << ENDPOINT
                       << "Received Application ConnectionClose for connection: "
                       << connection_id() << ", with error: "
-                      << QuicErrorCodeToString(frame.extracted_error_code)
-                      << " (" << frame.error_details << ")"
-                      << ", application error code: "
-                      << frame.application_error_code;
+                      << QuicErrorCodeToString(frame.quic_error_code) << " ("
+                      << frame.error_details << ")"
+                      << ", application error code: " << frame.wire_error_code;
       break;
   }
 
-  if (frame.extracted_error_code == QUIC_BAD_MULTIPATH_FLAG) {
+  if (frame.quic_error_code == QUIC_BAD_MULTIPATH_FLAG) {
     QUIC_LOG_FIRST_N(ERROR, 10) << "Unexpected QUIC_BAD_MULTIPATH_FLAG error."
                                 << " last_received_header: " << last_header_
                                 << " encryption_level: " << encryption_level_;

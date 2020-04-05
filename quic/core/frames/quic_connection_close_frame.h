@@ -31,33 +31,25 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
       std::ostream& os,
       const QuicConnectionCloseFrame& c);
 
-  // Indicates whether the received CONNECTION_CLOSE frame is a Google QUIC
-  // CONNECTION_CLOSE, IETF QUIC CONNECTION_CLOSE.
+  // Indicates whether the the frame is a Google QUIC CONNECTION_CLOSE frame,
+  // an IETF QUIC CONNECTION_CLOSE frame with transport error code,
+  // or an IETF QUIC CONNECTION_CLOSE frame with application error code.
   QuicConnectionCloseType close_type;
 
-  // This is the error field in the frame.
-  // The CONNECTION_CLOSE frame reports an error code:
-  // - The transport error code as reported in a CONNECTION_CLOSE/Transport
-  //   frame (serialized as a VarInt),
-  // - An opaque 64-bit code as reported in CONNECTION_CLOSE/Application frames
-  //  (serialized as a VarInt),,
-  // - A 16 bit QuicErrorCode, which is used in Google QUIC.
-  union {
-    QuicIetfTransportErrorCodes transport_error_code;
-    uint64_t application_error_code;
-    QuicErrorCode quic_error_code;
-  };
+  // The error code on the wire.  For Google QUIC frames, this has the same
+  // value as |quic_error_code|.
+  uint64_t wire_error_code;
 
-  // For IETF QUIC frames, this is the error code is extracted from, or added
-  // to, the error details text. For received Google QUIC frames, the Google
-  // QUIC error code from the frame's error code field is copied here (as well
-  // as in quic_error_code, above).
-  QuicErrorCode extracted_error_code;
+  // The underlying error.  For Google QUIC frames, this has the same value as
+  // |wire_error_code|.  For sent IETF QUIC frames, this is the error that
+  // triggered the closure of the connection.  For received IETF QUIC frames,
+  // this is parsed from the Reason Phrase field of the CONNECTION_CLOSE frame,
+  // or QUIC_IETF_GQUIC_ERROR_MISSING.
+  QuicErrorCode quic_error_code;
 
-  // String with additional error details. "QuicErrorCode: 123" will be appended
-  // to the error details when sending IETF QUIC Connection Close and
-  // Application Close frames and parsed into extracted_error_code upon receipt,
-  // when present.
+  // String with additional error details. |quic_error_code| and a colon will be
+  // prepended to the error details when sending IETF QUIC frames, and parsed
+  // into |quic_error_code| upon receipt, when present.
   std::string error_details;
 
   // The frame type present in the IETF transport connection close frame.

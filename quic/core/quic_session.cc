@@ -398,7 +398,7 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     RecordConnectionCloseAtServer(frame.quic_error_code, source);
   }
 
-  if (on_closed_frame_.extracted_error_code == QUIC_NO_ERROR) {
+  if (on_closed_frame_.quic_error_code == QUIC_NO_ERROR) {
     // Save all of the connection close information
     on_closed_frame_ = frame;
   }
@@ -431,8 +431,8 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   if (visitor_) {
     visitor_->OnConnectionClosed(connection_->connection_id(),
-                                 frame.extracted_error_code,
-                                 frame.error_details, source);
+                                 frame.quic_error_code, frame.error_details,
+                                 source);
   }
 }
 
