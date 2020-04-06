@@ -58,7 +58,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
         ", incoming_stream_count_: ", incoming_stream_count_,
         ", available_streams_.size(): ", available_streams_.size(),
         ", largest_peer_created_stream_id_: ", largest_peer_created_stream_id_,
-        ", max_streams_window_: ", max_streams_window_, " }");
+        " }");
   }
 
   // Processes the STREAMS_BLOCKED frame. If error is encountered, populates
@@ -109,8 +109,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
     return incoming_initial_max_open_streams_;
   }
 
-  QuicStreamCount max_streams_window() const { return max_streams_window_; }
-
   QuicStreamId next_outgoing_stream_id() const {
     return next_outgoing_stream_id_;
   }
@@ -155,8 +153,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // client/server perspective.
   QuicStreamId GetFirstOutgoingStreamId() const;
   QuicStreamId GetFirstIncomingStreamId() const;
-
-  void CalculateIncomingMaxStreamsWindow();
 
   // Back reference to the session containing this Stream ID Manager.
   // needed to access various session methods, such as perspective()
@@ -206,14 +202,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   QuicUnorderedSet<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
-
-  // When incoming streams close the local node sends MAX_STREAMS frames. It
-  // does so only when the peer can open fewer than |max_stream_id_window_|
-  // streams. That is, when |incoming_actual_max_streams_| -
-  // |incoming_advertised_max_streams_| is less than the window.
-  // max_streams_window_ is set to 1/2 of the initial number of incoming streams
-  // that are allowed (as set in the constructor).
-  QuicStreamId max_streams_window_;
 };
 }  // namespace quic
 

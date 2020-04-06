@@ -115,11 +115,6 @@ TEST_P(QuicStreamIdManagerTest, Initialization) {
             stream_id_manager_.incoming_advertised_max_streams());
   EXPECT_EQ(kDefaultMaxStreamsPerConnection,
             stream_id_manager_.incoming_initial_max_open_streams());
-
-  // The window for advertising updates to the MAX STREAM ID is half the number
-  // of streams allowed.
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection / 2,
-            stream_id_manager_.max_streams_window());
 }
 
 // This test checks that the stream advertisement window is set to 1
@@ -128,7 +123,6 @@ TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsWindowForSingleStream) {
   stream_id_manager_.SetMaxOpenIncomingStreams(1);
   EXPECT_EQ(1u, stream_id_manager_.incoming_initial_max_open_streams());
   EXPECT_EQ(1u, stream_id_manager_.incoming_actual_max_streams());
-  EXPECT_EQ(1u, stream_id_manager_.max_streams_window());
 }
 
 TEST_P(QuicStreamIdManagerTest, CheckMaxStreamsBadValuesOverMaxFailsOutgoing) {
@@ -326,15 +320,11 @@ TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
 }
 
 TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
-  // Test that a MAX_STREAMS frame is generated when the peer has less than
-  // |max_streams_window_| streams left that it can initiate.
-
-  // First, open, and then close, max_streams_window_ streams.  This will
-  // max_streams_window_ streams available for the peer -- no MAX_STREAMS
-  // should be sent. The -1 is because the check in
-  // QuicStreamIdManager::MaybeSendMaxStreamsFrame sends a MAX_STREAMS if the
-  // number of available streams at the peer is <= |max_streams_window_|
-  int stream_count = stream_id_manager_.max_streams_window() - 1;
+  // Open and then close a number of streams to get close to the threshold of
+  // sending a MAX_STREAM_FRAME.
+  int stream_count = stream_id_manager_.incoming_initial_max_open_streams() /
+                         kMaxStreamsWindowDivisor -
+                     1;
 
   // Should not get a control-frame transmission since the peer should have
   // "plenty" of stream IDs to use.
@@ -344,7 +334,8 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
   QuicStreamId stream_id = GetNthIncomingStreamId(0);
   size_t old_available_incoming_streams =
       stream_id_manager_.available_incoming_streams();
-  while (stream_count) {
+  auto i = stream_count;
+  while (i) {
     EXPECT_TRUE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id,
                                                                     nullptr));
 
@@ -354,12 +345,11 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsWindow) {
     EXPECT_EQ(old_available_incoming_streams,
               stream_id_manager_.available_incoming_streams());
 
-    stream_count--;
+    i--;
     stream_id += QuicUtils::StreamIdDelta(transport_version());
   }
 
   // Now close them, still should get no MAX_STREAMS
-  stream_count = stream_id_manager_.max_streams_window();
   stream_id = GetNthIncomingStreamId(0);
   QuicStreamCount expected_actual_max =
       stream_id_manager_.incoming_actual_max_streams();
@@ -420,18 +410,15 @@ TEST_P(QuicStreamIdManagerTest, MaxStreamsSlidingWindow) {
       stream_id_manager_.incoming_advertised_max_streams();
 
   // Open/close enough streams to shrink the window without causing a MAX
-  // STREAMS to be generated. The window will open (and a MAX STREAMS generated)
-  // when max_streams_window() stream IDs have been made available. The loop
+  // STREAMS to be generated. The loop
   // will make that many stream IDs available, so the last CloseStream should
-
   // cause a MAX STREAMS frame to be generated.
-  int i = static_cast<int>(stream_id_manager_.max_streams_window());
+  int i =
+      static_cast<int>(stream_id_manager_.incoming_initial_max_open_streams() /
+                       kMaxStreamsWindowDivisor);
   QuicStreamId id =
       QuicStreamIdManagerPeer::GetFirstIncomingStreamId(&stream_id_manager_);
-  EXPECT_CALL(
-      delegate_,
-      SendMaxStreams(first_advert + stream_id_manager_.max_streams_window(),
-                     IsUnidirectional()));
+  EXPECT_CALL(delegate_, SendMaxStreams(first_advert + i, IsUnidirectional()));
   while (i) {
     EXPECT_TRUE(
         stream_id_manager_.MaybeIncreaseLargestPeerStreamId(id, nullptr));

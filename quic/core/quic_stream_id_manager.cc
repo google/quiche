@@ -41,10 +41,7 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
-          QuicUtils::GetInvalidStreamId(transport_version)),
-      max_streams_window_(0) {
-  CalculateIncomingMaxStreamsWindow();
-}
+          QuicUtils::GetInvalidStreamId(transport_version)) {}
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
@@ -100,12 +97,11 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
   incoming_actual_max_streams_ = max_open_streams;
   incoming_advertised_max_streams_ = max_open_streams;
   incoming_initial_max_open_streams_ = max_open_streams;
-  CalculateIncomingMaxStreamsWindow();
 }
 
 void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
   if ((incoming_advertised_max_streams_ - incoming_stream_count_) >
-      max_streams_window_) {
+      (incoming_initial_max_open_streams_ / kMaxStreamsWindowDivisor)) {
     // window too large, no advertisement
     return;
   }
@@ -250,13 +246,6 @@ Perspective QuicStreamIdManager::peer_perspective() const {
 
 QuicStreamCount QuicStreamIdManager::available_incoming_streams() {
   return incoming_advertised_max_streams_ - incoming_stream_count_;
-}
-
-void QuicStreamIdManager::CalculateIncomingMaxStreamsWindow() {
-  max_streams_window_ = incoming_actual_max_streams_ / kMaxStreamsWindowDivisor;
-  if (max_streams_window_ == 0) {
-    max_streams_window_ = 1;
-  }
 }
 
 }  // namespace quic
