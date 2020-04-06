@@ -197,9 +197,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Keeps state for data sent/received in CRYPTO frames at each encryption
   // level.
   std::array<CryptoSubstream, NUM_ENCRYPTION_LEVELS> substreams_;
-
-  // Latched value of gfe2_reloadable_flag_quic_writevdata_at_level.
-  const bool writevdata_at_level_;
 };
 
 }  // namespace quic
