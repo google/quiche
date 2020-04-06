@@ -3019,7 +3019,6 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
 }
 
 TEST_P(QuicConnectionTest, AckNeedsRetransmittableFramesAfterPto) {
-  SetQuicReloadableFlag(quic_bundle_retransmittable_with_pto_ack, true);
   // Disable TLP so the RTO fires immediately.
   connection_.SetMaxTailLossProbes(0);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));

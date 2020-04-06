@@ -466,8 +466,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     framer_.set_process_timestamps(true);
     uber_received_packet_manager_.set_save_timestamps(true);
   }
-  if (GetQuicReloadableFlag(quic_bundle_retransmittable_with_pto_ack) &&
-      config.HasClientSentConnectionOption(kEACK, perspective_)) {
+  if (config.HasClientSentConnectionOption(kEACK, perspective_)) {
     bundle_retransmittable_with_pto_ack_ = true;
   }
   if (config.HasReceivedMaxPacketSize()) {
@@ -3997,7 +3996,6 @@ bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
   if (bundle_retransmittable_with_pto_ack_ &&
       (sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
        sent_packet_manager_.GetConsecutivePtoCount() > 0)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bundle_retransmittable_with_pto_ack);
     // Bundle a retransmittable frame with an ACK if the PTO or RTO has fired
     // in order to recover more quickly in cases of temporary network outage.
     return true;
