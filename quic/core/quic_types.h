@@ -584,6 +584,8 @@ struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
   };
 };
 
+// Convert QuicErrorCode to transport or application IETF error code
+// to be used in CONNECTION_CLOSE frames.
 QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
 QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
 

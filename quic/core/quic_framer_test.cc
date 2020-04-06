@@ -7625,7 +7625,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
   QuicConnectionCloseFrame close_frame(
       framer_.transport_version(),
       static_cast<QuicErrorCode>(
-          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x11
+          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x01
                                                                 : 0x05060708),
       "because I can", 0x05);
   // Set this so that it is "there" for both Google QUIC and IETF QUIC
@@ -7687,8 +7687,9 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
 
     // frame type (IETF_CONNECTION_CLOSE frame)
     0x1c,
-    // error code
-    kVarInt62OneByte + 0x11,
+    // IETF error code INTERNAL_ERROR = 0x01 corresponding to
+    // QuicErrorCode::QUIC_INTERNAL_ERROR = 0x01.
+    kVarInt62OneByte + 0x01,
     // Frame type within the CONNECTION_CLOSE frame
     kVarInt62OneByte + 0x05,
     // error details length
