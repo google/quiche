@@ -3484,7 +3484,6 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
 }
 
 TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutUsingStandardDeviation) {
-  SetQuicReloadableFlag(quic_use_standard_deviation_for_pto, true);
   EnablePto(k1PTO);
   // Use PTOS and PSDA.
   QuicConfig config;

@@ -203,9 +203,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
         first_pto_srtt_multiplier_ = 1.5;
       }
     }
-    if (GetQuicReloadableFlag(quic_use_standard_deviation_for_pto) &&
-        config.HasClientSentConnectionOption(kPSDA, perspective)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_use_standard_deviation_for_pto);
+    if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
       use_standard_deviation_for_pto_ = true;
       rtt_stats_.EnableStandardDeviationCalculation();
     }
