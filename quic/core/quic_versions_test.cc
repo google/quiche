@@ -318,6 +318,10 @@ TEST_F(QuicVersionsTest, QuicVersionLabelToString) {
             QuicVersionLabelVectorToString(version_labels, ":", 2));
   EXPECT_EQ("Q035|Q037|...",
             QuicVersionLabelVectorToString(version_labels, "|", 1));
+
+  std::ostringstream os;
+  os << version_labels;
+  EXPECT_EQ("Q035,Q037,T038", os.str());
 }
 
 TEST_F(QuicVersionsTest, QuicVersionToString) {
@@ -346,6 +350,10 @@ TEST_F(QuicVersionsTest, QuicVersionToString) {
     EXPECT_NE("QUIC_VERSION_UNSUPPORTED",
               QuicVersionToString(transport_version));
   }
+
+  std::ostringstream os;
+  os << versions_vector;
+  EXPECT_EQ("QUIC_VERSION_UNSUPPORTED,QUIC_VERSION_43", os.str());
 }
 
 TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
@@ -368,6 +376,10 @@ TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     EXPECT_NE("0", ParsedQuicVersionToString(version));
   }
+
+  std::ostringstream os;
+  os << versions_vector;
+  EXPECT_EQ("0,Q043", os.str());
 }
 
 TEST_F(QuicVersionsTest, FilterSupportedVersionsAllVersions) {

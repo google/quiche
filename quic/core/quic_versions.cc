@@ -169,6 +169,24 @@ std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         const ParsedQuicVersionVector& versions) {
+  os << ParsedQuicVersionVectorToString(versions);
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const QuicVersionLabelVector& version_labels) {
+  os << QuicVersionLabelVectorToString(version_labels);
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const QuicTransportVersionVector& transport_versions) {
+  os << QuicTransportVersionVectorToString(transport_versions);
+  return os;
+}
+
 QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
   char proto = 0;
   switch (parsed_version.handshake_protocol) {

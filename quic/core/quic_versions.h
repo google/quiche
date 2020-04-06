@@ -341,10 +341,18 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 using ParsedQuicVersionVector = std::vector<ParsedQuicVersion>;
 
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const ParsedQuicVersionVector& versions);
+
 // Representation of the on-the-wire QUIC version number. Will be written/read
 // to the wire in network-byte-order.
 using QuicVersionLabel = uint32_t;
 using QuicVersionLabelVector = std::vector<QuicVersionLabel>;
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicVersionLabelVector& version_labels);
 
 // This vector contains all crypto handshake protocols that are supported.
 constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
@@ -365,6 +373,10 @@ constexpr std::array<ParsedQuicVersion, 8> SupportedVersions() {
 }
 
 using QuicTransportVersionVector = std::vector<QuicTransportVersion>;
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicTransportVersionVector& transport_versions);
 
 // Returns a vector of QUIC versions in kSupportedTransportVersions.
 QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();
