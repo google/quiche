@@ -77,7 +77,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // The gain for both CWND and PacingRate at startup.
   // TODO(wub): Maybe change to the newly derived value of 2.773 (4 * ln(2)).
-  float startup_gain = 2.885;
+  float startup_cwnd_gain = 2.885;
+  float startup_pacing_gain = 2.885;
 
   // Full bandwidth is declared if the total bandwidth growth is less than
   // |startup_full_bw_threshold| times in the last |startup_full_bw_rounds|

@@ -47,8 +47,8 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
 
   CheckExcessiveLosses(congestion_event);
 
-  model_->set_pacing_gain(Params().startup_gain);
-  model_->set_cwnd_gain(Params().startup_gain);
+  model_->set_pacing_gain(Params().startup_pacing_gain);
+  model_->set_cwnd_gain(Params().startup_cwnd_gain);
 
   // TODO(wub): Maybe implement STARTUP => PROBE_RTT.
   return full_bandwidth_reached_ ? Bbr2Mode::DRAIN : Bbr2Mode::STARTUP;

@@ -108,6 +108,13 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kB2RP, perspective)) {
     params_.avoid_unnecessary_probe_rtt = false;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_lower_startup_cwnd_gain) &&
+      config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_lower_startup_cwnd_gain);
+    // 2 is the lower, derived gain for CWND.
+    params_.startup_cwnd_gain = 2;
+    params_.drain_cwnd_gain = 2;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
