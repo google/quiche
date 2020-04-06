@@ -251,7 +251,6 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   }
   ProcessAdditionalTransportParameters(client_params);
 
-  session()->OnConfigNegotiated();
   return true;
 }
 
@@ -412,6 +411,8 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
   OverrideQuicConfigDefaults(session()->config());
+  session()->OnConfigNegotiated();
+
   if (!SetTransportParameters()) {
     QUIC_LOG(ERROR) << "Failed to set transport parameters";
     return SSL_TLSEXT_ERR_ALERT_FATAL;

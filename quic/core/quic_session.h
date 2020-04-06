@@ -453,13 +453,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Set the number of streams that the peer is allowed to open.
   void ConfigureMaxBidirectionalStreamsToSend(QuicStreamCount max_stream) {
+    DCHECK(VersionHasIetfQuicFrames(transport_version()));
     config_.SetMaxBidirectionalStreamsToSend(max_stream);
-    v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(max_stream);
   }
   void ConfigureMaxUnidirectionalStreamsToSend(QuicStreamCount max_stream) {
+    DCHECK(VersionHasIetfQuicFrames(transport_version()));
     config_.SetMaxUnidirectionalStreamsToSend(
-        max_stream + num_expected_unidirectional_static_streams_);
-    v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
         max_stream + num_expected_unidirectional_static_streams_);
   }
 
