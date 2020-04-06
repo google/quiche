@@ -1618,26 +1618,14 @@ void QuicFramer::MaybeProcessCoalescedPacket(
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_minimum_validation_of_coalesced_packets);
-    if (coalesced_header.destination_connection_id !=
-        header.destination_connection_id) {
-      // Drop coalesced packets with mismatched connection IDs.
-      QUIC_DLOG(INFO) << ENDPOINT << "Received mismatched coalesced header "
-                      << coalesced_header << " previous header was " << header;
-      QUIC_CODE_COUNT(
-          quic_received_coalesced_packets_with_mismatched_connection_id);
-      return;
-    }
-  } else {
-    if (coalesced_header.destination_connection_id !=
-            header.destination_connection_id ||
-        (coalesced_header.form != IETF_QUIC_SHORT_HEADER_PACKET &&
-         coalesced_header.version != header.version)) {
-      QUIC_PEER_BUG << ENDPOINT << "Received mismatched coalesced header "
+  if (coalesced_header.destination_connection_id !=
+      header.destination_connection_id) {
+    // Drop coalesced packets with mismatched connection IDs.
+    QUIC_DLOG(INFO) << ENDPOINT << "Received mismatched coalesced header "
                     << coalesced_header << " previous header was " << header;
-      return;
-    }
+    QUIC_CODE_COUNT(
+        quic_received_coalesced_packets_with_mismatched_connection_id);
+    return;
   }
 
   QuicEncryptedPacket coalesced_packet(coalesced_data, coalesced_data_length,

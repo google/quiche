@@ -12440,7 +12440,6 @@ TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     return;
   }
-  SetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets, true);
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // clang-format off
   unsigned char packet[] = {
@@ -13112,12 +13111,7 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
 
-  if (GetQuicReloadableFlag(quic_minimum_validation_of_coalesced_packets)) {
-    EXPECT_TRUE(framer_.ProcessPacket(encrypted));
-  } else {
-    EXPECT_QUIC_PEER_BUG(EXPECT_TRUE(framer_.ProcessPacket(encrypted)),
-                         "Server: Received mismatched coalesced header.*");
-  }
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
