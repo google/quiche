@@ -341,7 +341,6 @@ TEST_F(BbrSenderTest, SimpleTransferSmallBuffer) {
 }
 
 TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
-  SetQuicReloadableFlag(quic_bbr_one_mss_conservation, false);
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();

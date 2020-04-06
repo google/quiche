@@ -920,16 +920,9 @@ void BbrSender::CalculateRecoveryWindow(QuicByteCount bytes_acked,
     recovery_window_ += bytes_acked;
   }
 
-  // Sanity checks.  Ensure that we always allow to send at least an MSS or
-  // |bytes_acked| in response, whichever is larger.
+  // Always allow sending at least |bytes_acked| in response.
   recovery_window_ = std::max(
       recovery_window_, unacked_packets_->bytes_in_flight() + bytes_acked);
-  if (GetQuicReloadableFlag(quic_bbr_one_mss_conservation)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_one_mss_conservation);
-    recovery_window_ =
-        std::max(recovery_window_,
-                 unacked_packets_->bytes_in_flight() + kMaxSegmentSize);
-  }
   recovery_window_ = std::max(min_congestion_window_, recovery_window_);
 }
 

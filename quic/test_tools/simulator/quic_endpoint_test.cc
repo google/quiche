@@ -155,8 +155,6 @@ TEST_F(QuicEndpointTest, TwoWayTransmission) {
 
 // Simulate three hosts trying to send data to a fourth one simultaneously.
 TEST_F(QuicEndpointTest, Competition) {
-  // TODO(63765788): Turn back on this flag when the issue if fixed.
-  SetQuicReloadableFlag(quic_bbr_one_mss_conservation, false);
   auto endpoint_a = std::make_unique<QuicEndpoint>(
       &simulator_, "Endpoint A", "Endpoint D (A)", Perspective::IS_CLIENT,
       test::TestConnectionId(42));
