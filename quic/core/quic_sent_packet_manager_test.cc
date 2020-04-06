@@ -3326,7 +3326,6 @@ TEST_F(QuicSentPacketManagerTest, ServerMultiplePacketNumberSpacePtoTimeout) {
 }
 
 TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge) {
-  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
   EnablePto(k1PTO);
   // Use PTOS and PLE1.
   QuicConfig config;
@@ -3401,7 +3400,6 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge) {
 }
 
 TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutByLeftEdge2) {
-  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
   EnablePto(k1PTO);
   // Use PTOS and PLE2.
   QuicConfig config;
@@ -3522,7 +3520,6 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeoutUsingStandardDeviation) {
 
 TEST_F(QuicSentPacketManagerTest,
        ComputingProbeTimeoutByLeftEdgeMultiplePacketNumberSpaces) {
-  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EnablePto(k1PTO);
   // Use PTOS and PLE1.
@@ -3598,7 +3595,6 @@ TEST_F(QuicSentPacketManagerTest,
 
 TEST_F(QuicSentPacketManagerTest,
        ComputingProbeTimeoutByLeftEdge2MultiplePacketNumberSpaces) {
-  SetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time, true);
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EnablePto(k1PTO);
   // Use PTOS and PLE2.

@@ -191,17 +191,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       QUIC_CODE_COUNT(two_aggressive_ptos);
       num_tlp_timeout_ptos_ = 2;
     }
-    if (GetQuicReloadableFlag(quic_arm_pto_with_earliest_sent_time)) {
-      if (config.HasClientSentConnectionOption(kPLE1, perspective) ||
-          config.HasClientSentConnectionOption(kTLPR, perspective)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_arm_pto_with_earliest_sent_time, 1,
-                                     2);
-        first_pto_srtt_multiplier_ = 0.5;
-      } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_arm_pto_with_earliest_sent_time, 2,
-                                     2);
-        first_pto_srtt_multiplier_ = 1.5;
-      }
+    if (config.HasClientSentConnectionOption(kPLE1, perspective) ||
+        config.HasClientSentConnectionOption(kTLPR, perspective)) {
+      first_pto_srtt_multiplier_ = 0.5;
+    } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
+      first_pto_srtt_multiplier_ = 1.5;
     }
     if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
       use_standard_deviation_for_pto_ = true;
