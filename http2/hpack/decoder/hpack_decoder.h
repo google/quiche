@@ -121,9 +121,6 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
 
   // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
   HpackDecodingError error_;
-
-  // Latched value of reloadable_flag_http2_skip_querying_entry_buffer_error.
-  const bool http2_skip_querying_entry_buffer_error_;
 };
 
 }  // namespace http2
