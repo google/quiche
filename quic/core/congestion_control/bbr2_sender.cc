@@ -213,7 +213,6 @@ void Bbr2Sender::OnCongestionEvent(bool /*rtt_updated*/,
   last_sample_is_app_limited_ = congestion_event.last_sample_is_app_limited;
   if (congestion_event.bytes_in_flight == 0 &&
       params().avoid_unnecessary_probe_rtt) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 2, 2);
     OnEnterQuiescence(event_time);
   }
 
@@ -308,7 +307,6 @@ void Bbr2Sender::OnPacketSent(QuicTime sent_time,
                 << ", total_lost:" << model_.total_bytes_lost() << "  @ "
                 << sent_time;
   if (bytes_in_flight == 0 && params().avoid_unnecessary_probe_rtt) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_avoid_unnecessary_probe_rtt, 1, 2);
     OnExitQuiescence(sent_time);
   }
   model_.OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,

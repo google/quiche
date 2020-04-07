@@ -890,11 +890,8 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeRttAfterQuiescenceImmediatelyExits) {
   sender_->OnPacketSent(SimulatedNow(), /*bytes_in_flight=*/0,
                         sender_unacked_map()->largest_sent_packet() + 1,
                         kDefaultMaxPacketSize, HAS_RETRANSMITTABLE_DATA);
-  if (GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt)) {
-    EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_BW);
-  } else {
-    EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_RTT);
-  }
+
+  EXPECT_EQ(sender_->ExportDebugState().mode, Bbr2Mode::PROBE_BW);
 }
 
 TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
@@ -929,12 +926,9 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
   SendBursts(params, 1, kDefaultTCPMSS, QuicTime::Delta::Zero());
   const QuicTime min_rtt_timestamp_after_idle =
       sender_->ExportDebugState().min_rtt_timestamp;
-  if (GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt)) {
-    EXPECT_LT(min_rtt_timestamp_before_idle + QuicTime::Delta::FromSeconds(14),
-              min_rtt_timestamp_after_idle);
-  } else {
-    EXPECT_EQ(min_rtt_timestamp_before_idle, min_rtt_timestamp_after_idle);
-  }
+
+  EXPECT_LT(min_rtt_timestamp_before_idle + QuicTime::Delta::FromSeconds(14),
+            min_rtt_timestamp_after_idle);
 }
 
 // Regression test for http://shortn/_Jt1QWtshAM.

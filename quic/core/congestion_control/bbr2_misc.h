@@ -176,8 +176,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
       GetQuicReloadableFlag(quic_bbr2_add_ack_height_to_queueing_threshold);
 
   // Can be disabled by connection option 'B2RP'.
-  bool avoid_unnecessary_probe_rtt =
-      GetQuicReloadableFlag(quic_bbr2_avoid_unnecessary_probe_rtt);
+  bool avoid_unnecessary_probe_rtt = true;
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {
