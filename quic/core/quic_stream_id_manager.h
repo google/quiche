@@ -17,12 +17,7 @@ class QuicSessionPeer;
 class QuicStreamIdManagerPeer;
 }  // namespace test
 
-// This constant controls the size of the window when deciding whether
-// to generate a MAX_STREAMS frame or not. See the discussion of the
-// window, below, for more details.
-const int kMaxStreamsWindowDivisor = 2;
-
-// This class manages the stream ids for Version 99/IETF QUIC.
+// This class manages the stream ids for IETF QUIC.
 class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
  public:
   class QUIC_EXPORT_PRIVATE DelegateInterface {

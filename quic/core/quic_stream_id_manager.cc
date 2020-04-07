@@ -101,7 +101,8 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
 
 void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
   if ((incoming_advertised_max_streams_ - incoming_stream_count_) >
-      (incoming_initial_max_open_streams_ / kMaxStreamsWindowDivisor)) {
+      (incoming_initial_max_open_streams_ /
+       GetQuicFlag(FLAGS_quic_max_streams_window_divisor))) {
     // window too large, no advertisement
     return;
   }
