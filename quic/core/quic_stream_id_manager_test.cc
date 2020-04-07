@@ -273,12 +273,11 @@ TEST_P(QuicStreamIdManagerTest, GetNextOutgoingStream) {
   EXPECT_TRUE(
       stream_id_manager_.MaybeAllowNewOutgoingStreams(number_of_streams));
 
-  QuicStreamId stream_id =
-      IsUnidirectional()
-          ? QuicUtils::GetFirstUnidirectionalStreamId(
-                transport_version(), stream_id_manager_.perspective())
-          : QuicUtils::GetFirstBidirectionalStreamId(
-                transport_version(), stream_id_manager_.perspective());
+  QuicStreamId stream_id = IsUnidirectional()
+                               ? QuicUtils::GetFirstUnidirectionalStreamId(
+                                     transport_version(), perspective())
+                               : QuicUtils::GetFirstBidirectionalStreamId(
+                                     transport_version(), perspective());
 
   EXPECT_EQ(number_of_streams, stream_id_manager_.outgoing_max_streams());
   while (number_of_streams) {

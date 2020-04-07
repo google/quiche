@@ -35,8 +35,6 @@ QuicStreamIdManager::QuicStreamIdManager(
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
       outgoing_stream_count_(0),
       incoming_actual_max_streams_(max_allowed_incoming_streams),
-      // Advertised max starts at actual because it's communicated in the
-      // handshake.
       incoming_advertised_max_streams_(max_allowed_incoming_streams),
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
       incoming_stream_count_(0),
@@ -45,16 +43,12 @@ QuicStreamIdManager::QuicStreamIdManager(
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
-// The peer sends a streams blocked frame when it can not open any more
-// streams because it has runs into the limit.
 bool QuicStreamIdManager::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& frame,
     std::string* error_details) {
-  // Ensure that the frame has the correct directionality.
   DCHECK_EQ(frame.unidirectional, unidirectional_);
   if (frame.stream_count > incoming_advertised_max_streams_) {
     // Peer thinks it can send more streams that we've told it.
-    // This is a protocol error.
     *error_details = quiche::QuicheStrCat(
         "StreamsBlockedFrame's stream count ", frame.stream_count,
         " exceeds incoming max stream ", incoming_advertised_max_streams_);
@@ -62,8 +56,7 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
   }
   if (frame.stream_count < incoming_actual_max_streams_) {
     // Peer thinks it's blocked on a stream count that is less than our current
-    // max. Inform the peer of the correct stream count. Sending a MAX_STREAMS
-    // frame in this case is not controlled by the window.
+    // max. Inform the peer of the correct stream count.
     SendMaxStreamsFrame();
   }
   return true;
@@ -121,22 +114,18 @@ void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
     return;
   }
   // If the stream is inbound, we can increase the actual stream limit and maybe
-  // advertise the new limit to the peer.  Have to check to make sure that we do
-  // not exceed the maximum.
+  // advertise the new limit to the peer.
   if (incoming_actual_max_streams_ == QuicUtils::GetMaxStreamCount()) {
     // Reached the maximum stream id value that the implementation
     // supports. Nothing can be done here.
     return;
   }
-  // One stream closed ... another can be opened.
+  // One stream closed, and another one can be opened.
   incoming_actual_max_streams_++;
   MaybeSendMaxStreamsFrame();
 }
 
 QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
-  // Applications should always consult CanOpenNextOutgoingStream() first.
-  // If they ask for stream ids that violate the limit, it's an implementation
-  // bug.
   QUIC_BUG_IF(outgoing_stream_count_ >= outgoing_max_streams_)
       << "Attempt to allocate a new outgoing stream that would exceed the "
          "limit ("
@@ -158,7 +147,7 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   // |stream_id| must be an incoming stream of the right directionality.
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
   DCHECK_NE(QuicUtils::IsServerInitiatedStreamId(transport_version_, stream_id),
-            perspective() == Perspective::IS_SERVER);
+            perspective_ == Perspective::IS_SERVER);
   if (available_streams_.erase(stream_id) == 1) {
     // stream_id is available.
     return true;
@@ -225,24 +214,18 @@ bool QuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {
 
 QuicStreamId QuicStreamIdManager::GetFirstOutgoingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version_, perspective())
+                                 transport_version_, perspective_)
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version_, perspective());
+                                 transport_version_, perspective_);
 }
 
 QuicStreamId QuicStreamIdManager::GetFirstIncomingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version_, peer_perspective())
+                                 transport_version_,
+                                 QuicUtils::InvertPerspective(perspective_))
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version_, peer_perspective());
-}
-
-Perspective QuicStreamIdManager::perspective() const {
-  return perspective_;
-}
-
-Perspective QuicStreamIdManager::peer_perspective() const {
-  return QuicUtils::InvertPerspective(perspective());
+                                 transport_version_,
+                                 QuicUtils::InvertPerspective(perspective_));
 }
 
 QuicStreamCount QuicStreamIdManager::available_incoming_streams() {
