@@ -104,6 +104,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();
 
+  // Called to cancel retransmission of data of encryption |level|.
+  void NeuterStreamDataOfEncryptionLevel(EncryptionLevel level);
+
   // Override to record the encryption level of consumed data.
   void OnStreamDataConsumed(size_t bytes_consumed) override;
 

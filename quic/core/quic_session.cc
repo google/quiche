@@ -2260,5 +2260,9 @@ void QuicSession::OnAlpnSelected(quiche::QuicheStringPiece alpn) {
                   << "ALPN selected: " << alpn;
 }
 
+void QuicSession::NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level) {
+  GetMutableCryptoStream()->NeuterStreamDataOfEncryptionLevel(level);
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

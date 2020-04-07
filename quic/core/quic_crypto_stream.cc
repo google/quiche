@@ -199,16 +199,20 @@ void QuicCryptoStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
 }
 
 void QuicCryptoStream::NeuterUnencryptedStreamData() {
+  NeuterStreamDataOfEncryptionLevel(ENCRYPTION_INITIAL);
+}
+
+void QuicCryptoStream::NeuterStreamDataOfEncryptionLevel(
+    EncryptionLevel level) {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
-    for (const auto& interval : bytes_consumed_[ENCRYPTION_INITIAL]) {
+    for (const auto& interval : bytes_consumed_[level]) {
       QuicByteCount newly_acked_length = 0;
       send_buffer().OnStreamDataAcked(
           interval.min(), interval.max() - interval.min(), &newly_acked_length);
     }
     return;
   }
-  QuicStreamSendBuffer* send_buffer =
-      &substreams_[ENCRYPTION_INITIAL].send_buffer;
+  QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
   // TODO(nharper): Consider adding a Clear() method to QuicStreamSendBuffer to
   // replace the following code.
   QuicIntervalSet<QuicStreamOffset> to_ack = send_buffer->bytes_acked();

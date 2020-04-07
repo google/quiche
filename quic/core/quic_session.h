@@ -462,6 +462,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
         max_stream + num_expected_unidirectional_static_streams_);
   }
 
+  // Called to neuter crypto data of encryption |level|.
+  void NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level);
+
   // Returns the ALPN values to negotiate on this session.
   virtual std::vector<std::string> GetAlpnsToOffer() const {
     // TODO(vasilvv): this currently sets HTTP/3 by default.  Switch all
