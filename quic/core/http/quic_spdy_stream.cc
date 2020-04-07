@@ -192,7 +192,6 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       headers_decompressed_(false),
       header_list_size_limit_exceeded_(false),
       headers_payload_length_(0),
-      trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
@@ -229,7 +228,6 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       headers_decompressed_(false),
       header_list_size_limit_exceeded_(false),
       headers_payload_length_(0),
-      trailers_payload_length_(0),
       trailers_decompressed_(false),
       trailers_consumed_(false),
       http_decoder_visitor_(std::make_unique<HttpDecoderVisitor>(this)),
@@ -569,10 +567,7 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
       debug_visitor->OnHeadersDecoded(id(), headers);
     }
 
-    const QuicByteCount frame_length = headers_decompressed_
-                                           ? trailers_payload_length_
-                                           : headers_payload_length_;
-    OnStreamHeaderList(/* fin = */ false, frame_length, headers);
+    OnStreamHeaderList(/* fin = */ false, headers_payload_length_, headers);
   } else {
     if (debug_visitor) {
       debug_visitor->OnPushPromiseDecoded(id(), promised_stream_id, headers);
@@ -962,6 +957,8 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
                                                            payload_length);
   }
 
+  headers_payload_length_ = payload_length;
+
   if (trailers_decompressed_) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
@@ -982,15 +979,6 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
 bool QuicSpdyStream::OnHeadersFramePayload(quiche::QuicheStringPiece payload) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK(qpack_decoded_headers_accumulator_);
-
-  // TODO(b/152518220): Save |payload_length| argument of OnHeadersFrameStart()
-  // instead of accumulating payload length in |headers_payload_length_| or
-  // |trailers_payload_length_|.
-  if (headers_decompressed_) {
-    trailers_payload_length_ += payload.length();
-  } else {
-    headers_payload_length_ += payload.length();
-  }
 
   qpack_decoded_headers_accumulator_->Decode(payload);
 
@@ -1040,7 +1028,7 @@ bool QuicSpdyStream::OnPushPromiseFramePushId(
         id(), push_id, header_block_length);
   }
 
-  // TODO(renjietang): Check max push id and handle errors.
+  // TODO(b/151749109): Check max push id and handle errors.
   spdy_session_->OnPushPromise(id(), push_id);
   sequencer()->MarkConsumed(body_manager_.OnNonBody(push_id_length));
 

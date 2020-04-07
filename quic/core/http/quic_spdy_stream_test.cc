@@ -144,7 +144,8 @@ class TestStream : public QuicSpdyStream {
              QuicSpdySession* session,
              bool should_process_data)
       : QuicSpdyStream(id, session, BIDIRECTIONAL),
-        should_process_data_(should_process_data) {}
+        should_process_data_(should_process_data),
+        headers_payload_length_(0) {}
   ~TestStream() override = default;
 
   using QuicSpdyStream::set_ack_listener;
@@ -187,10 +188,20 @@ class TestStream : public QuicSpdyStream {
     return QuicStream::sequencer();
   }
 
+  void OnStreamHeaderList(bool fin,
+                          size_t frame_len,
+                          const QuicHeaderList& header_list) override {
+    headers_payload_length_ = frame_len;
+    QuicSpdyStream::OnStreamHeaderList(fin, frame_len, header_list);
+  }
+
+  size_t headers_payload_length() const { return headers_payload_length_; }
+
  private:
   bool should_process_data_;
   spdy::SpdyHeaderBlock saved_headers_;
   std::string data_;
+  size_t headers_payload_length_;
 };
 
 class TestSession : public MockQuicSpdySession {
@@ -389,6 +400,21 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     quiche::QuicheStringPiece headers_frame_header(headers_buffer.get(),
                                                    headers_frame_header_length);
     return quiche::QuicheStrCat(headers_frame_header, payload);
+  }
+
+  // Construct PUSH_PROMISE frame with given payload.
+  std::string SerializePushPromiseFrame(PushId push_id,
+                                        quiche::QuicheStringPiece payload) {
+    PushPromiseFrame frame;
+    frame.push_id = push_id;
+    frame.headers = payload;
+    std::unique_ptr<char[]> push_promise_buffer;
+    QuicByteCount push_promise_frame_header_length =
+        HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
+            frame, &push_promise_buffer);
+    quiche::QuicheStringPiece push_promise_frame_header(
+        push_promise_buffer.get(), push_promise_frame_header_length);
+    return quiche::QuicheStrCat(push_promise_frame_header, payload);
   }
 
   std::string DataFrame(quiche::QuicheStringPiece payload) {
@@ -2618,13 +2644,7 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
   std::string headers = EncodeQpackHeaders(pushed_headers);
 
   const QuicStreamId push_id = 1;
-  PushPromiseFrame push_promise;
-  push_promise.push_id = push_id;
-  push_promise.headers = headers;
-  std::unique_ptr<char[]> buffer;
-  uint64_t length = HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
-      push_promise, &buffer);
-  std::string data = std::string(buffer.get(), length) + headers;
+  std::string data = SerializePushPromiseFrame(push_id, headers);
   QuicStreamFrame frame(stream_->id(), false, 0, data);
 
   EXPECT_CALL(debug_visitor, OnPushPromiseFrameReceived(stream_->id(), push_id,
@@ -2633,9 +2653,38 @@ TEST_P(QuicSpdyStreamTest, PushPromiseOnDataStream) {
               OnPushPromiseDecoded(stream_->id(), push_id,
                                    AsHeaderList(pushed_headers)));
   EXPECT_CALL(*session_,
-              OnPromiseHeaderList(stream_->id(), push_promise.push_id,
-                                  headers.length(), _));
+              OnPromiseHeaderList(stream_->id(), push_id, headers.length(), _));
   stream_->OnStreamFrame(frame);
+}
+
+// Regression test for b/152518220.
+TEST_P(QuicSpdyStreamTest,
+       OnStreamHeaderBlockArgumentDoesNotIncludePushedHeaderBlock) {
+  Initialize(kShouldProcessData);
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  std::string pushed_headers = EncodeQpackHeaders({{"foo", "bar"}});
+  const QuicStreamId push_id = 1;
+  std::string push_promise_frame =
+      SerializePushPromiseFrame(push_id, pushed_headers);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame frame1(stream_->id(), /* fin = */ false, offset,
+                         push_promise_frame);
+  offset += push_promise_frame.length();
+
+  EXPECT_CALL(*session_, OnPromiseHeaderList(stream_->id(), push_id,
+                                             pushed_headers.length(), _));
+  stream_->OnStreamFrame(frame1);
+
+  std::string headers =
+      EncodeQpackHeaders({{":method", "GET"}, {":path", "/"}});
+  std::string headers_frame = HeadersFrame(headers);
+  QuicStreamFrame frame2(stream_->id(), /* fin = */ false, offset,
+                         headers_frame);
+  stream_->OnStreamFrame(frame2);
+  EXPECT_EQ(headers.length(), stream_->headers_payload_length());
 }
 
 // Close connection if a DATA frame is received before a HEADERS frame.
