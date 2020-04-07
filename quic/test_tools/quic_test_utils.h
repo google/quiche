@@ -1019,6 +1019,9 @@ class MockLossAlgorithm : public LossDetectionInterface {
   MockLossAlgorithm& operator=(const MockLossAlgorithm&) = delete;
   ~MockLossAlgorithm() override;
 
+  MOCK_METHOD2(SetFromConfig,
+               void(const QuicConfig& config, Perspective perspective));
+
   MOCK_METHOD6(DetectLosses,
                void(const QuicUnackedPacketMap& unacked_packets,
                     QuicTime time,

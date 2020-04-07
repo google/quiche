@@ -299,6 +299,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     conservative_handshake_retransmits_ = true;
   }
   send_algorithm_->SetFromConfig(config, perspective);
+  loss_algorithm_->SetFromConfig(config, perspective);
 
   if (network_change_visitor_ != nullptr) {
     network_change_visitor_->OnCongestionChange();

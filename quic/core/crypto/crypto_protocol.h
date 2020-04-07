@@ -226,6 +226,8 @@ const QuicTag kPLE2 = TAG('P', 'L', 'E', '2');   // Arm the 1st PTO with
                                                  // and at least 1.5*srtt from
                                                  // last sent packet.
 
+const QuicTag kELDT = TAG('E', 'L', 'D', 'T');   // Enable Loss Detection Tuning
+
 // Optional support of truncated Connection IDs.  If sent by a peer, the value
 // is the minimum number of bytes allowed for the connection ID sent to the
 // peer.

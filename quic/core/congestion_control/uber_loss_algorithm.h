@@ -46,6 +46,9 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   UberLossAlgorithm& operator=(const UberLossAlgorithm&) = delete;
   ~UberLossAlgorithm() override {}
 
+  void SetFromConfig(const QuicConfig& config,
+                     Perspective perspective) override;
+
   // Detects lost packets.
   void DetectLosses(const QuicUnackedPacketMap& unacked_packets,
                     QuicTime time,
@@ -103,6 +106,8 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   std::unique_ptr<LossDetectionTunerInterface> tuner_;
   LossDetectionParameters tuned_parameters_;
   bool tuner_started_ = false;
+  bool min_rtt_available_ = false;
+  bool tuning_enabled_ = false;  // Whether tuning is enabled by config.
 };
 
 }  // namespace quic

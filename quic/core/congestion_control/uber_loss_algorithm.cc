@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -14,6 +15,15 @@ UberLossAlgorithm::UberLossAlgorithm() {
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     general_loss_algorithms_[i].SetPacketNumberSpace(
         static_cast<PacketNumberSpace>(i));
+  }
+}
+
+void UberLossAlgorithm::SetFromConfig(const QuicConfig& config,
+                                      Perspective perspective) {
+  if (config.HasClientRequestedIndependentOption(kELDT, perspective) &&
+      tuner_ != nullptr) {
+    tuning_enabled_ = true;
+    MaybeStartTuning();
   }
 }
 
@@ -78,7 +88,7 @@ void UberLossAlgorithm::SetLossDetectionTuner(
 }
 
 void UberLossAlgorithm::MaybeStartTuning() {
-  if (tuner_ == nullptr || tuner_started_) {
+  if (tuner_started_ || !tuning_enabled_ || !min_rtt_available_) {
     return;
   }
 
@@ -88,6 +98,7 @@ void UberLossAlgorithm::MaybeStartTuning() {
 void UberLossAlgorithm::OnConfigNegotiated() {}
 
 void UberLossAlgorithm::OnMinRttAvailable() {
+  min_rtt_available_ = true;
   MaybeStartTuning();
 }
 
