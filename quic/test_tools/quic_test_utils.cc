@@ -817,6 +817,12 @@ ParsedQuicVersion QuicVersionMin() {
   return AllSupportedVersions().back();
 }
 
+void DisableQuicVersionsWithTls() {
+  SetQuicReloadableFlag(quic_enable_version_draft_27, false);
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
+  SetQuicReloadableFlag(quic_enable_version_t050, false);
+}
+
 QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicConnectionId destination_connection_id,
     QuicConnectionId source_connection_id,

@@ -50,11 +50,11 @@ QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number);
 // Extracts the connection number passed to TestConnectionId().
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id);
 
-static const uint16_t kTestPort = 12345;
-static const uint32_t kInitialStreamFlowControlWindowForTest =
-    1024 * 1024;  // 1 MB
-static const uint32_t kInitialSessionFlowControlWindowForTest =
-    1536 * 1024;  // 1.5 MB
+enum : uint16_t { kTestPort = 12345 };
+enum : uint32_t {
+  kInitialStreamFlowControlWindowForTest = 1024 * 1024,   // 1 MB
+  kInitialSessionFlowControlWindowForTest = 1536 * 1024,  // 1.5 MB
+};
 
 // Returns the test peer IP address.
 QuicIpAddress TestPeerIPAddress();
@@ -64,6 +64,11 @@ ParsedQuicVersion QuicVersionMax();
 
 // Lower limit on versions we support.
 ParsedQuicVersion QuicVersionMin();
+
+// Disables all flags that enable QUIC versions that use TLS.
+// This is only meant as a temporary measure to prevent some broken tests
+// from running with TLS.
+void DisableQuicVersionsWithTls();
 
 // Create an encrypted packet for testing.
 // If versions == nullptr, uses &AllSupportedVersions().

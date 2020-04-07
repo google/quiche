@@ -202,9 +202,7 @@ class QuartcMultiplexerTest : public QuicTest {
             quic::QuartcSessionConfig())) {
     // TODO(b/150224094): Re-enable TLS handshake.
     // TODO(b/150236522): Parametrize by QUIC version.
-    SetQuicReloadableFlag(quic_enable_version_draft_27, false);
-    SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
-    SetQuicReloadableFlag(quic_enable_version_t050, false);
+    quic::test::DisableQuicVersionsWithTls();
   }
 
   void Connect() {
