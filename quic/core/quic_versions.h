@@ -356,19 +356,19 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 
 // This vector contains all crypto handshake protocols that are supported.
 constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
-  return {PROTOCOL_QUIC_CRYPTO, PROTOCOL_TLS1_3};
+  return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
 }
 
 constexpr std::array<ParsedQuicVersion, 8> SupportedVersions() {
   return {
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
   };
 }
 

@@ -918,7 +918,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
   // Wait for entering a quiescence of 15 seconds.
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
       [this]() { return sender_unacked_map()->bytes_in_flight() == 0; },
-      params.RTT()));
+      params.RTT() + timeout));
 
   simulator_.RunFor(QuicTime::Delta::FromSeconds(15));
 
