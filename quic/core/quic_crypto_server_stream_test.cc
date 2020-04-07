@@ -50,7 +50,7 @@ namespace {
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
 
-class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
+class QuicCryptoServerStreamTest : public QuicTest {
  public:
   QuicCryptoServerStreamTest()
       : QuicCryptoServerStreamTest(crypto_test_utils::ProofSourceForTesting()) {
@@ -200,18 +200,13 @@ class QuicCryptoServerStreamTest : public QuicTestWithParam<bool> {
   ParsedQuicVersionVector supported_versions_ = AllSupportedVersions();
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicCryptoServerStreamTest,
-                         ::testing::Bool(),
-                         ::testing::PrintToStringParamName());
-
-TEST_P(QuicCryptoServerStreamTest, NotInitiallyConected) {
+TEST_F(QuicCryptoServerStreamTest, NotInitiallyConected) {
   Initialize();
   EXPECT_FALSE(server_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
+TEST_F(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   // CompleteCryptoHandshake returns the number of client hellos sent. This
   // test should send:
   //   * One to get a source-address token and certificates.
@@ -223,7 +218,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   EXPECT_TRUE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
+TEST_F(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   UseTlsHandshake();
   Initialize();
   CompleteCryptoHandshake();
@@ -232,7 +227,7 @@ TEST_P(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
   EXPECT_TRUE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
+TEST_F(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
   UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
@@ -254,7 +249,7 @@ TEST_P(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
             server_session_->connection()->encryption_level());
 }
 
-TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
+TEST_F(QuicCryptoServerStreamTest, ZeroRTT) {
   UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
@@ -286,7 +281,7 @@ TEST_P(QuicCryptoServerStreamTest, ZeroRTT) {
   EXPECT_TRUE(server_stream()->ZeroRttAttempted());
 }
 
-TEST_P(QuicCryptoServerStreamTest, FailByPolicy) {
+TEST_F(QuicCryptoServerStreamTest, FailByPolicy) {
   UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
@@ -299,7 +294,7 @@ TEST_P(QuicCryptoServerStreamTest, FailByPolicy) {
   AdvanceHandshakeWithFakeClient();
 }
 
-TEST_P(QuicCryptoServerStreamTest, MessageAfterHandshake) {
+TEST_F(QuicCryptoServerStreamTest, MessageAfterHandshake) {
   UseQuicCryptoHandshake();
   Initialize();
   CompleteCryptoHandshake();
@@ -311,7 +306,7 @@ TEST_P(QuicCryptoServerStreamTest, MessageAfterHandshake) {
                                                   Perspective::IS_CLIENT);
 }
 
-TEST_P(QuicCryptoServerStreamTest, BadMessageType) {
+TEST_F(QuicCryptoServerStreamTest, BadMessageType) {
   UseQuicCryptoHandshake();
   Initialize();
 
@@ -322,7 +317,7 @@ TEST_P(QuicCryptoServerStreamTest, BadMessageType) {
                                                   Perspective::IS_SERVER);
 }
 
-TEST_P(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
+TEST_F(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
   // An attempt to send a SCUP before completing handshake should fail.
   Initialize();
 
@@ -330,7 +325,7 @@ TEST_P(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
   EXPECT_EQ(0, server_stream()->NumServerConfigUpdateMessagesSent());
 }
 
-TEST_P(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
+TEST_F(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
   UseQuicCryptoHandshake();
   Initialize();
 
@@ -363,12 +358,7 @@ class QuicCryptoServerStreamTestWithFailingProofSource
             std::unique_ptr<FailingProofSource>(new FailingProofSource)) {}
 };
 
-INSTANTIATE_TEST_SUITE_P(MoreTests,
-                         QuicCryptoServerStreamTestWithFailingProofSource,
-                         ::testing::Bool(),
-                         ::testing::PrintToStringParamName());
-
-TEST_P(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
+TEST_F(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
   UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
@@ -399,15 +389,10 @@ class QuicCryptoServerStreamTestWithFakeProofSource
   QuicCryptoServerConfigPeer crypto_config_peer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(YetMoreTests,
-                         QuicCryptoServerStreamTestWithFakeProofSource,
-                         ::testing::Bool(),
-                         ::testing::PrintToStringParamName());
-
 // Regression test for b/35422225, in which multiple CHLOs arriving on the same
 // connection in close succession could cause a crash, especially when the use
 // of Mentat signing meant that it took a while for each CHLO to be processed.
-TEST_P(QuicCryptoServerStreamTestWithFakeProofSource, MultipleChlo) {
+TEST_F(QuicCryptoServerStreamTestWithFakeProofSource, MultipleChlo) {
   UseQuicCryptoHandshake();
   Initialize();
   GetFakeProofSource()->Activate();
