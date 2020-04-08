@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 
 namespace spdy {
 
@@ -182,6 +183,12 @@ class HpackEncoderTestBase : public QuicheTest {
     ExpectString(&expected_, name);
     ExpectString(&expected_, value);
   }
+  void ExpectNonIndexedLiteralWithNameIndex(const HpackEntry* key_entry,
+                                            quiche::QuicheStringPiece value) {
+    expected_.AppendPrefix(kLiteralNoIndexOpcode);
+    expected_.AppendUint32(IndexOf(key_entry));
+    ExpectString(&expected_, value);
+  }
   void ExpectString(HpackOutputStream* stream, quiche::QuicheStringPiece str) {
     const HpackHuffmanTable& huffman_table = peer_.huffman_table();
     size_t encoded_size = peer_.compression_enabled()
@@ -267,7 +274,12 @@ TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
                      {"accept", "text/html, text/plain,application/xml"},
                      {"cookie", "val4"},
                      {"withnul", quiche::QuicheStringPiece("one\0two", 7)}};
-  ExpectNonIndexedLiteral(":path", "/home");
+  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
+    ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
+                                         "/home");
+  } else {
+    ExpectNonIndexedLiteral(":path", "/home");
+  }
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val1");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val2");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val3");
@@ -554,7 +566,12 @@ TEST_P(HpackEncoderTest, PseudoHeadersFirst) {
 
   // Headers are indexed in the order in which they were added.
   // This entry pushes "cookie: a=bb" back to 63.
-  ExpectNonIndexedLiteral(":path", "/spam/eggs.html");
+  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
+    ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
+                                         "/spam/eggs.html");
+  } else {
+    ExpectNonIndexedLiteral(":path", "/spam/eggs.html");
+  }
   ExpectIndexedLiteral(peer_.table()->GetByName(":authority"),
                        "www.example.com");
   ExpectIndexedLiteral("-foo", "bar");

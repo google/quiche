@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
@@ -146,10 +147,10 @@ void HpackEncoder::EncodeRepresentations(RepresentationIterator* iter,
       } else if (should_index_(header.first, header.second)) {
         EmitIndexedLiteral(header);
       } else {
-        EmitNonIndexedLiteral(header);
+        EmitNonIndexedLiteral(header, enable_compression_);
       }
     } else {
-      EmitNonIndexedLiteral(header);
+      EmitNonIndexedLiteral(header, enable_compression_);
     }
   }
 
@@ -170,12 +171,25 @@ void HpackEncoder::EmitIndexedLiteral(const Representation& representation) {
   header_table_.TryAddEntry(representation.first, representation.second);
 }
 
-void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation) {
+void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation,
+                                         bool enable_compression) {
   SPDY_DVLOG(2) << "Emitting nonindexed literal: (" << representation.first
                 << ", " << representation.second << ")";
   output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
-  output_stream_.AppendUint32(0);
-  EmitString(representation.first);
+  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
+    SPDY_CODE_COUNT(spdy_hpack_use_indexed_name);
+    const HpackEntry* name_entry =
+        header_table_.GetByName(representation.first);
+    if (enable_compression && name_entry != nullptr) {
+      output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
+    } else {
+      output_stream_.AppendUint32(0);
+      EmitString(representation.first);
+    }
+  } else {
+    output_stream_.AppendUint32(0);
+    EmitString(representation.first);
+  }
   EmitString(representation.second);
 }
 
@@ -347,14 +361,14 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
                                      std::string* output) {
   SPDY_BUG_IF(!has_next_)
       << "Encoderator::Next called with nothing left to encode.";
-  const bool use_compression = encoder_->enable_compression_;
+  const bool enable_compression = encoder_->enable_compression_;
 
   // Encode up to max_encoded_bytes of headers.
   while (header_it_->HasNext() &&
          encoder_->output_stream_.size() <= max_encoded_bytes) {
     const Representation header = header_it_->Next();
     encoder_->listener_(header.first, header.second);
-    if (use_compression) {
+    if (enable_compression) {
       const HpackEntry* entry = encoder_->header_table_.GetByNameAndValue(
           header.first, header.second);
       if (entry != nullptr) {
@@ -362,10 +376,10 @@ void HpackEncoder::Encoderator::Next(size_t max_encoded_bytes,
       } else if (encoder_->should_index_(header.first, header.second)) {
         encoder_->EmitIndexedLiteral(header);
       } else {
-        encoder_->EmitNonIndexedLiteral(header);
+        encoder_->EmitNonIndexedLiteral(header, enable_compression);
       }
     } else {
-      encoder_->EmitNonIndexedLiteral(header);
+      encoder_->EmitNonIndexedLiteral(header, enable_compression);
     }
   }
 
