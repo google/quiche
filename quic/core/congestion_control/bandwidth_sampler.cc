@@ -382,14 +382,15 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
     } else {
       QUIC_CODE_COUNT_N(quic_prev_ack_time_larger_than_current_ack_time, 2, 2);
     }
-    QUIC_BUG << "Time of the previously acked packet:"
-             << a0.ack_time.ToDebuggingValue()
-             << " is larger than the ack time of the current packet:"
-             << ack_time.ToDebuggingValue()
-             << ". acked packet number:" << packet_number
-             << ", total_bytes_acked_:" << total_bytes_acked_
-             << ", overestimate_avoidance_:" << overestimate_avoidance_
-             << ", sent_packet:" << sent_packet;
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60)
+        << "Time of the previously acked packet:"
+        << a0.ack_time.ToDebuggingValue()
+        << " is larger than the ack time of the current packet:"
+        << ack_time.ToDebuggingValue()
+        << ". acked packet number:" << packet_number
+        << ", total_bytes_acked_:" << total_bytes_acked_
+        << ", overestimate_avoidance_:" << overestimate_avoidance_
+        << ", sent_packet:" << sent_packet;
     return BandwidthSample();
   }
   QuicBandwidth ack_rate = QuicBandwidth::FromBytesAndTimeDelta(
@@ -403,13 +404,15 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   sample.rtt = ack_time - sent_packet.sent_time;
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
 
-  QUIC_BUG_IF(sample.bandwidth.IsZero())
-      << "ack_rate: " << ack_rate << ", send_rate: " << send_rate
-      << ". acked packet number:" << packet_number
-      << ", overestimate_avoidance_:" << overestimate_avoidance_ << "a1:{"
-      << total_bytes_acked_ << "@" << ack_time << "}, a0:{"
-      << a0.total_bytes_acked << "@" << a0.ack_time
-      << "}, sent_packet:" << sent_packet;
+  if (sample.bandwidth.IsZero()) {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60)
+        << "ack_rate: " << ack_rate << ", send_rate: " << send_rate
+        << ". acked packet number:" << packet_number
+        << ", overestimate_avoidance_:" << overestimate_avoidance_ << "a1:{"
+        << total_bytes_acked_ << "@" << ack_time << "}, a0:{"
+        << a0.total_bytes_acked << "@" << a0.ack_time
+        << "}, sent_packet:" << sent_packet;
+  }
   return sample;
 }
 
