@@ -32,7 +32,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   QuicStreamIdManager(DelegateInterface* delegate,
                       bool unidirectional,
                       Perspective perspective,
-                      QuicTransportVersion transport_version,
+                      ParsedQuicVersion version,
                       QuicStreamCount max_allowed_outgoing_streams,
                       QuicStreamCount max_allowed_incoming_streams);
 
@@ -92,9 +92,6 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 
-  // Return true if given stream is peer initiated.
-  bool IsIncomingStream(QuicStreamId id) const;
-
   QuicStreamCount incoming_initial_max_open_streams() const {
     return incoming_initial_max_open_streams_;
   }
@@ -104,7 +101,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   }
 
   // Number of streams that the peer believes that it can still create.
-  QuicStreamCount available_incoming_streams();
+  QuicStreamCount available_incoming_streams() const;
 
   QuicStreamId largest_peer_created_stream_id() const {
     return largest_peer_created_stream_id_;
@@ -117,7 +114,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   QuicStreamCount incoming_advertised_max_streams() const {
     return incoming_advertised_max_streams_;
   }
-  QuicStreamCount outgoing_stream_count() { return outgoing_stream_count_; }
+  QuicStreamCount outgoing_stream_count() const {
+    return outgoing_stream_count_;
+  }
 
  private:
   friend class test::QuicSessionPeer;
@@ -143,8 +142,8 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
   // Is this manager a client or a server.
   const Perspective perspective_;
 
-  // Transport version used for this manager.
-  const QuicTransportVersion transport_version_;
+  // QUIC version used for this manager.
+  const ParsedQuicVersion version_;
 
   // The number of streams that this node can initiate.
   // This limit is first set when config is negotiated, but may be updated upon

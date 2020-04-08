@@ -300,17 +300,6 @@ TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
   EXPECT_TRUE(manager_.OnStreamsBlockedFrame(frame, nullptr));
 }
 
-TEST_P(UberQuicStreamIdManagerTest, IsIncomingStream) {
-  EXPECT_TRUE(
-      manager_.IsIncomingStream(GetNthPeerInitiatedBidirectionalStreamId(0)));
-  EXPECT_TRUE(
-      manager_.IsIncomingStream(GetNthPeerInitiatedUnidirectionalStreamId(0)));
-  EXPECT_FALSE(
-      manager_.IsIncomingStream(GetNthSelfInitiatedBidirectionalStreamId(0)));
-  EXPECT_FALSE(
-      manager_.IsIncomingStream(GetNthSelfInitiatedUnidirectionalStreamId(0)));
-}
-
 TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenOutgoingStreamsPlusFrame) {
   const size_t kNumMaxOutgoingStream = 123;
   // Set the uni- and bi- directional limits to different values to ensure

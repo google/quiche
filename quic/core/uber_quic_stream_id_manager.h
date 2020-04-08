@@ -66,9 +66,6 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame,
                              std::string* error_details);
 
-  // Return true if |id| is peer initiated.
-  bool IsIncomingStream(QuicStreamId id) const;
-
   // Returns true if |id| is still available.
   bool IsAvailableStream(QuicStreamId id) const;
 

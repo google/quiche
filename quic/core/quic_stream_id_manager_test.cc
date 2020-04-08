@@ -71,7 +71,7 @@ class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
       : stream_id_manager_(&delegate_,
                            IsUnidirectional(),
                            perspective(),
-                           transport_version(),
+                           GetParam().version,
                            0,
                            kDefaultMaxStreamsPerConnection) {
     DCHECK(VersionHasIetfQuicFrames(transport_version()));

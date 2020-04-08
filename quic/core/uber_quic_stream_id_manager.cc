@@ -20,14 +20,14 @@ UberQuicStreamIdManager::UberQuicStreamIdManager(
     : bidirectional_stream_id_manager_(delegate,
                                        /*unidirectional=*/false,
                                        perspective,
-                                       version.transport_version,
+                                       version,
                                        max_open_outgoing_bidirectional_streams,
                                        max_open_incoming_bidirectional_streams),
       unidirectional_stream_id_manager_(
           delegate,
           /*unidirectional=*/true,
           perspective,
-          version.transport_version,
+          version,
           max_open_outgoing_unidirectional_streams,
           max_open_incoming_unidirectional_streams) {}
 
@@ -94,13 +94,6 @@ bool UberQuicStreamIdManager::OnStreamsBlockedFrame(
   }
   return bidirectional_stream_id_manager_.OnStreamsBlockedFrame(frame,
                                                                 error_details);
-}
-
-bool UberQuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {
-  if (QuicUtils::IsBidirectionalStreamId(id)) {
-    return bidirectional_stream_id_manager_.IsIncomingStream(id);
-  }
-  return unidirectional_stream_id_manager_.IsIncomingStream(id);
 }
 
 bool UberQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {

@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -24,13 +25,13 @@ QuicStreamIdManager::QuicStreamIdManager(
     DelegateInterface* delegate,
     bool unidirectional,
     Perspective perspective,
-    QuicTransportVersion transport_version,
+    ParsedQuicVersion version,
     QuicStreamCount max_allowed_outgoing_streams,
     QuicStreamCount max_allowed_incoming_streams)
     : delegate_(delegate),
       unidirectional_(unidirectional),
       perspective_(perspective),
-      transport_version_(transport_version),
+      version_(version),
       outgoing_max_streams_(max_allowed_outgoing_streams),
       next_outgoing_stream_id_(GetFirstOutgoingStreamId()),
       outgoing_stream_count_(0),
@@ -39,7 +40,7 @@ QuicStreamIdManager::QuicStreamIdManager(
       incoming_initial_max_open_streams_(max_allowed_incoming_streams),
       incoming_stream_count_(0),
       largest_peer_created_stream_id_(
-          QuicUtils::GetInvalidStreamId(transport_version)) {}
+          QuicUtils::GetInvalidStreamId(version.transport_version)) {}
 
 QuicStreamIdManager::~QuicStreamIdManager() {}
 
@@ -109,7 +110,7 @@ void QuicStreamIdManager::SendMaxStreamsFrame() {
 
 void QuicStreamIdManager::OnStreamClosed(QuicStreamId stream_id) {
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
-  if (!IsIncomingStream(stream_id)) {
+  if (QuicUtils::IsOutgoingStreamId(version_, stream_id, perspective_)) {
     // Nothing to do for outgoing streams.
     return;
   }
@@ -131,13 +132,14 @@ QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
          "limit ("
       << outgoing_max_streams_ << ")";
   QuicStreamId id = next_outgoing_stream_id_;
-  next_outgoing_stream_id_ += QuicUtils::StreamIdDelta(transport_version_);
+  next_outgoing_stream_id_ +=
+      QuicUtils::StreamIdDelta(version_.transport_version);
   outgoing_stream_count_++;
   return id;
 }
 
 bool QuicStreamIdManager::CanOpenNextOutgoingStream() const {
-  DCHECK(VersionHasIetfQuicFrames(transport_version_));
+  DCHECK(VersionHasIetfQuicFrames(version_.transport_version));
   return outgoing_stream_count_ < outgoing_max_streams_;
 }
 
@@ -146,7 +148,8 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
     std::string* error_details) {
   // |stream_id| must be an incoming stream of the right directionality.
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(stream_id), unidirectional_);
-  DCHECK_NE(QuicUtils::IsServerInitiatedStreamId(transport_version_, stream_id),
+  DCHECK_NE(QuicUtils::IsServerInitiatedStreamId(version_.transport_version,
+                                                 stream_id),
             perspective_ == Perspective::IS_SERVER);
   if (available_streams_.erase(stream_id) == 1) {
     // stream_id is available.
@@ -154,15 +157,16 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
   }
 
   if (largest_peer_created_stream_id_ !=
-      QuicUtils::GetInvalidStreamId(transport_version_)) {
+      QuicUtils::GetInvalidStreamId(version_.transport_version)) {
     DCHECK_GT(stream_id, largest_peer_created_stream_id_);
   }
 
   // Calculate increment of incoming_stream_count_ by creating stream_id.
-  const QuicStreamCount delta = QuicUtils::StreamIdDelta(transport_version_);
+  const QuicStreamCount delta =
+      QuicUtils::StreamIdDelta(version_.transport_version);
   const QuicStreamId least_new_stream_id =
       largest_peer_created_stream_id_ ==
-              QuicUtils::GetInvalidStreamId(transport_version_)
+              QuicUtils::GetInvalidStreamId(version_.transport_version)
           ? GetFirstIncomingStreamId()
           : largest_peer_created_stream_id_ + delta;
   const QuicStreamCount stream_count_increment =
@@ -190,45 +194,35 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
 
 bool QuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {
   DCHECK_NE(QuicUtils::IsBidirectionalStreamId(id), unidirectional_);
-  if (!IsIncomingStream(id)) {
+  if (QuicUtils::IsOutgoingStreamId(version_, id, perspective_)) {
     // Stream IDs under next_ougoing_stream_id_ are either open or previously
     // open but now closed.
     return id >= next_outgoing_stream_id_;
   }
   // For peer created streams, we also need to consider available streams.
   return largest_peer_created_stream_id_ ==
-             QuicUtils::GetInvalidStreamId(transport_version_) ||
+             QuicUtils::GetInvalidStreamId(version_.transport_version) ||
          id > largest_peer_created_stream_id_ ||
          QuicContainsKey(available_streams_, id);
 }
 
-bool QuicStreamIdManager::IsIncomingStream(QuicStreamId id) const {
-  DCHECK_NE(QuicUtils::IsBidirectionalStreamId(id), unidirectional_);
-  // The 0x1 bit in the stream id indicates whether the stream id is
-  // server- or client- initiated. Next_OUTGOING_stream_id_ has that bit
-  // set based on whether this node is a server or client. Thus, if the stream
-  // id in question has the 0x1 bit set opposite of next_OUTGOING_stream_id_,
-  // then that stream id is incoming -- it is for streams initiated by the peer.
-  return (id & 0x1) != (next_outgoing_stream_id_ & 0x1);
-}
-
 QuicStreamId QuicStreamIdManager::GetFirstOutgoingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version_, perspective_)
+                                 version_.transport_version, perspective_)
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version_, perspective_);
+                                 version_.transport_version, perspective_);
 }
 
 QuicStreamId QuicStreamIdManager::GetFirstIncomingStreamId() const {
   return (unidirectional_) ? QuicUtils::GetFirstUnidirectionalStreamId(
-                                 transport_version_,
+                                 version_.transport_version,
                                  QuicUtils::InvertPerspective(perspective_))
                            : QuicUtils::GetFirstBidirectionalStreamId(
-                                 transport_version_,
+                                 version_.transport_version,
                                  QuicUtils::InvertPerspective(perspective_));
 }
 
-QuicStreamCount QuicStreamIdManager::available_incoming_streams() {
+QuicStreamCount QuicStreamIdManager::available_incoming_streams() const {
   return incoming_advertised_max_streams_ - incoming_stream_count_;
 }
 

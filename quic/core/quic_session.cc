@@ -1840,7 +1840,7 @@ size_t QuicSession::MaxAvailableUnidirectionalStreams() const {
 
 bool QuicSession::IsIncomingStream(QuicStreamId id) const {
   if (VersionHasIetfQuicFrames(transport_version())) {
-    return v99_streamid_manager_.IsIncomingStream(id);
+    return !QuicUtils::IsOutgoingStreamId(version(), id, perspective_);
   }
   return stream_id_manager_.IsIncomingStream(id);
 }
