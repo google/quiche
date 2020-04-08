@@ -7,10 +7,10 @@
 #include <limits>
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
 
@@ -43,7 +43,7 @@ void QuicHeaderList::OnHeader(quiche::QuicheStringPiece name,
   if (current_header_list_size_ < max_header_list_size_) {
     current_header_list_size_ += name.size();
     current_header_list_size_ += value.size();
-    current_header_list_size_ += spdy::kPerHeaderOverhead;
+    current_header_list_size_ += QpackEntry::kSizeOverhead;
     header_list_.emplace_back(std::string(name), std::string(value));
   }
 }

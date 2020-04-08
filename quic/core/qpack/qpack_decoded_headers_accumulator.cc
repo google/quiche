@@ -5,15 +5,10 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
+#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
-
-namespace {
-
-size_t kHeaderFieldSizeOverhead = 32;
-
-}
 
 QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
     QuicStreamId id,
@@ -44,7 +39,7 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(
   }
 
   uncompressed_header_bytes_including_overhead_ +=
-      name.size() + value.size() + kHeaderFieldSizeOverhead;
+      name.size() + value.size() + QpackEntry::kSizeOverhead;
 
   if (uncompressed_header_bytes_including_overhead_ > max_header_list_size_) {
     header_list_size_limit_exceeded_ = true;

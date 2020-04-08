@@ -319,8 +319,6 @@ const size_t kGetAltSvcFrameMinimumSize = kFrameHeaderSize + 2;
 const size_t kMaxFrameSizeLimit = kSpdyMaxFrameSizeLimit + kFrameHeaderSize;
 // Size of a header block size field.
 const size_t kSizeOfSizeField = sizeof(uint32_t);
-// Per-header overhead for block size accounting in bytes.
-const size_t kPerHeaderOverhead = 32;
 // Initial window size for a stream in bytes.
 const int32_t kInitialStreamWindowSize = 64 * 1024 - 1;
 // Initial window size for a session in bytes.
