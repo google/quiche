@@ -536,7 +536,9 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
       // unblock this conformance testing we have the following workaround that
       // will be removed once the fixed test is deployed.
       // TODO(b/139691956) Remove this workaround once fixed test is deployed.
-      if (packet_info.packet.length() == 12 &&
+      if (!GetQuicReloadableFlag(
+              quic_remove_android_conformance_test_workaround) &&
+          packet_info.packet.length() == 12 &&
           packet_info.packet.data()[0] == 0x0c &&
           packet_info.packet.data()[9] == 0x01 &&
           packet_info.packet.data()[10] == 0x00 &&

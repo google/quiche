@@ -1165,7 +1165,10 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEnd) {
 }
 
 TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTestOld) {
-  // TODO(b/139691956) Remove this test once the workaround is removed.
+  if (GetQuicReloadableFlag(quic_remove_android_conformance_test_workaround)) {
+    // TODO(b/139691956) Remove this test once the flag is deprecated.
+    return;
+  }
   SavingWriter* saving_writer = new SavingWriter();
   // dispatcher_ takes ownership of saving_writer.
   QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
