@@ -35,7 +35,6 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
    public:
     // Forbid constructing and copying apart from TransportParameters.
     IntegerParameter() = delete;
-    IntegerParameter(const IntegerParameter&) = delete;
     IntegerParameter& operator=(const IntegerParameter&) = delete;
     // Sets the value of this transport parameter.
     void set_value(uint64_t value);
@@ -67,6 +66,8 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
                      uint64_t default_value,
                      uint64_t min_value,
                      uint64_t max_value);
+    IntegerParameter(const IntegerParameter& other) = default;
+    IntegerParameter(IntegerParameter&& other) = default;
     // Human-readable string representation.
     std::string ToString(bool for_use_in_list) const;
 
@@ -88,6 +89,8 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // send to clients.
   struct QUIC_EXPORT_PRIVATE PreferredAddress {
     PreferredAddress();
+    PreferredAddress(const PreferredAddress& other) = default;
+    PreferredAddress(PreferredAddress&& other) = default;
     ~PreferredAddress();
 
     QuicSocketAddress ipv4_socket_address;
@@ -103,6 +106,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   };
 
   TransportParameters();
+  TransportParameters(const TransportParameters& other);
   ~TransportParameters();
 
   // Represents the sender of the transport parameters. When |perspective| is

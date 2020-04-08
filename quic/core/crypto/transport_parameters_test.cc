@@ -125,6 +125,77 @@ INSTANTIATE_TEST_SUITE_P(TransportParametersTests,
                          ::testing::ValuesIn(AllSupportedTlsVersions()),
                          ::testing::PrintToStringParamName());
 
+TEST_P(TransportParametersTest, CopyConstructor) {
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_SERVER;
+  orig_params.version = kFakeVersionLabel;
+  orig_params.supported_versions.push_back(kFakeVersionLabel);
+  orig_params.supported_versions.push_back(kFakeVersionLabel2);
+  orig_params.original_connection_id = CreateFakeOriginalConnectionId();
+  orig_params.idle_timeout_milliseconds.set_value(kFakeIdleTimeoutMilliseconds);
+  orig_params.stateless_reset_token = CreateFakeStatelessResetToken();
+  orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
+  orig_params.initial_max_data.set_value(kFakeInitialMaxData);
+  orig_params.initial_max_stream_data_bidi_local.set_value(
+      kFakeInitialMaxStreamDataBidiLocal);
+  orig_params.initial_max_stream_data_bidi_remote.set_value(
+      kFakeInitialMaxStreamDataBidiRemote);
+  orig_params.initial_max_stream_data_uni.set_value(
+      kFakeInitialMaxStreamDataUni);
+  orig_params.initial_max_streams_bidi.set_value(kFakeInitialMaxStreamsBidi);
+  orig_params.initial_max_streams_uni.set_value(kFakeInitialMaxStreamsUni);
+  orig_params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
+  orig_params.max_ack_delay.set_value(kFakeMaxAckDelay);
+  orig_params.disable_migration = kFakeDisableMigration;
+  orig_params.preferred_address = CreateFakePreferredAddress();
+  orig_params.active_connection_id_limit.set_value(
+      kFakeActiveConnectionIdLimit);
+  orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
+  orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
+
+  TransportParameters new_params(orig_params);
+  EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
+  EXPECT_EQ(kFakeVersionLabel, new_params.version);
+  EXPECT_EQ(2u, new_params.supported_versions.size());
+  EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
+  EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
+  EXPECT_EQ(CreateFakeOriginalConnectionId(),
+            new_params.original_connection_id);
+  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
+            new_params.idle_timeout_milliseconds.value());
+  EXPECT_EQ(CreateFakeStatelessResetToken(), new_params.stateless_reset_token);
+  EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
+  EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
+  EXPECT_EQ(kFakeInitialMaxStreamDataBidiLocal,
+            new_params.initial_max_stream_data_bidi_local.value());
+  EXPECT_EQ(kFakeInitialMaxStreamDataBidiRemote,
+            new_params.initial_max_stream_data_bidi_remote.value());
+  EXPECT_EQ(kFakeInitialMaxStreamDataUni,
+            new_params.initial_max_stream_data_uni.value());
+  EXPECT_EQ(kFakeInitialMaxStreamsBidi,
+            new_params.initial_max_streams_bidi.value());
+  EXPECT_EQ(kFakeInitialMaxStreamsUni,
+            new_params.initial_max_streams_uni.value());
+  EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
+  EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
+  EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
+  ASSERT_NE(nullptr, new_params.preferred_address.get());
+  EXPECT_EQ(CreateFakeV4SocketAddress(),
+            new_params.preferred_address->ipv4_socket_address);
+  EXPECT_EQ(CreateFakeV6SocketAddress(),
+            new_params.preferred_address->ipv6_socket_address);
+  EXPECT_EQ(CreateFakePreferredConnectionId(),
+            new_params.preferred_address->connection_id);
+  EXPECT_EQ(CreateFakePreferredStatelessResetToken(),
+            new_params.preferred_address->stateless_reset_token);
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            new_params.active_connection_id_limit.value());
+  EXPECT_THAT(
+      new_params.custom_parameters,
+      UnorderedElementsAre(Pair(kCustomParameter1, kCustomParameter1Value),
+                           Pair(kCustomParameter2, kCustomParameter2Value)));
+}
+
 TEST_P(TransportParametersTest, RoundTripClient) {
   TransportParameters orig_params;
   orig_params.perspective = Perspective::IS_CLIENT;

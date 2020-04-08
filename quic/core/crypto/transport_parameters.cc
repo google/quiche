@@ -7,9 +7,11 @@
 #include <cstdint>
 #include <cstring>
 #include <forward_list>
+#include <memory>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -413,8 +415,41 @@ TransportParameters::TransportParameters()
       max_datagram_frame_size(kMaxDatagramFrameSize)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
-// ParseTransportParameters.
+// ParseTransportParameters, TransportParameters's custom copy constructor, and
+// TransportParametersTest.CopyConstructor.
 {}
+
+TransportParameters::TransportParameters(const TransportParameters& other)
+    : perspective(other.perspective),
+      version(other.version),
+      supported_versions(other.supported_versions),
+      original_connection_id(other.original_connection_id),
+      idle_timeout_milliseconds(other.idle_timeout_milliseconds),
+      stateless_reset_token(other.stateless_reset_token),
+      max_packet_size(other.max_packet_size),
+      initial_max_data(other.initial_max_data),
+      initial_max_stream_data_bidi_local(
+          other.initial_max_stream_data_bidi_local),
+      initial_max_stream_data_bidi_remote(
+          other.initial_max_stream_data_bidi_remote),
+      initial_max_stream_data_uni(other.initial_max_stream_data_uni),
+      initial_max_streams_bidi(other.initial_max_streams_bidi),
+      initial_max_streams_uni(other.initial_max_streams_uni),
+      ack_delay_exponent(other.ack_delay_exponent),
+      max_ack_delay(other.max_ack_delay),
+      disable_migration(other.disable_migration),
+      active_connection_id_limit(other.active_connection_id_limit),
+      max_datagram_frame_size(other.max_datagram_frame_size),
+      custom_parameters(other.custom_parameters) {
+  if (other.preferred_address) {
+    preferred_address = std::make_unique<TransportParameters::PreferredAddress>(
+        *other.preferred_address);
+  }
+  if (other.google_quic_params) {
+    google_quic_params =
+        std::make_unique<CryptoHandshakeMessage>(*other.google_quic_params);
+  }
+}
 
 bool TransportParameters::AreValid(std::string* error_details) const {
   DCHECK(perspective == Perspective::IS_CLIENT ||
