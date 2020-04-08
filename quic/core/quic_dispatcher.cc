@@ -476,8 +476,6 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   QuicConnectionId server_connection_id =
       packet_info->destination_connection_id;
   // Packet's connection ID is unknown.  Apply the validity checks.
-  // TODO(wub): Determine the fate completely in ValidityChecks, then call
-  // ProcessUnauthenticatedHeaderFate in one place.
   QuicPacketFate fate = ValidityChecks(*packet_info);
   ChloAlpnExtractor alpn_extractor;
   switch (fate) {
