@@ -486,9 +486,7 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
     QUIC_DVLOG(1) << "No session cache, not inserting a session";
     return;
   }
-  auto cache_state = std::make_unique<QuicResumptionState>();
-  cache_state->tls_session = std::move(session);
-  session_cache_->Insert(server_id_, std::move(cache_state));
+  session_cache_->Insert(server_id_, std::move(session), nullptr, nullptr);
 }
 
 void TlsClientHandshaker::WriteMessage(EncryptionLevel level,

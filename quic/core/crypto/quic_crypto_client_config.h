@@ -42,13 +42,13 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
   // client didn't receive a 0-RTT capable session ticket from the server,
   // |transport_params| will be null. Otherwise, it will contain the transport
   // parameters received from the server on the original connection.
-  std::unique_ptr<TransportParameters> transport_params;
+  TransportParameters* transport_params;
 
   // If |transport_params| is null, then |application_state| is ignored and
   // should be empty. |application_state| contains serialized state that the
   // client received from the server at the application layer that the client
   // needs to remember when performing a 0-RTT handshake.
-  std::vector<uint8_t> application_state;
+  std::vector<uint8_t>* application_state;
 };
 
 // SessionCache is an interface for managing storing and retrieving
@@ -57,15 +57,18 @@ class QUIC_EXPORT_PRIVATE SessionCache {
  public:
   virtual ~SessionCache() {}
 
-  // Inserts |state| into the cache, keyed by |server_id|. Insert is called
-  // after a session ticket is received. If the session ticket is valid for
-  // 0-RTT, there may be a delay between its receipt and the call to Insert
-  // while waiting for application state for |state|.
-  //
-  // Insert may be called multiple times per connection. SessionCache
-  // implementations should support storing multiple entries per server ID.
+  // Inserts |session|, |params|, and |application_states| into the cache, keyed
+  // by |server_id|. Insert is first called after all three values are present.
+  // The ownership of |session| is transferred to the cache, while other two are
+  // copied. Multiple sessions might need to be inserted for a connection.
+  // SessionCache implementations should support storing
+  // multiple entries per server ID.
+  // TODO(renjietang): Once params and application_states are wired up, change
+  // the argument type to const&.
   virtual void Insert(const QuicServerId& server_id,
-                      std::unique_ptr<QuicResumptionState> state) = 0;
+                      bssl::UniquePtr<SSL_SESSION> session,
+                      TransportParameters* params,
+                      std::vector<uint8_t>* application_states) = 0;
 
   // Lookup is called once at the beginning of each TLS handshake to potentially
   // provide the saved state both for the TLS handshake and for sending 0-RTT
