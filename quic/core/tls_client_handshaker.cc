@@ -163,7 +163,7 @@ bool TlsClientHandshaker::SetTransportParameters() {
 
 bool TlsClientHandshaker::ProcessTransportParameters(
     std::string* error_details) {
-  TransportParameters params;
+  received_transport_params_ = std::make_unique<TransportParameters>();
   const uint8_t* param_bytes;
   size_t param_bytes_len;
   SSL_get_peer_quic_transport_params(ssl(), &param_bytes, &param_bytes_len);
@@ -174,7 +174,8 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   std::string parse_error_details;
   if (!ParseTransportParameters(
           session()->connection()->version(), Perspective::IS_SERVER,
-          param_bytes, param_bytes_len, &params, &parse_error_details)) {
+          param_bytes, param_bytes_len, received_transport_params_.get(),
+          &parse_error_details)) {
     DCHECK(!parse_error_details.empty());
     *error_details =
         "Unable to parse server's transport parameters: " + parse_error_details;
@@ -183,24 +184,27 @@ bool TlsClientHandshaker::ProcessTransportParameters(
 
   // When interoperating with non-Google implementations that do not send
   // the version extension, set it to what we expect.
-  if (params.version == 0) {
-    params.version = CreateQuicVersionLabel(session()->connection()->version());
+  if (received_transport_params_->version == 0) {
+    received_transport_params_->version =
+        CreateQuicVersionLabel(session()->connection()->version());
   }
-  if (params.supported_versions.empty()) {
-    params.supported_versions.push_back(params.version);
+  if (received_transport_params_->supported_versions.empty()) {
+    received_transport_params_->supported_versions.push_back(
+        received_transport_params_->version);
   }
 
-  if (params.version !=
+  if (received_transport_params_->version !=
       CreateQuicVersionLabel(session()->connection()->version())) {
     *error_details = "Version mismatch detected";
     return false;
   }
   if (CryptoUtils::ValidateServerHelloVersions(
-          params.supported_versions,
+          received_transport_params_->supported_versions,
           session()->connection()->server_supported_versions(),
           error_details) != QUIC_NO_ERROR ||
       session()->config()->ProcessTransportParameters(
-          params, SERVER, error_details) != QUIC_NO_ERROR) {
+          *received_transport_params_, SERVER, error_details) !=
+          QUIC_NO_ERROR) {
     DCHECK(!error_details->empty());
     return false;
   }

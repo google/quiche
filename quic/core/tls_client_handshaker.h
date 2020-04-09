@@ -5,11 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 
+#include <memory>
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
+#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
@@ -156,6 +158,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool allow_empty_alpn_for_tests_ = false;
 
   TlsClientConnection tls_connection_;
+
+  std::unique_ptr<TransportParameters> received_transport_params_ = nullptr;
 };
 
 }  // namespace quic
