@@ -407,6 +407,10 @@ AllSupportedVersionsWithQuicCrypto();
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
 CurrentSupportedVersionsWithQuicCrypto();
 
+// Returns a subset of AllSupportedVersions() with
+// handshake_protocol == PROTOCOL_TLS1_3, in the same order.
+QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersionsWithTls();
+
 // Returns a subset of CurrentSupportedVersions() with handshake_protocol ==
 // PROTOCOL_TLS1_3.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersionsWithTls();

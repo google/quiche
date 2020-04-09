@@ -99,16 +99,6 @@ CreateFakePreferredAddress() {
       preferred_address);
 }
 
-std::vector<ParsedQuicVersion> AllSupportedTlsVersions() {
-  std::vector<ParsedQuicVersion> tls_versions;
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-      tls_versions.push_back(version);
-    }
-  }
-  return tls_versions;
-}
-
 }  // namespace
 
 class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
@@ -120,7 +110,7 @@ class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 INSTANTIATE_TEST_SUITE_P(TransportParametersTests,
                          TransportParametersTest,
-                         ::testing::ValuesIn(AllSupportedTlsVersions()),
+                         ::testing::ValuesIn(AllSupportedVersionsWithTls()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(TransportParametersTest, Comparator) {
