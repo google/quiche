@@ -431,6 +431,50 @@ QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(
 // Returns the name of the QuicErrorCode as a char*
 QUIC_EXPORT_PRIVATE const char* QuicErrorCodeToString(QuicErrorCode error);
 
+// Wire values for QUIC transport errors.
+// https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#name-transport-error-codes
+enum QuicIetfTransportErrorCodes : uint64_t {
+  NO_IETF_QUIC_ERROR = 0x0,
+  INTERNAL_ERROR = 0x1,
+  SERVER_BUSY_ERROR = 0x2,
+  FLOW_CONTROL_ERROR = 0x3,
+  STREAM_LIMIT_ERROR = 0x4,
+  STREAM_STATE_ERROR = 0x5,
+  FINAL_SIZE_ERROR = 0x6,
+  FRAME_ENCODING_ERROR = 0x7,
+  TRANSPORT_PARAMETER_ERROR = 0x8,
+  CONNECTION_ID_LIMIT_ERROR = 0x9,
+  PROTOCOL_VIOLATION = 0xA,
+  INVALID_TOKEN = 0xB,
+  CRYPTO_BUFFER_EXCEEDED = 0xD,
+  CRYPTO_ERROR_FIRST = 0x100,
+  CRYPTO_ERROR_LAST = 0x1FF,
+};
+
+QUIC_EXPORT_PRIVATE std::string QuicIetfTransportErrorCodeString(
+    QuicIetfTransportErrorCodes c);
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const QuicIetfTransportErrorCodes& c);
+
+// Returns the mapping of the QuicErrorCode to an IETF TransportErrorCode. If
+// first element of the pair is false, it means that an IETF Application Close
+// should be done instead.
+
+struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
+  bool is_transport_close_;
+  union {
+    uint64_t application_error_code_;
+    QuicIetfTransportErrorCodes transport_error_code_;
+  };
+};
+
+// Convert QuicErrorCode to transport or application IETF error code
+// to be used in CONNECTION_CLOSE frames.
+QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping
+QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
+
 // Wire values for HTTP/3 errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#http-error-codes
 enum class QuicHttp3ErrorCode {

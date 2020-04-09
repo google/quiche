@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -206,5 +209,392 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
   return "INVALID_ERROR_CODE";
 }
 
+std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
+  if (static_cast<uint64_t>(c) >= 0xff00u) {
+    return quiche::QuicheStrCat("Private(", static_cast<uint64_t>(c), ")");
+  }
+  if (c >= CRYPTO_ERROR_FIRST && c <= CRYPTO_ERROR_LAST) {
+    const int tls_error = static_cast<int>(c - CRYPTO_ERROR_FIRST);
+    const char* tls_error_description = SSL_alert_desc_string_long(tls_error);
+    if (strcmp("unknown", tls_error_description) != 0) {
+      return quiche::QuicheStrCat("CRYPTO_ERROR(", tls_error_description, ")");
+    }
+    return quiche::QuicheStrCat("CRYPTO_ERROR(unknown(", tls_error, "))");
+  }
+
+  switch (c) {
+    RETURN_STRING_LITERAL(NO_IETF_QUIC_ERROR);
+    RETURN_STRING_LITERAL(INTERNAL_ERROR);
+    RETURN_STRING_LITERAL(SERVER_BUSY_ERROR);
+    RETURN_STRING_LITERAL(FLOW_CONTROL_ERROR);
+    RETURN_STRING_LITERAL(STREAM_LIMIT_ERROR);
+    RETURN_STRING_LITERAL(STREAM_STATE_ERROR);
+    RETURN_STRING_LITERAL(FINAL_SIZE_ERROR);
+    RETURN_STRING_LITERAL(FRAME_ENCODING_ERROR);
+    RETURN_STRING_LITERAL(TRANSPORT_PARAMETER_ERROR);
+    RETURN_STRING_LITERAL(CONNECTION_ID_LIMIT_ERROR);
+    RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
+    RETURN_STRING_LITERAL(INVALID_TOKEN);
+    RETURN_STRING_LITERAL(CRYPTO_BUFFER_EXCEEDED);
+    // CRYPTO_ERROR is handled in the if before this switch, these cases do not
+    // change behavior and are only here to make the compiler happy.
+    case CRYPTO_ERROR_FIRST:
+    case CRYPTO_ERROR_LAST:
+      DCHECK(false) << "Unexpected error " << static_cast<uint64_t>(c);
+      break;
+  }
+
+  return quiche::QuicheStrCat("Unknown(", static_cast<uint64_t>(c), ")");
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const QuicIetfTransportErrorCodes& c) {
+  os << QuicIetfTransportErrorCodeString(c);
+  return os;
+}
+
+QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
+    QuicErrorCode error) {
+  switch (error) {
+    case QUIC_NO_ERROR:
+      return {true, {static_cast<uint64_t>(NO_IETF_QUIC_ERROR)}};
+    case QUIC_INTERNAL_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_STREAM_DATA_AFTER_TERMINATION:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_PACKET_HEADER:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_FRAME_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_MISSING_PAYLOAD:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_FEC_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_OVERLAPPING_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_UNENCRYPTED_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_MAYBE_CORRUPTED_MEMORY:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_UNENCRYPTED_FEC_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_RST_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_CONNECTION_CLOSE_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_GOAWAY_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_WINDOW_UPDATE_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_BLOCKED_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_STOP_WAITING_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_PATH_CLOSE_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_ACK_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_MESSAGE_DATA:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_VERSION_NEGOTIATION_PACKET:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_PUBLIC_RST_PACKET:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_DECRYPTION_FAILURE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_ENCRYPTION_FAILURE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_PACKET_TOO_LARGE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_PEER_GOING_AWAY:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_STREAM_ID:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_PRIORITY:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_OPEN_STREAMS:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_TOO_MANY_AVAILABLE_STREAMS:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_PUBLIC_RESET:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_VERSION:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_HEADER_ID:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_NEGOTIATED_VALUE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_DECOMPRESSION_FAILURE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_NETWORK_IDLE_TIMEOUT:
+      return {true, {static_cast<uint64_t>(NO_IETF_QUIC_ERROR)}};
+    case QUIC_HANDSHAKE_TIMEOUT:
+      return {true, {static_cast<uint64_t>(NO_IETF_QUIC_ERROR)}};
+    case QUIC_ERROR_MIGRATING_ADDRESS:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_ERROR_MIGRATING_PORT:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_PACKET_WRITE_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_PACKET_READ_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_EMPTY_STREAM_FRAME_NO_FIN:
+      return {true, {static_cast<uint64_t>(FRAME_ENCODING_ERROR)}};
+    case QUIC_INVALID_HEADERS_STREAM_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA:
+      return {true, {static_cast<uint64_t>(FLOW_CONTROL_ERROR)}};
+    case QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_FLOW_CONTROL_INVALID_WINDOW:
+      return {true, {static_cast<uint64_t>(FLOW_CONTROL_ERROR)}};
+    case QUIC_CONNECTION_IP_POOLED:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_OUTSTANDING_RECEIVED_PACKETS:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_CANCELLED:
+      return {true, {static_cast<uint64_t>(NO_IETF_QUIC_ERROR)}};
+    case QUIC_BAD_PACKET_LOSS_RATE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_PUBLIC_RESETS_POST_HANDSHAKE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_FAILED_TO_SERIALIZE_PACKET:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_RTOS:
+      return {true, {static_cast<uint64_t>(NO_IETF_QUIC_ERROR)}};
+    case QUIC_HANDSHAKE_FAILED:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_TAGS_OUT_OF_ORDER:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_TOO_MANY_ENTRIES:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_INVALID_VALUE_LENGTH:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_MESSAGE_AFTER_HANDSHAKE_COMPLETE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_CRYPTO_MESSAGE_TYPE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_CHANNEL_ID_SIGNATURE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_MESSAGE_PARAMETER_NO_OVERLAP:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_MESSAGE_INDEX_NOT_FOUND:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_UNSUPPORTED_PROOF_DEMAND:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_INTERNAL_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CRYPTO_VERSION_NOT_SUPPORTED:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_NO_SUPPORT:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_TOO_MANY_REJECTS:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_PROOF_INVALID:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_DUPLICATE_TAG:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_SERVER_CONFIG_EXPIRED:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_MESSAGE_WHILE_VALIDATING_CLIENT_HELLO:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_UPDATE_BEFORE_HANDSHAKE_COMPLETE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_CRYPTO_CHLO_TOO_LARGE:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_VERSION_NEGOTIATION_MISMATCH:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_BAD_MULTIPATH_FLAG:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_MULTIPATH_PATH_DOES_NOT_EXIST:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_MULTIPATH_PATH_NOT_ACTIVE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_IP_ADDRESS_CHANGED:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_TOO_MANY_CHANGES:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_NO_NEW_NETWORK:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_NON_MIGRATABLE_STREAM:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_DISABLED_BY_CONFIG:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_INTERNAL_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_STREAM_DATA_INTERVALS:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_STREAM_SEQUENCER_INVALID_STATE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_TOO_MANY_SESSIONS_ON_SERVER:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_STREAM_LENGTH_OVERFLOW:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_MAX_DATA_FRAME_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_MAX_STREAM_DATA_FRAME_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_MAX_STREAMS_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_STREAMS_BLOCKED_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_STREAM_BLOCKED_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_NEW_CONNECTION_ID_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_STOP_SENDING_FRAME_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_PATH_CHALLENGE_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_PATH_RESPONSE_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case IETF_QUIC_PROTOCOL_VIOLATION:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_INVALID_NEW_TOKEN:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_DATA_RECEIVED_ON_WRITE_UNIDIRECTIONAL_STREAM:
+      return {true, {static_cast<uint64_t>(STREAM_STATE_ERROR)}};
+    case QUIC_TRY_TO_WRITE_DATA_ON_READ_UNIDIRECTIONAL_STREAM:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_INVALID_RETIRE_CONNECTION_ID_DATA:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_STREAMS_BLOCKED_ERROR:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_MAX_STREAMS_ERROR:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_HTTP_DECODER_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_STALE_CONNECTION_CANCELLED:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_IETF_GQUIC_ERROR_MISSING:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_TRANSPORT_INVALID_CLIENT_INDICATION:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_QPACK_DECOMPRESSION_FAILED:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECOMPRESSION_FAILED)}};
+    case QUIC_QPACK_ENCODER_STREAM_ERROR:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_ENCODER_STREAM_ERROR)}};
+    case QUIC_QPACK_DECODER_STREAM_ERROR:
+      return {
+          false,
+          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECODER_STREAM_ERROR)}};
+    case QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_STREAM_MULTIPLE_OFFSET:
+      return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
+    case QUIC_HTTP_FRAME_TOO_LARGE:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_EXCESSIVE_LOAD)}};
+    case QUIC_HTTP_FRAME_ERROR:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_ERROR)}};
+    case QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+    case QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR)}};
+    case QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR)}};
+    case QUIC_HTTP_STREAM_WRONG_DIRECTION:
+      return {true, {static_cast<uint64_t>(STREAM_STATE_ERROR)}};
+    case QUIC_HTTP_CLOSED_CRITICAL_STREAM:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_CLOSED_CRITICAL_STREAM)}};
+    case QUIC_HTTP_MISSING_SETTINGS_FRAME:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_MISSING_SETTINGS)}};
+    case QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER:
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_SETTINGS_ERROR)}};
+    case QUIC_HPACK_INDEX_VARINT_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_NAME_TOO_LONG:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_VALUE_TOO_LONG:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_NAME_HUFFMAN_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_VALUE_HUFFMAN_ERROR:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_MISSING_DYNAMIC_TABLE_SIZE_UPDATE:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_INVALID_INDEX:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_INVALID_NAME_INDEX:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_DYNAMIC_TABLE_SIZE_UPDATE_NOT_ALLOWED:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_INITIAL_TABLE_SIZE_UPDATE_IS_ABOVE_LOW_WATER_MARK:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_TABLE_SIZE_UPDATE_IS_ABOVE_ACKNOWLEDGED_SETTING:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_TRUNCATED_BLOCK:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_FRAGMENT_TOO_LONG:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT:
+      return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
+    case QUIC_LAST_ERROR:
+      return {false, {static_cast<uint64_t>(QUIC_LAST_ERROR)}};
+  }
+  // If it's an unknown code, indicate it's an application error code.
+  return {false, {NO_IETF_QUIC_ERROR}};
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
+
 }  // namespace quic
