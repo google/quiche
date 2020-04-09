@@ -253,6 +253,48 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 }
 
+// Regression test for handling the missing ENCRYPTION_HANDSHAKE in
+// quic_crypto_stream.cc. This test is essentially the same as
+// RetransmitCryptoDataInCryptoFrames, except it uses ENCRYPTION_HANDSHAKE in
+// place of ENCRYPTION_ZERO_RTT.
+TEST_F(QuicCryptoStreamTest, RetransmitEncryptionHandshakeLevelCryptoFrames) {
+  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+    return;
+  }
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  InSequence s;
+  // Send [0, 1000) in ENCRYPTION_INITIAL.
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  std::string data(1000, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1000, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  // Send [1000, 2000) in ENCRYPTION_HANDSHAKE.
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  std::unique_ptr<NullEncrypter> encrypter =
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
+  connection_->SetEncrypter(ENCRYPTION_HANDSHAKE, std::move(encrypter));
+  EXPECT_EQ(ENCRYPTION_HANDSHAKE, connection_->encryption_level());
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_HANDSHAKE, 1000, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_HANDSHAKE, data);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
+
+  // Lost [1000, 1200).
+  QuicCryptoFrame lost_frame(ENCRYPTION_HANDSHAKE, 0, 200);
+  stream_->OnCryptoFrameLost(&lost_frame);
+  EXPECT_TRUE(stream_->HasPendingCryptoRetransmission());
+  // Verify [1000, 1200) is sent.
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_HANDSHAKE, 200, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WritePendingCryptoRetransmission();
+  EXPECT_FALSE(stream_->HasPendingCryptoRetransmission());
+}
+
 TEST_F(QuicCryptoStreamTest, NeuterUnencryptedStreamData) {
   if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     return;

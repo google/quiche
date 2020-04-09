@@ -235,12 +235,21 @@ void QuicCryptoStream::OnStreamDataConsumed(size_t bytes_consumed) {
   QuicStream::OnStreamDataConsumed(bytes_consumed);
 }
 
+namespace {
+
+constexpr std::array<EncryptionLevel, NUM_ENCRYPTION_LEVELS>
+AllEncryptionLevels() {
+  return {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
+          ENCRYPTION_FORWARD_SECURE};
+}
+
+}  // namespace
+
 bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     return false;
   }
-  for (EncryptionLevel level :
-       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+  for (EncryptionLevel level : AllEncryptionLevels()) {
     if (substreams_[level].send_buffer.HasPendingRetransmission()) {
       return true;
     }
@@ -251,8 +260,7 @@ bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
 void QuicCryptoStream::WritePendingCryptoRetransmission() {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames";
-  for (EncryptionLevel level :
-       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+  for (EncryptionLevel level : AllEncryptionLevels()) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
     while (send_buffer->HasPendingRetransmission()) {
       auto pending = send_buffer->NextPendingRetransmission();
@@ -353,9 +361,11 @@ uint64_t QuicCryptoStream::crypto_bytes_read() const {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     return stream_bytes_read();
   }
-  return substreams_[ENCRYPTION_INITIAL].sequencer.NumBytesConsumed() +
-         substreams_[ENCRYPTION_ZERO_RTT].sequencer.NumBytesConsumed() +
-         substreams_[ENCRYPTION_FORWARD_SECURE].sequencer.NumBytesConsumed();
+  uint64_t bytes_read = 0;
+  for (EncryptionLevel level : AllEncryptionLevels()) {
+    bytes_read += substreams_[level].sequencer.NumBytesConsumed();
+  }
+  return bytes_read;
 }
 
 uint64_t QuicCryptoStream::BytesReadOnLevel(EncryptionLevel level) const {
@@ -408,8 +418,7 @@ void QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
 void QuicCryptoStream::WriteBufferedCryptoFrames() {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
-  for (EncryptionLevel level :
-       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+  for (EncryptionLevel level : AllEncryptionLevels()) {
     QuicStreamSendBuffer* send_buffer = &substreams_[level].send_buffer;
     const size_t data_length =
         send_buffer->stream_offset() - send_buffer->stream_bytes_written();
@@ -431,8 +440,7 @@ void QuicCryptoStream::WriteBufferedCryptoFrames() {
 bool QuicCryptoStream::HasBufferedCryptoFrames() const {
   QUIC_BUG_IF(!QuicVersionUsesCryptoFrames(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
-  for (EncryptionLevel level :
-       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+  for (EncryptionLevel level : AllEncryptionLevels()) {
     const QuicStreamSendBuffer& send_buffer = substreams_[level].send_buffer;
     DCHECK_GE(send_buffer.stream_offset(), send_buffer.stream_bytes_written());
     if (send_buffer.stream_offset() > send_buffer.stream_bytes_written()) {
@@ -461,8 +469,7 @@ bool QuicCryptoStream::IsWaitingForAcks() const {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     return QuicStream::IsWaitingForAcks();
   }
-  for (EncryptionLevel level :
-       {ENCRYPTION_INITIAL, ENCRYPTION_ZERO_RTT, ENCRYPTION_FORWARD_SECURE}) {
+  for (EncryptionLevel level : AllEncryptionLevels()) {
     if (substreams_[level].send_buffer.stream_bytes_outstanding()) {
       return true;
     }
