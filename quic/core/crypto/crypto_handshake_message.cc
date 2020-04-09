@@ -50,6 +50,12 @@ CryptoHandshakeMessage& CryptoHandshakeMessage::operator=(
 CryptoHandshakeMessage& CryptoHandshakeMessage::operator=(
     CryptoHandshakeMessage&& other) = default;
 
+bool CryptoHandshakeMessage::operator==(
+    const CryptoHandshakeMessage& rhs) const {
+  return tag_ == rhs.tag_ && tag_value_map_ == rhs.tag_value_map_ &&
+         minimum_size_ == rhs.minimum_size_;
+}
+
 void CryptoHandshakeMessage::Clear() {
   tag_ = 0;
   tag_value_map_.clear();

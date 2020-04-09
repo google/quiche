@@ -7,6 +7,7 @@
 #include <cstring>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
@@ -125,10 +126,69 @@ INSTANTIATE_TEST_SUITE_P(TransportParametersTests,
                          ::testing::ValuesIn(AllSupportedTlsVersions()),
                          ::testing::PrintToStringParamName());
 
+TEST_P(TransportParametersTest, Comparator) {
+  TransportParameters orig_params;
+  TransportParameters new_params;
+  // Test comparison on primitive members.
+  orig_params.perspective = Perspective::IS_CLIENT;
+  new_params.perspective = Perspective::IS_SERVER;
+  EXPECT_FALSE(orig_params == new_params);
+  new_params.perspective = Perspective::IS_CLIENT;
+  orig_params.version = kFakeVersionLabel;
+  new_params.version = kFakeVersionLabel;
+  orig_params.disable_migration = true;
+  new_params.disable_migration = true;
+  EXPECT_EQ(orig_params, new_params);
+
+  // Test comparison on vectors.
+  orig_params.supported_versions.push_back(kFakeVersionLabel);
+  new_params.supported_versions.push_back(kFakeVersionLabel2);
+  EXPECT_FALSE(orig_params == new_params);
+  new_params.supported_versions.pop_back();
+  new_params.supported_versions.push_back(kFakeVersionLabel);
+  orig_params.stateless_reset_token = CreateFakeStatelessResetToken();
+  new_params.stateless_reset_token = CreateFakeStatelessResetToken();
+  EXPECT_EQ(orig_params, new_params);
+
+  // Test comparison on IntegerParameters.
+  orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
+  new_params.max_packet_size.set_value(kFakeMaxPacketSize + 1);
+  EXPECT_FALSE(orig_params == new_params);
+  new_params.max_packet_size.set_value(kFakeMaxPacketSize);
+  EXPECT_EQ(orig_params, new_params);
+
+  // Test comparison on PreferredAddress
+  orig_params.preferred_address = CreateFakePreferredAddress();
+  EXPECT_FALSE(orig_params == new_params);
+  new_params.preferred_address = CreateFakePreferredAddress();
+  EXPECT_EQ(orig_params, new_params);
+
+  // Test comparison on CryptoHandshakeMessage.
+  orig_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
+  const std::string kTestString = "test string";
+  orig_params.google_quic_params->SetStringPiece(42, kTestString);
+  const uint32_t kTestValue = 12;
+  orig_params.google_quic_params->SetValue(1337, kTestValue);
+  EXPECT_FALSE(orig_params == new_params);
+
+  new_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
+  new_params.google_quic_params->SetStringPiece(42, kTestString);
+  new_params.google_quic_params->SetValue(1337, kTestValue + 1);
+  EXPECT_FALSE(orig_params == new_params);
+  new_params.google_quic_params->SetValue(1337, kTestValue);
+  EXPECT_EQ(orig_params, new_params);
+
+  // Test comparison on CustomMap
+  orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
+  orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
+
+  new_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
+  new_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
+  EXPECT_EQ(orig_params, new_params);
+}
+
 TEST_P(TransportParametersTest, CopyConstructor) {
   TransportParameters orig_params;
-  orig_params.perspective = Perspective::IS_SERVER;
-  orig_params.version = kFakeVersionLabel;
   orig_params.supported_versions.push_back(kFakeVersionLabel);
   orig_params.supported_versions.push_back(kFakeVersionLabel2);
   orig_params.original_connection_id = CreateFakeOriginalConnectionId();
@@ -154,46 +214,7 @@ TEST_P(TransportParametersTest, CopyConstructor) {
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
   TransportParameters new_params(orig_params);
-  EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
-  EXPECT_EQ(kFakeVersionLabel, new_params.version);
-  EXPECT_EQ(2u, new_params.supported_versions.size());
-  EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
-  EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
-  EXPECT_EQ(CreateFakeOriginalConnectionId(),
-            new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
-            new_params.idle_timeout_milliseconds.value());
-  EXPECT_EQ(CreateFakeStatelessResetToken(), new_params.stateless_reset_token);
-  EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
-  EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiLocal,
-            new_params.initial_max_stream_data_bidi_local.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiRemote,
-            new_params.initial_max_stream_data_bidi_remote.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataUni,
-            new_params.initial_max_stream_data_uni.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsBidi,
-            new_params.initial_max_streams_bidi.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsUni,
-            new_params.initial_max_streams_uni.value());
-  EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
-  EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
-  EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
-  ASSERT_NE(nullptr, new_params.preferred_address.get());
-  EXPECT_EQ(CreateFakeV4SocketAddress(),
-            new_params.preferred_address->ipv4_socket_address);
-  EXPECT_EQ(CreateFakeV6SocketAddress(),
-            new_params.preferred_address->ipv6_socket_address);
-  EXPECT_EQ(CreateFakePreferredConnectionId(),
-            new_params.preferred_address->connection_id);
-  EXPECT_EQ(CreateFakePreferredStatelessResetToken(),
-            new_params.preferred_address->stateless_reset_token);
-  EXPECT_EQ(kFakeActiveConnectionIdLimit,
-            new_params.active_connection_id_limit.value());
-  EXPECT_THAT(
-      new_params.custom_parameters,
-      UnorderedElementsAre(Pair(kCustomParameter1, kCustomParameter1Value),
-                           Pair(kCustomParameter2, kCustomParameter2Value)));
+  EXPECT_EQ(new_params, orig_params);
 }
 
 TEST_P(TransportParametersTest, RoundTripClient) {
@@ -229,34 +250,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
                                        &new_params, &error_details))
       << error_details;
   EXPECT_TRUE(error_details.empty());
-  EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
-  EXPECT_EQ(kFakeVersionLabel, new_params.version);
-  EXPECT_TRUE(new_params.supported_versions.empty());
-  EXPECT_EQ(EmptyQuicConnectionId(), new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
-            new_params.idle_timeout_milliseconds.value());
-  EXPECT_TRUE(new_params.stateless_reset_token.empty());
-  EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
-  EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiLocal,
-            new_params.initial_max_stream_data_bidi_local.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiRemote,
-            new_params.initial_max_stream_data_bidi_remote.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataUni,
-            new_params.initial_max_stream_data_uni.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsBidi,
-            new_params.initial_max_streams_bidi.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsUni,
-            new_params.initial_max_streams_uni.value());
-  EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
-  EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
-  EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
-  EXPECT_EQ(kFakeActiveConnectionIdLimit,
-            new_params.active_connection_id_limit.value());
-  EXPECT_THAT(
-      new_params.custom_parameters,
-      UnorderedElementsAre(Pair(kCustomParameter1, kCustomParameter1Value),
-                           Pair(kCustomParameter2, kCustomParameter2Value)));
+  EXPECT_EQ(new_params, orig_params);
 }
 
 TEST_P(TransportParametersTest, RoundTripServer) {
@@ -295,43 +289,7 @@ TEST_P(TransportParametersTest, RoundTripServer) {
                                        &new_params, &error_details))
       << error_details;
   EXPECT_TRUE(error_details.empty());
-  EXPECT_EQ(Perspective::IS_SERVER, new_params.perspective);
-  EXPECT_EQ(kFakeVersionLabel, new_params.version);
-  EXPECT_EQ(2u, new_params.supported_versions.size());
-  EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
-  EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
-  EXPECT_EQ(CreateFakeOriginalConnectionId(),
-            new_params.original_connection_id);
-  EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
-            new_params.idle_timeout_milliseconds.value());
-  EXPECT_EQ(CreateFakeStatelessResetToken(), new_params.stateless_reset_token);
-  EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
-  EXPECT_EQ(kFakeInitialMaxData, new_params.initial_max_data.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiLocal,
-            new_params.initial_max_stream_data_bidi_local.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataBidiRemote,
-            new_params.initial_max_stream_data_bidi_remote.value());
-  EXPECT_EQ(kFakeInitialMaxStreamDataUni,
-            new_params.initial_max_stream_data_uni.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsBidi,
-            new_params.initial_max_streams_bidi.value());
-  EXPECT_EQ(kFakeInitialMaxStreamsUni,
-            new_params.initial_max_streams_uni.value());
-  EXPECT_EQ(kFakeAckDelayExponent, new_params.ack_delay_exponent.value());
-  EXPECT_EQ(kFakeMaxAckDelay, new_params.max_ack_delay.value());
-  EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
-  ASSERT_NE(nullptr, new_params.preferred_address.get());
-  EXPECT_EQ(CreateFakeV4SocketAddress(),
-            new_params.preferred_address->ipv4_socket_address);
-  EXPECT_EQ(CreateFakeV6SocketAddress(),
-            new_params.preferred_address->ipv6_socket_address);
-  EXPECT_EQ(CreateFakePreferredConnectionId(),
-            new_params.preferred_address->connection_id);
-  EXPECT_EQ(CreateFakePreferredStatelessResetToken(),
-            new_params.preferred_address->stateless_reset_token);
-  EXPECT_EQ(kFakeActiveConnectionIdLimit,
-            new_params.active_connection_id_limit.value());
-  EXPECT_EQ(0u, new_params.custom_parameters.size());
+  EXPECT_EQ(new_params, orig_params);
 }
 
 TEST_P(TransportParametersTest, AreValid) {

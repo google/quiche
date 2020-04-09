@@ -30,6 +30,8 @@ class QUIC_EXPORT_PRIVATE CryptoHandshakeMessage {
   CryptoHandshakeMessage& operator=(const CryptoHandshakeMessage& other);
   CryptoHandshakeMessage& operator=(CryptoHandshakeMessage&& other);
 
+  bool operator==(const CryptoHandshakeMessage& rhs) const;
+
   // Clears state.
   void Clear();
 

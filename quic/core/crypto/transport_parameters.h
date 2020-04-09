@@ -92,6 +92,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     PreferredAddress(const PreferredAddress& other) = default;
     PreferredAddress(PreferredAddress&& other) = default;
     ~PreferredAddress();
+    bool operator==(const PreferredAddress& rhs) const;
 
     QuicSocketAddress ipv4_socket_address;
     QuicSocketAddress ipv6_socket_address;
@@ -108,6 +109,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   TransportParameters();
   TransportParameters(const TransportParameters& other);
   ~TransportParameters();
+  bool operator==(const TransportParameters& rhs) const;
 
   // Represents the sender of the transport parameters. When |perspective| is
   // Perspective::IS_CLIENT, this struct is being used in the client_hello

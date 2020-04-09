@@ -312,6 +312,14 @@ TransportParameters::PreferredAddress::PreferredAddress()
 
 TransportParameters::PreferredAddress::~PreferredAddress() {}
 
+bool TransportParameters::PreferredAddress::operator==(
+    const PreferredAddress& rhs) const {
+  return ipv4_socket_address == rhs.ipv4_socket_address &&
+         ipv6_socket_address == rhs.ipv6_socket_address &&
+         connection_id == rhs.connection_id &&
+         stateless_reset_token == rhs.stateless_reset_token;
+}
+
 std::ostream& operator<<(
     std::ostream& os,
     const TransportParameters::PreferredAddress& preferred_address) {
@@ -415,8 +423,8 @@ TransportParameters::TransportParameters()
       max_datagram_frame_size(kMaxDatagramFrameSize)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
-// ParseTransportParameters, TransportParameters's custom copy constructor, and
-// TransportParametersTest.CopyConstructor.
+// ParseTransportParameters, TransportParameters's custom copy constructor, the
+// operator==, and TransportParametersTest.Comparator.
 {}
 
 TransportParameters::TransportParameters(const TransportParameters& other)
@@ -449,6 +457,54 @@ TransportParameters::TransportParameters(const TransportParameters& other)
     google_quic_params =
         std::make_unique<CryptoHandshakeMessage>(*other.google_quic_params);
   }
+}
+
+bool TransportParameters::operator==(const TransportParameters& rhs) const {
+  if (!(perspective == rhs.perspective && version == rhs.version &&
+        supported_versions == rhs.supported_versions &&
+        original_connection_id == rhs.original_connection_id &&
+        idle_timeout_milliseconds.value() ==
+            rhs.idle_timeout_milliseconds.value() &&
+        stateless_reset_token == rhs.stateless_reset_token &&
+        max_packet_size.value() == rhs.max_packet_size.value() &&
+        initial_max_data.value() == rhs.initial_max_data.value() &&
+        initial_max_stream_data_bidi_local.value() ==
+            rhs.initial_max_stream_data_bidi_local.value() &&
+        initial_max_stream_data_bidi_remote.value() ==
+            rhs.initial_max_stream_data_bidi_remote.value() &&
+        initial_max_stream_data_uni.value() ==
+            rhs.initial_max_stream_data_uni.value() &&
+        initial_max_streams_bidi.value() ==
+            rhs.initial_max_streams_bidi.value() &&
+        initial_max_streams_uni.value() ==
+            rhs.initial_max_streams_uni.value() &&
+        ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
+        max_ack_delay.value() == rhs.max_ack_delay.value() &&
+        disable_migration == rhs.disable_migration &&
+        active_connection_id_limit.value() ==
+            rhs.active_connection_id_limit.value() &&
+        max_datagram_frame_size.value() ==
+            rhs.max_datagram_frame_size.value() &&
+        custom_parameters == rhs.custom_parameters)) {
+    return false;
+  }
+
+  if ((!preferred_address && rhs.preferred_address) ||
+      (preferred_address && !rhs.preferred_address) ||
+      (!google_quic_params && rhs.google_quic_params) ||
+      (google_quic_params && !rhs.google_quic_params)) {
+    return false;
+  }
+  bool address = true;
+  if (preferred_address && rhs.preferred_address) {
+    address = (*preferred_address == *rhs.preferred_address);
+  }
+
+  bool google_quic = true;
+  if (google_quic_params && rhs.google_quic_params) {
+    google_quic = (*google_quic_params == *rhs.google_quic_params);
+  }
+  return address && google_quic;
 }
 
 bool TransportParameters::AreValid(std::string* error_details) const {
