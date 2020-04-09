@@ -320,6 +320,11 @@ bool TransportParameters::PreferredAddress::operator==(
          stateless_reset_token == rhs.stateless_reset_token;
 }
 
+bool TransportParameters::PreferredAddress::operator!=(
+    const PreferredAddress& rhs) const {
+  return !(*this == rhs);
+}
+
 std::ostream& operator<<(
     std::ostream& os,
     const TransportParameters::PreferredAddress& preferred_address) {
@@ -505,6 +510,10 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
     google_quic = (*google_quic_params == *rhs.google_quic_params);
   }
   return address && google_quic;
+}
+
+bool TransportParameters::operator!=(const TransportParameters& rhs) const {
+  return !(*this == rhs);
 }
 
 bool TransportParameters::AreValid(std::string* error_details) const {

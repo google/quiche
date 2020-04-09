@@ -20,9 +20,6 @@ namespace quic {
 namespace test {
 namespace {
 
-using testing::Pair;
-using testing::UnorderedElementsAre;
-
 const QuicVersionLabel kFakeVersionLabel = 0x01234567;
 const QuicVersionLabel kFakeVersionLabel2 = 0x89ABCDEF;
 const uint64_t kFakeIdleTimeoutMilliseconds = 12012;
@@ -132,36 +129,52 @@ TEST_P(TransportParametersTest, Comparator) {
   // Test comparison on primitive members.
   orig_params.perspective = Perspective::IS_CLIENT;
   new_params.perspective = Perspective::IS_SERVER;
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
   new_params.perspective = Perspective::IS_CLIENT;
   orig_params.version = kFakeVersionLabel;
   new_params.version = kFakeVersionLabel;
   orig_params.disable_migration = true;
   new_params.disable_migration = true;
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 
   // Test comparison on vectors.
   orig_params.supported_versions.push_back(kFakeVersionLabel);
   new_params.supported_versions.push_back(kFakeVersionLabel2);
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
   new_params.supported_versions.pop_back();
   new_params.supported_versions.push_back(kFakeVersionLabel);
   orig_params.stateless_reset_token = CreateFakeStatelessResetToken();
   new_params.stateless_reset_token = CreateFakeStatelessResetToken();
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 
   // Test comparison on IntegerParameters.
   orig_params.max_packet_size.set_value(kFakeMaxPacketSize);
   new_params.max_packet_size.set_value(kFakeMaxPacketSize + 1);
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
   new_params.max_packet_size.set_value(kFakeMaxPacketSize);
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 
   // Test comparison on PreferredAddress
   orig_params.preferred_address = CreateFakePreferredAddress();
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
   new_params.preferred_address = CreateFakePreferredAddress();
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 
   // Test comparison on CryptoHandshakeMessage.
   orig_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
@@ -169,14 +182,20 @@ TEST_P(TransportParametersTest, Comparator) {
   orig_params.google_quic_params->SetStringPiece(42, kTestString);
   const uint32_t kTestValue = 12;
   orig_params.google_quic_params->SetValue(1337, kTestValue);
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
 
   new_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
   new_params.google_quic_params->SetStringPiece(42, kTestString);
   new_params.google_quic_params->SetValue(1337, kTestValue + 1);
+  EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
+  EXPECT_TRUE(orig_params != new_params);
   new_params.google_quic_params->SetValue(1337, kTestValue);
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 
   // Test comparison on CustomMap
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
@@ -185,6 +204,8 @@ TEST_P(TransportParametersTest, Comparator) {
   new_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
   new_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   EXPECT_EQ(orig_params, new_params);
+  EXPECT_TRUE(orig_params == new_params);
+  EXPECT_FALSE(orig_params != new_params);
 }
 
 TEST_P(TransportParametersTest, CopyConstructor) {
