@@ -1152,10 +1152,9 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     default:
-      SendStopSending(
-          static_cast<QuicApplicationErrorCode>(
-              QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR),
-          pending->id());
+      SendStopSending(static_cast<QuicApplicationErrorCode>(
+                          QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
+                      pending->id());
       pending->StopReading();
   }
   return false;

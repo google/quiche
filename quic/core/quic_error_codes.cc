@@ -495,67 +495,58 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
     case QUIC_TRANSPORT_INVALID_CLIENT_INDICATION:
       return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
     case QUIC_QPACK_DECOMPRESSION_FAILED:
-      return {
-          false,
-          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECOMPRESSION_FAILED)}};
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttpQpackErrorCode::DECOMPRESSION_FAILED)}};
     case QUIC_QPACK_ENCODER_STREAM_ERROR:
-      return {
-          false,
-          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_ENCODER_STREAM_ERROR)}};
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)}};
     case QUIC_QPACK_DECODER_STREAM_ERROR:
-      return {
-          false,
-          {static_cast<uint64_t>(IETF_QUIC_HTTP_QPACK_DECODER_STREAM_ERROR)}};
+      return {false,
+              {static_cast<uint64_t>(
+                  QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)}};
     case QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET:
       return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
     case QUIC_STREAM_MULTIPLE_OFFSET:
       return {true, {static_cast<uint64_t>(PROTOCOL_VIOLATION)}};
     case QUIC_HTTP_FRAME_TOO_LARGE:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_EXCESSIVE_LOAD)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::EXCESSIVE_LOAD)}};
     case QUIC_HTTP_FRAME_ERROR:
-      return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_ERROR)}};
+      return {false, {static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_ERROR)}};
     case QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED)}};
     case QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED)}};
     case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED)}};
     case QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_CONTROL_STREAM:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_FRAME_UNEXPECTED)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED)}};
     case QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM:
-      return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR)}};
+      return {
+          false,
+          {static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR)}};
     case QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM:
-      return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR)}};
+      return {
+          false,
+          {static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR)}};
     case QUIC_HTTP_STREAM_WRONG_DIRECTION:
       return {true, {static_cast<uint64_t>(STREAM_STATE_ERROR)}};
     case QUIC_HTTP_CLOSED_CRITICAL_STREAM:
-      return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_CLOSED_CRITICAL_STREAM)}};
+      return {
+          false,
+          {static_cast<uint64_t>(QuicHttp3ErrorCode::CLOSED_CRITICAL_STREAM)}};
     case QUIC_HTTP_MISSING_SETTINGS_FRAME:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_MISSING_SETTINGS)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::MISSING_SETTINGS)}};
     case QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER:
       return {false,
-              {static_cast<uint64_t>(
-                  QuicHttp3ErrorCode::IETF_QUIC_HTTP3_SETTINGS_ERROR)}};
+              {static_cast<uint64_t>(QuicHttp3ErrorCode::SETTINGS_ERROR)}};
     case QUIC_HPACK_INDEX_VARINT_ERROR:
       return {true, {static_cast<uint64_t>(INTERNAL_ERROR)}};
     case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:

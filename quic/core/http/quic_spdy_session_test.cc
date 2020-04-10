@@ -2273,7 +2273,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
           QuicStopSendingFrame* stop_sending = frame.stop_sending_frame;
           EXPECT_EQ(stream_id, stop_sending->stream_id);
-          EXPECT_EQ(QuicHttp3ErrorCode::IETF_QUIC_HTTP3_STREAM_CREATION_ERROR,
+          EXPECT_EQ(QuicHttp3ErrorCode::STREAM_CREATION_ERROR,
                     static_cast<QuicHttp3ErrorCode>(
                         stop_sending->application_error_code));
 
