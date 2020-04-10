@@ -200,6 +200,8 @@ TEST_P(TransportParametersTest, Comparator) {
 
 TEST_P(TransportParametersTest, CopyConstructor) {
   TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.version = kFakeVersionLabel;
   orig_params.supported_versions.push_back(kFakeVersionLabel);
   orig_params.supported_versions.push_back(kFakeVersionLabel2);
   orig_params.original_connection_id = CreateFakeOriginalConnectionId();
