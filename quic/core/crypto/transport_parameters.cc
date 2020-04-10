@@ -109,6 +109,32 @@ std::string TransportParameterIdToString(
   return "Unknown(" + quiche::QuicheTextUtils::Uint64ToString(param_id) + ")";
 }
 
+bool TransportParameterIdIsKnown(
+    TransportParameters::TransportParameterId param_id) {
+  switch (param_id) {
+    case TransportParameters::kOriginalConnectionId:
+    case TransportParameters::kIdleTimeout:
+    case TransportParameters::kStatelessResetToken:
+    case TransportParameters::kMaxPacketSize:
+    case TransportParameters::kInitialMaxData:
+    case TransportParameters::kInitialMaxStreamDataBidiLocal:
+    case TransportParameters::kInitialMaxStreamDataBidiRemote:
+    case TransportParameters::kInitialMaxStreamDataUni:
+    case TransportParameters::kInitialMaxStreamsBidi:
+    case TransportParameters::kInitialMaxStreamsUni:
+    case TransportParameters::kAckDelayExponent:
+    case TransportParameters::kMaxAckDelay:
+    case TransportParameters::kDisableMigration:
+    case TransportParameters::kPreferredAddress:
+    case TransportParameters::kActiveConnectionIdLimit:
+    case TransportParameters::kMaxDatagramFrameSize:
+    case TransportParameters::kGoogleQuicParam:
+    case TransportParameters::kGoogleQuicVersion:
+      return true;
+  }
+  return false;
+}
+
 bool WriteTransportParameterId(
     QuicDataWriter* writer,
     TransportParameters::TransportParameterId param_id,
@@ -552,6 +578,14 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     *error_details = "Internal preferred address family failure";
     return false;
   }
+  for (const auto& kv : custom_parameters) {
+    if (TransportParameterIdIsKnown(kv.first)) {
+      *error_details = quiche::QuicheStrCat(
+          "Using custom_parameters with known ID ",
+          TransportParameterIdToString(kv.first), " is not allowed");
+      return false;
+    }
+  }
   const bool ok =
       idle_timeout_milliseconds.IsValid() && max_packet_size.IsValid() &&
       initial_max_data.IsValid() &&
@@ -748,12 +782,53 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   }
 
   for (const auto& kv : in.custom_parameters) {
-    QUIC_BUG_IF(static_cast<uint64_t>(kv.first) < 0xff00)
-        << "custom_parameters should not be used "
-           "for non-private use parameters";
-    if (!WriteTransportParameterId(&writer, kv.first, version) ||
+    const TransportParameters::TransportParameterId param_id = kv.first;
+    if (param_id % 31 == 27) {
+      // See the "Reserved Transport Parameters" section of
+      // draft-ietf-quic-transport.
+      QUIC_BUG << "Serializing custom_parameters with GREASE ID " << param_id
+               << " is not allowed";
+      return false;
+    }
+    if (!WriteTransportParameterId(&writer, param_id, version) ||
         !WriteTransportParameterStringPiece(&writer, kv.second, version)) {
-      QUIC_BUG << "Failed to write custom parameter " << kv.first;
+      QUIC_BUG << "Failed to write custom parameter " << param_id;
+      return false;
+    }
+  }
+
+  {
+    // Add a random GREASE transport parameter, as defined in the
+    // "Reserved Transport Parameters" section of draft-ietf-quic-transport.
+    // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html
+    // This forces receivers to support unexpected input.
+    QuicRandom* random = QuicRandom::GetInstance();
+    uint64_t grease_id64 = random->RandUint64();
+    if (version.HasVarIntTransportParams()) {
+      // With these versions, identifiers are 62 bits long so we need to ensure
+      // that the output of the computation below fits in 62 bits.
+      grease_id64 %= ((1ULL << 62) - 31);
+    } else {
+      // Same with 16 bits.
+      grease_id64 %= ((1ULL << 16) - 31);
+    }
+    // Make sure grease_id % 31 == 27. Note that this is not uniformely
+    // distributed but is acceptable since no security depends on this
+    // randomness.
+    grease_id64 = (grease_id64 / 31) * 31 + 27;
+    DCHECK(version.HasVarIntTransportParams() ||
+           grease_id64 <= std::numeric_limits<uint16_t>::max())
+        << grease_id64 << " invalid for " << version;
+    TransportParameters::TransportParameterId grease_id =
+        static_cast<TransportParameters::TransportParameterId>(grease_id64);
+    size_t grease_length = random->RandUint64() % 16;
+    std::string grease_contents(grease_length, '\0');
+    random->RandBytes(grease_contents.data(), grease_contents.size());
+    if (!WriteTransportParameterId(&writer, grease_id, version) ||
+        !WriteTransportParameterStringPiece(&writer, grease_contents,
+                                            version)) {
+      QUIC_BUG << "Failed to write GREASE parameter "
+               << TransportParameterIdToString(grease_id);
       return false;
     }
   }

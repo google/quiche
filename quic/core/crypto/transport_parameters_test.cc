@@ -99,6 +99,19 @@ CreateFakePreferredAddress() {
       preferred_address);
 }
 
+void RemoveGreaseParameters(TransportParameters* params) {
+  std::vector<TransportParameters::TransportParameterId> grease_params;
+  for (const auto& kv : params->custom_parameters) {
+    if (kv.first % 31 == 27) {
+      grease_params.push_back(kv.first);
+    }
+  }
+  EXPECT_EQ(grease_params.size(), 1u);
+  for (TransportParameters::TransportParameterId param_id : grease_params) {
+    params->custom_parameters.erase(param_id);
+  }
+}
+
 }  // namespace
 
 class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
@@ -263,6 +276,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
                                        &new_params, &error_details))
       << error_details;
   EXPECT_TRUE(error_details.empty());
+  RemoveGreaseParameters(&new_params);
   EXPECT_EQ(new_params, orig_params);
 }
 
@@ -302,6 +316,7 @@ TEST_P(TransportParametersTest, RoundTripServer) {
                                        &new_params, &error_details))
       << error_details;
   EXPECT_TRUE(error_details.empty());
+  RemoveGreaseParameters(&new_params);
   EXPECT_EQ(new_params, orig_params);
 }
 

@@ -217,7 +217,6 @@ QUIC_EXPORT_PRIVATE bool SerializeTransportParameters(
 // This method returns true if the input was successfully parsed.
 // On failure, this method will write a human-readable error message to
 // |error_details|.
-// TODO(nharper): Write fuzz tests for this method.
 QUIC_EXPORT_PRIVATE bool ParseTransportParameters(ParsedQuicVersion version,
                                                   Perspective perspective,
                                                   const uint8_t* in,
