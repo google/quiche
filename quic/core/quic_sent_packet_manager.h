@@ -366,6 +366,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_;
   }
 
+  const UberLossAlgorithm* uber_loss_algorithm() const {
+    return &uber_loss_algorithm_;
+  }
+
   // Sets the send algorithm to the given congestion control type and points the
   // pacing sender at |send_algorithm_|. Can be called any number of times.
   void SetSendAlgorithm(CongestionControlType congestion_control_type);
@@ -489,9 +493,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Sets the initial RTT of the connection.
   void SetInitialRtt(QuicTime::Delta rtt);
-
-  // Should only be called from constructor.
-  LossDetectionInterface* GetInitialLossAlgorithm();
 
   // Called when handshake is confirmed to remove the retransmittable frames
   // from all packets of HANDSHAKE_DATA packet number space to ensure they don't

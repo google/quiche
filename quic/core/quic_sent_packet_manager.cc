@@ -77,7 +77,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       debug_delegate_(nullptr),
       network_change_visitor_(nullptr),
       initial_congestion_window_(kInitialCongestionWindow),
-      loss_algorithm_(GetInitialLossAlgorithm()),
+      loss_algorithm_(&uber_loss_algorithm_),
       consecutive_rto_count_(0),
       consecutive_tlp_count_(0),
       consecutive_crypto_retransmission_count_(0),
@@ -112,10 +112,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       first_pto_srtt_multiplier_(0),
       use_standard_deviation_for_pto_(false) {
   SetSendAlgorithm(congestion_control_type);
-}
-
-LossDetectionInterface* QuicSentPacketManager::GetInitialLossAlgorithm() {
-  return &uber_loss_algorithm_;
 }
 
 QuicSentPacketManager::~QuicSentPacketManager() {}

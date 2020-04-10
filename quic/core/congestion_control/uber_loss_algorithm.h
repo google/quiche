@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_UBER_LOSS_ALGORITHM_H_
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
@@ -87,6 +88,10 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
 
   // Enable adaptive time threshold of all packet number spaces.
   void EnableAdaptiveTimeThreshold();
+
+  // Get the packet reordering threshold from the APPLICATION_DATA PN space.
+  // Always 3 when adaptive reordering is not enabled.
+  QuicPacketCount GetPacketReorderingThreshold() const;
 
   // Disable packet threshold loss detection for *runt* packets.
   void DisablePacketThresholdForRuntPackets();

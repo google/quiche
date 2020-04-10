@@ -15,7 +15,7 @@ namespace quic {
 GeneralLossAlgorithm::GeneralLossAlgorithm()
     : loss_detection_timeout_(QuicTime::Zero()),
       reordering_shift_(kDefaultLossDelayShift),
-      reordering_threshold_(kNumberOfNacksBeforeRetransmission),
+      reordering_threshold_(kDefaultPacketReorderingThreshold),
       use_adaptive_reordering_threshold_(true),
       use_adaptive_time_threshold_(false),
       use_packet_threshold_for_runt_packets_(true),

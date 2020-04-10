@@ -250,6 +250,9 @@ const size_t kMaxNewTokenTokenLength = 0xffff;
 // Default initial rtt used before any samples are received.
 const int kInitialRttMs = 100;
 
+// Default threshold of packet reordering before a packet is declared lost.
+static const QuicPacketCount kDefaultPacketReorderingThreshold = 3;
+
 // Default fraction (1/4) of an RTT the algorithm waits before determining a
 // packet is lost due to early retransmission by time based loss detection.
 static const int kDefaultLossDelayShift = 2;
