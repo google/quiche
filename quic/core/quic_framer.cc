@@ -5765,18 +5765,14 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
     return false;
   }
 
-  uint64_t error_code;
-  if (!reader->ReadVarInt62(&error_code)) {
+  if (!reader->ReadVarInt62(&frame->ietf_error_code)) {
     set_detailed_error("Unable to read rst stream error code.");
     return false;
   }
-  if (error_code > 0xffff) {
-    frame->ietf_error_code = 0xffff;
-    QUIC_DLOG(ERROR) << "Reset stream error code (" << error_code
-                     << ") > 0xffff";
-  } else {
-    frame->ietf_error_code = static_cast<uint16_t>(error_code);
-  }
+
+  // TODO(b/124216424): Translate IETF error code to QuicRstStreamErrorCode.
+  frame->error_code =
+      static_cast<QuicRstStreamErrorCode>(frame->ietf_error_code);
 
   if (!reader->ReadVarInt62(&frame->byte_offset)) {
     set_detailed_error("Unable to read rst stream sent byte offset.");
