@@ -76,14 +76,14 @@ TEST_F(QuicErrorCodesTest, QuicErrorCodeToTransportErrorCode) {
     QuicErrorCodeToIetfMapping ietf_error_code =
         QuicErrorCodeToTransportErrorCode(
             static_cast<QuicErrorCode>(internal_error_code));
-    if (ietf_error_code.is_transport_close_) {
+    if (ietf_error_code.is_transport_close) {
       QuicIetfTransportErrorCodes transport_error_code =
-          ietf_error_code.transport_error_code_;
+          static_cast<QuicIetfTransportErrorCodes>(ietf_error_code.error_code);
       bool is_valid_transport_error_code = transport_error_code <= 0x0d;
       EXPECT_TRUE(is_valid_transport_error_code) << internal_error_code_string;
     } else {
       // Non-transport errors are application errors, either HTTP/3 or QPACK.
-      uint64_t application_error_code = ietf_error_code.application_error_code_;
+      uint64_t application_error_code = ietf_error_code.error_code;
       bool is_valid_http3_error_code =
           application_error_code >= 0x100 && application_error_code <= 0x110;
       bool is_valid_qpack_error_code =

@@ -31,16 +31,15 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
   }
   QuicErrorCodeToIetfMapping mapping =
       QuicErrorCodeToTransportErrorCode(error_code);
-  if (mapping.is_transport_close_) {
+  wire_error_code = mapping.error_code;
+  if (mapping.is_transport_close) {
     // Maps to a transport close
     close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;
-    wire_error_code = mapping.transport_error_code_;
     transport_close_frame_type = frame_type;
     return;
   }
   // Maps to an application close.
   close_type = IETF_QUIC_APPLICATION_CONNECTION_CLOSE;
-  wire_error_code = mapping.application_error_code_;
   transport_close_frame_type = 0;
 }
 

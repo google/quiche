@@ -1683,19 +1683,16 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicErrorCodeToIetfMapping mapping =
         QuicErrorCodeToTransportErrorCode(expected_code);
 
-    if (mapping.is_transport_close_) {
+    if (mapping.is_transport_close) {
       // This Google QUIC Error Code maps to a transport close,
       EXPECT_EQ(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
-      EXPECT_EQ(mapping.transport_error_code_,
-                connection_close_frames[0].wire_error_code);
     } else {
       // This maps to an application close.
       EXPECT_EQ(IETF_QUIC_APPLICATION_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
-      EXPECT_EQ(mapping.application_error_code_,
-                connection_close_frames[0].wire_error_code);
     }
+    EXPECT_EQ(mapping.error_code, connection_close_frames[0].wire_error_code);
   }
 
   void MtuDiscoveryTestInit() {

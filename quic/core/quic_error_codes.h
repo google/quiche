@@ -458,16 +458,11 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     const QuicIetfTransportErrorCodes& c);
 
-// Returns the mapping of the QuicErrorCode to an IETF TransportErrorCode. If
-// first element of the pair is false, it means that an IETF Application Close
-// should be done instead.
-
+// A transport error code (if is_transport_close is true) or application error
+// code (if is_transport_close is false) to be used in CONNECTION_CLOSE frames.
 struct QUIC_EXPORT_PRIVATE QuicErrorCodeToIetfMapping {
-  bool is_transport_close_;
-  union {
-    uint64_t application_error_code_;
-    QuicIetfTransportErrorCodes transport_error_code_;
-  };
+  bool is_transport_close;
+  uint64_t error_code;
 };
 
 // Convert QuicErrorCode to transport or application IETF error code
