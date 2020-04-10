@@ -65,6 +65,15 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   // Returns true on success, false otherwise.
   bool ReadStringPiece16(quiche::QuicheStringPiece* result);
 
+  // Reads a string prefixed with 8-bit length into the given output parameter.
+  //
+  // NOTE: Does not copy but rather references strings in the underlying buffer.
+  // This should be kept in mind when handling memory management!
+  //
+  // Forwards the internal iterator on success.
+  // Returns true on success, false otherwise.
+  bool ReadStringPiece8(quiche::QuicheStringPiece* result);
+
   // Reads a given number of bytes into the given buffer. The buffer
   // must be of adequate size.
   // Forwards the internal iterator on success.

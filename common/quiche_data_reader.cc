@@ -85,6 +85,17 @@ bool QuicheDataReader::ReadStringPiece16(quiche::QuicheStringPiece* result) {
   return ReadStringPiece(result, result_len);
 }
 
+bool QuicheDataReader::ReadStringPiece8(quiche::QuicheStringPiece* result) {
+  // Read resultant length.
+  uint8_t result_len;
+  if (!ReadUInt8(&result_len)) {
+    // OnFailure() already called.
+    return false;
+  }
+
+  return ReadStringPiece(result, result_len);
+}
+
 bool QuicheDataReader::ReadStringPiece(quiche::QuicheStringPiece* result,
                                        size_t size) {
   // Make sure that we have enough data to read.
