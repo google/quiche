@@ -35,7 +35,7 @@ QuicCryptoFrame::~QuicCryptoFrame() {}
 
 std::ostream& operator<<(std::ostream& os,
                          const QuicCryptoFrame& stream_frame) {
-  os << "{ level: " << static_cast<int>(stream_frame.level)
+  os << "{ level: " << EncryptionLevelToString(stream_frame.level)
      << ", offset: " << stream_frame.offset
      << ", length: " << stream_frame.data_length << " }\n";
   return os;
