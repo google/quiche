@@ -574,8 +574,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }
-  // If it's an unknown code, indicate it's an application error code.
-  return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+  // This function should not be called with unknown error code.
+  return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
