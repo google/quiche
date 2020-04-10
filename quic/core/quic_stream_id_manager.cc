@@ -83,7 +83,7 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
   QUIC_BUG_IF(incoming_stream_count_ > 0)
       << "non-zero incoming stream count " << incoming_stream_count_
       << " when setting max incoming stream to " << max_open_streams;
-  QUIC_LOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
+  QUIC_DLOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
       << quiche::QuicheStrCat(
              unidirectional_ ? "unidirectional " : "bidirectional: ",
              "incoming stream limit changed from ",
