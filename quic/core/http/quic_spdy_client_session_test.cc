@@ -584,8 +584,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOnPromiseHeaders) {
   CompleteCryptoHandshake();
 
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), 10));
+    session_->SetMaxPushId(10);
   }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(
@@ -605,25 +604,28 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseStreamIdTooHigh) {
       session_.get(), std::make_unique<QuicSpdyClientStream>(
                           stream_id, session_.get(), BIDIRECTIONAL));
 
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), 10));
-    // TODO(b/136295430) Use PushId to represent Push IDs instead of
-    // QuicStreamId.
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_INVALID_STREAM_ID,
-                        "Received push stream id higher than MAX_PUSH_ID.", _));
-  }
-  auto promise_id = GetNthServerInitiatedUnidirectionalStreamId(
-      connection_->transport_version(), 11);
-  auto headers = QuicHeaderList();
+  QuicHeaderList headers;
   headers.OnHeaderBlockStart();
   headers.OnHeader(":path", "/bar");
   headers.OnHeader(":authority", "www.google.com");
   headers.OnHeader(":method", "GET");
   headers.OnHeader(":scheme", "https");
   headers.OnHeaderBlockEnd(0, 0);
+
+  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    session_->SetMaxPushId(10);
+    // TODO(b/136295430) Use PushId to represent Push IDs instead of
+    // QuicStreamId.
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INVALID_STREAM_ID,
+                        "Received push stream id higher than MAX_PUSH_ID.", _));
+    const PushId promise_id = 11;
+    session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
+    return;
+  }
+  const QuicStreamId promise_id = GetNthServerInitiatedUnidirectionalStreamId(
+      connection_->transport_version(), 11);
   session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
 }
 
@@ -647,8 +649,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
   CompleteCryptoHandshake();
 
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    session_->SetMaxPushId(GetNthServerInitiatedUnidirectionalStreamId(
-        connection_->transport_version(), 10));
+    session_->SetMaxPushId(10);
   }
 
   MockQuicSpdyClientStream* stream = static_cast<MockQuicSpdyClientStream*>(

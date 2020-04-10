@@ -1209,7 +1209,7 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   }
 }
 
-void QuicSpdySession::SetMaxPushId(QuicStreamId max_push_id) {
+void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
   if (max_push_id_.has_value()) {
@@ -1232,7 +1232,7 @@ void QuicSpdySession::SetMaxPushId(QuicStreamId max_push_id) {
   }
 }
 
-bool QuicSpdySession::OnMaxPushIdFrame(QuicStreamId max_push_id) {
+bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_SERVER, perspective());
 
@@ -1243,7 +1243,7 @@ bool QuicSpdySession::OnMaxPushIdFrame(QuicStreamId max_push_id) {
     QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
                   << " from unset";
   }
-  quiche::QuicheOptional<QuicStreamId> old_max_push_id = max_push_id_;
+  quiche::QuicheOptional<PushId> old_max_push_id = max_push_id_;
   max_push_id_ = max_push_id;
 
   if (!old_max_push_id.has_value() ||
@@ -1272,7 +1272,7 @@ void QuicSpdySession::EnableServerPush() {
   ietf_server_push_enabled_ = true;
 }
 
-bool QuicSpdySession::CanCreatePushStreamWithId(QuicStreamId push_id) {
+bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   return ietf_server_push_enabled_ && max_push_id_.has_value() &&

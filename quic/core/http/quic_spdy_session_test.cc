@@ -3023,7 +3023,7 @@ TEST_P(QuicSpdySessionTestClient, SendInitialMaxPushIdIfSet) {
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_.set_debug_visitor(&debug_visitor);
 
-  const QuicStreamId max_push_id = 5;
+  const PushId max_push_id = 5;
   session_.SetMaxPushId(max_push_id);
 
   InSequence s;

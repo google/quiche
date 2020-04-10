@@ -105,6 +105,8 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
 bool QuicSpdyClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
                                                QuicStreamId promised_id,
                                                const SpdyHeaderBlock& headers) {
+  // TODO(b/136295430): Do not treat |promised_id| as a stream ID when using
+  // IETF QUIC.
   // Due to pathalogical packet re-ordering, it is possible that
   // frames for the promised stream have already arrived, and the
   // promised stream could be active or closed.
