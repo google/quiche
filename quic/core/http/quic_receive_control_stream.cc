@@ -134,12 +134,7 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
 bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& frame) {
   QUIC_DVLOG(1) << "Control Stream " << id()
                 << " received settings frame: " << frame;
-  if (spdy_session_->debug_visitor() != nullptr) {
-    spdy_session_->debug_visitor()->OnSettingsFrameReceived(frame);
-  }
-  for (const auto& setting : frame.values) {
-    spdy_session_->OnSetting(setting.first, setting.second);
-  }
+  spdy_session_->OnSettingsFrame(frame);
   return true;
 }
 

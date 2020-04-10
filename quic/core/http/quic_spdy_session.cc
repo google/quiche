@@ -872,6 +872,15 @@ void QuicSpdySession::OnPromiseHeaderList(
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
+void QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnSettingsFrameReceived(frame);
+  }
+  for (const auto& setting : frame.values) {
+    OnSetting(setting.first, setting.second);
+  }
+}
+
 void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
   if (VersionUsesHttp3(transport_version())) {
     // SETTINGS frame received on the control stream.
