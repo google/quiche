@@ -821,9 +821,11 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
         << grease_id64 << " invalid for " << version;
     TransportParameters::TransportParameterId grease_id =
         static_cast<TransportParameters::TransportParameterId>(grease_id64);
-    size_t grease_length = random->RandUint64() % 16;
-    std::string grease_contents(grease_length, '\0');
-    random->RandBytes(grease_contents.data(), grease_contents.size());
+    const size_t kMaxGreaseLength = 16;
+    const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
+    DCHECK_GE(kMaxGreaseLength, grease_length);
+    char grease_contents[kMaxGreaseLength];
+    random->RandBytes(grease_contents, grease_length);
     if (!WriteTransportParameterId(&writer, grease_id, version) ||
         !WriteTransportParameterStringPiece(&writer, grease_contents,
                                             version)) {
