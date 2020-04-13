@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -58,6 +59,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // client.  Does not count update messages that were received prior
   // to handshake confirmation.
   virtual int num_scup_messages_received() const = 0;
+
+  virtual void OnApplicationState(
+      std::unique_ptr<ApplicationState> application_state) = 0;
 };
 
 class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
@@ -150,6 +154,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
 
     // Called when handshake done has been received.
     virtual void OnHandshakeDoneReceived() = 0;
+
+    // Called when application state is received.
+    virtual void OnApplicationState(
+        std::unique_ptr<ApplicationState> application_state) = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -201,6 +209,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+
+  void OnApplicationState(
+      std::unique_ptr<ApplicationState> application_state) override;
 
   std::string chlo_hash() const;
 

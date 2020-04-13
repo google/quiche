@@ -5,11 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_TLS_CLIENT_HANDSHAKER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
+#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
@@ -64,6 +66,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
   void WriteMessage(EncryptionLevel level,
                     quiche::QuicheStringPiece data) override;
+
+  void OnApplicationState(
+      std::unique_ptr<ApplicationState> application_state) override;
 
   void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }
 
@@ -160,6 +165,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   TlsClientConnection tls_connection_;
 
   std::unique_ptr<TransportParameters> received_transport_params_ = nullptr;
+  std::unique_ptr<ApplicationState> received_application_state_ = nullptr;
 };
 
 }  // namespace quic

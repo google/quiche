@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -51,6 +52,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override;
+  void OnApplicationState(
+      std::unique_ptr<ApplicationState> /*application_state*/) override {
+    QUICHE_NOTREACHED();
+  }
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

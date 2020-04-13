@@ -8,6 +8,7 @@
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -502,6 +503,11 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
     handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   }
   TlsHandshaker::WriteMessage(level, data);
+}
+
+void TlsClientHandshaker::OnApplicationState(
+    std::unique_ptr<ApplicationState> application_state) {
+  received_application_state_ = std::move(application_state);
 }
 
 }  // namespace quic

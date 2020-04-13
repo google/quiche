@@ -30,6 +30,9 @@ class ProofVerifier;
 class ProofVerifyDetails;
 class QuicRandom;
 
+// A custom data that represents application-specific settings.
+// In HTTP/3 for example, it includes the encoded SETTINGS.
+using ApplicationState = std::vector<uint8_t>;
 // QuicResumptionState stores the state a client needs for performing connection
 // resumption.
 struct QUIC_EXPORT_PRIVATE QuicResumptionState {
@@ -48,7 +51,7 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
   // should be empty. |application_state| contains serialized state that the
   // client received from the server at the application layer that the client
   // needs to remember when performing a 0-RTT handshake.
-  std::vector<uint8_t>* application_state;
+  ApplicationState* application_state;
 };
 
 // SessionCache is an interface for managing storing and retrieving

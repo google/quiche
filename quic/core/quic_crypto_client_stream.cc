@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -113,6 +114,11 @@ void QuicCryptoClientStream::OnOneRttPacketAcknowledged() {
 
 void QuicCryptoClientStream::OnHandshakeDoneReceived() {
   handshaker_->OnHandshakeDoneReceived();
+}
+
+void QuicCryptoClientStream::OnApplicationState(
+    std::unique_ptr<ApplicationState> application_state) {
+  handshaker_->OnApplicationState(std::move(application_state));
 }
 
 }  // namespace quic
