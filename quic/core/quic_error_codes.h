@@ -520,7 +520,8 @@ QuicErrorCodeToTransportErrorCode(QuicErrorCode error);
 // Wire values for HTTP/3 errors.
 // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#http-error-codes
 enum class QuicHttp3ErrorCode {
-  NO_ERROR = 0x100,
+  // NO_ERROR is defined as a C preprocessor macro on Windows.
+  HTTP3_NO_ERROR = 0x100,
   GENERAL_PROTOCOL_ERROR = 0x101,
   INTERNAL_ERROR = 0x102,
   STREAM_CREATION_ERROR = 0x103,

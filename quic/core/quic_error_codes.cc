@@ -602,7 +602,7 @@ uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     QuicRstStreamErrorCode rst_stream_error_code) {
   switch (rst_stream_error_code) {
     case QUIC_STREAM_NO_ERROR:
-      return static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR);
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR);
     case QUIC_ERROR_PROCESSING_STREAM:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
     case QUIC_MULTIPLE_TERMINATION_OFFSETS:
@@ -616,7 +616,7 @@ uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     case QUIC_STREAM_CANCELLED:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
     case QUIC_RST_ACKNOWLEDGEMENT:
-      return static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR);
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR);
     case QUIC_REFUSED_STREAM:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR);
     case QUIC_INVALID_PROMISE_URL:
@@ -687,7 +687,7 @@ uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
 QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
     uint64_t ietf_error_code) {
   switch (ietf_error_code) {
-    case static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR):
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR):
       return QUIC_STREAM_NO_ERROR;
     case static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR):
       return QUIC_STREAM_GENERAL_PROTOCOL_ERROR;
