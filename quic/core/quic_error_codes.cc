@@ -16,15 +16,14 @@ namespace quic {
 const char* QuicRstStreamErrorCodeToString(QuicRstStreamErrorCode error) {
   switch (error) {
     RETURN_STRING_LITERAL(QUIC_STREAM_NO_ERROR);
-    RETURN_STRING_LITERAL(QUIC_STREAM_CONNECTION_ERROR);
     RETURN_STRING_LITERAL(QUIC_ERROR_PROCESSING_STREAM);
     RETURN_STRING_LITERAL(QUIC_MULTIPLE_TERMINATION_OFFSETS);
     RETURN_STRING_LITERAL(QUIC_BAD_APPLICATION_PAYLOAD);
+    RETURN_STRING_LITERAL(QUIC_STREAM_CONNECTION_ERROR);
     RETURN_STRING_LITERAL(QUIC_STREAM_PEER_GOING_AWAY);
     RETURN_STRING_LITERAL(QUIC_STREAM_CANCELLED);
     RETURN_STRING_LITERAL(QUIC_RST_ACKNOWLEDGEMENT);
     RETURN_STRING_LITERAL(QUIC_REFUSED_STREAM);
-    RETURN_STRING_LITERAL(QUIC_STREAM_LAST_ERROR);
     RETURN_STRING_LITERAL(QUIC_INVALID_PROMISE_URL);
     RETURN_STRING_LITERAL(QUIC_UNAUTHORIZED_PROMISE_URL);
     RETURN_STRING_LITERAL(QUIC_DUPLICATE_PROMISE_URL);
@@ -32,8 +31,27 @@ const char* QuicRstStreamErrorCodeToString(QuicRstStreamErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_PROMISE_METHOD);
     RETURN_STRING_LITERAL(QUIC_PUSH_STREAM_TIMED_OUT);
     RETURN_STRING_LITERAL(QUIC_HEADERS_TOO_LARGE);
-    RETURN_STRING_LITERAL(QUIC_DATA_AFTER_CLOSE_OFFSET);
     RETURN_STRING_LITERAL(QUIC_STREAM_TTL_EXPIRED);
+    RETURN_STRING_LITERAL(QUIC_DATA_AFTER_CLOSE_OFFSET);
+    RETURN_STRING_LITERAL(QUIC_STREAM_GENERAL_PROTOCOL_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_INTERNAL_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_STREAM_CREATION_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_CLOSED_CRITICAL_STREAM);
+    RETURN_STRING_LITERAL(QUIC_STREAM_FRAME_UNEXPECTED);
+    RETURN_STRING_LITERAL(QUIC_STREAM_FRAME_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_EXCESSIVE_LOAD);
+    RETURN_STRING_LITERAL(QUIC_STREAM_ID_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_SETTINGS_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_MISSING_SETTINGS);
+    RETURN_STRING_LITERAL(QUIC_STREAM_REQUEST_REJECTED);
+    RETURN_STRING_LITERAL(QUIC_STREAM_REQUEST_INCOMPLETE);
+    RETURN_STRING_LITERAL(QUIC_STREAM_CONNECT_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_VERSION_FALLBACK);
+    RETURN_STRING_LITERAL(QUIC_STREAM_DECOMPRESSION_FAILED);
+    RETURN_STRING_LITERAL(QUIC_STREAM_ENCODER_STREAM_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_DECODER_STREAM_ERROR);
+    RETURN_STRING_LITERAL(QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE);
+    RETURN_STRING_LITERAL(QUIC_STREAM_LAST_ERROR);
   }
   // Return a default value so that we return this when |error| doesn't match
   // any of the QuicRstStreamErrorCodes. This can happen when the RstStream
@@ -576,6 +594,139 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
   }
   // This function should not be called with unknown error code.
   return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
+}
+
+// Convert a QuicRstStreamErrorCode to an application error code to be used in
+// an IETF QUIC RESET_STREAM frame
+uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
+    QuicRstStreamErrorCode rst_stream_error_code) {
+  switch (rst_stream_error_code) {
+    case QUIC_STREAM_NO_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR);
+    case QUIC_ERROR_PROCESSING_STREAM:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_MULTIPLE_TERMINATION_OFFSETS:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_BAD_APPLICATION_PAYLOAD:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_STREAM_CONNECTION_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
+    case QUIC_STREAM_PEER_GOING_AWAY:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_STREAM_CANCELLED:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
+    case QUIC_RST_ACKNOWLEDGEMENT:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR);
+    case QUIC_REFUSED_STREAM:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR);
+    case QUIC_INVALID_PROMISE_URL:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR);
+    case QUIC_UNAUTHORIZED_PROMISE_URL:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR);
+    case QUIC_DUPLICATE_PROMISE_URL:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR);
+    case QUIC_PROMISE_VARY_MISMATCH:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
+    case QUIC_INVALID_PROMISE_METHOD:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR);
+    case QUIC_PUSH_STREAM_TIMED_OUT:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
+    case QUIC_HEADERS_TOO_LARGE:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::EXCESSIVE_LOAD);
+    case QUIC_STREAM_TTL_EXPIRED:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
+    case QUIC_DATA_AFTER_CLOSE_OFFSET:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_STREAM_GENERAL_PROTOCOL_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR);
+    case QUIC_STREAM_INTERNAL_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
+    case QUIC_STREAM_STREAM_CREATION_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR);
+    case QUIC_STREAM_CLOSED_CRITICAL_STREAM:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::CLOSED_CRITICAL_STREAM);
+    case QUIC_STREAM_FRAME_UNEXPECTED:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED);
+    case QUIC_STREAM_FRAME_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_ERROR);
+    case QUIC_STREAM_EXCESSIVE_LOAD:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::EXCESSIVE_LOAD);
+    case QUIC_STREAM_ID_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR);
+    case QUIC_STREAM_SETTINGS_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::SETTINGS_ERROR);
+    case QUIC_STREAM_MISSING_SETTINGS:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::MISSING_SETTINGS);
+    case QUIC_STREAM_REQUEST_REJECTED:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_REJECTED);
+    case QUIC_STREAM_REQUEST_INCOMPLETE:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_INCOMPLETE);
+    case QUIC_STREAM_CONNECT_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR);
+    case QUIC_STREAM_VERSION_FALLBACK:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::VERSION_FALLBACK);
+    case QUIC_STREAM_DECOMPRESSION_FAILED:
+      return static_cast<uint64_t>(
+          QuicHttpQpackErrorCode::DECOMPRESSION_FAILED);
+    case QUIC_STREAM_ENCODER_STREAM_ERROR:
+      return static_cast<uint64_t>(
+          QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR);
+    case QUIC_STREAM_DECODER_STREAM_ERROR:
+      return static_cast<uint64_t>(
+          QuicHttpQpackErrorCode::DECODER_STREAM_ERROR);
+    case QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
+    case QUIC_STREAM_LAST_ERROR:
+      return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
+  }
+  return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
+}
+
+// Convert the application error code of an IETF QUIC RESET_STREAM frame
+// to QuicRstStreamErrorCode.
+QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
+    uint64_t ietf_error_code) {
+  switch (ietf_error_code) {
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::NO_ERROR):
+      return QUIC_STREAM_NO_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR):
+      return QUIC_STREAM_GENERAL_PROTOCOL_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR):
+      return QUIC_STREAM_INTERNAL_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR):
+      return QUIC_STREAM_STREAM_CREATION_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::CLOSED_CRITICAL_STREAM):
+      return QUIC_STREAM_CLOSED_CRITICAL_STREAM;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED):
+      return QUIC_STREAM_FRAME_UNEXPECTED;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_ERROR):
+      return QUIC_STREAM_FRAME_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::EXCESSIVE_LOAD):
+      return QUIC_STREAM_EXCESSIVE_LOAD;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR):
+      return QUIC_STREAM_ID_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::SETTINGS_ERROR):
+      return QUIC_STREAM_SETTINGS_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::MISSING_SETTINGS):
+      return QUIC_STREAM_MISSING_SETTINGS;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_REJECTED):
+      return QUIC_STREAM_REQUEST_REJECTED;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED):
+      return QUIC_STREAM_CANCELLED;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_INCOMPLETE):
+      return QUIC_STREAM_REQUEST_INCOMPLETE;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR):
+      return QUIC_STREAM_CONNECT_ERROR;
+    case static_cast<uint64_t>(QuicHttp3ErrorCode::VERSION_FALLBACK):
+      return QUIC_STREAM_VERSION_FALLBACK;
+    case static_cast<uint64_t>(QuicHttpQpackErrorCode::DECOMPRESSION_FAILED):
+      return QUIC_STREAM_DECOMPRESSION_FAILED;
+    case static_cast<uint64_t>(QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR):
+      return QUIC_STREAM_ENCODER_STREAM_ERROR;
+    case static_cast<uint64_t>(QuicHttpQpackErrorCode::DECODER_STREAM_ERROR):
+      return QUIC_STREAM_DECODER_STREAM_ERROR;
+  }
+  return QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

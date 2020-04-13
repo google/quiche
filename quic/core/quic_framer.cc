@@ -5770,9 +5770,8 @@ bool QuicFramer::ProcessIetfResetStreamFrame(QuicDataReader* reader,
     return false;
   }
 
-  // TODO(b/124216424): Translate IETF error code to QuicRstStreamErrorCode.
   frame->error_code =
-      static_cast<QuicRstStreamErrorCode>(frame->ietf_error_code);
+      IetfResetStreamErrorCodeToRstStreamErrorCode(frame->ietf_error_code);
 
   if (!reader->ReadVarInt62(&frame->byte_offset)) {
     set_detailed_error("Unable to read rst stream sent byte offset.");

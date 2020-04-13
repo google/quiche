@@ -4259,9 +4259,9 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
       {"Unable to read rst stream sent byte offset.",
        {0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
-      // error code
+      // error code QUIC_STREAM_CANCELLED
       {"Unable to read rst stream error code.",
-       {0x00, 0x00, 0x00, 0x01}}
+       {0x00, 0x00, 0x00, 0x06}}
   };
 
   PacketFragments packet46 = {
@@ -4284,9 +4284,9 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
       {"Unable to read rst stream sent byte offset.",
        {0x3A, 0x98, 0xFE, 0xDC,
         0x32, 0x10, 0x76, 0x54}},
-      // error code
+      // error code QUIC_STREAM_CANCELLED
       {"Unable to read rst stream error code.",
-       {0x00, 0x00, 0x00, 0x01}}
+       {0x00, 0x00, 0x00, 0x06}}
   };
 
   PacketFragments packet99 = {
@@ -4305,9 +4305,10 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
       // stream id
       {"Unable to read IETF_RST_STREAM frame stream id/count.",
        {kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04}},
-      // application error code
+      // application error code H3_REQUEST_CANCELLED gets translated to
+      // QuicRstStreamErrorCode::QUIC_STREAM_CANCELLED.
       {"Unable to read rst stream error code.",
-       {kVarInt62OneByte + 0x01}},
+       {kVarInt62TwoBytes + 0x01, 0x0c}},
       // Final Offset
       {"Unable to read rst stream sent byte offset.",
        {kVarInt62EightBytes + 0x3a, 0x98, 0xFE, 0xDC, 0x32, 0x10, 0x76, 0x54}}
@@ -4330,7 +4331,7 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.rst_stream_frame_.stream_id);
-  EXPECT_EQ(0x01, visitor_.rst_stream_frame_.error_code);
+  EXPECT_EQ(QUIC_STREAM_CANCELLED, visitor_.rst_stream_frame_.error_code);
   EXPECT_EQ(kStreamOffset, visitor_.rst_stream_frame_.byte_offset);
   CheckFramingBoundaries(fragments, QUIC_INVALID_RST_STREAM_DATA);
 }

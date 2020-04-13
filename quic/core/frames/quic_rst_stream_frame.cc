@@ -20,8 +20,7 @@ QuicRstStreamFrame::QuicRstStreamFrame(QuicControlFrameId control_frame_id,
     : control_frame_id(control_frame_id),
       stream_id(stream_id),
       error_code(error_code),
-      // TODO(b/124216424): Translate QuicRstStreamErrorCode to IETF error code.
-      ietf_error_code(error_code),
+      ietf_error_code(RstStreamErrorCodeToIetfResetStreamErrorCode(error_code)),
       byte_offset(bytes_written) {}
 
 std::ostream& operator<<(std::ostream& os,

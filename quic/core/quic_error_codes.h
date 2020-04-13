@@ -56,6 +56,53 @@ enum QuicRstStreamErrorCode {
   QUIC_STREAM_TTL_EXPIRED,
   // The stream received data that goes beyond its close offset.
   QUIC_DATA_AFTER_CLOSE_OFFSET,
+  // Peer violated protocol requirements in a way which does not match a more
+  // specific error code, or endpoint declines to use the more specific error
+  // code.
+  QUIC_STREAM_GENERAL_PROTOCOL_ERROR,
+  // An internal error has occurred.
+  QUIC_STREAM_INTERNAL_ERROR,
+  // Peer created a stream that will not be accepted.
+  QUIC_STREAM_STREAM_CREATION_ERROR,
+  // A stream required by the connection was closed or reset.
+  QUIC_STREAM_CLOSED_CRITICAL_STREAM,
+  // A frame was received which was not permitted in the current state or on the
+  // current stream.
+  QUIC_STREAM_FRAME_UNEXPECTED,
+  // A frame that fails to satisfy layout requirements or with an invalid size
+  // was received.
+  QUIC_STREAM_FRAME_ERROR,
+  // Peer exhibits a behavior that might be generating excessive load.
+  QUIC_STREAM_EXCESSIVE_LOAD,
+  // A Stream ID or Push ID was used incorrectly, such as exceeding a limit,
+  // reducing a limit, or being reused.
+  QUIC_STREAM_ID_ERROR,
+  // Error in the payload of a SETTINGS frame.
+  QUIC_STREAM_SETTINGS_ERROR,
+  // No SETTINGS frame was received at the beginning of the control stream.
+  QUIC_STREAM_MISSING_SETTINGS,
+  // A server rejected a request without performing any application processing.
+  QUIC_STREAM_REQUEST_REJECTED,
+  // The client's stream terminated without containing a fully-formed request.
+  QUIC_STREAM_REQUEST_INCOMPLETE,
+  // The connection established in response to a CONNECT request was reset or
+  // abnormally closed.
+  QUIC_STREAM_CONNECT_ERROR,
+  // The requested operation cannot be served over HTTP/3.
+  // The peer should retry over HTTP/1.1.
+  QUIC_STREAM_VERSION_FALLBACK,
+  // The QPACK decoder failed to interpret a header block and is not able to
+  // continue decoding that header block.
+  QUIC_STREAM_DECOMPRESSION_FAILED,
+  // The QPACK decoder failed to interpret an encoder instruction received on
+  // the encoder stream.
+  QUIC_STREAM_ENCODER_STREAM_ERROR,
+  // The QPACK encoder failed to interpret a decoder instruction received on the
+  // decoder stream.
+  QUIC_STREAM_DECODER_STREAM_ERROR,
+  // IETF RESET_FRAME application error code not matching any HTTP/3 or QPACK
+  // error codes.
+  QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE,
   // No error. Used as bound while iterating.
   QUIC_STREAM_LAST_ERROR,
 };
@@ -498,6 +545,16 @@ enum class QuicHttpQpackErrorCode {
   ENCODER_STREAM_ERROR = 0x201,
   DECODER_STREAM_ERROR = 0x202
 };
+
+// Convert a QuicRstStreamErrorCode to an application error code to be used in
+// an IETF QUIC RESET_STREAM frame
+uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
+    QuicRstStreamErrorCode rst_stream_error_code);
+
+// Convert the application error code of an IETF QUIC RESET_STREAM frame
+// to QuicRstStreamErrorCode.
+QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
+    uint64_t ietf_error_code);
 
 QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
     QuicErrorCode enum_value) {
