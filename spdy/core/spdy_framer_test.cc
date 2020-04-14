@@ -231,7 +231,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
  public:
   // This is larger than our max frame size because header blocks that
   // are too long can spill over into CONTINUATION frames.
-  static const size_t kDefaultHeaderBufferSize = 16 * 1024 * 1024;
+  static constexpr size_t kDefaultHeaderBufferSize = 16 * 1024 * 1024;
 
   explicit TestSpdyVisitor(SpdyFramer::CompressionOption option)
       : framer_(option),

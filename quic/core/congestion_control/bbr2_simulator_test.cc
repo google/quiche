@@ -1033,7 +1033,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
 //       Receiver
 class MultiSenderTopologyParams {
  public:
-  static const size_t kNumLocalLinks = 8;
+  static constexpr size_t kNumLocalLinks = 8;
   std::array<LinkParams, kNumLocalLinks> local_links = {
       LinkParams(10000, 1987), LinkParams(10000, 1993), LinkParams(10000, 1997),
       LinkParams(10000, 1999), LinkParams(10000, 2003), LinkParams(10000, 2011),

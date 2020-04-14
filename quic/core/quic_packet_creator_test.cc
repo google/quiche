@@ -282,7 +282,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
            n * 2;
   }
 
-  static const QuicStreamOffset kOffset = 0u;
+  static constexpr QuicStreamOffset kOffset = 0u;
 
   char buffer_[kMaxOutgoingPacketSize];
   QuicConnectionId connection_id_;

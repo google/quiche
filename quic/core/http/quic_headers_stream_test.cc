@@ -350,8 +350,8 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     return next_promised_stream_id_ += next_stream_id_;
   }
 
-  static const bool kFrameComplete = true;
-  static const bool kHasPriority = true;
+  static constexpr bool kFrameComplete = true;
+  static constexpr bool kHasPriority = true;
 
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
