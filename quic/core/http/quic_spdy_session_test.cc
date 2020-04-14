@@ -424,6 +424,15 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return std::string(priority_buffer.get(), priority_frame_length);
   }
 
+  std::string SerializeMaxPushIdFrame(PushId push_id) {
+    MaxPushIdFrame max_push_id_frame;
+    max_push_id_frame.push_id = push_id;
+    std::unique_ptr<char[]> buffer;
+    QuicByteCount frame_length =
+        HttpEncoder::SerializeMaxPushIdFrame(max_push_id_frame, &buffer);
+    return std::string(buffer.get(), frame_length);
+  }
+
   QuicStreamId StreamCountToId(QuicStreamCount stream_count,
                                Perspective perspective,
                                bool bidirectional) {
@@ -1768,6 +1777,55 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
     session_.StreamDraining(i);
     EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   }
+}
+
+TEST_P(QuicSpdySessionTestServer, ReduceMaxPushId) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  // Use an arbitrary stream id for incoming control stream.
+  QuicStreamId stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  quiche::QuicheStringPiece stream_type(type, 1);
+
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(stream_id, false, offset, stream_type);
+  offset += stream_type.length();
+  EXPECT_CALL(debug_visitor, OnPeerControlStreamCreated(stream_id));
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  SettingsFrame settings;
+  std::string settings_frame = EncodeSettings(settings);
+  QuicStreamFrame data2(stream_id, false, offset, settings_frame);
+  offset += settings_frame.length();
+
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(settings));
+  session_.OnStreamFrame(data2);
+
+  std::string max_push_id_frame1 = SerializeMaxPushIdFrame(/* push_id = */ 3);
+  QuicStreamFrame data3(stream_id, false, offset, max_push_id_frame1);
+  offset += max_push_id_frame1.length();
+
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameReceived(_));
+  session_.OnStreamFrame(data3);
+
+  std::string max_push_id_frame2 = SerializeMaxPushIdFrame(/* push_id = */ 1);
+  QuicStreamFrame data4(stream_id, false, offset, max_push_id_frame2);
+
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameReceived(_));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_INVALID_MAX_PUSH_ID,
+                              "MAX_PUSH_ID received with value 1 which is "
+                              "smaller that previously received value 3",
+                              _));
+  session_.OnStreamFrame(data4);
 }
 
 class QuicSpdySessionTestClient : public QuicSpdySessionTestBase {

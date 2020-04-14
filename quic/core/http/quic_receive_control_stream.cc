@@ -91,10 +91,7 @@ bool QuicReceiveControlStream::OnMaxPushIdFrame(const MaxPushIdFrame& frame) {
     return false;
   }
 
-  // TODO(b/124216424): Signal error if received push ID is smaller than a
-  // previously received value.
-  spdy_session()->OnMaxPushIdFrame(frame.push_id);
-  return true;
+  return spdy_session()->OnMaxPushIdFrame(frame.push_id);
 }
 
 bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {

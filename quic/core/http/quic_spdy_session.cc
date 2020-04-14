@@ -1255,14 +1255,23 @@ bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
   quiche::QuicheOptional<PushId> old_max_push_id = max_push_id_;
   max_push_id_ = max_push_id;
 
-  if (!old_max_push_id.has_value() ||
-      max_push_id_.value() > old_max_push_id.value()) {
+  if (!old_max_push_id.has_value() || max_push_id > old_max_push_id.value()) {
     OnCanCreateNewOutgoingStream(true);
     return true;
   }
 
   // Equal value is not considered an error.
-  return max_push_id_.value() >= old_max_push_id.value();
+  if (max_push_id < old_max_push_id.value()) {
+    CloseConnectionWithDetails(
+        QUIC_HTTP_INVALID_MAX_PUSH_ID,
+        quiche::QuicheStrCat(
+            "MAX_PUSH_ID received with value ", max_push_id,
+            " which is smaller that previously received value ",
+            old_max_push_id.value()));
+    return false;
+  }
+
+  return true;
 }
 
 void QuicSpdySession::SendMaxPushId() {

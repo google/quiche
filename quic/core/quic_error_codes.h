@@ -426,6 +426,9 @@ enum QuicErrorCode {
   QUIC_HTTP_MISSING_SETTINGS_FRAME = 157,
   // The received SETTINGS frame contains duplicate setting identifiers.
   QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER = 158,
+  // MAX_PUSH_ID frame received with push ID value smaller than a previously
+  // received value.
+  QUIC_HTTP_INVALID_MAX_PUSH_ID = 159,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -462,7 +465,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 159,
+  QUIC_LAST_ERROR = 160,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
