@@ -827,8 +827,9 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     char grease_contents[kMaxGreaseLength];
     random->RandBytes(grease_contents, grease_length);
     if (!WriteTransportParameterId(&writer, grease_id, version) ||
-        !WriteTransportParameterStringPiece(&writer, grease_contents,
-                                            version)) {
+        !WriteTransportParameterStringPiece(
+            &writer, quiche::QuicheStringPiece(grease_contents, grease_length),
+            version)) {
       QUIC_BUG << "Failed to write GREASE parameter "
                << TransportParameterIdToString(grease_id);
       return false;
