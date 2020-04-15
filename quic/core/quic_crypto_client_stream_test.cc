@@ -34,10 +34,12 @@ namespace {
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
 
+// This test tests the client-side of the QUIC crypto handshake. It does not
+// test the TLS handshake - that is in tls_client_handshaker_test.cc.
 class QuicCryptoClientStreamTest : public QuicTest {
  public:
   QuicCryptoClientStreamTest()
-      : supported_versions_(AllSupportedVersions()),
+      : supported_versions_(AllSupportedVersionsWithQuicCrypto()),
         server_id_(kServerHostname, kServerPort, false),
         crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
                        std::make_unique<test::SimpleSessionCache>()),
@@ -62,26 +64,6 @@ class QuicCryptoClientStreamTest : public QuicTest {
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     CreateSession();
-  }
-
-  void UseTlsHandshake() {
-    supported_versions_.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-        continue;
-      }
-      supported_versions_.push_back(version);
-    }
-  }
-
-  void UseQuicCryptoHandshake() {
-    supported_versions_.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
-        continue;
-      }
-      supported_versions_.push_back(version);
-    }
   }
 
   void CompleteCryptoHandshake() {
@@ -127,59 +109,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
   EXPECT_FALSE(stream()->IsResumption());
 }
 
-TEST_F(QuicCryptoClientStreamTest, ConnectedAfterTlsHandshake) {
-  UseTlsHandshake();
-  CreateConnection();
-  CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->one_rtt_keys_available());
-  EXPECT_FALSE(stream()->IsResumption());
-}
-
-TEST_F(QuicCryptoClientStreamTest,
-       ProofVerifyDetailsAvailableAfterTlsHandshake) {
-  UseTlsHandshake();
-  CreateConnection();
-
-  EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_));
-  stream()->CryptoConnect();
-  QuicConfig config;
-  crypto_test_utils::HandshakeWithFakeServer(
-      &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
-      connection_, stream(), AlpnForVersion(connection_->version()));
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->one_rtt_keys_available());
-}
-
-TEST_F(QuicCryptoClientStreamTest, TlsResumption) {
-  UseTlsHandshake();
-  // Enable resumption on the server:
-  SSL_CTX_clear_options(server_crypto_config_->ssl_ctx(), SSL_OP_NO_TICKET);
-  CreateConnection();
-
-  // Finish establishing the first connection:
-  CompleteCryptoHandshake();
-
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->one_rtt_keys_available());
-  EXPECT_FALSE(stream()->IsResumption());
-
-  // Create a second connection
-  CreateConnection();
-  CompleteCryptoHandshake();
-
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(stream()->one_rtt_keys_available());
-  EXPECT_TRUE(stream()->IsResumption());
-}
-
 TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {
-  UseQuicCryptoHandshake();
-  CreateConnection();
   CompleteCryptoHandshake();
 
   EXPECT_CALL(
@@ -191,8 +121,6 @@ TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, BadMessageType) {
-  UseQuicCryptoHandshake();
-  CreateConnection();
   stream()->CryptoConnect();
 
   message_.set_tag(kCHLO);
@@ -204,8 +132,6 @@ TEST_F(QuicCryptoClientStreamTest, BadMessageType) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, NegotiatedParameters) {
-  UseQuicCryptoHandshake();
-  CreateConnection();
   CompleteCryptoHandshake();
 
   const QuicConfig* config = session_->config();
@@ -218,8 +144,6 @@ TEST_F(QuicCryptoClientStreamTest, NegotiatedParameters) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ExpiredServerConfig) {
-  UseQuicCryptoHandshake();
-  CreateConnection();
   // Seed the config with a cached server config.
   CompleteCryptoHandshake();
 
@@ -278,8 +202,6 @@ TEST_F(QuicCryptoClientStreamTest, InvalidCachedServerConfig) {
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
   // Test that the crypto client stream can receive server config updates after
   // the connection has been established.
-  UseQuicCryptoHandshake();
-  CreateConnection();
   CompleteCryptoHandshake();
 
   QuicCryptoClientConfig::CachedState* state =
@@ -331,8 +253,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   // Test that the crypto client stream can receive and use server config
   // updates with certificates after the connection has been established.
-  UseQuicCryptoHandshake();
-  CreateConnection();
   CompleteCryptoHandshake();
 
   // Build a server config update message with certificates
@@ -388,8 +308,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
-  UseQuicCryptoHandshake();
-  CreateConnection();
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_CRYPTO_UPDATE_BEFORE_HANDSHAKE_COMPLETE, _, _));
@@ -402,7 +320,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateBeforeHandshake) {
 TEST_F(QuicCryptoClientStreamTest, PreferredVersion) {
   // This mimics the case where client receives version negotiation packet, such
   // that, the preferred version is different from the packets' version.
-  UseQuicCryptoHandshake();
   connection_ = new PacketSavingConnection(
       &client_helper_, &alarm_factory_, Perspective::IS_CLIENT,
       ParsedVersionOfIndex(supported_versions_, 1));
