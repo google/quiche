@@ -825,9 +825,11 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   }
 
   if (VersionUsesHttp3(transport_version())) {
-    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(3));
+    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(3),
+                             /*unidirectional=*/true);
   } else {
-    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0));
+    session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(0),
+                             /*unidirectional=*/true);
   }
   // Number of open outgoing streams should still be the same, because a new
   // stream is opened. And the queue should be empty.
@@ -924,8 +926,10 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     session_->OnMaxStreamsFrame(
         QuicMaxStreamsFrame(0, num_resources + 3, /*unidirectional=*/true));
   }
-  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(3));
-  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(4));
+  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(3),
+                           /*unidirectional=*/true);
+  session_->StreamDraining(GetNthServerInitiatedUnidirectionalId(4),
+                           /*unidirectional=*/true);
 }
 
 // Tests that closing a open outgoing stream can trigger a promised resource in

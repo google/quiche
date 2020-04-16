@@ -358,6 +358,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }
 
+  bool was_draining() const { return was_draining_; }
+
   static spdy::SpdyStreamPrecedence CalculateDefaultPriority(
       const QuicSession* session);
 
@@ -533,6 +535,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // If initialized, reset this stream at this deadline.
   QuicTime deadline_;
+
+  // True if this stream has entered draining state. Only used when
+  // quic_deprecate_draining_streams is true.
+  bool was_draining_;
 
   // Indicates whether this stream is bidirectional, read unidirectional or
   // write unidirectional.

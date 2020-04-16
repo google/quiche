@@ -353,6 +353,7 @@ QuicStream::QuicStream(QuicStreamId id,
       buffered_data_threshold_(GetQuicFlag(FLAGS_quic_buffered_data_threshold)),
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
+      was_draining_(false),
       type_(VersionHasIetfQuicFrames(session->transport_version()) &&
                     type != CRYPTO
                 ? QuicUtils::GetStreamType(id_,
@@ -431,9 +432,14 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   if (frame.fin) {
-    fin_received_ = true;
-    if (fin_sent_) {
-      session_->StreamDraining(id_);
+    if (!session_->deprecate_draining_streams() || !fin_received_) {
+      fin_received_ = true;
+      if (fin_sent_) {
+        DCHECK(!was_draining_ || !session_->deprecate_draining_streams());
+        session_->StreamDraining(id_,
+                                 /*unidirectional=*/type_ != BIDIRECTIONAL);
+        was_draining_ = true;
+      }
     }
   }
 
@@ -1087,10 +1093,14 @@ void QuicStream::WriteBufferedData() {
       MaybeSendBlocked();
     }
     if (fin && consumed_data.fin_consumed) {
+      DCHECK(!fin_sent_);
       fin_sent_ = true;
       fin_outstanding_ = true;
       if (fin_received_) {
-        session_->StreamDraining(id_);
+        DCHECK(!was_draining_);
+        session_->StreamDraining(id_,
+                                 /*unidirectional=*/type_ != BIDIRECTIONAL);
+        was_draining_ = true;
       }
       CloseWriteSide();
     } else if (fin && !consumed_data.fin_consumed) {

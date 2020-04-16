@@ -1888,7 +1888,7 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpenedOutgoing) {
   QuicStreamFrame data1(stream_id, true, 0, quiche::QuicheStringPiece("HT"));
   session_.OnStreamFrame(data1);
   EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false)).Times(1);
-  session_.StreamDraining(stream_id);
+  session_.StreamDraining(stream_id, /*unidirectional=*/false);
 }
 
 TEST_P(QuicSessionTestServer, NoPendingStreams) {
@@ -2019,7 +2019,7 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
     QuicStreamFrame data1(i, true, 0, quiche::QuicheStringPiece("HT"));
     session_.OnStreamFrame(data1);
     EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
-    session_.StreamDraining(i);
+    session_.StreamDraining(i, /*unidirectional=*/false);
     EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   }
 }

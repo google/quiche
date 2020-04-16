@@ -400,7 +400,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicStream* GetOrCreateStream(const QuicStreamId stream_id);
 
   // Mark a stream as draining.
-  virtual void StreamDraining(QuicStreamId id);
+  void StreamDraining(QuicStreamId id, bool unidirectional);
 
   // Returns true if this stream should yield writes to another blocked stream.
   virtual bool ShouldYield(QuicStreamId stream_id);
@@ -482,6 +482,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void OnAlpnSelected(quiche::QuicheStringPiece alpn);
 
   bool write_with_transmission() const { return write_with_transmission_; }
+
+  bool deprecate_draining_streams() const {
+    return deprecate_draining_streams_;
+  }
 
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
@@ -735,6 +739,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Set of stream ids that are "draining" -- a FIN has been sent and received,
   // but the stream object still exists because not all the received data has
   // been consumed.
+  // TODO(fayang): Remove draining_streams_ when deprecate
+  // quic_deprecate_draining_streams.
   QuicUnorderedSet<QuicStreamId> draining_streams_;
 
   // Set of stream ids that are waiting for acks excluding crypto stream id.
@@ -751,8 +757,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // A counter for peer initiated dynamic streams which are in the stream_map_.
   size_t num_dynamic_incoming_streams_;
 
-  // A counter for peer initiated streams which are in the draining_streams_.
+  // A counter for peer initiated streams which have sent and received FIN but
+  // waiting for application to consume data.
   size_t num_draining_incoming_streams_;
+
+  // A counter for self initiated streams which have sent and received FIN but
+  // waiting for application to consume data. Only used when
+  // deprecate_draining_streams_ is true.
+  size_t num_draining_outgoing_streams_;
 
   // A counter for self initiated static streams which are in
   // stream_map_.
@@ -818,6 +830,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Latched value of gfe2_reloadable_flag_quic_write_with_transmission.
   const bool write_with_transmission_;
+
+  // Latched value of quic_deprecate_draining_streams.
+  const bool deprecate_draining_streams_;
 };
 
 }  // namespace quic

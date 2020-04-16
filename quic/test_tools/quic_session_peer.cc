@@ -143,12 +143,6 @@ QuicSession::ZombieStreamMap& QuicSessionPeer::zombie_streams(
 }
 
 // static
-QuicUnorderedSet<QuicStreamId>* QuicSessionPeer::GetDrainingStreams(
-    QuicSession* session) {
-  return &session->draining_streams_;
-}
-
-// static
 void QuicSessionPeer::ActivateStream(QuicSession* session,
                                      std::unique_ptr<QuicStream> stream) {
   return session->ActivateStream(std::move(stream));

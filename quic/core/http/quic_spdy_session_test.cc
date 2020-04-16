@@ -1774,7 +1774,7 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
     QuicStreamFrame data1(i, true, 0, quiche::QuicheStringPiece("HT"));
     session_.OnStreamFrame(data1);
     EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
-    session_.StreamDraining(i);
+    session_.StreamDraining(i, /*unidirectional=*/false);
     EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
   }
 }
