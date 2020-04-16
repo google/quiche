@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CRYPTO_CERTIFICATE_VIEW_H_
 
 #include <memory>
+#include <vector>
 
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
