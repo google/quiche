@@ -115,6 +115,10 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
     params_.startup_cwnd_gain = 2;
     params_.drain_cwnd_gain = 2;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd) &&
+      config.HasClientRequestedIndependentOption(kB2CL, perspective)) {
+    params_.avoid_too_low_probe_bw_cwnd = false;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {

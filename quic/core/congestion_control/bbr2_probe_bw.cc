@@ -79,12 +79,36 @@ Bbr2Mode Bbr2ProbeBwMode::OnCongestionEvent(
 }
 
 Limits<QuicByteCount> Bbr2ProbeBwMode::GetCwndLimits() const {
-  if (cycle_.phase == CyclePhase::PROBE_CRUISE) {
+  if (!GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd)) {
+    if (cycle_.phase == CyclePhase::PROBE_CRUISE) {
+      return NoGreaterThan(
+          std::min(model_->inflight_lo(), model_->inflight_hi_with_headroom()));
+    }
+
     return NoGreaterThan(
-        std::min(model_->inflight_lo(), model_->inflight_hi_with_headroom()));
+        std::min(model_->inflight_lo(), model_->inflight_hi()));
   }
 
-  return NoGreaterThan(std::min(model_->inflight_lo(), model_->inflight_hi()));
+  QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_avoid_too_low_probe_bw_cwnd);
+
+  QuicByteCount upper_limit =
+      std::min(model_->inflight_lo(), cycle_.phase == CyclePhase::PROBE_CRUISE
+                                          ? model_->inflight_hi_with_headroom()
+                                          : model_->inflight_hi());
+
+  if (Params().avoid_too_low_probe_bw_cwnd) {
+    // Ensure upper_limit is at least BDP + AckHeight.
+    QuicByteCount bdp_with_ack_height =
+        model_->BDP(model_->MaxBandwidth()) + model_->MaxAckHeight();
+    if (upper_limit < bdp_with_ack_height) {
+      QUIC_DVLOG(3) << sender_ << " Rasing upper_limit from " << upper_limit
+                    << " to " << bdp_with_ack_height;
+      QUIC_CODE_COUNT(quic_bbr2_avoid_too_low_probe_bw_cwnd_in_effect);
+      upper_limit = bdp_with_ack_height;
+    }
+  }
+
+  return NoGreaterThan(upper_limit);
 }
 
 bool Bbr2ProbeBwMode::IsProbingForBandwidth() const {
