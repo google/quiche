@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_control_placeholder.pb.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor_test_tools.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_server_session.h"
+#include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
@@ -59,11 +60,16 @@ ParsedQuicVersionVector GetTestParams() {
   return test_versions;
 }
 
-// Used by QuicCryptoServerConfig to provide server credentials, returning a
-// canned response equal to |success|.
-class FakeProofSource : public ProofSource {
+// Used by QuicCryptoServerConfig to provide server credentials, passes
+// everything through to ProofSourceForTesting if success is true,
+// and fails otherwise.
+class IndirectionProofSource : public ProofSource {
  public:
-  explicit FakeProofSource(bool success) : success_(success) {}
+  explicit IndirectionProofSource(bool success) {
+    if (success) {
+      proof_source_ = crypto_test_utils::ProofSourceForTesting();
+    }
+  }
 
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
@@ -72,26 +78,24 @@ class FakeProofSource : public ProofSource {
                 QuicTransportVersion transport_version,
                 quiche::QuicheStringPiece chlo_hash,
                 std::unique_ptr<Callback> callback) override {
-    QuicReferenceCountedPointer<ProofSource::Chain> chain =
-        GetCertChain(server_address, hostname);
-    QuicCryptoProof proof;
-    if (success_) {
-      proof.signature = "Signature";
-      proof.leaf_cert_scts = "Time";
+    if (!proof_source_) {
+      QuicReferenceCountedPointer<ProofSource::Chain> chain =
+          GetCertChain(server_address, hostname);
+      QuicCryptoProof proof;
+      callback->Run(/*ok=*/false, chain, proof, /*details=*/nullptr);
+      return;
     }
-    callback->Run(success_, chain, proof, nullptr /* details */);
+    proof_source_->GetProof(server_address, hostname, server_config,
+                            transport_version, chlo_hash, std::move(callback));
   }
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const std::string& hostname) override {
-    if (!success_) {
+    if (!proof_source_) {
       return QuicReferenceCountedPointer<Chain>();
     }
-    std::vector<std::string> certs;
-    certs.push_back("Required to establish handshake");
-    return QuicReferenceCountedPointer<ProofSource::Chain>(
-        new ProofSource::Chain(certs));
+    return proof_source_->GetCertChain(server_address, hostname);
   }
 
   void ComputeTlsSignature(
@@ -100,19 +104,28 @@ class FakeProofSource : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override {
-    callback->Run(true, "Signature", /*details=*/nullptr);
+    if (!proof_source_) {
+      callback->Run(/*ok=*/true, "Signature", /*details=*/nullptr);
+      return;
+    }
+    proof_source_->ComputeTlsSignature(
+        server_address, hostname, signature_algorithm, in, std::move(callback));
   }
 
  private:
-  // Whether or not obtaining proof source succeeds.
-  bool success_;
+  std::unique_ptr<ProofSource> proof_source_;
 };
 
-// Used by QuicCryptoClientConfig to verify server credentials, returning a
-// canned response of QUIC_SUCCESS if |success| is true.
-class FakeProofVerifier : public ProofVerifier {
+// Used by QuicCryptoClientConfig to verify server credentials, passes
+// everything through to ProofVerifierForTesting is success is true,
+// otherwise returns a canned response of QUIC_FAILURE.
+class IndirectionProofVerifier : public ProofVerifier {
  public:
-  explicit FakeProofVerifier(bool success) : success_(success) {}
+  explicit IndirectionProofVerifier(bool success) {
+    if (success) {
+      proof_verifier_ = crypto_test_utils::ProofVerifierForTesting();
+    }
+  }
 
   // ProofVerifier override
   QuicAsyncStatus VerifyProof(
@@ -128,7 +141,13 @@ class FakeProofVerifier : public ProofVerifier {
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* verify_details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
-    return success_ ? QUIC_SUCCESS : QUIC_FAILURE;
+    if (!proof_verifier_) {
+      return QUIC_FAILURE;
+    }
+    return proof_verifier_->VerifyProof(
+        hostname, port, server_config, transport_version, chlo_hash, certs,
+        cert_sct, signature, context, error_details, verify_details,
+        std::move(callback));
   }
 
   QuicAsyncStatus VerifyCertChain(
@@ -140,16 +159,23 @@ class FakeProofVerifier : public ProofVerifier {
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
-    return success_ ? QUIC_SUCCESS : QUIC_FAILURE;
+    if (!proof_verifier_) {
+      return QUIC_FAILURE;
+    }
+    return proof_verifier_->VerifyCertChain(hostname, certs, ocsp_response,
+                                            cert_sct, context, error_details,
+                                            details, std::move(callback));
   }
 
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {
-    return nullptr;
+    if (!proof_verifier_) {
+      return nullptr;
+    }
+    return proof_verifier_->CreateDefaultContext();
   }
 
  private:
-  // Whether or not proof verification succeeds.
-  bool success_;
+  std::unique_ptr<ProofVerifier> proof_verifier_;
 };
 
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
@@ -289,7 +315,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       client_connection_->SetSelfAddress(client_address);
       QuicConfig config;
       client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
-          std::make_unique<FakeProofVerifier>(client_handshake_success));
+          std::make_unique<IndirectionProofVerifier>(client_handshake_success));
       if (send_qbone_alpn) {
         client_crypto_config_->set_alpn("qbone");
       }
@@ -308,9 +334,8 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       server_connection_->SetSelfAddress(server_address);
       QuicConfig config;
       server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
-          "TESTING", QuicRandom::GetInstance(),
-          std::unique_ptr<FakeProofSource>(
-              new FakeProofSource(server_handshake_success)),
+          QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
+          std::make_unique<IndirectionProofSource>(server_handshake_success),
           KeyExchangeSource::Default());
       QuicCryptoServerConfig::ConfigOptions options;
       QuicServerConfigProtobuf primary_config =
