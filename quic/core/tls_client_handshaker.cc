@@ -59,6 +59,7 @@ TlsClientHandshaker::TlsClientHandshaker(
       proof_handler_(proof_handler),
       session_cache_(crypto_config->session_cache()),
       user_agent_id_(crypto_config->user_agent_id()),
+      pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this) {}
 
@@ -70,6 +71,15 @@ TlsClientHandshaker::~TlsClientHandshaker() {
 
 bool TlsClientHandshaker::CryptoConnect() {
   state_ = STATE_HANDSHAKE_RUNNING;
+
+  if (!pre_shared_key_.empty()) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    std::string error_details =
+        "QUIC client pre-shared keys not yet supported with TLS";
+    QUIC_BUG << error_details;
+    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+    return false;
+  }
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());

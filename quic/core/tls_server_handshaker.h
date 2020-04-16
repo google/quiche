@@ -9,6 +9,7 @@
 
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
@@ -27,8 +28,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       public QuicCryptoServerStreamBase {
  public:
   TlsServerHandshaker(QuicSession* session,
-                      SSL_CTX* ssl_ctx,
-                      ProofSource* proof_source);
+                      const QuicCryptoServerConfig& crypto_config);
   TlsServerHandshaker(const TlsServerHandshaker&) = delete;
   TlsServerHandshaker& operator=(const TlsServerHandshaker&) = delete;
 
@@ -149,6 +149,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   std::string hostname_;
   std::string cert_verify_sig_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
+
+  // Pre-shared key used during the handshake.
+  std::string pre_shared_key_;
 
   // Used to hold the ENCRYPTION_FORWARD_SECURE read secret until the handshake
   // is complete. This is temporary until

@@ -432,6 +432,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   SSL_CTX* ssl_ctx() const;
 
+  // Pre-shared key used during the handshake.
+  const std::string& pre_shared_key() const { return pre_shared_key_; }
   void set_pre_shared_key(quiche::QuicheStringPiece psk) {
     pre_shared_key_ = std::string(psk);
   }

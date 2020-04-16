@@ -398,9 +398,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // Saves the |alpn| that will be passed in QUIC's CHLO message.
   void set_alpn(const std::string& alpn) { alpn_ = alpn; }
 
+  // Saves the pre-shared key used during the handshake.
   void set_pre_shared_key(quiche::QuicheStringPiece psk) {
     pre_shared_key_ = std::string(psk);
   }
+
+  // Returns the pre-shared key used during the handshake.
+  const std::string& pre_shared_key() const { return pre_shared_key_; }
 
   bool pad_inchoate_hello() const { return pad_inchoate_hello_; }
   void set_pad_inchoate_hello(bool new_value) {

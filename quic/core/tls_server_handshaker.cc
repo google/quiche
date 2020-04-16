@@ -44,14 +44,15 @@ void TlsServerHandshaker::SignatureCallback::Cancel() {
   handshaker_ = nullptr;
 }
 
-TlsServerHandshaker::TlsServerHandshaker(QuicSession* session,
-                                         SSL_CTX* ssl_ctx,
-                                         ProofSource* proof_source)
+TlsServerHandshaker::TlsServerHandshaker(
+    QuicSession* session,
+    const QuicCryptoServerConfig& crypto_config)
     : TlsHandshaker(this, session),
       QuicCryptoServerStreamBase(session),
-      proof_source_(proof_source),
+      proof_source_(crypto_config.proof_source()),
+      pre_shared_key_(crypto_config.pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
-      tls_connection_(ssl_ctx, this) {
+      tls_connection_(crypto_config.ssl_ctx(), this) {
   DCHECK_EQ(PROTOCOL_TLS1_3,
             session->connection()->version().handshake_protocol);
 
@@ -387,6 +388,12 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
                                   hostname_);
   if (chain->certs.empty()) {
     QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+  }
+
+  if (!pre_shared_key_.empty()) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    QUIC_BUG << "QUIC server pre-shared keys not yet supported with TLS";
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 

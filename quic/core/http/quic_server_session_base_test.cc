@@ -484,9 +484,8 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
 class MockTlsServerHandshaker : public TlsServerHandshaker {
  public:
   explicit MockTlsServerHandshaker(QuicServerSessionBase* session,
-                                   SSL_CTX* ssl_ctx,
-                                   ProofSource* proof_source)
-      : TlsServerHandshaker(session, ssl_ctx, proof_source) {}
+                                   const QuicCryptoServerConfig& crypto_config)
+      : TlsServerHandshaker(session, crypto_config) {}
   MockTlsServerHandshaker(const MockTlsServerHandshaker&) = delete;
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
@@ -532,8 +531,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
                                                quic_crypto_stream);
   } else {
     tls_server_stream =
-        new MockTlsServerHandshaker(session_.get(), crypto_config_.ssl_ctx(),
-                                    crypto_config_.proof_source());
+        new MockTlsServerHandshaker(session_.get(), crypto_config_);
     QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
                                                tls_server_stream);
   }

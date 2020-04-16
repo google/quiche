@@ -104,9 +104,8 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
 class MockTlsServerHandshaker : public TlsServerHandshaker {
  public:
   explicit MockTlsServerHandshaker(QuicSession* session,
-                                   SSL_CTX* ssl_ctx,
-                                   ProofSource* proof_source)
-      : TlsServerHandshaker(session, ssl_ctx, proof_source) {}
+                                   const QuicCryptoServerConfig& crypto_config)
+      : TlsServerHandshaker(session, crypto_config) {}
   MockTlsServerHandshaker(const MockTlsServerHandshaker&) = delete;
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
@@ -127,8 +126,7 @@ QuicCryptoServerStreamBase* CreateMockCryptoServerStream(
       return new MockQuicCryptoServerStream(
           crypto_config, compressed_certs_cache, session, helper);
     case PROTOCOL_TLS1_3:
-      return new MockTlsServerHandshaker(session, crypto_config->ssl_ctx(),
-                                         crypto_config->proof_source());
+      return new MockTlsServerHandshaker(session, *crypto_config);
     case PROTOCOL_UNSUPPORTED:
       break;
   }

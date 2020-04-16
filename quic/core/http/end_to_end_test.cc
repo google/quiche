@@ -3661,13 +3661,23 @@ TEST_P(EndToEndTest, LastPacketSentIsConnectivityProbing) {
   client_->WaitForDelayedAcks();
 }
 
-TEST_P(EndToEndTest, PreSharedKey) {
+TEST_P(EndToEndTestWithTls, PreSharedKey) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(5));
   client_config_.set_max_idle_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(5));
   pre_shared_key_client_ = "foobar";
   pre_shared_key_server_ = "foobar";
+
+  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    bool ok;
+    EXPECT_QUIC_BUG(ok = Initialize(),
+                    "QUIC client pre-shared keys not yet supported with TLS");
+    EXPECT_FALSE(ok);
+    return;
+  }
+
   ASSERT_TRUE(Initialize());
 
   ASSERT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -3675,13 +3685,24 @@ TEST_P(EndToEndTest, PreSharedKey) {
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
+TEST_P(EndToEndTestWithTls,
+       QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_client_ = "foo";
   pre_shared_key_server_ = "bar";
+
+  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    bool ok;
+    EXPECT_QUIC_BUG(ok = Initialize(),
+                    "QUIC client pre-shared keys not yet supported with TLS");
+    EXPECT_FALSE(ok);
+    return;
+  }
+
   // One of two things happens when Initialize() returns:
   // 1. Crypto handshake has completed, and it is unsuccessful. Initialize()
   //    returns false.
@@ -3694,24 +3715,46 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
+TEST_P(EndToEndTestWithTls,
+       QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_server_ = "foobar";
+
+  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    bool ok;
+    EXPECT_QUIC_BUG(ok = Initialize(),
+                    "QUIC server pre-shared keys not yet supported with TLS");
+    EXPECT_FALSE(ok);
+    return;
+  }
+
   ASSERT_FALSE(Initialize() &&
                client_->client()->WaitForCryptoHandshakeConfirmed());
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
 // TODO: reenable once we have a way to make this run faster.
-TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
+TEST_P(EndToEndTestWithTls,
+       QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
   client_config_.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   client_config_.set_max_idle_time_before_crypto_handshake(
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_client_ = "foobar";
+
+  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    bool ok;
+    EXPECT_QUIC_BUG(ok = Initialize(),
+                    "QUIC client pre-shared keys not yet supported with TLS");
+    EXPECT_FALSE(ok);
+    return;
+  }
+
   ASSERT_FALSE(Initialize() &&
                client_->client()->WaitForCryptoHandshakeConfirmed());
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));

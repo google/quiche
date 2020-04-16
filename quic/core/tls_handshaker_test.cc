@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -223,8 +225,10 @@ class MockProofHandler : public QuicCryptoClientStream::ProofHandler {
   MockProofHandler() = default;
   ~MockProofHandler() override {}
 
-  MOCK_METHOD1(OnProofValid, void(const QuicCryptoClientConfig::CachedState&));
-  MOCK_METHOD1(OnProofVerifyDetailsAvailable, void(const ProofVerifyDetails&));
+  MOCK_METHOD1(OnProofValid,  // NOLINT(build/deprecated)
+               void(const QuicCryptoClientConfig::CachedState&));
+  MOCK_METHOD1(OnProofVerifyDetailsAvailable,  // NOLINT(build/deprecated)
+               void(const ProofVerifyDetails&));
 };
 
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {
@@ -270,10 +274,9 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
 class TestTlsServerHandshaker : public TlsServerHandshaker {
  public:
   TestTlsServerHandshaker(QuicSession* session,
-                          SSL_CTX* ssl_ctx,
-                          ProofSource* proof_source,
+                          const QuicCryptoServerConfig& crypto_config,
                           TestQuicCryptoStream* test_stream)
-      : TlsServerHandshaker(session, ssl_ctx, proof_source),
+      : TlsServerHandshaker(session, crypto_config),
         test_stream_(test_stream) {}
 
   void WriteCryptoData(EncryptionLevel level,
@@ -287,15 +290,14 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
 
 class TestQuicCryptoServerStream : public TestQuicCryptoStream {
  public:
-  TestQuicCryptoServerStream(QuicSession* session,
-                             FakeProofSource* proof_source)
+  TestQuicCryptoServerStream(QuicSession* session)
       : TestQuicCryptoStream(session),
-        proof_source_(proof_source),
-        ssl_ctx_(TlsServerConnection::CreateSslCtx()),
-        handshaker_(new TestTlsServerHandshaker(session,
-                                                ssl_ctx_.get(),
-                                                proof_source_,
-                                                this)) {}
+        crypto_config_(QuicCryptoServerConfig::TESTING,
+                       QuicRandom::GetInstance(),
+                       std::make_unique<FakeProofSource>(),
+                       KeyExchangeSource::Default()),
+        handshaker_(
+            new TestTlsServerHandshaker(session, crypto_config_, this)) {}
 
   ~TestQuicCryptoServerStream() override = default;
 
@@ -310,11 +312,12 @@ class TestQuicCryptoServerStream : public TestQuicCryptoStream {
 
   TlsHandshaker* handshaker() const override { return handshaker_.get(); }
 
-  FakeProofSource* GetFakeProofSource() const { return proof_source_; }
+  FakeProofSource* GetFakeProofSource() const {
+    return static_cast<FakeProofSource*>(crypto_config_.proof_source());
+  }
 
  private:
-  FakeProofSource* proof_source_;
-  bssl::UniquePtr<SSL_CTX> ssl_ctx_;
+  QuicCryptoServerConfig crypto_config_;
   std::unique_ptr<TlsServerHandshaker> handshaker_;
 };
 
@@ -343,8 +346,7 @@ class TlsHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
         server_session_(server_conn_, /*create_mock_crypto_stream=*/false) {
     client_stream_ = new TestQuicCryptoClientStream(&client_session_);
     client_session_.SetCryptoStream(client_stream_);
-    server_stream_ =
-        new TestQuicCryptoServerStream(&server_session_, &proof_source_);
+    server_stream_ = new TestQuicCryptoServerStream(&server_session_);
     server_session_.SetCryptoStream(server_stream_);
     client_session_.Initialize();
     server_session_.Initialize();
@@ -400,7 +402,6 @@ class TlsHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   MockQuicSession client_session_;
   MockQuicSession server_session_;
 
-  FakeProofSource proof_source_;
   TestQuicCryptoClientStream* client_stream_;
   TestQuicCryptoServerStream* server_stream_;
 };

@@ -147,6 +147,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   std::string user_agent_id_;
 
+  // Pre-shared key used during the handshake.
+  std::string pre_shared_key_;
+
   // ProofVerifierCallback used for async certificate verification. This object
   // is owned by |proof_verifier_|.
   ProofVerifierCallbackImpl* proof_verify_callback_ = nullptr;
