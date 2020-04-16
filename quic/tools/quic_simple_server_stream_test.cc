@@ -322,7 +322,7 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   EXPECT_FALSE(stream_->fin_received());
   EXPECT_FALSE(stream_->rst_received());
 
-  stream_->set_fin_sent(true);
+  QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(1);
@@ -383,7 +383,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
 
-  stream_->set_fin_received(true);
+  QuicStreamPeer::SetFinReceived(stream_);
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -416,7 +416,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
 
-  stream_->set_fin_received(true);
+  QuicStreamPeer::SetFinReceived(stream_);
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -476,7 +476,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
 
   memory_cache_backend_.AddResponse("www.google.com", "/bar",
                                     std::move(response_headers_), body);
-  stream_->set_fin_received(true);
+  QuicStreamPeer::SetFinReceived(stream_);
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
@@ -514,7 +514,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithPushResources) {
   (*request_headers)[":authority"] = host;
   (*request_headers)[":method"] = "GET";
 
-  stream_->set_fin_received(true);
+  QuicStreamPeer::SetFinReceived(stream_);
   InSequence s;
   EXPECT_CALL(session_, PromisePushResourcesMock(
                             host + request_path, _,
@@ -592,7 +592,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
 TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
 
-  stream_->set_fin_received(true);
+  QuicStreamPeer::SetFinReceived(stream_);
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));

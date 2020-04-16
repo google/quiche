@@ -7,6 +7,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
 using testing::_;
@@ -50,7 +51,7 @@ TEST_F(QuicSpdyServerStreamBaseTest,
        SendQuicRstStreamNoErrorWithEarlyResponse) {
   stream_->StopReading();
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(1);
-  stream_->set_fin_sent(true);
+  QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 }
 

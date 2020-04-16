@@ -224,8 +224,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   size_t busy_counter() const { return busy_counter_; }
   void set_busy_counter(size_t busy_counter) { busy_counter_ = busy_counter; }
 
-  void set_fin_sent(bool fin_sent) { fin_sent_ = fin_sent; }
-  void set_fin_received(bool fin_received) { fin_received_ = fin_received; }
   void set_rst_sent(bool rst_sent) { rst_sent_ = rst_sent; }
 
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
@@ -402,6 +400,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // This is called when stream tries to retransmit data after deadline_. Make
   // this virtual so that subclasses can implement their own logics.
   virtual void OnDeadlinePassed();
+
+  // Called to set fin_sent_. This is only used by Google QUIC while body is
+  // empty.
+  void SetFinSent();
 
   StreamDelegateInterface* stream_delegate() { return stream_delegate_; }
 

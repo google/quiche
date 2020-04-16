@@ -58,5 +58,15 @@ QuicStreamSendBuffer& QuicStreamPeer::SendBuffer(QuicStream* stream) {
   return stream->send_buffer_;
 }
 
+// static
+void QuicStreamPeer::SetFinReceived(QuicStream* stream) {
+  stream->fin_received_ = true;
+}
+
+// static
+void QuicStreamPeer::SetFinSent(QuicStream* stream) {
+  stream->fin_sent_ = true;
+}
+
 }  // namespace test
 }  // namespace quic

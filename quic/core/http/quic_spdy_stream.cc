@@ -283,7 +283,7 @@ size_t QuicSpdyStream::WriteHeaders(
     // set and write side needs to be closed without actually sending a FIN on
     // this stream.
     // TODO(rch): Add test to ensure fin_sent_ is set whenever a fin is sent.
-    set_fin_sent(true);
+    SetFinSent();
     CloseWriteSide();
   }
   return bytes_written;
@@ -350,7 +350,7 @@ size_t QuicSpdyStream::WriteTrailers(
   // If trailers are sent on the headers stream, then |fin_sent_| needs to be
   // set without actually sending a FIN on this stream.
   if (!VersionUsesHttp3(transport_version())) {
-    set_fin_sent(kFin);
+    SetFinSent();
 
     // Also, write side of this stream needs to be closed.  However, only do
     // this if there is no more buffered data, otherwise it will never be sent.

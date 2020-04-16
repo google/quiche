@@ -361,10 +361,10 @@ QuicStream::QuicStream(QuicStreamId id,
                 : type),
       perspective_(session->perspective()) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
-    set_fin_received(true);
+    fin_received_ = true;
     CloseReadSide();
   } else if (type_ == READ_UNIDIRECTIONAL) {
-    set_fin_sent(true);
+    fin_sent_ = true;
     CloseWriteSide();
   }
   if (type_ != CRYPTO) {
@@ -558,6 +558,11 @@ void QuicStream::OnFinRead() {
   // stream will be destroyed by CloseReadSide, so don't need to call
   // StreamDraining.
   CloseReadSide();
+}
+
+void QuicStream::SetFinSent() {
+  DCHECK(!VersionUsesHttp3(transport_version()));
+  fin_sent_ = true;
 }
 
 void QuicStream::Reset(QuicRstStreamErrorCode error) {

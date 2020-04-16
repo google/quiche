@@ -32,6 +32,8 @@ class QuicStreamPeer {
 
   static QuicStreamSequencer* sequencer(QuicStream* stream);
   static QuicSession* session(QuicStream* stream);
+  static void SetFinReceived(QuicStream* stream);
+  static void SetFinSent(QuicStream* stream);
 
   static QuicStreamSendBuffer& SendBuffer(QuicStream* stream);
 };
