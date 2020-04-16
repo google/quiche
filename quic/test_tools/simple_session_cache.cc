@@ -11,11 +11,22 @@ namespace test {
 
 void SimpleSessionCache::Insert(const QuicServerId& server_id,
                                 bssl::UniquePtr<SSL_SESSION> session,
-                                TransportParameters* /*params*/,
-                                std::vector<uint8_t>* /*application_states*/) {
-  auto state = std::make_unique<QuicResumptionState>();
-  state->tls_session = std::move(session);
-  cache_entries_.insert(std::make_pair(server_id, std::move(state)));
+                                TransportParameters* params,
+                                ApplicationState* application_state) {
+  auto it = cache_entries_.find(server_id);
+  if (it == cache_entries_.end()) {
+    it = cache_entries_.insert(std::make_pair(server_id, Entry())).first;
+  }
+  if (session != nullptr) {
+    it->second.session = std::move(session);
+  }
+  if (application_state != nullptr) {
+    it->second.application_state =
+        std::make_unique<ApplicationState>(*application_state);
+  }
+  if (params != nullptr) {
+    it->second.params = std::make_unique<TransportParameters>(*params);
+  }
 }
 
 std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
@@ -25,8 +36,10 @@ std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
   if (it == cache_entries_.end()) {
     return nullptr;
   }
-  std::unique_ptr<QuicResumptionState> state = std::move(it->second);
-  cache_entries_.erase(it);
+  auto state = std::make_unique<QuicResumptionState>();
+  state->tls_session = std::move(it->second.session);
+  state->application_state = it->second.application_state.get();
+  state->transport_params = it->second.params.get();
   return state;
 }
 

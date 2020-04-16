@@ -222,4 +222,15 @@ bool QuicSpdyClientSessionBase::ShouldReleaseHeadersStreamSequencerBuffer() {
   return !HasActiveRequestStreams() && promised_by_id_.empty();
 }
 
+void QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
+  QuicSpdySession::OnSettingsFrame(frame);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount frame_length =
+      HttpEncoder::SerializeSettingsFrame(frame, &buffer);
+  auto serialized_data = std::make_unique<ApplicationState>(
+      buffer.get(), buffer.get() + frame_length);
+  static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
+      ->OnApplicationState(std::move(serialized_data));
+}
+
 }  // namespace quic

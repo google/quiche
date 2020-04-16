@@ -71,7 +71,7 @@ class QUIC_EXPORT_PRIVATE SessionCache {
   virtual void Insert(const QuicServerId& server_id,
                       bssl::UniquePtr<SSL_SESSION> session,
                       TransportParameters* params,
-                      std::vector<uint8_t>* application_states) = 0;
+                      ApplicationState* application_states) = 0;
 
   // Lookup is called once at the beginning of each TLS handshake to potentially
   // provide the saved state both for the TLS handshake and for sending 0-RTT

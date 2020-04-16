@@ -873,6 +873,7 @@ void QuicSpdySession::OnPromiseHeaderList(
 }
 
 void QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
+  DCHECK(VersionUsesHttp3(transport_version()));
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSettingsFrameReceived(frame);
   }

@@ -520,6 +520,11 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
 void TlsClientHandshaker::OnApplicationState(
     std::unique_ptr<ApplicationState> application_state) {
   received_application_state_ = std::move(application_state);
+  if (session_cache_ != nullptr) {
+    // TODO(renjietang): cache the TLS session ticket and insert them together.
+    session_cache_->Insert(server_id_, nullptr, nullptr,
+                           received_application_state_.get());
+  }
 }
 
 }  // namespace quic

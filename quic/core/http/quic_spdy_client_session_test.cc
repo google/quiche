@@ -11,9 +11,12 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
@@ -27,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -81,11 +85,14 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSession {
 class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
   QuicSpdyClientSessionTest()
-      : crypto_config_(crypto_test_utils::ProofVerifierForTesting()),
-        promised_stream_id_(
+      : promised_stream_id_(
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)),
         associated_stream_id_(
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)) {
+    auto client_cache = std::make_unique<test::SimpleSessionCache>();
+    client_session_cache_ = client_cache.get();
+    crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+        crypto_test_utils::ProofVerifierForTesting(), std::move(client_cache));
     Initialize();
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -103,7 +110,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
                                              SupportedVersions(GetParam()));
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
-        QuicServerId(kServerHostname, kPort, false), &crypto_config_,
+        QuicServerId(kServerHostname, kPort, false), crypto_config_.get(),
         &push_promise_index_);
     session_->Initialize();
     push_promise_[":path"] = "/bar";
@@ -171,7 +178,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         stream, AlpnForVersion(connection_->version()));
   }
 
-  QuicCryptoClientConfig crypto_config_;
+  std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   PacketSavingConnection* connection_;
@@ -181,6 +188,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   std::string promise_url_;
   QuicStreamId promised_stream_id_;
   QuicStreamId associated_stream_id_;
+  test::SimpleSessionCache* client_session_cache_;
 };
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -938,6 +946,43 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
     headers.OnHeaderBlockEnd(0, 0);
     session_->OnPromiseHeaderList(stream_id, promise_id, 0, headers);
   }
+}
+
+// Test that upon receiving HTTP/3 SETTINGS, the settings are serialized and
+// stored into client session cache.
+TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
+  // This feature is HTTP/3 only
+  if (!VersionUsesHttp3(session_->transport_version())) {
+    return;
+  }
+  CompleteCryptoHandshake();
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[256] = 4;   // unknown setting
+  char application_state[] = {// type (SETTINGS)
+                              0x04,
+                              // length
+                              0x07,
+                              // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
+                              0x01,
+                              // content
+                              0x02,
+                              // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+                              0x06,
+                              // content
+                              0x05,
+                              // identifier (256 in variable length integer)
+                              0x40 + 0x01, 0x00,
+                              // content
+                              0x04};
+  ApplicationState expected(std::begin(application_state),
+                            std::end(application_state));
+  session_->OnSettingsFrame(settings);
+  EXPECT_EQ(expected,
+            *client_session_cache_
+                 ->Lookup(QuicServerId(kServerHostname, kPort, false), nullptr)
+                 ->application_state);
 }
 
 }  // namespace
