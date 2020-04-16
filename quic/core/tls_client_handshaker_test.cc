@@ -190,9 +190,6 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CompleteCryptoHandshake() {
-    int proof_verify_details_calls = 1;
-    EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_))
-        .Times(testing::AtLeast(proof_verify_details_calls));
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
@@ -349,7 +346,6 @@ TEST_P(TlsClientHandshakerTest, ClientSendsNoSNI) {
   CreateConnection();
   InitializeFakeServer();
 
-  EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_));
   stream()->CryptoConnect();
   crypto_test_utils::CommunicateHandshakeMessages(
       connection_, stream(), server_connection_, server_stream());

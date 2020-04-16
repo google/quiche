@@ -472,7 +472,9 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
       std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
   switch (verify_result) {
     case QUIC_SUCCESS:
-      proof_handler_->OnProofVerifyDetailsAvailable(*verify_details_);
+      if (verify_details_) {
+        proof_handler_->OnProofVerifyDetailsAvailable(*verify_details_);
+      }
       return ssl_verify_ok;
     case QUIC_PENDING:
       proof_verify_callback_ = proof_verify_callback;
