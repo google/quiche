@@ -122,10 +122,10 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
   }
 
-  MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD(void, OnCanWrite, (), (override));
   bool HasPendingCryptoRetransmission() const override { return false; }
 
-  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
  private:
   using QuicCryptoStream::session;
@@ -155,11 +155,13 @@ class TestStream : public QuicStream {
 
   void OnDataAvailable() override {}
 
-  MOCK_METHOD0(OnCanWrite, void());
-  MOCK_METHOD4(RetransmitStreamData,
-               bool(QuicStreamOffset, QuicByteCount, bool, TransmissionType));
+  MOCK_METHOD(void, OnCanWrite, (), (override));
+  MOCK_METHOD(bool,
+              RetransmitStreamData,
+              (QuicStreamOffset, QuicByteCount, bool, TransmissionType),
+              (override));
 
-  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (override, const));
 };
 
 class TestSession : public QuicSession {
@@ -286,7 +288,10 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
-  MOCK_METHOD1(OnCanCreateNewOutgoingStream, void(bool unidirectional));
+  MOCK_METHOD(void,
+              OnCanCreateNewOutgoingStream,
+              (bool unidirectional),
+              (override));
 
   void set_writev_consumes_all_data(bool val) {
     writev_consumes_all_data_ = val;
