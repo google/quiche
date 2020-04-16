@@ -119,6 +119,16 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
       config.HasClientRequestedIndependentOption(kB2CL, perspective)) {
     params_.avoid_too_low_probe_bw_cwnd = false;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_fewer_startup_round_trips) &&
+      config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fewer_startup_round_trips, 1, 2);
+    params_.startup_full_bw_rounds = 1;
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_fewer_startup_round_trips) &&
+      config.HasClientRequestedIndependentOption(k2RTT, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fewer_startup_round_trips, 2, 2);
+    params_.startup_full_bw_rounds = 2;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
