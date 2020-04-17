@@ -1008,14 +1008,22 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     }
   }
 
-  // If we haven't received a FIN or RST for this stream, we need to keep track
-  // of the how many bytes the stream's flow controller believes it has
-  // received, for accurate connection level flow control accounting.
-  const bool had_fin_or_rst = stream->HasReceivedFinalOffset();
-  if (!had_fin_or_rst) {
+  if (!stream->HasReceivedFinalOffset()) {
+    // If we haven't received a FIN or RST for this stream, we need to keep
+    // track of the how many bytes the stream's flow controller believes it has
+    // received, for accurate connection level flow control accounting.
+    // If this is an outgoing stream, it is technically open from peer's
+    // perspective. Do not inform stream Id manager yet.
+    DCHECK(!stream->was_draining());
     InsertLocallyClosedStreamsHighestOffset(
         stream_id, stream->flow_controller()->highest_received_byte_offset());
+    stream_map_.erase(it);
+    if (IsIncomingStream(stream_id)) {
+      --num_dynamic_incoming_streams_;
+    }
+    return;
   }
+
   bool stream_was_draining = false;
   if (deprecate_draining_streams_) {
     stream_was_draining = stream->was_draining();
@@ -1039,19 +1047,22 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
       --num_draining_outgoing_streams_;
     }
     draining_streams_.erase(stream_id);
-  } else if (VersionHasIetfQuicFrames(transport_version())) {
-    // Stream was not draining, but we did have a fin or rst, so we can now
-    // free the stream ID if version 99.
-    if (had_fin_or_rst && connection_->connected()) {
-      // Do not bother informing stream ID manager if connection is closed.
+    // Stream Id manager has been informed with draining streams.
+    return;
+  }
+  if (!connection_->connected()) {
+    // Do not bother informing stream ID manager if connection has been
+    // disconnected.
+    return;
+  }
+  if (IsIncomingStream(stream_id)) {
+    // Stream Id manager is only interested in peer initiated stream IDs.
+    if (VersionHasIetfQuicFrames(transport_version())) {
       v99_streamid_manager_.OnStreamClosed(stream_id);
     }
+    return;
   }
-
-  if (!stream_was_draining && !IsIncomingStream(stream_id) && had_fin_or_rst &&
-      !VersionHasIetfQuicFrames(transport_version())) {
-    // Streams that first became draining already called OnCanCreate...
-    // This covers the case where the stream went directly to being closed.
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     OnCanCreateNewOutgoingStream(type != BIDIRECTIONAL);
   }
 }
