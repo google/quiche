@@ -198,11 +198,11 @@ void QuartcSession::OnOneRttKeysAvailable() {
 }
 
 void QuartcSession::CancelStream(QuicStreamId stream_id) {
-  ResetStream(stream_id, QuicRstStreamErrorCode::QUIC_STREAM_CANCELLED);
+  ResetQuartcStream(stream_id, QuicRstStreamErrorCode::QUIC_STREAM_CANCELLED);
 }
 
-void QuartcSession::ResetStream(QuicStreamId stream_id,
-                                QuicRstStreamErrorCode error) {
+void QuartcSession::ResetQuartcStream(QuicStreamId stream_id,
+                                      QuicRstStreamErrorCode error) {
   if (!IsOpenStream(stream_id)) {
     return;
   }

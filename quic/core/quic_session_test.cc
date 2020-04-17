@@ -2392,8 +2392,14 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   session_.OnFrameLost(QuicFrame(frame));
   // Retransmit stream data causes connection close. Stream has not sent fin
   // yet, so an RST is sent.
-  EXPECT_CALL(*stream, OnCanWrite())
-      .WillOnce(Invoke(stream, &QuicStream::OnClose));
+  if (session_.break_close_loop()) {
+    EXPECT_CALL(*stream, OnCanWrite()).WillOnce(Invoke([this, stream]() {
+      session_.CloseStream(stream->id());
+    }));
+  } else {
+    EXPECT_CALL(*stream, OnCanWrite())
+        .WillOnce(Invoke(stream, &QuicStream::OnClose));
+  }
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Once for the RST_STREAM, once for the STOP_SENDING
     EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -2751,6 +2757,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingForWriteClosedStream) {
 
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
+  QuicStreamPeer::SetFinSent(stream);
   stream->CloseWriteSide();
   EXPECT_TRUE(stream->write_side_closed());
   QuicStopSendingFrame frame(1, stream_id, 123);

@@ -354,7 +354,11 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
-  session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  if (session_->break_close_loop()) {
+    session_->ResetStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  } else {
+    session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  }
 
   // A new stream cannot be created as the reset stream still counts as an open
   // outgoing stream until closed by the server.
@@ -406,7 +410,11 @@ TEST_P(QuicSpdyClientSessionTest, ReceivedMalformedTrailersAfterSendingRst) {
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
-  session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  if (session_->break_close_loop()) {
+    session_->ResetStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  } else {
+    session_->SendRstStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  }
 
   // The stream receives trailers with final byte offset, but the header value
   // is non-numeric and should be treated as malformed.
@@ -861,7 +869,12 @@ TEST_P(QuicSpdyClientSessionTest, ResetPromised) {
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
               OnStreamReset(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY));
-  session_->SendRstStream(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  if (session_->break_close_loop()) {
+    session_->ResetStream(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  } else {
+    session_->SendRstStream(promised_stream_id_, QUIC_STREAM_PEER_GOING_AWAY,
+                            0);
+  }
   QuicClientPromisedInfo* promised =
       session_->GetPromisedById(promised_stream_id_);
   EXPECT_NE(promised, nullptr);

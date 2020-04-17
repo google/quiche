@@ -455,7 +455,12 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
 
   // Now close the stream, and expect that we send a RST.
   EXPECT_CALL(*session_, SendRstStream(_, _, _));
-  stream_->OnClose();
+  if (session_->break_close_loop()) {
+    stream_->CloseReadSide();
+    stream_->CloseWriteSide();
+  } else {
+    stream_->OnClose();
+  }
   EXPECT_FALSE(session_->HasUnackedStreamData());
   EXPECT_FALSE(fin_sent());
   EXPECT_TRUE(rst_sent());
@@ -482,7 +487,12 @@ TEST_P(QuicStreamTest, RstNotSentIfFinSent) {
   EXPECT_FALSE(rst_sent());
 
   // Now close the stream, and expect that we do not send a RST.
-  stream_->OnClose();
+  if (session_->break_close_loop()) {
+    stream_->CloseReadSide();
+    stream_->CloseWriteSide();
+  } else {
+    stream_->OnClose();
+  }
   EXPECT_TRUE(fin_sent());
   EXPECT_FALSE(rst_sent());
 }
@@ -506,7 +516,12 @@ TEST_P(QuicStreamTest, OnlySendOneRst) {
 
   // Now close the stream (any further resets being sent would break the
   // expectation above).
-  stream_->OnClose();
+  if (session_->break_close_loop()) {
+    stream_->CloseReadSide();
+    stream_->CloseWriteSide();
+  } else {
+    stream_->OnClose();
+  }
   EXPECT_FALSE(fin_sent());
   EXPECT_TRUE(rst_sent());
 }
@@ -642,7 +657,12 @@ TEST_P(QuicStreamTest, InvalidFinalByteOffsetFromRst) {
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
   stream_->OnStreamReset(rst_frame);
   EXPECT_TRUE(stream_->HasReceivedFinalOffset());
-  stream_->OnClose();
+  if (session_->break_close_loop()) {
+    stream_->CloseReadSide();
+    stream_->CloseWriteSide();
+  } else {
+    stream_->OnClose();
+  }
 }
 
 TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {

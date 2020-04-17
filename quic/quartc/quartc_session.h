@@ -204,7 +204,7 @@ class QuartcSession : public QuicSession,
   // returns an unowned pointer to the stream for convenience.
   QuartcStream* ActivateDataStream(std::unique_ptr<QuartcStream> stream);
 
-  void ResetStream(QuicStreamId stream_id, QuicRstStreamErrorCode error);
+  void ResetQuartcStream(QuicStreamId stream_id, QuicRstStreamErrorCode error);
 
   const QuicClock* clock() { return clock_; }
 

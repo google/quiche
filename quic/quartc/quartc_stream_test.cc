@@ -398,7 +398,12 @@ TEST_P(QuartcStreamTest, StopReading) {
 TEST_P(QuartcStreamTest, CloseStream) {
   CreateReliableQuicStream();
   EXPECT_FALSE(mock_stream_delegate_->closed());
-  stream_->OnClose();
+  if (GetQuicReloadableFlag(quic_break_session_stream_close_loop)) {
+    stream_->CloseWriteSide();
+    stream_->CloseReadSide();
+  } else {
+    stream_->OnClose();
+  }
   EXPECT_TRUE(mock_stream_delegate_->closed());
 }
 

@@ -317,6 +317,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         &helper_, &alarm_factory_, perspective, SupportedVersions(GetParam()));
     session_ = std::make_unique<StrictMock<TestSession>>(connection_);
     session_->Initialize();
+    connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     ON_CALL(*session_, WritevData(_, _, _, _, _, _))
         .WillByDefault(
             Invoke(session_.get(), &MockQuicSpdySession::ConsumeData));

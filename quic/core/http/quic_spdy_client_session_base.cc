@@ -204,7 +204,11 @@ void QuicSpdyClientSessionBase::ResetPromised(
     QuicStreamId id,
     QuicRstStreamErrorCode error_code) {
   DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
-  SendRstStream(id, error_code, 0);
+  if (break_close_loop()) {
+    ResetStream(id, error_code, 0);
+  } else {
+    SendRstStream(id, error_code, 0);
+  }
   if (!IsOpenStream(id) && !IsClosedStream(id)) {
     MaybeIncreaseLargestPeerStreamId(id);
   }
@@ -213,6 +217,14 @@ void QuicSpdyClientSessionBase::ResetPromised(
 void QuicSpdyClientSessionBase::CloseStreamInner(QuicStreamId stream_id,
                                                  bool rst_sent) {
   QuicSpdySession::CloseStreamInner(stream_id, rst_sent);
+  if (!VersionUsesHttp3(transport_version())) {
+    headers_stream()->MaybeReleaseSequencerBuffer();
+  }
+}
+
+void QuicSpdyClientSessionBase::OnStreamClosed(QuicStreamId stream_id) {
+  DCHECK(break_close_loop());
+  QuicSpdySession::OnStreamClosed(stream_id);
   if (!VersionUsesHttp3(transport_version())) {
     headers_stream()->MaybeReleaseSequencerBuffer();
   }

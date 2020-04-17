@@ -165,10 +165,12 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // stream to write any pending data.
   virtual void OnCanWrite();
 
-  // Called by the session just before the object is destroyed.
+  // Called just before the object is destroyed.
   // The object should not be accessed after OnClose is called.
   // Sends a RST_STREAM with code QUIC_RST_ACKNOWLEDGEMENT if neither a FIN nor
   // a RST_STREAM has been sent.
+  // TODO(fayang): move this to protected when deprecating
+  // quic_break_session_stream_close_loop.
   virtual void OnClose();
 
   // Called by the session when the endpoint receives a RST_STREAM from the
@@ -355,6 +357,14 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Does not send a FIN.  May cause the stream to be closed.
   virtual void CloseWriteSide();
 
+  // Close the read side of the stream.  May cause the stream to be closed.
+  // Subclasses and consumers should use StopReading to terminate reading early
+  // if expecting a FIN. Can be used directly by subclasses if not expecting a
+  // FIN.
+  // TODO(fayang): move this to protected when removing
+  // QuicSession::CloseStream.
+  void CloseReadSide();
+
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }
 
@@ -364,12 +374,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
       const QuicSession* session);
 
  protected:
-  // Close the read side of the socket.  May cause the stream to be closed.
-  // Subclasses and consumers should use StopReading to terminate reading early
-  // if expecting a FIN. Can be used directly by subclasses if not expecting a
-  // FIN.
-  void CloseReadSide();
-
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
   virtual void OnDataBuffered(

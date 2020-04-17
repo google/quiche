@@ -198,12 +198,16 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // will be sent in specified transmission |type|.
   bool WriteControlFrame(const QuicFrame& frame, TransmissionType type);
 
-  // Close the stream in both directions.
-  // TODO(renjietang): rename this method as it sends both RST_STREAM and
-  // STOP_SENDING in IETF QUIC.
+  // Called by stream to send RST_STREAM (and STOP_SENDING).
   virtual void SendRstStream(QuicStreamId id,
                              QuicRstStreamErrorCode error,
                              QuicStreamOffset bytes_written);
+
+  // Called to send RST_STREAM (and STOP_SENDING) and close stream. If stream
+  // |id| does not exist, just send RST_STREAM (and STOP_SENDING).
+  virtual void ResetStream(QuicStreamId id,
+                           QuicRstStreamErrorCode error,
+                           QuicStreamOffset bytes_written);
 
   // Called when the session wants to go away and not accept any new streams.
   virtual void SendGoAway(QuicErrorCode error_code, const std::string& reason);
@@ -217,8 +221,14 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Create and transmit a STOP_SENDING frame
   virtual void SendStopSending(uint16_t code, QuicStreamId stream_id);
 
-  // Removes the stream associated with 'stream_id' from the active stream map.
+  // Close stream |stream_id|. Whether sending RST_STREAM (and STOP_SENDING)
+  // depends on the sending and receiving states.
+  // TODO(fayang): Deprecate CloseStream, instead always use ResetStream to
+  // close a stream from session.
   virtual void CloseStream(QuicStreamId stream_id);
+
+  // Called by stream |stream_id| when it gets closed.
+  virtual void OnStreamClosed(QuicStreamId stream_id);
 
   // Returns true if outgoing packets will be encrypted, even if the server
   // hasn't confirmed the handshake yet.
@@ -487,6 +497,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return deprecate_draining_streams_;
   }
 
+  bool break_close_loop() const { return break_close_loop_; }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -535,6 +547,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Performs the work required to close |stream_id|.  If |rst_sent| then a
   // Reset Stream frame has already been sent for this stream.
+  // TODO(fayang): Remove CloseStreamInner.
   virtual void CloseStreamInner(QuicStreamId stream_id, bool rst_sent);
 
   // When a stream is closed locally, it may not yet know how many bytes the
@@ -833,6 +846,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Latched value of quic_deprecate_draining_streams.
   const bool deprecate_draining_streams_;
+
+  // Latched value of quic_break_session_stream_close_loop.
+  const bool break_close_loop_;
 };
 
 }  // namespace quic
