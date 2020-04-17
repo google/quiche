@@ -8,12 +8,16 @@
 #include <memory>
 
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
+#include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
@@ -26,6 +30,60 @@ constexpr uint8_t kX509Version[] = {0x02, 0x01, 0x02};
 
 // 2.5.29.17
 constexpr uint8_t kSubjectAltNameOid[] = {0x55, 0x1d, 0x11};
+
+enum class PublicKeyType {
+  kRsa,
+  kP256,
+  kP384,
+  kEd25519,
+  kUnknown,
+};
+
+PublicKeyType PublicKeyTypeFromKey(EVP_PKEY* public_key) {
+  switch (EVP_PKEY_id(public_key)) {
+    case EVP_PKEY_RSA:
+      return PublicKeyType::kRsa;
+    case EVP_PKEY_EC: {
+      const EC_KEY* key = EVP_PKEY_get0_EC_KEY(public_key);
+      if (key == nullptr) {
+        return PublicKeyType::kUnknown;
+      }
+      const EC_GROUP* group = EC_KEY_get0_group(key);
+      if (group == nullptr) {
+        return PublicKeyType::kUnknown;
+      }
+      const int curve_nid = EC_GROUP_get_curve_name(group);
+      switch (curve_nid) {
+        case NID_X9_62_prime256v1:
+          return PublicKeyType::kP256;
+        case NID_secp384r1:
+          return PublicKeyType::kP384;
+        default:
+          return PublicKeyType::kUnknown;
+      }
+    }
+    case EVP_PKEY_ED25519:
+      return PublicKeyType::kEd25519;
+    default:
+      return PublicKeyType::kUnknown;
+  }
+}
+
+PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
+    uint16_t signature_algorithm) {
+  switch (signature_algorithm) {
+    case SSL_SIGN_RSA_PSS_RSAE_SHA256:
+      return PublicKeyType::kRsa;
+    case SSL_SIGN_ECDSA_SECP256R1_SHA256:
+      return PublicKeyType::kP384;
+    case SSL_SIGN_ECDSA_SECP384R1_SHA384:
+      return PublicKeyType::kP384;
+    case SSL_SIGN_ED25519:
+      return PublicKeyType::kEd25519;
+    default:
+      return PublicKeyType::kUnknown;
+  }
+}
 
 }  // namespace
 
@@ -215,32 +273,103 @@ bool CertificateView::ValidatePublicKeyParameters() {
   // The goal is to allow at minimum any certificate that would be allowed on a
   // regular Web session over TLS 1.3 while ensuring we do not expose any
   // algorithms we don't want to support long-term.
-  switch (EVP_PKEY_id(public_key_.get())) {
-    case EVP_PKEY_RSA:
+  PublicKeyType key_type = PublicKeyTypeFromKey(public_key_.get());
+  switch (key_type) {
+    case PublicKeyType::kRsa:
       return EVP_PKEY_bits(public_key_.get()) >= 2048;
-    case EVP_PKEY_EC: {
-      const EC_KEY* key = EVP_PKEY_get0_EC_KEY(public_key_.get());
-      if (key == nullptr) {
-        return false;
-      }
-      const EC_GROUP* group = EC_KEY_get0_group(key);
-      if (group == nullptr) {
-        return false;
-      }
-      const int curve_nid = EC_GROUP_get_curve_name(group);
-      switch (curve_nid) {
-        case NID_X9_62_prime256v1:
-        case NID_secp384r1:
-          return true;
-        default:
-          return false;
-      }
-    }
-    case EVP_PKEY_ED25519:
+    case PublicKeyType::kP256:
+    case PublicKeyType::kP384:
+    case PublicKeyType::kEd25519:
       return true;
     default:
       return false;
   }
+}
+
+bool CertificateView::VerifySignature(quiche::QuicheStringPiece data,
+                                      quiche::QuicheStringPiece signature,
+                                      uint16_t signature_algorithm) const {
+  if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
+      PublicKeyTypeFromKey(public_key_.get())) {
+    QUIC_BUG << "Mismatch between the requested signature algorithm and the "
+                "type of the public key.";
+    return false;
+  }
+
+  bssl::ScopedEVP_MD_CTX md_ctx;
+  EVP_PKEY_CTX* pctx;
+  if (!EVP_DigestVerifyInit(
+          md_ctx.get(), &pctx,
+          SSL_get_signature_algorithm_digest(signature_algorithm), nullptr,
+          public_key_.get())) {
+    return false;
+  }
+  if (SSL_is_signature_algorithm_rsa_pss(signature_algorithm)) {
+    if (!EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) ||
+        !EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1)) {
+      return false;
+    }
+  }
+  return EVP_DigestVerify(
+      md_ctx.get(), reinterpret_cast<const uint8_t*>(signature.data()),
+      signature.size(), reinterpret_cast<const uint8_t*>(data.data()),
+      data.size());
+}
+
+std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(
+    quiche::QuicheStringPiece private_key) {
+  std::unique_ptr<CertificatePrivateKey> result(new CertificatePrivateKey());
+  CBS private_key_cbs = StringPieceToCbs(private_key);
+  result->private_key_.reset(EVP_parse_private_key(&private_key_cbs));
+  if (result->private_key_ == nullptr || CBS_len(&private_key_cbs) != 0) {
+    return nullptr;
+  }
+  return result;
+}
+
+std::string CertificatePrivateKey::Sign(quiche::QuicheStringPiece input,
+                                        uint16_t signature_algorithm) {
+  if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
+      PublicKeyTypeFromKey(private_key_.get())) {
+    QUIC_BUG << "Mismatch between the requested signature algorithm and the "
+                "type of the private key.";
+    return "";
+  }
+
+  bssl::ScopedEVP_MD_CTX md_ctx;
+  EVP_PKEY_CTX* pctx;
+  if (!EVP_DigestSignInit(
+          md_ctx.get(), &pctx,
+          SSL_get_signature_algorithm_digest(signature_algorithm),
+          /*e=*/nullptr, private_key_.get())) {
+    return "";
+  }
+  if (SSL_is_signature_algorithm_rsa_pss(signature_algorithm)) {
+    if (!EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) ||
+        !EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, -1)) {
+      return "";
+    }
+  }
+
+  std::string output;
+  size_t output_size;
+  if (!EVP_DigestSign(md_ctx.get(), /*out_sig=*/nullptr, &output_size,
+                      reinterpret_cast<const uint8_t*>(input.data()),
+                      input.size())) {
+    return "";
+  }
+  output.resize(output_size);
+  if (!EVP_DigestSign(
+          md_ctx.get(), reinterpret_cast<uint8_t*>(&output[0]), &output_size,
+          reinterpret_cast<const uint8_t*>(input.data()), input.size())) {
+    return "";
+  }
+  output.resize(output_size);
+  return output;
+}
+
+bool CertificatePrivateKey::MatchesPublicKey(const CertificateView& view) {
+  return EVP_PKEY_cmp(view.public_key(), private_key_.get()) == 1;
 }
 
 }  // namespace quic

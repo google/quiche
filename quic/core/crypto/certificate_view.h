@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
@@ -28,7 +29,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   static std::unique_ptr<CertificateView> ParseSingleCertificate(
       quiche::QuicheStringPiece certificate);
 
-  EVP_PKEY* public_key() { return public_key_.get(); }
+  const EVP_PKEY* public_key() const { return public_key_.get(); }
 
   const std::vector<quiche::QuicheStringPiece>& subject_alt_name_domains()
       const {
@@ -37,6 +38,11 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   const std::vector<QuicIpAddress>& subject_alt_name_ips() const {
     return subject_alt_name_ips_;
   }
+
+  // |signature_algorithm| is a TLS signature algorithm ID.
+  bool VerifySignature(quiche::QuicheStringPiece data,
+                       quiche::QuicheStringPiece signature,
+                       uint16_t signature_algorithm) const;
 
  private:
   CertificateView() = default;
@@ -51,6 +57,28 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   // Called from ParseSingleCertificate().
   bool ParseExtensions(CBS extensions);
   bool ValidatePublicKeyParameters();
+};
+
+// CertificatePrivateKey represents a private key that can be used with an X.509
+// certificate.
+class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
+ public:
+  // Loads a DER-encoded PrivateKeyInfo structure (RFC 5958) as a private key.
+  static std::unique_ptr<CertificatePrivateKey> LoadFromDer(
+      quiche::QuicheStringPiece private_key);
+
+  // |signature_algorithm| is a TLS signature algorithm ID.
+  std::string Sign(quiche::QuicheStringPiece input,
+                   uint16_t signature_algorithm);
+
+  // Verifies that the private key in question matches the public key of the
+  // certificate |view|.
+  bool MatchesPublicKey(const CertificateView& view);
+
+ private:
+  CertificatePrivateKey() = default;
+
+  bssl::UniquePtr<EVP_PKEY> private_key_;
 };
 
 }  // namespace quic
