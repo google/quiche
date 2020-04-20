@@ -11,6 +11,7 @@ QuicRstStreamFrame::QuicRstStreamFrame()
     : control_frame_id(kInvalidControlFrameId),
       stream_id(0),
       error_code(QUIC_STREAM_NO_ERROR),
+      ietf_error_code(0),
       byte_offset(0) {}
 
 QuicRstStreamFrame::QuicRstStreamFrame(QuicControlFrameId control_frame_id,
