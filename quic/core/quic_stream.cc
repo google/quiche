@@ -1082,9 +1082,6 @@ void QuicStream::WriteBufferedData() {
     QUIC_DVLOG(1) << "stream " << id() << " shortens write length to "
                   << write_length << " due to flow control";
   }
-  if (!session_->write_with_transmission()) {
-    session_->SetTransmissionType(NOT_RETRANSMISSION);
-  }
 
   StreamSendingState state = fin ? FIN : NO_FIN;
   if (fin && add_random_padding_after_fin_) {

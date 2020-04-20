@@ -292,9 +292,6 @@ void QuicControlFrameManager::WriteBufferedFrames() {
   DCHECK(session_->connection()->connected())
       << ENDPOINT << "Try to write control frames when connection is closed.";
   while (HasBufferedFrames()) {
-    if (!session_->write_with_transmission()) {
-      session_->SetTransmissionType(NOT_RETRANSMISSION);
-    }
     QuicFrame frame_to_send =
         control_frames_.at(least_unsent_ - least_unacked_);
     QuicFrame copy = CopyRetransmittableControlFrame(frame_to_send);
