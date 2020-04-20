@@ -111,10 +111,8 @@ void Bbr2NetworkModel::OnCongestionEventStart(
   // Avoid updating |max_bandwidth_filter_| if a) this is a loss-only event, or
   // b) all packets in |acked_packets| did not generate valid samples. (e.g. ack
   // of ack-only packets). In both cases, total_bytes_acked() will not change.
-  if (!fix_zero_bw_on_loss_only_event_ ||
-      (prior_bytes_acked != total_bytes_acked())) {
-    QUIC_BUG_IF((prior_bytes_acked != total_bytes_acked()) &&
-                sample.sample_max_bandwidth.IsZero())
+  if (prior_bytes_acked != total_bytes_acked()) {
+    QUIC_BUG_IF(sample.sample_max_bandwidth.IsZero())
         << total_bytes_acked() - prior_bytes_acked << " bytes from "
         << acked_packets.size()
         << " packets have been acked, but sample_max_bandwidth is zero.";
@@ -122,14 +120,6 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         sample.sample_max_bandwidth > MaxBandwidth()) {
       congestion_event->sample_max_bandwidth = sample.sample_max_bandwidth;
       max_bandwidth_filter_.Update(congestion_event->sample_max_bandwidth);
-    }
-  } else {
-    if (acked_packets.empty()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_fix_zero_bw_on_loss_only_event, 3,
-                                   4);
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_fix_zero_bw_on_loss_only_event, 4,
-                                   4);
     }
   }
 

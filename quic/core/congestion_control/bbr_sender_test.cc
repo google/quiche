@@ -1371,9 +1371,7 @@ TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
                              lost_packets);
 
   // Bandwidth estimate should not change for the loss only event.
-  if (GetQuicReloadableFlag(quic_bbr_fix_zero_bw_on_loss_only_event)) {
-    EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
-  }
+  EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
 }
 
 }  // namespace test

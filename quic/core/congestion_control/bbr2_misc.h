@@ -476,9 +476,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float cwnd_gain_;
   float pacing_gain_;
-
-  const bool fix_zero_bw_on_loss_only_event_ =
-      GetQuicReloadableFlag(quic_bbr_fix_zero_bw_on_loss_only_event);
 };
 
 enum class Bbr2Mode : uint8_t {

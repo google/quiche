@@ -428,10 +428,8 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
   // packets in |acked_packets| did not generate valid samples. (e.g. ack of
   // ack-only packets). In both cases, sampler_.total_bytes_acked() will not
   // change.
-  if (!fix_zero_bw_on_loss_only_event_ ||
-      (total_bytes_acked_before != sampler_.total_bytes_acked())) {
-    QUIC_BUG_IF((total_bytes_acked_before != sampler_.total_bytes_acked()) &&
-                sample.sample_max_bandwidth.IsZero())
+  if (total_bytes_acked_before != sampler_.total_bytes_acked()) {
+    QUIC_BUG_IF(sample.sample_max_bandwidth.IsZero())
         << sampler_.total_bytes_acked() - total_bytes_acked_before
         << " bytes from " << acked_packets.size()
         << " packets have been acked, but sample_max_bandwidth is zero.";
@@ -439,15 +437,8 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
         sample.sample_max_bandwidth > max_bandwidth_.GetBest()) {
       max_bandwidth_.Update(sample.sample_max_bandwidth, round_trip_count_);
     }
-  } else {
-    if (acked_packets.empty()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_fix_zero_bw_on_loss_only_event, 1,
-                                   4);
-    } else {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr_fix_zero_bw_on_loss_only_event, 2,
-                                   4);
-    }
   }
+
   if (!sample.sample_rtt.IsInfinite()) {
     min_rtt_expired = MaybeUpdateMinRtt(event_time, sample.sample_rtt);
   }
