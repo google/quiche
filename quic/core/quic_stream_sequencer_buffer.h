@@ -94,6 +94,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   QuicStreamSequencerBuffer(QuicStreamSequencerBuffer&&) = default;
   QuicStreamSequencerBuffer& operator=(const QuicStreamSequencerBuffer&) =
       delete;
+  QuicStreamSequencerBuffer& operator=(QuicStreamSequencerBuffer&&) = default;
   ~QuicStreamSequencerBuffer();
 
   // Free the space used to buffer data.
@@ -212,10 +213,10 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   std::string ReceivedFramesDebugString() const;
 
   // The maximum total capacity of this buffer in byte, as constructed.
-  const size_t max_buffer_capacity_bytes_;
+  size_t max_buffer_capacity_bytes_;
 
   // How many blocks this buffer would need when it reaches full capacity.
-  const size_t blocks_count_;
+  size_t blocks_count_;
 
   // Number of bytes read out of buffer.
   QuicStreamOffset total_bytes_read_;

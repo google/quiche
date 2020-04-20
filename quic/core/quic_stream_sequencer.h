@@ -50,6 +50,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
   QuicStreamSequencer(const QuicStreamSequencer&) = delete;
   QuicStreamSequencer(QuicStreamSequencer&&) = default;
   QuicStreamSequencer& operator=(const QuicStreamSequencer&) = delete;
+  QuicStreamSequencer& operator=(QuicStreamSequencer&&) = default;
   virtual ~QuicStreamSequencer();
 
   // If the frame is the next one we need in order to process in-order data,
