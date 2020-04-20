@@ -858,6 +858,7 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
   MOCK_CONST_METHOD1(SelectAlpn,
                      std::vector<quiche::QuicheStringPiece>::const_iterator(
                          const std::vector<quiche::QuicheStringPiece>&));
+  MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece));
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
@@ -924,6 +925,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD0(ShouldCreateOutgoingBidirectionalStream, bool());
   MOCK_METHOD0(ShouldCreateOutgoingUnidirectionalStream, bool());
   MOCK_CONST_METHOD0(GetAlpnsToOffer, std::vector<std::string>());
+  MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece));
 
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;
@@ -1188,6 +1190,14 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MOCK_CONST_METHOD1(IsFrameOutstanding, bool(const QuicFrame&));
   MOCK_CONST_METHOD0(HasUnackedCryptoData, bool());
   MOCK_CONST_METHOD0(HasUnackedStreamData, bool());
+};
+
+class QuicCryptoClientStreamPeer {
+ public:
+  QuicCryptoClientStreamPeer() = delete;
+
+  static QuicCryptoClientStream::HandshakerInterface* GetHandshaker(
+      QuicCryptoClientStream* stream);
 };
 
 // Creates a client session for testing.

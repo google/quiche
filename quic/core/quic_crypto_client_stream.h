@@ -21,6 +21,10 @@
 
 namespace quic {
 
+namespace test {
+class QuicCryptoClientStreamPeer;
+}  // namespace test
+
 class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoClientStreamBase(QuicSession* session);
@@ -221,6 +225,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   }
 
  private:
+  friend class test::QuicCryptoClientStreamPeer;
   std::unique_ptr<HandshakerInterface> handshaker_;
 };
 

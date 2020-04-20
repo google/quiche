@@ -1091,6 +1091,12 @@ MockPacketCreatorDelegate::~MockPacketCreatorDelegate() {}
 MockSessionNotifier::MockSessionNotifier() {}
 MockSessionNotifier::~MockSessionNotifier() {}
 
+// static
+QuicCryptoClientStream::HandshakerInterface*
+QuicCryptoClientStreamPeer::GetHandshaker(QuicCryptoClientStream* stream) {
+  return stream->handshaker_.get();
+}
+
 void CreateClientSessionForTest(
     QuicServerId server_id,
     QuicTime::Delta connection_start_time,

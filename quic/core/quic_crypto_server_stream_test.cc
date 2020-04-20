@@ -50,6 +50,8 @@ namespace {
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
 
+// This test tests the server-side of the QUIC crypto handshake. It does not
+// test the TLS handshake - that is in tls_server_handshaker_test.cc.
 class QuicCryptoServerStreamTest : public QuicTest {
  public:
   QuicCryptoServerStreamTest()
@@ -152,28 +154,6 @@ class QuicCryptoServerStreamTest : public QuicTest {
                                         server_connection_, server_stream(), 0);
   }
 
-  void UseTlsHandshake() {
-    client_options_.only_tls_versions = true;
-    supported_versions_.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_TLS1_3) {
-        continue;
-      }
-      supported_versions_.push_back(version);
-    }
-  }
-
-  void UseQuicCryptoHandshake() {
-    client_options_.only_quic_crypto_versions = true;
-    supported_versions_.clear();
-    for (ParsedQuicVersion version : AllSupportedVersions()) {
-      if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
-        continue;
-      }
-      supported_versions_.push_back(version);
-    }
-  }
-
  protected:
   // Every connection gets its own MockQuicConnectionHelper and
   // MockAlarmFactory, tracked separately from the server and client state so
@@ -197,7 +177,8 @@ class QuicCryptoServerStreamTest : public QuicTest {
   crypto_test_utils::FakeClientOptions client_options_;
 
   // Which QUIC versions the client and server support.
-  ParsedQuicVersionVector supported_versions_ = AllSupportedVersions();
+  ParsedQuicVersionVector supported_versions_ =
+      AllSupportedVersionsWithQuicCrypto();
 };
 
 TEST_F(QuicCryptoServerStreamTest, NotInitiallyConected) {
@@ -211,24 +192,13 @@ TEST_F(QuicCryptoServerStreamTest, ConnectedAfterCHLO) {
   // test should send:
   //   * One to get a source-address token and certificates.
   //   * One to complete the handshake.
-  UseQuicCryptoHandshake();
   Initialize();
   EXPECT_EQ(2, CompleteCryptoHandshake());
   EXPECT_TRUE(server_stream()->encryption_established());
   EXPECT_TRUE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_F(QuicCryptoServerStreamTest, ConnectedAfterTlsHandshake) {
-  UseTlsHandshake();
-  Initialize();
-  CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
-  EXPECT_TRUE(server_stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->one_rtt_keys_available());
-}
-
 TEST_F(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
-  UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
 
@@ -250,7 +220,6 @@ TEST_F(QuicCryptoServerStreamTest, ForwardSecureAfterCHLO) {
 }
 
 TEST_F(QuicCryptoServerStreamTest, ZeroRTT) {
-  UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
 
@@ -282,7 +251,6 @@ TEST_F(QuicCryptoServerStreamTest, ZeroRTT) {
 }
 
 TEST_F(QuicCryptoServerStreamTest, FailByPolicy) {
-  UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
 
@@ -295,7 +263,6 @@ TEST_F(QuicCryptoServerStreamTest, FailByPolicy) {
 }
 
 TEST_F(QuicCryptoServerStreamTest, MessageAfterHandshake) {
-  UseQuicCryptoHandshake();
   Initialize();
   CompleteCryptoHandshake();
   EXPECT_CALL(
@@ -307,7 +274,6 @@ TEST_F(QuicCryptoServerStreamTest, MessageAfterHandshake) {
 }
 
 TEST_F(QuicCryptoServerStreamTest, BadMessageType) {
-  UseQuicCryptoHandshake();
   Initialize();
 
   message_.set_tag(kSHLO);
@@ -326,7 +292,6 @@ TEST_F(QuicCryptoServerStreamTest, OnlySendSCUPAfterHandshakeComplete) {
 }
 
 TEST_F(QuicCryptoServerStreamTest, SendSCUPAfterHandshakeComplete) {
-  UseQuicCryptoHandshake();
   Initialize();
 
   InitializeFakeClient();
@@ -359,7 +324,6 @@ class QuicCryptoServerStreamTestWithFailingProofSource
 };
 
 TEST_F(QuicCryptoServerStreamTestWithFailingProofSource, Test) {
-  UseQuicCryptoHandshake();
   Initialize();
   InitializeFakeClient();
 
@@ -393,7 +357,6 @@ class QuicCryptoServerStreamTestWithFakeProofSource
 // connection in close succession could cause a crash, especially when the use
 // of Mentat signing meant that it took a while for each CHLO to be processed.
 TEST_F(QuicCryptoServerStreamTestWithFakeProofSource, MultipleChlo) {
-  UseQuicCryptoHandshake();
   Initialize();
   GetFakeProofSource()->Activate();
   EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))

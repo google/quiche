@@ -756,6 +756,8 @@ void MovePackets(PacketSavingConnection* source_conn,
       // packets should ever be encrypted with the NullEncrypter, instead
       // they're encrypted with an obfuscation cipher based on QUIC version and
       // connection ID.
+      QUIC_LOG(INFO) << "Attempting to decrypt with NullDecrypter: "
+                        "expect a decryption failure on the next log line.";
       ASSERT_FALSE(null_encryption_framer.ProcessPacket(
           *source_conn->encrypted_packets_[index]))
           << "No TLS packets should be encrypted with the NullEncrypter";

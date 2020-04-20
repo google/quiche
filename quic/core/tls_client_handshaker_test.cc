@@ -256,7 +256,7 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_FALSE(stream()->IsResumption());
 }
 
-TEST_P(TlsClientHandshakerTest, ConnecitonClosedOnTlsError) {
+TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   // Have client send ClientHello.
   stream()->CryptoConnect();
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
