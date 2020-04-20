@@ -50,7 +50,7 @@ const char* QuicRstStreamErrorCodeToString(QuicRstStreamErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_STREAM_DECOMPRESSION_FAILED);
     RETURN_STRING_LITERAL(QUIC_STREAM_ENCODER_STREAM_ERROR);
     RETURN_STRING_LITERAL(QUIC_STREAM_DECODER_STREAM_ERROR);
-    RETURN_STRING_LITERAL(QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE);
+    RETURN_STRING_LITERAL(QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE);
     RETURN_STRING_LITERAL(QUIC_STREAM_LAST_ERROR);
   }
   // Return a default value so that we return this when |error| doesn't match
@@ -677,7 +677,7 @@ uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     case QUIC_STREAM_DECODER_STREAM_ERROR:
       return static_cast<uint64_t>(
           QuicHttpQpackErrorCode::DECODER_STREAM_ERROR);
-    case QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE:
+    case QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
     case QUIC_STREAM_LAST_ERROR:
       return static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR);
@@ -729,7 +729,7 @@ QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
     case static_cast<uint64_t>(QuicHttpQpackErrorCode::DECODER_STREAM_ERROR):
       return QUIC_STREAM_DECODER_STREAM_ERROR;
   }
-  return QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE;
+  return QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

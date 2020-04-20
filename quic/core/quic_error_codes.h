@@ -102,7 +102,7 @@ enum QuicRstStreamErrorCode {
   QUIC_STREAM_DECODER_STREAM_ERROR,
   // IETF RESET_FRAME application error code not matching any HTTP/3 or QPACK
   // error codes.
-  QUIC_STREAM_UNKNOWN_APPLICATION_ERRROR_CODE,
+  QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
   // No error. Used as bound while iterating.
   QUIC_STREAM_LAST_ERROR,
 };
