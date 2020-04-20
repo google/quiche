@@ -45,12 +45,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
               ? static_cast<BbrSender*>(old_send_algorithm)
               : nullptr);
     case kPCC:
-      if (GetQuicReloadableFlag(quic_enable_pcc3)) {
-        return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,
-                               initial_congestion_window,
-                               max_congestion_window);
-      }
-      // Fall back to CUBIC if PCC is disabled.
+      // PCC is work has stalled, fall back to CUBIC instead.
       QUIC_FALLTHROUGH_INTENDED;
     case kCubicBytes:
       return new TcpCubicSenderBytes(

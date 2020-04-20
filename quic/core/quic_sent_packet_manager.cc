@@ -215,9 +215,6 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
              (GetQuicReloadableFlag(quic_default_to_bbr) &&
               config.HasClientRequestedIndependentOption(kQBIC, perspective))) {
     SetSendAlgorithm(kCubicBytes);
-  } else if (GetQuicReloadableFlag(quic_enable_pcc3) &&
-             config.HasClientRequestedIndependentOption(kTPCC, perspective)) {
-    SetSendAlgorithm(kPCC);
   }
 
   // Initial window.
