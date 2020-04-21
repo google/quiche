@@ -6,19 +6,24 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
+#include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
+#include "third_party/boringssl/src/include/openssl/rsa.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
 // above the literals are the contents in the der2ascii syntax.
@@ -88,6 +93,52 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
 }  // namespace
 
 namespace quic {
+
+PemReadResult ReadNextPemMessage(std::istream* input) {
+  constexpr quiche::QuicheStringPiece kPemBegin = "-----BEGIN ";
+  constexpr quiche::QuicheStringPiece kPemEnd = "-----END ";
+  constexpr quiche::QuicheStringPiece kPemDashes = "-----";
+
+  std::string line_buffer, encoded_message_contents, expected_end;
+  bool pending_message = false;
+  PemReadResult result;
+  while (std::getline(*input, line_buffer)) {
+    quiche::QuicheStringPiece line(line_buffer);
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&line);
+
+    // Handle BEGIN lines.
+    if (!pending_message &&
+        quiche::QuicheTextUtils::StartsWith(line, kPemBegin) &&
+        quiche::QuicheTextUtils::EndsWith(line, kPemDashes)) {
+      result.type = std::string(
+          line.substr(kPemBegin.size(),
+                      line.size() - kPemDashes.size() - kPemBegin.size()));
+      expected_end = quiche::QuicheStrCat(kPemEnd, result.type, kPemDashes);
+      pending_message = true;
+      continue;
+    }
+
+    // Handle END lines.
+    if (pending_message && line == expected_end) {
+      quiche::QuicheOptional<std::string> data =
+          quiche::QuicheTextUtils::Base64Decode(encoded_message_contents);
+      if (data.has_value()) {
+        result.status = PemReadResult::kOk;
+        result.contents = data.value();
+      } else {
+        result.status = PemReadResult::kError;
+      }
+      return result;
+    }
+
+    if (pending_message) {
+      encoded_message_contents.append(std::string(line));
+    }
+  }
+  bool eof_reached = input->eof() && !pending_message;
+  return PemReadResult{
+      .status = (eof_reached ? PemReadResult::kEof : PemReadResult::kError)};
+}
 
 std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
     quiche::QuicheStringPiece certificate) {
@@ -265,6 +316,24 @@ bool CertificateView::ParseExtensions(CBS extensions) {
   return true;
 }
 
+std::vector<std::string> CertificateView::LoadPemFromStream(
+    std::istream* input) {
+  std::vector<std::string> result;
+  for (;;) {
+    PemReadResult read_result = ReadNextPemMessage(input);
+    if (read_result.status == PemReadResult::kEof) {
+      return result;
+    }
+    if (read_result.status != PemReadResult::kOk) {
+      return std::vector<std::string>();
+    }
+    if (read_result.type != "CERTIFICATE") {
+      continue;
+    }
+    result.emplace_back(std::move(read_result.contents));
+  }
+}
+
 bool CertificateView::ValidatePublicKeyParameters() {
   // The profile here affects what certificates can be used:
   // (1) when QUIC is used as a server library without any custom certificate
@@ -325,6 +394,33 @@ std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(
     return nullptr;
   }
   return result;
+}
+
+std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadPemFromStream(
+    std::istream* input) {
+  PemReadResult result = ReadNextPemMessage(input);
+  if (result.status != PemReadResult::kOk) {
+    return nullptr;
+  }
+  // RFC 5958 OneAsymmetricKey message.
+  if (result.type == "PRIVATE KEY") {
+    return LoadFromDer(result.contents);
+  }
+  // Legacy OpenSSL format: PKCS#1 (RFC 8017) RSAPrivateKey message.
+  if (result.type == "RSA PRIVATE KEY") {
+    CBS private_key_cbs = StringPieceToCbs(result.contents);
+    bssl::UniquePtr<RSA> rsa(RSA_parse_private_key(&private_key_cbs));
+    if (rsa == nullptr || CBS_len(&private_key_cbs) != 0) {
+      return nullptr;
+    }
+
+    std::unique_ptr<CertificatePrivateKey> key(new CertificatePrivateKey());
+    key->private_key_.reset(EVP_PKEY_new());
+    EVP_PKEY_assign_RSA(key->private_key_.get(), rsa.release());
+    return key;
+  }
+  // Unknown format.
+  return nullptr;
 }
 
 std::string CertificatePrivateKey::Sign(quiche::QuicheStringPiece input,

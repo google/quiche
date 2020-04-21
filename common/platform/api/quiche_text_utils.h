@@ -8,6 +8,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/quiche/common/platform/impl/quiche_text_utils_impl.h"
 
@@ -20,6 +21,12 @@ class QUICHE_EXPORT QuicheTextUtils {
   static bool StartsWith(quiche::QuicheStringPiece data,
                          quiche::QuicheStringPiece prefix) {
     return quiche::QuicheTextUtilsImpl::StartsWith(data, prefix);
+  }
+
+  // Returns true if |data| ends with |suffix|, case sensitively.
+  static bool EndsWith(quiche::QuicheStringPiece data,
+                       quiche::QuicheStringPiece suffix) {
+    return quiche::QuicheTextUtilsImpl::EndsWith(data, suffix);
   }
 
   // Returns true if |data| ends with |suffix|, case insensitively.
@@ -99,6 +106,12 @@ class QUICHE_EXPORT QuicheTextUtils {
                            size_t data_len,
                            std::string* output) {
     return quiche::QuicheTextUtilsImpl::Base64Encode(data, data_len, output);
+  }
+
+  // Decodes a base64-encoded |input|.  Returns nullopt when the input is
+  // invalid.
+  static QuicheOptional<std::string> Base64Decode(QuicheStringPiece input) {
+    return quiche::QuicheTextUtilsImpl::Base64Decode(input);
   }
 
   // Returns a string containing hex and ASCII representations of |binary|,

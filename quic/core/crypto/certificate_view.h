@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_CERTIFICATE_VIEW_H_
 #define QUICHE_QUIC_CORE_CRYPTO_CERTIFICATE_VIEW_H_
 
+#include <istream>
 #include <memory>
 #include <vector>
 
@@ -18,6 +19,18 @@
 
 namespace quic {
 
+struct QUIC_EXPORT_PRIVATE PemReadResult {
+  enum Status { kOk, kEof, kError };
+  Status status;
+  std::string contents;
+  // The type of the PEM message (e.g., if the message starts with
+  // "-----BEGIN CERTIFICATE-----", the |type| would be "CERTIFICATE").
+  std::string type;
+};
+
+// Reads |input| line-by-line and returns the next available PEM message.
+QUIC_EXPORT_PRIVATE PemReadResult ReadNextPemMessage(std::istream* input);
+
 // CertificateView represents a parsed version of a single X.509 certificate. As
 // the word "view" implies, it does not take ownership of the underlying strings
 // and consists primarily of pointers into the certificate that is passed into
@@ -28,6 +41,10 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   // error.
   static std::unique_ptr<CertificateView> ParseSingleCertificate(
       quiche::QuicheStringPiece certificate);
+
+  // Loads all PEM-encoded X.509 certificates found in the |input| stream
+  // without parsing them.  Returns an empty vector if any parsing error occurs.
+  static std::vector<std::string> LoadPemFromStream(std::istream* input);
 
   const EVP_PKEY* public_key() const { return public_key_.get(); }
 
@@ -66,6 +83,11 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
   // Loads a DER-encoded PrivateKeyInfo structure (RFC 5958) as a private key.
   static std::unique_ptr<CertificatePrivateKey> LoadFromDer(
       quiche::QuicheStringPiece private_key);
+
+  // Loads a private key from a PEM file formatted according to RFC 7468.  Also
+  // supports legacy OpenSSL RSA key format ("BEGIN RSA PRIVATE KEY").
+  static std::unique_ptr<CertificatePrivateKey> LoadPemFromStream(
+      std::istream* input);
 
   // |signature_algorithm| is a TLS signature algorithm ID.
   std::string Sign(quiche::QuicheStringPiece input,
