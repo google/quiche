@@ -303,8 +303,7 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     set_high_cwnd_gain(kDerivedHighGain);
     set_drain_gain(1.f / kDerivedHighGain);
   }
-  if (!exit_startup_on_loss_ &&
-      config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
+  if (config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
     set_high_cwnd_gain(kDerivedHighCWNDGain);
   }
   if (config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
