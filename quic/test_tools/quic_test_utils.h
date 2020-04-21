@@ -19,9 +19,11 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
+#include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
@@ -55,6 +57,12 @@ enum : uint32_t {
   kInitialStreamFlowControlWindowForTest = 1024 * 1024,   // 1 MB
   kInitialSessionFlowControlWindowForTest = 1536 * 1024,  // 1.5 MB
 };
+
+// A hostname useful for testing, returns "test.example.org".
+std::string TestHostname();
+
+// A server ID useful for testing, returns test.example.org:12345.
+QuicServerId TestServerId();
 
 // Returns the test peer IP address.
 QuicIpAddress TestPeerIPAddress();

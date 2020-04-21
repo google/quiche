@@ -17,13 +17,16 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
+#include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -72,6 +75,14 @@ uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
          std::min<size_t>(static_cast<size_t>(connection_id.length()),
                           sizeof(connection_id64_net)));
   return quiche::QuicheEndian::NetToHost64(connection_id64_net);
+}
+
+std::string TestHostname() {
+  return "test.example.org";
+}
+
+QuicServerId TestServerId() {
+  return QuicServerId(TestHostname(), kTestPort);
 }
 
 QuicAckFrame InitAckFrame(const std::vector<QuicAckBlock>& ack_blocks) {
