@@ -281,11 +281,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     uber_loss_algorithm_.EnableAdaptiveReorderingThreshold();
     uber_loss_algorithm_.EnableAdaptiveTimeThreshold();
   }
-  if (GetQuicReloadableFlag(
-          quic_skip_packet_threshold_loss_detection_with_runt) &&
-      config.HasClientRequestedIndependentOption(kRUNT, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_skip_packet_threshold_loss_detection_with_runt, 1, 2);
+  if (config.HasClientRequestedIndependentOption(kRUNT, perspective)) {
     uber_loss_algorithm_.DisablePacketThresholdForRuntPackets();
   }
   if (config.HasClientSentConnectionOption(kCONH, perspective)) {

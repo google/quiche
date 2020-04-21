@@ -3717,8 +3717,6 @@ TEST_F(QuicSentPacketManagerTest, NoPacketThresholdDetectionForRuntPackets) {
   EXPECT_TRUE(
       QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));
 
-  SetQuicReloadableFlag(quic_skip_packet_threshold_loss_detection_with_runt,
-                        true);
   QuicConfig config;
   QuicTagVector options;
   options.push_back(kRUNT);
