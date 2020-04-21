@@ -7,9 +7,7 @@
 namespace quic {
 
 QuicStreamsBlockedFrame::QuicStreamsBlockedFrame()
-    : QuicInlinedFrame(STREAMS_BLOCKED_FRAME),
-      control_frame_id(kInvalidControlFrameId),
-      unidirectional(false) {}
+    : QuicInlinedFrame(STREAMS_BLOCKED_FRAME) {}
 
 QuicStreamsBlockedFrame::QuicStreamsBlockedFrame(
     QuicControlFrameId control_frame_id,

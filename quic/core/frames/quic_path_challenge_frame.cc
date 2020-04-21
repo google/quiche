@@ -4,14 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_path_challenge_frame.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
-
-QuicPathChallengeFrame::QuicPathChallengeFrame()
-    : control_frame_id(kInvalidControlFrameId) {}
 
 QuicPathChallengeFrame::QuicPathChallengeFrame(
     QuicControlFrameId control_frame_id,

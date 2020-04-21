@@ -16,7 +16,7 @@
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
-  QuicConnectionCloseFrame();
+  QuicConnectionCloseFrame() = default;
 
   // Builds a connection close frame based on the transport version
   // and the mapping of error_code. THIS IS THE PREFERRED C'TOR
@@ -34,18 +34,18 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   // Indicates whether the the frame is a Google QUIC CONNECTION_CLOSE frame,
   // an IETF QUIC CONNECTION_CLOSE frame with transport error code,
   // or an IETF QUIC CONNECTION_CLOSE frame with application error code.
-  QuicConnectionCloseType close_type;
+  QuicConnectionCloseType close_type = GOOGLE_QUIC_CONNECTION_CLOSE;
 
   // The error code on the wire.  For Google QUIC frames, this has the same
   // value as |quic_error_code|.
-  uint64_t wire_error_code;
+  uint64_t wire_error_code = QUIC_NO_ERROR;
 
   // The underlying error.  For Google QUIC frames, this has the same value as
   // |wire_error_code|.  For sent IETF QUIC frames, this is the error that
   // triggered the closure of the connection.  For received IETF QUIC frames,
   // this is parsed from the Reason Phrase field of the CONNECTION_CLOSE frame,
   // or QUIC_IETF_GQUIC_ERROR_MISSING.
-  QuicErrorCode quic_error_code;
+  QuicErrorCode quic_error_code = QUIC_NO_ERROR;
 
   // String with additional error details. |quic_error_code| and a colon will be
   // prepended to the error details when sending IETF QUIC frames, and parsed
@@ -57,7 +57,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   // Contains the type of frame that triggered the connection close. Made a
   // uint64, as opposed to the QuicIetfFrameType, to support possible
   // extensions as well as reporting invalid frame types received from the peer.
-  uint64_t transport_close_frame_type;
+  uint64_t transport_close_frame_type = 0;
 };
 
 }  // namespace quic

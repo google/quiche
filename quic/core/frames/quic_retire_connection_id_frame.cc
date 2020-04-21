@@ -3,12 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_retire_connection_id_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicRetireConnectionIdFrame::QuicRetireConnectionIdFrame()
-    : control_frame_id(kInvalidControlFrameId), sequence_number(0) {}
 
 QuicRetireConnectionIdFrame::QuicRetireConnectionIdFrame(
     QuicControlFrameId control_frame_id,

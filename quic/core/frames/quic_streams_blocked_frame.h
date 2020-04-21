@@ -30,13 +30,13 @@ struct QUIC_EXPORT_PRIVATE QuicStreamsBlockedFrame
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   // The number of streams that the sender wishes to exceed
   QuicStreamCount stream_count;
 
   // Whether uni- or bi-directional streams
-  bool unidirectional;
+  bool unidirectional = false;
 };
 
 }  // namespace quic

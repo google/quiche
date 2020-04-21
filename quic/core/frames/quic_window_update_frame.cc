@@ -3,12 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicWindowUpdateFrame::QuicWindowUpdateFrame()
-    : control_frame_id(kInvalidControlFrameId) {}
 
 QuicWindowUpdateFrame::QuicWindowUpdateFrame(
     QuicControlFrameId control_frame_id,

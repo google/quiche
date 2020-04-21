@@ -4,14 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_new_token_frame.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
-
-QuicNewTokenFrame::QuicNewTokenFrame()
-    : control_frame_id(kInvalidControlFrameId) {}
 
 QuicNewTokenFrame::QuicNewTokenFrame(QuicControlFrameId control_frame_id,
                                      std::string token)

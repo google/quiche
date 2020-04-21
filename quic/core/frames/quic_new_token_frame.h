@@ -9,13 +9,14 @@
 #include <ostream>
 
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
-  QuicNewTokenFrame();
+  QuicNewTokenFrame() = default;
   QuicNewTokenFrame(QuicControlFrameId control_frame_id, std::string token);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
@@ -24,7 +25,7 @@ struct QUIC_EXPORT_PRIVATE QuicNewTokenFrame {
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   std::string token;
 };

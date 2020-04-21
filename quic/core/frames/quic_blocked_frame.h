@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
@@ -16,7 +17,7 @@ namespace quic {
 // send data. The BLOCKED frame is purely advisory and optional.
 // Based on SPDY's BLOCKED frame (undocumented as of 2014-01-28).
 struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
-  QuicBlockedFrame();
+  QuicBlockedFrame() = default;
   QuicBlockedFrame(QuicControlFrameId control_frame_id, QuicStreamId stream_id);
   QuicBlockedFrame(QuicControlFrameId control_frame_id,
                    QuicStreamId stream_id,
@@ -28,7 +29,7 @@ struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   // 0 is a special case meaning the connection is blocked, rather than a
   // stream.  So stream_id 0 corresponds to a BLOCKED frame and non-0
@@ -36,10 +37,10 @@ struct QUIC_EXPORT_PRIVATE QuicBlockedFrame {
   // TODO(fkastenholz): This should be converted to use
   // QuicUtils::GetInvalidStreamId to get the correct invalid stream id value
   // and not rely on 0.
-  QuicStreamId stream_id;
+  QuicStreamId stream_id = 0;
 
   // For Google QUIC, the offset is ignored.
-  QuicStreamOffset offset;
+  QuicStreamOffset offset = 0;
 };
 
 }  // namespace quic

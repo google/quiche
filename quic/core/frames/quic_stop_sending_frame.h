@@ -7,13 +7,14 @@
 
 #include <ostream>
 
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
-  QuicStopSendingFrame();
+  QuicStopSendingFrame() = default;
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id,
                        QuicApplicationErrorCode application_error_code);
@@ -24,9 +25,9 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
-  QuicStreamId stream_id;
-  QuicApplicationErrorCode application_error_code;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
+  QuicStreamId stream_id = 0;
+  QuicApplicationErrorCode application_error_code = 0;
 };
 
 }  // namespace quic

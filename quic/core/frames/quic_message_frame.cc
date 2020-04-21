@@ -10,9 +10,6 @@
 
 namespace quic {
 
-QuicMessageFrame::QuicMessageFrame()
-    : message_id(0), data(nullptr), message_length(0) {}
-
 QuicMessageFrame::QuicMessageFrame(QuicMessageId message_id)
     : message_id(message_id), data(nullptr), message_length(0) {}
 

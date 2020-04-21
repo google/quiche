@@ -7,8 +7,7 @@
 namespace quic {
 
 QuicHandshakeDoneFrame::QuicHandshakeDoneFrame()
-    : QuicInlinedFrame(HANDSHAKE_DONE_FRAME),
-      control_frame_id(kInvalidControlFrameId) {}
+    : QuicInlinedFrame(HANDSHAKE_DONE_FRAME) {}
 
 QuicHandshakeDoneFrame::QuicHandshakeDoneFrame(
     QuicControlFrameId control_frame_id)

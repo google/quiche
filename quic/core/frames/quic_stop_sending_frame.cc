@@ -3,14 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_stop_sending_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicStopSendingFrame::QuicStopSendingFrame()
-    : control_frame_id(kInvalidControlFrameId),
-      stream_id(0),
-      application_error_code(0) {}
 
 QuicStopSendingFrame::QuicStopSendingFrame(
     QuicControlFrameId control_frame_id,

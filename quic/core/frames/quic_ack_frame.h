@@ -108,7 +108,7 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
 
   // Time elapsed since largest_observed() was received until this Ack frame was
   // sent.
-  QuicTime::Delta ack_delay_time;
+  QuicTime::Delta ack_delay_time = QuicTime::Delta::Infinite();
 
   // Vector of <packet_number, time> for when packets arrived.
   PacketTimeVector received_packet_times;
@@ -118,10 +118,10 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
 
   // ECN counters, used only in version 99's ACK frame and valid only when
   // |ecn_counters_populated| is true.
-  bool ecn_counters_populated;
-  QuicPacketCount ect_0_count;
-  QuicPacketCount ect_1_count;
-  QuicPacketCount ecn_ce_count;
+  bool ecn_counters_populated = false;
+  QuicPacketCount ect_0_count = 0;
+  QuicPacketCount ect_1_count = 0;
+  QuicPacketCount ecn_ce_count = 0;
 };
 
 // The highest acked packet number we've observed from the peer. If no packets

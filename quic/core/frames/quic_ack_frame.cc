@@ -26,12 +26,7 @@ bool IsAwaitingPacket(const QuicAckFrame& ack_frame,
          !ack_frame.packets.Contains(packet_number);
 }
 
-QuicAckFrame::QuicAckFrame()
-    : ack_delay_time(QuicTime::Delta::Infinite()),
-      ecn_counters_populated(false),
-      ect_0_count(0),
-      ect_1_count(0),
-      ecn_ce_count(0) {}
+QuicAckFrame::QuicAckFrame() = default;
 
 QuicAckFrame::QuicAckFrame(const QuicAckFrame& other) = default;
 

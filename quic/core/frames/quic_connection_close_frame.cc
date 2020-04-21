@@ -10,12 +10,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
-QuicConnectionCloseFrame::QuicConnectionCloseFrame()
-    // Default close type ensures that existing, pre-V99 code works as expected.
-    : close_type(GOOGLE_QUIC_CONNECTION_CLOSE),
-      wire_error_code(QUIC_NO_ERROR),
-      quic_error_code(QUIC_NO_ERROR),
-      transport_close_frame_type(0) {}
 
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(
     QuicTransportVersion transport_version,

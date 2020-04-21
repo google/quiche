@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
@@ -15,7 +16,7 @@ namespace quic {
 // Based on SPDY's WINDOW_UPDATE frame, but uses an absolute max data bytes
 // rather than a window delta.
 struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame {
-  QuicWindowUpdateFrame();
+  QuicWindowUpdateFrame() = default;
   QuicWindowUpdateFrame(QuicControlFrameId control_frame_id,
                         QuicStreamId stream_id,
                         QuicByteCount max_data);
@@ -26,7 +27,7 @@ struct QUIC_EXPORT_PRIVATE QuicWindowUpdateFrame {
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   // The stream this frame applies to.  0 is a special case meaning the overall
   // connection rather than a specific stream.

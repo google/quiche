@@ -3,12 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_blocked_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicBlockedFrame::QuicBlockedFrame()
-    : control_frame_id(kInvalidControlFrameId), stream_id(0), offset(0) {}
 
 QuicBlockedFrame::QuicBlockedFrame(QuicControlFrameId control_frame_id,
                                    QuicStreamId stream_id)

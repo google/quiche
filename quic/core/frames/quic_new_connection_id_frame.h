@@ -7,6 +7,8 @@
 
 #include <ostream>
 
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
@@ -14,7 +16,7 @@
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
-  QuicNewConnectionIdFrame();
+  QuicNewConnectionIdFrame() = default;
   QuicNewConnectionIdFrame(QuicControlFrameId control_frame_id,
                            QuicConnectionId connection_id,
                            QuicConnectionIdSequenceNumber sequence_number,
@@ -27,9 +29,9 @@ struct QUIC_EXPORT_PRIVATE QuicNewConnectionIdFrame {
 
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
-  QuicControlFrameId control_frame_id;
-  QuicConnectionId connection_id;
-  QuicConnectionIdSequenceNumber sequence_number;
+  QuicControlFrameId control_frame_id = kInvalidControlFrameId;
+  QuicConnectionId connection_id = EmptyQuicConnectionId();
+  QuicConnectionIdSequenceNumber sequence_number = 0;
   QuicUint128 stateless_reset_token;
   uint64_t retire_prior_to;
 };

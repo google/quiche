@@ -6,8 +6,7 @@
 
 namespace quic {
 
-QuicPingFrame::QuicPingFrame()
-    : QuicInlinedFrame(PING_FRAME), control_frame_id(kInvalidControlFrameId) {}
+QuicPingFrame::QuicPingFrame() : QuicInlinedFrame(PING_FRAME) {}
 
 QuicPingFrame::QuicPingFrame(QuicControlFrameId control_frame_id)
     : QuicInlinedFrame(PING_FRAME), control_frame_id(control_frame_id) {}

@@ -17,17 +17,17 @@ namespace quic {
 // A padding frame contains no payload.
 struct QUIC_EXPORT_PRIVATE QuicPaddingFrame
     : public QuicInlinedFrame<QuicPaddingFrame> {
-  QuicPaddingFrame() : QuicInlinedFrame(PADDING_FRAME), num_padding_bytes(-1) {}
+  QuicPaddingFrame() : QuicInlinedFrame(PADDING_FRAME) {}
   explicit QuicPaddingFrame(int num_padding_bytes)
       : QuicInlinedFrame(PADDING_FRAME), num_padding_bytes(num_padding_bytes) {}
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
-      const QuicPaddingFrame& s);
+      const QuicPaddingFrame& padding_frame);
 
   // -1: full padding to the end of a max-sized packet
   // otherwise: only pad up to num_padding_bytes bytes
-  int num_padding_bytes;
+  int num_padding_bytes = -1;
 };
 
 }  // namespace quic

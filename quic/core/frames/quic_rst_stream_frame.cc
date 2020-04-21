@@ -3,16 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_rst_stream_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicRstStreamFrame::QuicRstStreamFrame()
-    : control_frame_id(kInvalidControlFrameId),
-      stream_id(0),
-      error_code(QUIC_STREAM_NO_ERROR),
-      ietf_error_code(0),
-      byte_offset(0) {}
 
 QuicRstStreamFrame::QuicRstStreamFrame(QuicControlFrameId control_frame_id,
                                        QuicStreamId stream_id,

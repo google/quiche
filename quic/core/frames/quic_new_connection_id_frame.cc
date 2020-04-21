@@ -3,14 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_new_connection_id_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 
 namespace quic {
-
-QuicNewConnectionIdFrame::QuicNewConnectionIdFrame()
-    : control_frame_id(kInvalidControlFrameId),
-      connection_id(EmptyQuicConnectionId()),
-      sequence_number(0) {}
 
 QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(
     QuicControlFrameId control_frame_id,
