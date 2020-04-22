@@ -66,7 +66,7 @@ QuicTransportClientSession::QuicTransportClientSession(
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       QuicServerId(url.host(), url.EffectiveIntPort()), this,
       crypto_config->proof_verifier()->CreateDefaultContext(), crypto_config,
-      proof_handler);
+      proof_handler, /*has_application_state = */ true);
 }
 
 void QuicTransportClientSession::OnAlpnSelected(

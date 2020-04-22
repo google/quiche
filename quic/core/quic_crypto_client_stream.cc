@@ -32,7 +32,8 @@ QuicCryptoClientStream::QuicCryptoClientStream(
     QuicSession* session,
     std::unique_ptr<ProofVerifyContext> verify_context,
     QuicCryptoClientConfig* crypto_config,
-    ProofHandler* proof_handler)
+    ProofHandler* proof_handler,
+    bool has_application_state)
     : QuicCryptoClientStreamBase(session) {
   DCHECK_EQ(Perspective::IS_CLIENT, session->connection()->perspective());
   switch (session->connection()->version().handshake_protocol) {
@@ -44,7 +45,7 @@ QuicCryptoClientStream::QuicCryptoClientStream(
     case PROTOCOL_TLS1_3:
       handshaker_ = std::make_unique<TlsClientHandshaker>(
           server_id, this, session, std::move(verify_context), crypto_config,
-          proof_handler);
+          proof_handler, has_application_state);
       break;
     case PROTOCOL_UNSUPPORTED:
       QUIC_BUG << "Attempting to create QuicCryptoClientStream for unknown "

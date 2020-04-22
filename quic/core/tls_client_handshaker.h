@@ -34,7 +34,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
                       QuicSession* session,
                       std::unique_ptr<ProofVerifyContext> verify_context,
                       QuicCryptoClientConfig* crypto_config,
-                      QuicCryptoClientStream::ProofHandler* proof_handler);
+                      QuicCryptoClientStream::ProofHandler* proof_handler,
+                      bool has_application_state);
   TlsClientHandshaker(const TlsClientHandshaker&) = delete;
   TlsClientHandshaker& operator=(const TlsClientHandshaker&) = delete;
 
@@ -165,7 +166,13 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   bool allow_empty_alpn_for_tests_ = false;
 
+  const bool has_application_state_;
+
   TlsClientConnection tls_connection_;
+
+  // If |has_application_state_|, stores the tls session tickets before
+  // application state is received. The latest one is put in the front.
+  bssl::UniquePtr<SSL_SESSION> cached_tls_sessions_[2] = {};
 
   std::unique_ptr<TransportParameters> received_transport_params_ = nullptr;
   std::unique_ptr<ApplicationState> received_application_state_ = nullptr;

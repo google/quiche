@@ -52,7 +52,8 @@ TlsClientHandshaker::TlsClientHandshaker(
     QuicSession* session,
     std::unique_ptr<ProofVerifyContext> verify_context,
     QuicCryptoClientConfig* crypto_config,
-    QuicCryptoClientStream::ProofHandler* proof_handler)
+    QuicCryptoClientStream::ProofHandler* proof_handler,
+    bool has_application_state)
     : TlsHandshaker(stream, session),
       session_(session),
       server_id_(server_id),
@@ -63,6 +64,7 @@ TlsClientHandshaker::TlsClientHandshaker(
       user_agent_id_(crypto_config->user_agent_id()),
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
+      has_application_state_(has_application_state),
       tls_connection_(crypto_config->ssl_ctx(), this) {}
 
 TlsClientHandshaker::~TlsClientHandshaker() {
@@ -501,11 +503,25 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
 }
 
 void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
+  if (!received_transport_params_) {
+    QUIC_BUG << "Transport parameters isn't received";
+    return;
+  }
   if (session_cache_ == nullptr) {
     QUIC_DVLOG(1) << "No session cache, not inserting a session";
     return;
   }
-  session_cache_->Insert(server_id_, std::move(session), nullptr, nullptr);
+  if (has_application_state_ && !received_application_state_) {
+    // Application state is not received yet. cache the sessions.
+    if (cached_tls_sessions_[0] != nullptr) {
+      cached_tls_sessions_[1] = std::move(cached_tls_sessions_[0]);
+    }
+    cached_tls_sessions_[0] = std::move(session);
+    return;
+  }
+  session_cache_->Insert(server_id_, std::move(session),
+                         received_transport_params_.get(),
+                         received_application_state_.get());
 }
 
 void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
@@ -522,9 +538,17 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
 void TlsClientHandshaker::OnApplicationState(
     std::unique_ptr<ApplicationState> application_state) {
   received_application_state_ = std::move(application_state);
-  if (session_cache_ != nullptr) {
-    // TODO(renjietang): cache the TLS session ticket and insert them together.
-    session_cache_->Insert(server_id_, nullptr, nullptr,
+  // At least one tls session is cached before application state is received. So
+  // insert now.
+  if (session_cache_ != nullptr && cached_tls_sessions_[0] != nullptr) {
+    if (cached_tls_sessions_[1] != nullptr) {
+      // Insert the older session first.
+      session_cache_->Insert(server_id_, std::move(cached_tls_sessions_[1]),
+                             received_transport_params_.get(),
+                             received_application_state_.get());
+    }
+    session_cache_->Insert(server_id_, std::move(cached_tls_sessions_[0]),
+                           received_transport_params_.get(),
                            received_application_state_.get());
   }
 }

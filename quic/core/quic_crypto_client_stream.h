@@ -187,7 +187,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
                          QuicSession* session,
                          std::unique_ptr<ProofVerifyContext> verify_context,
                          QuicCryptoClientConfig* crypto_config,
-                         ProofHandler* proof_handler);
+                         ProofHandler* proof_handler,
+                         bool has_application_state);
   QuicCryptoClientStream(const QuicCryptoClientStream&) = delete;
   QuicCryptoClientStream& operator=(const QuicCryptoClientStream&) = delete;
 

@@ -418,7 +418,7 @@ void QuartcClientSession::StartCryptoHandshake() {
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       server_id, this,
       client_crypto_config_->proof_verifier()->CreateDefaultContext(),
-      client_crypto_config_.get(), this);
+      client_crypto_config_.get(), this, /*has_application_state = */ true);
   Initialize();
   crypto_stream_->CryptoConnect();
 }

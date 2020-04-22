@@ -250,7 +250,8 @@ class TestQuicCryptoClientStream : public TestQuicCryptoStream {
             session,
             crypto_test_utils::ProofVerifyContextForTesting(),
             &crypto_config_,
-            &proof_handler_)) {}
+            &proof_handler_,
+            /*has_application_state = */ false)) {}
 
   ~TestQuicCryptoClientStream() override = default;
 

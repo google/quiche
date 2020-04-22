@@ -30,7 +30,8 @@ QboneClientSession::~QboneClientSession() {}
 
 std::unique_ptr<QuicCryptoStream> QboneClientSession::CreateCryptoStream() {
   return std::make_unique<QuicCryptoClientStream>(
-      server_id_, this, nullptr, quic_crypto_client_config_, this);
+      server_id_, this, nullptr, quic_crypto_client_config_, this,
+      /*has_application_state = */ true);
 }
 
 void QboneClientSession::Initialize() {
