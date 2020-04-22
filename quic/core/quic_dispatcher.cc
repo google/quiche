@@ -180,7 +180,7 @@ class StatelessConnectionTerminator {
   QuicTimeWaitListManager* time_wait_list_manager_;
 };
 
-// Class which extracts the ALPN from a CHLO packet.
+// Class which extracts the ALPN from a QUIC_CRYPTO CHLO packet.
 class ChloAlpnExtractor : public ChloExtractor::Delegate {
  public:
   void OnChlo(QuicTransportVersion /*version*/,
@@ -522,6 +522,23 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   }
 }
 
+std::string QuicDispatcher::SelectAlpn(const std::vector<std::string>& alpns) {
+  if (alpns.empty()) {
+    return "";
+  }
+  if (alpns.size() > 1u) {
+    const std::vector<std::string>& supported_alpns =
+        version_manager_->GetSupportedAlpns();
+    for (const std::string& alpn : alpns) {
+      if (std::find(supported_alpns.begin(), supported_alpns.end(), alpn) !=
+          supported_alpns.end()) {
+        return alpn;
+      }
+    }
+  }
+  return alpns[0];
+}
+
 QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
     const ReceivedPacketInfo& packet_info) {
   if (!packet_info.version_flag) {
@@ -831,9 +848,10 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     QuicConnectionId original_connection_id = server_connection_id;
     server_connection_id = MaybeReplaceServerConnectionId(server_connection_id,
                                                           packet_list.version);
+    std::string alpn = SelectAlpn(packet_list.alpns);
     std::unique_ptr<QuicSession> session =
         CreateQuicSession(server_connection_id, packets.front().peer_address,
-                          packet_list.alpn, packet_list.version);
+                          alpn, packet_list.version);
     if (original_connection_id != server_connection_id) {
       session->connection()->AddIncomingConnectionId(original_connection_id);
       session->connection()->InstallInitialCrypters(original_connection_id);

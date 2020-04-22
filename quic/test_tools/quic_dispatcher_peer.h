@@ -66,6 +66,9 @@ class QuicDispatcherPeer {
 
   static void RestorePerPacketContext(QuicDispatcher* dispatcher,
                                       std::unique_ptr<QuicPerPacketContext>);
+
+  static std::string SelectAlpn(QuicDispatcher* dispatcher,
+                                const std::vector<std::string>& alpns);
 };
 
 }  // namespace test

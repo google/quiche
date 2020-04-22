@@ -138,7 +138,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     // Add CHLO to the beginning of buffered packets so that it can be delivered
     // first later.
     queue.buffered_packets.push_front(std::move(new_entry));
-    queue.alpn = alpn;
+    queue.alpns = {alpn};
     connections_with_chlo_[connection_id] = false;  // Dummy value.
     // Set the version of buffered packets of this connection on CHLO.
     queue.version = version;

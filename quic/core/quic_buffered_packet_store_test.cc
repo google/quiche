@@ -80,7 +80,7 @@ TEST_F(QuicBufferedPacketStoreTest, SimpleEnqueueAndDeliverPacket) {
   const std::list<BufferedPacket>& queue = packets.buffered_packets;
   ASSERT_EQ(1u, queue.size());
   // The alpn should be ignored for non-chlo packets.
-  ASSERT_EQ("", packets.alpn);
+  ASSERT_TRUE(packets.alpns.empty());
   // There is no valid version because CHLO has not arrived.
   EXPECT_EQ(invalid_version_, packets.version);
   // Check content of the only packet in the queue.
@@ -415,7 +415,8 @@ TEST_F(QuicBufferedPacketStoreTest, MultipleDiscardPackets) {
   EXPECT_TRUE(store_.HasBufferedPackets(connection_id_2));
   auto packets = store_.DeliverPackets(connection_id_2);
   EXPECT_EQ(1u, packets.buffered_packets.size());
-  EXPECT_EQ("h3", packets.alpn);
+  ASSERT_EQ(1u, packets.alpns.size());
+  EXPECT_EQ("h3", packets.alpns[0]);
   // Since connection_id_2's chlo arrives, verify version is set.
   EXPECT_EQ(valid_version_, packets.version);
   EXPECT_TRUE(store_.HasChlosBuffered());

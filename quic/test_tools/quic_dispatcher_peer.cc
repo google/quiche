@@ -112,5 +112,12 @@ void QuicDispatcherPeer::RestorePerPacketContext(
   dispatcher->RestorePerPacketContext(std::move(context));
 }
 
+// static
+std::string QuicDispatcherPeer::SelectAlpn(
+    QuicDispatcher* dispatcher,
+    const std::vector<std::string>& alpns) {
+  return dispatcher->SelectAlpn(alpns);
+}
+
 }  // namespace test
 }  // namespace quic

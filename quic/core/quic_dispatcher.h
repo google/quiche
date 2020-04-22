@@ -300,6 +300,12 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Called if a packet from an unseen connection is reset or rejected.
   virtual void OnNewConnectionRejected() {}
 
+  // Selects the preferred ALPN from a vector of ALPNs.
+  // This runs through the list of ALPNs provided by the client and picks the
+  // first one it supports. If no supported versions are found, the first
+  // element of the vector is returned.
+  std::string SelectAlpn(const std::vector<std::string>& alpns);
+
  private:
   friend class test::QuicDispatcherPeer;
 

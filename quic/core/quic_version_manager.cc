@@ -50,6 +50,11 @@ QuicVersionManager::GetSupportedVersionsWithQuicCrypto() {
   return filtered_supported_versions_with_quic_crypto_;
 }
 
+const std::vector<std::string>& QuicVersionManager::GetSupportedAlpns() {
+  MaybeRefilterSupportedVersions();
+  return filtered_supported_alpns_;
+}
+
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
   static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
@@ -89,7 +94,8 @@ void QuicVersionManager::RefilterSupportedVersions() {
       FilterSupportedVersions(allowed_supported_versions_);
   filtered_supported_versions_with_quic_crypto_.clear();
   filtered_transport_versions_.clear();
-  for (ParsedQuicVersion version : filtered_supported_versions_) {
+  filtered_supported_alpns_.clear();
+  for (const ParsedQuicVersion& version : filtered_supported_versions_) {
     auto transport_version = version.transport_version;
     if (std::find(filtered_transport_versions_.begin(),
                   filtered_transport_versions_.end(),
@@ -99,7 +105,12 @@ void QuicVersionManager::RefilterSupportedVersions() {
     if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
       filtered_supported_versions_with_quic_crypto_.push_back(version);
     }
+    filtered_supported_alpns_.emplace_back(AlpnForVersion(version));
   }
+}
+
+void QuicVersionManager::AddCustomAlpn(const std::string& alpn) {
+  filtered_supported_alpns_.push_back(alpn);
 }
 
 }  // namespace quic

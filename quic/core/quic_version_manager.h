@@ -29,6 +29,10 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // Returns currently supported versions using QUIC crypto.
   const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();
 
+  // Returns the list of supported ALPNs, based on the current supported
+  // versions and any custom additions by subclasses.
+  const std::vector<std::string>& GetSupportedAlpns();
+
  protected:
   // If the value of any reloadable flag is different from the cached value,
   // re-filter |filtered_supported_versions_| and update the cached flag values.
@@ -41,6 +45,10 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   const QuicTransportVersionVector& filtered_transport_versions() const {
     return filtered_transport_versions_;
   }
+
+  // Mechanism for subclasses to add custom ALPNs to the supported list.
+  // Should be called in constructor and RefilterSupportedVersions.
+  void AddCustomAlpn(const std::string& alpn);
 
  private:
   // Cached value of reloadable flags.
@@ -72,6 +80,9 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   // |filtered_supported_versions_|. No guarantees are made that the same
   // transport version isn't repeated.
   QuicTransportVersionVector filtered_transport_versions_;
+  // Contains the list of ALPNs corresponding to filtered_supported_versions_
+  // with custom ALPNs added.
+  std::vector<std::string> filtered_supported_alpns_;
 };
 
 }  // namespace quic

@@ -9,6 +9,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
+using ::testing::ElementsAre;
+
 namespace quic {
 namespace test {
 namespace {
@@ -48,6 +50,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(
+      manager.GetSupportedAlpns(),
+      ElementsAre("h3-Q050", "h3-Q049", "h3-Q048", "h3-Q046", "h3-Q043"));
 
   SetQuicReloadableFlag(quic_enable_version_draft_27, true);
   expected_parsed_versions.insert(
@@ -60,6 +65,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(manager.GetSupportedAlpns(),
+              ElementsAre("h3-27", "h3-Q050", "h3-Q049", "h3-Q048", "h3-Q046",
+                          "h3-Q043"));
 
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
   expected_parsed_versions.insert(
@@ -70,6 +78,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(manager.GetSupportedAlpns(),
+              ElementsAre("h3-27", "h3-25", "h3-Q050", "h3-Q049", "h3-Q048",
+                          "h3-Q046", "h3-Q043"));
 
   SetQuicReloadableFlag(quic_enable_version_t050_v2, true);
   expected_parsed_versions.insert(
@@ -82,6 +93,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(manager.GetSupportedAlpns(),
+              ElementsAre("h3-27", "h3-25", "h3-T050", "h3-Q050", "h3-Q049",
+                          "h3-Q048", "h3-Q046", "h3-Q043"));
 }
 
 }  // namespace
