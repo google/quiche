@@ -2699,10 +2699,7 @@ void QuicConnection::OnRetransmissionTimeout() {
     packet_creator_.SkipNPacketNumbers(
         num_packet_numbers_to_skip, sent_packet_manager_.GetLeastUnacked(),
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
-    if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_send_ping_when_pto_skips_packet_number);
-      previous_created_packet_number += num_packet_numbers_to_skip;
-    }
+    previous_created_packet_number += num_packet_numbers_to_skip;
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
     }

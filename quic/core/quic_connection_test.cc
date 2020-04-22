@@ -10028,7 +10028,6 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   if (!connection_.version().SupportsAntiAmplificationLimit()) {
     return;
   }
-  SetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number, true);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
@@ -10504,25 +10503,14 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   EXPECT_EQ(MESSAGE_STATUS_SUCCESS, SendMessage("message"));
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
-  // Although there are bytes in flight, no packet gets sent on PTO firing.
-  if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
-    // PTO fires, verify a PING packet gets sent because there is no data to
-    // send.
-    EXPECT_CALL(*send_algorithm_,
-                OnPacketSent(_, _, QuicPacketNumber(3), _, _));
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  } else {
-    // No packet gets sent.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  // PTO fires, verify a PING packet gets sent because there is no data to
+  // send.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_send_ping_when_pto_skips_packet_number)) {
-    EXPECT_EQ(1u, connection_.GetStats().pto_count);
-    EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
-    EXPECT_EQ(1u, writer_->ping_frames().size());
-  }
+  EXPECT_EQ(1u, connection_.GetStats().pto_count);
+  EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
+  EXPECT_EQ(1u, writer_->ping_frames().size());
 }
 
 }  // namespace
