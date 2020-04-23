@@ -271,7 +271,7 @@ bool QuicFixedTagVector::HasSendValues() const {
   return has_send_values_;
 }
 
-QuicTagVector QuicFixedTagVector::GetSendValues() const {
+const QuicTagVector& QuicFixedTagVector::GetSendValues() const {
   QUIC_BUG_IF(!has_send_values_)
       << "No send values to get for tag:" << QuicTagToString(tag_);
   return send_values_;
@@ -286,7 +286,7 @@ bool QuicFixedTagVector::HasReceivedValues() const {
   return has_receive_values_;
 }
 
-QuicTagVector QuicFixedTagVector::GetReceivedValues() const {
+const QuicTagVector& QuicFixedTagVector::GetReceivedValues() const {
   QUIC_BUG_IF(!has_receive_values_)
       << "No receive value to get for tag:" << QuicTagToString(tag_);
   return receive_values_;
@@ -450,7 +450,7 @@ bool QuicConfig::HasReceivedConnectionOptions() const {
   return connection_options_.HasReceivedValues();
 }
 
-QuicTagVector QuicConfig::ReceivedConnectionOptions() const {
+const QuicTagVector& QuicConfig::ReceivedConnectionOptions() const {
   return connection_options_.GetReceivedValues();
 }
 
@@ -458,7 +458,7 @@ bool QuicConfig::HasSendConnectionOptions() const {
   return connection_options_.HasSendValues();
 }
 
-QuicTagVector QuicConfig::SendConnectionOptions() const {
+const QuicTagVector& QuicConfig::SendConnectionOptions() const {
   return connection_options_.GetSendValues();
 }
 

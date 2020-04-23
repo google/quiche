@@ -198,13 +198,13 @@ class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
 
   bool HasSendValues() const;
 
-  QuicTagVector GetSendValues() const;
+  const QuicTagVector& GetSendValues() const;
 
   void SetSendValues(const QuicTagVector& values);
 
   bool HasReceivedValues() const;
 
-  QuicTagVector GetReceivedValues() const;
+  const QuicTagVector& GetReceivedValues() const;
 
   void SetReceivedValues(const QuicTagVector& values);
 
@@ -275,11 +275,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // function does nothing and returns false.
   bool SetInitialReceivedConnectionOptions(const QuicTagVector& tags);
 
-  QuicTagVector ReceivedConnectionOptions() const;
+  const QuicTagVector& ReceivedConnectionOptions() const;
 
   bool HasSendConnectionOptions() const;
 
-  QuicTagVector SendConnectionOptions() const;
+  const QuicTagVector& SendConnectionOptions() const;
 
   // Returns true if the client is sending or the server has received a
   // connection option.
