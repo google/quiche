@@ -750,10 +750,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // been consumed.
   // TODO(fayang): Remove draining_streams_ when deprecate
   // quic_deprecate_draining_streams.
-  QuicUnorderedSet<QuicStreamId> draining_streams_;
+  QuicHashSet<QuicStreamId> draining_streams_;
 
   // Set of stream ids that are waiting for acks excluding crypto stream id.
-  QuicUnorderedSet<QuicStreamId> streams_waiting_for_acks_;
+  QuicHashSet<QuicStreamId> streams_waiting_for_acks_;
 
   // TODO(fayang): Consider moving LegacyQuicStreamIdManager into
   // UberQuicStreamIdManager.

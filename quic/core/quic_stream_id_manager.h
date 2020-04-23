@@ -176,7 +176,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamIdManager {
 
   // Set of stream ids that are less than the largest stream id that has been
   // received, but are nonetheless available to be created.
-  QuicUnorderedSet<QuicStreamId> available_streams_;
+  QuicHashSet<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
 };

@@ -110,8 +110,6 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // Number of times the connection has failed to send packets as MESSAGE frame
   // and used streams as a fallback.
   uint64_t num_fallback_to_stream_ = 0;
-
-  QuicUnorderedSet<QuicStreamId> reliable_streams_;
 };
 
 }  // namespace quic

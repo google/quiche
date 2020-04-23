@@ -309,9 +309,6 @@ class QUIC_NO_EXPORT QuicDispatcher
  private:
   friend class test::QuicDispatcherPeer;
 
-  typedef QuicUnorderedSet<QuicConnectionId, QuicConnectionIdHash>
-      QuicConnectionIdSet;
-
   // TODO(fayang): Consider to rename this function to
   // ProcessValidatedPacketWithUnknownConnectionId.
   void ProcessHeader(ReceivedPacketInfo* packet_info);
