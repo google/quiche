@@ -322,9 +322,12 @@ TEST_F(QuicTimeWaitListManagerTest, SendConnectionClose) {
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  AddConnectionId(connection_id_, QuicVersionMax(),
-                  QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-                  &termination_packets);
+  AddConnectionId(
+      connection_id_, QuicVersionMax(),
+      GetQuicRestartFlag(quic_replace_time_wait_list_encryption_level)
+          ? QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS
+          : QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
                                    self_address_.host(), peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
@@ -342,9 +345,12 @@ TEST_F(QuicTimeWaitListManagerTest, SendTwoConnectionCloses) {
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
-  AddConnectionId(connection_id_, QuicVersionMax(),
-                  QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-                  &termination_packets);
+  AddConnectionId(
+      connection_id_, QuicVersionMax(),
+      GetQuicRestartFlag(quic_replace_time_wait_list_encryption_level)
+          ? QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS
+          : QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      &termination_packets);
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
                                    self_address_.host(), peer_address_, _))
       .Times(2)
@@ -640,6 +646,30 @@ TEST_F(QuicTimeWaitListManagerTest,
               WritePacket(_, _, self_address_.host(), peer_address_, _))
       .With(Args<0, 1>(PublicResetPacketEq(connection_id_)))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  // Processes IETF short header packet.
+  time_wait_list_manager_.ProcessPacket(
+      self_address_, peer_address_, connection_id_,
+      IETF_QUIC_SHORT_HEADER_PACKET, std::make_unique<QuicPerPacketContext>());
+}
+
+TEST_F(QuicTimeWaitListManagerTest,
+       SendConnectionClosePacketsInResponseToShortHeaders) {
+  SetQuicRestartFlag(quic_replace_time_wait_list_encryption_level, true);
+  const size_t kConnectionCloseLength = 100;
+  EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+  termination_packets.push_back(
+      std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
+          new char[kConnectionCloseLength], kConnectionCloseLength, true)));
+  // Add a CONNECTION_CLOSE termination packet.
+  time_wait_list_manager_.AddConnectionIdToTimeWait(
+      connection_id_, /*ietf_quic=*/true,
+      QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
+      ENCRYPTION_INITIAL, &termination_packets);
+  EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
+                                   self_address_.host(), peer_address_, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));
+
   // Processes IETF short header packet.
   time_wait_list_manager_.ProcessPacket(
       self_address_, peer_address_, connection_id_,

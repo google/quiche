@@ -44,6 +44,9 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     // Send specified termination packets, error if termination packet is
     // unavailable.
     SEND_TERMINATION_PACKETS,
+    // The same as SEND_TERMINATION_PACKETS except that the corresponding
+    // termination packets are provided by the connection.
+    SEND_CONNECTION_CLOSE_PACKETS,
     // Send stateless reset (public reset for GQUIC).
     SEND_STATELESS_RESET,
 
@@ -244,6 +247,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     int num_packets;
     bool ietf_quic;
     QuicTime time_added;
+    // TODO(b/153096082) Remove this field.
     // Encryption level of termination_packets.
     EncryptionLevel encryption_level;
     // These packets may contain CONNECTION_CLOSE frames, or SREJ messages.

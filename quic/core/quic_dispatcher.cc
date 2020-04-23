@@ -591,7 +591,11 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
   if (connection->termination_packets() != nullptr &&
       !connection->termination_packets()->empty()) {
-    action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
+    if (GetQuicRestartFlag(quic_replace_time_wait_list_encryption_level)) {
+      action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
+    } else {
+      action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
+    }
   } else {
     if (!connection->IsHandshakeComplete()) {
       if (!VersionHasIetfInvariantHeader(connection->transport_version())) {

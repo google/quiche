@@ -162,12 +162,13 @@ void QuicTimeWaitListManager::ProcessPacket(
           if (!connection_data->ietf_quic) {
             QUIC_CODE_COUNT(quic_received_short_header_packet_for_gquic);
           }
-          if (connection_data->encryption_level == ENCRYPTION_INITIAL) {
+          if (GetQuicRestartFlag(
+                  quic_replace_time_wait_list_encryption_level) ||
+              connection_data->encryption_level == ENCRYPTION_INITIAL) {
+            // TODO(b/153096082) Rename this code count.
             QUIC_CODE_COUNT(
                 quic_encryption_none_termination_packets_for_short_header);
-            // Send stateless reset in response to short header packets,
-            // because ENCRYPTION_INITIAL termination packets will not be
-            // processed by clients.
+            // Send stateless reset in response to short header packets.
             SendPublicReset(self_address, peer_address, connection_id,
                             connection_data->ietf_quic,
                             std::move(packet_context));
@@ -190,6 +191,19 @@ void QuicTimeWaitListManager::ProcessPacket(
                           packet_context.get());
       }
       return;
+
+    case SEND_CONNECTION_CLOSE_PACKETS:
+      if (connection_data->termination_packets.empty()) {
+        QUIC_BUG << "There are no termination packets.";
+        return;
+      }
+      for (const auto& packet : connection_data->termination_packets) {
+        SendOrQueuePacket(std::make_unique<QueuedPacket>(
+                              self_address, peer_address, packet->Clone()),
+                          packet_context.get());
+      }
+      return;
+
     case SEND_STATELESS_RESET:
       if (header_format == IETF_QUIC_LONG_HEADER_PACKET) {
         QUIC_CODE_COUNT(quic_stateless_reset_long_header_packet);
