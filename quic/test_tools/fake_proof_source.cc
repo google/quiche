@@ -113,6 +113,10 @@ void FakeProofSource::ComputeTlsSignature(
       delegate_.get()));
 }
 
+ProofSource::TicketCrypter* FakeProofSource::SessionTicketCrypter() {
+  return delegate_->SessionTicketCrypter();
+}
+
 int FakeProofSource::NumPendingCallbacks() const {
   return pending_ops_.size();
 }

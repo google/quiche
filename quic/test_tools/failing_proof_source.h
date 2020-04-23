@@ -30,6 +30,8 @@ class FailingProofSource : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;
+
+  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
 };
 
 }  // namespace test

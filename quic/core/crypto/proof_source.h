@@ -144,6 +144,54 @@ class QUIC_EXPORT_PRIVATE ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) = 0;
+
+  class QUIC_EXPORT_PRIVATE DecryptCallback {
+   public:
+    DecryptCallback() = default;
+    virtual ~DecryptCallback() = default;
+
+    virtual void Run(std::vector<uint8_t> plaintext) = 0;
+
+   private:
+    DecryptCallback(const Callback&) = delete;
+    DecryptCallback& operator=(const Callback&) = delete;
+  };
+
+  // TicketCrypter is an interface for managing encryption and decryption of TLS
+  // session tickets. A TicketCrypter gets used as an
+  // SSL_CTX_set_ticket_aead_method in BoringSSL, which has a synchronous
+  // Encrypt/Seal operation and a potentially asynchronous Decrypt/Open
+  // operation. This interface allows for ticket decryptions to be performed on
+  // a remote service.
+  class QUIC_EXPORT_PRIVATE TicketCrypter {
+   public:
+    TicketCrypter() = default;
+    virtual ~TicketCrypter() = default;
+
+    // MaxOverhead returns the maximum number of bytes of overhead that may get
+    // added when encrypting the ticket.
+    virtual size_t MaxOverhead() = 0;
+
+    // Encrypt takes a serialized TLS session ticket in |in|, encrypts it, and
+    // returns the encrypted ticket. The resulting value must not be larger than
+    // MaxOverhead bytes larger than |in|. If encryption fails, this method
+    // returns an empty vector.
+    virtual std::vector<uint8_t> Encrypt(quiche::QuicheStringPiece in) = 0;
+
+    // Decrypt takes an encrypted ticket |in|, decrypts it, and calls
+    // |callback->Run| with the decrypted ticket, which must not be larger than
+    // |in|. If decryption fails, the callback is invoked with an empty
+    // vector.
+    virtual void Decrypt(quiche::QuicheStringPiece in,
+                         std::unique_ptr<DecryptCallback> callback) = 0;
+  };
+
+  // Returns the TicketCrypter used for encrypting and decrypting TLS
+  // session tickets, or nullptr if that functionality is not supported. The
+  // TicketCrypter returned (if not nullptr) must be valid for the lifetime of
+  // the ProofSource, and the caller does not take ownership of said
+  // TicketCrypter.
+  virtual TicketCrypter* SessionTicketCrypter() = 0;
 };
 
 }  // namespace quic

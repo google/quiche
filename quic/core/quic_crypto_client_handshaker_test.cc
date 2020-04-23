@@ -99,6 +99,8 @@ class DummyProofSource : public ProofSource {
       std::unique_ptr<SignatureCallback> callback) override {
     callback->Run(true, "Dummy signature", /*details=*/nullptr);
   }
+
+  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
 };
 
 class Handshaker : public QuicCryptoClientHandshaker {

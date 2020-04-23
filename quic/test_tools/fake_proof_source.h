@@ -47,6 +47,8 @@ class FakeProofSource : public ProofSource {
       quiche::QuicheStringPiece in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
 
+  TicketCrypter* SessionTicketCrypter() override;
+
   // Get the number of callbacks which are pending
   int NumPendingCallbacks() const;
 
