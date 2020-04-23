@@ -66,12 +66,10 @@ class QUIC_EXPORT_PRIVATE SessionCache {
   // copied. Multiple sessions might need to be inserted for a connection.
   // SessionCache implementations should support storing
   // multiple entries per server ID.
-  // TODO(renjietang): Once params and application_states are wired up, change
-  // the argument type to const&.
   virtual void Insert(const QuicServerId& server_id,
                       bssl::UniquePtr<SSL_SESSION> session,
-                      TransportParameters* params,
-                      ApplicationState* application_states) = 0;
+                      const TransportParameters& params,
+                      const ApplicationState* application_state) = 0;
 
   // Lookup is called once at the beginning of each TLS handshake to potentially
   // provide the saved state both for the TLS handshake and for sending 0-RTT

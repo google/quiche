@@ -520,7 +520,7 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
     return;
   }
   session_cache_->Insert(server_id_, std::move(session),
-                         received_transport_params_.get(),
+                         *received_transport_params_,
                          received_application_state_.get());
 }
 
@@ -544,11 +544,11 @@ void TlsClientHandshaker::OnApplicationState(
     if (cached_tls_sessions_[1] != nullptr) {
       // Insert the older session first.
       session_cache_->Insert(server_id_, std::move(cached_tls_sessions_[1]),
-                             received_transport_params_.get(),
+                             *received_transport_params_,
                              received_application_state_.get());
     }
     session_cache_->Insert(server_id_, std::move(cached_tls_sessions_[0]),
-                           received_transport_params_.get(),
+                           *received_transport_params_,
                            received_application_state_.get());
   }
 }

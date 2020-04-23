@@ -11,8 +11,8 @@ namespace test {
 
 void SimpleSessionCache::Insert(const QuicServerId& server_id,
                                 bssl::UniquePtr<SSL_SESSION> session,
-                                TransportParameters* params,
-                                ApplicationState* application_state) {
+                                const TransportParameters& params,
+                                const ApplicationState* application_state) {
   auto it = cache_entries_.find(server_id);
   if (it == cache_entries_.end()) {
     it = cache_entries_.insert(std::make_pair(server_id, Entry())).first;
@@ -24,9 +24,7 @@ void SimpleSessionCache::Insert(const QuicServerId& server_id,
     it->second.application_state =
         std::make_unique<ApplicationState>(*application_state);
   }
-  if (params != nullptr) {
-    it->second.params = std::make_unique<TransportParameters>(*params);
-  }
+  it->second.params = std::make_unique<TransportParameters>(params);
 }
 
 std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(

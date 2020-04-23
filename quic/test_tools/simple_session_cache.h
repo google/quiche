@@ -24,8 +24,8 @@ class SimpleSessionCache : public SessionCache {
 
   void Insert(const QuicServerId& server_id,
               bssl::UniquePtr<SSL_SESSION> session,
-              TransportParameters* params,
-              ApplicationState* application_state) override;
+              const TransportParameters& params,
+              const ApplicationState* application_state) override;
   std::unique_ptr<QuicResumptionState> Lookup(const QuicServerId& server_id,
                                               const SSL_CTX* ctx) override;
 
