@@ -230,7 +230,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
                             PacketSavingConnection* client_conn,
                             QuicCryptoClientStream* client,
                             std::string alpn) {
-  PacketSavingConnection* server_conn = new PacketSavingConnection(
+  auto* server_conn = new testing::NiceMock<PacketSavingConnection>(
       helper, alarm_factory, Perspective::IS_SERVER,
       ParsedVersionOfIndex(client_conn->supported_versions(), 0));
 
@@ -249,6 +249,8 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
       .Times(testing::AnyNumber());
   EXPECT_CALL(*server_conn, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*client_conn, OnCanWrite()).Times(testing::AnyNumber());
+  EXPECT_CALL(*server_conn, SendCryptoData(_, _, _))
+      .Times(testing::AnyNumber());
   EXPECT_CALL(server_session, SelectAlpn(_))
       .WillRepeatedly(
           [alpn](const std::vector<quiche::QuicheStringPiece>& alpns) {

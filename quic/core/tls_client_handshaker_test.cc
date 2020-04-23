@@ -190,6 +190,8 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CompleteCryptoHandshake() {
+    EXPECT_CALL(*connection_, SendCryptoData(_, _, _))
+        .Times(testing::AnyNumber());
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
