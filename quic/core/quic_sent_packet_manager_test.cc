@@ -3772,6 +3772,59 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
   EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
+// Regression test for b/154050235.
+TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  manager_.EnableIetfPtoAndLossDetection();
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(kInitialRttMs),
+            rtt_stats->initial_rtt());
+  EXPECT_TRUE(rtt_stats->smoothed_rtt().IsZero());
+
+  SendCryptoPacket(1);
+  QuicTime::Delta expected_pto_delay =
+      QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this]() { RetransmitCryptoPacket(3); })));
+  manager_.MaybeSendProbePackets();
+  // Verify exponential backoff of the PTO timeout.
+  EXPECT_EQ(clock_.Now() + 2 * expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
+TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
+  manager_.EnableIetfPtoAndLossDetection();
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  // Assume client provided a tiny initial RTT.
+  rtt_stats->set_initial_rtt(QuicTime::Delta::FromMicroseconds(1));
+  EXPECT_EQ(QuicTime::Delta::FromMicroseconds(1), rtt_stats->initial_rtt());
+  EXPECT_TRUE(rtt_stats->smoothed_rtt().IsZero());
+
+  SendCryptoPacket(1);
+  QuicTime::Delta expected_pto_delay = QuicTime::Delta::FromMilliseconds(10);
+  // Verify kMinHandshakeTimeoutMs is respected.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this]() { RetransmitCryptoPacket(3); })));
+  manager_.MaybeSendProbePackets();
+  // Verify exponential backoff of the PTO timeout.
+  EXPECT_EQ(clock_.Now() + 2 * expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

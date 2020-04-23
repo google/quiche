@@ -1169,10 +1169,11 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay() const {
 const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
   DCHECK(pto_enabled_);
   if (rtt_stats_.smoothed_rtt().IsZero()) {
-    if (rtt_stats_.initial_rtt().IsZero()) {
-      return QuicTime::Delta::FromSeconds(1);
-    }
-    return 2 * rtt_stats_.initial_rtt();
+    // Respect kMinHandshakeTimeoutMs to avoid a potential amplification attack.
+    QUIC_BUG_IF(rtt_stats_.initial_rtt().IsZero());
+    return std::max(3 * rtt_stats_.initial_rtt(),
+                    QuicTime::Delta::FromMilliseconds(kMinHandshakeTimeoutMs)) *
+           (1 << consecutive_pto_count_);
   }
   const QuicTime::Delta rtt_var = use_standard_deviation_for_pto_
                                       ? rtt_stats_.GetStandardOrMeanDeviation()
