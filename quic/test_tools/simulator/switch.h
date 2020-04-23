@@ -80,7 +80,7 @@ class Switch {
   // This can not be a QuicCircularDeque since pointers into this are
   // assumed to be stable.
   std::deque<Port> ports_;
-  QuicUnorderedMap<std::string, Port*> switching_table_;
+  QuicHashMap<std::string, Port*> switching_table_;
 };
 
 }  // namespace simulator

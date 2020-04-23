@@ -44,7 +44,7 @@ class TrafficPolicer : public PacketFilter {
   QuicTime last_refill_time_;
 
   // Maps each destination to the number of tokens it has left.
-  QuicUnorderedMap<std::string, QuicByteCount> token_buckets_;
+  QuicHashMap<std::string, QuicByteCount> token_buckets_;
 };
 
 }  // namespace simulator

@@ -117,7 +117,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                bool* version_present);
 
   QuicSession* masque_session_;  // Unowned.
-  QuicUnorderedMap<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
+  QuicHashMap<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
   QuicDatagramFlowId next_flow_id_;
 };
 

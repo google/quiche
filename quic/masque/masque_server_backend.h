@@ -57,9 +57,9 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
       QuicSimpleServerBackend::RequestHandler* request_handler);
 
   std::string server_authority_;
-  QuicUnorderedMap<std::string, std::unique_ptr<QuicBackendResponse>>
+  QuicHashMap<std::string, std::unique_ptr<QuicBackendResponse>>
       active_response_map_;
-  QuicUnorderedMap<QuicConnectionId, BackendClient*, QuicConnectionIdHash>
+  QuicHashMap<QuicConnectionId, BackendClient*, QuicConnectionIdHash>
       backend_clients_;
 };
 

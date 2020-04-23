@@ -86,9 +86,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   void UnregisterConnectionId(QuicConnectionId client_connection_id);
 
  private:
-  QuicUnorderedMap<QuicConnectionId,
-                   EncapsulatedClientSession*,
-                   QuicConnectionIdHash>
+  QuicHashMap<QuicConnectionId,
+              EncapsulatedClientSession*,
+              QuicConnectionIdHash>
       client_connection_id_registrations_;
   Owner* owner_;  // Unowned;
   MasqueCompressionEngine compression_engine_;

@@ -59,12 +59,12 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
  private:
   using SendBufferMap =
-      QuicUnorderedMap<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
+      QuicHashMap<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
 
   using CryptoBufferMap =
-      QuicUnorderedMap<std::pair<EncryptionLevel, QuicStreamOffset>,
-                       quiche::QuicheStringPiece,
-                       PairHash>;
+      QuicHashMap<std::pair<EncryptionLevel, QuicStreamOffset>,
+                  quiche::QuicheStringPiece,
+                  PairHash>;
 
   SimpleBufferAllocator allocator_;
 

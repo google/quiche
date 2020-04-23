@@ -89,7 +89,7 @@ class QuartcSendChannel {
   // to demux sent, acked, and lost messages, the multiplexer assigns a globally
   // unique id to each message.  This map is used to restore the original caller
   // datagram id before issuing callbacks.
-  QuicUnorderedMap<int64_t, int64_t> multiplexer_to_user_datagram_ids_;
+  QuicHashMap<int64_t, int64_t> multiplexer_to_user_datagram_ids_;
 };
 
 // A single, multiplexed receive channel within a Quartc session.  A receive
@@ -178,11 +178,11 @@ class QuartcMultiplexer : public QuartcEndpoint::Delegate,
 
   QuartcSession* session_ = nullptr;
   std::vector<std::unique_ptr<QuartcSendChannel>> send_channels_;
-  QuicUnorderedMap<uint64_t, QuartcReceiveChannel*> receive_channels_;
+  QuicHashMap<uint64_t, QuartcReceiveChannel*> receive_channels_;
   QuartcReceiveChannel* default_receive_channel_ = nullptr;
 
   int64_t next_datagram_id_ = 1;
-  QuicUnorderedMap<int64_t, QuartcSendChannel*> send_channels_by_datagram_id_;
+  QuicHashMap<int64_t, QuartcSendChannel*> send_channels_by_datagram_id_;
 };
 
 }  // namespace quic

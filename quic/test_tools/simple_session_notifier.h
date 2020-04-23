@@ -101,7 +101,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   friend std::ostream& operator<<(std::ostream& os, const StreamState& s);
 
-  using StreamMap = QuicUnorderedMap<QuicStreamId, StreamState>;
+  using StreamMap = QuicHashMap<QuicStreamId, StreamState>;
 
   void OnStreamDataConsumed(QuicStreamId id,
                             QuicStreamOffset offset,

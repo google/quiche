@@ -178,7 +178,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                                  QuicBackendResponse::ServerPushInfo resource);
 
   // Cached responses.
-  QuicUnorderedMap<std::string, std::unique_ptr<QuicBackendResponse>> responses_
+  QuicHashMap<std::string, std::unique_ptr<QuicBackendResponse>> responses_
       QUIC_GUARDED_BY(response_mutex_);
 
   // The default response for cache misses, if set.

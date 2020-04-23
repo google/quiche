@@ -244,7 +244,7 @@ class QuartcSession : public QuicSession,
 
   // Maps message ids to datagram ids, so we could translate message ACKs
   // received from QUIC to datagram ACKs that are propagated up the stack.
-  QuicUnorderedMap<QuicMessageId, int64_t> message_to_datagram_id_;
+  QuicHashMap<QuicMessageId, int64_t> message_to_datagram_id_;
 };
 
 class QuartcClientSession : public QuartcSession,

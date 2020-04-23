@@ -59,9 +59,8 @@ class QuicTcpLikeTraceConverter {
     bool fin;
   };
 
-  QuicUnorderedMap<QuicStreamId, StreamInfo> streams_info_;
-  QuicUnorderedMap<QuicControlFrameId, QuicInterval<uint64_t>>
-      control_frames_info_;
+  QuicHashMap<QuicStreamId, StreamInfo> streams_info_;
+  QuicHashMap<QuicControlFrameId, QuicInterval<uint64_t>> control_frames_info_;
 
   QuicControlFrameId largest_observed_control_frame_id_;
 

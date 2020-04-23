@@ -149,7 +149,7 @@ class QuicEndpointMultiplexer : public Endpoint,
   void Act() override {}
 
  private:
-  QuicUnorderedMap<std::string, QuicEndpointBase*> mapping_;
+  QuicHashMap<std::string, QuicEndpointBase*> mapping_;
 };
 
 }  // namespace simulator
