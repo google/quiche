@@ -29,12 +29,23 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
               ? (QuicVersionUsesCryptoFrames(transport_version_)
                      ? QuicUtils::GetInvalidStreamId(transport_version_)
                      : QuicUtils::GetCryptoStreamId(transport_version_))
-              : QuicUtils::GetInvalidStreamId(transport_version_)) {}
+              : QuicUtils::GetInvalidStreamId(transport_version_)),
+      num_open_incoming_streams_(0),
+      num_open_outgoing_streams_(0),
+      handles_accounting_(
+          GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {}
 
 LegacyQuicStreamIdManager::~LegacyQuicStreamIdManager() {}
 
 bool LegacyQuicStreamIdManager::CanOpenNextOutgoingStream(
     size_t current_num_open_outgoing_streams) const {
+  if (handles_accounting_) {
+    DCHECK_LE(num_open_outgoing_streams_, max_open_outgoing_streams_);
+    QUIC_DLOG_IF(INFO, num_open_outgoing_streams_ == max_open_outgoing_streams_)
+        << "Failed to create a new outgoing stream. "
+        << "Already " << num_open_outgoing_streams_ << " open.";
+    return num_open_outgoing_streams_ < max_open_outgoing_streams_;
+  }
   if (current_num_open_outgoing_streams >= max_open_outgoing_streams_) {
     QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
                     << "Already " << current_num_open_outgoing_streams
@@ -46,6 +57,9 @@ bool LegacyQuicStreamIdManager::CanOpenNextOutgoingStream(
 
 bool LegacyQuicStreamIdManager::CanOpenIncomingStream(
     size_t current_num_open_incoming_streams) const {
+  if (handles_accounting_) {
+    return num_open_incoming_streams_ < max_open_incoming_streams_;
+  }
   // Check if the new number of open streams would cause the number of
   // open streams to exceed the limit.
   return current_num_open_incoming_streams < max_open_incoming_streams_;
@@ -100,6 +114,26 @@ QuicStreamId LegacyQuicStreamIdManager::GetNextOutgoingStreamId() {
   QuicStreamId id = next_outgoing_stream_id_;
   next_outgoing_stream_id_ += 2;
   return id;
+}
+
+void LegacyQuicStreamIdManager::ActivateStream(bool is_incoming) {
+  DCHECK(handles_accounting_);
+  if (is_incoming) {
+    ++num_open_incoming_streams_;
+    return;
+  }
+  ++num_open_outgoing_streams_;
+}
+
+void LegacyQuicStreamIdManager::OnStreamClosed(bool is_incoming) {
+  DCHECK(handles_accounting_);
+  if (is_incoming) {
+    QUIC_BUG_IF(num_open_incoming_streams_ == 0);
+    --num_open_incoming_streams_;
+    return;
+  }
+  QUIC_BUG_IF(num_open_outgoing_streams_ == 0);
+  --num_open_outgoing_streams_;
 }
 
 bool LegacyQuicStreamIdManager::IsAvailableStream(QuicStreamId id) const {

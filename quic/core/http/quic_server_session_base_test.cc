@@ -236,7 +236,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         quiche::QuicheStringPiece("HT"));
   session_->OnStreamFrame(data1);
-  EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   // Send a reset (and expect the peer to send a RST in response).
   QuicRstStreamFrame rst1(kInvalidControlFrameId,
@@ -258,13 +258,12 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM);
 
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
-
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   // Send the same two bytes of payload in a new packet.
   session_->OnStreamFrame(data1);
 
   // The stream should not be re-opened.
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   EXPECT_TRUE(connection_->connected());
 }
 
@@ -289,15 +288,14 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
   InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM);
 
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
-
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                         quiche::QuicheStringPiece("HT"));
   session_->OnStreamFrame(data1);
 
   // The stream should never be opened, now that the reset is received.
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   EXPECT_TRUE(connection_->connected());
 }
 
@@ -309,7 +307,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
                          quiche::QuicheStringPiece("\2\0\0\0\0\0\0\0HT"));
   session_->OnStreamFrame(frame1);
   session_->OnStreamFrame(frame2);
-  EXPECT_EQ(2u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   // Send a reset (and expect the peer to send a RST in response).
   QuicRstStreamFrame rst(kInvalidControlFrameId,
@@ -341,7 +339,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   session_->OnStreamFrame(frame3);
   session_->OnStreamFrame(frame4);
   // The stream should never be opened, now that the reset is received.
-  EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   EXPECT_TRUE(connection_->connected());
 }
 
@@ -361,7 +359,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     EXPECT_EQ(kMaxStreamsForTest + kMaxStreamsMinimumIncrement,
               session_->max_open_incoming_bidirectional_streams());
   }
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   // Open the max configured number of streams, should be no problem.
   for (size_t i = 0; i < kMaxStreamsForTest; ++i) {
@@ -407,7 +405,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   const size_t kAvailableStreamLimit =
       session_->MaxAvailableBidirectionalStreams();
 
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   EXPECT_TRUE(QuicServerSessionBasePeer::GetOrCreateStream(
       session_.get(), GetNthClientInitiatedBidirectionalId(0)));
 

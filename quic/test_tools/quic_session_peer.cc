@@ -233,5 +233,21 @@ void QuicSessionPeer::SetPerspective(QuicSession* session,
   session->perspective_ = perspective;
 }
 
+// static
+size_t QuicSessionPeer::GetNumOpenDynamicStreams(QuicSession* session) {
+  size_t result = 0;
+  for (const auto& it : session->stream_map_) {
+    if (!it.second->is_static()) {
+      ++result;
+    }
+  }
+  // Exclude draining streams.
+  result -= session->GetNumDrainingStreams();
+  // Add locally closed streams.
+  result += session->locally_closed_streams_highest_offset_.size();
+
+  return result;
+}
+
 }  // namespace test
 }  // namespace quic

@@ -754,7 +754,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_FALSE(stream_->reading_stopped());
 
-  EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   // Outgoing data with FIN.
   EXPECT_CALL(*session_, WritevData(kTestStreamId, _, _, _, _, _))
@@ -767,7 +767,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
   EXPECT_TRUE(stream_->write_side_closed());
 
   EXPECT_EQ(1u, session_->GetNumDrainingStreams());
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 
 TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
@@ -784,7 +784,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
                              nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
-  EXPECT_EQ(1u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   // Incoming data with FIN.
   QuicStreamFrame stream_frame_with_fin(stream_->id(), true, 1234, ".");
@@ -795,7 +795,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
   EXPECT_FALSE(stream_->reading_stopped());
 
   EXPECT_EQ(1u, session_->GetNumDrainingStreams());
-  EXPECT_EQ(0u, session_->GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 
 TEST_P(QuicStreamTest, EarlyResponseFinHandling) {

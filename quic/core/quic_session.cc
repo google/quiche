@@ -939,6 +939,10 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
       // Do not bother informing stream ID manager if connection is closed.
       v99_streamid_manager_.OnStreamClosed(stream_id);
     }
+  } else if (stream_id_manager_.handles_accounting() && had_fin_or_rst &&
+             connection_->connected()) {
+    stream_id_manager_.OnStreamClosed(
+        /*is_incoming=*/IsIncomingStream(stream_id));
   }
 
   stream->OnClose();
@@ -1023,6 +1027,11 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     // disconnected.
     return;
   }
+  if (stream_id_manager_.handles_accounting() &&
+      !VersionHasIetfQuicFrames(transport_version())) {
+    stream_id_manager_.OnStreamClosed(
+        /*is_incoming=*/IsIncomingStream(stream_id));
+  }
   if (IsIncomingStream(stream_id)) {
     // Stream Id manager is only interested in peer initiated stream IDs.
     if (VersionHasIetfQuicFrames(transport_version())) {
@@ -1037,10 +1046,9 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
 
 void QuicSession::ClosePendingStream(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
-
+  DCHECK(VersionHasIetfQuicFrames(transport_version()));
   pending_stream_map_.erase(stream_id);
-  if (VersionHasIetfQuicFrames(transport_version()) &&
-      connection_->connected()) {
+  if (connection_->connected()) {
     v99_streamid_manager_.OnStreamClosed(stream_id);
   }
 }
@@ -1070,6 +1078,11 @@ void QuicSession::OnFinalByteOffsetReceived(
 
   flow_controller_.AddBytesConsumed(offset_diff);
   locally_closed_streams_highest_offset_.erase(it);
+  if (stream_id_manager_.handles_accounting() &&
+      !VersionHasIetfQuicFrames(transport_version())) {
+    stream_id_manager_.OnStreamClosed(
+        /*is_incoming=*/IsIncomingStream(stream_id));
+  }
   if (IsIncomingStream(stream_id)) {
     --num_locally_closed_incoming_streams_highest_offset_;
     if (VersionHasIetfQuicFrames(transport_version())) {
@@ -1586,6 +1599,12 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
   } else if (is_static) {
     ++num_outgoing_static_streams_;
   }
+  if (stream_id_manager_.handles_accounting() && !is_static &&
+      !VersionHasIetfQuicFrames(transport_version())) {
+    // Do not inform stream ID manager of static streams.
+    stream_id_manager_.ActivateStream(
+        /*is_incoming=*/IsIncomingStream(stream_id));
+  }
 
   if (VersionHasIetfQuicFrames(transport_version()) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id) && is_static) {
@@ -1704,6 +1723,9 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
     QUIC_DVLOG(1) << ENDPOINT << "Stream " << stream_id << " is draining";
     if (VersionHasIetfQuicFrames(transport_version())) {
       v99_streamid_manager_.OnStreamClosed(stream_id);
+    } else if (stream_id_manager_.handles_accounting()) {
+      stream_id_manager_.OnStreamClosed(
+          /*is_incoming=*/IsIncomingStream(stream_id));
     }
     if (IsIncomingStream(stream_id)) {
       ++num_draining_incoming_streams_;
@@ -1720,6 +1742,9 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
     }
     if (VersionHasIetfQuicFrames(transport_version())) {
       v99_streamid_manager_.OnStreamClosed(stream_id);
+    } else if (stream_id_manager_.handles_accounting()) {
+      stream_id_manager_.OnStreamClosed(
+          /*is_incoming=*/IsIncomingStream(stream_id));
     }
   }
   if (!IsIncomingStream(stream_id)) {
@@ -1853,11 +1878,19 @@ bool QuicSession::IsStaticStream(QuicStreamId id) const {
 }
 
 size_t QuicSession::GetNumOpenIncomingStreams() const {
+  DCHECK(!VersionHasIetfQuicFrames(transport_version()));
+  if (stream_id_manager_.handles_accounting()) {
+    return stream_id_manager_.num_open_incoming_streams();
+  }
   return num_dynamic_incoming_streams_ - num_draining_incoming_streams_ +
          num_locally_closed_incoming_streams_highest_offset_;
 }
 
 size_t QuicSession::GetNumOpenOutgoingStreams() const {
+  DCHECK(!VersionHasIetfQuicFrames(transport_version()));
+  if (stream_id_manager_.handles_accounting()) {
+    return stream_id_manager_.num_open_outgoing_streams();
+  }
   DCHECK_GE(GetNumDynamicOutgoingStreams() +
                 GetNumLocallyClosedOutgoingStreamsHighestOffset(),
             GetNumDrainingOutgoingStreams());
@@ -1867,6 +1900,14 @@ size_t QuicSession::GetNumOpenOutgoingStreams() const {
 }
 
 size_t QuicSession::GetNumActiveStreams() const {
+  if (!VersionHasIetfQuicFrames(transport_version()) &&
+      stream_id_manager_.handles_accounting()) {
+    // Exclude locally_closed_streams when determine whether to keep connection
+    // alive.
+    return stream_id_manager_.num_open_incoming_streams() +
+           stream_id_manager_.num_open_outgoing_streams() -
+           locally_closed_streams_highest_offset_.size();
+  }
   return stream_map_.size() - GetNumDrainingStreams() -
          num_incoming_static_streams_ - num_outgoing_static_streams_;
 }

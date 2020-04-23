@@ -46,6 +46,12 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
   // underlying counter.
   QuicStreamId GetNextOutgoingStreamId();
 
+  // Called when a new stream is open.
+  void ActivateStream(bool is_incoming);
+
+  // Called when a stream ID is closed.
+  void OnStreamClosed(bool is_incoming);
+
   // Return true if |id| is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
 
@@ -82,6 +88,15 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
 
   size_t GetNumAvailableStreams() const;
 
+  size_t num_open_incoming_streams() const {
+    return num_open_incoming_streams_;
+  }
+  size_t num_open_outgoing_streams() const {
+    return num_open_outgoing_streams_;
+  }
+
+  bool handles_accounting() const { return handles_accounting_; }
+
  private:
   friend class test::QuicSessionPeer;
 
@@ -102,6 +117,17 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
   QuicHashSet<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
+
+  // A counter for peer initiated open streams. Used when handles_accounting_ is
+  // true.
+  size_t num_open_incoming_streams_;
+
+  // A counter for self initiated open streams. Used when handles_accounting_ is
+  // true.
+  size_t num_open_outgoing_streams_;
+
+  // Latched value of quic_stream_id_manager_handles_accounting.
+  const bool handles_accounting_;
 };
 
 }  // namespace quic

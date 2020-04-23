@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
@@ -254,7 +255,8 @@ TEST_F(QuicTransportIntegrationTest, SendOutgoingStreams) {
   }
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
       [this]() {
-        return server_->session()->GetNumOpenIncomingStreams() == 10;
+        return QuicSessionPeer::GetNumOpenDynamicStreams(server_->session()) ==
+               10;
       },
       kDefaultTimeout));
 
@@ -262,7 +264,10 @@ TEST_F(QuicTransportIntegrationTest, SendOutgoingStreams) {
     ASSERT_TRUE(stream->SendFin());
   }
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
-      [this]() { return server_->session()->GetNumOpenIncomingStreams() == 0; },
+      [this]() {
+        return QuicSessionPeer::GetNumOpenDynamicStreams(server_->session()) ==
+               0;
+      },
       kDefaultTimeout));
 }
 
@@ -284,7 +289,10 @@ TEST_F(QuicTransportIntegrationTest, EchoBidirectionalStreams) {
 
   EXPECT_TRUE(stream->SendFin());
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
-      [this]() { return server_->session()->GetNumOpenIncomingStreams() == 0; },
+      [this]() {
+        return QuicSessionPeer::GetNumOpenDynamicStreams(server_->session()) ==
+               0;
+      },
       kDefaultTimeout));
 }
 

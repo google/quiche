@@ -213,9 +213,9 @@ class TestSession : public QuicSession {
 
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
-    if (GetNumOpenIncomingStreams() + 1 >
-            max_open_incoming_bidirectional_streams() &&
-        !VersionHasIetfQuicFrames(connection()->transport_version())) {
+    if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
+        GetNumOpenIncomingStreams() + 1 >
+            max_open_incoming_bidirectional_streams()) {
       // No need to do this test for version 99; it's done by
       // QuicSession::GetOrCreateStream.
       connection()->CloseConnection(
@@ -1936,20 +1936,20 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
   session_.OnStreamFrame(data1);
   EXPECT_TRUE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
-  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 
   QuicRstStreamFrame rst1(kInvalidControlFrameId, stream_id,
                           QUIC_ERROR_PROCESSING_STREAM, 12);
   session_.OnRstStream(rst1);
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
-  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 
   QuicStreamFrame data2(stream_id, false, 0, quiche::QuicheStringPiece("HT"));
   session_.OnStreamFrame(data2);
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
-  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 }
 
 TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
@@ -1965,7 +1965,7 @@ TEST_P(QuicSessionTestServer, OnFinPendingStreams) {
 
   EXPECT_FALSE(QuicSessionPeer::GetPendingStream(&session_, stream_id));
   EXPECT_EQ(0, session_.num_incoming_streams_created());
-  EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 }
 
 TEST_P(QuicSessionTestServer, PendingStreamOnWindowUpdate) {
@@ -2018,9 +2018,9 @@ TEST_P(QuicSessionTestServer, DrainingStreamsDoNotCountAsOpened) {
        i += QuicUtils::StreamIdDelta(connection_->transport_version())) {
     QuicStreamFrame data1(i, true, 0, quiche::QuicheStringPiece("HT"));
     session_.OnStreamFrame(data1);
-    EXPECT_EQ(1u, session_.GetNumOpenIncomingStreams());
+    EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
     session_.StreamDraining(i, /*unidirectional=*/false);
-    EXPECT_EQ(0u, session_.GetNumOpenIncomingStreams());
+    EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
   }
 }
 
