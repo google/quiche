@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/core/tls_chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -481,9 +482,37 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   switch (fate) {
     case kFateProcess: {
       if (packet_info->version.handshake_protocol == PROTOCOL_TLS1_3) {
-        // TODO(nharper): Support buffering non-ClientHello packets when using
-        // TLS.
-        ProcessChlo(/*alpn=*/"", packet_info);
+        bool has_full_tls_chlo = false;
+        std::vector<std::string> alpns;
+        if (buffered_packets_.HasBufferedPackets(
+                packet_info->destination_connection_id)) {
+          // If we already have buffered packets for this connection ID,
+          // use the associated TlsChloExtractor to parse this packet.
+          has_full_tls_chlo =
+              buffered_packets_.IngestPacketForTlsChloExtraction(
+                  packet_info->destination_connection_id, packet_info->version,
+                  packet_info->packet, &alpns);
+        } else {
+          // If we do not have a BufferedPacketList for this connection ID,
+          // create a single-use one to check whether this packet contains a
+          // full single-packet CHLO.
+          TlsChloExtractor tls_chlo_extractor;
+          tls_chlo_extractor.IngestPacket(packet_info->version,
+                                          packet_info->packet);
+          if (tls_chlo_extractor.HasParsedFullChlo()) {
+            // This packet contains a full single-packet CHLO.
+            has_full_tls_chlo = true;
+            alpns = tls_chlo_extractor.alpns();
+          }
+        }
+        if (has_full_tls_chlo) {
+          ProcessChlo(alpns, packet_info);
+        } else {
+          // This packet does not contain a full CHLO. It could be a 0-RTT
+          // packet that arrived before the CHLO (due to loss or reordering),
+          // or it could be a fragment of a multi-packet CHLO.
+          BufferEarlyPacket(*packet_info);
+        }
         break;
       }
       if (GetQuicFlag(FLAGS_quic_allow_chlo_buffering) &&
@@ -495,7 +524,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         BufferEarlyPacket(*packet_info);
         break;
       }
-      ProcessChlo(alpn_extractor.ConsumeAlpn(), packet_info);
+      ProcessChlo({alpn_extractor.ConsumeAlpn()}, packet_info);
     } break;
     case kFateTimeWait:
       // Add this connection_id to the time-wait state, to safely reject
@@ -911,13 +940,13 @@ void QuicDispatcher::BufferEarlyPacket(const ReceivedPacketInfo& packet_info) {
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet,
       packet_info.self_address, packet_info.peer_address, /*is_chlo=*/false,
-      /*alpn=*/"", packet_info.version);
+      /*alpns=*/{}, packet_info.version);
   if (rs != EnqueuePacketResult::SUCCESS) {
     OnBufferPacketFailure(rs, packet_info.destination_connection_id);
   }
 }
 
-void QuicDispatcher::ProcessChlo(const std::string& alpn,
+void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
                                  ReceivedPacketInfo* packet_info) {
   if (!buffered_packets_.HasBufferedPackets(
           packet_info->destination_connection_id) &&
@@ -933,7 +962,7 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
         packet_info->destination_connection_id,
         packet_info->form != GOOGLE_QUIC_PACKET, packet_info->packet,
         packet_info->self_address, packet_info->peer_address,
-        /*is_chlo=*/true, alpn, packet_info->version);
+        /*is_chlo=*/true, alpns, packet_info->version);
     if (rs != EnqueuePacketResult::SUCCESS) {
       OnBufferPacketFailure(rs, packet_info->destination_connection_id);
     }
@@ -945,6 +974,7 @@ void QuicDispatcher::ProcessChlo(const std::string& alpn,
   packet_info->destination_connection_id = MaybeReplaceServerConnectionId(
       original_connection_id, packet_info->version);
   // Creates a new session and process all buffered packets for this connection.
+  std::string alpn = SelectAlpn(alpns);
   std::unique_ptr<QuicSession> session =
       CreateQuicSession(packet_info->destination_connection_id,
                         packet_info->peer_address, alpn, packet_info->version);

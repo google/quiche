@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer_wrapper.h"
@@ -304,7 +305,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicSocketAddress& peer_address,
       const ParsedQuicVersion& version,
       const QuicConnectionId& server_connection_id) {
-    if (ChloExtractor::Extract(*received_packet, version, {}, nullptr,
+    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+        ChloExtractor::Extract(*received_packet, version, {}, nullptr,
                                server_connection_id.length())) {
       // Add CHLO packet to the beginning to be verified first, because it is
       // also processed first by new session.
@@ -392,10 +394,6 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   std::string ExpectedAlpnForVersion(ParsedQuicVersion version) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-      // TODO(b/149597791) Remove this once we can parse ALPN with TLS.
-      return "";
-    }
     return AlpnForVersion(version);
   }
 
@@ -433,6 +431,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         .Times(0);
     ProcessFirstFlight(version, client_address, connection_id);
   }
+
+  void TestTlsMultiPacketClientHello(bool add_reordering);
 
   ParsedQuicVersion version_;
   MockQuicConnectionHelper mock_helper_;
@@ -486,6 +486,62 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
                   ReceivedPacketInfoConnectionIdEquals(TestConnectionId(1))));
 
   ProcessFirstFlight(client_address, TestConnectionId(1));
+}
+
+void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
+    bool add_reordering) {
+  if (version_.handshake_protocol != PROTOCOL_TLS1_3) {
+    return;
+  }
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  QuicConnectionId server_connection_id = TestConnectionId();
+  QuicConfig client_config = DefaultQuicConfig();
+  // Add a 2000-byte custom parameter to increase the length of the CHLO.
+  constexpr auto kCustomParameterId =
+      static_cast<TransportParameters::TransportParameterId>(0xff33);
+  std::string kCustomParameterValue(2000, '-');
+  client_config.custom_transport_parameters_to_send()[kCustomParameterId] =
+      kCustomParameterValue;
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      GetFirstFlightOfPackets(version_, client_config, server_connection_id);
+  ASSERT_EQ(packets.size(), 2u);
+  if (add_reordering) {
+    std::swap(packets[0], packets[1]);
+  }
+
+  // Processing the first packet should not create a new session.
+  EXPECT_CALL(*dispatcher_,
+              ShouldCreateOrBufferPacketForConnection(
+                  ReceivedPacketInfoConnectionIdEquals(server_connection_id)));
+  ProcessReceivedPacket(std::move(packets[0]), client_address, version_,
+                        server_connection_id);
+
+  EXPECT_EQ(dispatcher_->session_map().size(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+
+  // Processing the second packet should create the new session.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(server_connection_id, client_address,
+                                Eq(ExpectedAlpn()), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, server_connection_id, client_address,
+          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(2);
+
+  ProcessReceivedPacket(std::move(packets[1]), client_address, version_,
+                        server_connection_id);
+  EXPECT_EQ(dispatcher_->session_map().size(), 1u);
+}
+
+TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHello) {
+  TestTlsMultiPacketClientHello(/*add_reordering=*/false);
+}
+
+TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHelloWithReordering) {
+  TestTlsMultiPacketClientHello(/*add_reordering=*/true);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, ProcessPackets) {

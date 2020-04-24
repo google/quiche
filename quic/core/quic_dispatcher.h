@@ -196,7 +196,8 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Called when |packet_info| is a CHLO packet. Creates a new connection and
   // delivers any buffered packets for that connection id.
-  void ProcessChlo(const std::string& alpn, ReceivedPacketInfo* packet_info);
+  void ProcessChlo(const std::vector<std::string>& alpns,
+                   ReceivedPacketInfo* packet_info);
 
   // Return true if dispatcher wants to destroy session outside of
   // OnConnectionClosed() call stack.
