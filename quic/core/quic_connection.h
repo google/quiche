@@ -217,8 +217,15 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // match the ID of this connection.
   virtual void OnIncorrectConnectionId(QuicConnectionId /*connection_id*/) {}
 
-  // Called when an undecryptable packet has been received.
-  virtual void OnUndecryptablePacket() {}
+  // Called when an undecryptable packet has been received. If |dropped| is
+  // true, the packet has been dropped. Otherwise, the packet will be queued and
+  // connection will attempt to process it later.
+  virtual void OnUndecryptablePacket(EncryptionLevel /*decryption_level*/,
+                                     bool /*dropped*/) {}
+
+  // Called when attempting to process a previously undecryptable packet.
+  virtual void OnAttemptingToProcessUndecryptablePacket(
+      EncryptionLevel /*decryption_level*/) {}
 
   // Called when a duplicate packet has been received.
   virtual void OnDuplicatePacket(QuicPacketNumber /*packet_number*/) {}
@@ -1053,6 +1060,19 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const QuicSocketAddress peer_address;
   };
 
+  // UndecrytablePacket comprises a undecryptable packet and the its encryption
+  // level.
+  struct QUIC_EXPORT_PRIVATE UndecryptablePacket {
+    UndecryptablePacket(const QuicEncryptedPacket& packet,
+                        EncryptionLevel encryption_level)
+        : packet(packet.Clone()), encryption_level(encryption_level) {}
+
+    std::unique_ptr<QuicEncryptedPacket> packet;
+    // Currently, |encryption_level| is only used for logging and does not
+    // affect processing of the packet.
+    EncryptionLevel encryption_level;
+  };
+
   // Notifies the visitor of the close and marks the connection as disconnected.
   // Does not send a connection close frame to the peer. It should only be
   // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
@@ -1102,7 +1122,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Queues |packet| in the hopes that it can be decrypted in the
   // future, when a new key is installed.
-  void QueueUndecryptablePacket(const QuicEncryptedPacket& packet);
+  void QueueUndecryptablePacket(const QuicEncryptedPacket& packet,
+                                EncryptionLevel decryption_level);
 
   // Sends any packets which are a response to the last packet, including both
   // acks and pending writes if an ack opened the congestion window.
@@ -1331,8 +1352,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // established, but which could not be decrypted.  We buffer these on
   // the assumption that they could not be processed because they were
   // sent with the INITIAL encryption and the CHLO message was lost.
-  QuicCircularDeque<std::unique_ptr<QuicEncryptedPacket>>
-      undecryptable_packets_;
+  QuicCircularDeque<UndecryptablePacket> undecryptable_packets_;
 
   // Collection of coalesced packets which were received while processing
   // the current packet.

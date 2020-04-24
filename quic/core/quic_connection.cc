@@ -1733,9 +1733,12 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
   }
 
   if (should_enqueue) {
-    QueueUndecryptablePacket(packet);
-  } else if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnUndecryptablePacket();
+    QueueUndecryptablePacket(packet, decryption_level);
+  }
+
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnUndecryptablePacket(decryption_level,
+                                          /*dropped=*/!should_enqueue);
   }
 }
 
@@ -2835,16 +2838,17 @@ const QuicDecrypter* QuicConnection::alternative_decrypter() const {
 }
 
 void QuicConnection::QueueUndecryptablePacket(
-    const QuicEncryptedPacket& packet) {
+    const QuicEncryptedPacket& packet,
+    EncryptionLevel decryption_level) {
   for (const auto& saved_packet : undecryptable_packets_) {
-    if (packet.data() == saved_packet->data() &&
-        packet.length() == saved_packet->length()) {
+    if (packet.data() == saved_packet.packet->data() &&
+        packet.length() == saved_packet.packet->length()) {
       QUIC_DVLOG(1) << ENDPOINT << "Not queueing known undecryptable packet";
       return;
     }
   }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
-  undecryptable_packets_.push_back(packet.Clone());
+  undecryptable_packets_.emplace_back(packet, decryption_level);
 }
 
 void QuicConnection::MaybeProcessUndecryptablePackets() {
@@ -2863,8 +2867,12 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       return;
     }
     QUIC_DVLOG(1) << ENDPOINT << "Attempting to process undecryptable packet";
-    QuicEncryptedPacket* packet = undecryptable_packets_.front().get();
-    if (!framer_.ProcessPacket(*packet) &&
+    const auto& undecryptable_packet = undecryptable_packets_.front();
+    if (debug_visitor_ != nullptr) {
+      debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
+          undecryptable_packet.encryption_level);
+    }
+    if (!framer_.ProcessPacket(*undecryptable_packet.packet) &&
         framer_.error() == QUIC_DECRYPTION_FAILURE) {
       QUIC_DVLOG(1) << ENDPOINT << "Unable to process undecryptable packet...";
       break;
@@ -2879,11 +2887,9 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
   // never be able to be decrypted.
   if (encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
     if (debug_visitor_ != nullptr) {
-      // TODO(rtenneti): perhaps more efficient to pass the number of
-      // undecryptable packets as the argument to OnUndecryptablePacket so that
-      // we just need to call OnUndecryptablePacket once?
-      for (size_t i = 0; i < undecryptable_packets_.size(); ++i) {
-        debug_visitor_->OnUndecryptablePacket();
+      for (const auto& undecryptable_packet : undecryptable_packets_) {
+        debug_visitor_->OnUndecryptablePacket(
+            undecryptable_packet.encryption_level, /*dropped=*/true);
       }
     }
     undecryptable_packets_.clear();
