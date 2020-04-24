@@ -26,6 +26,34 @@ TlsChloExtractor::TlsChloExtractor()
       state_(State::kInitial),
       parsed_crypto_frame_in_this_packet_(false) {}
 
+TlsChloExtractor::TlsChloExtractor(TlsChloExtractor&& other)
+    : TlsChloExtractor() {
+  *this = std::move(other);
+}
+
+TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
+  framer_ = std::move(other.framer_);
+  if (framer_) {
+    framer_->set_visitor(this);
+  }
+  crypto_stream_sequencer_ = std::move(other.crypto_stream_sequencer_);
+  crypto_stream_sequencer_.set_stream(this);
+  ssl_ = std::move(other.ssl_);
+  if (ssl_) {
+    std::pair<SSL_CTX*, int> shared_handles = GetSharedSslHandles();
+    int ex_data_index = shared_handles.second;
+    const int rv = SSL_set_ex_data(ssl_.get(), ex_data_index, this);
+    CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
+  }
+  state_ = other.state_;
+  error_details_ = std::move(other.error_details_);
+  parsed_crypto_frame_in_this_packet_ =
+      other.parsed_crypto_frame_in_this_packet_;
+  alpns_ = std::move(other.alpns_);
+  server_name_ = std::move(other.server_name_);
+  return *this;
+}
+
 void TlsChloExtractor::IngestPacket(const ParsedQuicVersion& version,
                                     const QuicReceivedPacket& packet) {
   if (state_ == State::kUnrecoverableFailure) {
@@ -318,13 +346,7 @@ void TlsChloExtractor::SetupSslHandle() {
 
   ssl_ = bssl::UniquePtr<SSL>(SSL_new(ssl_ctx));
   const int rv = SSL_set_ex_data(ssl_.get(), ex_data_index, this);
-  if (rv != 1) {
-    std::string error_details =
-        quiche::QuicheStrCat("SSL_set_ex_data(", ex_data_index, ") failed");
-    QUIC_BUG << error_details;
-    HandleUnrecoverableError(error_details);
-    return;
-  }
+  CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
   SSL_set_accept_state(ssl_.get());
 }
 
@@ -362,6 +384,12 @@ std::string TlsChloExtractor::StateToString(State state) {
       return "UnrecoverableFailure";
   }
   return quiche::QuicheStrCat("Unknown(", static_cast<int>(state), ")");
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const TlsChloExtractor::State& state) {
+  os << TlsChloExtractor::StateToString(state);
+  return os;
 }
 
 }  // namespace quic

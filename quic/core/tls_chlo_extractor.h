@@ -28,9 +28,9 @@ class QUIC_NO_EXPORT TlsChloExtractor
  public:
   TlsChloExtractor();
   TlsChloExtractor(const TlsChloExtractor&) = delete;
-  TlsChloExtractor(TlsChloExtractor&&) = default;
+  TlsChloExtractor(TlsChloExtractor&&);
   TlsChloExtractor& operator=(const TlsChloExtractor&) = delete;
-  TlsChloExtractor& operator=(TlsChloExtractor&&) = default;
+  TlsChloExtractor& operator=(TlsChloExtractor&&);
 
   enum class State : uint8_t {
     kInitial = 0,
@@ -228,6 +228,10 @@ class QUIC_NO_EXPORT TlsChloExtractor
   // SNI parsed from the CHLO.
   std::string server_name_;
 };
+
+// Convenience method to facilitate logging TlsChloExtractor::State.
+QUIC_NO_EXPORT std::ostream& operator<<(std::ostream& os,
+                                        const TlsChloExtractor::State& state);
 
 }  // namespace quic
 
