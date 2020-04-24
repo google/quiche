@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include <cstdint>
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
@@ -199,6 +200,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_HTTP_MISSING_SETTINGS_FRAME);
     RETURN_STRING_LITERAL(QUIC_HTTP_DUPLICATE_SETTING_IDENTIFIER);
     RETURN_STRING_LITERAL(QUIC_HTTP_INVALID_MAX_PUSH_ID);
+    RETURN_STRING_LITERAL(QUIC_HTTP_STREAM_LIMIT_TOO_LOW);
     RETURN_STRING_LITERAL(QUIC_HPACK_INDEX_VARINT_ERROR);
     RETURN_STRING_LITERAL(QUIC_HPACK_NAME_LENGTH_VARINT_ERROR);
     RETURN_STRING_LITERAL(QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR);
@@ -560,6 +562,9 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {false, static_cast<uint64_t>(QuicHttp3ErrorCode::SETTINGS_ERROR)};
     case QUIC_HTTP_INVALID_MAX_PUSH_ID:
       return {false, static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR)};
+    case QUIC_HTTP_STREAM_LIMIT_TOO_LOW:
+      return {false, static_cast<uint64_t>(
+                         QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR)};
     case QUIC_HPACK_INDEX_VARINT_ERROR:
       return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_HPACK_NAME_LENGTH_VARINT_ERROR:

@@ -429,6 +429,8 @@ enum QuicErrorCode {
   // MAX_PUSH_ID frame received with push ID value smaller than a previously
   // received value.
   QUIC_HTTP_INVALID_MAX_PUSH_ID = 159,
+  // Received unidirectional stream limit is lower than required by HTTP/3.
+  QUIC_HTTP_STREAM_LIMIT_TOO_LOW = 160,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -465,7 +467,7 @@ enum QuicErrorCode {
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 160,
+  QUIC_LAST_ERROR = 161,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

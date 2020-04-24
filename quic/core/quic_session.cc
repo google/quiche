@@ -1129,13 +1129,14 @@ void QuicSession::OnConfigNegotiated() {
       max_streams = config_.ReceivedMaxUnidirectionalStreams();
     }
     if (max_streams < num_expected_unidirectional_static_streams_) {
-      // TODO(ianswett): Change this to an application error for HTTP/3.
       QUIC_DLOG(ERROR) << "Received unidirectional stream limit of "
                        << max_streams << " < "
                        << num_expected_unidirectional_static_streams_;
       connection_->CloseConnection(
-          QUIC_MAX_STREAMS_ERROR, "New unidirectional stream limit is too low.",
+          QUIC_HTTP_STREAM_LIMIT_TOO_LOW,
+          "New unidirectional stream limit is too low.",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
     }
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Unidirectional outgoing_max_streams_ to "
