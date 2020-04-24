@@ -446,9 +446,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
-  void set_max_uncompressed_header_bytes(
-      size_t set_max_uncompressed_header_bytes);
-
   void SendMaxPushId();
 
  private:
