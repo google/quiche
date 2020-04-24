@@ -148,8 +148,13 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     uint64_t packet_number,
     const std::string& data);
 
-// Constructs a received packet for testing. The caller must take ownership of
-// the returned pointer.
+// Creates a client-to-server ZERO-RTT packet that will fail to decrypt.
+std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
+    const ParsedQuicVersion& version,
+    const QuicConnectionId& server_connection_id);
+
+// Constructs a received packet for testing. The caller must take ownership
+// of the returned pointer.
 QuicReceivedPacket* ConstructReceivedPacket(
     const QuicEncryptedPacket& encrypted_packet,
     QuicTime receipt_time);

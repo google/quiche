@@ -203,7 +203,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         connection_id_(1) {}
 
   void SetUp() override {
-    dispatcher_->InitializeWithWriter(new MockPacketWriter());
+    dispatcher_->InitializeWithWriter(new NiceMock<MockPacketWriter>());
     // Set the counter to some value to start with.
     QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(
         dispatcher_.get(), kMaxNumSessionsToCreate);
@@ -305,7 +305,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicSocketAddress& peer_address,
       const ParsedQuicVersion& version,
       const QuicConnectionId& server_connection_id) {
-    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+    if (version.UsesQuicCrypto() &&
         ChloExtractor::Extract(*received_packet, version, {}, nullptr,
                                server_connection_id.length())) {
       // Add CHLO packet to the beginning to be verified first, because it is
@@ -366,6 +366,25 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     client_hello.set_tag(kCHLO);
     client_hello.SetStringPiece(kALPN, ExpectedAlpn());
     return std::string(client_hello.GetSerialized().AsStringPiece());
+  }
+
+  void ProcessUndecryptableEarlyPacket(
+      const QuicSocketAddress& peer_address,
+      const QuicConnectionId& server_connection_id) {
+    ProcessUndecryptableEarlyPacket(version_, peer_address,
+                                    server_connection_id);
+  }
+
+  void ProcessUndecryptableEarlyPacket(
+      const ParsedQuicVersion& version,
+      const QuicSocketAddress& peer_address,
+      const QuicConnectionId& server_connection_id) {
+    std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
+        GetUndecryptableEarlyPacket(version, server_connection_id);
+    std::unique_ptr<QuicReceivedPacket> received_packet(ConstructReceivedPacket(
+        *encrypted_packet, mock_helper_.GetClock()->Now()));
+    ProcessReceivedPacket(std::move(received_packet), peer_address, version,
+                          server_connection_id);
   }
 
   void ProcessFirstFlight(const QuicSocketAddress& peer_address,
@@ -464,7 +483,7 @@ INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsOneVersion,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
-  if (version_.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (version_.UsesQuicCrypto()) {
     return;
   }
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
@@ -490,7 +509,7 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
 
 void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
     bool add_reordering) {
-  if (version_.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!version_.UsesTls()) {
     return;
   }
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
@@ -975,7 +994,7 @@ TEST_P(QuicDispatcherTestAllVersions,
 }
 
 TEST_P(QuicDispatcherTestAllVersions, OKSeqNoPacketProcessed) {
-  if (version_.handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version_.UsesTls()) {
     // QUIC+TLS allows clients to start with any packet number.
     return;
   }
@@ -1813,69 +1832,100 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
  public:
   BufferedPacketStoreTest()
       : QuicDispatcherTestBase(),
-        server_addr_(QuicSocketAddress(QuicIpAddress::Any4(), 5)),
-        client_addr_(QuicIpAddress::Loopback4(), 1234),
-        signed_config_(new QuicSignedServerConfig) {}
+        client_addr_(QuicIpAddress::Loopback4(), 1234) {}
 
-  void SetUp() override {
-    QuicDispatcherTestBase::SetUp();
-    clock_ = QuicDispatcherPeer::GetHelper(dispatcher_.get())->GetClock();
-
-    ASSERT_EQ(PROTOCOL_QUIC_CRYPTO, version_.handshake_protocol);
-    ASSERT_NE(QUIC_VERSION_UNSUPPORTED, version_.transport_version);
-
-    CryptoHandshakeMessage chlo =
-        crypto_test_utils::GenerateDefaultInchoateCHLO(
-            clock_, version_.transport_version, &crypto_config_);
-    // Pass an inchoate CHLO.
-    crypto_test_utils::GenerateFullCHLO(
-        chlo, &crypto_config_, server_addr_, client_addr_,
-        version_.transport_version, clock_, signed_config_,
-        QuicDispatcherPeer::GetCache(dispatcher_.get()), &full_chlo_);
+  void ProcessFirstFlight(const ParsedQuicVersion& version,
+                          const QuicSocketAddress& peer_address,
+                          const QuicConnectionId& server_connection_id) {
+    QuicDispatcherTestBase::ProcessFirstFlight(version, peer_address,
+                                               server_connection_id);
   }
 
-  std::string SerializeFullCHLO() {
-    return std::string(full_chlo_.GetSerialized().AsStringPiece());
+  void ProcessFirstFlight(const QuicSocketAddress& peer_address,
+                          const QuicConnectionId& server_connection_id) {
+    ProcessFirstFlight(version_, peer_address, server_connection_id);
+  }
+
+  void ProcessFirstFlight(const QuicConnectionId& server_connection_id) {
+    ProcessFirstFlight(client_addr_, server_connection_id);
+  }
+
+  void ProcessFirstFlight(const ParsedQuicVersion& version,
+                          const QuicConnectionId& server_connection_id) {
+    ProcessFirstFlight(version, client_addr_, server_connection_id);
+  }
+
+  void ProcessUndecryptableEarlyPacket(
+      const ParsedQuicVersion& version,
+      const QuicSocketAddress& peer_address,
+      const QuicConnectionId& server_connection_id) {
+    QuicDispatcherTestBase::ProcessUndecryptableEarlyPacket(
+        version, peer_address, server_connection_id);
+  }
+
+  void ProcessUndecryptableEarlyPacket(
+      const QuicSocketAddress& peer_address,
+      const QuicConnectionId& server_connection_id) {
+    ProcessUndecryptableEarlyPacket(version_, peer_address,
+                                    server_connection_id);
+  }
+
+  void ProcessUndecryptableEarlyPacket(
+      const QuicConnectionId& server_connection_id) {
+    ProcessUndecryptableEarlyPacket(version_, client_addr_,
+                                    server_connection_id);
   }
 
  protected:
-  QuicSocketAddress server_addr_;
   QuicSocketAddress client_addr_;
-  QuicReferenceCountedPointer<QuicSignedServerConfig> signed_config_;
-  const QuicClock* clock_;
-  CryptoHandshakeMessage full_chlo_;
 };
-
-ParsedQuicVersionVector BufferedPacketStoreTestParams() {
-  ParsedQuicVersionVector versions;
-  for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-    if (version.handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
-      // TODO(b/149597791) Remove this once we can parse ALPN with TLS.
-      break;
-    }
-    versions.push_back(version);
-  }
-  return versions;
-}
 
 INSTANTIATE_TEST_SUITE_P(BufferedPacketStoreTests,
                          BufferedPacketStoreTest,
-                         ::testing::ValuesIn(BufferedPacketStoreTestParams()),
+                         ::testing::ValuesIn(CurrentSupportedVersions()),
                          ::testing::PrintToStringParamName());
+
+TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
+  InSequence s;
+  QuicConnectionId conn_id = TestConnectionId(1);
+  // Non-CHLO should be buffered upon arrival, and should trigger
+  // ShouldCreateOrBufferPacketForConnection().
+  EXPECT_CALL(*dispatcher_, ShouldCreateOrBufferPacketForConnection(
+                                ReceivedPacketInfoConnectionIdEquals(conn_id)));
+  // Process non-CHLO packet.
+  ProcessUndecryptableEarlyPacket(conn_id);
+  EXPECT_EQ(0u, dispatcher_->session_map().size())
+      << "No session should be created before CHLO arrives.";
+
+  // When CHLO arrives, a new session should be created, and all packets
+  // buffered should be delivered to the session.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, client_addr_, Eq(ExpectedAlpn()), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
+          &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(2)  // non-CHLO + CHLO.
+      .WillRepeatedly(
+          WithArg<2>(Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
+            if (version_.UsesQuicCrypto()) {
+              ValidatePacket(conn_id, packet);
+            }
+          })));
+  ProcessFirstFlight(conn_id);
+}
 
 TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   InSequence s;
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId conn_id = TestConnectionId(1);
   // A bunch of non-CHLO should be buffered upon arrival, and the first one
   // should trigger ShouldCreateOrBufferPacketForConnection().
   EXPECT_CALL(*dispatcher_, ShouldCreateOrBufferPacketForConnection(
                                 ReceivedPacketInfoConnectionIdEquals(conn_id)));
   for (size_t i = 1; i <= kDefaultMaxUndecryptablePackets + 1; ++i) {
-    ProcessPacket(client_address, conn_id, true,
-                  quiche::QuicheStrCat("data packet ", i + 1),
-                  CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                  /*packet_number=*/i + 1);
+    ProcessUndecryptableEarlyPacket(conn_id);
   }
   EXPECT_EQ(0u, dispatcher_->session_map().size())
       << "No session should be created before CHLO arrives.";
@@ -1884,10 +1934,10 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   data_connection_map_[conn_id].pop_back();
   // When CHLO arrives, a new session should be created, and all packets
   // buffered should be delivered to the session.
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, client_address,
-                                              quiche::QuicheStringPiece(), _))
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, client_addr_, Eq(ExpectedAlpn()), _))
       .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, conn_id, client_address, &mock_helper_,
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
 
@@ -1898,9 +1948,11 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
       .Times(kDefaultMaxUndecryptablePackets + 1)  // + 1 for CHLO.
       .WillRepeatedly(
           WithArg<2>(Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-            ValidatePacket(conn_id, packet);
+            if (version_.UsesQuicCrypto()) {
+              ValidatePacket(conn_id, packet);
+            }
           })));
-  ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
+  ProcessFirstFlight(conn_id);
 }
 
 TEST_P(BufferedPacketStoreTest,
@@ -1914,10 +1966,7 @@ TEST_P(BufferedPacketStoreTest,
     EXPECT_CALL(*dispatcher_,
                 ShouldCreateOrBufferPacketForConnection(
                     ReceivedPacketInfoConnectionIdEquals(conn_id)));
-    ProcessPacket(client_address, conn_id, true,
-                  quiche::QuicheStrCat("data packet on connection ", i),
-                  CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                  /*packet_number=*/2);
+    ProcessUndecryptableEarlyPacket(client_address, conn_id);
   }
 
   // Pop out the packet on last connection as it shouldn't be enqueued in store
@@ -1938,7 +1987,7 @@ TEST_P(BufferedPacketStoreTest,
                       ReceivedPacketInfoConnectionIdEquals(conn_id)));
     }
     EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, client_address,
-                                                quiche::QuicheStringPiece(), _))
+                                                Eq(ExpectedAlpn()), _))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, conn_id, client_address, &mock_helper_,
             &mock_alarm_factory_, &crypto_config_,
@@ -1951,48 +2000,45 @@ TEST_P(BufferedPacketStoreTest,
         .Times(num_packet_to_process)
         .WillRepeatedly(WithArg<2>(
             Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-              ValidatePacket(conn_id, packet);
+              if (version_.UsesQuicCrypto()) {
+                ValidatePacket(conn_id, packet);
+              }
             })));
 
-    ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
+    ProcessFirstFlight(client_address, conn_id);
   }
 }
 
 // Tests that store delivers empty packet list if CHLO arrives firstly.
 TEST_P(BufferedPacketStoreTest, DeliverEmptyPackets) {
   QuicConnectionId conn_id = TestConnectionId(1);
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   EXPECT_CALL(*dispatcher_, ShouldCreateOrBufferPacketForConnection(
                                 ReceivedPacketInfoConnectionIdEquals(conn_id)));
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, client_address,
-                                              quiche::QuicheStringPiece(), _))
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, client_addr_, Eq(ExpectedAlpn()), _))
       .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, conn_id, client_address, &mock_helper_,
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-              ProcessUdpPacket(_, client_address, _));
-  ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
+              ProcessUdpPacket(_, client_addr_, _));
+  ProcessFirstFlight(conn_id);
 }
 
 // Tests that a retransmitted CHLO arrives after a connection for the
 // CHLO has been created.
 TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
   InSequence s;
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId conn_id = TestConnectionId(1);
-  ProcessPacket(client_address, conn_id, true,
-                quiche::QuicheStrCat("data packet ", 2), CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER,
-                /*packet_number=*/2);
+  ProcessUndecryptableEarlyPacket(conn_id);
 
   // When CHLO arrives, a new session should be created, and all packets
   // buffered should be delivered to the session.
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(conn_id, client_address,
-                                              quiche::QuicheStringPiece(), _))
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, client_addr_, Eq(ExpectedAlpn()), _))
       .Times(1)  // Only triggered by 1st CHLO.
       .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, conn_id, client_address, &mock_helper_,
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
@@ -2000,11 +2046,18 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
       .Times(3)  // Triggered by 1 data packet and 2 CHLOs.
       .WillRepeatedly(
           WithArg<2>(Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-            ValidatePacket(conn_id, packet);
+            if (version_.UsesQuicCrypto()) {
+              ValidatePacket(conn_id, packet);
+            }
           })));
-  ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
 
-  ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      GetFirstFlightOfPackets(version_, conn_id);
+  ASSERT_EQ(packets.size(), 1u);
+  // Receive the CHLO once.
+  ProcessReceivedPacket(packets[0]->Clone(), client_addr_, version_, conn_id);
+  // Receive the CHLO a second time to simulate retransmission.
+  ProcessReceivedPacket(std::move(packets[0]), client_addr_, version_, conn_id);
 }
 
 // Tests that expiration of a connection add connection id to time wait list.
@@ -2015,9 +2068,8 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
       QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
   QuicBufferedPacketStorePeer::set_clock(store, mock_helper_.GetClock());
 
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId conn_id = TestConnectionId(1);
-  ProcessPacket(client_address, conn_id, true,
+  ProcessPacket(client_addr_, conn_id, true,
                 quiche::QuicheStrCat("data packet ", 2), CONNECTION_ID_PRESENT,
                 PACKET_4BYTE_PACKET_NUMBER,
                 /*packet_number=*/2);
@@ -2032,7 +2084,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   // list.
   ASSERT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
-  ProcessPacket(client_address, conn_id, true, SerializeFullCHLO());
+  ProcessFirstFlight(conn_id);
 }
 
 TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
@@ -2053,7 +2105,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
     if (conn_id <= kMaxNumSessionsToCreate) {
       EXPECT_CALL(*dispatcher_,
                   CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                    quiche::QuicheStringPiece(), _))
+                                    Eq(ExpectedAlpn()), _))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2064,11 +2116,12 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(WithArg<2>(
               Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-                ValidatePacket(TestConnectionId(conn_id), packet);
+                if (version_.UsesQuicCrypto()) {
+                  ValidatePacket(TestConnectionId(conn_id), packet);
+                }
               })));
     }
-    ProcessPacket(client_addr_, TestConnectionId(conn_id), true,
-                  SerializeFullCHLO());
+    ProcessFirstFlight(TestConnectionId(conn_id));
     if (conn_id <= kMaxNumSessionsToCreate + kDefaultMaxConnectionsInStore &&
         conn_id > kMaxNumSessionsToCreate) {
       EXPECT_TRUE(store->HasChloForConnection(TestConnectionId(conn_id)));
@@ -2087,7 +2140,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
        ++conn_id) {
     EXPECT_CALL(*dispatcher_,
                 CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                  quiche::QuicheStringPiece(), _))
+                                  Eq(ExpectedAlpn()), _))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, TestConnectionId(conn_id), client_addr_,
             &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -2096,12 +2149,14 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
                 ProcessUdpPacket(_, _, _))
         .WillOnce(WithArg<2>(
             Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-              ValidatePacket(TestConnectionId(conn_id), packet);
+              if (version_.UsesQuicCrypto()) {
+                ValidatePacket(TestConnectionId(conn_id), packet);
+              }
             })));
   }
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(TestConnectionId(kNumCHLOs), client_addr_,
-                                quiche::QuicheStringPiece(), _))
+                                Eq(ExpectedAlpn()), _))
       .Times(0);
 
   while (store->HasChlosBuffered()) {
@@ -2121,7 +2176,7 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
     if (conn_id <= kMaxNumSessionsToCreate) {
       EXPECT_CALL(*dispatcher_,
                   CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                    quiche::QuicheStringPiece(), _))
+                                    Eq(ExpectedAlpn()), _))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2132,22 +2187,23 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(WithArg<2>(
               Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-                ValidatePacket(TestConnectionId(conn_id), packet);
+                if (version_.UsesQuicCrypto()) {
+                  ValidatePacket(TestConnectionId(conn_id), packet);
+                }
               })));
     }
-    ProcessPacket(client_addr_, TestConnectionId(conn_id), true,
-                  SerializeFullCHLO());
+    ProcessFirstFlight(TestConnectionId(conn_id));
   }
   // Retransmit CHLO on last connection should be dropped.
   QuicConnectionId last_connection =
       TestConnectionId(kMaxNumSessionsToCreate + 1);
-  ProcessPacket(client_addr_, last_connection, true, SerializeFullCHLO());
+  ProcessFirstFlight(last_connection);
 
   size_t packets_buffered = 2;
 
   // Reset counter and process buffered CHLO.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(last_connection, client_addr_,
-                                              quiche::QuicheStringPiece(), _))
+                                              Eq(ExpectedAlpn()), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, last_connection, client_addr_,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -2158,7 +2214,9 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
       .Times(packets_buffered)
       .WillRepeatedly(WithArg<2>(
           Invoke([this, last_connection](const QuicEncryptedPacket& packet) {
-            ValidatePacket(last_connection, packet);
+            if (version_.UsesQuicCrypto()) {
+              ValidatePacket(last_connection, packet);
+            }
           })));
   dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);
 }
@@ -2171,7 +2229,7 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
     if (conn_id <= kMaxNumSessionsToCreate) {
       EXPECT_CALL(*dispatcher_,
                   CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                    quiche::QuicheStringPiece(), _))
+                                    Eq(ExpectedAlpn()), _))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2182,11 +2240,12 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
           ProcessUdpPacket(_, _, _))
           .WillRepeatedly(WithArg<2>(
               Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-                ValidatePacket(TestConnectionId(conn_id), packet);
+                if (version_.UsesQuicCrypto()) {
+                  ValidatePacket(TestConnectionId(conn_id), packet);
+                }
               })));
     }
-    ProcessPacket(client_addr_, TestConnectionId(conn_id), true,
-                  SerializeFullCHLO());
+    ProcessFirstFlight(TestConnectionId(conn_id));
   }
 
   // Process another |kDefaultMaxUndecryptablePackets| + 1 data packets. The
@@ -2198,7 +2257,7 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
 
   // Reset counter and process buffered CHLO.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(last_connection_id, client_addr_,
-                                              quiche::QuicheStringPiece(), _))
+                                              Eq(ExpectedAlpn()), _))
       .WillOnce(Return(ByMove(CreateSession(
           dispatcher_.get(), config_, last_connection_id, client_addr_,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -2210,7 +2269,9 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
       .Times(kDefaultMaxUndecryptablePackets + 1)
       .WillRepeatedly(WithArg<2>(
           Invoke([this, last_connection_id](const QuicEncryptedPacket& packet) {
-            ValidatePacket(last_connection_id, packet);
+            if (version_.UsesQuicCrypto()) {
+              ValidatePacket(last_connection_id, packet);
+            }
           })));
   dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);
 }
@@ -2222,9 +2283,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
       QuicDispatcherPeer::GetBufferedPackets(dispatcher_.get());
 
   uint64_t conn_id = 1;
-  ProcessPacket(client_addr_, TestConnectionId(conn_id), true, "data packet",
-                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                /*packet_number=*/1);
+  ProcessUndecryptableEarlyPacket(TestConnectionId(conn_id));
   // Fill packet buffer to full with CHLOs on other connections. Need to feed
   // extra CHLOs because the first |kMaxNumSessionsToCreate| are going to create
   // session directly.
@@ -2234,7 +2293,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
     if (conn_id <= kMaxNumSessionsToCreate + 1) {
       EXPECT_CALL(*dispatcher_,
                   CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                    quiche::QuicheStringPiece(), _))
+                                    Eq(ExpectedAlpn()), _))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2245,18 +2304,18 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(WithArg<2>(
               Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-                ValidatePacket(TestConnectionId(conn_id), packet);
+                if (version_.UsesQuicCrypto()) {
+                  ValidatePacket(TestConnectionId(conn_id), packet);
+                }
               })));
     }
-    ProcessPacket(client_addr_, TestConnectionId(conn_id), true,
-                  SerializeFullCHLO());
+    ProcessFirstFlight(TestConnectionId(conn_id));
   }
   EXPECT_FALSE(store->HasChloForConnection(
       /*connection_id=*/TestConnectionId(1)));
 
   // CHLO on connection 1 should still be buffered.
-  ProcessPacket(client_addr_, /*server_connection_id=*/TestConnectionId(1),
-                true, SerializeFullCHLO());
+  ProcessFirstFlight(TestConnectionId(1));
   EXPECT_TRUE(store->HasChloForConnection(
       /*connection_id=*/TestConnectionId(1)));
 }
@@ -2272,9 +2331,10 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
     ParsedQuicVersion version =
         supported_versions[(conn_id - 1) % supported_versions.size()];
     if (conn_id <= kMaxNumSessionsToCreate) {
-      EXPECT_CALL(*dispatcher_,
-                  CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                    quiche::QuicheStringPiece(), version))
+      EXPECT_CALL(
+          *dispatcher_,
+          CreateQuicSession(TestConnectionId(conn_id), client_addr_,
+                            Eq(ExpectedAlpnForVersion(version)), version))
           .WillOnce(Return(ByMove(CreateSession(
               dispatcher_.get(), config_, TestConnectionId(conn_id),
               client_addr_, &mock_helper_, &mock_alarm_factory_,
@@ -2285,12 +2345,12 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
           ProcessUdpPacket(_, _, _))
           .WillRepeatedly(WithArg<2>(
               Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-                ValidatePacket(TestConnectionId(conn_id), packet);
+                if (version_.UsesQuicCrypto()) {
+                  ValidatePacket(TestConnectionId(conn_id), packet);
+                }
               })));
     }
-    ProcessPacket(client_addr_, TestConnectionId(conn_id), true, version,
-                  SerializeFullCHLO(), true, CONNECTION_ID_PRESENT,
-                  PACKET_4BYTE_PACKET_NUMBER, 1);
+    ProcessFirstFlight(version, TestConnectionId(conn_id));
   }
 
   // Process buffered CHLOs. Verify the version is correct.
@@ -2300,7 +2360,7 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
         supported_versions[(conn_id - 1) % supported_versions.size()];
     EXPECT_CALL(*dispatcher_,
                 CreateQuicSession(TestConnectionId(conn_id), client_addr_,
-                                  quiche::QuicheStringPiece(), version))
+                                  Eq(ExpectedAlpnForVersion(version)), version))
         .WillOnce(Return(ByMove(CreateSession(
             dispatcher_.get(), config_, TestConnectionId(conn_id), client_addr_,
             &mock_helper_, &mock_alarm_factory_, &crypto_config_,
@@ -2309,7 +2369,9 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
                 ProcessUdpPacket(_, _, _))
         .WillRepeatedly(WithArg<2>(
             Invoke([this, conn_id](const QuicEncryptedPacket& packet) {
-              ValidatePacket(TestConnectionId(conn_id), packet);
+              if (version_.UsesQuicCrypto()) {
+                ValidatePacket(TestConnectionId(conn_id), packet);
+              }
             })));
   }
   dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);

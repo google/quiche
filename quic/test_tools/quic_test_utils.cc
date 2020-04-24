@@ -793,6 +793,7 @@ MockPacketWriter::MockPacketWriter() {
       .WillByDefault(testing::Return(nullptr));
   ON_CALL(*this, Flush())
       .WillByDefault(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+  ON_CALL(*this, SupportsReleaseTime()).WillByDefault(testing::Return(false));
 }
 
 MockPacketWriter::~MockPacketWriter() {}
@@ -979,6 +980,49 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   EXPECT_NE(0u, encrypted_length);
   DeleteFrames(&frames);
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
+}
+
+std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
+    const ParsedQuicVersion& version,
+    const QuicConnectionId& server_connection_id) {
+  QuicPacketHeader header;
+  header.destination_connection_id = server_connection_id;
+  header.destination_connection_id_included = CONNECTION_ID_PRESENT;
+  header.source_connection_id = EmptyQuicConnectionId();
+  header.source_connection_id_included = CONNECTION_ID_PRESENT;
+  if (!version.SupportsClientConnectionIds()) {
+    header.source_connection_id_included = CONNECTION_ID_ABSENT;
+  }
+  header.version_flag = true;
+  header.reset_flag = false;
+  header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
+  header.packet_number = QuicPacketNumber(33);
+  header.long_packet_type = ZERO_RTT_PROTECTED;
+  if (version.HasLongHeaderLengths()) {
+    header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
+    header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  }
+
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  QuicFramer framer({version}, QuicTime::Zero(), Perspective::IS_CLIENT,
+                    kQuicDefaultConnectionIdLength);
+  framer.SetInitialObfuscators(server_connection_id);
+
+  framer.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
+  std::unique_ptr<QuicPacket> packet(
+      BuildUnsizedDataPacket(&framer, header, frames));
+  EXPECT_TRUE(packet != nullptr);
+  char* buffer = new char[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      framer.EncryptPayload(ENCRYPTION_ZERO_RTT, header.packet_number, *packet,
+                            buffer, kMaxOutgoingPacketSize);
+  EXPECT_NE(0u, encrypted_length);
+  DeleteFrames(&frames);
+  return std::make_unique<QuicEncryptedPacket>(buffer, encrypted_length,
+                                               /*owns_buffer=*/true);
 }
 
 QuicReceivedPacket* ConstructReceivedPacket(
