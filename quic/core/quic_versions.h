@@ -330,6 +330,12 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns true if this version uses variable-length integers when
   // encoding transport parameter types and lengths.
   bool HasVarIntTransportParams() const;
+
+  // Returns whether this version uses PROTOCOL_TLS1_3.
+  bool UsesTls() const;
+
+  // Returns whether this version uses PROTOCOL_QUIC_CRYPTO.
+  bool UsesQuicCrypto() const;
 };
 
 QUIC_EXPORT_PRIVATE ParsedQuicVersion UnsupportedQuicVersion();

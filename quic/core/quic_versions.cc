@@ -158,6 +158,16 @@ bool ParsedQuicVersion::HasVarIntTransportParams() const {
   return transport_version >= QUIC_VERSION_IETF_DRAFT_27;
 }
 
+bool ParsedQuicVersion::UsesTls() const {
+  DCHECK(IsKnown());
+  return handshake_protocol == PROTOCOL_TLS1_3;
+}
+
+bool ParsedQuicVersion::UsesQuicCrypto() const {
+  DCHECK(IsKnown());
+  return handshake_protocol == PROTOCOL_QUIC_CRYPTO;
+}
+
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
