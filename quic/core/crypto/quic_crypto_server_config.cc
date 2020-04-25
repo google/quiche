@@ -242,7 +242,7 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
       proof_source_(std::move(proof_source)),
       client_cert_mode_(ClientCertMode::kNone),
       key_exchange_source_(std::move(key_exchange_source)),
-      ssl_ctx_(TlsServerConnection::CreateSslCtx()),
+      ssl_ctx_(TlsServerConnection::CreateSslCtx(proof_source_.get())),
       source_address_token_future_secs_(3600),
       source_address_token_lifetime_secs_(86400),
       enable_serving_sct_(false),

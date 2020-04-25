@@ -19,6 +19,8 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/fake_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
+#include "net/third_party/quiche/src/quic/test_tools/test_ticket_crypter.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -42,15 +44,12 @@ const uint16_t kServerPort = 443;
 class TlsServerHandshakerTest : public QuicTest {
  public:
   TlsServerHandshakerTest()
-      : proof_source_(new FakeProofSource()),
-        server_crypto_config_(QuicCryptoServerConfig::TESTING,
-                              QuicRandom::GetInstance(),
-                              std::unique_ptr<ProofSource>(proof_source_),
-                              KeyExchangeSource::Default()),
-        server_compressed_certs_cache_(
+      : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
-        client_crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {
+        client_crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
+                              std::make_unique<test::SimpleSessionCache>()) {
+    InitializeServerConfig();
     InitializeServer();
     InitializeFakeClient();
   }
@@ -64,6 +63,18 @@ class TlsServerHandshakerTest : public QuicTest {
     alarm_factories_.clear();
   }
 
+  void InitializeServerConfig() {
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    auto ticket_crypter = std::make_unique<TestTicketCrypter>();
+    ticket_crypter_ = ticket_crypter.get();
+    auto proof_source = std::make_unique<FakeProofSource>();
+    proof_source_ = proof_source.get();
+    proof_source_->SetTicketCrypter(std::move(ticket_crypter));
+    server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
+        QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
+        std::move(proof_source), KeyExchangeSource::Default());
+  }
+
   // Initializes the crypto server stream state for testing.  May be
   // called multiple times.
   void InitializeServer() {
@@ -73,7 +84,7 @@ class TlsServerHandshakerTest : public QuicTest {
     CreateServerSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),
-        &server_crypto_config_, &server_compressed_certs_cache_,
+        server_crypto_config_.get(), &server_compressed_certs_cache_,
         &server_connection_, &server_session);
     CHECK(server_session);
     server_session_.reset(server_session);
@@ -88,7 +99,7 @@ class TlsServerHandshakerTest : public QuicTest {
             });
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
-        &server_crypto_config_);
+        server_crypto_config_.get());
   }
 
   QuicCryptoServerStreamBase* server_stream() {
@@ -115,6 +126,7 @@ class TlsServerHandshakerTest : public QuicTest {
         .WillByDefault(Return(std::vector<std::string>({default_alpn})));
     CHECK(client_session);
     client_session_.reset(client_session);
+    moved_messages_counts_ = {0, 0};
   }
 
   void CompleteCryptoHandshake() {
@@ -185,8 +197,9 @@ class TlsServerHandshakerTest : public QuicTest {
   // Server state.
   PacketSavingConnection* server_connection_;
   std::unique_ptr<TestQuicSpdyServerSession> server_session_;
+  TestTicketCrypter* ticket_crypter_;  // owned by proof_source_
   FakeProofSource* proof_source_;  // owned by server_crypto_config_
-  QuicCryptoServerConfig server_crypto_config_;
+  std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
   QuicCompressedCertsCache server_compressed_certs_cache_;
   QuicServerId server_id_;
 
@@ -345,6 +358,79 @@ TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {
 
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
+}
+
+TEST_F(TlsServerHandshakerTest, Resumption) {
+  // Do the first handshake
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+
+  // Now do another handshake
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->IsResumption());
+}
+
+TEST_F(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
+  // Do the first handshake
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ticket_crypter_->SetRunCallbacksAsync(true);
+  // Now do another handshake
+  InitializeServer();
+  InitializeFakeClient();
+
+  AdvanceHandshakeWithFakeClient();
+  // Test that the DecryptCallback will be run asynchronously, and then run it.
+  ASSERT_EQ(ticket_crypter_->NumPendingCallbacks(), 1u);
+  ticket_crypter_->RunPendingCallback(0);
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->IsResumption());
+}
+
+TEST_F(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
+  // Do the first handshake
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ticket_crypter_->set_fail_decrypt(true);
+  // Now do another handshake
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+}
+
+TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
+  // Do the first handshake
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ticket_crypter_->set_fail_decrypt(true);
+  ticket_crypter_->SetRunCallbacksAsync(true);
+  // Now do another handshake
+  InitializeServer();
+  InitializeFakeClient();
+
+  AdvanceHandshakeWithFakeClient();
+  // Test that the DecryptCallback will be run asynchronously, and then run it.
+  ASSERT_EQ(ticket_crypter_->NumPendingCallbacks(), 1u);
+  ticket_crypter_->RunPendingCallback(0);
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
 }
 
 }  // namespace

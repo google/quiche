@@ -15,10 +15,13 @@
 namespace quic {
 namespace test {
 
-// Implementation of ProofSource which delegates to a ProofSourceForTesting,
-// except that when the async GetProof is called, it captures the call and
-// allows tests to see that a call is pending, which they can then cause to
-// complete at a time of their choosing.
+// Implementation of ProofSource which delegates to a ProofSourceForTesting, but
+// allows for overriding certain functionality. FakeProofSource allows
+// intercepting calls to GetProof and ComputeTlsSignature to force them to run
+// asynchronously, and allow the caller to see that the call is pending and
+// resume the operation at the caller's choosing. FakeProofSource also allows
+// the caller to replace the TicketCrypter provided by
+// FakeProofSource::SessionTicketCrypter.
 class FakeProofSource : public ProofSource {
  public:
   FakeProofSource();
@@ -46,8 +49,11 @@ class FakeProofSource : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
-
   TicketCrypter* SessionTicketCrypter() override;
+
+  // Sets the TicketCrypter to use. If nullptr, the TicketCrypter from
+  // ProofSourceForTesting will be returned instead.
+  void SetTicketCrypter(std::unique_ptr<TicketCrypter> ticket_crypter);
 
   // Get the number of callbacks which are pending
   int NumPendingCallbacks() const;
@@ -58,6 +64,7 @@ class FakeProofSource : public ProofSource {
 
  private:
   std::unique_ptr<ProofSource> delegate_;
+  std::unique_ptr<TicketCrypter> ticket_crypter_;
   bool active_ = false;
 
   class PendingOp {

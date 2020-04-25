@@ -114,7 +114,15 @@ void FakeProofSource::ComputeTlsSignature(
 }
 
 ProofSource::TicketCrypter* FakeProofSource::SessionTicketCrypter() {
+  if (ticket_crypter_) {
+    return ticket_crypter_.get();
+  }
   return delegate_->SessionTicketCrypter();
+}
+
+void FakeProofSource::SetTicketCrypter(
+    std::unique_ptr<TicketCrypter> ticket_crypter) {
+  ticket_crypter_ = std::move(ticket_crypter);
 }
 
 int FakeProofSource::NumPendingCallbacks() const {

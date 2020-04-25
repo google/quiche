@@ -106,6 +106,16 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   ssl_private_key_result_t PrivateKeyComplete(uint8_t* out,
                                               size_t* out_len,
                                               size_t max_out) override;
+  size_t SessionTicketMaxOverhead() override;
+  int SessionTicketSeal(uint8_t* out,
+                        size_t* out_len,
+                        size_t max_out_len,
+                        quiche::QuicheStringPiece in) override;
+  ssl_ticket_aead_result_t SessionTicketOpen(
+      uint8_t* out,
+      size_t* out_len,
+      size_t max_out_len,
+      quiche::QuicheStringPiece in) override;
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
  private:
@@ -124,8 +134,22 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
+  class QUIC_EXPORT_PRIVATE DecryptCallback
+      : public ProofSource::DecryptCallback {
+   public:
+    explicit DecryptCallback(TlsServerHandshaker* handshaker);
+    void Run(std::vector<uint8_t> plaintext) override;
+
+    // If called, Cancel causes the pending callback to be a no-op.
+    void Cancel();
+
+   private:
+    TlsServerHandshaker* handshaker_;
+  };
+
   enum State {
     STATE_LISTENING,
+    STATE_TICKET_DECRYPTION_PENDING,
     STATE_SIGNATURE_PENDING,
     STATE_SIGNATURE_COMPLETE,
     STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED,
@@ -145,6 +169,15 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
+
+  // State to handle potentially asynchronous session ticket decryption.
+  // |ticket_decryption_callback_| points to the non-owned callback that was
+  // passed to ProofSource::TicketCrypter::Decrypt but hasn't finished running
+  // yet.
+  DecryptCallback* ticket_decryption_callback_ = nullptr;
+  // |decrypted_session_ticket_| contains the decrypted session ticket after the
+  // callback has run but before it is passed to BoringSSL.
+  std::vector<uint8_t> decrypted_session_ticket_;
 
   std::string hostname_;
   std::string cert_verify_sig_;

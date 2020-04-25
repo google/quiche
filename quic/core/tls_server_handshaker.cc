@@ -44,6 +44,42 @@ void TlsServerHandshaker::SignatureCallback::Cancel() {
   handshaker_ = nullptr;
 }
 
+TlsServerHandshaker::DecryptCallback::DecryptCallback(
+    TlsServerHandshaker* handshaker)
+    : handshaker_(handshaker) {}
+
+void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
+  if (handshaker_ == nullptr) {
+    // The callback was cancelled before we could run.
+    return;
+  }
+  handshaker_->decrypted_session_ticket_ = std::move(plaintext);
+  // DecryptCallback::Run could be called synchronously. When that happens, we
+  // are currently in the middle of a call to AdvanceHandshake.
+  // (AdvanceHandshake called SSL_do_handshake, which through some layers called
+  // SessionTicketOpen, which called TicketCrypter::Decrypt, which synchronously
+  // called this function.) In that case, the handshake will continue to be
+  // processed when this function returns.
+  //
+  // When this callback is called asynchronously (i.e. the ticket decryption is
+  // pending), TlsServerHandshaker is not actively processing handshake
+  // messages. We need to have it resume processing handshake messages by
+  // calling AdvanceHandshake.
+  if (handshaker_->state_ == STATE_TICKET_DECRYPTION_PENDING) {
+    handshaker_->AdvanceHandshake();
+  }
+  // The TicketDecrypter took ownership of this callback when Decrypt was
+  // called. Once the callback returns, it will be deleted. Remove the
+  // (non-owning) pointer to the callback from the handshaker so the handshaker
+  // doesn't have an invalid pointer hanging around.
+  handshaker_->ticket_decryption_callback_ = nullptr;
+}
+
+void TlsServerHandshaker::DecryptCallback::Cancel() {
+  DCHECK(handshaker_);
+  handshaker_ = nullptr;
+}
+
 TlsServerHandshaker::TlsServerHandshaker(
     QuicSession* session,
     const QuicCryptoServerConfig& crypto_config)
@@ -68,6 +104,10 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
   if (signature_callback_) {
     signature_callback_->Cancel();
     signature_callback_ = nullptr;
+  }
+  if (ticket_decryption_callback_) {
+    ticket_decryption_callback_->Cancel();
+    ticket_decryption_callback_ = nullptr;
   }
 }
 
@@ -195,6 +235,9 @@ void TlsServerHandshaker::AdvanceHandshake() {
       break;
     case STATE_SIGNATURE_PENDING:
       should_close = ssl_error != SSL_ERROR_WANT_PRIVATE_KEY_OPERATION;
+      break;
+    case STATE_TICKET_DECRYPTION_PENDING:
+      should_close = ssl_error != SSL_ERROR_PENDING_TICKET;
       break;
     default:
       should_close = true;
@@ -371,6 +414,71 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
   cert_verify_sig_.clear();
   cert_verify_sig_.shrink_to_fit();
   return ssl_private_key_success;
+}
+
+size_t TlsServerHandshaker::SessionTicketMaxOverhead() {
+  DCHECK(proof_source_->SessionTicketCrypter());
+  return proof_source_->SessionTicketCrypter()->MaxOverhead();
+}
+
+int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
+                                           size_t* out_len,
+                                           size_t max_out_len,
+                                           quiche::QuicheStringPiece in) {
+  DCHECK(proof_source_->SessionTicketCrypter());
+  std::vector<uint8_t> ticket =
+      proof_source_->SessionTicketCrypter()->Encrypt(in);
+  if (max_out_len < ticket.size()) {
+    QUIC_BUG
+        << "SessionTicketCrypter returned " << ticket.size()
+        << " bytes of ciphertext, which is larger than its max overhead of "
+        << max_out_len;
+    return 0;  // failure
+  }
+  *out_len = ticket.size();
+  memcpy(out, ticket.data(), ticket.size());
+  return 1;  // success
+}
+
+ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
+    uint8_t* out,
+    size_t* out_len,
+    size_t max_out_len,
+    quiche::QuicheStringPiece in) {
+  DCHECK(proof_source_->SessionTicketCrypter());
+
+  if (!ticket_decryption_callback_) {
+    ticket_decryption_callback_ = new DecryptCallback(this);
+    proof_source_->SessionTicketCrypter()->Decrypt(
+        in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));
+    // Decrypt can run the callback synchronously. In that case, the callback
+    // will clear the ticket_decryption_callback_ pointer, and instead of
+    // returning ssl_ticket_aead_retry, we should continue processing to return
+    // the decrypted ticket.
+    //
+    // If the callback is not run asynchronously, return ssl_ticket_aead_retry
+    // and when the callback is complete this function will be run again to
+    // return the result.
+    if (ticket_decryption_callback_) {
+      state_ = STATE_TICKET_DECRYPTION_PENDING;
+      return ssl_ticket_aead_retry;
+    }
+  }
+  ticket_decryption_callback_ = nullptr;
+  state_ = STATE_LISTENING;
+  if (decrypted_session_ticket_.empty()) {
+    QUIC_DLOG(ERROR) << "Session ticket decryption failed; ignoring ticket";
+    // Ticket decryption failed. Ignore the ticket.
+    return ssl_ticket_aead_ignore_ticket;
+  }
+  if (max_out_len < decrypted_session_ticket_.size()) {
+    return ssl_ticket_aead_error;
+  }
+  memcpy(out, decrypted_session_ticket_.data(),
+         decrypted_session_ticket_.size());
+  *out_len = decrypted_session_ticket_.size();
+
+  return ssl_ticket_aead_success;
 }
 
 int TlsServerHandshaker::SelectCertificate(int* out_alert) {

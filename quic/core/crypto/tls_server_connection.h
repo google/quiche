@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
+#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -59,6 +60,50 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
                                                         size_t* out_len,
                                                         size_t max_out) = 0;
 
+    // The following functions are used to implement an SSL_TICKET_AEAD_METHOD.
+    // See
+    // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#ssl_ticket_aead_result_t
+    // for details on the BoringSSL API.
+
+    // SessionTicketMaxOverhead returns the maximum number of bytes of overhead
+    // that SessionTicketSeal may add when encrypting a session ticket.
+    virtual size_t SessionTicketMaxOverhead() = 0;
+
+    // SessionTicketSeal encrypts the session ticket in |in|, putting the
+    // resulting encrypted ticket in |out|, writing the length of the bytes
+    // written to |*out_len|, which is no larger than |max_out_len|. It returns
+    // 1 on success and 0 on error.
+    virtual int SessionTicketSeal(uint8_t* out,
+                                  size_t* out_len,
+                                  size_t max_out_len,
+                                  quiche::QuicheStringPiece in) = 0;
+
+    // SessionTicketOpen is called when BoringSSL has an encrypted session
+    // ticket |in| and wants the ticket decrypted. This decryption operation can
+    // happen synchronously or asynchronously.
+    //
+    // If the decrypted ticket is not available at the time of the function
+    // call, this function returns ssl_ticket_aead_retry. If this function
+    // returns ssl_ticket_aead_retry, then SSL_do_handshake will return
+    // SSL_ERROR_PENDING_TICKET. Once the pending ticket decryption has
+    // completed, SSL_do_handshake needs to be called again.
+    //
+    // When this function is called and the decrypted ticket is available
+    // (either the ticket was decrypted synchronously, or an asynchronous
+    // operation has completed and SSL_do_handshake has been called again), the
+    // decrypted ticket is put in |out|, and the length of that output is
+    // written to |*out_len|, not to exceed |max_out_len|, and
+    // ssl_ticket_aead_success is returned. If the ticket cannot be decrypted
+    // and should be ignored, this function returns
+    // ssl_ticket_aead_ignore_ticket and a full handshake will be performed
+    // instead. If a fatal error occurs, ssl_ticket_aead_error can be returned
+    // which will terminate the handshake.
+    virtual enum ssl_ticket_aead_result_t SessionTicketOpen(
+        uint8_t* out,
+        size_t* out_len,
+        size_t max_out_len,
+        quiche::QuicheStringPiece in) = 0;
+
     // Provides the delegate for callbacks that are shared between client and
     // server.
     virtual TlsConnection::Delegate* ConnectionDelegate() = 0;
@@ -69,7 +114,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
   TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate);
 
   // Creates and configures an SSL_CTX that is appropriate for servers to use.
-  static bssl::UniquePtr<SSL_CTX> CreateSslCtx();
+  static bssl::UniquePtr<SSL_CTX> CreateSslCtx(ProofSource* proof_source);
 
   void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain);
 
@@ -104,6 +149,25 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
                                                      uint8_t* out,
                                                      size_t* out_len,
                                                      size_t max_out);
+
+  // Implementation of SSL_TICKET_AEAD_METHOD which delegates to corresponding
+  // methods in TlsServerConnection::Delegate (a.k.a. TlsServerHandshaker).
+  static const SSL_TICKET_AEAD_METHOD kSessionTicketMethod;
+
+  // The following functions make up the contents of |kSessionTicketMethod|.
+  static size_t SessionTicketMaxOverhead(SSL* ssl);
+  static int SessionTicketSeal(SSL* ssl,
+                               uint8_t* out,
+                               size_t* out_len,
+                               size_t max_out_len,
+                               const uint8_t* in,
+                               size_t in_len);
+  static enum ssl_ticket_aead_result_t SessionTicketOpen(SSL* ssl,
+                                                         uint8_t* out,
+                                                         size_t* out_len,
+                                                         size_t max_out_len,
+                                                         const uint8_t* in,
+                                                         size_t in_len);
 
   Delegate* delegate_;
 };
