@@ -164,10 +164,10 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
         crypto_config_(std::make_unique<QuicCryptoClientConfig>(
             std::make_unique<TestProofVerifier>(),
             std::make_unique<test::SimpleSessionCache>())),
-        server_crypto_config_(
-            crypto_test_utils::CryptoServerConfigForTesting()),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    server_crypto_config_ = crypto_test_utils::CryptoServerConfigForTesting();
     CreateConnection();
   }
 
@@ -317,9 +317,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithAsyncProofVerifier) {
 }
 
 TEST_P(TlsClientHandshakerTest, Resumption) {
-  // Enable resumption on the server:
-  SSL_CTX_clear_options(server_crypto_config_->ssl_ctx(), SSL_OP_NO_TICKET);
-
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 

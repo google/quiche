@@ -171,11 +171,9 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     } else {
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     }
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
     std::unique_ptr<QuicCryptoServerConfig> crypto_config =
         crypto_test_utils::CryptoServerConfigForTesting();
-    if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
-      SSL_CTX_clear_options(crypto_config->ssl_ctx(), SSL_OP_NO_TICKET);
-    }
     crypto_test_utils::HandshakeWithFakeServer(
         &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
         stream, AlpnForVersion(connection_->version()));
