@@ -2932,13 +2932,7 @@ TEST_P(QuicSpdyStreamTest, WriteHeadersReturnValue) {
       stream_->WriteHeaders(std::move(request_headers), /*fin=*/true, nullptr);
   EXPECT_TRUE(stream_->fin_sent());
 
-  if (GetQuicReloadableFlag(quic_writeheaders_excludes_encoder_stream_data)) {
-    EXPECT_EQ(headers_frame_payload_length, write_headers_return_value);
-  } else {
-    // Return value of WriteHeaders includes length of dynamic table insertions
-    // written on encoder stream.
-    EXPECT_LT(headers_frame_payload_length, write_headers_return_value);
-  }
+  EXPECT_EQ(headers_frame_payload_length, write_headers_return_value);
 }
 
 }  // namespace
