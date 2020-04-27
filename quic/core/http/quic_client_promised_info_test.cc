@@ -52,7 +52,7 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
 
   void set_authorized(bool authorized) { authorized_ = authorized; }
 
-  MOCK_METHOD1(CloseStream, void(QuicStreamId stream_id));
+  MOCK_METHOD(void, CloseStream, (QuicStreamId stream_id), (override));
 
  private:
   QuicCryptoClientConfig crypto_config_;

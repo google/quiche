@@ -62,8 +62,10 @@ class MockQuicSession : public QboneSessionBase {
   QuicCryptoStream* GetMutableCryptoStream() override { return nullptr; }
 
   // Called by QuicStream when they want to close stream.
-  MOCK_METHOD3(SendRstStream,
-               void(QuicStreamId, QuicRstStreamErrorCode, QuicStreamOffset));
+  MOCK_METHOD(void,
+              SendRstStream,
+              (QuicStreamId, QuicRstStreamErrorCode, QuicStreamOffset),
+              (override));
 
   // Sets whether data is written to buffer, or else if this is write blocked.
   void set_writable(bool writable) { writable_ = writable; }
@@ -87,8 +89,14 @@ class MockQuicSession : public QboneSessionBase {
     return nullptr;
   }
 
-  MOCK_METHOD1(ProcessPacketFromPeer, void(quiche::QuicheStringPiece));
-  MOCK_METHOD1(ProcessPacketFromNetwork, void(quiche::QuicheStringPiece));
+  MOCK_METHOD(void,
+              ProcessPacketFromPeer,
+              (quiche::QuicheStringPiece),
+              (override));
+  MOCK_METHOD(void,
+              ProcessPacketFromNetwork,
+              (quiche::QuicheStringPiece),
+              (override));
 
  private:
   // Whether data is written to write_buffer_.

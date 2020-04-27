@@ -80,13 +80,27 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
 
   ~TestQuicSpdyServerSession() override { DeleteConnection(); }
 
-  MOCK_METHOD2(OnConnectionClosed,
-               void(const QuicConnectionCloseFrame& frame,
-                    ConnectionCloseSource source));
-  MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
-  MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(PendingStream* pending));
-  MOCK_METHOD0(CreateOutgoingBidirectionalStream, QuicSpdyStream*());
-  MOCK_METHOD0(CreateOutgoingUnidirectionalStream, QuicSpdyStream*());
+  MOCK_METHOD(void,
+              OnConnectionClosed,
+              (const QuicConnectionCloseFrame& frame,
+               ConnectionCloseSource source),
+              (override));
+  MOCK_METHOD(QuicSpdyStream*,
+              CreateIncomingStream,
+              (QuicStreamId id),
+              (override));
+  MOCK_METHOD(QuicSpdyStream*,
+              CreateIncomingStream,
+              (PendingStream*),
+              (override));
+  MOCK_METHOD(QuicSpdyStream*,
+              CreateOutgoingBidirectionalStream,
+              (),
+              (override));
+  MOCK_METHOD(QuicSpdyStream*,
+              CreateOutgoingUnidirectionalStream,
+              (),
+              (override));
 
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
@@ -116,15 +130,18 @@ class TestDispatcher : public QuicDispatcher {
                        kQuicDefaultConnectionIdLength),
         random_(random) {}
 
-  MOCK_METHOD4(
-      CreateQuicSession,
-      std::unique_ptr<QuicSession>(QuicConnectionId connection_id,
-                                   const QuicSocketAddress& peer_address,
-                                   quiche::QuicheStringPiece alpn,
-                                   const quic::ParsedQuicVersion& version));
+  MOCK_METHOD(std::unique_ptr<QuicSession>,
+              CreateQuicSession,
+              (QuicConnectionId connection_id,
+               const QuicSocketAddress& peer_address,
+               quiche::QuicheStringPiece alpn,
+               const quic::ParsedQuicVersion& version),
+              (override));
 
-  MOCK_METHOD1(ShouldCreateOrBufferPacketForConnection,
-               bool(const ReceivedPacketInfo& packet_info));
+  MOCK_METHOD(bool,
+              ShouldCreateOrBufferPacketForConnection,
+              (const ReceivedPacketInfo& packet_info),
+              (override));
 
   struct TestQuicPerPacketContext : public QuicPerPacketContext {
     std::string custom_packet_context;

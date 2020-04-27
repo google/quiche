@@ -1094,8 +1094,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .WillRepeatedly(Return(kDefaultTCPMSS));
     EXPECT_CALL(*send_algorithm_, PacingRate(_))
         .WillRepeatedly(Return(QuicBandwidth::Zero()));
-    EXPECT_CALL(*send_algorithm_, HasReliableBandwidthEstimate())
-        .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, BandwidthEstimate())
         .Times(AnyNumber())
         .WillRepeatedly(Return(QuicBandwidth::Zero()));

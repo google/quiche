@@ -124,11 +124,11 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override {}
 
-  MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD(void, OnCanWrite, (), (override));
 
   bool HasPendingCryptoRetransmission() const override { return false; }
 
-  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
  private:
   using QuicCryptoStream::session;
@@ -164,7 +164,7 @@ class TestStream : public QuicSpdyStream {
     data_ += std::string(buffer, bytes_read);
   }
 
-  MOCK_METHOD1(WriteHeadersMock, void(bool fin));
+  MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
   size_t WriteHeadersImpl(spdy::SpdyHeaderBlock header_block,
                           bool fin,
@@ -899,6 +899,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
   }
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(kWindow - kHeaderLength, true)));
+  EXPECT_CALL(*session_, SendBlocked(_));
   EXPECT_CALL(*connection_, SendControlFrame(_));
   stream_->WriteOrBufferBody(body, false);
 
@@ -918,7 +919,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
   Initialize(!kShouldProcessData);
 
   // Expect no WINDOW_UPDATE frames to be sent.
-  EXPECT_CALL(*connection_, SendWindowUpdate(_, _)).Times(0);
+  EXPECT_CALL(*session_, SendWindowUpdate(_, _)).Times(0);
 
   // Set a small flow control receive window.
   const uint64_t kWindow = 36;
@@ -1012,6 +1013,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(0), false,
                          kWindow / 3 + header_length,
                          quiche::QuicheStringPiece(data));
+  EXPECT_CALL(*session_, SendWindowUpdate(_, _));
   EXPECT_CALL(*connection_, SendControlFrame(_));
   stream_->OnStreamFrame(frame2);
   EXPECT_EQ(kWindow, QuicFlowControllerPeer::ReceiveWindowSize(
@@ -1084,6 +1086,7 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
   // Now receive a further single byte on one stream - again this does not
   // trigger a stream WINDOW_UPDATE, but now the connection flow control window
   // is over half full and thus a connection WINDOW_UPDATE is sent.
+  EXPECT_CALL(*session_, SendWindowUpdate(_, _));
   EXPECT_CALL(*connection_, SendControlFrame(_));
   QuicStreamFrame frame3(GetNthClientInitiatedBidirectionalId(0), false,
                          body.length() + header_length,
@@ -1170,8 +1173,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
   std::string body = "";
   bool fin = true;
 
-  EXPECT_CALL(*connection_,
-              SendBlocked(GetNthClientInitiatedBidirectionalId(0)))
+  EXPECT_CALL(*session_, SendBlocked(GetNthClientInitiatedBidirectionalId(0)))
       .Times(0);
   EXPECT_CALL(*session_, WritevData(_, 0, _, FIN, _, _));
 

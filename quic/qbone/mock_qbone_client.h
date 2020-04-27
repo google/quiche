@@ -13,8 +13,10 @@ namespace quic {
 
 class MockQboneClient : public QboneClientInterface {
  public:
-  MOCK_METHOD1(ProcessPacketFromNetwork,
-               void(quiche::QuicheStringPiece packet));
+  MOCK_METHOD(void,
+              ProcessPacketFromNetwork,
+              (quiche::QuicheStringPiece packet),
+              (override));
 };
 
 }  // namespace quic

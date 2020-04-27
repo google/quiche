@@ -14,25 +14,28 @@ namespace test {
 
 class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
  public:
-  MOCK_METHOD0(OnSessionReady, void());
-  MOCK_METHOD0(OnIncomingBidirectionalStreamAvailable, void());
-  MOCK_METHOD0(OnIncomingUnidirectionalStreamAvailable, void());
-  MOCK_METHOD1(OnDatagramReceived, void(quiche::QuicheStringPiece));
-  MOCK_METHOD0(OnCanCreateNewOutgoingBidirectionalStream, void());
-  MOCK_METHOD0(OnCanCreateNewOutgoingUnidirectionalStream, void());
+  MOCK_METHOD(void, OnSessionReady, (), (override));
+  MOCK_METHOD(void, OnIncomingBidirectionalStreamAvailable, (), (override));
+  MOCK_METHOD(void, OnIncomingUnidirectionalStreamAvailable, (), (override));
+  MOCK_METHOD(void,
+              OnDatagramReceived,
+              (quiche::QuicheStringPiece),
+              (override));
+  MOCK_METHOD(void, OnCanCreateNewOutgoingBidirectionalStream, (), (override));
+  MOCK_METHOD(void, OnCanCreateNewOutgoingUnidirectionalStream, (), (override));
 };
 
 class MockServerVisitor : public QuicTransportServerSession::ServerVisitor {
  public:
-  MOCK_METHOD1(CheckOrigin, bool(url::Origin));
-  MOCK_METHOD1(ProcessPath, bool(const GURL&));
+  MOCK_METHOD(bool, CheckOrigin, (url::Origin), (override));
+  MOCK_METHOD(bool, ProcessPath, (const GURL&), (override));
 };
 
 class MockStreamVisitor : public QuicTransportStream::Visitor {
  public:
-  MOCK_METHOD0(OnCanRead, void());
-  MOCK_METHOD0(OnFinRead, void());
-  MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD(void, OnCanRead, (), (override));
+  MOCK_METHOD(void, OnFinRead, (), (override));
+  MOCK_METHOD(void, OnCanWrite, (), (override));
 };
 
 }  // namespace test

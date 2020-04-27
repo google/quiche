@@ -31,13 +31,14 @@ namespace test {
 
 class MockStream : public QuicStreamSequencer::StreamInterface {
  public:
-  MOCK_METHOD0(OnFinRead, void());
-  MOCK_METHOD0(OnDataAvailable, void());
-  MOCK_METHOD2(OnUnrecoverableError,
-               void(QuicErrorCode error, const std::string& details));
-  MOCK_METHOD1(Reset, void(QuicRstStreamErrorCode error));
-  MOCK_METHOD0(OnCanWrite, void());
-  MOCK_METHOD1(AddBytesConsumed, void(QuicByteCount bytes));
+  MOCK_METHOD(void, OnFinRead, (), (override));
+  MOCK_METHOD(void, OnDataAvailable, (), (override));
+  MOCK_METHOD(void,
+              OnUnrecoverableError,
+              (QuicErrorCode error, const std::string& details),
+              (override));
+  MOCK_METHOD(void, Reset, (QuicRstStreamErrorCode error), (override));
+  MOCK_METHOD(void, AddBytesConsumed, (QuicByteCount bytes), (override));
 
   QuicStreamId id() const override { return 1; }
 };

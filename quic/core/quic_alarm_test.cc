@@ -14,7 +14,7 @@ namespace {
 
 class MockDelegate : public QuicAlarm::Delegate {
  public:
-  MOCK_METHOD0(OnAlarm, void());
+  MOCK_METHOD(void, OnAlarm, (), (override));
 };
 
 class DestructiveDelegate : public QuicAlarm::Delegate {

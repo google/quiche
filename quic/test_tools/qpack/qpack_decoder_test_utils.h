@@ -32,8 +32,10 @@ class MockEncoderStreamErrorDelegate
  public:
   ~MockEncoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnEncoderStreamError,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnEncoderStreamError,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 // HeadersHandlerInterface implementation that collects decoded headers
@@ -74,12 +76,15 @@ class MockHeadersHandler
   MockHeadersHandler& operator=(const MockHeadersHandler&) = delete;
   ~MockHeadersHandler() override = default;
 
-  MOCK_METHOD2(OnHeaderDecoded,
-               void(quiche::QuicheStringPiece name,
-                    quiche::QuicheStringPiece value));
-  MOCK_METHOD0(OnDecodingCompleted, void());
-  MOCK_METHOD1(OnDecodingErrorDetected,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnHeaderDecoded,
+              (quiche::QuicheStringPiece name, quiche::QuicheStringPiece value),
+              (override));
+  MOCK_METHOD(void, OnDecodingCompleted, (), (override));
+  MOCK_METHOD(void,
+              OnDecodingErrorDetected,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 class NoOpHeadersHandler

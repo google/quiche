@@ -595,7 +595,7 @@ class MockPacketFilter : public PacketFilter {
  public:
   MockPacketFilter(Simulator* simulator, std::string name, Endpoint* endpoint)
       : PacketFilter(simulator, name, endpoint) {}
-  MOCK_METHOD1(FilterPacket, bool(const Packet&));
+  MOCK_METHOD(bool, FilterPacket, (const Packet&), (override));
 };
 
 // Set up two trivial packet filters, one allowing any packets, and one dropping

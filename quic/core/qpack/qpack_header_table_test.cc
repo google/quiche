@@ -25,8 +25,8 @@ class MockObserver : public QpackHeaderTable::Observer {
  public:
   ~MockObserver() override = default;
 
-  MOCK_METHOD0(OnInsertCountReachedThreshold, void());
-  MOCK_METHOD0(Cancel, void());
+  MOCK_METHOD(void, OnInsertCountReachedThreshold, (), (override));
+  MOCK_METHOD(void, Cancel, (), (override));
 };
 
 class QpackHeaderTableTest : public QuicTest {

@@ -42,11 +42,14 @@ const char* const kHeaderAcknowledgement = "\x81";
 class MockVisitor : public QpackDecodedHeadersAccumulator::Visitor {
  public:
   ~MockVisitor() override = default;
-  MOCK_METHOD2(OnHeadersDecoded,
-               void(QuicHeaderList headers,
-                    bool header_list_size_limit_exceeded));
-  MOCK_METHOD1(OnHeaderDecodingError,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnHeadersDecoded,
+              (QuicHeaderList headers, bool header_list_size_limit_exceeded),
+              (override));
+  MOCK_METHOD(void,
+              OnHeaderDecodingError,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 }  // anonymous namespace

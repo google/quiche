@@ -61,9 +61,9 @@ class TestStream : public QuicStream {
   TestStream(PendingStream* pending, StreamType type, bool is_static)
       : QuicStream(pending, type, is_static) {}
 
-  MOCK_METHOD0(OnDataAvailable, void());
+  MOCK_METHOD(void, OnDataAvailable, (), (override));
 
-  MOCK_METHOD0(OnCanWriteNewData, void());
+  MOCK_METHOD(void, OnCanWriteNewData, (), (override));
 
   using QuicStream::CanWriteNewData;
   using QuicStream::CanWriteNewDataAfterData;

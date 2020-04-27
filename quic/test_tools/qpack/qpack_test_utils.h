@@ -32,7 +32,10 @@ class MockQpackStreamSenderDelegate : public QpackStreamSenderDelegate {
  public:
   ~MockQpackStreamSenderDelegate() override = default;
 
-  MOCK_METHOD1(WriteStreamData, void(quiche::QuicheStringPiece data));
+  MOCK_METHOD(void,
+              WriteStreamData,
+              (quiche::QuicheStringPiece data),
+              (override));
 };
 
 class NoopQpackStreamSenderDelegate : public QpackStreamSenderDelegate {

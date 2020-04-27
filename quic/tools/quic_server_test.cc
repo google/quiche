@@ -48,10 +48,10 @@ class MockQuicSimpleDispatcher : public QuicSimpleDispatcher {
                              kQuicDefaultConnectionIdLength) {}
   ~MockQuicSimpleDispatcher() override = default;
 
-  MOCK_METHOD0(OnCanWrite, void());
-  MOCK_CONST_METHOD0(HasPendingWrites, bool());
-  MOCK_CONST_METHOD0(HasChlosBuffered, bool());
-  MOCK_METHOD1(ProcessBufferedChlos, void(size_t));
+  MOCK_METHOD(void, OnCanWrite, (), (override));
+  MOCK_METHOD(bool, HasPendingWrites, (), (const, override));
+  MOCK_METHOD(bool, HasChlosBuffered, (), (const, override));
+  MOCK_METHOD(void, ProcessBufferedChlos, (size_t), (override));
 };
 
 class TestQuicServer : public QuicServer {

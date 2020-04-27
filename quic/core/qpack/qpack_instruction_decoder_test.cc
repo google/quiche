@@ -61,8 +61,14 @@ class MockDelegate : public QpackInstructionDecoder::Delegate {
   MockDelegate& operator=(const MockDelegate&) = delete;
   ~MockDelegate() override = default;
 
-  MOCK_METHOD1(OnInstructionDecoded, bool(const QpackInstruction* instruction));
-  MOCK_METHOD1(OnError, void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(bool,
+              OnInstructionDecoded,
+              (const QpackInstruction*),
+              (override));
+  MOCK_METHOD(void,
+              OnError,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {

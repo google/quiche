@@ -46,8 +46,10 @@ std::vector<TestParams> GetTestParams() {
 
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
-  MOCK_METHOD2(SendMaxStreams,
-               void(QuicStreamCount stream_count, bool unidirectional));
+  MOCK_METHOD(void,
+              SendMaxStreams,
+              (QuicStreamCount stream_count, bool unidirectional),
+              (override));
 };
 
 class UberQuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {

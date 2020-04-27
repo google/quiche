@@ -660,6 +660,15 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
 
   ON_CALL(*this, WritevData(_, _, _, _, _, _))
       .WillByDefault(testing::Return(QuicConsumedData(0, false)));
+
+  ON_CALL(*this, SendWindowUpdate(_, _))
+      .WillByDefault([this](QuicStreamId id, QuicStreamOffset byte_offset) {
+        return QuicSpdySession::SendWindowUpdate(id, byte_offset);
+      });
+
+  ON_CALL(*this, SendBlocked(_)).WillByDefault([this](QuicStreamId id) {
+    return QuicSpdySession::SendBlocked(id);
+  });
 }
 
 MockQuicSpdySession::~MockQuicSpdySession() {

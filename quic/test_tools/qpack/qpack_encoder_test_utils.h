@@ -31,8 +31,10 @@ class MockDecoderStreamErrorDelegate
  public:
   ~MockDecoderStreamErrorDelegate() override = default;
 
-  MOCK_METHOD1(OnDecoderStreamError,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnDecoderStreamError,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 }  // namespace test

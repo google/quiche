@@ -19,16 +19,22 @@ class MockDelegate : public QpackEncoderStreamReceiver::Delegate {
  public:
   ~MockDelegate() override = default;
 
-  MOCK_METHOD3(OnInsertWithNameReference,
-               void(bool is_static,
-                    uint64_t name_index,
-                    quiche::QuicheStringPiece value));
-  MOCK_METHOD2(OnInsertWithoutNameReference,
-               void(quiche::QuicheStringPiece name,
-                    quiche::QuicheStringPiece value));
-  MOCK_METHOD1(OnDuplicate, void(uint64_t index));
-  MOCK_METHOD1(OnSetDynamicTableCapacity, void(uint64_t capacity));
-  MOCK_METHOD1(OnErrorDetected, void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnInsertWithNameReference,
+              (bool is_static,
+               uint64_t name_index,
+               quiche::QuicheStringPiece value),
+              (override));
+  MOCK_METHOD(void,
+              OnInsertWithoutNameReference,
+              (quiche::QuicheStringPiece name, quiche::QuicheStringPiece value),
+              (override));
+  MOCK_METHOD(void, OnDuplicate, (uint64_t index), (override));
+  MOCK_METHOD(void, OnSetDynamicTableCapacity, (uint64_t capacity), (override));
+  MOCK_METHOD(void,
+              OnErrorDetected,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 class QpackEncoderStreamReceiverTest : public QuicTest {

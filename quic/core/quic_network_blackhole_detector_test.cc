@@ -21,8 +21,8 @@ class QuicNetworkBlackholeDetectorPeer {
 namespace {
 class MockDelegate : public QuicNetworkBlackholeDetector::Delegate {
  public:
-  MOCK_METHOD0(OnPathDegradingDetected, void());
-  MOCK_METHOD0(OnBlackholeDetected, void());
+  MOCK_METHOD(void, OnPathDegradingDetected, (), (override));
+  MOCK_METHOD(void, OnBlackholeDetected, (), (override));
 };
 
 const size_t kPathDegradingDelayInSeconds = 5;

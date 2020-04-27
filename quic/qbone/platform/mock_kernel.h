@@ -14,31 +14,38 @@ class MockKernel : public KernelInterface {
  public:
   MockKernel() {}
 
-  MOCK_METHOD3(bind,
-               int(int fd, const struct sockaddr* addr, socklen_t addr_len));
-  MOCK_METHOD1(close, int(int fd));
-  MOCK_METHOD3(ioctl, int(int fd, int request, void* argp));
-  MOCK_METHOD2(open, int(const char* pathname, int flags));
-  MOCK_METHOD3(read, ssize_t(int fd, void* buf, size_t count));
-  MOCK_METHOD6(recvfrom,
-               ssize_t(int sockfd,
-                       void* buf,
-                       size_t len,
-                       int flags,
-                       struct sockaddr* src_addr,
-                       socklen_t* addrlen));
-  MOCK_METHOD3(sendmsg,
-               ssize_t(int sockfd, const struct msghdr* msg, int flags));
-  MOCK_METHOD6(sendto,
-               ssize_t(int sockfd,
-                       const void* buf,
-                       size_t len,
-                       int flags,
-                       const struct sockaddr* dest_addr,
-                       socklen_t addrlen));
-  MOCK_METHOD3(socket, int(int domain, int type, int protocol));
-  MOCK_METHOD5(setsockopt, int(int, int, int, const void*, socklen_t));
-  MOCK_METHOD3(write, ssize_t(int fd, const void* buf, size_t count));
+  MOCK_METHOD(int,
+              bind,
+              (int fd, const struct sockaddr*, socklen_t addr_len),
+              (override));
+  MOCK_METHOD(int, close, (int fd), (override));
+  MOCK_METHOD(int, ioctl, (int fd, int request, void*), (override));
+  MOCK_METHOD(int, open, (const char*, int flags), (override));
+  MOCK_METHOD(ssize_t, read, (int fd, void*, size_t count), (override));
+  MOCK_METHOD(
+      ssize_t,
+      recvfrom,
+      (int sockfd, void*, size_t len, int flags, struct sockaddr*, socklen_t*),
+      (override));
+  MOCK_METHOD(ssize_t,
+              sendmsg,
+              (int sockfd, const struct msghdr*, int flags),
+              (override));
+  MOCK_METHOD(ssize_t,
+              sendto,
+              (int sockfd,
+               const void*,
+               size_t len,
+               int flags,
+               const struct sockaddr*,
+               socklen_t addrlen),
+              (override));
+  MOCK_METHOD(int, socket, (int domain, int type, int protocol), (override));
+  MOCK_METHOD(int,
+              setsockopt,
+              (int, int, int, const void*, socklen_t),
+              (override));
+  MOCK_METHOD(ssize_t, write, (int fd, const void*, size_t count), (override));
 };
 
 }  // namespace quic

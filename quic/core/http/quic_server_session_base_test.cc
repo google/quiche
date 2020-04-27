@@ -475,8 +475,10 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       delete;
   ~MockQuicCryptoServerStream() override {}
 
-  MOCK_METHOD1(SendServerConfigUpdate,
-               void(const CachedNetworkParameters* cached_network_parameters));
+  MOCK_METHOD(void,
+              SendServerConfigUpdate,
+              (const CachedNetworkParameters*),
+              (override));
 };
 
 class MockTlsServerHandshaker : public TlsServerHandshaker {
@@ -488,8 +490,10 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
 
-  MOCK_METHOD1(SendServerConfigUpdate,
-               void(const CachedNetworkParameters* cached_network_parameters));
+  MOCK_METHOD(void,
+              SendServerConfigUpdate,
+              (const CachedNetworkParameters*),
+              (override));
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {

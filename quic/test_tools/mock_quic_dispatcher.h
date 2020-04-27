@@ -30,10 +30,12 @@ class MockQuicDispatcher : public QuicSimpleDispatcher {
 
   ~MockQuicDispatcher() override;
 
-  MOCK_METHOD3(ProcessPacket,
-               void(const QuicSocketAddress& server_address,
-                    const QuicSocketAddress& client_address,
-                    const QuicReceivedPacket& packet));
+  MOCK_METHOD(void,
+              ProcessPacket,
+              (const QuicSocketAddress& server_address,
+               const QuicSocketAddress& client_address,
+               const QuicReceivedPacket& packet),
+              (override));
 };
 
 }  // namespace test

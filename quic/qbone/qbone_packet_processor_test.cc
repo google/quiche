@@ -125,12 +125,14 @@ MATCHER_P(IsIcmpMessage,
 
 class MockPacketFilter : public QbonePacketProcessor::Filter {
  public:
-  MOCK_METHOD5(FilterPacket,
-               ProcessingResult(Direction,
-                                quiche::QuicheStringPiece,
-                                quiche::QuicheStringPiece,
-                                icmp6_hdr*,
-                                OutputInterface*));
+  MOCK_METHOD(ProcessingResult,
+              FilterPacket,
+              (Direction,
+               quiche::QuicheStringPiece,
+               quiche::QuicheStringPiece,
+               icmp6_hdr*,
+               OutputInterface*),
+              (override));
 };
 
 class QbonePacketProcessorTest : public QuicTest {

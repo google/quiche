@@ -12,13 +12,13 @@ namespace quic {
 
 class MockTunDevice : public TunDeviceInterface {
  public:
-  MOCK_METHOD0(Init, bool());
+  MOCK_METHOD(bool, Init, (), (override));
 
-  MOCK_METHOD0(Up, bool());
+  MOCK_METHOD(bool, Up, (), (override));
 
-  MOCK_METHOD0(Down, bool());
+  MOCK_METHOD(bool, Down, (), (override));
 
-  MOCK_CONST_METHOD0(GetFileDescriptor, int());
+  MOCK_METHOD(int, GetFileDescriptor, (), (const, override));
 };
 
 }  // namespace quic

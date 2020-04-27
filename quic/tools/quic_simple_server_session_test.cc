@@ -95,8 +95,10 @@ class MockQuicCryptoServerStream : public QuicCryptoServerStream {
       delete;
   ~MockQuicCryptoServerStream() override {}
 
-  MOCK_METHOD1(SendServerConfigUpdate,
-               void(const CachedNetworkParameters* cached_network_parameters));
+  MOCK_METHOD(void,
+              SendServerConfigUpdate,
+              (const CachedNetworkParameters*),
+              (override));
 
   bool encryption_established() const override { return true; }
 };
@@ -110,8 +112,10 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
   MockTlsServerHandshaker& operator=(const MockTlsServerHandshaker&) = delete;
   ~MockTlsServerHandshaker() override {}
 
-  MOCK_METHOD1(SendServerConfigUpdate,
-               void(const CachedNetworkParameters* cached_network_parameters));
+  MOCK_METHOD(void,
+              SendServerConfigUpdate,
+              (const CachedNetworkParameters*),
+              (override));
 
   bool encryption_established() const override { return true; }
 };
@@ -156,11 +160,13 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
         .WillByDefault(Invoke(consume_all_data));
   }
 
-  MOCK_METHOD4(SendStreamData,
-               QuicConsumedData(QuicStreamId id,
-                                size_t write_length,
-                                QuicStreamOffset offset,
-                                StreamSendingState state));
+  MOCK_METHOD(QuicConsumedData,
+              SendStreamData,
+              (QuicStreamId id,
+               size_t write_length,
+               QuicStreamOffset offset,
+               StreamSendingState state),
+              (override));
 };
 
 class MockQuicSimpleServerSession : public QuicSimpleServerSession {
@@ -189,12 +195,14 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
     return WritePushPromiseMock(original_stream_id, promised_stream_id,
                                 headers);
   }
-  MOCK_METHOD3(WritePushPromiseMock,
-               void(QuicStreamId original_stream_id,
-                    QuicStreamId promised_stream_id,
-                    const spdy::SpdyHeaderBlock& headers));
+  MOCK_METHOD(void,
+              WritePushPromiseMock,
+              (QuicStreamId original_stream_id,
+               QuicStreamId promised_stream_id,
+               const spdy::SpdyHeaderBlock& headers),
+              ());
 
-  MOCK_METHOD1(SendBlocked, void(QuicStreamId));
+  MOCK_METHOD(void, SendBlocked, (QuicStreamId), (override));
 };
 
 class QuicSimpleServerSessionTest

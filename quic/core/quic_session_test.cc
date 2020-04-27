@@ -161,7 +161,7 @@ class TestStream : public QuicStream {
               (QuicStreamOffset, QuicByteCount, bool, TransmissionType),
               (override));
 
-  MOCK_METHOD(bool, HasPendingRetransmission, (), (override, const));
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 };
 
 class TestSession : public QuicSession {

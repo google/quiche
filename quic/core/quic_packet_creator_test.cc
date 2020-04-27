@@ -86,9 +86,12 @@ class MockDebugDelegate : public QuicPacketCreator::DebugDelegate {
  public:
   ~MockDebugDelegate() override = default;
 
-  MOCK_METHOD1(OnFrameAddedToPacket, void(const QuicFrame& frame));
+  MOCK_METHOD(void, OnFrameAddedToPacket, (const QuicFrame& frame), (override));
 
-  MOCK_METHOD1(OnStreamFrameCoalesced, void(const QuicStreamFrame& frame));
+  MOCK_METHOD(void,
+              OnStreamFrameCoalesced,
+              (const QuicStreamFrame& frame),
+              (override));
 };
 
 class TestPacketCreator : public QuicPacketCreator {
@@ -2237,13 +2240,20 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
   MockDelegate& operator=(const MockDelegate&) = delete;
   ~MockDelegate() override {}
 
-  MOCK_METHOD2(ShouldGeneratePacket,
-               bool(HasRetransmittableData retransmittable,
-                    IsHandshake handshake));
-  MOCK_METHOD0(MaybeBundleAckOpportunistically, const QuicFrames());
-  MOCK_METHOD0(GetPacketBuffer, char*());
-  MOCK_METHOD1(OnSerializedPacket, void(SerializedPacket* packet));
-  MOCK_METHOD2(OnUnrecoverableError, void(QuicErrorCode, const std::string&));
+  MOCK_METHOD(bool,
+              ShouldGeneratePacket,
+              (HasRetransmittableData retransmittable, IsHandshake handshake),
+              (override));
+  MOCK_METHOD(const QuicFrames,
+              MaybeBundleAckOpportunistically,
+              (),
+              (override));
+  MOCK_METHOD(char*, GetPacketBuffer, (), (override));
+  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket*), (override));
+  MOCK_METHOD(void,
+              OnUnrecoverableError,
+              (QuicErrorCode, const std::string&),
+              (override));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));

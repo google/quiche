@@ -139,11 +139,11 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakeDoneReceived() override {}
 
-  MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD(void, OnCanWrite, (), (override));
 
   bool HasPendingCryptoRetransmission() const override { return false; }
 
-  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
  private:
   using QuicCryptoStream::session;
@@ -158,7 +158,7 @@ class TestHeadersStream : public QuicHeadersStream {
   explicit TestHeadersStream(QuicSpdySession* session)
       : QuicHeadersStream(session) {}
 
-  MOCK_METHOD0(OnCanWrite, void());
+  MOCK_METHOD(void, OnCanWrite, (), (override));
 };
 
 class TestStream : public QuicSpdyStream {
@@ -173,11 +173,13 @@ class TestStream : public QuicSpdyStream {
 
   void OnBodyAvailable() override {}
 
-  MOCK_METHOD0(OnCanWrite, void());
-  MOCK_METHOD4(RetransmitStreamData,
-               bool(QuicStreamOffset, QuicByteCount, bool, TransmissionType));
+  MOCK_METHOD(void, OnCanWrite, (), (override));
+  MOCK_METHOD(bool,
+              RetransmitStreamData,
+              (QuicStreamOffset, QuicByteCount, bool, TransmissionType),
+              (override));
 
-  MOCK_CONST_METHOD0(HasPendingRetransmission, bool());
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 };
 
 class TestSession : public QuicSpdySession {

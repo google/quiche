@@ -43,14 +43,17 @@ MATCHER(PacketNumberEq, "") {
 
 class MockDebugDelegate : public QuicSentPacketManager::DebugDelegate {
  public:
-  MOCK_METHOD2(OnSpuriousPacketRetransmission,
-               void(TransmissionType transmission_type,
-                    QuicByteCount byte_size));
-  MOCK_METHOD4(OnPacketLoss,
-               void(QuicPacketNumber lost_packet_number,
-                    EncryptionLevel encryption_level,
-                    TransmissionType transmission_type,
-                    QuicTime detection_time));
+  MOCK_METHOD(void,
+              OnSpuriousPacketRetransmission,
+              (TransmissionType transmission_type, QuicByteCount byte_size),
+              (override));
+  MOCK_METHOD(void,
+              OnPacketLoss,
+              (QuicPacketNumber lost_packet_number,
+               EncryptionLevel encryption_level,
+               TransmissionType transmission_type,
+               QuicTime detection_time),
+              (override));
 };
 
 class QuicSentPacketManagerTest : public QuicTest {
@@ -105,8 +108,6 @@ class QuicSentPacketManagerTest : public QuicTest {
 
     EXPECT_CALL(*send_algorithm_, GetCongestionControlType())
         .WillRepeatedly(Return(kInitialCongestionControlType));
-    EXPECT_CALL(*send_algorithm_, HasReliableBandwidthEstimate())
-        .Times(AnyNumber());
     EXPECT_CALL(*send_algorithm_, BandwidthEstimate())
         .Times(AnyNumber())
         .WillRepeatedly(Return(QuicBandwidth::Zero()));
@@ -526,7 +527,6 @@ TEST_F(QuicSentPacketManagerTest,
   // Since 1 has been retransmitted, it has already been lost, and so the
   // send algorithm is not informed that it has been ACK'd.
   ExpectUpdatedRtt(1);
-  EXPECT_CALL(*send_algorithm_, RevertRetransmissionTimeout());
   manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));

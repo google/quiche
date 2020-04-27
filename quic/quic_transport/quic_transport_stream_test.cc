@@ -29,7 +29,7 @@ ParsedQuicVersionVector GetVersions() {
 
 class MockQuicTransportSessionInterface : public QuicTransportSessionInterface {
  public:
-  MOCK_CONST_METHOD0(IsSessionReady, bool());
+  MOCK_METHOD(bool, IsSessionReady, (), (const, override));
 };
 
 class QuicTransportStreamTest : public QuicTest {

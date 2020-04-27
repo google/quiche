@@ -55,7 +55,7 @@ class TestStream : public QuicSimpleServerStream {
 
   ~TestStream() override = default;
 
-  MOCK_METHOD1(WriteHeadersMock, void(bool fin));
+  MOCK_METHOD(void, WriteHeadersMock, (bool fin), ());
 
   size_t WriteHeaders(spdy::SpdyHeaderBlock /*header_block*/,
                       bool fin,
@@ -120,30 +120,42 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
       delete;
   ~MockQuicSimpleServerSession() override = default;
 
-  MOCK_METHOD2(OnConnectionClosed,
-               void(const QuicConnectionCloseFrame& frame,
-                    ConnectionCloseSource source));
-  MOCK_METHOD1(CreateIncomingStream, QuicSpdyStream*(QuicStreamId id));
-  MOCK_METHOD6(WritevData,
-               QuicConsumedData(QuicStreamId id,
-                                size_t write_length,
-                                QuicStreamOffset offset,
-                                StreamSendingState state,
-                                TransmissionType type,
-                                quiche::QuicheOptional<EncryptionLevel> level));
-  MOCK_METHOD4(OnStreamHeaderList,
-               void(QuicStreamId stream_id,
-                    bool fin,
-                    size_t frame_len,
-                    const QuicHeaderList& header_list));
-  MOCK_METHOD2(OnStreamHeadersPriority,
-               void(QuicStreamId stream_id,
-                    const spdy::SpdyStreamPrecedence& precedence));
-  MOCK_METHOD3(SendRstStream,
-               void(QuicStreamId stream_id,
-                    QuicRstStreamErrorCode error,
-                    QuicStreamOffset bytes_written));
-  MOCK_METHOD1(OnHeadersHeadOfLineBlocking, void(QuicTime::Delta delta));
+  MOCK_METHOD(void,
+              OnConnectionClosed,
+              (const QuicConnectionCloseFrame& frame,
+               ConnectionCloseSource source),
+              (override));
+  MOCK_METHOD(QuicSpdyStream*,
+              CreateIncomingStream,
+              (QuicStreamId id),
+              (override));
+  MOCK_METHOD(QuicConsumedData,
+              WritevData,
+              (QuicStreamId id,
+               size_t write_length,
+               QuicStreamOffset offset,
+               StreamSendingState state,
+               TransmissionType type,
+               quiche::QuicheOptional<EncryptionLevel> level),
+              (override));
+  MOCK_METHOD(void,
+              OnStreamHeaderList,
+              (QuicStreamId stream_id,
+               bool fin,
+               size_t frame_len,
+               const QuicHeaderList& header_list),
+              (override));
+  MOCK_METHOD(void,
+              OnStreamHeadersPriority,
+              (QuicStreamId stream_id,
+               const spdy::SpdyStreamPrecedence& precedence),
+              (override));
+  MOCK_METHOD(void,
+              SendRstStream,
+              (QuicStreamId stream_id,
+               QuicRstStreamErrorCode error,
+               QuicStreamOffset bytes_written),
+              (override));
   // Matchers cannot be used on non-copyable types like SpdyHeaderBlock.
   void PromisePushResources(
       const std::string& request_url,
@@ -155,16 +167,16 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
     PromisePushResourcesMock(request_url, resources, original_stream_id,
                              original_precedence, original_request_headers);
   }
-  MOCK_METHOD5(PromisePushResourcesMock,
-               void(const std::string&,
-                    const std::list<QuicBackendResponse::ServerPushInfo>&,
-                    QuicStreamId,
-                    const spdy::SpdyStreamPrecedence&,
-                    const spdy::SpdyHeaderBlock&));
+  MOCK_METHOD(void,
+              PromisePushResourcesMock,
+              (const std::string&,
+               const std::list<QuicBackendResponse::ServerPushInfo>&,
+               QuicStreamId,
+               const spdy::SpdyStreamPrecedence&,
+               const spdy::SpdyHeaderBlock&),
+              ());
 
   using QuicSession::ActivateStream;
-
-  MOCK_METHOD1(OnStopSendingReceived, void(const QuicStopSendingFrame& frame));
 
   QuicConsumedData ConsumeData(
       QuicStreamId id,

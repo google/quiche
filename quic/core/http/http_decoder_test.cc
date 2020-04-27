@@ -39,42 +39,79 @@ class MockVisitor : public HttpDecoder::Visitor {
   ~MockVisitor() override = default;
 
   // Called if an error is detected.
-  MOCK_METHOD1(OnError, void(HttpDecoder* decoder));
+  MOCK_METHOD(void, OnError, (HttpDecoder*), (override));
 
-  MOCK_METHOD1(OnCancelPushFrame, bool(const CancelPushFrame& frame));
-  MOCK_METHOD1(OnMaxPushIdFrame, bool(const MaxPushIdFrame& frame));
-  MOCK_METHOD1(OnGoAwayFrame, bool(const GoAwayFrame& frame));
-  MOCK_METHOD1(OnSettingsFrameStart, bool(QuicByteCount header_length));
-  MOCK_METHOD1(OnSettingsFrame, bool(const SettingsFrame& frame));
+  MOCK_METHOD(bool,
+              OnCancelPushFrame,
+              (const CancelPushFrame& frame),
+              (override));
+  MOCK_METHOD(bool,
+              OnMaxPushIdFrame,
+              (const MaxPushIdFrame& frame),
+              (override));
+  MOCK_METHOD(bool, OnGoAwayFrame, (const GoAwayFrame& frame), (override));
+  MOCK_METHOD(bool,
+              OnSettingsFrameStart,
+              (QuicByteCount header_length),
+              (override));
+  MOCK_METHOD(bool, OnSettingsFrame, (const SettingsFrame& frame), (override));
 
-  MOCK_METHOD2(OnDataFrameStart,
-               bool(QuicByteCount header_length, QuicByteCount payload_length));
-  MOCK_METHOD1(OnDataFramePayload, bool(quiche::QuicheStringPiece payload));
-  MOCK_METHOD0(OnDataFrameEnd, bool());
+  MOCK_METHOD(bool,
+              OnDataFrameStart,
+              (QuicByteCount header_length, QuicByteCount payload_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnDataFramePayload,
+              (quiche::QuicheStringPiece payload),
+              (override));
+  MOCK_METHOD(bool, OnDataFrameEnd, (), (override));
 
-  MOCK_METHOD2(OnHeadersFrameStart,
-               bool(QuicByteCount header_length, QuicByteCount payload_length));
-  MOCK_METHOD1(OnHeadersFramePayload, bool(quiche::QuicheStringPiece payload));
-  MOCK_METHOD0(OnHeadersFrameEnd, bool());
+  MOCK_METHOD(bool,
+              OnHeadersFrameStart,
+              (QuicByteCount header_length, QuicByteCount payload_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnHeadersFramePayload,
+              (quiche::QuicheStringPiece payload),
+              (override));
+  MOCK_METHOD(bool, OnHeadersFrameEnd, (), (override));
 
-  MOCK_METHOD1(OnPushPromiseFrameStart, bool(QuicByteCount header_length));
-  MOCK_METHOD3(OnPushPromiseFramePushId,
-               bool(PushId push_id,
-                    QuicByteCount push_id_length,
-                    QuicByteCount header_block_length));
-  MOCK_METHOD1(OnPushPromiseFramePayload,
-               bool(quiche::QuicheStringPiece payload));
-  MOCK_METHOD0(OnPushPromiseFrameEnd, bool());
+  MOCK_METHOD(bool,
+              OnPushPromiseFrameStart,
+              (QuicByteCount header_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnPushPromiseFramePushId,
+              (PushId push_id,
+               QuicByteCount push_id_length,
+               QuicByteCount header_block_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnPushPromiseFramePayload,
+              (quiche::QuicheStringPiece payload),
+              (override));
+  MOCK_METHOD(bool, OnPushPromiseFrameEnd, (), (override));
 
-  MOCK_METHOD1(OnPriorityUpdateFrameStart, bool(QuicByteCount header_length));
-  MOCK_METHOD1(OnPriorityUpdateFrame, bool(const PriorityUpdateFrame& frame));
+  MOCK_METHOD(bool,
+              OnPriorityUpdateFrameStart,
+              (QuicByteCount header_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnPriorityUpdateFrame,
+              (const PriorityUpdateFrame& frame),
+              (override));
 
-  MOCK_METHOD3(OnUnknownFrameStart,
-               bool(uint64_t frame_type,
-                    QuicByteCount header_length,
-                    QuicByteCount payload_length));
-  MOCK_METHOD1(OnUnknownFramePayload, bool(quiche::QuicheStringPiece payload));
-  MOCK_METHOD0(OnUnknownFrameEnd, bool());
+  MOCK_METHOD(bool,
+              OnUnknownFrameStart,
+              (uint64_t frame_type,
+               QuicByteCount header_length,
+               QuicByteCount payload_length),
+              (override));
+  MOCK_METHOD(bool,
+              OnUnknownFramePayload,
+              (quiche::QuicheStringPiece payload),
+              (override));
+  MOCK_METHOD(bool, OnUnknownFrameEnd, (), (override));
 };
 
 class HttpDecoderTest : public QuicTest {

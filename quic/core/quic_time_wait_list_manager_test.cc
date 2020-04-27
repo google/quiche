@@ -113,8 +113,8 @@ class MockAlarmFactory : public QuicAlarmFactory {
     return QuicArenaScopedPtr<MockAlarm>(
         new MockAlarm(std::move(delegate), alarm_index_++, this));
   }
-  MOCK_METHOD2(OnAlarmSet, void(int, QuicTime));
-  MOCK_METHOD1(OnAlarmCancelled, void(int));
+  MOCK_METHOD(void, OnAlarmSet, (int, QuicTime), ());
+  MOCK_METHOD(void, OnAlarmCancelled, (int), ());
 
  private:
   int alarm_index_ = 0;

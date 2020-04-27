@@ -24,8 +24,10 @@ namespace {
 
 class MockDelegate : public QuicStreamIdManager::DelegateInterface {
  public:
-  MOCK_METHOD2(SendMaxStreams,
-               void(QuicStreamCount stream_count, bool unidirectional));
+  MOCK_METHOD(void,
+              SendMaxStreams,
+              (QuicStreamCount stream_count, bool unidirectional),
+              (override));
 };
 
 struct TestParams {

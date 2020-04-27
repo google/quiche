@@ -20,12 +20,14 @@ class MockQuicSpdyClientStream : public QuicSpdyClientStream {
                            StreamType type);
   ~MockQuicSpdyClientStream() override;
 
-  MOCK_METHOD1(OnStreamFrame, void(const QuicStreamFrame& frame));
-  MOCK_METHOD3(OnPromiseHeaderList,
-               void(QuicStreamId promised_stream_id,
-                    size_t frame_len,
-                    const QuicHeaderList& list));
-  MOCK_METHOD0(OnDataAvailable, void());
+  MOCK_METHOD(void, OnStreamFrame, (const QuicStreamFrame& frame), (override));
+  MOCK_METHOD(void,
+              OnPromiseHeaderList,
+              (QuicStreamId promised_stream_id,
+               size_t frame_len,
+               const QuicHeaderList& list),
+              (override));
+  MOCK_METHOD(void, OnDataAvailable, (), (override));
 };
 
 }  // namespace test

@@ -22,8 +22,8 @@ namespace {
 
 class MockDelegate : public QuicIdleNetworkDetector::Delegate {
  public:
-  MOCK_METHOD0(OnHandshakeTimeout, void());
-  MOCK_METHOD0(OnIdleNetworkDetected, void());
+  MOCK_METHOD(void, OnHandshakeTimeout, (), (override));
+  MOCK_METHOD(void, OnIdleNetworkDetected, (), (override));
 };
 
 class QuicIdleNetworkDetectorTest : public QuicTest {

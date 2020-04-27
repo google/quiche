@@ -225,10 +225,16 @@ class MockProofHandler : public QuicCryptoClientStream::ProofHandler {
   MockProofHandler() = default;
   ~MockProofHandler() override {}
 
-  MOCK_METHOD1(OnProofValid,  // NOLINT(build/deprecated)
-               void(const QuicCryptoClientConfig::CachedState&));
-  MOCK_METHOD1(OnProofVerifyDetailsAvailable,  // NOLINT(build/deprecated)
-               void(const ProofVerifyDetails&));
+  MOCK_METHOD(  // NOLINT(build/deprecated)
+      void,
+      OnProofValid,
+      (const QuicCryptoClientConfig::CachedState&),
+      (override));
+  MOCK_METHOD(  // NOLINT(build/deprecated)
+      void,
+      OnProofVerifyDetailsAvailable,
+      (const ProofVerifyDetails&),
+      (override));
 };
 
 class TestQuicCryptoClientStream : public TestQuicCryptoStream {

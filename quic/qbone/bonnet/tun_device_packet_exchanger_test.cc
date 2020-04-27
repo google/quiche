@@ -23,8 +23,8 @@ using ::testing::StrictMock;
 
 class MockVisitor : public QbonePacketExchanger::Visitor {
  public:
-  MOCK_METHOD1(OnReadError, void(const std::string&));
-  MOCK_METHOD1(OnWriteError, void(const std::string&));
+  MOCK_METHOD(void, OnReadError, (const std::string&), (override));
+  MOCK_METHOD(void, OnWriteError, (const std::string&), (override));
 };
 
 class TunDevicePacketExchangerTest : public QuicTest {

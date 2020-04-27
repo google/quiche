@@ -25,10 +25,16 @@ class MockQboneServerSession : public QboneServerSession {
                            /*client_ip_subnet_length=*/0,
                            /*handler=*/nullptr) {}
 
-  MOCK_METHOD1(SendClientRequest, bool(const QboneClientRequest&));
+  MOCK_METHOD(bool, SendClientRequest, (const QboneClientRequest&), (override));
 
-  MOCK_METHOD1(ProcessPacketFromNetwork, void(quiche::QuicheStringPiece));
-  MOCK_METHOD1(ProcessPacketFromPeer, void(quiche::QuicheStringPiece));
+  MOCK_METHOD(void,
+              ProcessPacketFromNetwork,
+              (quiche::QuicheStringPiece),
+              (override));
+  MOCK_METHOD(void,
+              ProcessPacketFromPeer,
+              (quiche::QuicheStringPiece),
+              (override));
 };
 
 }  // namespace quic

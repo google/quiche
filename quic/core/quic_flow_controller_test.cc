@@ -31,7 +31,7 @@ class MockFlowController : public QuicFlowControllerInterface {
   MockFlowController& operator=(const MockFlowController&) = delete;
   ~MockFlowController() override {}
 
-  MOCK_METHOD1(EnsureWindowAtLeast, void(QuicByteCount));
+  MOCK_METHOD(void, EnsureWindowAtLeast, (QuicByteCount), (override));
 };
 
 class QuicFlowControllerTest : public QuicTest {

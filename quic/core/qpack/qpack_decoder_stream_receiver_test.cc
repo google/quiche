@@ -19,10 +19,16 @@ class MockDelegate : public QpackDecoderStreamReceiver::Delegate {
  public:
   ~MockDelegate() override = default;
 
-  MOCK_METHOD1(OnInsertCountIncrement, void(uint64_t increment));
-  MOCK_METHOD1(OnHeaderAcknowledgement, void(QuicStreamId stream_id));
-  MOCK_METHOD1(OnStreamCancellation, void(QuicStreamId stream_id));
-  MOCK_METHOD1(OnErrorDetected, void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void, OnInsertCountIncrement, (uint64_t increment), (override));
+  MOCK_METHOD(void,
+              OnHeaderAcknowledgement,
+              (QuicStreamId stream_id),
+              (override));
+  MOCK_METHOD(void, OnStreamCancellation, (QuicStreamId stream_id), (override));
+  MOCK_METHOD(void,
+              OnErrorDetected,
+              (quiche::QuicheStringPiece error_message),
+              (override));
 };
 
 class QpackDecoderStreamReceiverTest : public QuicTest {

@@ -40,7 +40,7 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       delete;
   ~MockQuicSpdyClientSession() override {}
 
-  MOCK_METHOD1(CloseStream, void(QuicStreamId stream_id));
+  MOCK_METHOD(void, CloseStream, (QuicStreamId stream_id), (override));
 
  private:
   QuicCryptoClientConfig crypto_config_;

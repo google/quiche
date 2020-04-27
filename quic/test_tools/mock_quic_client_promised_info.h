@@ -21,9 +21,11 @@ class MockQuicClientPromisedInfo : public QuicClientPromisedInfo {
                              std::string url);
   ~MockQuicClientPromisedInfo() override;
 
-  MOCK_METHOD2(HandleClientRequest,
-               QuicAsyncStatus(const spdy::SpdyHeaderBlock& headers,
-                               QuicClientPushPromiseIndex::Delegate* delegate));
+  MOCK_METHOD(QuicAsyncStatus,
+              HandleClientRequest,
+              (const spdy::SpdyHeaderBlock& headers,
+               QuicClientPushPromiseIndex::Delegate*),
+              (override));
 };
 
 }  // namespace test

@@ -12,7 +12,7 @@ namespace quic {
 
 class MockIcmpReachable : public IcmpReachableInterface {
  public:
-  MOCK_METHOD0(Init, bool());
+  MOCK_METHOD(bool, Init, (), (override));
 };
 
 }  // namespace quic

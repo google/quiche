@@ -13,13 +13,13 @@ namespace quic {
 class MockPacketExchangerStatsInterface
     : public TunDevicePacketExchanger::StatsInterface {
  public:
-  MOCK_METHOD1(OnPacketRead, void(size_t));
-  MOCK_METHOD1(OnPacketWritten, void(size_t));
-  MOCK_METHOD1(OnReadError, void(std::string*));
-  MOCK_METHOD1(OnWriteError, void(std::string*));
+  MOCK_METHOD(void, OnPacketRead, (size_t), (override));
+  MOCK_METHOD(void, OnPacketWritten, (size_t), (override));
+  MOCK_METHOD(void, OnReadError, (std::string*), (override));
+  MOCK_METHOD(void, OnWriteError, (std::string*), (override));
 
-  MOCK_CONST_METHOD0(PacketsRead, int64_t());
-  MOCK_CONST_METHOD0(PacketsWritten, int64_t());
+  MOCK_METHOD(int64_t, PacketsRead, (), (const, override));
+  MOCK_METHOD(int64_t, PacketsWritten, (), (const, override));
 };
 
 }  // namespace quic

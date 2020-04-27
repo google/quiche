@@ -18,17 +18,26 @@ class MockQuicSessionVisitor : public QuicTimeWaitListManager::Visitor {
   MockQuicSessionVisitor(const MockQuicSessionVisitor&) = delete;
   MockQuicSessionVisitor& operator=(const MockQuicSessionVisitor&) = delete;
   ~MockQuicSessionVisitor() override;
-  MOCK_METHOD4(OnConnectionClosed,
-               void(QuicConnectionId connection_id,
-                    QuicErrorCode error,
-                    const std::string& error_details,
-                    ConnectionCloseSource source));
-  MOCK_METHOD1(OnWriteBlocked,
-               void(QuicBlockedWriterInterface* blocked_writer));
-  MOCK_METHOD1(OnRstStreamReceived, void(const QuicRstStreamFrame& frame));
-  MOCK_METHOD1(OnStopSendingReceived, void(const QuicStopSendingFrame& frame));
-  MOCK_METHOD1(OnConnectionAddedToTimeWaitList,
-               void(QuicConnectionId connection_id));
+  MOCK_METHOD(void,
+              OnConnectionClosed,
+              (QuicConnectionId connection_id,
+               QuicErrorCode error,
+               const std::string& error_details,
+               ConnectionCloseSource source),
+              (override));
+  MOCK_METHOD(void, OnWriteBlocked, (QuicBlockedWriterInterface*), (override));
+  MOCK_METHOD(void,
+              OnRstStreamReceived,
+              (const QuicRstStreamFrame& frame),
+              (override));
+  MOCK_METHOD(void,
+              OnStopSendingReceived,
+              (const QuicStopSendingFrame& frame),
+              (override));
+  MOCK_METHOD(void,
+              OnConnectionAddedToTimeWaitList,
+              (QuicConnectionId connection_id),
+              (override));
 };
 
 class MockQuicCryptoServerStreamHelper
@@ -40,12 +49,14 @@ class MockQuicCryptoServerStreamHelper
   MockQuicCryptoServerStreamHelper& operator=(
       const MockQuicCryptoServerStreamHelper&) = delete;
   ~MockQuicCryptoServerStreamHelper() override;
-  MOCK_CONST_METHOD5(CanAcceptClientHello,
-                     bool(const CryptoHandshakeMessage& message,
-                          const QuicSocketAddress& client_address,
-                          const QuicSocketAddress& peer_address,
-                          const QuicSocketAddress& self_address,
-                          std::string* error_details));
+  MOCK_METHOD(bool,
+              CanAcceptClientHello,
+              (const CryptoHandshakeMessage& message,
+               const QuicSocketAddress& client_address,
+               const QuicSocketAddress& peer_address,
+               const QuicSocketAddress& self_address,
+               std::string*),
+              (const, override));
 };
 
 }  // namespace test
