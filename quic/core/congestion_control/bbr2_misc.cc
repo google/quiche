@@ -186,15 +186,17 @@ void Bbr2NetworkModel::AdaptLowerBounds(
     if (bandwidth_lo_.IsInfinite()) {
       bandwidth_lo_ = MaxBandwidth();
     }
-    if (inflight_lo_ == inflight_lo_default()) {
-      inflight_lo_ = congestion_event.prior_cwnd;
-    }
-
     bandwidth_lo_ =
         std::max(bandwidth_latest_, bandwidth_lo_ * (1.0 - Params().beta));
     QUIC_DVLOG(3) << "bandwidth_lo_ updated to " << bandwidth_lo_
                   << ", bandwidth_latest_ is " << bandwidth_latest_;
 
+    if (Params().ignore_inflight_lo) {
+      return;
+    }
+    if (inflight_lo_ == inflight_lo_default()) {
+      inflight_lo_ = congestion_event.prior_cwnd;
+    }
     inflight_lo_ = std::max<QuicByteCount>(
         inflight_latest_, inflight_lo_ * (1.0 - Params().beta));
   }
@@ -280,6 +282,15 @@ void Bbr2NetworkModel::RestartRound() {
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
   round_trip_counter_.RestartRound();
+}
+
+void Bbr2NetworkModel::cap_inflight_lo(QuicByteCount cap) {
+  if (Params().ignore_inflight_lo) {
+    return;
+  }
+  if (inflight_lo_ != inflight_lo_default() && inflight_lo_ > cap) {
+    inflight_lo_ = cap;
+  }
 }
 
 QuicByteCount Bbr2NetworkModel::inflight_hi_with_headroom() const {

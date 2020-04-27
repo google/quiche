@@ -181,6 +181,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // Can be disabled by connection option 'B2CL'.
   bool avoid_too_low_probe_bw_cwnd =
       GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd);
+
+  // Can be enabled by connection option 'B2LO'.
+  bool ignore_inflight_lo = false;
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {
@@ -424,11 +427,7 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     return std::numeric_limits<QuicByteCount>::max();
   }
   void clear_inflight_lo() { inflight_lo_ = inflight_lo_default(); }
-  void cap_inflight_lo(QuicByteCount cap) {
-    if (inflight_lo_ != inflight_lo_default() && inflight_lo_ > cap) {
-      inflight_lo_ = cap;
-    }
-  }
+  void cap_inflight_lo(QuicByteCount cap);
 
   QuicByteCount inflight_hi_with_headroom() const;
   QuicByteCount inflight_hi() const { return inflight_hi_; }

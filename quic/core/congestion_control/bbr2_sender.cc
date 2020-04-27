@@ -129,6 +129,11 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_fewer_startup_round_trips, 2, 2);
     params_.startup_full_bw_rounds = 2;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_ignore_inflight_lo) &&
+      config.HasClientRequestedIndependentOption(kB2LO, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_ignore_inflight_lo);
+    params_.ignore_inflight_lo = true;
+  }
 }
 
 Limits<QuicByteCount> Bbr2Sender::GetCwndLimitsByMode() const {
