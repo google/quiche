@@ -61,7 +61,7 @@ class DummyProofSource : public ProofSource {
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;
 
-  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
+  TicketCrypter* GetTicketCrypter() override { return nullptr; }
 };
 
 // Used by QuicCryptoClientConfig to ignore the peer's credentials

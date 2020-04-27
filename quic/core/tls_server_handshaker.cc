@@ -417,20 +417,19 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
 }
 
 size_t TlsServerHandshaker::SessionTicketMaxOverhead() {
-  DCHECK(proof_source_->SessionTicketCrypter());
-  return proof_source_->SessionTicketCrypter()->MaxOverhead();
+  DCHECK(proof_source_->GetTicketCrypter());
+  return proof_source_->GetTicketCrypter()->MaxOverhead();
 }
 
 int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
                                            size_t* out_len,
                                            size_t max_out_len,
                                            quiche::QuicheStringPiece in) {
-  DCHECK(proof_source_->SessionTicketCrypter());
-  std::vector<uint8_t> ticket =
-      proof_source_->SessionTicketCrypter()->Encrypt(in);
+  DCHECK(proof_source_->GetTicketCrypter());
+  std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
   if (max_out_len < ticket.size()) {
     QUIC_BUG
-        << "SessionTicketCrypter returned " << ticket.size()
+        << "TicketCrypter returned " << ticket.size()
         << " bytes of ciphertext, which is larger than its max overhead of "
         << max_out_len;
     return 0;  // failure
@@ -445,11 +444,11 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
     size_t* out_len,
     size_t max_out_len,
     quiche::QuicheStringPiece in) {
-  DCHECK(proof_source_->SessionTicketCrypter());
+  DCHECK(proof_source_->GetTicketCrypter());
 
   if (!ticket_decryption_callback_) {
     ticket_decryption_callback_ = new DecryptCallback(this);
-    proof_source_->SessionTicketCrypter()->Decrypt(
+    proof_source_->GetTicketCrypter()->Decrypt(
         in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));
     // Decrypt can run the callback synchronously. In that case, the callback
     // will clear the ticket_decryption_callback_ pointer, and instead of

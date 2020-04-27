@@ -113,11 +113,11 @@ void FakeProofSource::ComputeTlsSignature(
       delegate_.get()));
 }
 
-ProofSource::TicketCrypter* FakeProofSource::SessionTicketCrypter() {
+ProofSource::TicketCrypter* FakeProofSource::GetTicketCrypter() {
   if (ticket_crypter_) {
     return ticket_crypter_.get();
   }
-  return delegate_->SessionTicketCrypter();
+  return delegate_->GetTicketCrypter();
 }
 
 void FakeProofSource::SetTicketCrypter(

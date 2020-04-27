@@ -21,10 +21,10 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   SSL_CTX_set_tlsext_servername_callback(ssl_ctx.get(),
                                          &SelectCertificateCallback);
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);
-  // We don't actually need the SessionTicketCrypter here, but we need to know
+  // We don't actually need the TicketCrypter here, but we need to know
   // whether it's set.
   if (GetQuicReloadableFlag(quic_enable_tls_resumption) &&
-      proof_source->SessionTicketCrypter()) {
+      proof_source->GetTicketCrypter()) {
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
   } else {

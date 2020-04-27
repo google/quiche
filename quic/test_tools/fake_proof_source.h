@@ -21,7 +21,7 @@ namespace test {
 // asynchronously, and allow the caller to see that the call is pending and
 // resume the operation at the caller's choosing. FakeProofSource also allows
 // the caller to replace the TicketCrypter provided by
-// FakeProofSource::SessionTicketCrypter.
+// FakeProofSource::GetTicketCrypter.
 class FakeProofSource : public ProofSource {
  public:
   FakeProofSource();
@@ -49,7 +49,7 @@ class FakeProofSource : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
-  TicketCrypter* SessionTicketCrypter() override;
+  TicketCrypter* GetTicketCrypter() override;
 
   // Sets the TicketCrypter to use. If nullptr, the TicketCrypter from
   // ProofSourceForTesting will be returned instead.

@@ -31,7 +31,7 @@ class FailingProofSource : public ProofSource {
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;
 
-  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
+  TicketCrypter* GetTicketCrypter() override { return nullptr; }
 };
 
 }  // namespace test

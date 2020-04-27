@@ -191,7 +191,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // TicketCrypter returned (if not nullptr) must be valid for the lifetime of
   // the ProofSource, and the caller does not take ownership of said
   // TicketCrypter.
-  virtual TicketCrypter* SessionTicketCrypter() = 0;
+  virtual TicketCrypter* GetTicketCrypter() = 0;
 };
 
 }  // namespace quic

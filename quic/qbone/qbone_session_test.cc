@@ -112,7 +112,7 @@ class IndirectionProofSource : public ProofSource {
         server_address, hostname, signature_algorithm, in, std::move(callback));
   }
 
-  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
+  TicketCrypter* GetTicketCrypter() override { return nullptr; }
 
  private:
   std::unique_ptr<ProofSource> proof_source_;

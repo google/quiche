@@ -42,7 +42,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
       std::unique_ptr<SignatureCallback> callback) override;
-  TicketCrypter* SessionTicketCrypter() override;
+  TicketCrypter* GetTicketCrypter() override;
 
   // Adds a certificate chain to the verifier.  Returns false if the chain is
   // not valid.  Newer certificates will override older certificates with the

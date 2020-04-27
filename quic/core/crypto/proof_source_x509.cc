@@ -77,7 +77,7 @@ void ProofSourceX509::ComputeTlsSignature(
   callback->Run(/*ok=*/!signature.empty(), signature, nullptr);
 }
 
-ProofSource::TicketCrypter* ProofSourceX509::SessionTicketCrypter() {
+ProofSource::TicketCrypter* ProofSourceX509::GetTicketCrypter() {
   return nullptr;
 }
 

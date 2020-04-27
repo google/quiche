@@ -100,7 +100,7 @@ class DummyProofSource : public ProofSource {
     callback->Run(true, "Dummy signature", /*details=*/nullptr);
   }
 
-  TicketCrypter* SessionTicketCrypter() override { return nullptr; }
+  TicketCrypter* GetTicketCrypter() override { return nullptr; }
 };
 
 class Handshaker : public QuicCryptoClientHandshaker {
