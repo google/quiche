@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
 
+#include <cstring>
+
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"

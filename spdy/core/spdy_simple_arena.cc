@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_simple_arena.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 

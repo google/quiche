@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/http2/decoder/http2_structure_decoder.h"
 
 #include <algorithm>
+#include <cstring>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 

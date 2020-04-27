@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/p256_key_exchange.h"
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>

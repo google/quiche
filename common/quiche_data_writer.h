@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"

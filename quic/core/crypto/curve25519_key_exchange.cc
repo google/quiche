@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/curve25519_key_exchange.h"
 
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
