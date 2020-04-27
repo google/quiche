@@ -39,6 +39,7 @@ using spdy::kV3LowestPriority;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdyPriority;
 using testing::_;
+using testing::AnyNumber;
 using testing::AtLeast;
 using testing::ElementsAre;
 using testing::Invoke;
@@ -46,6 +47,7 @@ using testing::InvokeWithoutArgs;
 using testing::MatchesRegex;
 using testing::Pair;
 using testing::Return;
+using testing::SaveArg;
 using testing::StrictMock;
 
 namespace quic {
@@ -175,7 +177,8 @@ class TestStream : public QuicSpdyStream {
     if (VersionUsesHttp3(transport_version())) {
       // In this case, call QuicSpdyStream::WriteHeadersImpl() that does the
       // actual work of closing the stream.
-      QuicSpdyStream::WriteHeadersImpl(saved_headers_.Clone(), fin, nullptr);
+      return QuicSpdyStream::WriteHeadersImpl(saved_headers_.Clone(), fin,
+                                              nullptr);
     }
     return 0;
   }
@@ -351,8 +354,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
           .Times(num_control_stream_writes);
     }
     TestCryptoStream* crypto_stream = session_->GetMutableCryptoStream();
-    EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
-        .Times(testing::AnyNumber());
+    EXPECT_CALL(*crypto_stream, HasPendingRetransmission()).Times(AnyNumber());
 
     if (connection_->version().HasHandshakeDone() &&
         session_->perspective() == Perspective::IS_SERVER) {
@@ -2893,6 +2895,50 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationOnResetReceived) {
 
   stream_->OnStreamReset(QuicRstStreamFrame(
       kInvalidControlFrameId, stream_->id(), QUIC_STREAM_CANCELLED, 0));
+}
+
+TEST_P(QuicSpdyStreamTest, WriteHeadersReturnValue) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  testing::InSequence s;
+
+  // Enable QPACK dynamic table.
+  session_->OnSetting(SETTINGS_QPACK_MAX_TABLE_CAPACITY, 1024);
+  session_->OnSetting(SETTINGS_QPACK_BLOCKED_STREAMS, 1);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(true));
+
+  QpackSendStream* encoder_stream =
+      QuicSpdySessionPeer::GetQpackEncoderSendStream(session_.get());
+  EXPECT_CALL(*session_, WritevData(encoder_stream->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  // HEADERS frame header.
+  EXPECT_CALL(*session_,
+              WritevData(stream_->id(), _, /* offset = */ 0, _, _, _));
+  // HEADERS frame payload.
+  size_t headers_frame_payload_length = 0;
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .WillOnce(
+          DoAll(SaveArg<1>(&headers_frame_payload_length),
+                Invoke(session_.get(), &MockQuicSpdySession::ConsumeData)));
+
+  SpdyHeaderBlock request_headers;
+  request_headers["foo"] = "bar";
+  size_t write_headers_return_value =
+      stream_->WriteHeaders(std::move(request_headers), /*fin=*/true, nullptr);
+  EXPECT_TRUE(stream_->fin_sent());
+
+  if (GetQuicReloadableFlag(quic_writeheaders_excludes_encoder_stream_data)) {
+    EXPECT_EQ(headers_frame_payload_length, write_headers_return_value);
+  } else {
+    // Return value of WriteHeaders includes length of dynamic table insertions
+    // written on encoder stream.
+    EXPECT_LT(headers_frame_payload_length, write_headers_return_value);
+  }
 }
 
 }  // namespace

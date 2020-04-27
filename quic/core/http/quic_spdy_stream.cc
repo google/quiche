@@ -1127,6 +1127,11 @@ size_t QuicSpdyStream::WriteHeadersImpl(
       encoded_headers.size() + encoder_stream_sent_byte_count,
       header_block.TotalBytesUsed());
 
+  if (GetQuicReloadableFlag(quic_writeheaders_excludes_encoder_stream_data)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_writeheaders_excludes_encoder_stream_data);
+    return encoded_headers.size();
+  }
+
   return encoded_headers.size() + encoder_stream_sent_byte_count;
 }
 
