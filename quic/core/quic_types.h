@@ -21,39 +21,39 @@
 
 namespace quic {
 
-typedef uint16_t QuicPacketLength;
-typedef uint32_t QuicControlFrameId;
-typedef uint32_t QuicHeaderId;
-typedef uint32_t QuicMessageId;
-typedef uint64_t QuicDatagramFlowId;
+using QuicPacketLength = uint16_t;
+using QuicControlFrameId = uint32_t;
+using QuicHeaderId = uint32_t;
+using QuicMessageId = uint32_t;
+using QuicDatagramFlowId = uint64_t;
 
-typedef uint32_t QuicStreamId;
+// IMPORTANT: IETF QUIC defines stream IDs and stream counts as being unsigned
+// 62-bit numbers. However, we have decided to only support up to 2^32-1 streams
+// in order to reduce the size of data structures such as QuicStreamFrame
+// and QuicTransmissionInfo, as that allows them to fit in cache lines and has
+// visible perfomance impact.
+using QuicStreamId = uint32_t;
 
-// Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED
-// frames.
-typedef uint32_t QuicStreamCount;
+// Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED frames.
+using QuicStreamCount = QuicStreamId;
 
-typedef uint64_t QuicByteCount;
-typedef uint64_t QuicPacketCount;
-typedef uint64_t QuicPublicResetNonceProof;
-typedef uint64_t QuicStreamOffset;
-typedef std::array<char, 32> DiversificationNonce;
-typedef std::vector<std::pair<QuicPacketNumber, QuicTime>> PacketTimeVector;
+using QuicByteCount = uint64_t;
+using QuicPacketCount = uint64_t;
+using QuicPublicResetNonceProof = uint64_t;
+using QuicStreamOffset = uint64_t;
+using DiversificationNonce = std::array<char, 32>;
+using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
 
-typedef uint64_t QuicIetfStreamDataLength;
-typedef uint64_t QuicIetfStreamId;
-typedef uint64_t QuicIetfStreamOffset;
-
-const size_t kQuicPathFrameBufferSize = 8;
-typedef std::array<uint8_t, kQuicPathFrameBufferSize> QuicPathFrameBuffer;
+enum : size_t { kQuicPathFrameBufferSize = 8 };
+using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
 
 // Application error code used in the QUIC Stop Sending frame.
-typedef uint16_t QuicApplicationErrorCode;
+using QuicApplicationErrorCode = uint16_t;
 
 // The connection id sequence number specifies the order that connection
 // ids must be used in. This is also the sequence number carried in
 // the IETF QUIC NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames.
-typedef uint64_t QuicConnectionIdSequenceNumber;
+using QuicConnectionIdSequenceNumber = uint64_t;
 
 // A struct for functions which consume data payloads and fins.
 struct QUIC_EXPORT_PRIVATE QuicConsumedData {
@@ -313,13 +313,12 @@ enum QuicVariableLengthIntegerLength : uint8_t {
   VARIABLE_LENGTH_INTEGER_LENGTH_2 = 2,
   VARIABLE_LENGTH_INTEGER_LENGTH_4 = 4,
   VARIABLE_LENGTH_INTEGER_LENGTH_8 = 8,
-};
 
-// By default we write the IETF long header length using the 2-byte encoding
-// of variable length integers, even when the length is below 64, which allows
-// us to fill in the length before knowing what the length actually is.
-const QuicVariableLengthIntegerLength kQuicDefaultLongHeaderLengthLength =
-    VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  // By default we write the IETF long header length using the 2-byte encoding
+  // of variable length integers, even when the length is below 64, which allows
+  // us to fill in the length before knowing what the length actually is.
+  kQuicDefaultLongHeaderLengthLength = VARIABLE_LENGTH_INTEGER_LENGTH_2,
+};
 
 enum QuicPacketNumberLength : uint8_t {
   PACKET_1BYTE_PACKET_NUMBER = 1,
@@ -529,7 +528,7 @@ struct QUIC_EXPORT_PRIVATE AckedPacket {
 };
 
 // A vector of acked packets.
-typedef QuicInlinedVector<AckedPacket, 2> AckedPacketVector;
+using AckedPacketVector = QuicInlinedVector<AckedPacket, 2>;
 
 // Information about a newly lost packet.
 struct QUIC_EXPORT_PRIVATE LostPacket {
@@ -546,7 +545,7 @@ struct QUIC_EXPORT_PRIVATE LostPacket {
 };
 
 // A vector of lost packets.
-typedef QuicInlinedVector<LostPacket, 2> LostPacketVector;
+using LostPacketVector = QuicInlinedVector<LostPacket, 2>;
 
 // Please note, this value cannot used directly for packet serialization.
 enum QuicLongHeaderType : uint8_t {
@@ -677,11 +676,11 @@ QUIC_EXPORT_PRIVATE std::string SerializedPacketFateToString(
     SerializedPacketFate fate);
 
 // There are three different forms of CONNECTION_CLOSE.
-typedef enum QuicConnectionCloseType {
+enum QuicConnectionCloseType {
   GOOGLE_QUIC_CONNECTION_CLOSE = 0,
   IETF_QUIC_TRANSPORT_CONNECTION_CLOSE = 1,
   IETF_QUIC_APPLICATION_CONNECTION_CLOSE = 2
-} QuicConnectionCloseType;
+};
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,

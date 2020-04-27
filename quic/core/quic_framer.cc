@@ -3448,12 +3448,12 @@ bool QuicFramer::ProcessIetfStreamFrame(QuicDataReader* reader,
 
   // If we have a data length, read it. If not, set to 0.
   if (frame_type & IETF_STREAM_FRAME_LEN_BIT) {
-    QuicIetfStreamDataLength length;
+    uint64_t length;
     if (!reader->ReadVarInt62(&length)) {
       set_detailed_error("Unable to read stream data length.");
       return false;
     }
-    if (length > 0xffff) {
+    if (length > std::numeric_limits<decltype(frame->data_length)>::max()) {
       set_detailed_error("Stream data length is too large.");
       return false;
     }
@@ -3477,7 +3477,7 @@ bool QuicFramer::ProcessIetfStreamFrame(QuicDataReader* reader,
     return false;
   }
   frame->data_buffer = data.data();
-  frame->data_length = static_cast<QuicIetfStreamDataLength>(data.length());
+  DCHECK_EQ(frame->data_length, data.length());
 
   return true;
 }
