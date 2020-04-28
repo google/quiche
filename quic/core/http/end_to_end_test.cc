@@ -3506,11 +3506,8 @@ TEST_P(EndToEndTestWithoutTls, WayTooLongRequestHeaders) {
   client_->SendMessage(headers, "");
   client_->WaitForResponse();
 
-  QuicErrorCode expected_error =
-      GetQuicReloadableFlag(spdy_enable_granular_decompress_errors)
-          ? QUIC_HPACK_INDEX_VARINT_ERROR
-          : QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE;
-  EXPECT_THAT(client_->connection_error(), IsError(expected_error));
+  EXPECT_THAT(client_->connection_error(),
+              IsError(QUIC_HPACK_INDEX_VARINT_ERROR));
 }
 
 class WindowUpdateObserver : public QuicConnectionDebugVisitor {

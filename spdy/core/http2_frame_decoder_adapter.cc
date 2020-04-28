@@ -92,12 +92,6 @@ void CorruptFrameHeader(Http2FrameHeader* /*header*/) {}
 
 Http2DecoderAdapter::SpdyFramerError HpackDecodingErrorToSpdyFramerError(
     HpackDecodingError error) {
-  if (!GetSpdyReloadableFlag(spdy_enable_granular_decompress_errors)) {
-    return Http2DecoderAdapter::SpdyFramerError::SPDY_DECOMPRESS_FAILURE;
-  }
-
-  SPDY_CODE_COUNT(spdy_enable_granular_decompress_errors);
-
   switch (error) {
     case HpackDecodingError::kOk:
       return Http2DecoderAdapter::SpdyFramerError::SPDY_NO_ERROR;

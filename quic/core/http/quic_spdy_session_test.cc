@@ -2927,9 +2927,6 @@ TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
     return;
   }
 
-  QuicFlagSaver flag_saver;
-  SetQuicReloadableFlag(spdy_enable_granular_decompress_errors, true);
-
   QuicStreamId request_stream_id = 5;
   session_.CreateIncomingStream(request_stream_id);
 
