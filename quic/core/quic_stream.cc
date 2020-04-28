@@ -904,11 +904,22 @@ void QuicStream::AddBytesConsumed(QuicByteCount bytes) {
   }
 }
 
-void QuicStream::UpdateSendWindowOffset(QuicStreamOffset new_window) {
-  if (flow_controller_->UpdateSendWindowOffset(new_window)) {
+bool QuicStream::ConfigSendWindowOffset(QuicStreamOffset new_offset) {
+  if (perspective_ == Perspective::IS_CLIENT &&
+      session()->version().AllowsLowFlowControlLimits() &&
+      new_offset < flow_controller_->send_window_offset()) {
+    OnUnrecoverableError(
+        QUIC_FLOW_CONTROL_INVALID_WINDOW,
+        quiche::QuicheStrCat("New stream max data ", new_offset,
+                             " decreases current limit: ",
+                             flow_controller_->send_window_offset()));
+    return false;
+  }
+  if (flow_controller_->UpdateSendWindowOffset(new_offset)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);
   }
+  return true;
 }
 
 void QuicStream::AddRandomPaddingAfterFin() {

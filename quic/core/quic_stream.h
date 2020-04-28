@@ -244,9 +244,8 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Returns true if the highest offset did increase.
   bool MaybeIncreaseHighestReceivedOffset(QuicStreamOffset new_offset);
 
-  // Updates the flow controller's send window offset and calls OnCanWrite if
-  // it was blocked before.
-  void UpdateSendWindowOffset(QuicStreamOffset new_offset);
+  // Set the flow controller's send window offset from session config.
+  bool ConfigSendWindowOffset(QuicStreamOffset new_offset);
 
   // Returns true if the stream has received either a RST_STREAM or a FIN -
   // either of which gives a definitive number of bytes which the peer has

@@ -1119,6 +1119,18 @@ void QuicSession::OnConfigNegotiated() {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Bidirectional outgoing_max_streams_ to "
                   << max_streams;
+    if (perspective_ == Perspective::IS_CLIENT &&
+        max_streams <
+            v99_streamid_manager_.max_outgoing_bidirectional_streams()) {
+      connection_->CloseConnection(
+          QUIC_MAX_STREAMS_ERROR,
+          quiche::QuicheStrCat(
+              "new bidirectional limit ", max_streams,
+              " decreases the current limit: ",
+              v99_streamid_manager_.max_outgoing_bidirectional_streams()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     if (v99_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
             max_streams)) {
       OnCanCreateNewOutgoingStream(/*unidirectional = */ false);
@@ -1128,6 +1140,8 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxUnidirectionalStreams()) {
       max_streams = config_.ReceivedMaxUnidirectionalStreams();
     }
+    // TODO(b/153726130): remove this check and
+    // num_expected_unidirectional_static_streams_.
     if (max_streams < num_expected_unidirectional_static_streams_) {
       QUIC_DLOG(ERROR) << "Received unidirectional stream limit of "
                        << max_streams << " < "
@@ -1135,6 +1149,18 @@ void QuicSession::OnConfigNegotiated() {
       connection_->CloseConnection(
           QUIC_HTTP_STREAM_LIMIT_TOO_LOW,
           "New unidirectional stream limit is too low.",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+    if (perspective_ == Perspective::IS_CLIENT &&
+        max_streams <
+            v99_streamid_manager_.max_outgoing_unidirectional_streams()) {
+      connection_->CloseConnection(
+          QUIC_MAX_STREAMS_ERROR,
+          quiche::QuicheStrCat(
+              "new unidirectional limit ", max_streams,
+              " decreases the current limit: ",
+              v99_streamid_manager_.max_outgoing_unidirectional_streams()),
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       return;
     }
@@ -1310,6 +1336,7 @@ void QuicSession::HandleRstOnValidNonexistentStream(
 }
 
 void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
+  DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_QUIC_CRYPTO);
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamFlowControlWindow " << new_window;
   if (new_window < kMinimumFlowControlSendWindow &&
       !connection_->version().AllowsLowFlowControlLimits()) {
@@ -1326,19 +1353,22 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   for (auto const& kv : stream_map_) {
     QUIC_DVLOG(1) << ENDPOINT << "Informing stream " << kv.first
                   << " of new stream flow control window " << new_window;
-    kv.second->UpdateSendWindowOffset(new_window);
+    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+      return;
+    }
   }
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
     QUIC_DVLOG(1)
         << ENDPOINT
         << "Informing crypto stream of new stream flow control window "
         << new_window;
-    GetMutableCryptoStream()->UpdateSendWindowOffset(new_window);
+    GetMutableCryptoStream()->ConfigSendWindowOffset(new_window);
   }
 }
 
 void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+  DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamUnidirectionalFlowControlWindow "
                 << new_window;
   // Inform all existing outgoing unidirectional streams about the new window.
@@ -1353,12 +1383,15 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing unidirectional stream " << id
                   << " of new stream flow control window " << new_window;
-    kv.second->UpdateSendWindowOffset(new_window);
+    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+      return;
+    }
   }
 }
 
 void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+  DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamOutgoingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1374,12 +1407,15 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing outgoing bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    kv.second->UpdateSendWindowOffset(new_window);
+    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+      return;
+    }
   }
 }
 
 void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
+  DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamIncomingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1395,19 +1431,36 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing incoming bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    kv.second->UpdateSendWindowOffset(new_window);
+    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+      return;
+    }
   }
 }
 
 void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   QUIC_DVLOG(1) << ENDPOINT << "OnNewSessionFlowControlWindow " << new_window;
-  if (new_window < kMinimumFlowControlSendWindow &&
-      !connection_->version().AllowsLowFlowControlLimits()) {
+  bool close_connection = false;
+  if (!connection_->version().AllowsLowFlowControlLimits()) {
+    if (new_window < kMinimumFlowControlSendWindow) {
+      close_connection = true;
+      QUIC_LOG_FIRST_N(ERROR, 1)
+          << "Peer sent us an invalid session flow control send window: "
+          << new_window << ", below default: " << kMinimumFlowControlSendWindow;
+    }
+  } else if (perspective_ == Perspective::IS_CLIENT &&
+             new_window < flow_controller_.send_window_offset()) {
+    // The client receives a lower limit than remembered, violating
+    // https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-7.3.1
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid session flow control send window: "
-        << new_window << ", below default: " << kMinimumFlowControlSendWindow;
+        << new_window
+        << ", below current: " << flow_controller_.send_window_offset();
+    close_connection = true;
+  }
+  if (close_connection) {
     connection_->CloseConnection(
-        QUIC_FLOW_CONTROL_INVALID_WINDOW, "New connection window too low",
+        QUIC_FLOW_CONTROL_INVALID_WINDOW,
+        quiche::QuicheStrCat("New connection window too low: ", new_window),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }

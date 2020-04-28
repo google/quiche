@@ -1776,21 +1776,6 @@ TEST_P(QuicSessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   session_.OnConfigNegotiated();
 }
 
-TEST_P(QuicSessionTestServer, InvalidSessionFlowControlWindowInHandshake) {
-  // Test that receipt of an invalid (< default) session flow control window
-  // from the peer results in the connection being torn down.
-  const uint32_t kInvalidWindow = kMinimumFlowControlSendWindow - 1;
-  QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(session_.config(),
-                                                             kInvalidWindow);
-  if (!connection_->version().AllowsLowFlowControlLimits()) {
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
-  } else {
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  }
-  session_.OnConfigNegotiated();
-}
-
 // Test negotiation of custom server initial flow control window.
 TEST_P(QuicSessionTestServer, CustomFlowControlWindow) {
   QuicTagVector copt;
@@ -2051,6 +2036,57 @@ TEST_P(QuicSessionTestClient, AvailableBidirectionalStreamsClient) {
   // And 5 should be not available.
   EXPECT_FALSE(QuicSessionPeer::IsStreamAvailable(
       &session_, GetNthClientInitiatedBidirectionalId(1)));
+}
+
+TEST_P(QuicSessionTestClient, InvalidSessionFlowControlWindowInHandshake) {
+  // Test that receipt of an invalid (< default for gQUIC, < current for TLS)
+  // session flow control window from the peer results in the connection being
+  // torn down.
+  const uint32_t kInvalidWindow = kMinimumFlowControlSendWindow - 1;
+  QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(session_.config(),
+                                                             kInvalidWindow);
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  session_.OnConfigNegotiated();
+}
+
+TEST_P(QuicSessionTestClient, InvalidBidiStreamLimitInHandshake) {
+  // IETF QUIC only feature.
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  QuicConfigPeer::SetReceivedMaxBidirectionalStreams(
+      session_.config(), kDefaultMaxStreamsPerConnection - 1);
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  session_.OnConfigNegotiated();
+}
+
+TEST_P(QuicSessionTestClient, InvalidUniStreamLimitInHandshake) {
+  // IETF QUIC only feature.
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
+      session_.config(), kDefaultMaxStreamsPerConnection - 1);
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  session_.OnConfigNegotiated();
+}
+
+TEST_P(QuicSessionTestClient, InvalidStreamFlowControlWindowInHandshake) {
+  // IETF QUIC only feature.
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  session_.CreateOutgoingBidirectionalStream();
+  session_.CreateOutgoingBidirectionalStream();
+  QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
+      session_.config(), kMinimumFlowControlSendWindow - 1);
+
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  session_.OnConfigNegotiated();
 }
 
 TEST_P(QuicSessionTestClient, OnMaxStreamFrame) {
