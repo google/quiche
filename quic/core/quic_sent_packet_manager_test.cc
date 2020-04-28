@@ -3825,6 +3825,37 @@ TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, HandshakeAckCausesInitialKeyDropping) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  // Send INITIAL packet 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  QuicTime::Delta expected_pto_delay =
+      QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs);
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+  // Send HANDSHAKE ack.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendAckPacket(2, /*largest_acked=*/1, ENCRYPTION_HANDSHAKE);
+  // Sending HANDSHAKE packet causes dropping of INITIAL key.
+  EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
+  EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
+  manager_.NeuterUnencryptedPackets();
+  // There is no in flight packets.
+  EXPECT_FALSE(manager_.HasInFlightPackets());
+  // Verify PTO timer gets rearmed from now because of anti-amplification.
+  EXPECT_EQ(clock_.Now() + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Invoke PTO.
+  clock_.AdvanceTime(expected_pto_delay);
+  manager_.OnRetransmissionTimeout();
+  // Verify nothing to probe (and connection will send PING for current
+  // encryption level).
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
+  manager_.MaybeSendProbePackets();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

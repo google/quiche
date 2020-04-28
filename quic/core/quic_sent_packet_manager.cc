@@ -844,8 +844,9 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
     // Find out the packet number space to send probe packets.
     if (!GetEarliestPacketSentTimeForPto(&packet_number_space)
              .IsInitialized()) {
-      QUIC_BUG << "earlist_sent_time not initialized when trying to send PTO "
-                  "retransmissions";
+      QUIC_BUG_IF(unacked_packets_.perspective() == Perspective::IS_SERVER)
+          << "earlist_sent_time not initialized when trying to send PTO "
+             "retransmissions";
       return;
     }
   }
@@ -1067,8 +1068,12 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
       // earliest_right_edge is the earliest sent time of the last in flight
       // packet of all packet number spaces.
-      const QuicTime earliest_right_edge =
+      QuicTime earliest_right_edge =
           GetEarliestPacketSentTimeForPto(&packet_number_space);
+      if (!earliest_right_edge.IsInitialized()) {
+        // Arm PTO from now if there is no in flight packets.
+        earliest_right_edge = clock_->ApproximateNow();
+      }
       if (first_pto_srtt_multiplier_ > 0 &&
           packet_number_space == APPLICATION_DATA &&
           consecutive_pto_count_ == 0) {
