@@ -181,6 +181,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when a 1RTT packet has been acknowledged.
   virtual void OnOneRttPacketAcknowledged() = 0;
+
+  // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
+  virtual void OnHandshakePacketSent() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

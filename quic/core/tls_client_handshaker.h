@@ -59,6 +59,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnOneRttPacketAcknowledged() override;
+  void OnHandshakePacketSent() override;
   void OnHandshakeDoneReceived() override;
   void SetWriteSecret(EncryptionLevel level,
                       const SSL_CIPHER* cipher,
@@ -159,6 +160,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   std::string cert_verify_error_details_;
 
   bool encryption_established_ = false;
+  bool initial_keys_dropped_ = false;
   bool one_rtt_keys_available_ = false;
   bool handshake_confirmed_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>

@@ -58,6 +58,7 @@ class MockQuicCryptoStream : public QuicCryptoStream,
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
 

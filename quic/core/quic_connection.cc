@@ -4032,6 +4032,12 @@ bool QuicConnection::FlushCoalescedPacket() {
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
     }
+    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(
+            ENCRYPTION_HANDSHAKE)) {
+      // This is only called in coalescer because all ENCRYPTION_HANDSHAKE
+      // packets go through the coalescer.
+      visitor_->OnHandshakePacketSent();
+    }
     return true;
   }
 
@@ -4054,6 +4060,11 @@ bool QuicConnection::FlushCoalescedPacket() {
   }
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
+  }
+  if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_HANDSHAKE)) {
+    // This is only called in coalescer because all ENCRYPTION_HANDSHAKE
+    // packets go through the coalescer.
+    visitor_->OnHandshakePacketSent();
   }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {

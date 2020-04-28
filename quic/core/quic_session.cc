@@ -289,6 +289,10 @@ void QuicSession::OnOneRttPacketAcknowledged() {
   GetMutableCryptoStream()->OnOneRttPacketAcknowledged();
 }
 
+void QuicSession::OnHandshakePacketSent() {
+  GetMutableCryptoStream()->OnHandshakePacketSent();
+}
+
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   QuicStreamId stream_id = frame.stream_id;

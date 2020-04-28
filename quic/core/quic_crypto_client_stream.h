@@ -156,6 +156,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // Called when a 1RTT packet has been acknowledged.
     virtual void OnOneRttPacketAcknowledged() = 0;
 
+    // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
+    virtual void OnHandshakePacketSent() = 0;
+
     // Called when handshake done has been received.
     virtual void OnHandshakeDoneReceived() = 0;
 
@@ -211,6 +214,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   CryptoMessageParser* crypto_message_parser() override;
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   void OnOneRttPacketAcknowledged() override;
+  void OnHandshakePacketSent() override;
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;

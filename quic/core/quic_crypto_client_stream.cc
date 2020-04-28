@@ -113,6 +113,10 @@ void QuicCryptoClientStream::OnOneRttPacketAcknowledged() {
   handshaker_->OnOneRttPacketAcknowledged();
 }
 
+void QuicCryptoClientStream::OnHandshakePacketSent() {
+  handshaker_->OnHandshakePacketSent();
+}
+
 void QuicCryptoClientStream::OnHandshakeDoneReceived() {
   handshaker_->OnHandshakeDoneReceived();
 }

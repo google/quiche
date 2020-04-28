@@ -10209,6 +10209,7 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   connection_.set_debug_visitor(&debug_visitor);
   EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(3);
   EXPECT_CALL(debug_visitor, OnCoalescedPacketSent(_, _)).Times(1);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     use_tagging_decrypter();
@@ -10280,6 +10281,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 
@@ -10294,6 +10296,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   // Retransmit handshake data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _));
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 
@@ -10307,6 +10310,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   // Retransmit handshake data again.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(7), _, _));
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
 

@@ -296,6 +296,15 @@ void TlsClientHandshaker::OnOneRttPacketAcknowledged() {
   OnHandshakeConfirmed();
 }
 
+void TlsClientHandshaker::OnHandshakePacketSent() {
+  if (initial_keys_dropped_) {
+    return;
+  }
+  handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+  handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
+  initial_keys_dropped_ = true;
+}
+
 void TlsClientHandshaker::OnHandshakeDoneReceived() {
   if (!one_rtt_keys_available_) {
     CloseConnection(QUIC_HANDSHAKE_FAILED,
@@ -529,8 +538,6 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
   if (level == ENCRYPTION_HANDSHAKE &&
       state_ < STATE_ENCRYPTION_HANDSHAKE_DATA_SENT) {
     state_ = STATE_ENCRYPTION_HANDSHAKE_DATA_SENT;
-    handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
-    handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
   }
   TlsHandshaker::WriteMessage(level, data);
 }

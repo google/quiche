@@ -42,6 +42,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
       CachedNetworkParameters cached_network_params) override;
   void OnPacketDecrypted(EncryptionLevel level) override;
   void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
 

@@ -126,6 +126,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnStopSendingFrame(const QuicStopSendingFrame& frame) override;
   void OnPacketDecrypted(EncryptionLevel level) override;
   void OnOneRttPacketAcknowledged() override;
+  void OnHandshakePacketSent() override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

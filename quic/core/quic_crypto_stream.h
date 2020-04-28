@@ -91,6 +91,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Called when a 1RTT packet has been acknowledged.
   virtual void OnOneRttPacketAcknowledged() = 0;
 
+  // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
+  virtual void OnHandshakePacketSent() = 0;
+
   // Called when a handshake done frame has been received.
   virtual void OnHandshakeDoneReceived() = 0;
 

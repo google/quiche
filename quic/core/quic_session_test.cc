@@ -117,6 +117,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override {}
   HandshakeState GetHandshakeState() const override {
     return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
