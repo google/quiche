@@ -429,11 +429,13 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
                                                kMinimumFlowControlSendWindow);
   params.max_packet_size.set_value(kMaxPacketSizeForTest);
   params.max_datagram_frame_size.set_value(kMaxDatagramFrameSizeForTest);
+  params.initial_max_streams_bidi.set_value(kDefaultMaxStreamsPerConnection);
 
   std::string error_details;
   EXPECT_THAT(
       config_.ProcessTransportParameters(params, SERVER, &error_details),
-      IsQuicNoError());
+      IsQuicNoError())
+      << error_details;
 
   ASSERT_TRUE(
       config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
@@ -456,7 +458,58 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   EXPECT_EQ(kMaxDatagramFrameSizeForTest,
             config_.ReceivedMaxDatagramFrameSize());
 
+  ASSERT_TRUE(config_.HasReceivedMaxBidirectionalStreams());
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+            config_.ReceivedMaxBidirectionalStreams());
+
   EXPECT_FALSE(config_.DisableConnectionMigration());
+
+  // Let the config process another slightly tweaked transport paramters.
+  // Note that the values for flow control and stream limit cannot be smaller
+  // than before. This rule is enforced in QuicSession::OnConfigNegotiated().
+  params.initial_max_stream_data_bidi_local.set_value(
+      2 * kMinimumFlowControlSendWindow + 1);
+  params.initial_max_stream_data_bidi_remote.set_value(
+      4 * kMinimumFlowControlSendWindow);
+  params.initial_max_stream_data_uni.set_value(5 *
+                                               kMinimumFlowControlSendWindow);
+  params.max_packet_size.set_value(2 * kMaxPacketSizeForTest);
+  params.max_datagram_frame_size.set_value(2 * kMaxDatagramFrameSizeForTest);
+  params.initial_max_streams_bidi.set_value(2 *
+                                            kDefaultMaxStreamsPerConnection);
+  params.disable_migration = true;
+
+  EXPECT_THAT(
+      config_.ProcessTransportParameters(params, SERVER, &error_details),
+      IsQuicNoError())
+      << error_details;
+
+  ASSERT_TRUE(
+      config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+  EXPECT_EQ(2 * kMinimumFlowControlSendWindow + 1,
+            config_.ReceivedInitialMaxStreamDataBytesIncomingBidirectional());
+
+  ASSERT_TRUE(
+      config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+  EXPECT_EQ(4 * kMinimumFlowControlSendWindow,
+            config_.ReceivedInitialMaxStreamDataBytesOutgoingBidirectional());
+
+  ASSERT_TRUE(config_.HasReceivedInitialMaxStreamDataBytesUnidirectional());
+  EXPECT_EQ(5 * kMinimumFlowControlSendWindow,
+            config_.ReceivedInitialMaxStreamDataBytesUnidirectional());
+
+  ASSERT_TRUE(config_.HasReceivedMaxPacketSize());
+  EXPECT_EQ(2 * kMaxPacketSizeForTest, config_.ReceivedMaxPacketSize());
+
+  ASSERT_TRUE(config_.HasReceivedMaxDatagramFrameSize());
+  EXPECT_EQ(2 * kMaxDatagramFrameSizeForTest,
+            config_.ReceivedMaxDatagramFrameSize());
+
+  ASSERT_TRUE(config_.HasReceivedMaxBidirectionalStreams());
+  EXPECT_EQ(2 * kDefaultMaxStreamsPerConnection,
+            config_.ReceivedMaxBidirectionalStreams());
+
+  EXPECT_TRUE(config_.DisableConnectionMigration());
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
