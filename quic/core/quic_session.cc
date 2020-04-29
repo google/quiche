@@ -1503,12 +1503,10 @@ void QuicSession::OnNewEncryptionKeyAvailable(
     std::unique_ptr<QuicEncrypter> encrypter) {
   connection()->SetEncrypter(level, std::move(encrypter));
 
-  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available) &&
-      connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
+  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
       level == ENCRYPTION_FORWARD_SECURE) {
     // Set connection's default encryption level once 1-RTT write key is
     // available.
-    QUIC_RESTART_FLAG_COUNT_N(quic_send_settings_on_write_key_available, 1, 2);
     QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
                   << EncryptionLevelToString(level);
     connection()->SetDefaultEncryptionLevel(level);
@@ -1550,12 +1548,6 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 
 void QuicSession::OnOneRttKeysAvailable() {
   DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
-  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
-    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
-                  << EncryptionLevelToString(ENCRYPTION_FORWARD_SECURE);
-    connection()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  }
-
   QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";
   QUIC_BUG_IF(!config_.negotiated())

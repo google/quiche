@@ -306,11 +306,9 @@ TEST_F(TlsServerHandshakerTest, ClientNotSendingALPN) {
   AdvanceHandshakeWithFakeClient();
 
   EXPECT_FALSE(client_stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            client_stream()->encryption_established());
+  EXPECT_TRUE(client_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            server_stream()->encryption_established());
+  EXPECT_TRUE(server_stream()->encryption_established());
 }
 
 TEST_F(TlsServerHandshakerTest, ClientSendingBadALPN) {
@@ -329,11 +327,9 @@ TEST_F(TlsServerHandshakerTest, ClientSendingBadALPN) {
   AdvanceHandshakeWithFakeClient();
 
   EXPECT_FALSE(client_stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            client_stream()->encryption_established());
+  EXPECT_TRUE(client_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            server_stream()->encryption_established());
+  EXPECT_TRUE(server_stream()->encryption_established());
 }
 
 TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {

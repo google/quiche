@@ -387,11 +387,9 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
                                       server_connection_, server_stream(), 0);
 
   EXPECT_FALSE(stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            stream()->encryption_established());
+  EXPECT_TRUE(stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
-  EXPECT_EQ(GetQuicRestartFlag(quic_send_settings_on_write_key_available),
-            server_stream()->encryption_established());
+  EXPECT_TRUE(server_stream()->encryption_established());
 }
 
 }  // namespace

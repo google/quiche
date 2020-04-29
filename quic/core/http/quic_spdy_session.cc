@@ -784,24 +784,8 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
     EncryptionLevel level,
     std::unique_ptr<QuicEncrypter> encrypter) {
   QuicSession::OnNewEncryptionKeyAvailable(level, std::move(encrypter));
-  if (GetQuicRestartFlag(quic_send_settings_on_write_key_available) &&
-      IsEncryptionEstablished()) {
+  if (IsEncryptionEstablished()) {
     // Send H3 SETTINGs once encryption is established.
-    QUIC_RESTART_FLAG_COUNT_N(quic_send_settings_on_write_key_available, 2, 2);
-    SendInitialData();
-  }
-}
-
-void QuicSpdySession::SetDefaultEncryptionLevel(quic::EncryptionLevel level) {
-  QuicSession::SetDefaultEncryptionLevel(level);
-  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
-    SendInitialData();
-  }
-}
-
-void QuicSpdySession::OnOneRttKeysAvailable() {
-  QuicSession::OnOneRttKeysAvailable();
-  if (!GetQuicRestartFlag(quic_send_settings_on_write_key_available)) {
     SendInitialData();
   }
 }

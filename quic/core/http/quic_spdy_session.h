@@ -420,9 +420,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       EncryptionLevel level,
       std::unique_ptr<QuicEncrypter> encrypter) override;
 
-  void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
-  void OnOneRttKeysAvailable() override;
-
   // Optional, enables instrumentation related to go/quic-hpack.
   void SetHpackEncoderDebugVisitor(
       std::unique_ptr<QuicHpackDebugVisitor> visitor);
