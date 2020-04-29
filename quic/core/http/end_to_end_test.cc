@@ -1749,7 +1749,7 @@ TEST_P(EndToEndTestWithoutTls, SetIndependentMaxDynamicStreamsLimits) {
           client_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(client_session)
                     ->max_outgoing_unidirectional_streams() -
-                client_session->num_expected_unidirectional_static_streams()
+                kHttp3StaticUnidirectionalStreamCount
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kServerMaxDynamicStreams,
@@ -1770,7 +1770,7 @@ TEST_P(EndToEndTestWithoutTls, SetIndependentMaxDynamicStreamsLimits) {
           server_session->connection()->transport_version())
           ? QuicSessionPeer::v99_streamid_manager(server_session)
                     ->max_outgoing_unidirectional_streams() -
-                server_session->num_expected_unidirectional_static_streams()
+                kHttp3StaticUnidirectionalStreamCount
           : QuicSessionPeer::GetStreamIdManager(server_session)
                 ->max_open_outgoing_streams();
   EXPECT_EQ(kClientMaxDynamicStreams,

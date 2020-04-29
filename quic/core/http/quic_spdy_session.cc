@@ -376,7 +376,9 @@ QuicSpdySession::QuicSpdySession(
                   config,
                   supported_versions,
                   /*num_expected_unidirectional_static_streams = */
-                  VersionUsesHttp3(connection->transport_version()) ? 3 : 0),
+                  VersionUsesHttp3(connection->transport_version())
+                      ? kHttp3StaticUnidirectionalStreamCount
+                      : 0),
       send_control_stream_(nullptr),
       receive_control_stream_(nullptr),
       qpack_encoder_receive_stream_(nullptr),
@@ -448,8 +450,6 @@ void QuicSpdySession::Initialize() {
     headers_stream_ = headers_stream.get();
     ActivateStream(std::move(headers_stream));
   } else {
-    ConfigureMaxUnidirectionalStreamsToSend(
-        config()->GetMaxUnidirectionalStreamsToSend());
     qpack_encoder_ = std::make_unique<QpackEncoder>(this);
     qpack_decoder_ =
         std::make_unique<QpackDecoder>(qpack_maximum_dynamic_table_capacity_,

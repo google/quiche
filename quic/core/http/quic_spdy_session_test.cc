@@ -346,8 +346,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialSessionFlowControlWindowForTest);
     if (VersionUsesHttp3(transport_version())) {
       QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
-          session_.config(),
-          session_.num_expected_unidirectional_static_streams());
+          session_.config(), kHttp3StaticUnidirectionalStreamCount);
     }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_.config(), kMinimumFlowControlSendWindow);
@@ -1602,7 +1601,8 @@ TEST_P(QuicSpdySessionTestServer, TooLowUnidirectionalStreamLimitHttp3) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(_, "New unidirectional stream limit is too low.", _));
+      CloseConnection(
+          _, "new unidirectional limit 2 decreases the current limit: 3", _));
   session_.OnConfigNegotiated();
 }
 

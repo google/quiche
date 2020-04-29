@@ -459,21 +459,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool is_configured() const { return is_configured_; }
 
-  QuicStreamCount num_expected_unidirectional_static_streams() const {
-    return num_expected_unidirectional_static_streams_;
-  }
-
-  // Set the number of streams that the peer is allowed to open.
-  void ConfigureMaxBidirectionalStreamsToSend(QuicStreamCount max_stream) {
-    DCHECK(VersionHasIetfQuicFrames(transport_version()));
-    config_.SetMaxBidirectionalStreamsToSend(max_stream);
-  }
-  void ConfigureMaxUnidirectionalStreamsToSend(QuicStreamCount max_stream) {
-    DCHECK(VersionHasIetfQuicFrames(transport_version()));
-    config_.SetMaxUnidirectionalStreamsToSend(
-        max_stream + num_expected_unidirectional_static_streams_);
-  }
-
   // Called to neuter crypto data of encryption |level|.
   void NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level);
 
@@ -845,9 +830,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Initialized to false. Set to true when the session has been properly
   // configured and is ready for general operation.
   bool is_configured_;
-
-  // The number of expected static streams.
-  QuicStreamCount num_expected_unidirectional_static_streams_;
 
   // If true, enables round robin scheduling.
   bool enable_round_robin_scheduling_;

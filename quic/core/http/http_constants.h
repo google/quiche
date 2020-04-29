@@ -20,6 +20,9 @@ const uint64_t kServerPushStream = 0x01;
 const uint64_t kQpackEncoderStream = 0x02;
 const uint64_t kQpackDecoderStream = 0x03;
 
+// This includes control stream, QPACK encoder stream, and QPACK decoder stream.
+const QuicStreamCount kHttp3StaticUnidirectionalStreamCount = 3;
+
 // HTTP/3 and QPACK settings identifiers.
 // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#settings-parameters
 // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#configuration

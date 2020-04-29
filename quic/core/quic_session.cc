@@ -100,8 +100,6 @@ QuicSession::QuicSession(
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),
       is_configured_(false),
-      num_expected_unidirectional_static_streams_(
-          num_expected_unidirectional_static_streams),
       enable_round_robin_scheduling_(false),
       deprecate_draining_streams_(
           GetQuicReloadableFlag(quic_deprecate_draining_streams)),
@@ -113,6 +111,11 @@ QuicSession::QuicSession(
   if (perspective() == Perspective::IS_SERVER &&
       connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
+  }
+  if (VersionHasIetfQuicFrames(transport_version())) {
+    config_.SetMaxUnidirectionalStreamsToSend(
+        config_.GetMaxUnidirectionalStreamsToSend() +
+        num_expected_unidirectional_static_streams);
   }
   if (break_close_loop_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_break_session_stream_close_loop);
@@ -1144,21 +1147,8 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxUnidirectionalStreams()) {
       max_streams = config_.ReceivedMaxUnidirectionalStreams();
     }
-    // TODO(b/153726130): remove this check and
-    // num_expected_unidirectional_static_streams_.
-    if (max_streams < num_expected_unidirectional_static_streams_) {
-      QUIC_DLOG(ERROR) << "Received unidirectional stream limit of "
-                       << max_streams << " < "
-                       << num_expected_unidirectional_static_streams_;
-      connection_->CloseConnection(
-          QUIC_HTTP_STREAM_LIMIT_TOO_LOW,
-          "New unidirectional stream limit is too low.",
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
-    if (perspective_ == Perspective::IS_CLIENT &&
-        max_streams <
-            v99_streamid_manager_.max_outgoing_unidirectional_streams()) {
+    if (max_streams <
+        v99_streamid_manager_.max_outgoing_unidirectional_streams()) {
       connection_->CloseConnection(
           QUIC_MAX_STREAMS_ERROR,
           quiche::QuicheStrCat(
@@ -1654,14 +1644,6 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
     // Do not inform stream ID manager of static streams.
     stream_id_manager_.ActivateStream(
         /*is_incoming=*/IsIncomingStream(stream_id));
-  }
-
-  if (VersionHasIetfQuicFrames(transport_version()) &&
-      !QuicUtils::IsBidirectionalStreamId(stream_id) && is_static) {
-    DCHECK_LE(num_incoming_static_streams_,
-              num_expected_unidirectional_static_streams_);
-    DCHECK_LE(num_outgoing_static_streams_,
-              num_expected_unidirectional_static_streams_);
   }
 }
 
