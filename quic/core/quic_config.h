@@ -460,10 +460,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   const QuicSocketAddress& ReceivedAlternateServerAddress() const;
 
-  void SetSupportMaxHeaderListSize();
-
-  bool SupportMaxHeaderListSize() const;
-
   void SetStatelessResetTokenToSend(QuicUint128 stateless_reset_token);
 
   bool HasReceivedStatelessResetToken() const;
@@ -606,9 +602,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // An alternate server address the client could connect to.
   QuicFixedSocketAddress alternate_server_address_;
-
-  // Whether support HTTP/2 SETTINGS_MAX_HEADER_LIST_SIZE SETTINGS frame.
-  QuicFixedUint32 support_max_header_list_size_;
 
   // Stateless reset token used in IETF public reset packet.
   // Uses the stateless_reset_token transport parameter in IETF QUIC.

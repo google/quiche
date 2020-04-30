@@ -514,7 +514,6 @@ QuicConfig::QuicConfig()
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
       alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
-      support_max_header_list_size_(kSMHL, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
@@ -875,14 +874,6 @@ const QuicSocketAddress& QuicConfig::ReceivedAlternateServerAddress() const {
   return alternate_server_address_.GetReceivedValue();
 }
 
-void QuicConfig::SetSupportMaxHeaderListSize() {
-  support_max_header_list_size_.SetSendValue(1);
-}
-
-bool QuicConfig::SupportMaxHeaderListSize() const {
-  return support_max_header_list_size_.HasReceivedValue();
-}
-
 void QuicConfig::SetStatelessResetTokenToSend(
     QuicUint128 stateless_reset_token) {
   stateless_reset_token_.SetSendValue(stateless_reset_token);
@@ -924,7 +915,6 @@ void QuicConfig::SetDefaults() {
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs);
-  SetSupportMaxHeaderListSize();
   SetAckDelayExponentToSend(kDefaultAckDelayExponent);
   SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
   SetMaxDatagramFrameSizeToSend(kMaxAcceptedDatagramFrameSize);
@@ -953,7 +943,6 @@ void QuicConfig::ToHandshakeMessage(
   connection_migration_disabled_.ToHandshakeMessage(out);
   connection_options_.ToHandshakeMessage(out);
   alternate_server_address_.ToHandshakeMessage(out);
-  support_max_header_list_size_.ToHandshakeMessage(out);
   stateless_reset_token_.ToHandshakeMessage(out);
 }
 
@@ -1003,10 +992,6 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   if (error == QUIC_NO_ERROR) {
     error = alternate_server_address_.ProcessPeerHello(peer_hello, hello_type,
                                                        error_details);
-  }
-  if (error == QUIC_NO_ERROR) {
-    error = support_max_header_list_size_.ProcessPeerHello(
-        peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
     error = stateless_reset_token_.ProcessPeerHello(peer_hello, hello_type,

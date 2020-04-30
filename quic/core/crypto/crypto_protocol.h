@@ -27,7 +27,7 @@ namespace quic {
 typedef std::string ServerConfigID;
 
 // The following tags have been deprecated and should not be reused:
-// "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS"
+// "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -188,10 +188,6 @@ const QuicTag kILD4 = TAG('I', 'L', 'D', '4');   // IETF style loss detection
                                                  // threshold
 const QuicTag kRUNT = TAG('R', 'U', 'N', 'T');   // No packet threshold loss
                                                  // detection for "runt" packet.
-// TODO(fayang): Remove this connection option when QUIC_VERSION_35, is removed
-// Since MAX_HEADER_LIST_SIZE settings frame is supported instead.
-const QuicTag kSMHL = TAG('S', 'M', 'H', 'L');   // Support MAX_HEADER_LIST_SIZE
-                                                 // settings frame.
 const QuicTag kNSTP = TAG('N', 'S', 'T', 'P');   // No stop waiting frames.
 const QuicTag kNRTT = TAG('N', 'R', 'T', 'T');   // Ignore initial RTT
 
