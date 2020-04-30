@@ -188,7 +188,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
       2 * kInitialStreamFlowControlWindowForTest);
   server_config.SetInitialSessionFlowControlWindowToSend(
       2 * kInitialSessionFlowControlWindowForTest);
-  server_config.SetAlternateServerAddressToSend(kTestServerAddress);
+  server_config.SetIPv4AlternateServerAddressToSend(kTestServerAddress);
   server_config.SetStatelessResetTokenToSend(kTestResetToken);
   server_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
@@ -205,8 +205,9 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
             2 * kInitialStreamFlowControlWindowForTest);
   EXPECT_EQ(config_.ReceivedInitialSessionFlowControlWindowBytes(),
             2 * kInitialSessionFlowControlWindowForTest);
-  EXPECT_TRUE(config_.HasReceivedAlternateServerAddress());
-  EXPECT_EQ(kTestServerAddress, config_.ReceivedAlternateServerAddress());
+  EXPECT_TRUE(config_.HasReceivedIPv4AlternateServerAddress());
+  EXPECT_EQ(kTestServerAddress, config_.ReceivedIPv4AlternateServerAddress());
+  EXPECT_FALSE(config_.HasReceivedIPv6AlternateServerAddress());
   EXPECT_TRUE(config_.HasReceivedStatelessResetToken());
   EXPECT_EQ(kTestResetToken, config_.ReceivedStatelessResetToken());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {

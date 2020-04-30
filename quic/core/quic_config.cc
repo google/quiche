@@ -513,7 +513,8 @@ QuicConfig::QuicConfig()
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
-      alternate_server_address_(kASAD, PRESENCE_OPTIONAL),
+      alternate_server_address_ipv6_(kASAD, PRESENCE_OPTIONAL),
+      alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
@@ -861,17 +862,66 @@ bool QuicConfig::DisableConnectionMigration() const {
   return connection_migration_disabled_.HasReceivedValue();
 }
 
+void QuicConfig::SetIPv6AlternateServerAddressToSend(
+    const QuicSocketAddress& alternate_server_address_ipv6) {
+  if (!alternate_server_address_ipv6.host().IsIPv6()) {
+    QUIC_BUG << "Cannot use SetIPv6AlternateServerAddressToSend with "
+             << alternate_server_address_ipv6;
+    return;
+  }
+  alternate_server_address_ipv6_.SetSendValue(alternate_server_address_ipv6);
+}
+
+bool QuicConfig::HasReceivedIPv6AlternateServerAddress() const {
+  return alternate_server_address_ipv6_.HasReceivedValue();
+}
+
+const QuicSocketAddress& QuicConfig::ReceivedIPv6AlternateServerAddress()
+    const {
+  return alternate_server_address_ipv6_.GetReceivedValue();
+}
+
+void QuicConfig::SetIPv4AlternateServerAddressToSend(
+    const QuicSocketAddress& alternate_server_address_ipv4) {
+  if (!alternate_server_address_ipv4.host().IsIPv4()) {
+    QUIC_BUG << "Cannot use SetIPv4AlternateServerAddressToSend with "
+             << alternate_server_address_ipv4;
+    return;
+  }
+  alternate_server_address_ipv4_.SetSendValue(alternate_server_address_ipv4);
+}
+
+bool QuicConfig::HasReceivedIPv4AlternateServerAddress() const {
+  return alternate_server_address_ipv4_.HasReceivedValue();
+}
+
+const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
+    const {
+  return alternate_server_address_ipv4_.GetReceivedValue();
+}
+
 void QuicConfig::SetAlternateServerAddressToSend(
     const QuicSocketAddress& alternate_server_address) {
-  alternate_server_address_.SetSendValue(alternate_server_address);
+  if (alternate_server_address.host().IsIPv6()) {
+    SetIPv6AlternateServerAddressToSend(alternate_server_address);
+  } else if (alternate_server_address.host().IsIPv4()) {
+    SetIPv4AlternateServerAddressToSend(alternate_server_address);
+  } else {
+    QUIC_BUG << "Cannot use SetAlternateServerAddressToSend with "
+             << alternate_server_address;
+  }
 }
 
 bool QuicConfig::HasReceivedAlternateServerAddress() const {
-  return alternate_server_address_.HasReceivedValue();
+  return HasReceivedIPv6AlternateServerAddress() ||
+         HasReceivedIPv4AlternateServerAddress();
 }
 
 const QuicSocketAddress& QuicConfig::ReceivedAlternateServerAddress() const {
-  return alternate_server_address_.GetReceivedValue();
+  if (HasReceivedIPv6AlternateServerAddress()) {
+    return ReceivedIPv6AlternateServerAddress();
+  }
+  return ReceivedIPv4AlternateServerAddress();
 }
 
 void QuicConfig::SetStatelessResetTokenToSend(
@@ -942,7 +992,11 @@ void QuicConfig::ToHandshakeMessage(
   initial_session_flow_control_window_bytes_.ToHandshakeMessage(out);
   connection_migration_disabled_.ToHandshakeMessage(out);
   connection_options_.ToHandshakeMessage(out);
-  alternate_server_address_.ToHandshakeMessage(out);
+  if (alternate_server_address_ipv6_.HasSendValue()) {
+    alternate_server_address_ipv6_.ToHandshakeMessage(out);
+  } else {
+    alternate_server_address_ipv4_.ToHandshakeMessage(out);
+  }
   stateless_reset_token_.ToHandshakeMessage(out);
 }
 
@@ -990,8 +1044,18 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
                                                  error_details);
   }
   if (error == QUIC_NO_ERROR) {
-    error = alternate_server_address_.ProcessPeerHello(peer_hello, hello_type,
-                                                       error_details);
+    QuicFixedSocketAddress alternate_server_address(kASAD, PRESENCE_OPTIONAL);
+    error = alternate_server_address.ProcessPeerHello(peer_hello, hello_type,
+                                                      error_details);
+    if (error == QUIC_NO_ERROR && alternate_server_address.HasReceivedValue()) {
+      const QuicSocketAddress& received_address =
+          alternate_server_address.GetReceivedValue();
+      if (received_address.host().IsIPv6()) {
+        alternate_server_address_ipv6_.SetReceivedValue(received_address);
+      } else if (received_address.host().IsIPv4()) {
+        alternate_server_address_ipv4_.SetReceivedValue(received_address);
+      }
+    }
   }
   if (error == QUIC_NO_ERROR) {
     error = stateless_reset_token_.ProcessPeerHello(peer_hello, hello_type,
@@ -1052,13 +1116,16 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;
 
-  if (alternate_server_address_.HasSendValue()) {
+  if (alternate_server_address_ipv6_.HasSendValue() ||
+      alternate_server_address_ipv4_.HasSendValue()) {
     TransportParameters::PreferredAddress preferred_address;
-    QuicSocketAddress socket_address = alternate_server_address_.GetSendValue();
-    if (socket_address.host().IsIPv6()) {
-      preferred_address.ipv6_socket_address = socket_address;
-    } else {
-      preferred_address.ipv4_socket_address = socket_address;
+    if (alternate_server_address_ipv6_.HasSendValue()) {
+      preferred_address.ipv6_socket_address =
+          alternate_server_address_ipv6_.GetSendValue();
+    }
+    if (alternate_server_address_ipv4_.HasSendValue()) {
+      preferred_address.ipv4_socket_address =
+          alternate_server_address_ipv4_.GetSendValue();
     }
     params->preferred_address =
         std::make_unique<TransportParameters::PreferredAddress>(
@@ -1158,10 +1225,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (params.preferred_address != nullptr) {
     if (params.preferred_address->ipv6_socket_address.port() != 0) {
-      alternate_server_address_.SetReceivedValue(
+      alternate_server_address_ipv6_.SetReceivedValue(
           params.preferred_address->ipv6_socket_address);
-    } else if (params.preferred_address->ipv4_socket_address.port() != 0) {
-      alternate_server_address_.SetReceivedValue(
+    }
+    if (params.preferred_address->ipv4_socket_address.port() != 0) {
+      alternate_server_address_ipv4_.SetReceivedValue(
           params.preferred_address->ipv4_socket_address);
     }
   }

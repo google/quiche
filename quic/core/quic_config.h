@@ -453,11 +453,22 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   bool DisableConnectionMigration() const;
 
+  // IPv6 alternate server address.
+  void SetIPv6AlternateServerAddressToSend(
+      const QuicSocketAddress& alternate_server_address_ipv6);
+  bool HasReceivedIPv6AlternateServerAddress() const;
+  const QuicSocketAddress& ReceivedIPv6AlternateServerAddress() const;
+
+  // IPv4 alternate server address.
+  void SetIPv4AlternateServerAddressToSend(
+      const QuicSocketAddress& alternate_server_address_ipv4);
+  bool HasReceivedIPv4AlternateServerAddress() const;
+  const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
+
+  // DEPRECATED: use the variants that specify the address family (IPv4/IPv6).
   void SetAlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address);
-
   bool HasReceivedAlternateServerAddress() const;
-
   const QuicSocketAddress& ReceivedAlternateServerAddress() const;
 
   void SetStatelessResetTokenToSend(QuicUint128 stateless_reset_token);
@@ -600,8 +611,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Uses the disable_active_migration transport parameter in IETF QUIC.
   QuicFixedUint32 connection_migration_disabled_;
 
-  // An alternate server address the client could connect to.
-  QuicFixedSocketAddress alternate_server_address_;
+  // Alternate server addresses the client could connect to.
+  // Uses the preferred_address transport parameter in IETF QUIC.
+  // Note that when QUIC_CRYPTO is in use, only one of the addresses is sent.
+  QuicFixedSocketAddress alternate_server_address_ipv6_;
+  QuicFixedSocketAddress alternate_server_address_ipv4_;
 
   // Stateless reset token used in IETF public reset packet.
   // Uses the stateless_reset_token transport parameter in IETF QUIC.
