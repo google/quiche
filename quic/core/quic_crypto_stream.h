@@ -111,7 +111,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   void NeuterStreamDataOfEncryptionLevel(EncryptionLevel level);
 
   // Override to record the encryption level of consumed data.
-  void OnStreamDataConsumed(size_t bytes_consumed) override;
+  void OnStreamDataConsumed(QuicByteCount bytes_consumed) override;
 
   // Returns whether there are any bytes pending retransmission in CRYPTO
   // frames.

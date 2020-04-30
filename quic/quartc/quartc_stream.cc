@@ -56,7 +56,7 @@ void QuartcStream::OnClose() {
   delegate_->OnClose(this);
 }
 
-void QuartcStream::OnStreamDataConsumed(size_t bytes_consumed) {
+void QuartcStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   QuicStream::OnStreamDataConsumed(bytes_consumed);
 
   if (delegate_) {

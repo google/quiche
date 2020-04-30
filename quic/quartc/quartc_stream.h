@@ -34,7 +34,7 @@ class QuartcStream : public QuicStream {
 
   void OnClose() override;
 
-  void OnStreamDataConsumed(size_t bytes_consumed) override;
+  void OnStreamDataConsumed(QuicByteCount bytes_consumed) override;
 
   void OnDataBuffered(
       QuicStreamOffset offset,

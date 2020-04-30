@@ -49,7 +49,7 @@ namespace {
 
 const char kData1[] = "FooAndBar";
 const char kData2[] = "EepAndBaz";
-const size_t kDataLen = 9;
+const QuicByteCount kDataLen = 9;
 
 class TestStream : public QuicStream {
  public:
@@ -125,7 +125,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   QuicConsumedData CloseStreamOnWriteError(
       QuicStreamId id,
-      size_t /*write_length*/,
+      QuicByteCount /*write_length*/,
       QuicStreamOffset /*offset*/,
       StreamSendingState /*state*/,
       TransmissionType /*type*/,
@@ -271,7 +271,7 @@ TEST_P(QuicStreamTest, FromPendingStreamThenData) {
 TEST_P(QuicStreamTest, WriteAllData) {
   Initialize();
 
-  size_t length =
+  QuicByteCount length =
       1 + QuicPacketCreator::StreamFramePacketOverhead(
               connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
               PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
@@ -360,7 +360,7 @@ TEST_P(QuicStreamTest, WriteOrBufferData) {
   Initialize();
 
   EXPECT_FALSE(HasWriteBlockedStreams());
-  size_t length =
+  QuicByteCount length =
       1 + QuicPacketCreator::StreamFramePacketOverhead(
               connection_->transport_version(), PACKET_8BYTE_CONNECTION_ID,
               PACKET_0BYTE_CONNECTION_ID, !kIncludeVersion,
@@ -1076,8 +1076,9 @@ TEST_P(QuicStreamTest, WriteBufferedData) {
   EXPECT_FALSE(stream_->CanWriteNewData());
 
   // Send buffered data to make buffered data size < threshold.
-  size_t data_to_write = 3 * data.length() - 200 -
-                         GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+  QuicByteCount data_to_write =
+      3 * data.length() - 200 -
+      GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 200u, NO_FIN,
@@ -1182,7 +1183,7 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
 
   Initialize();
   char data[1024];
-  std::vector<std::pair<char*, size_t>> buffers;
+  std::vector<std::pair<char*, QuicByteCount>> buffers;
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   QuicTestMemSliceVector vector1(buffers);
@@ -1210,8 +1211,9 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
   EXPECT_EQ(2 * QUICHE_ARRAYSIZE(data) - 100, stream_->BufferedDataBytes());
   EXPECT_FALSE(stream_->fin_buffered());
 
-  size_t data_to_write = 2 * QUICHE_ARRAYSIZE(data) - 100 -
-                         GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
+  QuicByteCount data_to_write =
+      2 * QUICHE_ARRAYSIZE(data) - 100 -
+      GetQuicFlag(FLAGS_quic_buffered_data_threshold) + 1;
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillOnce(InvokeWithoutArgs([this, data_to_write]() {
         return session_->ConsumeData(stream_->id(), data_to_write, 100u, NO_FIN,
@@ -1245,7 +1247,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   Initialize();
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - 5u, stream_);
   char data[5];
-  std::vector<std::pair<char*, size_t>> buffers;
+  std::vector<std::pair<char*, QuicByteCount>> buffers;
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   QuicTestMemSliceVector vector1(buffers);
   QuicMemSliceSpan span1 = vector1.span();
@@ -1258,7 +1260,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   QuicConsumedData consumed = stream_->WriteMemSlices(span1, false);
   EXPECT_EQ(5u, consumed.bytes_consumed);
 
-  std::vector<std::pair<char*, size_t>> buffers2;
+  std::vector<std::pair<char*, QuicByteCount>> buffers2;
   buffers2.push_back(std::make_pair(data, 1u));
   QuicTestMemSliceVector vector2(buffers);
   QuicMemSliceSpan span2 = vector2.span();

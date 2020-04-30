@@ -29,15 +29,15 @@ namespace quic {
 
 namespace {
 
-size_t DefaultFlowControlWindow(ParsedQuicVersion version) {
+QuicByteCount DefaultFlowControlWindow(ParsedQuicVersion version) {
   if (!version.AllowsLowFlowControlLimits()) {
     return kDefaultFlowControlSendWindow;
   }
   return 0;
 }
 
-size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session,
-                                               QuicStreamId stream_id) {
+QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
+                                                      QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (version.handshake_protocol != PROTOCOL_TLS1_3) {
     return session->config()->GetInitialStreamFlowControlWindowToSend();
@@ -60,8 +60,8 @@ size_t GetInitialStreamFlowControlWindowToSend(QuicSession* session,
       ->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
 }
 
-size_t GetReceivedFlowControlWindow(QuicSession* session,
-                                    QuicStreamId stream_id) {
+QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
+                                           QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (version.handshake_protocol != PROTOCOL_TLS1_3) {
     if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
@@ -189,7 +189,7 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   // This count includes duplicate data received.
-  size_t frame_payload_size = frame.data_length;
+  QuicByteCount frame_payload_size = frame.data_length;
   stream_bytes_read_ += frame_payload_size;
 
   // Flow control is interested in tracking highest received offset.
@@ -257,7 +257,7 @@ bool PendingStream::MaybeIncreaseHighestReceivedOffset(
   return true;
 }
 
-void PendingStream::MarkConsumed(size_t num_bytes) {
+void PendingStream::MarkConsumed(QuicByteCount num_bytes) {
   sequencer_.MarkConsumed(num_bytes);
 }
 
@@ -452,7 +452,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   }
 
   // This count includes duplicate data received.
-  size_t frame_payload_size = frame.data_length;
+  QuicByteCount frame_payload_size = frame.data_length;
   stream_bytes_read_ += frame_payload_size;
 
   // Flow control is interested in tracking highest received offset.
@@ -1042,7 +1042,7 @@ bool QuicStream::IsWaitingForAcks() const {
          (send_buffer_.stream_bytes_outstanding() || fin_outstanding_);
 }
 
-size_t QuicStream::ReadableBytes() const {
+QuicByteCount QuicStream::ReadableBytes() const {
   return sequencer_.ReadableBytes();
 }
 
@@ -1064,7 +1064,7 @@ void QuicStream::WriteBufferedData() {
   }
 
   // Size of buffered data.
-  size_t write_length = BufferedDataBytes();
+  QuicByteCount write_length = BufferedDataBytes();
 
   // A FIN with zero data payload should not be flow control blocked.
   bool fin_with_zero_data = (fin_buffered_ && write_length == 0);
@@ -1089,7 +1089,7 @@ void QuicStream::WriteBufferedData() {
     fin = false;
 
     // Writing more data would be a violation of flow control.
-    write_length = static_cast<size_t>(send_window);
+    write_length = send_window;
     QUIC_DVLOG(1) << "stream " << id() << " shortens write length to "
                   << write_length << " due to flow control";
   }
@@ -1168,7 +1168,7 @@ const QuicIntervalSet<QuicStreamOffset>& QuicStream::bytes_acked() const {
   return send_buffer_.bytes_acked();
 }
 
-void QuicStream::OnStreamDataConsumed(size_t bytes_consumed) {
+void QuicStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   send_buffer_.OnStreamDataConsumed(bytes_consumed);
 }
 

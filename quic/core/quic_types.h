@@ -23,7 +23,6 @@ namespace quic {
 
 using QuicPacketLength = uint16_t;
 using QuicControlFrameId = uint32_t;
-using QuicHeaderId = uint32_t;
 using QuicMessageId = uint32_t;
 using QuicDatagramFlowId = uint64_t;
 

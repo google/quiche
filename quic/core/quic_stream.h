@@ -76,7 +76,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
 
   const QuicStreamSequencer* sequencer() const { return &sequencer_; }
 
-  void MarkConsumed(size_t num_bytes);
+  void MarkConsumed(QuicByteCount num_bytes);
 
   // Tells the sequencer to ignore all incoming data itself and not call
   // OnDataAvailable().
@@ -201,7 +201,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   bool IsWaitingForAcks() const;
 
   // Number of bytes available to read.
-  size_t ReadableBytes() const;
+  QuicByteCount ReadableBytes() const;
 
   QuicRstStreamErrorCode stream_error() const { return stream_error_; }
   QuicErrorCode connection_error() const { return connection_error_; }
@@ -392,7 +392,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   virtual void OnCanWriteNewData() {}
 
   // Called when |bytes_consumed| bytes has been consumed.
-  virtual void OnStreamDataConsumed(size_t bytes_consumed);
+  virtual void OnStreamDataConsumed(QuicByteCount bytes_consumed);
 
   // Called by the stream sequencer as bytes are consumed from the buffer.
   // If the receive window has dropped below the threshold, then send a

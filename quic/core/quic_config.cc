@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -163,6 +164,11 @@ void QuicFixedUint32::SetReceivedValue(uint32_t value) {
 }
 
 void QuicFixedUint32::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
+  if (tag_ == 0) {
+    QUIC_BUG
+        << "This parameter does not support writing to CryptoHandshakeMessage";
+    return;
+  }
   if (has_send_value_) {
     out->SetValue(tag_, send_value_);
   }
@@ -173,7 +179,99 @@ QuicErrorCode QuicFixedUint32::ProcessPeerHello(
     HelloType /*hello_type*/,
     std::string* error_details) {
   DCHECK(error_details != nullptr);
+  if (tag_ == 0) {
+    *error_details =
+        "This parameter does not support reading from CryptoHandshakeMessage";
+    QUIC_BUG << *error_details;
+    return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
+  }
   QuicErrorCode error = peer_hello.GetUint32(tag_, &receive_value_);
+  switch (error) {
+    case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
+      if (presence_ == PRESENCE_OPTIONAL) {
+        return QUIC_NO_ERROR;
+      }
+      *error_details = "Missing " + QuicTagToString(tag_);
+      break;
+    case QUIC_NO_ERROR:
+      has_receive_value_ = true;
+      break;
+    default:
+      *error_details = "Bad " + QuicTagToString(tag_);
+      break;
+  }
+  return error;
+}
+
+QuicFixedUint62::QuicFixedUint62(QuicTag name, QuicConfigPresence presence)
+    : QuicConfigValue(name, presence),
+      has_send_value_(false),
+      has_receive_value_(false) {}
+
+QuicFixedUint62::~QuicFixedUint62() {}
+
+bool QuicFixedUint62::HasSendValue() const {
+  return has_send_value_;
+}
+
+uint64_t QuicFixedUint62::GetSendValue() const {
+  if (!has_send_value_) {
+    QUIC_BUG << "No send value to get for tag:" << QuicTagToString(tag_);
+    return 0;
+  }
+  return send_value_;
+}
+
+void QuicFixedUint62::SetSendValue(uint64_t value) {
+  if (value > kVarInt62MaxValue) {
+    QUIC_BUG << "QuicFixedUint62 invalid value " << value;
+    value = kVarInt62MaxValue;
+  }
+  has_send_value_ = true;
+  send_value_ = value;
+}
+
+bool QuicFixedUint62::HasReceivedValue() const {
+  return has_receive_value_;
+}
+
+uint64_t QuicFixedUint62::GetReceivedValue() const {
+  if (!has_receive_value_) {
+    QUIC_BUG << "No receive value to get for tag:" << QuicTagToString(tag_);
+    return 0;
+  }
+  return receive_value_;
+}
+
+void QuicFixedUint62::SetReceivedValue(uint64_t value) {
+  has_receive_value_ = true;
+  receive_value_ = value;
+}
+
+void QuicFixedUint62::ToHandshakeMessage(CryptoHandshakeMessage* out) const {
+  if (!has_send_value_) {
+    return;
+  }
+  uint32_t send_value32;
+  if (send_value_ > std::numeric_limits<uint32_t>::max()) {
+    QUIC_BUG << "Attempting to send " << send_value_
+             << " for tag:" << QuicTagToString(tag_);
+    send_value32 = std::numeric_limits<uint32_t>::max();
+  } else {
+    send_value32 = static_cast<uint32_t>(send_value_);
+  }
+  out->SetValue(tag_, send_value32);
+}
+
+QuicErrorCode QuicFixedUint62::ProcessPeerHello(
+    const CryptoHandshakeMessage& peer_hello,
+    HelloType /*hello_type*/,
+    std::string* error_details) {
+  DCHECK(error_details != nullptr);
+  uint32_t receive_value32;
+  QuicErrorCode error = peer_hello.GetUint32(tag_, &receive_value32);
+  // GetUint32 is guaranteed to always initialize receive_value32.
+  receive_value_ = receive_value32;
   switch (error) {
     case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
       if (presence_ == PRESENCE_OPTIONAL) {
@@ -579,11 +677,11 @@ uint32_t QuicConfig::ReceivedAckDelayExponent() const {
   return ack_delay_exponent_.GetReceivedValue();
 }
 
-void QuicConfig::SetMaxPacketSizeToSend(uint32_t max_packet_size) {
+void QuicConfig::SetMaxPacketSizeToSend(uint64_t max_packet_size) {
   max_packet_size_.SetSendValue(max_packet_size);
 }
 
-uint32_t QuicConfig::GetMaxPacketSizeToSend() const {
+uint64_t QuicConfig::GetMaxPacketSizeToSend() const {
   return max_packet_size_.GetSendValue();
 }
 
@@ -591,16 +689,16 @@ bool QuicConfig::HasReceivedMaxPacketSize() const {
   return max_packet_size_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxPacketSize() const {
+uint64_t QuicConfig::ReceivedMaxPacketSize() const {
   return max_packet_size_.GetReceivedValue();
 }
 
 void QuicConfig::SetMaxDatagramFrameSizeToSend(
-    uint32_t max_datagram_frame_size) {
+    uint64_t max_datagram_frame_size) {
   max_datagram_frame_size_.SetSendValue(max_datagram_frame_size);
 }
 
-uint32_t QuicConfig::GetMaxDatagramFrameSizeToSend() const {
+uint64_t QuicConfig::GetMaxDatagramFrameSizeToSend() const {
   return max_datagram_frame_size_.GetSendValue();
 }
 
@@ -608,7 +706,7 @@ bool QuicConfig::HasReceivedMaxDatagramFrameSize() const {
   return max_datagram_frame_size_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMaxDatagramFrameSize() const {
+uint64_t QuicConfig::ReceivedMaxDatagramFrameSize() const {
   return max_datagram_frame_size_.GetReceivedValue();
 }
 
@@ -649,7 +747,7 @@ uint32_t QuicConfig::GetInitialRoundTripTimeUsToSend() const {
 }
 
 void QuicConfig::SetInitialStreamFlowControlWindowToSend(
-    uint32_t window_bytes) {
+    uint64_t window_bytes) {
   if (window_bytes < kMinimumFlowControlSendWindow) {
     QUIC_BUG << "Initial stream flow control receive window (" << window_bytes
              << ") cannot be set lower than minimum ("
@@ -659,7 +757,7 @@ void QuicConfig::SetInitialStreamFlowControlWindowToSend(
   initial_stream_flow_control_window_bytes_.SetSendValue(window_bytes);
 }
 
-uint32_t QuicConfig::GetInitialStreamFlowControlWindowToSend() const {
+uint64_t QuicConfig::GetInitialStreamFlowControlWindowToSend() const {
   return initial_stream_flow_control_window_bytes_.GetSendValue();
 }
 
@@ -667,17 +765,17 @@ bool QuicConfig::HasReceivedInitialStreamFlowControlWindowBytes() const {
   return initial_stream_flow_control_window_bytes_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialStreamFlowControlWindowBytes() const {
+uint64_t QuicConfig::ReceivedInitialStreamFlowControlWindowBytes() const {
   return initial_stream_flow_control_window_bytes_.GetReceivedValue();
 }
 
 void QuicConfig::SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
-    uint32_t window_bytes) {
+    uint64_t window_bytes) {
   initial_max_stream_data_bytes_incoming_bidirectional_.SetSendValue(
       window_bytes);
 }
 
-uint32_t QuicConfig::GetInitialMaxStreamDataBytesIncomingBidirectionalToSend()
+uint64_t QuicConfig::GetInitialMaxStreamDataBytesIncomingBidirectionalToSend()
     const {
   if (initial_max_stream_data_bytes_incoming_bidirectional_.HasSendValue()) {
     return initial_max_stream_data_bytes_incoming_bidirectional_.GetSendValue();
@@ -691,19 +789,19 @@ bool QuicConfig::HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()
       .HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesIncomingBidirectional()
+uint64_t QuicConfig::ReceivedInitialMaxStreamDataBytesIncomingBidirectional()
     const {
   return initial_max_stream_data_bytes_incoming_bidirectional_
       .GetReceivedValue();
 }
 
 void QuicConfig::SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
-    uint32_t window_bytes) {
+    uint64_t window_bytes) {
   initial_max_stream_data_bytes_outgoing_bidirectional_.SetSendValue(
       window_bytes);
 }
 
-uint32_t QuicConfig::GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend()
+uint64_t QuicConfig::GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend()
     const {
   if (initial_max_stream_data_bytes_outgoing_bidirectional_.HasSendValue()) {
     return initial_max_stream_data_bytes_outgoing_bidirectional_.GetSendValue();
@@ -717,18 +815,18 @@ bool QuicConfig::HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
       .HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
+uint64_t QuicConfig::ReceivedInitialMaxStreamDataBytesOutgoingBidirectional()
     const {
   return initial_max_stream_data_bytes_outgoing_bidirectional_
       .GetReceivedValue();
 }
 
 void QuicConfig::SetInitialMaxStreamDataBytesUnidirectionalToSend(
-    uint32_t window_bytes) {
+    uint64_t window_bytes) {
   initial_max_stream_data_bytes_unidirectional_.SetSendValue(window_bytes);
 }
 
-uint32_t QuicConfig::GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
+uint64_t QuicConfig::GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
   if (initial_max_stream_data_bytes_unidirectional_.HasSendValue()) {
     return initial_max_stream_data_bytes_unidirectional_.GetSendValue();
   }
@@ -739,12 +837,12 @@ bool QuicConfig::HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
   return initial_max_stream_data_bytes_unidirectional_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialMaxStreamDataBytesUnidirectional() const {
+uint64_t QuicConfig::ReceivedInitialMaxStreamDataBytesUnidirectional() const {
   return initial_max_stream_data_bytes_unidirectional_.GetReceivedValue();
 }
 
 void QuicConfig::SetInitialSessionFlowControlWindowToSend(
-    uint32_t window_bytes) {
+    uint64_t window_bytes) {
   if (window_bytes < kMinimumFlowControlSendWindow) {
     QUIC_BUG << "Initial session flow control receive window (" << window_bytes
              << ") cannot be set lower than default ("
@@ -754,7 +852,7 @@ void QuicConfig::SetInitialSessionFlowControlWindowToSend(
   initial_session_flow_control_window_bytes_.SetSendValue(window_bytes);
 }
 
-uint32_t QuicConfig::GetInitialSessionFlowControlWindowToSend() const {
+uint64_t QuicConfig::GetInitialSessionFlowControlWindowToSend() const {
   return initial_session_flow_control_window_bytes_.GetSendValue();
 }
 
@@ -762,7 +860,7 @@ bool QuicConfig::HasReceivedInitialSessionFlowControlWindowBytes() const {
   return initial_session_flow_control_window_bytes_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialSessionFlowControlWindowBytes() const {
+uint64_t QuicConfig::ReceivedInitialSessionFlowControlWindowBytes() const {
   return initial_session_flow_control_window_bytes_.GetReceivedValue();
 }
 
@@ -1055,8 +1153,10 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   }
 
   initial_session_flow_control_window_bytes_.SetReceivedValue(
-      std::min<uint64_t>(params.initial_max_data.value(),
-                         std::numeric_limits<uint32_t>::max()));
+      params.initial_max_data.value());
+
+  // IETF QUIC specifies stream IDs and stream counts as 62-bit integers but
+  // our implementation uses uint32_t to represent them to save memory.
   max_bidirectional_streams_.SetReceivedValue(
       std::min<uint64_t>(params.initial_max_streams_bidi.value(),
                          std::numeric_limits<uint32_t>::max()));
@@ -1071,19 +1171,15 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   // received transport parameters, so a local stream is one initiated by our
   // peer, which means an incoming stream.
   initial_max_stream_data_bytes_incoming_bidirectional_.SetReceivedValue(
-      std::min<uint64_t>(params.initial_max_stream_data_bidi_local.value(),
-                         std::numeric_limits<uint32_t>::max()));
+      params.initial_max_stream_data_bidi_local.value());
   initial_max_stream_data_bytes_outgoing_bidirectional_.SetReceivedValue(
-      std::min<uint64_t>(params.initial_max_stream_data_bidi_remote.value(),
-                         std::numeric_limits<uint32_t>::max()));
+      params.initial_max_stream_data_bidi_remote.value());
   initial_max_stream_data_bytes_unidirectional_.SetReceivedValue(
-      std::min<uint64_t>(params.initial_max_stream_data_uni.value(),
-                         std::numeric_limits<uint32_t>::max()));
+      params.initial_max_stream_data_uni.value());
 
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
-    max_ack_delay_ms_.SetReceivedValue(std::min<uint32_t>(
-        params.max_ack_delay.value(), std::numeric_limits<uint32_t>::max()));
+    max_ack_delay_ms_.SetReceivedValue(params.max_ack_delay.value());
   }
   if (params.ack_delay_exponent.IsValid()) {
     ack_delay_exponent_.SetReceivedValue(params.ack_delay_exponent.value());

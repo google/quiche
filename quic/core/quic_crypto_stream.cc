@@ -224,7 +224,7 @@ void QuicCryptoStream::NeuterStreamDataOfEncryptionLevel(
   }
 }
 
-void QuicCryptoStream::OnStreamDataConsumed(size_t bytes_consumed) {
+void QuicCryptoStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   if (QuicVersionUsesCryptoFrames(session()->transport_version())) {
     QUIC_BUG << "Stream data consumed when CRYPTO frames should be in use";
   }
