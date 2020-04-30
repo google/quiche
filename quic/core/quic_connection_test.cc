@@ -5614,12 +5614,11 @@ TEST_P(QuicConnectionTest, NoMtuDiscoveryAfterConnectionClosed) {
   EXPECT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
 }
 
-TEST_P(QuicConnectionTest, TimeoutAfterSend) {
+TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
   connection_.SetFromConfig(config);
-  EXPECT_FALSE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta initial_idle_timeout =
       QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs - 1);
@@ -5688,7 +5687,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
   connection_.SetFromConfig(config);
-  EXPECT_FALSE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime start_time = clock_.Now();
   const QuicTime::Delta initial_idle_timeout =
@@ -5767,9 +5765,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   TestConnectionCloseQuicErrorCode(QUIC_NETWORK_IDLE_TIMEOUT);
 }
 
-TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
-  // Same test as above, but complete a handshake which enables silent close,
-  // causing no connection close packet to be sent.
+TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
+  // When the idle timeout fires, verify that by default we do not send any
+  // connection close packets.
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -5791,7 +5789,6 @@ TEST_P(QuicConnectionTest, NewTimeoutAfterSendSilentClose) {
   EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
-  EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
@@ -5860,8 +5857,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   if (connection_.PtoEnabled()) {
     return;
   }
-  // Same test as above, but complete a handshake which enables silent close,
-  // but sending TLPs causes the connection close to be sent.
+  // Same test as above, but sending TLPs causes a connection close to be sent.
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -5883,7 +5879,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
-  EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
@@ -5923,8 +5918,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
 }
 
 TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
-  // Same test as above, but complete a handshake which enables silent close,
-  // but having open streams causes the connection close to be sent.
+  // Same test as above, but having open streams causes a connection close
+  // to be sent.
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
@@ -5946,7 +5941,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   EXPECT_THAT(error, IsQuicNoError());
 
   connection_.SetFromConfig(config);
-  EXPECT_TRUE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta default_idle_timeout =
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
@@ -5989,7 +5983,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceive) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
   connection_.SetFromConfig(config);
-  EXPECT_FALSE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta initial_idle_timeout =
       QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs - 1);
@@ -6043,7 +6036,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   QuicConfig config;
   connection_.SetFromConfig(config);
-  EXPECT_FALSE(QuicConnectionPeer::IsSilentCloseEnabled(&connection_));
 
   const QuicTime::Delta initial_idle_timeout =
       QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs - 1);

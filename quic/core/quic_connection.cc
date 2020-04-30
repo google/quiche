@@ -407,10 +407,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     // Handshake complete, set handshake timeout to Infinite.
     SetNetworkTimeouts(QuicTime::Delta::Infinite(),
                        config.IdleNetworkTimeout());
-    if (config.SilentClose()) {
-      idle_timeout_connection_close_behavior_ =
-          ConnectionCloseBehavior::SILENT_CLOSE;
-    }
+    idle_timeout_connection_close_behavior_ =
+        ConnectionCloseBehavior::SILENT_CLOSE;
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());

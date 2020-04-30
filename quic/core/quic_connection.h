@@ -1380,9 +1380,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       termination_packets_;
 
   // Determines whether or not a connection close packet is sent to the peer
-  // after idle timeout due to lack of network activity.
-  // This is particularly important on mobile, where waking up the radio is
-  // undesirable.
+  // after idle timeout due to lack of network activity. During the handshake,
+  // a connection close packet is sent, but not after.
   ConnectionCloseBehavior idle_timeout_connection_close_behavior_;
 
   // When true, close the QUIC connection after 5 RTOs.  Due to the min rto of

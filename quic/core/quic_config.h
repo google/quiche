@@ -338,10 +338,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   QuicTime::Delta IdleNetworkTimeout() const;
 
-  void SetSilentClose(bool silent_close);
-
-  bool SilentClose() const;
-
   // Sets the max bidirectional stream count that this endpoint supports.
   void SetMaxBidirectionalStreamsToSend(uint32_t max_streams);
   uint32_t GetMaxBidirectionalStreamsToSend() const;
@@ -561,8 +557,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Idle network timeout in seconds.
   // Uses the max_idle_timeout transport parameter in IETF QUIC.
   QuicNegotiableUint32 idle_network_timeout_seconds_;
-  // Whether to use silent close.  Defaults to 0 (false) and is otherwise true.
-  QuicNegotiableUint32 silent_close_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.

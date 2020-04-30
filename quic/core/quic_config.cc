@@ -501,7 +501,6 @@ QuicConfig::QuicConfig()
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
       idle_network_timeout_seconds_(kICSL, PRESENCE_REQUIRED),
-      silent_close_(kSCLS, PRESENCE_OPTIONAL),
       max_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
       max_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
@@ -602,15 +601,6 @@ void QuicConfig::SetIdleNetworkTimeout(
 QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
   return QuicTime::Delta::FromSeconds(
       idle_network_timeout_seconds_.GetUint32());
-}
-
-// TODO(ianswett) Use this for silent close on mobile, or delete.
-QUIC_UNUSED void QuicConfig::SetSilentClose(bool silent_close) {
-  silent_close_.set(silent_close ? 1 : 0, silent_close ? 1 : 0);
-}
-
-bool QuicConfig::SilentClose() const {
-  return silent_close_.GetUint32() > 0;
 }
 
 void QuicConfig::SetMaxBidirectionalStreamsToSend(uint32_t max_streams) {
@@ -923,7 +913,6 @@ const QuicTagVector& QuicConfig::create_session_tag_indicators() const {
 void QuicConfig::SetDefaults() {
   idle_network_timeout_seconds_.set(kMaximumIdleTimeoutSecs,
                                     kDefaultIdleTimeoutSecs);
-  silent_close_.set(1, 0);
   SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =
@@ -945,7 +934,6 @@ void QuicConfig::ToHandshakeMessage(
     CryptoHandshakeMessage* out,
     QuicTransportVersion transport_version) const {
   idle_network_timeout_seconds_.ToHandshakeMessage(out);
-  silent_close_.ToHandshakeMessage(out);
   // Do not need a version check here, max...bi... will encode
   // as "MIDS" -- the max initial dynamic streams tag -- if
   // doing some version other than IETF QUIC.
@@ -979,10 +967,6 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
   if (error == QUIC_NO_ERROR) {
     error = idle_network_timeout_seconds_.ProcessPeerHello(
         peer_hello, hello_type, error_details);
-  }
-  if (error == QUIC_NO_ERROR) {
-    error =
-        silent_close_.ProcessPeerHello(peer_hello, hello_type, error_details);
   }
   if (error == QUIC_NO_ERROR) {
     error = max_bidirectional_streams_.ProcessPeerHello(peer_hello, hello_type,
@@ -1099,7 +1083,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   if (!params->google_quic_params) {
     params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
   }
-  silent_close_.ToHandshakeMessage(params->google_quic_params.get());
   initial_round_trip_time_us_.ToHandshakeMessage(
       params->google_quic_params.get());
   connection_options_.ToHandshakeMessage(params->google_quic_params.get());
@@ -1200,12 +1183,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
   if (peer_params != nullptr) {
-    error =
-        silent_close_.ProcessPeerHello(*peer_params, hello_type, error_details);
-    if (error != QUIC_NO_ERROR) {
-      DCHECK(!error_details->empty());
-      return error;
-    }
     error = initial_round_trip_time_us_.ProcessPeerHello(
         *peer_params, hello_type, error_details);
     if (error != QUIC_NO_ERROR) {

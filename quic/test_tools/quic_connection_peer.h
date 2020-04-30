@@ -64,8 +64,6 @@ class QuicConnectionPeer {
       QuicConnection* connection,
       const QuicSocketAddress& effective_peer_address);
 
-  static bool IsSilentCloseEnabled(QuicConnection* connection);
-
   static void SwapCrypters(QuicConnection* connection, QuicFramer* framer);
 
   static void SetCurrentPacket(QuicConnection* connection,
