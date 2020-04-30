@@ -537,6 +537,14 @@ TEST_P(EndToEndTest, HandshakeSuccessful) {
   crypto_stream = QuicSessionPeer::GetMutableCryptoStream(GetServerSession());
   sequencer = QuicStreamPeer::sequencer(crypto_stream);
   EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
+
+  // We've had bugs in the past where the connections could end up on the wrong
+  // version. This was never diagnosed but could have been due to in-connection
+  // version negotiation back when that existed. At this point in time, our test
+  // setup ensures that connections here always use |version_|, but we add this
+  // sanity check out of paranoia to catch a regression of this type.
+  EXPECT_EQ(GetClientConnection()->version(), version_);
+  EXPECT_EQ(GetServerConnection()->version(), version_);
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponse) {
@@ -1609,8 +1617,6 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleTermination)) {
   EXPECT_QUIC_BUG(client_->SendData("eep", true), "Fin already buffered");
 }
 
-// TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
-// out why the test doesn't work on chrome.
 TEST_P(EndToEndTest, Timeout) {
   client_config_.SetIdleNetworkTimeout(QuicTime::Delta::FromMicroseconds(500),
                                        QuicTime::Delta::FromMicroseconds(500));
@@ -1933,8 +1939,6 @@ TEST_P(EndToEndTest, ResetConnection) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-// TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
-// out why the test doesn't work on chrome.
 TEST_P(EndToEndTest, MaxStreamsUberTest) {
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
