@@ -81,108 +81,40 @@ const float kSessionToStreamRatio = 1.5;
 
 // Run all tests with the cross products of all versions.
 struct TestParams {
-  TestParams(const ParsedQuicVersionVector& client_supported_versions,
-             const ParsedQuicVersionVector& server_supported_versions,
-             ParsedQuicVersion negotiated_version,
-             QuicTag congestion_control_tag)
-      : client_supported_versions(client_supported_versions),
-        server_supported_versions(server_supported_versions),
-        negotiated_version(negotiated_version),
-        congestion_control_tag(congestion_control_tag) {}
+  TestParams(const ParsedQuicVersion& version, QuicTag congestion_control_tag)
+      : version(version), congestion_control_tag(congestion_control_tag) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
-    os << "{ server_supported_versions: "
-       << ParsedQuicVersionVectorToString(p.server_supported_versions);
-    os << " client_supported_versions: "
-       << ParsedQuicVersionVectorToString(p.client_supported_versions);
-    os << " negotiated_version: "
-       << ParsedQuicVersionToString(p.negotiated_version);
+    os << "{ version: " << ParsedQuicVersionToString(p.version);
     os << " congestion_control_tag: "
        << QuicTagToString(p.congestion_control_tag) << " }";
     return os;
   }
 
-  ParsedQuicVersionVector client_supported_versions;
-  ParsedQuicVersionVector server_supported_versions;
-  ParsedQuicVersion negotiated_version;
+  ParsedQuicVersion version;
   QuicTag congestion_control_tag;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  std::string rv = quiche::QuicheStrCat(
-      ParsedQuicVersionToString(p.negotiated_version), "_Server_",
-      ParsedQuicVersionVectorToString(p.server_supported_versions), "_Client_",
-      ParsedQuicVersionVectorToString(p.client_supported_versions), "_",
-      QuicTagToString(p.congestion_control_tag));
+  std::string rv =
+      quiche::QuicheStrCat(ParsedQuicVersionToString(p.version), "_",
+                           QuicTagToString(p.congestion_control_tag));
   std::replace(rv.begin(), rv.end(), ',', '_');
   std::replace(rv.begin(), rv.end(), ' ', '_');
   return rv;
 }
 
 // Constructs various test permutations.
-std::vector<TestParams> GetTestParams(bool use_tls_handshake) {
-  // Divide the versions into buckets in which the intra-frame format
-  // is compatible. When clients encounter QUIC version negotiation
-  // they simply retransmit all packets using the new version's
-  // QUIC framing. However, they are unable to change the intra-frame
-  // layout (for example to change HTTP/2 headers to SPDY/3, or a change in the
-  // handshake protocol). So these tests need to ensure that clients are never
-  // attempting to do 0-RTT across incompatible versions. Chromium only
-  // supports a single version at a time anyway. :)
-  ParsedQuicVersionVector all_supported_versions =
-      FilterSupportedVersions(AllSupportedVersions());
-
-  // Buckets are separated by versions: versions without crypto frames use
-  // STREAM frames for the handshake, and only have QUIC crypto as the handshake
-  // protocol. Versions that use CRYPTO frames for the handshake must also be
-  // split based on the handshake protocol. If the handshake protocol (QUIC
-  // crypto or TLS) changes, the ClientHello/CHLO must be reconstructed for the
-  // correct protocol.
-  ParsedQuicVersionVector version_buckets[3];
-
-  for (const ParsedQuicVersion& version : all_supported_versions) {
-    if (!use_tls_handshake && version.handshake_protocol == PROTOCOL_TLS1_3) {
-      continue;
-    }
-    if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
-      version_buckets[0].push_back(version);
-    } else if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-      version_buckets[1].push_back(version);
-    } else {
-      version_buckets[2].push_back(version);
-    }
-  }
-
+std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   for (const QuicTag congestion_control_tag : {kRENO, kTBBR, kQBIC, kB2ON}) {
     if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
         congestion_control_tag == kB2ON) {
       continue;
     }
-    for (const ParsedQuicVersionVector& client_versions : version_buckets) {
-      if (FilterSupportedVersions(client_versions).empty()) {
-        continue;
-      }
-      // Add an entry for server and client supporting all versions.
-      params.push_back(TestParams(client_versions, all_supported_versions,
-                                  client_versions.front(),
-                                  congestion_control_tag));
-      // Test client supporting all versions and server supporting
-      // 1 version. Simulate an old server and exercise version
-      // downgrade in the client. Protocol negotiation should
-      // occur.  Skip the i = 0 case because it is essentially the
-      // same as the default case.
-      for (size_t i = 1; i < client_versions.size(); ++i) {
-        ParsedQuicVersionVector server_supported_versions;
-        server_supported_versions.push_back(client_versions[i]);
-        if (FilterSupportedVersions(server_supported_versions).empty()) {
-          continue;
-        }
-        params.push_back(TestParams(client_versions, server_supported_versions,
-                                    server_supported_versions.front(),
-                                    congestion_control_tag));
-      }  // End of inner version loop.
+    for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
+      params.push_back(TestParams(version, congestion_control_tag));
     }    // End of outer version loop.
   }      // End of congestion_control_tag loop.
 
@@ -231,14 +163,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         server_hostname_("test.example.com"),
         client_writer_(nullptr),
         server_writer_(nullptr),
-        negotiated_version_(UnsupportedQuicVersion()),
+        version_(GetParam().version),
+        client_supported_versions_({version_}),
+        server_supported_versions_(CurrentSupportedVersions()),
         chlo_multiplier_(0),
         stream_factory_(nullptr),
         expected_server_connection_id_length_(kQuicDefaultConnectionIdLength) {
-    client_supported_versions_ = GetParam().client_supported_versions;
-    server_supported_versions_ = GetParam().server_supported_versions;
-    negotiated_version_ = GetParam().negotiated_version;
-
     QUIC_LOG(INFO) << "Using Configuration: " << GetParam();
 
     // Use different flow control windows for client/server.
@@ -377,7 +307,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // client as well according to the test parameter.
     copt.push_back(GetParam().congestion_control_tag);
     copt.push_back(k2PTO);
-    if (VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+    if (VersionHasIetfQuicFrames(version_.transport_version)) {
       copt.push_back(kILD0);
     }
     copt.push_back(kPLE1);
@@ -496,14 +426,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (!ServerSendsVersionNegotiation()) {
       EXPECT_EQ(0u, client_stats.packets_dropped);
     }
-    if (!ClientSupportsIetfQuicNotSupportedByServer()) {
-      // In this case, if client sends 0-RTT POST with v99, receives IETF
-      // version negotiation packet and speaks a GQUIC version. Server processes
-      // this connection in time wait list and keeps sending IETF version
-      // negotiation packet for incoming packets. But these version negotiation
-      // packets cannot be processed by the client speaking GQUIC.
-      EXPECT_EQ(client_stats.packets_received, client_stats.packets_processed);
-    }
+    // In this case, if client sends 0-RTT POST with v99, receives IETF
+    // version negotiation packet and speaks a GQUIC version. Server processes
+    // this connection in time wait list and keeps sending IETF version
+    // negotiation packet for incoming packets. But these version negotiation
+    // packets cannot be processed by the client speaking GQUIC.
+    EXPECT_EQ(client_stats.packets_received, client_stats.packets_processed);
 
     server_thread_->Pause();
     QuicConnectionStats server_stats = GetServerConnection()->GetStats();
@@ -517,19 +445,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     server_thread_->Resume();
   }
 
-  // Client supports IETF QUIC, while it is not supported by server.
-  bool ClientSupportsIetfQuicNotSupportedByServer() {
-    return VersionHasIetfInvariantHeader(
-               client_supported_versions_[0].transport_version) &&
-           !VersionHasIetfInvariantHeader(
-               FilterSupportedVersions(GetParam().server_supported_versions)[0]
-                   .transport_version);
-  }
-
   // Returns true when client starts with an unsupported version, and client
   // closes connection when version negotiation is received.
   bool ServerSendsVersionNegotiation() {
-    return client_supported_versions_[0] != GetParam().negotiated_version;
+    return client_supported_versions_[0] != version_;
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
@@ -587,10 +506,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   PacketDroppingTestWriter* server_writer_;
   QuicConfig client_config_;
   QuicConfig server_config_;
+  ParsedQuicVersion version_;
   ParsedQuicVersionVector client_supported_versions_;
   ParsedQuicVersionVector server_supported_versions_;
   QuicTagVector client_extra_copts_;
-  ParsedQuicVersion negotiated_version_;
   size_t chlo_multiplier_;
   QuicTestServer::StreamFactory* stream_factory_;
   std::string pre_shared_key_client_;
@@ -603,29 +522,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 // Run all end to end tests with all supported versions.
 INSTANTIATE_TEST_SUITE_P(EndToEndTests,
                          EndToEndTest,
-                         ::testing::ValuesIn(GetTestParams(true)),
-                         ::testing::PrintToStringParamName());
-
-// These tests are only run with QUIC versions that do not use TLS.
-// TODO(b/154151800): Run all tests with TLS as well as QUIC crypto.
-class EndToEndTestWithoutTls : public EndToEndTest {};
-
-INSTANTIATE_TEST_SUITE_P(EndToEndTestsWithoutTls,
-                         EndToEndTestWithoutTls,
-                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndTest, HandshakeSuccessful) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
-  // There have been occasions where it seemed that negotiated_version_ and the
-  // version in the connection are not in sync. If it is happening, it has not
-  // been recreatable; this assert is here just to check and raise a flag if it
-  // happens.
-  ASSERT_EQ(GetClientConnection()->transport_version(),
-            negotiated_version_.transport_version);
-
   QuicCryptoStream* crypto_stream =
       QuicSessionPeer::GetMutableCryptoStream(GetClientSession());
   QuicStreamSequencer* sequencer = QuicStreamPeer::sequencer(crypto_stream);
@@ -636,7 +539,7 @@ TEST_P(EndToEndTest, HandshakeSuccessful) {
   EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
 }
 
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponse) {
+TEST_P(EndToEndTest, SimpleRequestResponse) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -653,15 +556,9 @@ TEST_P(EndToEndTestWithoutTls, SimpleRequestResponse) {
   }
 }
 
-TEST_P(EndToEndTest, SimpleRequestResponse) {
-  ASSERT_TRUE(Initialize());
-  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
-  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
-}
-
 TEST_P(EndToEndTest, HandshakeConfirmed) {
   ASSERT_TRUE(Initialize());
-  if (!GetParam().negotiated_version.HasHandshakeDone()) {
+  if (!version_.HasHandshakeDone()) {
     return;
   }
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -691,7 +588,12 @@ TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {
 
 // Simple transaction, but set a non-default ack delay at the client
 // and ensure it gets to the server.
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithAckDelayChange) {
+TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Force the ACK delay to be something other than the default.
   // Note that it is sent only if doing IETF QUIC.
   client_config_.SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs + 100u);
@@ -716,7 +618,12 @@ TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithAckDelayChange) {
 
 // Simple transaction, but set a non-default ack exponent at the client
 // and ensure it gets to the server.
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithAckExponentChange) {
+TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   const uint32_t kClientAckDelayExponent = kDefaultAckDelayExponent + 100u;
   // Force the ACK exponent to be something other than the default.
   // Note that it is sent only if doing IETF QUIC.
@@ -728,8 +635,7 @@ TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithAckExponentChange) {
 
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-  if (VersionHasIetfQuicFrames(
-          GetParam().negotiated_version.transport_version)) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     // Should be only for IETF QUIC.
     EXPECT_EQ(kClientAckDelayExponent,
               GetServerConnection()->framer().peer_ack_delay_exponent());
@@ -743,7 +649,7 @@ TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithAckExponentChange) {
             GetServerConnection()->framer().local_ack_delay_exponent());
 }
 
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseForcedVersionNegotiation) {
+TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
   testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
@@ -769,8 +675,8 @@ TEST_P(EndToEndTest, ForcedVersionNegotiation) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseZeroConnectionID) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -783,12 +689,11 @@ TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseZeroConnectionID) {
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   EXPECT_EQ(GetClientConnection()->connection_id(),
-            QuicUtils::CreateZeroConnectionId(
-                GetParam().negotiated_version.transport_version));
+            QuicUtils::CreateZeroConnectionId(version_.transport_version));
 }
 
 TEST_P(EndToEndTest, ZeroConnectionID) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -799,12 +704,11 @@ TEST_P(EndToEndTest, ZeroConnectionID) {
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   EXPECT_EQ(GetClientConnection()->connection_id(),
-            QuicUtils::CreateZeroConnectionId(
-                GetParam().negotiated_version.transport_version));
+            QuicUtils::CreateZeroConnectionId(version_.transport_version));
 }
 
 TEST_P(EndToEndTest, BadConnectionIdLength) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -822,7 +726,7 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
 // Tests a very long (16-byte) initial destination connection ID to make
 // sure the dispatcher properly replaces it with an 8-byte one.
 TEST_P(EndToEndTest, LongBadConnectionIdLength) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -838,7 +742,7 @@ TEST_P(EndToEndTest, LongBadConnectionIdLength) {
 }
 
 TEST_P(EndToEndTest, ClientConnectionId) {
-  if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
+  if (!version_.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -854,7 +758,7 @@ TEST_P(EndToEndTest, ClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
-  if (!GetParam().negotiated_version.SupportsClientConnectionIds()) {
+  if (!version_.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -873,7 +777,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -894,8 +798,8 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // Forced Version Negotiation with a client connection ID and a long
 // connection ID.
 TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
-  if (!GetParam().negotiated_version.SupportsClientConnectionIds() ||
-      !GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+  if (!version_.SupportsClientConnectionIds() ||
+      !version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -919,8 +823,8 @@ TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
                                                        .length());
 }
 
-TEST_P(EndToEndTestWithoutTls, MixGoodAndBadConnectionIdLengths) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -960,7 +864,7 @@ TEST_P(EndToEndTestWithoutTls, MixGoodAndBadConnectionIdLengths) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseWithIetfDraftSupport) {
-  if (!GetParam().negotiated_version.HasIetfQuicFrames()) {
+  if (!version_.HasIetfQuicFrames()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -971,7 +875,12 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithIetfDraftSupport) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithoutTls, SimpleRequestResponseWithLargeReject) {
+TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   chlo_multiplier_ = 1;
   ASSERT_TRUE(Initialize());
 
@@ -1071,8 +980,8 @@ TEST_P(EndToEndTest, MultipleRequestResponse) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithoutTls, MultipleRequestResponseZeroConnectionID) {
-  if (!GetParam().negotiated_version.AllowsVariableLengthConnectionIds()) {
+TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
+  if (!version_.AllowsVariableLengthConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1181,7 +1090,12 @@ TEST_P(EndToEndTest, PostMissingBytes) {
   EXPECT_EQ("500", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLoss) {
+TEST_P(EndToEndTest, LargePostNoPacketLoss) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1201,7 +1115,12 @@ TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLoss) {
   VerifyCleanConnection(true);
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLoss1sRTT) {
+TEST_P(EndToEndTest, LargePostNoPacketLoss1sRTT) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(1000));
 
@@ -1220,7 +1139,12 @@ TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLoss1sRTT) {
   VerifyCleanConnection(false);
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostWithPacketLoss) {
+TEST_P(EndToEndTest, LargePostWithPacketLoss) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Connect with lower fake packet loss than we'd like to test.
   // Until b/10126687 is fixed, losing handshake packets is pretty
   // brutal.
@@ -1245,8 +1169,12 @@ TEST_P(EndToEndTestWithoutTls, LargePostWithPacketLoss) {
 }
 
 // Regression test for b/80090281.
-TEST_P(EndToEndTestWithoutTls,
-       LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
+TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
@@ -1276,7 +1204,7 @@ TEST_P(EndToEndTestWithoutTls,
   VerifyCleanConnection(true);
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostWithPacketLossAndBlockedSocket) {
+TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
   SetPacketLossPercentage(5);
@@ -1299,7 +1227,7 @@ TEST_P(EndToEndTestWithoutTls, LargePostWithPacketLossAndBlockedSocket) {
             client_->SendCustomSynchronousRequest(headers, body));
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLossWithDelayAndReordering) {
+TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1319,7 +1247,12 @@ TEST_P(EndToEndTestWithoutTls, LargePostNoPacketLossWithDelayAndReordering) {
             client_->SendCustomSynchronousRequest(headers, body));
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostZeroRTTFailure) {
+TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
+  if (version_.UsesTls()) {
+    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
+    Initialize();
+    return;
+  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1370,7 +1303,12 @@ TEST_P(EndToEndTestWithoutTls, LargePostZeroRTTFailure) {
   VerifyCleanConnection(false);
 }
 
-TEST_P(EndToEndTestWithoutTls, SynchronousRequestZeroRTTFailure) {
+TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
+  if (version_.UsesTls()) {
+    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
+    Initialize();
+    return;
+  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1412,7 +1350,12 @@ TEST_P(EndToEndTestWithoutTls, SynchronousRequestZeroRTTFailure) {
   VerifyCleanConnection(false);
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostSynchronousRequest) {
+TEST_P(EndToEndTest, LargePostSynchronousRequest) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1464,7 +1407,7 @@ TEST_P(EndToEndTestWithoutTls, LargePostSynchronousRequest) {
   VerifyCleanConnection(false);
 }
 
-TEST_P(EndToEndTestWithoutTls, RejectWithPacketLoss) {
+TEST_P(EndToEndTest, RejectWithPacketLoss) {
   // In this test, we intentionally drop the first packet from the
   // server, which corresponds with the initial REJ response from
   // the server.
@@ -1472,7 +1415,7 @@ TEST_P(EndToEndTestWithoutTls, RejectWithPacketLoss) {
   ASSERT_TRUE(Initialize());
 }
 
-TEST_P(EndToEndTestWithoutTls, SetInitialReceivedConnectionOptions) {
+TEST_P(EndToEndTest, SetInitialReceivedConnectionOptions) {
   QuicTagVector initial_received_options;
   initial_received_options.push_back(kTBBR);
   initial_received_options.push_back(kIW10);
@@ -1498,7 +1441,12 @@ TEST_P(EndToEndTestWithoutTls, SetInitialReceivedConnectionOptions) {
       ContainsQuicTag(server_config_.ReceivedConnectionOptions(), kPRST));
 }
 
-TEST_P(EndToEndTestWithoutTls, LargePostSmallBandwidthLargeBuffer) {
+TEST_P(EndToEndTest, LargePostSmallBandwidthLargeBuffer) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMicroseconds(1));
   // 256KB per second with a 256KB buffer from server to client.  Wireless
@@ -1566,7 +1514,7 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
 
 // TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
 // out why the test doesn't work on chrome.
-TEST_P(EndToEndTestWithoutTls, InvalidStream) {
+TEST_P(EndToEndTest, InvalidStream) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
@@ -1591,7 +1539,7 @@ TEST_P(EndToEndTestWithoutTls, InvalidStream) {
 
 // Test that if the server will close the connection if the client attempts
 // to send a request with overly large headers.
-TEST_P(EndToEndTestWithoutTls, LargeHeaders) {
+TEST_P(EndToEndTest, LargeHeaders) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
@@ -1619,7 +1567,7 @@ TEST_P(EndToEndTestWithoutTls, LargeHeaders) {
   }
 }
 
-TEST_P(EndToEndTestWithoutTls, EarlyResponseWithQuicStreamNoError) {
+TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
@@ -1663,7 +1611,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleTermination)) {
 
 // TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
 // out why the test doesn't work on chrome.
-TEST_P(EndToEndTestWithoutTls, Timeout) {
+TEST_P(EndToEndTest, Timeout) {
   client_config_.SetIdleNetworkTimeout(QuicTime::Delta::FromMicroseconds(500),
                                        QuicTime::Delta::FromMicroseconds(500));
   // Note: we do NOT ASSERT_TRUE: we may time out during initial handshake:
@@ -1680,8 +1628,7 @@ TEST_P(EndToEndTest, MaxDynamicStreamsLimitRespected) {
   const uint32_t kServerMaxDynamicStreams = 1;
   server_config_.SetMaxBidirectionalStreamsToSend(kServerMaxDynamicStreams);
   ASSERT_TRUE(Initialize());
-  if (VersionHasIetfQuicFrames(
-          GetParam().negotiated_version.transport_version)) {
+  if (VersionHasIetfQuicFrames(version_.transport_version)) {
     // Do not run this test for /IETF QUIC. This test relies on the fact that
     // Google QUIC allows a small number of additional streams beyond the
     // negotiated limit, which is not supported in IETF QUIC. Note that the test
@@ -1717,7 +1664,7 @@ TEST_P(EndToEndTest, MaxDynamicStreamsLimitRespected) {
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
-TEST_P(EndToEndTestWithoutTls, SetIndependentMaxDynamicStreamsLimits) {
+TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   // Each endpoint can set max dynamic streams independently.
   const uint32_t kClientMaxDynamicStreams = 4;
   const uint32_t kServerMaxDynamicStreams = 3;
@@ -1781,7 +1728,7 @@ TEST_P(EndToEndTestWithoutTls, SetIndependentMaxDynamicStreamsLimits) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, NegotiateCongestionControl) {
+TEST_P(EndToEndTest, NegotiateCongestionControl) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1812,7 +1759,7 @@ TEST_P(EndToEndTestWithoutTls, NegotiateCongestionControl) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, ClientSuggestsRTT) {
+TEST_P(EndToEndTest, ClientSuggestsRTT) {
   // Client suggests initial RTT, verify it is used.
   const QuicTime::Delta kInitialRTT = QuicTime::Delta::FromMicroseconds(20000);
   client_config_.SetInitialRoundTripTimeUsToSend(kInitialRTT.ToMicroseconds());
@@ -1838,7 +1785,7 @@ TEST_P(EndToEndTestWithoutTls, ClientSuggestsRTT) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, ClientSuggestsIgnoredRTT) {
+TEST_P(EndToEndTest, ClientSuggestsIgnoredRTT) {
   // Client suggests initial RTT, but also specifies NRTT, so it's not used.
   const QuicTime::Delta kInitialRTT = QuicTime::Delta::FromMicroseconds(20000);
   client_config_.SetInitialRoundTripTimeUsToSend(kInitialRTT.ToMicroseconds());
@@ -1867,7 +1814,7 @@ TEST_P(EndToEndTestWithoutTls, ClientSuggestsIgnoredRTT) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, MaxInitialRTT) {
+TEST_P(EndToEndTest, MaxInitialRTT) {
   // Client tries to suggest twice the server's max initial rtt and the server
   // uses the max.
   client_config_.SetInitialRoundTripTimeUsToSend(2 *
@@ -1895,7 +1842,7 @@ TEST_P(EndToEndTestWithoutTls, MaxInitialRTT) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, MinInitialRTT) {
+TEST_P(EndToEndTest, MinInitialRTT) {
   // Client tries to suggest 0 and the server uses the default.
   client_config_.SetInitialRoundTripTimeUsToSend(0);
 
@@ -1923,9 +1870,8 @@ TEST_P(EndToEndTestWithoutTls, MinInitialRTT) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, 0ByteConnectionId) {
-  if (VersionHasIetfInvariantHeader(
-          GetParam().negotiated_version.transport_version)) {
+TEST_P(EndToEndTest, 0ByteConnectionId) {
+  if (VersionHasIetfInvariantHeader(version_.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -1942,8 +1888,7 @@ TEST_P(EndToEndTestWithoutTls, 0ByteConnectionId) {
 }
 
 TEST_P(EndToEndTest, 8ByteConnectionId) {
-  if (VersionHasIetfInvariantHeader(
-          GetParam().negotiated_version.transport_version)) {
+  if (VersionHasIetfInvariantHeader(version_.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -1960,8 +1905,7 @@ TEST_P(EndToEndTest, 8ByteConnectionId) {
 }
 
 TEST_P(EndToEndTest, 15ByteConnectionId) {
-  if (VersionHasIetfInvariantHeader(
-          GetParam().negotiated_version.transport_version)) {
+  if (VersionHasIetfInvariantHeader(version_.transport_version)) {
     // SetBytesForConnectionIdToSend only applies to Google QUIC encoding.
     ASSERT_TRUE(Initialize());
     return;
@@ -1991,7 +1935,7 @@ TEST_P(EndToEndTest, ResetConnection) {
 
 // TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
 // out why the test doesn't work on chrome.
-TEST_P(EndToEndTestWithoutTls, MaxStreamsUberTest) {
+TEST_P(EndToEndTest, MaxStreamsUberTest) {
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
   SetPacketLossPercentage(1);
@@ -2045,7 +1989,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
-TEST_P(EndToEndTestWithoutTls, ConnectionMigrationClientIPChanged) {
+TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   ASSERT_TRUE(Initialize());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
@@ -2064,7 +2008,7 @@ TEST_P(EndToEndTestWithoutTls, ConnectionMigrationClientIPChanged) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
 
-TEST_P(EndToEndTestWithoutTls, ConnectionMigrationClientPortChanged) {
+TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   // Tests that the client's port can change during an established QUIC
   // connection, and that doing so does not result in the connection being
   // closed by the server.
@@ -2121,7 +2065,7 @@ TEST_P(EndToEndTestWithoutTls, ConnectionMigrationClientPortChanged) {
   EXPECT_NE(old_address.port(), new_address.port());
 }
 
-TEST_P(EndToEndTestWithoutTls, NegotiatedInitialCongestionWindow) {
+TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
   SetQuicReloadableFlag(quic_unified_iw_options, true);
   client_extra_copts_.push_back(kIW03);
 
@@ -2137,7 +2081,12 @@ TEST_P(EndToEndTestWithoutTls, NegotiatedInitialCongestionWindow) {
   EXPECT_EQ(3u, cwnd);
 }
 
-TEST_P(EndToEndTestWithoutTls, DifferentFlowControlWindows) {
+TEST_P(EndToEndTest, DifferentFlowControlWindows) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Client and server can set different initial flow control receive windows.
   // These are sent in CHLO/SHLO. Tests that these values are exchanged properly
   // in the crypto handshake.
@@ -2191,7 +2140,12 @@ TEST_P(EndToEndTestWithoutTls, DifferentFlowControlWindows) {
 }
 
 // Test negotiation of IFWA connection option.
-TEST_P(EndToEndTestWithoutTls, NegotiatedServerInitialFlowControlWindow) {
+TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   const uint32_t kClientStreamIFCW = 123456;
   const uint32_t kClientSessionIFCW = 234567;
   set_client_initial_stream_flow_control_receive_window(kClientStreamIFCW);
@@ -2235,7 +2189,7 @@ TEST_P(EndToEndTestWithoutTls, NegotiatedServerInitialFlowControlWindow) {
                                       GetClientSession()->flow_controller()));
 }
 
-TEST_P(EndToEndTestWithoutTls, HeadersAndCryptoStreamsNoConnectionFlowControl) {
+TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   // The special headers and crypto streams should be subject to per-stream flow
   // control limits, but should not be subject to connection level flow control
   const uint32_t kStreamIFCW = 32 * 1024;
@@ -2299,7 +2253,7 @@ TEST_P(EndToEndTestWithoutTls, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, FlowControlsSynced) {
+TEST_P(EndToEndTest, FlowControlsSynced) {
   set_smaller_flow_control_receive_window();
 
   ASSERT_TRUE(Initialize());
@@ -2456,12 +2410,16 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
   }
 };
 
-TEST_P(EndToEndTestWithoutTls, AckNotifierWithPacketLossAndBlockedSocket) {
+TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Verify that even in the presence of packet loss and occasionally blocked
   // socket,  an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
   // demonstrates that retransmissions do not break this functionality.
-
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
 
@@ -2971,7 +2929,7 @@ class ServerStreamThatSendsHugeResponseFactory
   int64_t body_bytes_;
 };
 
-TEST_P(EndToEndTestWithoutTls, EarlyResponseFinRecording) {
+TEST_P(EndToEndTest, EarlyResponseFinRecording) {
   set_smaller_flow_control_receive_window();
 
   // Verify that an incoming FIN is recorded in a stream object even if the read
@@ -3123,7 +3081,7 @@ class EndToEndTestServerPush : public EndToEndTest {
 // Run all server push end to end tests with all supported versions.
 INSTANTIATE_TEST_SUITE_P(EndToEndTestsServerPush,
                          EndToEndTestServerPush,
-                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndTestServerPush, ServerPush) {
@@ -3183,6 +3141,11 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Tests that sending a request which has 4 push resources will trigger server
   // to push those 4 resources and client can handle pushed resources and match
   // them with requests later.
@@ -3232,6 +3195,11 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Tests that when streams are not blocked by flow control or congestion
   // control, pushing even more resources than max number of open outgoing
   // streams should still work because all response streams get closed
@@ -3290,6 +3258,11 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
+  if (version_.UsesTls()) {
+    // TODO(b/155316241): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   // Tests that when server tries to send more large resources(large enough to
   // be blocked by flow control window or congestion control window) than max
   // open outgoing streams , server can open upto max number of outgoing
@@ -3368,7 +3341,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
 }
 
 // TODO(fayang): this test seems to cause net_unittests timeouts :|
-TEST_P(EndToEndTestWithoutTls, DISABLED_TestHugePostWithPacketLoss) {
+TEST_P(EndToEndTest, DISABLED_TestHugePostWithPacketLoss) {
   // This test tests a huge post with introduced packet loss from client to
   // server and body size greater than 4GB, making sure QUIC code does not break
   // for 32-bit builds.
@@ -3408,7 +3381,7 @@ TEST_P(EndToEndTestWithoutTls, DISABLED_TestHugePostWithPacketLoss) {
 }
 
 // TODO(fayang): this test seems to cause net_unittests timeouts :|
-TEST_P(EndToEndTestWithoutTls, DISABLED_TestHugeResponseWithPacketLoss) {
+TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   // This test tests a huge response with introduced loss from server to client
   // and body size greater than 4GB, making sure QUIC code does not break for
   // 32-bit builds.
@@ -3445,7 +3418,7 @@ TEST_P(EndToEndTestWithoutTls, DISABLED_TestHugeResponseWithPacketLoss) {
 }
 
 // Regression test for b/111515567
-TEST_P(EndToEndTestWithoutTls, AgreeOnStopWaiting) {
+TEST_P(EndToEndTest, AgreeOnStopWaiting) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
 
@@ -3460,7 +3433,7 @@ TEST_P(EndToEndTestWithoutTls, AgreeOnStopWaiting) {
 }
 
 // Regression test for b/111515567
-TEST_P(EndToEndTestWithoutTls, AgreeOnStopWaitingWithNoStopWaitingOption) {
+TEST_P(EndToEndTest, AgreeOnStopWaitingWithNoStopWaitingOption) {
   QuicTagVector options;
   options.push_back(kNSTP);
   client_config_.SetConnectionOptionsToSend(options);
@@ -3477,7 +3450,7 @@ TEST_P(EndToEndTestWithoutTls, AgreeOnStopWaitingWithNoStopWaitingOption) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTestWithoutTls, ReleaseHeadersStreamBufferWhenIdle) {
+TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   // Tests that when client side has no active request and no waiting
   // PUSH_PROMISE, its headers stream's sequencer buffer should be released.
   ASSERT_TRUE(Initialize());
@@ -3494,7 +3467,12 @@ TEST_P(EndToEndTestWithoutTls, ReleaseHeadersStreamBufferWhenIdle) {
   EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
 }
 
-TEST_P(EndToEndTestWithoutTls, WayTooLongRequestHeaders) {
+TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
   SpdyHeaderBlock headers;
   headers[":method"] = "GET";
@@ -3532,7 +3510,7 @@ class WindowUpdateObserver : public QuicConnectionDebugVisitor {
   size_t num_ping_frames_;
 };
 
-TEST_P(EndToEndTestWithoutTls, WindowUpdateInAck) {
+TEST_P(EndToEndTest, WindowUpdateInAck) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   WindowUpdateObserver observer;
@@ -3565,8 +3543,13 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 }
 
 // Regression test for b/116200989.
-TEST_P(EndToEndTestWithoutTls,
+TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
 
@@ -3588,7 +3571,7 @@ TEST_P(EndToEndTestWithoutTls,
 }
 
 // Regression test for b/116200989.
-TEST_P(EndToEndTestWithoutTls,
+TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyAfterHandshake) {
   // Prevent the connection from expiring in the time wait list.
   SetQuicFlag(FLAGS_quic_time_wait_list_seconds, 10000);
@@ -3625,7 +3608,7 @@ TEST_P(EndToEndTestWithoutTls,
 }
 
 // Regression test of b/70782529.
-TEST_P(EndToEndTestWithoutTls, DoNotCrashOnPacketWriteError) {
+TEST_P(EndToEndTest, DoNotCrashOnPacketWriteError) {
   ASSERT_TRUE(Initialize());
   BadPacketWriter* bad_writer =
       new BadPacketWriter(/*packet_causing_write_error=*/5,
@@ -3646,7 +3629,7 @@ TEST_P(EndToEndTestWithoutTls, DoNotCrashOnPacketWriteError) {
 // Regression test for b/71711996. This test sends a connectivity probing packet
 // as its last sent packet, and makes sure the server's ACK of that packet does
 // not cause the client to fail.
-TEST_P(EndToEndTestWithoutTls, LastPacketSentIsConnectivityProbing) {
+TEST_P(EndToEndTest, LastPacketSentIsConnectivityProbing) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -3672,7 +3655,7 @@ TEST_P(EndToEndTest, PreSharedKey) {
   pre_shared_key_client_ = "foobar";
   pre_shared_key_server_ = "foobar";
 
-  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     bool ok;
     EXPECT_QUIC_BUG(ok = Initialize(),
@@ -3696,7 +3679,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   pre_shared_key_client_ = "foo";
   pre_shared_key_server_ = "bar";
 
-  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     bool ok;
     EXPECT_QUIC_BUG(ok = Initialize(),
@@ -3724,7 +3707,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_server_ = "foobar";
 
-  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     bool ok;
     EXPECT_QUIC_BUG(ok = Initialize(),
@@ -3746,7 +3729,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_client_ = "foobar";
 
-  if (GetParam().negotiated_version.handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version_.UsesTls()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     bool ok;
     EXPECT_QUIC_BUG(ok = Initialize(),
@@ -3760,7 +3743,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
-TEST_P(EndToEndTestWithoutTls, RequestAndStreamRstInOnePacket) {
+TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
   // Regression test for b/80234898.
   ASSERT_TRUE(Initialize());
 
@@ -3795,7 +3778,7 @@ TEST_P(EndToEndTestWithoutTls, RequestAndStreamRstInOnePacket) {
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
-TEST_P(EndToEndTestWithoutTls, ResetStreamOnTtlExpires) {
+TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   SetPacketLossPercentage(30);
@@ -3812,14 +3795,17 @@ TEST_P(EndToEndTestWithoutTls, ResetStreamOnTtlExpires) {
   EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_STREAM_TTL_EXPIRED));
 }
 
-TEST_P(EndToEndTestWithoutTls, SendMessages) {
+TEST_P(EndToEndTest, SendMessages) {
+  if (version_.UsesTls() ||
+      !VersionSupportsMessageFrames(version_.transport_version)) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   QuicSession* client_session = GetClientSession();
   QuicConnection* client_connection = client_session->connection();
-  if (!VersionSupportsMessageFrames(client_connection->transport_version())) {
-    return;
-  }
 
   SetPacketLossPercentage(30);
   ASSERT_GT(kMaxOutgoingPacketSize,
@@ -3899,10 +3885,15 @@ class EndToEndPacketReorderingTest : public EndToEndTest {
 
 INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
                          EndToEndPacketReorderingTest,
-                         ::testing::ValuesIn(GetTestParams(false)),
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
 
   // Finish one request to make sure handshake established.
@@ -3947,6 +3938,11 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
 }
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
+  if (version_.UsesTls()) {
+    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
+    Initialize();
+    return;
+  }
   ASSERT_TRUE(Initialize());
   // Finish one request to make sure handshake established.
   client_->SendSynchronousRequest("/foo");
@@ -3979,10 +3975,15 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
 
 // Test that STOP_SENDING makes it to the peer.  Create a stream and send a
 // STOP_SENDING. The receiver should get a call to QuicStream::OnStopSending.
-TEST_P(EndToEndTestWithoutTls, SimpleStopSendingTest) {
+TEST_P(EndToEndTest, SimpleStopSendingTest) {
+  if (version_.UsesTls()) {
+    // TODO(b/155317149): Enable this test for TLS.
+    Initialize();
+    return;
+  }
   const uint16_t kStopSendingTestCode = 123;
   ASSERT_TRUE(Initialize());
-  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     return;
   }
   QuicSession* client_session = GetClientSession();
@@ -4027,7 +4028,7 @@ TEST_P(EndToEndTestWithoutTls, SimpleStopSendingTest) {
             static_cast<uint16_t>(client_stream->stream_error()));
 }
 
-TEST_P(EndToEndTestWithoutTls, SimpleStopSendingRstStreamTest) {
+TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
   ASSERT_TRUE(Initialize());
 
   // Send a request without a fin, to keep the stream open
@@ -4078,16 +4079,19 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
   bool error_returned_;
 };
 
-TEST_P(EndToEndTestWithoutTls, ZeroRttProtectedConnectionClose) {
+TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
+  if (version_.UsesTls() ||
+      !VersionHasIetfInvariantHeader(version_.transport_version)) {
+    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
+    // Only runs for IETF QUIC header.
+    Initialize();
+    return;
+  }
   // This test ensures ZERO_RTT_PROTECTED connection close could close a client
   // which has switched to forward secure.
   connect_to_server_on_initialize_ =
-      !VersionHasIetfInvariantHeader(negotiated_version_.transport_version);
+      !VersionHasIetfInvariantHeader(version_.transport_version);
   ASSERT_TRUE(Initialize());
-  if (!VersionHasIetfInvariantHeader(negotiated_version_.transport_version)) {
-    // Only runs for IETF QUIC header.
-    return;
-  }
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());
@@ -4139,13 +4143,13 @@ class BadShloPacketWriter2 : public QuicPacketWriterWrapper {
   bool error_returned_;
 };
 
-TEST_P(EndToEndTestWithoutTls, ForwardSecureConnectionClose) {
+TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
   // This test ensures ZERO_RTT_PROTECTED connection close is sent to a client
   // which has ZERO_RTT_PROTECTED encryption level.
   connect_to_server_on_initialize_ =
-      !VersionHasIetfInvariantHeader(negotiated_version_.transport_version);
+      !VersionHasIetfInvariantHeader(version_.transport_version);
   ASSERT_TRUE(Initialize());
-  if (!VersionHasIetfInvariantHeader(negotiated_version_.transport_version)) {
+  if (!VersionHasIetfInvariantHeader(version_.transport_version)) {
     // Only runs for IETF QUIC header.
     return;
   }
@@ -4170,10 +4174,10 @@ TEST_P(EndToEndTestWithoutTls, ForwardSecureConnectionClose) {
 
 // Test that the stream id manager closes the connection if a stream
 // in excess of the allowed maximum.
-TEST_P(EndToEndTestWithoutTls, TooBigStreamIdClosesConnection) {
+TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   // Has to be before version test, see EndToEndTest::TearDown()
   ASSERT_TRUE(Initialize());
-  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
     // Only runs for IETF QUIC.
     return;
   }
@@ -4204,13 +4208,16 @@ TEST_P(EndToEndTestWithoutTls, TooBigStreamIdClosesConnection) {
       IS_IETF_STREAM_FRAME(GetClientSession()->transport_close_frame_type()));
 }
 
-TEST_P(EndToEndTestWithoutTls, TestMaxPushId) {
-  // Has to be before version test, see EndToEndTest::TearDown()
-  ASSERT_TRUE(Initialize());
-  if (!VersionHasIetfQuicFrames(negotiated_version_.transport_version)) {
+TEST_P(EndToEndTest, TestMaxPushId) {
+  if (version_.UsesTls() ||
+      !VersionHasIetfQuicFrames(version_.transport_version)) {
+    // TODO(b/155316241): Enable this test for TLS.
     // Only runs for IETF QUIC.
+    Initialize();
     return;
   }
+  // Has to be before version test, see EndToEndTest::TearDown()
+  ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
   static_cast<QuicSpdySession*>(client_->client()->session())
@@ -4225,12 +4232,8 @@ TEST_P(EndToEndTestWithoutTls, TestMaxPushId) {
                   ->CanCreatePushStreamWithId(kMaxQuicStreamId));
 }
 
-TEST_P(EndToEndTestWithoutTls, CustomTransportParameters) {
-  if (GetParam().negotiated_version.handshake_protocol != PROTOCOL_TLS1_3) {
-    Initialize();
-    return;
-  }
-
+TEST_P(EndToEndTest, DISABLED_CustomTransportParameters) {
+  // TODO(b/155316241): Enable this test.
   constexpr auto kCustomParameter =
       static_cast<TransportParameters::TransportParameterId>(0xff34);
   client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
