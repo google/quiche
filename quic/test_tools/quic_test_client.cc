@@ -357,10 +357,6 @@ void QuicTestClient::Initialize() {
   num_requests_ = 0;
   num_responses_ = 0;
   ClearPerConnectionState();
-  // TODO(b/142715651): Figure out how to use QPACK in tests.
-  // Do not use the QPACK dynamic table in tests to avoid flakiness due to the
-  // uncertain order of receiving the SETTINGS frame and sending headers.
-  client_->disable_qpack_dynamic_table();
   // As chrome will generally do this, we want it to be the default when it's
   // not overridden.
   if (!client_->config()->HasSetBytesForConnectionIdToSend()) {

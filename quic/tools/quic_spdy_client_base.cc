@@ -50,8 +50,7 @@ QuicSpdyClientBase::QuicSpdyClientBase(
                      std::move(session_cache)),
       store_response_(false),
       latest_response_code_(-1),
-      max_allowed_push_id_(0),
-      disable_qpack_dynamic_table_(false) {}
+      max_allowed_push_id_(0) {}
 
 QuicSpdyClientBase::~QuicSpdyClientBase() {
   // We own the push promise index. We need to explicitly kill
@@ -64,10 +63,6 @@ QuicSpdyClientSession* QuicSpdyClientBase::client_session() {
 }
 
 void QuicSpdyClientBase::InitializeSession() {
-  if (disable_qpack_dynamic_table_) {
-    client_session()->set_qpack_maximum_dynamic_table_capacity(0);
-    client_session()->set_qpack_maximum_blocked_streams(0);
-  }
   client_session()->Initialize();
   client_session()->CryptoConnect();
   if (max_allowed_push_id_ > 0 &&

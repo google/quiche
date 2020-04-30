@@ -119,11 +119,6 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
           config(), connection, this, session_helper(), crypto_config(),
           compressed_certs_cache(), server_backend());
     }
-    // TODO(b/142715651): Figure out how to use QPACK in tests.
-    // Do not use the QPACK dynamic table in tests to avoid flakiness due to the
-    // uncertain order of receiving the SETTINGS frame and sending headers.
-    session->set_qpack_maximum_dynamic_table_capacity(0);
-    session->set_qpack_maximum_blocked_streams(0);
     session->Initialize();
     return session;
   }
