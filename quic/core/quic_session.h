@@ -552,6 +552,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // ProcessPendingStream().
   virtual bool UsesPendingStreams() const { return false; }
 
+  spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId stream_id) const {
+    return write_blocked_streams_.GetSpdyPriorityofStream(stream_id);
+  }
+
   StreamMap& stream_map() { return stream_map_; }
   const StreamMap& stream_map() const { return stream_map_; }
 

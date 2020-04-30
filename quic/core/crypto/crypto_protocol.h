@@ -257,6 +257,17 @@ const QuicTag kBWS5 = TAG('B', 'W', 'S', '5');  // QUIC Initial CWND up and down
 const QuicTag kBWS6 = TAG('B', 'W', 'S', '6');  // QUIC Initial CWND - Enabled
                                                 // with 0.5 * default
                                                 // multiplier.
+const QuicTag kBWP0 = TAG('B', 'W', 'P', '0');  // QUIC Initial CWND - SPDY
+                                                // priority 0.
+const QuicTag kBWP1 = TAG('B', 'W', 'P', '1');  // QUIC Initial CWND - SPDY
+                                                // priorities 0 and 1.
+const QuicTag kBWP2 = TAG('B', 'W', 'P', '2');  // QUIC Initial CWND - SPDY
+                                                // priorities 0, 1 and 2.
+const QuicTag kBWP3 = TAG('B', 'W', 'P', '3');  // QUIC Initial CWND - SPDY
+                                                // priorities 0, 1, 2 and 3.
+const QuicTag kBWP4 = TAG('B', 'W', 'P', '4');  // QUIC Initial CWND - SPDY
+                                                // priorities >= 0, 1, 2 , 3 and
+                                                 // 4.
 const QuicTag kBWS7 = TAG('B', 'W', 'S', '7');  // QUIC Initial CWND - Enabled
                                                 // with 0.75 * default
                                                 // multiplier.

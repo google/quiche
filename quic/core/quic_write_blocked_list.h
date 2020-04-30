@@ -66,6 +66,10 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     return priority_write_scheduler_->ShouldYield(id);
   }
 
+  spdy::SpdyPriority GetSpdyPriorityofStream(QuicStreamId id) const {
+    return priority_write_scheduler_->GetStreamPrecedence(id).spdy3_priority();
+  }
+
   // Switches write scheduler. This can only be called before any stream is
   // registered.
   bool SwitchWriteScheduler(spdy::WriteSchedulerType type,
