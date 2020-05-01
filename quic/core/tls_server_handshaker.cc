@@ -378,7 +378,8 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     quiche::QuicheStringPiece in) {
   signature_callback_ = new SignatureCallback(this);
   proof_source_->ComputeTlsSignature(
-      session()->connection()->self_address(), hostname_, sig_alg, in,
+      session()->connection()->self_address(),
+      session()->connection()->peer_address(), hostname_, sig_alg, in,
       std::unique_ptr<SignatureCallback>(signature_callback_));
   if (state_ == STATE_SIGNATURE_COMPLETE) {
     return PrivateKeyComplete(out, out_len, max_out);
@@ -480,6 +481,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
 
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
       proof_source_->GetCertChain(session()->connection()->self_address(),
+                                  session()->connection()->peer_address(),
                                   hostname_);
   if (chain->certs.empty()) {
     QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";

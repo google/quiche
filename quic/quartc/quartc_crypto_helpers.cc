@@ -11,13 +11,14 @@
 namespace quic {
 
 void DummyProofSource::GetProof(const QuicSocketAddress& server_address,
+                                const QuicSocketAddress& client_address,
                                 const std::string& hostname,
                                 const std::string& /*server_config*/,
                                 QuicTransportVersion /*transport_version*/,
                                 quiche::QuicheStringPiece /*chlo_hash*/,
                                 std::unique_ptr<Callback> callback) {
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      GetCertChain(server_address, hostname);
+      GetCertChain(server_address, client_address, hostname);
   QuicCryptoProof proof;
   proof.signature = "Dummy signature";
   proof.leaf_cert_scts = "Dummy timestamp";
@@ -26,6 +27,7 @@ void DummyProofSource::GetProof(const QuicSocketAddress& server_address,
 
 QuicReferenceCountedPointer<DummyProofSource::Chain>
 DummyProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
+                               const QuicSocketAddress& /*client_address*/,
                                const std::string& /*hostname*/) {
   std::vector<std::string> certs;
   certs.push_back(kDummyCertName);
@@ -35,6 +37,7 @@ DummyProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
 
 void DummyProofSource::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     const std::string& /*hostname*/,
     uint16_t /*signature_algorithm*/,
     quiche::QuicheStringPiece /*in*/,

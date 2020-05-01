@@ -178,7 +178,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
       &compressed_certs_cache,
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
   crypto_config.ValidateClientHello(
-      full_chlo, client_addr.host(), server_addr, transport_version, &clock,
+      full_chlo, client_addr, server_addr, transport_version, &clock,
       signed_config, shlo_verifier.GetValidateClientHelloCallback());
 }
 

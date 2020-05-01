@@ -30,6 +30,7 @@ std::unique_ptr<ProofSourceX509> ProofSourceX509::Create(
 
 void ProofSourceX509::GetProof(
     const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     const std::string& hostname,
     const std::string& server_config,
     QuicTransportVersion /*transport_version*/,
@@ -62,12 +63,14 @@ void ProofSourceX509::GetProof(
 
 QuicReferenceCountedPointer<ProofSource::Chain> ProofSourceX509::GetCertChain(
     const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     const std::string& hostname) {
   return GetCertificate(hostname)->chain;
 }
 
 void ProofSourceX509::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     const std::string& hostname,
     uint16_t signature_algorithm,
     quiche::QuicheStringPiece in,

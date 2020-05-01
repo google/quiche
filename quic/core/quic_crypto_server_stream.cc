@@ -129,9 +129,9 @@ void QuicCryptoServerStream::OnHandshakeMessage(
   DCHECK(process_client_hello_cb_ == nullptr);
   validate_client_hello_cb_ = cb.get();
   crypto_config_->ValidateClientHello(
-      message, GetClientAddress().host(),
-      session()->connection()->self_address(), transport_version(),
-      session()->connection()->clock(), signed_config_, std::move(cb));
+      message, GetClientAddress(), session()->connection()->self_address(),
+      transport_version(), session()->connection()->clock(), signed_config_,
+      std::move(cb));
 }
 
 void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
@@ -245,7 +245,7 @@ void QuicCryptoServerStream::SendServerConfigUpdate(
   crypto_config_->BuildServerConfigUpdateMessage(
       session()->transport_version(), chlo_hash_,
       previous_source_address_tokens_, session()->connection()->self_address(),
-      GetClientAddress().host(), session()->connection()->clock(),
+      GetClientAddress(), session()->connection()->clock(),
       session()->connection()->random_generator(), compressed_certs_cache_,
       *crypto_negotiated_params_, cached_network_params, std::move(cb));
 }

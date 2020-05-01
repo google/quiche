@@ -35,6 +35,7 @@ class FakeProofSource : public ProofSource {
 
   // ProofSource interface
   void GetProof(const QuicSocketAddress& server_address,
+                const QuicSocketAddress& client_address,
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
@@ -42,9 +43,11 @@ class FakeProofSource : public ProofSource {
                 std::unique_ptr<ProofSource::Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
@@ -76,6 +79,7 @@ class FakeProofSource : public ProofSource {
   class GetProofOp : public PendingOp {
    public:
     GetProofOp(const QuicSocketAddress& server_addr,
+               const QuicSocketAddress& client_address,
                std::string hostname,
                std::string server_config,
                QuicTransportVersion transport_version,
@@ -88,6 +92,7 @@ class FakeProofSource : public ProofSource {
 
    private:
     QuicSocketAddress server_address_;
+    QuicSocketAddress client_address_;
     std::string hostname_;
     std::string server_config_;
     QuicTransportVersion transport_version_;
@@ -99,6 +104,7 @@ class FakeProofSource : public ProofSource {
   class ComputeSignatureOp : public PendingOp {
    public:
     ComputeSignatureOp(const QuicSocketAddress& server_address,
+                       const QuicSocketAddress& client_address,
                        std::string hostname,
                        uint16_t sig_alg,
                        quiche::QuicheStringPiece in,
@@ -110,6 +116,7 @@ class FakeProofSource : public ProofSource {
 
    private:
     QuicSocketAddress server_address_;
+    QuicSocketAddress client_address_;
     std::string hostname_;
     uint16_t sig_alg_;
     std::string in_;

@@ -119,6 +119,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   //
   // Callers should expect that |callback| might be invoked synchronously.
   virtual void GetProof(const QuicSocketAddress& server_address,
+                        const QuicSocketAddress& client_address,
                         const std::string& hostname,
                         const std::string& server_config,
                         QuicTransportVersion transport_version,
@@ -128,6 +129,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // Returns the certificate chain for |hostname| in leaf-first order.
   virtual QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname) = 0;
 
   // Computes a signature using the private key of the certificate for
@@ -140,6 +142,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // Callers should expect that |callback| might be invoked synchronously.
   virtual void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,

@@ -294,7 +294,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //     completion of an asynchronous operation.
   void ValidateClientHello(
       const CryptoHandshakeMessage& client_hello,
-      const QuicIpAddress& client_ip,
+      const QuicSocketAddress& client_address,
       const QuicSocketAddress& server_address,
       QuicTransportVersion version,
       const QuicClock* clock,
@@ -360,7 +360,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
       quiche::QuicheStringPiece chlo_hash,
       const SourceAddressTokens& previous_source_address_tokens,
       const QuicSocketAddress& server_address,
-      const QuicIpAddress& client_ip,
+      const QuicSocketAddress& client_address,
       const QuicClock* clock,
       QuicRandom* rand,
       QuicCompressedCertsCache* compressed_certs_cache,
@@ -553,6 +553,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // are written to |client_hello_state->info|.
   void EvaluateClientHello(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       QuicTransportVersion version,
       const Configs& configs,
       QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>

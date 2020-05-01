@@ -72,26 +72,38 @@ TEST_F(ProofSourceX509Test, CertificateSelection) {
                                                 std::move(*wildcard_key_)));
 
   // Default certificate.
-  EXPECT_EQ(
-      proof_source->GetCertChain(QuicSocketAddress(), "unknown.test")->certs[0],
-      kTestCertificate);
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "unknown.test")
+                ->certs[0],
+            kTestCertificate);
   // mail.example.org is explicitly a SubjectAltName in kTestCertificate.
-  EXPECT_EQ(proof_source->GetCertChain(QuicSocketAddress(), "mail.example.org")
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "mail.example.org")
                 ->certs[0],
             kTestCertificate);
   // www.foo.test is in kWildcardCertificate.
-  EXPECT_EQ(
-      proof_source->GetCertChain(QuicSocketAddress(), "www.foo.test")->certs[0],
-      kWildcardCertificate);
-  // *.wildcard.test is in kWildcardCertificate.
-  EXPECT_EQ(proof_source->GetCertChain(QuicSocketAddress(), "www.wildcard.test")
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "www.foo.test")
                 ->certs[0],
             kWildcardCertificate);
-  EXPECT_EQ(proof_source->GetCertChain(QuicSocketAddress(), "etc.wildcard.test")
+  // *.wildcard.test is in kWildcardCertificate.
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "www.wildcard.test")
+                ->certs[0],
+            kWildcardCertificate);
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "etc.wildcard.test")
                 ->certs[0],
             kWildcardCertificate);
   // wildcard.test itself is not in kWildcardCertificate.
-  EXPECT_EQ(proof_source->GetCertChain(QuicSocketAddress(), "wildcard.test")
+  EXPECT_EQ(proof_source
+                ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
+                               "wildcard.test")
                 ->certs[0],
             kTestCertificate);
 }
@@ -114,9 +126,9 @@ TEST_F(ProofSourceX509Test, TlsSignature) {
       ProofSourceX509::Create(test_chain_, std::move(*test_key_));
   ASSERT_TRUE(proof_source != nullptr);
 
-  proof_source->ComputeTlsSignature(QuicSocketAddress(), "example.com",
-                                    SSL_SIGN_RSA_PSS_RSAE_SHA256, "Test data",
-                                    std::make_unique<Callback>());
+  proof_source->ComputeTlsSignature(QuicSocketAddress(), QuicSocketAddress(),
+                                    "example.com", SSL_SIGN_RSA_PSS_RSAE_SHA256,
+                                    "Test data", std::make_unique<Callback>());
 }
 
 }  // namespace

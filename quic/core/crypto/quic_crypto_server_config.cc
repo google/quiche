@@ -46,6 +46,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -524,7 +525,7 @@ void QuicCryptoServerConfig::GetConfigIds(
 
 void QuicCryptoServerConfig::ValidateClientHello(
     const CryptoHandshakeMessage& client_hello,
-    const QuicIpAddress& client_ip,
+    const QuicSocketAddress& client_address,
     const QuicSocketAddress& server_address,
     QuicTransportVersion version,
     const QuicClock* clock,
@@ -533,8 +534,8 @@ void QuicCryptoServerConfig::ValidateClientHello(
   const QuicWallTime now(clock->WallNow());
 
   QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result> result(
-      new ValidateClientHelloResultCallback::Result(client_hello, client_ip,
-                                                    now));
+      new ValidateClientHelloResultCallback::Result(
+          client_hello, client_address.host(), now));
 
   quiche::QuicheStringPiece requested_scid;
   client_hello.GetStringPiece(kSCID, &requested_scid);
@@ -551,8 +552,8 @@ void QuicCryptoServerConfig::ValidateClientHello(
     signed_config->chain = nullptr;
     signed_config->proof.signature = "";
     signed_config->proof.leaf_cert_scts = "";
-    EvaluateClientHello(server_address, version, configs, result,
-                        std::move(done_cb));
+    EvaluateClientHello(server_address, client_address, version, configs,
+                        result, std::move(done_cb));
   } else {
     done_cb->Run(result, /* details = */ nullptr);
   }
@@ -717,8 +718,9 @@ void QuicCryptoServerConfig::ProcessClientHello(
         this, std::move(context), configs);
 
     DCHECK(proof_source_.get());
-    proof_source_->GetProof(server_address, sni, configs.primary->serialized,
-                            transport_version, chlo_hash, std::move(cb));
+    proof_source_->GetProof(server_address, client_address, sni,
+                            configs.primary->serialized, transport_version,
+                            chlo_hash, std::move(cb));
     return;
   }
 
@@ -1016,10 +1018,12 @@ void QuicCryptoServerConfig::SendRejectWithFallbackConfig(
   const std::string sni(context->info().sni);
   const QuicTransportVersion transport_version = context->transport_version();
 
+  const QuicSocketAddress& client_address = context->client_address();
   auto cb = std::make_unique<SendRejectWithFallbackConfigCallback>(
       this, std::move(context), fallback_config);
-  proof_source_->GetProof(server_address, sni, fallback_config->serialized,
-                          transport_version, chlo_hash, std::move(cb));
+  proof_source_->GetProof(server_address, client_address, sni,
+                          fallback_config->serialized, transport_version,
+                          chlo_hash, std::move(cb));
 }
 
 void QuicCryptoServerConfig::SendRejectWithFallbackConfigAfterGetProof(
@@ -1196,6 +1200,7 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
 
 void QuicCryptoServerConfig::EvaluateClientHello(
     const QuicSocketAddress& server_address,
+    const QuicSocketAddress& client_address,
     QuicTransportVersion /*version*/,
     const Configs& configs,
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
@@ -1270,7 +1275,8 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   }
 
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      proof_source_->GetCertChain(server_address, std::string(info->sni));
+      proof_source_->GetCertChain(server_address, client_address,
+                                  std::string(info->sni));
   if (!chain) {
     info->reject_reasons.push_back(SERVER_CONFIG_UNKNOWN_CONFIG_FAILURE);
   } else if (!ValidateExpectedLeafCertificate(client_hello, chain->certs)) {
@@ -1303,7 +1309,7 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     quiche::QuicheStringPiece chlo_hash,
     const SourceAddressTokens& previous_source_address_tokens,
     const QuicSocketAddress& server_address,
-    const QuicIpAddress& client_ip,
+    const QuicSocketAddress& client_address,
     const QuicClock* clock,
     QuicRandom* rand,
     QuicCompressedCertsCache* compressed_certs_cache,
@@ -1318,8 +1324,8 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     serialized = primary_config_->serialized;
     common_cert_sets = primary_config_->common_cert_sets;
     source_address_token = NewSourceAddressToken(
-        *primary_config_, previous_source_address_tokens, client_ip, rand,
-        clock->WallNow(), cached_network_params);
+        *primary_config_, previous_source_address_tokens, client_address.host(),
+        rand, clock->WallNow(), cached_network_params);
   }
 
   CryptoHandshakeMessage message;
@@ -1332,8 +1338,9 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
           this, compressed_certs_cache, common_cert_sets, params,
           std::move(message), std::move(cb));
 
-  proof_source_->GetProof(server_address, params.sni, serialized, version,
-                          chlo_hash, std::move(proof_source_cb));
+  proof_source_->GetProof(server_address, client_address, params.sni,
+                          serialized, version, chlo_hash,
+                          std::move(proof_source_cb));
 }
 
 QuicCryptoServerConfig::BuildServerConfigUpdateMessageProofSourceCallback::

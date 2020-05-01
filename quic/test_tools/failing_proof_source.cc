@@ -10,6 +10,7 @@ namespace quic {
 namespace test {
 
 void FailingProofSource::GetProof(const QuicSocketAddress& /*server_address*/,
+                                  const QuicSocketAddress& /*client_address*/,
                                   const std::string& /*hostname*/,
                                   const std::string& /*server_config*/,
                                   QuicTransportVersion /*transport_version*/,
@@ -20,12 +21,14 @@ void FailingProofSource::GetProof(const QuicSocketAddress& /*server_address*/,
 
 QuicReferenceCountedPointer<ProofSource::Chain>
 FailingProofSource::GetCertChain(const QuicSocketAddress& /*server_address*/,
+                                 const QuicSocketAddress& /*client_address*/,
                                  const std::string& /*hostname*/) {
   return QuicReferenceCountedPointer<Chain>();
 }
 
 void FailingProofSource::ComputeTlsSignature(
     const QuicSocketAddress& /*server_address*/,
+    const QuicSocketAddress& /*client_address*/,
     const std::string& /*hostname*/,
     uint16_t /*signature_algorithm*/,
     quiche::QuicheStringPiece /*in*/,

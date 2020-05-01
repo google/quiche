@@ -28,6 +28,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
 
   // ProofSource implementation.
   void GetProof(const QuicSocketAddress& server_address,
+                const QuicSocketAddress& client_address,
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
@@ -35,9 +36,11 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
                 std::unique_ptr<Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname) override;
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,

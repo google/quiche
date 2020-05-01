@@ -223,7 +223,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     bool called = false;
     QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     config_.ValidateClientHello(
-        message, client_address_.host(), server_address,
+        message, client_address_, server_address,
         supported_versions_.front().transport_version, &clock_, signed_config_,
         std::make_unique<ValidateCallback>(this, true, "", &called));
     EXPECT_TRUE(called);
@@ -241,7 +241,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
                             bool* called) {
     QuicSocketAddress server_address(QuicIpAddress::Any4(), 5);
     config_.ValidateClientHello(
-        message, client_address_.host(), server_address,
+        message, client_address_, server_address,
         supported_versions_.front().transport_version, &clock_, signed_config_,
         std::make_unique<ValidateCallback>(this, false, error_substr, called));
   }

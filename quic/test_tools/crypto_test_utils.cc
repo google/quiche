@@ -421,6 +421,7 @@ std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag) {
 uint64_t LeafCertHashForTesting() {
   QuicReferenceCountedPointer<ProofSource::Chain> chain;
   QuicSocketAddress server_address(QuicIpAddress::Any4(), 42);
+  QuicSocketAddress client_address(QuicIpAddress::Any4(), 43);
   QuicCryptoProof proof;
   std::unique_ptr<ProofSource> proof_source(ProofSourceForTesting());
 
@@ -445,7 +446,8 @@ uint64_t LeafCertHashForTesting() {
   // Note: relies on the callback being invoked synchronously
   bool ok = false;
   proof_source->GetProof(
-      server_address, "", "", AllSupportedTransportVersions().front(), "",
+      server_address, client_address, "", "",
+      AllSupportedTransportVersions().front(), "",
       std::unique_ptr<ProofSource::Callback>(new Callback(&ok, &chain)));
   if (!ok || chain->certs.empty()) {
     DCHECK(false) << "Proof generation failed";
@@ -851,7 +853,7 @@ void GenerateFullCHLO(
       ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version), signed_config,
       compressed_certs_cache, out);
   crypto_config->ValidateClientHello(
-      inchoate_chlo, client_addr.host(), server_addr, transport_version, clock,
+      inchoate_chlo, client_addr, server_addr, transport_version, clock,
       signed_config, generator.GetValidateClientHelloCallback());
 }
 

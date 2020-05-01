@@ -481,7 +481,7 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
   test_peer_.SelectNewPrimaryConfig(1000);
   test_peer_.CheckConfigs({{"a", true}, {"b", false}});
   CryptoHandshakeMessage client_hello;
-  QuicIpAddress client_ip;
+  QuicSocketAddress client_address;
   QuicSocketAddress server_address;
   QuicTransportVersion transport_version = QUIC_VERSION_UNSUPPORTED;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
@@ -497,7 +497,7 @@ TEST_F(CryptoServerConfigsTest, AdvancePrimaryViaValidate) {
   std::unique_ptr<ValidateClientHelloResultCallback> done_cb(
       new ValidateCallback);
   clock.AdvanceTime(QuicTime::Delta::FromSeconds(1100));
-  config_.ValidateClientHello(client_hello, client_ip, server_address,
+  config_.ValidateClientHello(client_hello, client_address, server_address,
                               transport_version, &clock, signed_config,
                               std::move(done_cb));
   test_peer_.CheckConfigs({{"a", false}, {"b", true}});

@@ -73,6 +73,7 @@ class IndirectionProofSource : public ProofSource {
 
   // ProofSource override.
   void GetProof(const QuicSocketAddress& server_address,
+                const QuicSocketAddress& client_address,
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
@@ -80,26 +81,30 @@ class IndirectionProofSource : public ProofSource {
                 std::unique_ptr<Callback> callback) override {
     if (!proof_source_) {
       QuicReferenceCountedPointer<ProofSource::Chain> chain =
-          GetCertChain(server_address, hostname);
+          GetCertChain(server_address, client_address, hostname);
       QuicCryptoProof proof;
       callback->Run(/*ok=*/false, chain, proof, /*details=*/nullptr);
       return;
     }
-    proof_source_->GetProof(server_address, hostname, server_config,
-                            transport_version, chlo_hash, std::move(callback));
+    proof_source_->GetProof(server_address, client_address, hostname,
+                            server_config, transport_version, chlo_hash,
+                            std::move(callback));
   }
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname) override {
     if (!proof_source_) {
       return QuicReferenceCountedPointer<Chain>();
     }
-    return proof_source_->GetCertChain(server_address, hostname);
+    return proof_source_->GetCertChain(server_address, client_address,
+                                       hostname);
   }
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
@@ -108,8 +113,9 @@ class IndirectionProofSource : public ProofSource {
       callback->Run(/*ok=*/true, "Signature", /*details=*/nullptr);
       return;
     }
-    proof_source_->ComputeTlsSignature(
-        server_address, hostname, signature_algorithm, in, std::move(callback));
+    proof_source_->ComputeTlsSignature(server_address, client_address, hostname,
+                                       signature_algorithm, in,
+                                       std::move(callback));
   }
 
   TicketCrypter* GetTicketCrypter() override { return nullptr; }

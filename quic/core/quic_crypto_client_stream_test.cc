@@ -285,7 +285,7 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   crypto_config.BuildServerConfigUpdateMessage(
       session_->transport_version(), stream()->chlo_hash(), tokens,
       QuicSocketAddress(QuicIpAddress::Loopback6(), 1234),
-      QuicIpAddress::Loopback6(), connection_->clock(),
+      QuicSocketAddress(QuicIpAddress::Loopback6(), 4321), connection_->clock(),
       QuicRandom::GetInstance(), &cache, stream()->crypto_negotiated_params(),
       &network_params,
       std::unique_ptr<BuildServerConfigUpdateMessageResultCallback>(

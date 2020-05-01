@@ -14,6 +14,7 @@ namespace test {
 class FailingProofSource : public ProofSource {
  public:
   void GetProof(const QuicSocketAddress& server_address,
+                const QuicSocketAddress& client_address,
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
@@ -22,10 +23,12 @@ class FailingProofSource : public ProofSource {
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname) override;
 
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
       quiche::QuicheStringPiece in,
