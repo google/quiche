@@ -501,15 +501,18 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
 
   QuicStreamFrame frame(stream_->id(), false, 0, headers);
 
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-                      MatchesRegex("Too large headers received on stream \\d+"),
-                      _));
+  EXPECT_CALL(*session_,
+              SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
+
+  auto qpack_decoder_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  // Stream type and stream cancellation.
+  EXPECT_CALL(*session_,
+              WritevData(qpack_decoder_stream->id(), _, _, NO_FIN, _, _))
+      .Times(2);
 
   stream_->OnStreamFrame(frame);
-
-  EXPECT_TRUE(stream_->header_list().empty());
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {

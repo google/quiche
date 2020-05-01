@@ -615,16 +615,7 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
 }
 
 void QuicSpdyStream::OnHeadersTooLarge() {
-  if (VersionUsesHttp3(transport_version())) {
-    // TODO(b/124216424): Reset stream with H3_REQUEST_CANCELLED (if client)
-    // or with H3_REQUEST_REJECTED (if server).
-    std::string error_message =
-        quiche::QuicheStrCat("Too large headers received on stream ", id());
-    OnUnrecoverableError(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE,
-                         error_message);
-  } else {
-    Reset(QUIC_HEADERS_TOO_LARGE);
-  }
+  Reset(QUIC_HEADERS_TOO_LARGE);
 }
 
 void QuicSpdyStream::OnInitialHeadersComplete(

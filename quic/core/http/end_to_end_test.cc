@@ -1543,8 +1543,8 @@ TEST_P(EndToEndTest, InvalidStream) {
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_INVALID_STREAM_ID));
 }
 
-// Test that if the server will close the connection if the client attempts
-// to send a request with overly large headers.
+// Test that the server resets the stream if the client sends a request
+// with overly large headers.
 TEST_P(EndToEndTest, LargeHeaders) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1561,16 +1561,17 @@ TEST_P(EndToEndTest, LargeHeaders) {
 
   client_->SendCustomSynchronousRequest(headers, body);
 
-  if (VersionUsesHttp3(client_->client()
-                           ->client_session()
-                           ->connection()
-                           ->transport_version())) {
-    EXPECT_THAT(client_->connection_error(),
-                IsError(QUIC_HEADERS_STREAM_DATA_DECOMPRESS_FAILURE));
+  if (VersionUsesHttp3(GetClientConnection()->transport_version())) {
+    // QuicSpdyStream::OnHeadersTooLarge() resets the stream with
+    // QUIC_HEADERS_TOO_LARGE.  This is sent as H3_EXCESSIVE_LOAD, the closest
+    // HTTP/3 error code, and translated back to QUIC_STREAM_EXCESSIVE_LOAD on
+    // the receiving side.
+    EXPECT_THAT(client_->stream_error(),
+                IsStreamError(QUIC_STREAM_EXCESSIVE_LOAD));
   } else {
     EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
-    EXPECT_THAT(client_->connection_error(), IsQuicNoError());
   }
+  EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }
 
 TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
