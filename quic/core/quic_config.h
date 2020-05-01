@@ -333,10 +333,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasClientRequestedIndependentOption(QuicTag tag,
                                            Perspective perspective) const;
 
-  void SetIdleNetworkTimeout(QuicTime::Delta max_idle_network_timeout,
-                             QuicTime::Delta default_idle_network_timeout);
-
-  // Sets both default and max to the same value.
   void SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout);
 
   QuicTime::Delta IdleNetworkTimeout() const;
@@ -374,10 +370,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   QuicTime::Delta max_idle_time_before_crypto_handshake() const {
     return max_idle_time_before_crypto_handshake_;
-  }
-
-  QuicNegotiableUint32 idle_network_timeout_seconds() const {
-    return idle_network_timeout_seconds_;
   }
 
   void set_max_undecryptable_packets(size_t max_undecryptable_packets) {

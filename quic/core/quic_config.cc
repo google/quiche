@@ -590,16 +590,10 @@ bool QuicConfig::HasClientRequestedIndependentOption(
           ContainsQuicTag(client_connection_options_.GetSendValues(), tag));
 }
 
-void QuicConfig::SetIdleNetworkTimeout(
-    QuicTime::Delta max_idle_network_timeout,
-    QuicTime::Delta default_idle_network_timeout) {
-  idle_network_timeout_seconds_.set(
-      static_cast<uint32_t>(max_idle_network_timeout.ToSeconds()),
-      static_cast<uint32_t>(default_idle_network_timeout.ToSeconds()));
-}
-
 void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
-  SetIdleNetworkTimeout(idle_network_timeout, idle_network_timeout);
+  idle_network_timeout_seconds_.set(
+      static_cast<uint32_t>(idle_network_timeout.ToSeconds()),
+      static_cast<uint32_t>(idle_network_timeout.ToSeconds()));
 }
 
 QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
@@ -956,8 +950,7 @@ const QuicTagVector& QuicConfig::create_session_tag_indicators() const {
 }
 
 void QuicConfig::SetDefaults() {
-  idle_network_timeout_seconds_.set(kMaximumIdleTimeoutSecs,
-                                    kDefaultIdleTimeoutSecs);
+  SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   max_time_before_crypto_handshake_ =

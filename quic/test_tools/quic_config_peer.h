@@ -61,7 +61,7 @@ class QuicConfigPeer {
 
   static void ReceiveIdleNetworkTimeout(QuicConfig* config,
                                         HelloType hello_type,
-                                        uint32_t idle_timeout_seconds);
+                                        QuicTime::Delta idle_network_timeout);
 };
 
 }  // namespace test

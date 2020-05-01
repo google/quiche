@@ -89,8 +89,7 @@ TEST_P(QuicConfigTest, ToHandshakeMessage) {
       kInitialStreamFlowControlWindowForTest);
   config_.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
-  config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(5),
-                                QuicTime::Delta::FromSeconds(2));
+  config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(5));
   CryptoHandshakeMessage msg;
   config_.ToHandshakeMessage(&msg, GetParam());
 
@@ -115,8 +114,7 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs),
-      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+      QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs));
   client_config.SetInitialRoundTripTimeUsToSend(10 * kNumMicrosPerMilli);
   client_config.SetInitialStreamFlowControlWindowToSend(
       2 * kInitialStreamFlowControlWindowForTest);
@@ -373,10 +371,9 @@ TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
 }
 
 TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
-  // Configure our default to 30s and max to 60s, then receive 120s from peer.
-  // Since the received value is above the max, we should then use the max.
-  config_.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(60),
-                                quic::QuicTime::Delta::FromSeconds(30));
+  // Configure our idle timeout to 60s, then receive 120s from peer.
+  // Since the received value is above ours, we should then use ours.
+  config_.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(60));
   TransportParameters params;
   params.idle_timeout_milliseconds.set_value(120000);
 

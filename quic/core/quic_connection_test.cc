@@ -4251,8 +4251,8 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   QuicTagVector options;
   options.push_back(kTLPR);
   config.SetConnectionOptionsToSend(options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(&config, SERVER,
-                                            kDefaultIdleTimeoutSecs);
+  QuicConfigPeer::ReceiveIdleNetworkTimeout(
+      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   connection_.SetFromConfig(config);
   connection_.SetMaxTailLossProbes(1);
 
@@ -5781,7 +5781,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
@@ -5790,7 +5790,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   connection_.SetFromConfig(config);
 
   const QuicTime::Delta default_idle_timeout =
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
   const QuicTime::Delta five_ms = QuicTime::Delta::FromMilliseconds(5);
   QuicTime default_timeout = clock_.ApproximateNow() + default_idle_timeout;
 
@@ -5870,7 +5870,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
@@ -5879,7 +5879,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   connection_.SetFromConfig(config);
 
   const QuicTime::Delta default_idle_timeout =
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
   const QuicTime::Delta five_ms = QuicTime::Delta::FromMilliseconds(5);
   QuicTime default_timeout = clock_.ApproximateNow() + default_idle_timeout;
 
@@ -5931,7 +5931,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
       config.ProcessPeerHello(msg, CLIENT, &error_details);
@@ -5940,7 +5940,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   connection_.SetFromConfig(config);
 
   const QuicTime::Delta default_idle_timeout =
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs - 1);
+      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs - 1);
   const QuicTime::Delta five_ms = QuicTime::Delta::FromMilliseconds(5);
   QuicTime default_timeout = clock_.ApproximateNow() + default_idle_timeout;
 
@@ -6103,8 +6103,8 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   QuicTagVector connection_options;
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(&config, SERVER,
-                                            kDefaultIdleTimeoutSecs);
+  QuicConfigPeer::ReceiveIdleNetworkTimeout(
+      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   connection_.SetFromConfig(config);
 
   // Send stream data.
@@ -9875,8 +9875,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   connection_options.push_back(k1PTO);
   connection_options.push_back(k6PTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(&config, SERVER,
-                                            kDefaultIdleTimeoutSecs);
+  QuicConfigPeer::ReceiveIdleNetworkTimeout(
+      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9923,8 +9923,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   connection_options.push_back(k2PTO);
   connection_options.push_back(k7PTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(&config, SERVER,
-                                            kDefaultIdleTimeoutSecs);
+  QuicConfigPeer::ReceiveIdleNetworkTimeout(
+      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9969,8 +9969,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
   connection_options.push_back(k8PTO);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(&config, SERVER,
-                                            kDefaultIdleTimeoutSecs);
+  QuicConfigPeer::ReceiveIdleNetworkTimeout(
+      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);

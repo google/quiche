@@ -98,12 +98,13 @@ void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
 }
 
 // static
-void QuicConfigPeer::ReceiveIdleNetworkTimeout(QuicConfig* config,
-                                               HelloType hello_type,
-                                               uint32_t idle_timeout_seconds) {
+void QuicConfigPeer::ReceiveIdleNetworkTimeout(
+    QuicConfig* config,
+    HelloType hello_type,
+    QuicTime::Delta idle_network_timeout) {
   std::string error_details;
   config->idle_network_timeout_seconds_.ReceiveValue(
-      idle_timeout_seconds, hello_type, &error_details);
+      idle_network_timeout.ToSeconds(), hello_type, &error_details);
 }
 
 }  // namespace test
