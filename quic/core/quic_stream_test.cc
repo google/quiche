@@ -1183,7 +1183,7 @@ TEST_P(QuicStreamTest, WriteMemSlices) {
 
   Initialize();
   char data[1024];
-  std::vector<std::pair<char*, QuicByteCount>> buffers;
+  std::vector<std::pair<char*, size_t>> buffers;
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   QuicTestMemSliceVector vector1(buffers);
@@ -1247,7 +1247,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   Initialize();
   QuicStreamPeer::SetStreamBytesWritten(kMaxStreamLength - 5u, stream_);
   char data[5];
-  std::vector<std::pair<char*, QuicByteCount>> buffers;
+  std::vector<std::pair<char*, size_t>> buffers;
   buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
   QuicTestMemSliceVector vector1(buffers);
   QuicMemSliceSpan span1 = vector1.span();
@@ -1260,7 +1260,7 @@ TEST_P(QuicStreamTest, WriteMemSlicesReachStreamLimit) {
   QuicConsumedData consumed = stream_->WriteMemSlices(span1, false);
   EXPECT_EQ(5u, consumed.bytes_consumed);
 
-  std::vector<std::pair<char*, QuicByteCount>> buffers2;
+  std::vector<std::pair<char*, size_t>> buffers2;
   buffers2.push_back(std::make_pair(data, 1u));
   QuicTestMemSliceVector vector2(buffers);
   QuicMemSliceSpan span2 = vector2.span();
