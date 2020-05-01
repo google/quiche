@@ -131,8 +131,6 @@ static const int64_t kMinTailLossProbeTimeoutMs = 10;
 
 // The timeout before the handshake succeeds.
 const int64_t kInitialIdleTimeoutSecs = 5;
-// The default idle timeout.
-const int64_t kDefaultIdleTimeoutSecs = 30;
 // The maximum idle timeout that can be negotiated.
 const int64_t kMaximumIdleTimeoutSecs = 60 * 10;  // 10 minutes.
 // The default timeout for a connection until the crypto handshake succeeds.
