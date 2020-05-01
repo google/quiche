@@ -336,6 +336,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetIdleNetworkTimeout(QuicTime::Delta max_idle_network_timeout,
                              QuicTime::Delta default_idle_network_timeout);
 
+  // Sets both default and max to the same value.
+  void SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout);
+
   QuicTime::Delta IdleNetworkTimeout() const;
 
   // Sets the max bidirectional stream count that this endpoint supports.

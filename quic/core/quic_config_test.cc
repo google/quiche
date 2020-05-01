@@ -181,7 +181,6 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   QuicTagVector cgst;
   cgst.push_back(kQBIC);
   server_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs / 2),
       QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs / 2));
   server_config.SetInitialRoundTripTimeUsToSend(10 * kNumMicrosPerMilli);
   server_config.SetInitialStreamFlowControlWindowToSend(
@@ -277,7 +276,6 @@ TEST_P(QuicConfigTest, MissingValueInSHLO) {
 TEST_P(QuicConfigTest, OutOfBoundSHLO) {
   QuicConfig server_config;
   server_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs));
 
   CryptoHandshakeMessage msg;

@@ -148,7 +148,6 @@ QuicConfig CreateQuicConfig(const QuartcSessionConfig& quartc_session_config) {
   }
   if (quartc_session_config.idle_network_timeout > QuicTime::Delta::Zero()) {
     quic_config.SetIdleNetworkTimeout(
-        quartc_session_config.idle_network_timeout,
         quartc_session_config.idle_network_timeout);
   }
 

@@ -167,7 +167,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   QuicEpollClock epoll_clock(&epoll_server);
   QuicConfig config;
   QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(20);
-  config.SetIdleNetworkTimeout(timeout, timeout);
+  config.SetIdleNetworkTimeout(timeout);
   auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, config, &epoll_server,
       std::move(proof_verifier), std::move(session_cache));

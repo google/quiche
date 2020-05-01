@@ -598,6 +598,10 @@ void QuicConfig::SetIdleNetworkTimeout(
       static_cast<uint32_t>(default_idle_network_timeout.ToSeconds()));
 }
 
+void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
+  SetIdleNetworkTimeout(idle_network_timeout, idle_network_timeout);
+}
+
 QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
   return QuicTime::Delta::FromSeconds(
       idle_network_timeout_seconds_.GetUint32());

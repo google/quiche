@@ -5781,7 +5781,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
@@ -5871,7 +5870,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =
@@ -5933,7 +5931,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   client_config.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   client_config.SetIdleNetworkTimeout(
-      QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs),
       QuicTime::Delta::FromSeconds(kDefaultIdleTimeoutSecs));
   client_config.ToHandshakeMessage(&msg, connection_.transport_version());
   const QuicErrorCode error =

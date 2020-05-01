@@ -1618,8 +1618,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleTermination)) {
 }
 
 TEST_P(EndToEndTest, Timeout) {
-  client_config_.SetIdleNetworkTimeout(QuicTime::Delta::FromMicroseconds(500),
-                                       QuicTime::Delta::FromMicroseconds(500));
+  client_config_.SetIdleNetworkTimeout(QuicTime::Delta::FromMicroseconds(500));
   // Note: we do NOT ASSERT_TRUE: we may time out during initial handshake:
   // that's enough to validate timeout in this case.
   Initialize();
