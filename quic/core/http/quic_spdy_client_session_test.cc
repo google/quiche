@@ -164,8 +164,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->GetMutableCryptoStream());
     QuicConfig config = DefaultQuicConfig();
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-      config.SetMaxUnidirectionalStreamsToSend(
-          server_max_incoming_streams + kHttp3StaticUnidirectionalStreamCount);
+      config.SetMaxUnidirectionalStreamsToSend(server_max_incoming_streams);
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     } else {
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
