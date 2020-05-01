@@ -1520,8 +1520,6 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
   EXPECT_FALSE(send_alarm->IsSet());
 }
 
-// TODO(b/154151800): Needs to get turned back to EndToEndTest when we figure
-// out why the test doesn't work on chrome.
 TEST_P(EndToEndTest, InvalidStream) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
