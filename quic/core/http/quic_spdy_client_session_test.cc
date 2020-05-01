@@ -247,13 +247,6 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // This test relies on the MIDS transport parameter, which is not yet
-    // supported in TLS 1.3.
-    // TODO(nharper): Add support for Transport Parameters in the TLS handshake.
-    return;
-  }
-
   uint32_t kServerMaxIncomingStreams = 1;
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
 
@@ -264,26 +257,13 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   // Close the stream, but without having received a FIN or a RST_STREAM
   // or MAX_STREAMS (V99) and check that a new one can not be created.
   session_->CloseStream(stream->id());
-  EXPECT_EQ(1u, session_->GetNumOpenOutgoingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_FALSE(stream);
-
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    EXPECT_EQ(1u,
-              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
-                  ->outgoing_stream_count());
-  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // This test relies on the MIDS transport parameter, which is not yet
-    // supported in TLS 1.3.
-    // TODO(nharper): Add support for Transport Parameters in the TLS handshake.
-    return;
-  }
-
   uint32_t kServerMaxIncomingStreams = 1;
   CompleteCryptoHandshake(kServerMaxIncomingStreams);
 
@@ -296,7 +276,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   session_->OnRstStream(QuicRstStreamFrame(kInvalidControlFrameId, stream->id(),
                                            QUIC_RST_ACKNOWLEDGEMENT, 0));
   // Check that a new one can be created.
-  EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
     // In V99 the stream limit increases only if we get a MAX_STREAMS
     // frame; pretend we got one.
@@ -317,12 +297,6 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
-    // This test relies on the MIDS transport parameter, which is not yet
-    // supported in TLS 1.3.
-    // TODO(nharper): Add support for Transport Parameters in the TLS handshake.
-    return;
-  }
   // Tests the situation in which the client sends a RST at the same time that
   // the server sends trailing headers (trailers). Receipt of the trailers by
   // the client should result in all outstanding stream state being tidied up
@@ -362,7 +336,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
 
   // A new stream cannot be created as the reset stream still counts as an open
   // outgoing stream until closed by the server.
-  EXPECT_EQ(1u, session_->GetNumOpenOutgoingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_EQ(nullptr, stream);
 
@@ -377,7 +351,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
 
   // The stream is now complete from the client's perspective, and it should
   // be able to create a new outgoing stream.
-  EXPECT_EQ(0u, session_->GetNumOpenOutgoingStreams());
+  EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
     QuicMaxStreamsFrame frame(0, 2,
                               /*unidirectional=*/false);
@@ -550,11 +524,6 @@ TEST_P(QuicSpdyClientSessionTest, InvalidPacketReceived) {
 // A packet with invalid framing should cause a connection to be closed.
 TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   const ParsedQuicVersion version = GetParam();
-  if (version.handshake_protocol == PROTOCOL_TLS1_3) {
-    // TODO(nharper, b/112643533): Figure out why this test fails when TLS is
-    // enabled and fix it.
-    return;
-  }
   QuicSocketAddress server_address(TestPeerIPAddress(), kTestPort);
   QuicSocketAddress client_address(TestPeerIPAddress(), kTestPort);
   if (version.KnowsWhichDecrypterToUse()) {
