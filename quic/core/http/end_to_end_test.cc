@@ -426,12 +426,14 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (!ServerSendsVersionNegotiation()) {
       EXPECT_EQ(0u, client_stats.packets_dropped);
     }
-    // In this case, if client sends 0-RTT POST with v99, receives IETF
-    // version negotiation packet and speaks a GQUIC version. Server processes
-    // this connection in time wait list and keeps sending IETF version
-    // negotiation packet for incoming packets. But these version negotiation
-    // packets cannot be processed by the client speaking GQUIC.
-    EXPECT_EQ(client_stats.packets_received, client_stats.packets_processed);
+    if (!version_.UsesTls()) {
+      // Only enforce this for QUIC crypto because accounting of number of
+      // packets received, processed gets complicated with packets coalescing
+      // and key dropping. For example, a received undecryptable coalesced
+      // packet can be processed later and each sub-packet increases
+      // packets_processed.
+      EXPECT_EQ(client_stats.packets_received, client_stats.packets_processed);
+    }
 
     server_thread_->Pause();
     QuicConnectionStats server_stats = GetServerConnection()->GetStats();
@@ -884,18 +886,18 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithIetfDraftSupport) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   chlo_multiplier_ = 1;
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
-  EXPECT_TRUE(client_->client()->ReceivedInchoateReject());
+  if (version_.UsesTls()) {
+    // REJ messages are a QUIC crypto feature, so TLS always returns false.
+    EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+  } else {
+    EXPECT_TRUE(client_->client()->ReceivedInchoateReject());
+  }
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponsev6) {
@@ -1099,11 +1101,6 @@ TEST_P(EndToEndTest, PostMissingBytes) {
 }
 
 TEST_P(EndToEndTest, LargePostNoPacketLoss) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -1124,11 +1121,6 @@ TEST_P(EndToEndTest, LargePostNoPacketLoss) {
 }
 
 TEST_P(EndToEndTest, LargePostNoPacketLoss1sRTT) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(1000));
 
@@ -1148,11 +1140,6 @@ TEST_P(EndToEndTest, LargePostNoPacketLoss1sRTT) {
 }
 
 TEST_P(EndToEndTest, LargePostWithPacketLoss) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Connect with lower fake packet loss than we'd like to test.
   // Until b/10126687 is fixed, losing handshake packets is pretty
   // brutal.
@@ -1178,11 +1165,6 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
 
 // Regression test for b/80090281.
 TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
@@ -1359,11 +1341,6 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
 }
 
 TEST_P(EndToEndTest, LargePostSynchronousRequest) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1383,6 +1360,10 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   client_->Disconnect();
+  if (version_.UsesTls()) {
+    // TODO(b/152551499): remove this when TLS supports 0-RTT.
+    return;
+  }
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
@@ -1450,11 +1431,6 @@ TEST_P(EndToEndTest, SetInitialReceivedConnectionOptions) {
 }
 
 TEST_P(EndToEndTest, LargePostSmallBandwidthLargeBuffer) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMicroseconds(1));
   // 256KB per second with a 256KB buffer from server to client.  Wireless
@@ -2418,7 +2394,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // interested in has been ACKed. This tests end-to-end ACK notification, and
   // demonstrates that retransmissions do not break this functionality.
   if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
+    // TODO(b/155489419): Enable this test for TLS.
     Initialize();
     return;
   }
@@ -3470,24 +3446,23 @@ TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
 }
 
 TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
   SpdyHeaderBlock headers;
   headers[":method"] = "GET";
   headers[":path"] = "/foo";
   headers[":scheme"] = "https";
   headers[":authority"] = server_hostname_;
-  headers["key"] = std::string(64 * 1024, 'a');
+  headers["key"] = std::string(64 * 1024 * 1024, 'a');
 
   client_->SendMessage(headers, "");
   client_->WaitForResponse();
-
-  EXPECT_THAT(client_->connection_error(),
-              IsError(QUIC_HPACK_INDEX_VARINT_ERROR));
+  if (VersionUsesHttp3(version_.transport_version)) {
+    EXPECT_THAT(client_->connection_error(),
+                IsError(QUIC_QPACK_DECOMPRESSION_FAILED));
+  } else {
+    EXPECT_THAT(client_->connection_error(),
+                IsError(QUIC_HPACK_INDEX_VARINT_ERROR));
+  }
 }
 
 class WindowUpdateObserver : public QuicConnectionDebugVisitor {
@@ -3798,9 +3773,7 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
 }
 
 TEST_P(EndToEndTest, SendMessages) {
-  if (version_.UsesTls() ||
-      !VersionSupportsMessageFrames(version_.transport_version)) {
-    // TODO(b/155317149): Enable this test for TLS.
+  if (!VersionSupportsMessageFrames(version_.transport_version)) {
     Initialize();
     return;
   }
@@ -3891,12 +3864,12 @@ INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
+  ASSERT_TRUE(Initialize());
+  if (version_.HasIetfQuicFrames()) {
+    // TODO(b/143909619): Reenable this test when supporting IETF connection
+    // migration.
     return;
   }
-  ASSERT_TRUE(Initialize());
 
   // Finish one request to make sure handshake established.
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -3975,14 +3948,37 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 }
 
+// This observer is used to check whether stream write side is closed when
+// receiving STOP_SENDING (which ends up as noop).
+class StopSendingObserver : public QuicConnectionDebugVisitor {
+ public:
+  explicit StopSendingObserver(QuicTestClient* client)
+      : num_stop_sending_frames_(0),
+        client_(client),
+        stream_write_side_closed_before_receiving_stop_sending_(false) {}
+
+  void OnStopSendingFrame(const QuicStopSendingFrame& /*frame*/) override {
+    ++num_stop_sending_frames_;
+    stream_write_side_closed_before_receiving_stop_sending_ =
+        static_cast<QuicSimpleClientStream*>(client_->latest_created_stream())
+            ->write_side_closed();
+  }
+
+  size_t num_stop_sending_frames() const { return num_stop_sending_frames_; }
+
+  bool stream_write_side_closed_before_receiving_stop_sending() const {
+    return stream_write_side_closed_before_receiving_stop_sending_;
+  }
+
+ private:
+  size_t num_stop_sending_frames_;
+  QuicTestClient* client_;
+  bool stream_write_side_closed_before_receiving_stop_sending_;
+};
+
 // Test that STOP_SENDING makes it to the peer.  Create a stream and send a
 // STOP_SENDING. The receiver should get a call to QuicStream::OnStopSending.
 TEST_P(EndToEndTest, SimpleStopSendingTest) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   const uint16_t kStopSendingTestCode = 123;
   ASSERT_TRUE(Initialize());
   if (!VersionHasIetfQuicFrames(version_.transport_version)) {
@@ -3990,8 +3986,10 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   }
   QuicSession* client_session = GetClientSession();
   ASSERT_NE(nullptr, client_session);
+  StopSendingObserver observer(client_.get());
   QuicConnection* client_connection = client_session->connection();
   ASSERT_NE(nullptr, client_connection);
+  client_connection->set_debug_visitor(&observer);
 
   std::string response_body(1305, 'a');
   SpdyHeaderBlock response_headers;
@@ -4006,16 +4004,9 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   client_->WaitForDelayedAcks();
 
   QuicSession* session = GetClientSession();
-  const QuicPacketCount packets_sent_before =
-      session->connection()->GetStats().packets_sent;
 
   QuicStreamId stream_id = session->next_outgoing_bidirectional_stream_id();
   client_->SendRequest("/test_url");
-
-  // Expect exactly one packet is sent from the block above.
-  ASSERT_EQ(packets_sent_before + 1,
-            session->connection()->GetStats().packets_sent);
-
   // Wait for the connection to become idle.
   client_->WaitForDelayedAcks();
 
@@ -4026,8 +4017,11 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   // Ensure the stream has been write closed upon receiving STOP_SENDING.
   EXPECT_EQ(stream_id, client_stream->id());
   EXPECT_TRUE(client_stream->write_side_closed());
-  EXPECT_EQ(kStopSendingTestCode,
-            static_cast<uint16_t>(client_stream->stream_error()));
+  EXPECT_LT(0u, observer.num_stop_sending_frames());
+  if (!observer.stream_write_side_closed_before_receiving_stop_sending()) {
+    EXPECT_EQ(kStopSendingTestCode,
+              static_cast<uint16_t>(client_stream->stream_error()));
+  }
 }
 
 TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
