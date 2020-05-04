@@ -120,6 +120,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   virtual void SetFromConfig(const QuicConfig& config);
 
+  void ApplyConnectionOptions(const QuicTagVector& connection_options);
+
   // Pass the CachedNetworkParameters to the send algorithm.
   void ResumeConnectionState(
       const CachedNetworkParameters& cached_network_params,

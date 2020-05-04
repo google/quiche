@@ -1202,6 +1202,10 @@ class MockSendAlgorithm : public SendAlgorithmInterface {
               (const QuicConfig& config, Perspective perspective),
               (override));
   MOCK_METHOD(void,
+              ApplyConnectionOptions,
+              (const QuicTagVector& connection_options),
+              (override));
+  MOCK_METHOD(void,
               SetInitialCongestionWindowInPackets,
               (QuicPacketCount packets),
               (override));

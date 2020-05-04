@@ -333,6 +333,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasClientRequestedIndependentOption(QuicTag tag,
                                            Perspective perspective) const;
 
+  const QuicTagVector& ClientRequestedIndependentOptions(
+      Perspective perspective) const;
+
   void SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout);
 
   QuicTime::Delta IdleNetworkTimeout() const;

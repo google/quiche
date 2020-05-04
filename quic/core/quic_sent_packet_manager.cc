@@ -295,6 +295,11 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
 }
 
+void QuicSentPacketManager::ApplyConnectionOptions(
+    const QuicTagVector& connection_options) {
+  send_algorithm_->ApplyConnectionOptions(connection_options);
+}
+
 void QuicSentPacketManager::ResumeConnectionState(
     const CachedNetworkParameters& cached_network_params,
     bool max_bandwidth_resumption) {

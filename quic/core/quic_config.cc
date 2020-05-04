@@ -590,6 +590,19 @@ bool QuicConfig::HasClientRequestedIndependentOption(
           ContainsQuicTag(client_connection_options_.GetSendValues(), tag));
 }
 
+const QuicTagVector& QuicConfig::ClientRequestedIndependentOptions(
+    Perspective perspective) const {
+  static const QuicTagVector* no_options = new QuicTagVector;
+  if (perspective == Perspective::IS_SERVER) {
+    return HasReceivedConnectionOptions() ? ReceivedConnectionOptions()
+                                          : *no_options;
+  }
+
+  return client_connection_options_.HasSendValues()
+             ? client_connection_options_.GetSendValues()
+             : *no_options;
+}
+
 void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
   idle_network_timeout_seconds_.set(
       static_cast<uint32_t>(idle_network_timeout.ToSeconds()),

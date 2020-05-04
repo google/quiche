@@ -108,13 +108,6 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kB2RP, perspective)) {
     params_.avoid_unnecessary_probe_rtt = false;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_lower_startup_cwnd_gain) &&
-      config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_lower_startup_cwnd_gain);
-    // 2 is the lower, derived gain for CWND.
-    params_.startup_cwnd_gain = 2;
-    params_.drain_cwnd_gain = 2;
-  }
   if (GetQuicReloadableFlag(quic_bbr2_avoid_too_low_probe_bw_cwnd) &&
       config.HasClientRequestedIndependentOption(kB2CL, perspective)) {
     params_.avoid_too_low_probe_bw_cwnd = false;
@@ -133,6 +126,18 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
       config.HasClientRequestedIndependentOption(kB2LO, perspective)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_ignore_inflight_lo);
     params_.ignore_inflight_lo = true;
+  }
+
+  ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
+}
+
+void Bbr2Sender::ApplyConnectionOptions(
+    const QuicTagVector& connection_options) {
+  if (GetQuicReloadableFlag(quic_bbr2_lower_startup_cwnd_gain) &&
+      ContainsQuicTag(connection_options, kBBQ2)) {
+    // 2 is the lower, derived gain for CWND.
+    params_.startup_cwnd_gain = 2;
+    params_.drain_cwnd_gain = 2;
   }
 }
 

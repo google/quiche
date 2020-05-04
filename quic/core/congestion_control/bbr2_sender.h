@@ -50,6 +50,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
 
+  void ApplyConnectionOptions(const QuicTagVector& connection_options) override;
+
   void AdjustNetworkParameters(const NetworkParams& params) override;
 
   void SetInitialCongestionWindowInPackets(
@@ -173,8 +175,8 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   QuicRandom* random_;
   QuicConnectionStats* connection_stats_;
 
-  // Don't use it directly outside of SetFromConfig. Instead, use params() to
-  // get read-only access.
+  // Don't use it directly outside of SetFromConfig and ApplyConnectionOptions.
+  // Instead, use params() to get read-only access.
   Bbr2Params params_;
 
   Bbr2NetworkModel model_;

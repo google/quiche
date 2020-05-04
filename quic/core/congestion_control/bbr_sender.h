@@ -106,6 +106,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
 
   void SetFromConfig(const QuicConfig& config,
                      Perspective perspective) override;
+  void ApplyConnectionOptions(const QuicTagVector& connection_options) override;
 
   void AdjustNetworkParameters(const NetworkParams& params) override;
   void SetInitialCongestionWindowInPackets(

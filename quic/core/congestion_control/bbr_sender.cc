@@ -259,9 +259,6 @@ bool BbrSender::IsPipeSufficientlyFull() const {
 
 void BbrSender::SetFromConfig(const QuicConfig& config,
                               Perspective perspective) {
-  if (config.HasClientRequestedIndependentOption(kLRTT, perspective)) {
-    exit_startup_on_loss_ = true;
-  }
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
     num_startup_rtts_ = 1;
   }
@@ -303,9 +300,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     set_high_cwnd_gain(kDerivedHighGain);
     set_drain_gain(1.f / kDerivedHighGain);
   }
-  if (config.HasClientRequestedIndependentOption(kBBQ2, perspective)) {
-    set_high_cwnd_gain(kDerivedHighCWNDGain);
-  }
   if (config.HasClientRequestedIndependentOption(kBBQ3, perspective)) {
     enable_ack_aggregation_during_startup_ = true;
   }
@@ -325,6 +319,18 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT_N(
         quic_avoid_overestimate_bandwidth_with_aggregation, 3, 4);
     sampler_.EnableOverestimateAvoidance();
+  }
+
+  ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
+}
+
+void BbrSender::ApplyConnectionOptions(
+    const QuicTagVector& connection_options) {
+  if (ContainsQuicTag(connection_options, kLRTT)) {
+    exit_startup_on_loss_ = true;
+  }
+  if (ContainsQuicTag(connection_options, kBBQ2)) {
+    set_high_cwnd_gain(kDerivedHighCWNDGain);
   }
 }
 

@@ -482,6 +482,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 }
 
+void QuicConnection::ApplyConnectionOptions(
+    const QuicTagVector& connection_options) {
+  sent_packet_manager_.ApplyConnectionOptions(connection_options);
+}
+
 void QuicConnection::OnSendConnectionState(
     const CachedNetworkParameters& cached_network_params) {
   if (debug_visitor_ != nullptr) {
