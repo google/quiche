@@ -33,7 +33,11 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
       num_open_incoming_streams_(0),
       num_open_outgoing_streams_(0),
       handles_accounting_(
-          GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {}
+          GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
+  if (handles_accounting_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_stream_id_manager_handles_accounting);
+  }
+}
 
 LegacyQuicStreamIdManager::~LegacyQuicStreamIdManager() {}
 
