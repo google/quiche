@@ -305,6 +305,11 @@ void TlsClientHandshaker::OnHandshakePacketSent() {
   initial_keys_dropped_ = true;
 }
 
+void TlsClientHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
+                                             ConnectionCloseSource /*source*/) {
+  state_ = STATE_CONNECTION_CLOSED;
+}
+
 void TlsClientHandshaker::OnHandshakeDoneReceived() {
   if (!one_rtt_keys_available_) {
     CloseConnection(QUIC_HANDSHAKE_FAILED,
@@ -318,6 +323,9 @@ void TlsClientHandshaker::SetWriteSecret(
     EncryptionLevel level,
     const SSL_CIPHER* cipher,
     const std::vector<uint8_t>& write_secret) {
+  if (state_ == STATE_CONNECTION_CLOSED) {
+    return;
+  }
   if (level == ENCRYPTION_FORWARD_SECURE) {
     encryption_established_ = true;
   }

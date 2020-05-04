@@ -43,6 +43,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   void OnPacketDecrypted(EncryptionLevel level) override;
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
+  void OnConnectionClosed(QuicErrorCode /*error*/,
+                          ConnectionCloseSource /*source*/) override {}
   void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
 

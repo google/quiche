@@ -398,6 +398,11 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     on_closed_frame_ = frame;
   }
 
+  if (GetQuicReloadableFlag(quic_notify_handshaker_on_connection_close)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_notify_handshaker_on_connection_close);
+    GetMutableCryptoStream()->OnConnectionClosed(frame.quic_error_code, source);
+  }
+
   // Copy all non static streams in a new map for the ease of deleting.
   QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
   for (const auto& it : stream_map_) {

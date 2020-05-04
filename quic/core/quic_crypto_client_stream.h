@@ -159,6 +159,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
     virtual void OnHandshakePacketSent() = 0;
 
+    // Called when connection gets closed.
+    virtual void OnConnectionClosed(QuicErrorCode error,
+                                    ConnectionCloseSource source) = 0;
+
     // Called when handshake done has been received.
     virtual void OnHandshakeDoneReceived() = 0;
 
@@ -215,6 +219,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   void OnOneRttPacketAcknowledged() override;
   void OnHandshakePacketSent() override;
+  void OnConnectionClosed(QuicErrorCode error,
+                          ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;

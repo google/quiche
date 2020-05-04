@@ -3522,9 +3522,8 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
 // Regression test for b/116200989.
 TEST_P(EndToEndTest,
        SendStatelessResetIfServerConnectionClosedLocallyDuringHandshake) {
-  if (version_.UsesTls()) {
-    // TODO(b/155317149): Enable this test for TLS.
-    Initialize();
+  if (!GetQuicReloadableFlag(quic_notify_handshaker_on_connection_close)) {
+    ASSERT_TRUE(Initialize());
     return;
   }
   connect_to_server_on_initialize_ = false;

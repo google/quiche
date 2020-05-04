@@ -60,6 +60,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnOneRttPacketAcknowledged() override;
   void OnHandshakePacketSent() override;
+  void OnConnectionClosed(QuicErrorCode error,
+                          ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   void SetWriteSecret(EncryptionLevel level,
                       const SSL_CIPHER* cipher,

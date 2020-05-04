@@ -117,6 +117,11 @@ void QuicCryptoClientStream::OnHandshakePacketSent() {
   handshaker_->OnHandshakePacketSent();
 }
 
+void QuicCryptoClientStream::OnConnectionClosed(QuicErrorCode error,
+                                                ConnectionCloseSource source) {
+  handshaker_->OnConnectionClosed(error, source);
+}
+
 void QuicCryptoClientStream::OnHandshakeDoneReceived() {
   handshaker_->OnHandshakeDoneReceived();
 }

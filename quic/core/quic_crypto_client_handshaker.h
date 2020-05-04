@@ -52,6 +52,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
+  void OnConnectionClosed(QuicErrorCode /*error*/,
+                          ConnectionCloseSource /*source*/) override {}
   void OnHandshakeDoneReceived() override;
   void OnApplicationState(
       std::unique_ptr<ApplicationState> /*application_state*/) override {

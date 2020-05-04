@@ -162,6 +162,11 @@ bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;
 }
 
+void TlsServerHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
+                                             ConnectionCloseSource /*source*/) {
+  state_ = STATE_CONNECTION_CLOSED;
+}
+
 bool TlsServerHandshaker::encryption_established() const {
   return encryption_established_;
 }
@@ -326,6 +331,10 @@ void TlsServerHandshaker::SetWriteSecret(
     EncryptionLevel level,
     const SSL_CIPHER* cipher,
     const std::vector<uint8_t>& write_secret) {
+  if (GetQuicReloadableFlag(quic_notify_handshaker_on_connection_close) &&
+      state_ == STATE_CONNECTION_CLOSED) {
+    return;
+  }
   if (level == ENCRYPTION_FORWARD_SECURE) {
     encryption_established_ = true;
     // Fill crypto_negotiated_params_:

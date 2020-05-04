@@ -125,6 +125,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
+  void OnConnectionClosed(QuicErrorCode /*error*/,
+                          ConnectionCloseSource /*source*/) override {}
   void OnHandshakeDoneReceived() override {}
 
   MOCK_METHOD(void, OnCanWrite, (), (override));
