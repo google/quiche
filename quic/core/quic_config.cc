@@ -911,30 +911,6 @@ const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
   return alternate_server_address_ipv4_.GetReceivedValue();
 }
 
-void QuicConfig::SetAlternateServerAddressToSend(
-    const QuicSocketAddress& alternate_server_address) {
-  if (alternate_server_address.host().IsIPv6()) {
-    SetIPv6AlternateServerAddressToSend(alternate_server_address);
-  } else if (alternate_server_address.host().IsIPv4()) {
-    SetIPv4AlternateServerAddressToSend(alternate_server_address);
-  } else {
-    QUIC_BUG << "Cannot use SetAlternateServerAddressToSend with "
-             << alternate_server_address;
-  }
-}
-
-bool QuicConfig::HasReceivedAlternateServerAddress() const {
-  return HasReceivedIPv6AlternateServerAddress() ||
-         HasReceivedIPv4AlternateServerAddress();
-}
-
-const QuicSocketAddress& QuicConfig::ReceivedAlternateServerAddress() const {
-  if (HasReceivedIPv6AlternateServerAddress()) {
-    return ReceivedIPv6AlternateServerAddress();
-  }
-  return ReceivedIPv4AlternateServerAddress();
-}
-
 void QuicConfig::SetStatelessResetTokenToSend(
     QuicUint128 stateless_reset_token) {
   stateless_reset_token_.SetSendValue(stateless_reset_token);

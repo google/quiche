@@ -463,12 +463,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
 
-  // DEPRECATED: use the variants that specify the address family (IPv4/IPv6).
-  void SetAlternateServerAddressToSend(
-      const QuicSocketAddress& alternate_server_address);
-  bool HasReceivedAlternateServerAddress() const;
-  const QuicSocketAddress& ReceivedAlternateServerAddress() const;
-
   void SetStatelessResetTokenToSend(QuicUint128 stateless_reset_token);
 
   bool HasReceivedStatelessResetToken() const;
