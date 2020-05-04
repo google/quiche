@@ -1499,6 +1499,16 @@ void QuicSession::OnNewEncryptionKeyAvailable(
   connection()->SetEncrypter(level, std::move(encrypter));
 
   if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
+      (perspective() == Perspective::IS_CLIENT ||
+       GetQuicReloadableFlag(quic_change_default_encryption_level))) {
+    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
+                  << EncryptionLevelToString(level);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_change_default_encryption_level);
+    connection()->SetDefaultEncryptionLevel(level);
+    return;
+  }
+
+  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
       level == ENCRYPTION_FORWARD_SECURE) {
     // Set connection's default encryption level once 1-RTT write key is
     // available.
