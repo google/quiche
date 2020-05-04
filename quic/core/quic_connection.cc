@@ -2476,12 +2476,10 @@ bool QuicConnection::ShouldDiscardPacket(const SerializedPacket& packet) {
 }
 
 bool QuicConnection::ShouldIgnoreWriteError() {
-  if (!GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe) ||
-      previous_validated_mtu_ == 0) {
+  if (previous_validated_mtu_ == 0) {
     return false;
   }
 
-  QUIC_CODE_COUNT(quic_ignore_one_write_error_after_mtu_probe);
   SetMaxPacketLength(previous_validated_mtu_);
   mtu_discoverer_.Disable();
   mtu_discovery_alarm_->Cancel();

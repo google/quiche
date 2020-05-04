@@ -5161,23 +5161,21 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
   // The last probe size should be equal to the target.
   EXPECT_EQ(probe_size, kMtuDiscoveryTargetPacketSizeHigh);
 
-  if (GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
-    writer_->SetShouldWriteFail();
+  writer_->SetShouldWriteFail();
 
-    // Ignore PACKET_WRITE_ERROR once.
-    SendStreamDataToPeer(3, "(", stream_offset++, NO_FIN, nullptr);
-    EXPECT_EQ(last_probe_size, connection_.max_packet_length());
-    EXPECT_TRUE(connection_.connected());
+  // Ignore PACKET_WRITE_ERROR once.
+  SendStreamDataToPeer(3, "(", stream_offset++, NO_FIN, nullptr);
+  EXPECT_EQ(last_probe_size, connection_.max_packet_length());
+  EXPECT_TRUE(connection_.connected());
 
-    // Close connection on another PACKET_WRITE_ERROR.
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
-        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-    SendStreamDataToPeer(3, ")", stream_offset++, NO_FIN, nullptr);
-    EXPECT_EQ(last_probe_size, connection_.max_packet_length());
-    EXPECT_FALSE(connection_.connected());
-    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-                IsError(QUIC_PACKET_WRITE_ERROR));
-  }
+  // Close connection on another PACKET_WRITE_ERROR.
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  SendStreamDataToPeer(3, ")", stream_offset++, NO_FIN, nullptr);
+  EXPECT_EQ(last_probe_size, connection_.max_packet_length());
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PACKET_WRITE_ERROR));
 }
 
 // After a successful MTU probe, one and only one write error should be ignored
@@ -5226,31 +5224,29 @@ TEST_P(QuicConnectionTest,
 
   EXPECT_EQ(1u, connection_.mtu_probe_count());
 
-  if (GetQuicReloadableFlag(quic_ignore_one_write_error_after_mtu_probe)) {
-    writer_->SetShouldWriteFail();
+  writer_->SetShouldWriteFail();
 
-    // Ignore PACKET_WRITE_ERROR once.
-    {
-      QuicConnection::ScopedPacketFlusher flusher(&connection_);
-      // flusher's destructor will call connection_.FlushPackets, which should
-      // get a WRITE_STATUS_ERROR from the writer and ignore it.
-    }
-    EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
-    EXPECT_TRUE(connection_.connected());
-
-    // Close connection on another PACKET_WRITE_ERROR.
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
-        .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
-    {
-      QuicConnection::ScopedPacketFlusher flusher(&connection_);
-      // flusher's destructor will call connection_.FlushPackets, which should
-      // get a WRITE_STATUS_ERROR from the writer and ignore it.
-    }
-    EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
-    EXPECT_FALSE(connection_.connected());
-    EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-                IsError(QUIC_PACKET_WRITE_ERROR));
+  // Ignore PACKET_WRITE_ERROR once.
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // flusher's destructor will call connection_.FlushPackets, which should
+    // get a WRITE_STATUS_ERROR from the writer and ignore it.
   }
+  EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
+  EXPECT_TRUE(connection_.connected());
+
+  // Close connection on another PACKET_WRITE_ERROR.
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _))
+      .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    // flusher's destructor will call connection_.FlushPackets, which should
+    // get a WRITE_STATUS_ERROR from the writer and ignore it.
+  }
+  EXPECT_EQ(original_max_packet_length, connection_.max_packet_length());
+  EXPECT_FALSE(connection_.connected());
+  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
+              IsError(QUIC_PACKET_WRITE_ERROR));
 }
 
 // Simulate the case where the first attempt to send a probe is write blocked,
