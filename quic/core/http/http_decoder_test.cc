@@ -1072,6 +1072,43 @@ TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
   }
 }
 
+TEST_F(HttpDecoderTest, DecodeSettings) {
+  std::string input = quiche::QuicheTextUtils::HexDecode(
+      "04"    // type (SETTINGS)
+      "07"    // length
+      "01"    // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
+      "02"    // content
+      "06"    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+      "05"    // content
+      "4100"  // identifier, encoded on 2 bytes (0x40), value is 256 (0x100)
+      "04");  // content
+
+  SettingsFrame frame;
+  frame.values[1] = 2;
+  frame.values[6] = 5;
+  frame.values[256] = 4;
+
+  SettingsFrame out;
+  EXPECT_TRUE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
+  EXPECT_EQ(frame, out);
+
+  // non-settings frame.
+  input = quiche::QuicheTextUtils::HexDecode(
+      "0D"    // type (MAX_PUSH_ID)
+      "01"    // length
+      "01");  // Push Id
+
+  EXPECT_FALSE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
+
+  // Corrupt SETTINGS.
+  input = quiche::QuicheTextUtils::HexDecode(
+      "04"    // type (SETTINGS)
+      "01"    // length
+      "42");  // First byte of setting identifier, indicating a 2-byte varint62.
+
+  EXPECT_FALSE(HttpDecoder::DecodeSettings(input.data(), input.size(), &out));
+}
+
 }  // namespace test
 
 }  // namespace quic

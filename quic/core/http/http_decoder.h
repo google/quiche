@@ -131,6 +131,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // occurred.
   QuicByteCount ProcessInput(const char* data, QuicByteCount len);
 
+  // Decode settings frame from |data|.
+  // Upon successful decoding, |frame| will be populated, and returns true.
+  // This method is not used for regular processing of incoming data.
+  static bool DecodeSettings(const char* data,
+                             QuicByteCount len,
+                             SettingsFrame* frame);
+
   // Returns an error code other than QUIC_NO_ERROR if and only if
   // Visitor::OnError() has been called.
   QuicErrorCode error() const { return error_; }
