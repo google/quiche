@@ -149,5 +149,10 @@ std::string QuicPacketCreatorPeer::GetRetryToken(QuicPacketCreator* creator) {
   return creator->retry_token_;
 }
 
+// static
+QuicFrames& QuicPacketCreatorPeer::QueuedFrames(QuicPacketCreator* creator) {
+  return creator->queued_frames_;
+}
+
 }  // namespace test
 }  // namespace quic

@@ -10495,6 +10495,48 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   EXPECT_EQ(1u, writer_->ping_frames().size());
 }
 
+// Regression test for b/155757133
+TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  ProcessPacket(2);
+  ProcessPacket(3);
+  ProcessPacket(4);
+  // Process a packet containing stream frame followed by ACK of packets 1.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicStreamFrame(
+      QuicUtils::GetFirstBidirectionalStreamId(
+          connection_.version().transport_version, Perspective::IS_CLIENT),
+      false, 0u, quiche::QuicheStringPiece())));
+  QuicAckFrame ack_frame = InitAckFrame(1);
+  frames.push_back(QuicFrame(&ack_frame));
+  // Receiving stream frame causes something to send.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
+    connection_.SendControlFrame(QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+    // Verify now the queued ACK contains packet number 2.
+    EXPECT_TRUE(QuicPacketCreatorPeer::QueuedFrames(
+                    QuicConnectionPeer::GetPacketCreator(&connection_))[0]
+                    .ack_frame->packets.Contains(QuicPacketNumber(2)));
+  }));
+  ProcessFramesPacketAtLevel(9, frames, ENCRYPTION_FORWARD_SECURE);
+  if (GetQuicReloadableFlag(quic_donot_change_queued_ack)) {
+    EXPECT_TRUE(writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
+  } else {
+    // ACK frame changes mid packet serialiation!
+    EXPECT_FALSE(
+        writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
