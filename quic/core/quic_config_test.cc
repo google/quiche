@@ -24,15 +24,19 @@ namespace {
 const uint32_t kMaxPacketSizeForTest = 1234;
 const uint32_t kMaxDatagramFrameSizeForTest = 1333;
 
-class QuicConfigTest : public QuicTestWithParam<QuicTransportVersion> {
+class QuicConfigTest : public QuicTestWithParam<ParsedQuicVersion> {
+ public:
+  QuicConfigTest() : version_(GetParam()) {}
+
  protected:
+  ParsedQuicVersion version_;
   QuicConfig config_;
 };
 
 // Run all tests with all versions of QUIC.
 INSTANTIATE_TEST_SUITE_P(QuicConfigTests,
                          QuicConfigTest,
-                         ::testing::ValuesIn(AllSupportedTransportVersions()),
+                         ::testing::ValuesIn(AllSupportedVersions()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicConfigTest, SetDefaults) {
@@ -85,13 +89,17 @@ TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
 }
 
 TEST_P(QuicConfigTest, ToHandshakeMessage) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   config_.SetInitialStreamFlowControlWindowToSend(
       kInitialStreamFlowControlWindowForTest);
   config_.SetInitialSessionFlowControlWindowToSend(
       kInitialSessionFlowControlWindowForTest);
   config_.SetIdleNetworkTimeout(QuicTime::Delta::FromSeconds(5));
   CryptoHandshakeMessage msg;
-  config_.ToHandshakeMessage(&msg, GetParam());
+  config_.ToHandshakeMessage(&msg, version_.transport_version);
 
   uint32_t value;
   QuicErrorCode error = msg.GetUint32(kICSL, &value);
@@ -108,6 +116,10 @@ TEST_P(QuicConfigTest, ToHandshakeMessage) {
 }
 
 TEST_P(QuicConfigTest, ProcessClientHello) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   const uint32_t kTestMaxAckDelayMs =
       static_cast<uint32_t>(kDefaultDelayedAckTimeMs + 1);
   QuicConfig client_config;
@@ -125,7 +137,7 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
   client_config.SetConnectionOptionsToSend(copt);
   client_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg, GetParam());
+  client_config.ToHandshakeMessage(&msg, version_.transport_version);
 
   std::string error_details;
   QuicTagVector initial_received_options;
@@ -169,6 +181,10 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
 }
 
 TEST_P(QuicConfigTest, ProcessServerHello) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   QuicIpAddress host;
   host.FromString("127.0.3.1");
   const QuicSocketAddress kTestServerAddress = QuicSocketAddress(host, 1234);
@@ -189,7 +205,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   server_config.SetStatelessResetTokenToSend(kTestResetToken);
   server_config.SetMaxAckDelayToSendMs(kTestMaxAckDelayMs);
   CryptoHandshakeMessage msg;
-  server_config.ToHandshakeMessage(&msg, GetParam());
+  server_config.ToHandshakeMessage(&msg, version_.transport_version);
   std::string error_details;
   const QuicErrorCode error =
       config_.ProcessPeerHello(msg, SERVER, &error_details);
@@ -223,6 +239,10 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   CryptoHandshakeMessage msg;
   msg.SetValue(kICSL, 1);
 
@@ -239,6 +259,10 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   CryptoHandshakeMessage msg;
 
   // Set all REQUIRED tags.
@@ -254,6 +278,10 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingValueInCHLO) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   // Server receives CHLO with missing kICSL.
   CryptoHandshakeMessage msg;
   std::string error_details;
@@ -263,6 +291,10 @@ TEST_P(QuicConfigTest, MissingValueInCHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingValueInSHLO) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   // Client receives SHLO with missing kICSL.
   CryptoHandshakeMessage msg;
   std::string error_details;
@@ -272,12 +304,16 @@ TEST_P(QuicConfigTest, MissingValueInSHLO) {
 }
 
 TEST_P(QuicConfigTest, OutOfBoundSHLO) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   QuicConfig server_config;
   server_config.SetIdleNetworkTimeout(
       QuicTime::Delta::FromSeconds(2 * kMaximumIdleTimeoutSecs));
 
   CryptoHandshakeMessage msg;
-  server_config.ToHandshakeMessage(&msg, GetParam());
+  server_config.ToHandshakeMessage(&msg, version_.transport_version);
   std::string error_details;
   const QuicErrorCode error =
       config_.ProcessPeerHello(msg, SERVER, &error_details);
@@ -298,6 +334,10 @@ TEST_P(QuicConfigTest, InvalidFlowControlWindow) {
 }
 
 TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector copt;
   copt.push_back(kTBBR);
@@ -306,7 +346,7 @@ TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
       kTBBR, Perspective::IS_CLIENT));
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg, GetParam());
+  client_config.ToHandshakeMessage(&msg, version_.transport_version);
 
   std::string error_details;
   const QuicErrorCode error =
@@ -321,13 +361,17 @@ TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
 }
 
 TEST_P(QuicConfigTest, DontSendClientConnectionOptions) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector copt;
   copt.push_back(kTBBR);
   client_config.SetClientConnectionOptions(copt);
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg, GetParam());
+  client_config.ToHandshakeMessage(&msg, version_.transport_version);
 
   std::string error_details;
   const QuicErrorCode error =
@@ -339,6 +383,10 @@ TEST_P(QuicConfigTest, DontSendClientConnectionOptions) {
 }
 
 TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
+  if (version_.UsesTls()) {
+    // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
+    return;
+  }
   QuicConfig client_config;
   QuicTagVector client_opt;
   client_opt.push_back(kRENO);
@@ -354,7 +402,7 @@ TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
       kTBBR, Perspective::IS_CLIENT));
 
   CryptoHandshakeMessage msg;
-  client_config.ToHandshakeMessage(&msg, GetParam());
+  client_config.ToHandshakeMessage(&msg, version_.transport_version);
 
   std::string error_details;
   const QuicErrorCode error =
@@ -371,6 +419,10 @@ TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
 }
 
 TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
   // Configure our idle timeout to 60s, then receive 120s from peer.
   // Since the received value is above ours, we should then use ours.
   config_.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(60));
@@ -387,6 +439,10 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
 }
 
 TEST_P(QuicConfigTest, FillTransportParams) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
   config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
       2 * kMinimumFlowControlSendWindow);
   config_.SetInitialMaxStreamDataBytesOutgoingBidirectionalToSend(
@@ -415,6 +471,10 @@ TEST_P(QuicConfigTest, FillTransportParams) {
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
   TransportParameters params;
 
   params.initial_max_stream_data_bidi_local.set_value(
@@ -509,6 +569,10 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
+  if (!version_.UsesTls()) {
+    // TransportParameters are only used for QUIC+TLS.
+    return;
+  }
   TransportParameters params;
   params.disable_migration = true;
   std::string error_details;

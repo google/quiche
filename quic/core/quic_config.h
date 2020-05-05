@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -60,67 +61,6 @@ class QUIC_EXPORT_PRIVATE QuicConfigValue {
  protected:
   const QuicTag tag_;
   const QuicConfigPresence presence_;
-};
-
-class QUIC_EXPORT_PRIVATE QuicNegotiableValue : public QuicConfigValue {
- public:
-  QuicNegotiableValue(QuicTag tag, QuicConfigPresence presence);
-  ~QuicNegotiableValue() override;
-
-  bool negotiated() const { return negotiated_; }
-
- protected:
-  void set_negotiated(bool negotiated) { negotiated_ = negotiated; }
-
- private:
-  bool negotiated_;
-};
-
-class QUIC_EXPORT_PRIVATE QuicNegotiableUint32 : public QuicNegotiableValue {
-  // TODO(fayang): some negotiated values use uint32 as bool (e.g., silent
-  // close). Consider adding a QuicNegotiableBool type.
- public:
-  // Default and max values default to 0.
-  QuicNegotiableUint32(QuicTag name, QuicConfigPresence presence);
-  ~QuicNegotiableUint32() override;
-
-  // Sets the maximum possible value that can be achieved after negotiation and
-  // also the default values to be assumed if PRESENCE_OPTIONAL and the *HLO msg
-  // doesn't contain a value corresponding to |name_|. |max| is serialised via
-  // ToHandshakeMessage call if |negotiated_| is false.
-  void set(uint32_t max, uint32_t default_value);
-
-  // Returns the value negotiated if |negotiated_| is true, otherwise returns
-  // default_value_ (used to set default values before negotiation finishes).
-  uint32_t GetUint32() const;
-
-  // Returns the maximum value negotiable.
-  uint32_t GetMax() const;
-
-  // Serialises |name_| and value to |out|. If |negotiated_| is true then
-  // |negotiated_value_| is serialised, otherwise |max_value_| is serialised.
-  void ToHandshakeMessage(CryptoHandshakeMessage* out) const override;
-
-  // Processes the corresponding value from |peer_hello| and if present calls
-  // ReceiveValue with it. If the corresponding value is missing and
-  // PRESENCE_OPTIONAL then |negotiated_value_| is set to |default_value_|.
-  QuicErrorCode ProcessPeerHello(const CryptoHandshakeMessage& peer_hello,
-                                 HelloType hello_type,
-                                 std::string* error_details) override;
-
-  // Takes a value |value| parsed from a handshake message (whether a TLS
-  // ClientHello/ServerHello or a CryptoHandshakeMessage) whose sender was
-  // |hello_type|, and sets |negotiated_value_| to the minimum of |value| and
-  // |max_value_|. On success this function returns QUIC_NO_ERROR; if there is
-  // an error, details are put in |*error_details|.
-  QuicErrorCode ReceiveValue(uint32_t value,
-                             HelloType hello_type,
-                             std::string* error_details);
-
- private:
-  uint32_t max_value_;
-  uint32_t default_value_;
-  uint32_t negotiated_value_;
 };
 
 // Stores uint32_t from CHLO or SHLO messages that are not negotiated.
@@ -540,6 +480,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // SetDefaults sets the members to sensible, default values.
   void SetDefaults();
 
+  // Whether we've received the peer's config.
+  bool negotiated_;
+
   // Configurations options that are not negotiated.
   // Maximum time the session can be alive before crypto handshake is finished.
   QuicTime::Delta max_time_before_crypto_handshake_;
@@ -553,9 +496,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicFixedTagVector connection_options_;
   // Connection options which only affect the client side.
   QuicFixedTagVector client_connection_options_;
-  // Idle network timeout in seconds.
+  // Idle network timeout.
   // Uses the max_idle_timeout transport parameter in IETF QUIC.
-  QuicNegotiableUint32 idle_network_timeout_seconds_;
+  // Note that received_idle_timeout_ is only populated if we receive the
+  // peer's value, which isn't guaranteed in IETF QUIC as sending is optional.
+  QuicTime::Delta idle_timeout_to_send_;
+  quiche::QuicheOptional<QuicTime::Delta> received_idle_timeout_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.

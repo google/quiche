@@ -4251,8 +4251,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   QuicTagVector options;
   options.push_back(kTLPR);
   config.SetConnectionOptionsToSend(options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(
-      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+  QuicConfigPeer::SetNegotiated(&config, true);
   connection_.SetFromConfig(config);
   connection_.SetMaxTailLossProbes(1);
 
@@ -6099,8 +6098,7 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   QuicTagVector connection_options;
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(
-      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+  QuicConfigPeer::SetNegotiated(&config, true);
   connection_.SetFromConfig(config);
 
   // Send stream data.
@@ -9871,8 +9869,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   connection_options.push_back(k1PTO);
   connection_options.push_back(k6PTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(
-      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+  QuicConfigPeer::SetNegotiated(&config, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9919,8 +9916,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   connection_options.push_back(k2PTO);
   connection_options.push_back(k7PTO);
   config.SetConnectionOptionsToSend(connection_options);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(
-      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+  QuicConfigPeer::SetNegotiated(&config, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9965,8 +9961,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   QuicTagVector connection_options;
   connection_options.push_back(k2PTO);
   connection_options.push_back(k8PTO);
-  QuicConfigPeer::ReceiveIdleNetworkTimeout(
-      &config, SERVER, QuicTime::Delta::FromSeconds(kMaximumIdleTimeoutSecs));
+  QuicConfigPeer::SetNegotiated(&config, true);
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);

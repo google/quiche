@@ -59,74 +59,6 @@ QuicConfigValue::QuicConfigValue(QuicTag tag, QuicConfigPresence presence)
     : tag_(tag), presence_(presence) {}
 QuicConfigValue::~QuicConfigValue() {}
 
-QuicNegotiableValue::QuicNegotiableValue(QuicTag tag,
-                                         QuicConfigPresence presence)
-    : QuicConfigValue(tag, presence), negotiated_(false) {}
-QuicNegotiableValue::~QuicNegotiableValue() {}
-
-QuicNegotiableUint32::QuicNegotiableUint32(QuicTag tag,
-                                           QuicConfigPresence presence)
-    : QuicNegotiableValue(tag, presence),
-      max_value_(0),
-      default_value_(0),
-      negotiated_value_(0) {}
-QuicNegotiableUint32::~QuicNegotiableUint32() {}
-
-void QuicNegotiableUint32::set(uint32_t max, uint32_t default_value) {
-  DCHECK_LE(default_value, max);
-  max_value_ = max;
-  default_value_ = default_value;
-}
-
-uint32_t QuicNegotiableUint32::GetUint32() const {
-  if (negotiated()) {
-    return negotiated_value_;
-  }
-  return default_value_;
-}
-
-// Returns the maximum value negotiable.
-uint32_t QuicNegotiableUint32::GetMax() const {
-  return max_value_;
-}
-
-void QuicNegotiableUint32::ToHandshakeMessage(
-    CryptoHandshakeMessage* out) const {
-  if (negotiated()) {
-    out->SetValue(tag_, negotiated_value_);
-  } else {
-    out->SetValue(tag_, max_value_);
-  }
-}
-
-QuicErrorCode QuicNegotiableUint32::ProcessPeerHello(
-    const CryptoHandshakeMessage& peer_hello,
-    HelloType hello_type,
-    std::string* error_details) {
-  DCHECK(!negotiated());
-  DCHECK(error_details != nullptr);
-  uint32_t value;
-  QuicErrorCode error = ReadUint32(peer_hello, tag_, presence_, default_value_,
-                                   &value, error_details);
-  if (error != QUIC_NO_ERROR) {
-    return error;
-  }
-  return ReceiveValue(value, hello_type, error_details);
-}
-
-QuicErrorCode QuicNegotiableUint32::ReceiveValue(uint32_t value,
-                                                 HelloType hello_type,
-                                                 std::string* error_details) {
-  if (hello_type == SERVER && value > max_value_) {
-    *error_details = "Invalid value received for " + QuicTagToString(tag_);
-    return QUIC_INVALID_NEGOTIATED_VALUE;
-  }
-
-  set_negotiated(true);
-  negotiated_value_ = std::min(value, max_value_);
-  return QUIC_NO_ERROR;
-}
-
 QuicFixedUint32::QuicFixedUint32(QuicTag tag, QuicConfigPresence presence)
     : QuicConfigValue(tag, presence),
       has_send_value_(false),
@@ -495,12 +427,13 @@ QuicErrorCode QuicFixedSocketAddress::ProcessPeerHello(
 }
 
 QuicConfig::QuicConfig()
-    : max_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
+    : negotiated_(false),
+      max_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_idle_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_undecryptable_packets_(0),
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
-      idle_network_timeout_seconds_(kICSL, PRESENCE_REQUIRED),
+      idle_timeout_to_send_(QuicTime::Delta::Infinite()),
       max_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
       max_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
@@ -604,14 +537,21 @@ const QuicTagVector& QuicConfig::ClientRequestedIndependentOptions(
 }
 
 void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
-  idle_network_timeout_seconds_.set(
-      static_cast<uint32_t>(idle_network_timeout.ToSeconds()),
-      static_cast<uint32_t>(idle_network_timeout.ToSeconds()));
+  if (idle_network_timeout.ToMicroseconds() <= 0) {
+    QUIC_BUG << "Invalid idle network timeout " << idle_network_timeout;
+    return;
+  }
+  idle_timeout_to_send_ = idle_network_timeout;
 }
 
 QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
-  return QuicTime::Delta::FromSeconds(
-      idle_network_timeout_seconds_.GetUint32());
+  // TODO(b/152032210) add a QUIC_BUG to ensure that is not called before we've
+  // received the peer's values. This is true in production code but not in all
+  // of our tests that use a fake QuicConfig.
+  if (!received_idle_timeout_.has_value()) {
+    return idle_timeout_to_send_;
+  }
+  return received_idle_timeout_.value();
 }
 
 void QuicConfig::SetMaxBidirectionalStreamsToSend(uint32_t max_streams) {
@@ -925,9 +865,7 @@ QuicUint128 QuicConfig::ReceivedStatelessResetToken() const {
 }
 
 bool QuicConfig::negotiated() const {
-  // TODO(ianswett): Add the negotiated parameters once and iterate over all
-  // of them in negotiated, ToHandshakeMessage, and ProcessPeerHello.
-  return idle_network_timeout_seconds_.negotiated();
+  return negotiated_;
 }
 
 void QuicConfig::SetCreateSessionTagIndicators(QuicTagVector tags) {
@@ -959,7 +897,20 @@ void QuicConfig::SetDefaults() {
 void QuicConfig::ToHandshakeMessage(
     CryptoHandshakeMessage* out,
     QuicTransportVersion transport_version) const {
-  idle_network_timeout_seconds_.ToHandshakeMessage(out);
+  // Idle timeout has custom rules that are different from other values.
+  // We configure ourselves with the minumum value between the one sent and
+  // the one received. Additionally, when QUIC_CRYPTO is used, the server
+  // MUST send an idle timeout no greater than the idle timeout it received
+  // from the client. We therefore send the received value if it is lower.
+  QuicFixedUint32 idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
+  uint32_t idle_timeout_to_send_seconds = idle_timeout_to_send_.ToSeconds();
+  if (received_idle_timeout_.has_value() &&
+      received_idle_timeout_->ToSeconds() < idle_timeout_to_send_seconds) {
+    idle_timeout_to_send_seconds = received_idle_timeout_->ToSeconds();
+  }
+  idle_timeout_seconds.SetSendValue(idle_timeout_to_send_seconds);
+  idle_timeout_seconds.ToHandshakeMessage(out);
+
   // Do not need a version check here, max...bi... will encode
   // as "MIDS" -- the max initial dynamic streams tag -- if
   // doing some version other than IETF QUIC.
@@ -994,8 +945,29 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 
   QuicErrorCode error = QUIC_NO_ERROR;
   if (error == QUIC_NO_ERROR) {
-    error = idle_network_timeout_seconds_.ProcessPeerHello(
-        peer_hello, hello_type, error_details);
+    // Idle timeout has custom rules that are different from other values.
+    // We configure ourselves with the minumum value between the one sent and
+    // the one received. Additionally, when QUIC_CRYPTO is used, the server
+    // MUST send an idle timeout no greater than the idle timeout it received
+    // from the client.
+    QuicFixedUint32 idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
+    error = idle_timeout_seconds.ProcessPeerHello(peer_hello, hello_type,
+                                                  error_details);
+    if (error == QUIC_NO_ERROR) {
+      if (idle_timeout_seconds.GetReceivedValue() >
+          idle_timeout_to_send_.ToSeconds()) {
+        // The received value is higher than ours, ignore it if from the client
+        // and raise an error if from the server.
+        if (hello_type == SERVER) {
+          error = QUIC_INVALID_NEGOTIATED_VALUE;
+          *error_details =
+              "Invalid value received for " + QuicTagToString(kICSL);
+        }
+      } else {
+        received_idle_timeout_ = QuicTime::Delta::FromSeconds(
+            idle_timeout_seconds.GetReceivedValue());
+      }
+    }
   }
   if (error == QUIC_NO_ERROR) {
     error = max_bidirectional_streams_.ProcessPeerHello(peer_hello, hello_type,
@@ -1058,12 +1030,15 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
     error = ack_delay_exponent_.ProcessPeerHello(peer_hello, hello_type,
                                                  error_details);
   }
+  if (error == QUIC_NO_ERROR) {
+    negotiated_ = true;
+  }
   return error;
 }
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->idle_timeout_milliseconds.set_value(
-      idle_network_timeout_seconds_.GetMax() * kNumMillisPerSecond);
+      idle_timeout_to_send_.ToMilliseconds());
 
   if (stateless_reset_token_.HasSendValue()) {
     QuicUint128 stateless_reset_token = stateless_reset_token_.GetSendValue();
@@ -1133,21 +1108,14 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
     HelloType hello_type,
     std::string* error_details) {
-  // Intentionally round down to probe too often rather than not often enough.
-  uint64_t idle_timeout_seconds =
-      params.idle_timeout_milliseconds.value() / kNumMillisPerSecond;
-  // An idle timeout of zero indicates it is disabled (in other words, it is
-  // set to infinity). When the idle timeout is very high, we set it to our
-  // preferred maximum and still probe that often.
-  if (idle_timeout_seconds > idle_network_timeout_seconds_.GetMax() ||
-      idle_timeout_seconds == 0) {
-    idle_timeout_seconds = idle_network_timeout_seconds_.GetMax();
-  }
-  QuicErrorCode error = idle_network_timeout_seconds_.ReceiveValue(
-      idle_timeout_seconds, hello_type, error_details);
-  if (error != QUIC_NO_ERROR) {
-    DCHECK(!error_details->empty());
-    return error;
+  if (params.idle_timeout_milliseconds.value() > 0 &&
+      params.idle_timeout_milliseconds.value() <
+          static_cast<uint64_t>(idle_timeout_to_send_.ToMilliseconds())) {
+    // An idle timeout of zero indicates it is disabled.
+    // We also ignore values higher than ours which will cause us to use the
+    // smallest value between ours and our peer's.
+    received_idle_timeout_ = QuicTime::Delta::FromMilliseconds(
+        params.idle_timeout_milliseconds.value());
   }
 
   if (!params.stateless_reset_token.empty()) {
@@ -1222,7 +1190,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
   if (peer_params != nullptr) {
-    error = initial_round_trip_time_us_.ProcessPeerHello(
+    QuicErrorCode error = initial_round_trip_time_us_.ProcessPeerHello(
         *peer_params, hello_type, error_details);
     if (error != QUIC_NO_ERROR) {
       DCHECK(!error_details->empty());
@@ -1238,6 +1206,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   received_custom_transport_parameters_ = params.custom_parameters;
 
+  negotiated_ = true;
   *error_details = "";
   return QUIC_NO_ERROR;
 }

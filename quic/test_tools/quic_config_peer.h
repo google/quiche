@@ -59,9 +59,7 @@ class QuicConfigPeer {
   static void SetReceivedMaxPacketSize(QuicConfig* config,
                                        uint32_t max_packet_size);
 
-  static void ReceiveIdleNetworkTimeout(QuicConfig* config,
-                                        HelloType hello_type,
-                                        QuicTime::Delta idle_network_timeout);
+  static void SetNegotiated(QuicConfig* config, bool negotiated);
 };
 
 }  // namespace test
