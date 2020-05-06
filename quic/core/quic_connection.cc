@@ -409,6 +409,39 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                        config.IdleNetworkTimeout());
     idle_timeout_connection_close_behavior_ =
         ConnectionCloseBehavior::SILENT_CLOSE;
+    if (original_connection_id_.has_value()) {
+      DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+      // We received a RETRY packet, validate that the |original_connection_id|
+      // from the config matches the one from the RETRY.
+      if (!config.HasReceivedOriginalConnectionId() ||
+          config.ReceivedOriginalConnectionId() !=
+              original_connection_id_.value()) {
+        std::string received_value;
+        if (config.HasReceivedOriginalConnectionId()) {
+          received_value = config.ReceivedOriginalConnectionId().ToString();
+        } else {
+          received_value = "none";
+        }
+        std::string error_details = quiche::QuicheStrCat(
+            "Bad original_connection_id: expected ",
+            original_connection_id_.value().ToString(), ", received ",
+            received_value, ", RETRY used ", server_connection_id_.ToString());
+        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return;
+      }
+    } else {
+      // We did not receive a RETRY packet, make sure we did not receive the
+      // original_connection_id transport parameter.
+      if (config.HasReceivedOriginalConnectionId()) {
+        std::string error_details = quiche::QuicheStrCat(
+            "Bad original_connection_id: did not receive RETRY but received ",
+            config.ReceivedOriginalConnectionId().ToString());
+        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return;
+      }
+    }
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());
@@ -681,6 +714,8 @@ void QuicConnection::OnRetryPacket(
                   << server_connection_id_ << " with " << new_connection_id
                   << ", received token "
                   << quiche::QuicheTextUtils::HexEncode(retry_token);
+  DCHECK(!original_connection_id_.has_value());
+  original_connection_id_ = server_connection_id_;
   server_connection_id_ = new_connection_id;
   packet_creator_.SetServerConnectionId(server_connection_id_);
   packet_creator_.SetRetryToken(retry_token);

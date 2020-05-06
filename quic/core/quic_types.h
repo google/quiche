@@ -182,17 +182,31 @@ enum HasRetransmittableData : uint8_t {
 enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };
 
 enum class Perspective : uint8_t { IS_SERVER, IS_CLIENT };
+
+QUIC_EXPORT_PRIVATE std::string PerspectiveToString(Perspective perspective);
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const Perspective& s);
+                                             const Perspective& perspective);
 
 // Describes whether a ConnectionClose was originated by the peer.
 enum class ConnectionCloseSource { FROM_PEER, FROM_SELF };
+
+QUIC_EXPORT_PRIVATE std::string ConnectionCloseSourceToString(
+    ConnectionCloseSource connection_close_source);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const ConnectionCloseSource& connection_close_source);
 
 // Should a connection be closed silently or not.
 enum class ConnectionCloseBehavior {
   SILENT_CLOSE,
   SEND_CONNECTION_CLOSE_PACKET
 };
+
+QUIC_EXPORT_PRIVATE std::string ConnectionCloseBehaviorToString(
+    ConnectionCloseBehavior connection_close_behavior);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    const ConnectionCloseBehavior& connection_close_behavior);
 
 enum QuicFrameType : uint8_t {
   // Regular frame types. The values set here cannot change without the

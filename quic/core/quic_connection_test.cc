@@ -382,7 +382,8 @@ class TestPacketWriter : public QuicPacketWriter {
           ENCRYPTION_FORWARD_SECURE,
           std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
     }
-    EXPECT_TRUE(framer_.ProcessPacket(packet));
+    EXPECT_TRUE(framer_.ProcessPacket(packet))
+        << framer_.framer()->detailed_error();
     if (block_on_next_write_) {
       write_blocked_ = true;
       block_on_next_write_ = false;
@@ -1669,10 +1670,12 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         writer_->connection_close_frames();
     ASSERT_EQ(1u, connection_close_frames.size());
 
-    EXPECT_EQ(expected_code, connection_close_frames[0].quic_error_code);
+    EXPECT_THAT(connection_close_frames[0].quic_error_code,
+                IsError(expected_code));
 
     if (!VersionHasIetfQuicFrames(version().transport_version)) {
-      EXPECT_EQ(expected_code, connection_close_frames[0].wire_error_code);
+      EXPECT_THAT(connection_close_frames[0].wire_error_code,
+                  IsError(expected_code));
       EXPECT_EQ(GOOGLE_QUIC_CONNECTION_CLOSE,
                 connection_close_frames[0].close_type);
       return;
@@ -1714,6 +1717,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_TRUE(connection_.connected());
   }
 
+  void TestClientRetryHandling(bool invalid_retry_tag,
+                               bool missing_id_in_config,
+                               bool wrong_id_in_config);
+
   QuicConnectionId connection_id_;
   QuicFramer framer_;
 
@@ -1747,7 +1754,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 };
 
 // Run all end to end tests with all supported versions.
-INSTANTIATE_TEST_SUITE_P(SupportedVersion,
+INSTANTIATE_TEST_SUITE_P(QuicConnectionTests,
                          QuicConnectionTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
@@ -1758,7 +1765,7 @@ INSTANTIATE_TEST_SUITE_P(SupportedVersion,
 // close, the second an application connection close.
 // The connection close codes for the two tests are manually chosen;
 // they are expected to always map to transport- and application-
-// closes, respectively. If that changes, mew codes should be chosen.
+// closes, respectively. If that changes, new codes should be chosen.
 TEST_P(QuicConnectionTest, CloseErrorCodeTestTransport) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
@@ -10306,22 +10313,45 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
 
-TEST_P(QuicConnectionTest, ClientParsesRetry) {
+void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
+                                                 bool missing_id_in_config,
+                                                 bool wrong_id_in_config) {
+  if (invalid_retry_tag) {
+    ASSERT_FALSE(missing_id_in_config);
+    ASSERT_FALSE(wrong_id_in_config);
+  } else {
+    ASSERT_FALSE(missing_id_in_config && wrong_id_in_config);
+  }
   if (!version().HasRetryIntegrityTag()) {
     return;
   }
-  if (version() !=
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25)) {
+
+  // These values come from draft-ietf-quic-tls Appendix A.4.
+  char retry_packet25[] = {
+      0xff, 0xff, 0x00, 0x00, 0x19, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
+      0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x1e, 0x5e, 0xc5, 0xb0,
+      0x14, 0xcb, 0xb1, 0xf0, 0xfd, 0x93, 0xdf, 0x40, 0x48, 0xc4, 0x46, 0xa6};
+  char retry_packet27[] = {
+      0xff, 0xff, 0x00, 0x00, 0x1b, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
+      0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0xa5, 0x23, 0xcb, 0x5b,
+      0xa5, 0x24, 0x69, 0x5f, 0x65, 0x69, 0xf2, 0x93, 0xa1, 0x35, 0x9d, 0x8e};
+
+  char* retry_packet;
+  size_t retry_packet_length;
+  if (version() ==
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27)) {
+    retry_packet = retry_packet27;
+    retry_packet_length = QUICHE_ARRAYSIZE(retry_packet27);
+  } else if (version() ==
+             ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25)) {
+    retry_packet = retry_packet25;
+    retry_packet_length = QUICHE_ARRAYSIZE(retry_packet25);
+  } else {
     // TODO(dschinazi) generate retry packets for all versions once we have
     // server-side support for generating these programmatically.
     return;
   }
 
-  // These values come from draft-ietf-quic-tls Appendix A.4.
-  char retry_packet[] = {0xff, 0xff, 0x00, 0x00, 0x19, 0x00, 0x08, 0xf0, 0x67,
-                         0xa5, 0x50, 0x2a, 0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b,
-                         0x65, 0x6e, 0x1e, 0x5e, 0xc5, 0xb0, 0x14, 0xcb, 0xb1,
-                         0xf0, 0xfd, 0x93, 0xdf, 0x40, 0x48, 0xc4, 0x46, 0xa6};
   char original_connection_id_bytes[] = {0x83, 0x94, 0xc8, 0xf0,
                                          0x3e, 0x51, 0x57, 0x08};
   char new_connection_id_bytes[] = {0xf0, 0x67, 0xa5, 0x50,
@@ -10337,43 +10367,110 @@ TEST_P(QuicConnectionTest, ClientParsesRetry) {
   std::string retry_token(retry_token_bytes,
                           QUICHE_ARRAYSIZE(retry_token_bytes));
 
-  {
-    TestConnection connection1(
-        original_connection_id, kPeerAddress, helper_.get(),
-        alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT, version());
-    connection1.set_visitor(&visitor_);
-
-    connection1.ProcessUdpPacket(
-        kSelfAddress, kPeerAddress,
-        QuicReceivedPacket(retry_packet, QUICHE_ARRAYSIZE(retry_packet),
-                           clock_.Now()));
-    EXPECT_TRUE(connection1.GetStats().retry_packet_processed);
-    EXPECT_EQ(connection1.connection_id(), new_connection_id);
-    EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
-                  QuicConnectionPeer::GetPacketCreator(&connection1)),
-              retry_token);
+  if (invalid_retry_tag) {
+    // Flip the last bit of the retry packet to prevent the integrity tag
+    // from validating correctly.
+    retry_packet[retry_packet_length - 1] ^= 1;
   }
 
-  // Now flip the last bit of the retry packet to prevent the integrity tag
-  // from validating correctly.
-  retry_packet[QUICHE_ARRAYSIZE(retry_packet) - 1] ^= 1;
+  QuicConnectionId config_original_connection_id = original_connection_id;
+  if (wrong_id_in_config) {
+    // Flip the first bit of the connection ID.
+    ASSERT_FALSE(config_original_connection_id.IsEmpty());
+    config_original_connection_id.mutable_data()[0] ^= 0x80;
+  }
 
-  {
-    TestConnection connection2(
-        original_connection_id, kPeerAddress, helper_.get(),
-        alarm_factory_.get(), writer_.get(), Perspective::IS_CLIENT, version());
-    connection2.set_visitor(&visitor_);
+  // Make sure the connection uses the connection ID from the test vectors,
+  QuicConnectionPeer::SetServerConnectionId(&connection_,
+                                            original_connection_id);
 
-    connection2.ProcessUdpPacket(
-        kSelfAddress, kPeerAddress,
-        QuicReceivedPacket(retry_packet, QUICHE_ARRAYSIZE(retry_packet),
-                           clock_.Now()));
-    EXPECT_FALSE(connection2.GetStats().retry_packet_processed);
-    EXPECT_EQ(connection2.connection_id(), original_connection_id);
+  // Process the RETRY packet.
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(retry_packet, retry_packet_length, clock_.Now()));
+
+  if (invalid_retry_tag) {
+    // Make sure we refuse to process a RETRY with invalid tag.
+    EXPECT_FALSE(connection_.GetStats().retry_packet_processed);
+    EXPECT_EQ(connection_.connection_id(), original_connection_id);
     EXPECT_TRUE(QuicPacketCreatorPeer::GetRetryToken(
-                    QuicConnectionPeer::GetPacketCreator(&connection2))
+                    QuicConnectionPeer::GetPacketCreator(&connection_))
                     .empty());
+    return;
   }
+
+  // Make sure we correctly parsed the RETRY.
+  EXPECT_TRUE(connection_.GetStats().retry_packet_processed);
+  EXPECT_EQ(connection_.connection_id(), new_connection_id);
+  EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
+                QuicConnectionPeer::GetPacketCreator(&connection_)),
+            retry_token);
+  // Make sure our fake framer has the new post-retry INITIAL keys.
+  writer_->framer()->framer()->SetInitialObfuscators(new_connection_id);
+
+  // Test validating the original_connection_id from the config.
+  QuicConfig received_config;
+  QuicConfigPeer::SetNegotiated(&received_config, true);
+  if (!missing_id_in_config) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &received_config, config_original_connection_id);
+  }
+  if (missing_id_in_config || wrong_id_in_config) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+        .Times(0);
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
+  connection_.SetFromConfig(received_config);
+  if (missing_id_in_config || wrong_id_in_config) {
+    EXPECT_FALSE(connection_.connected());
+    TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+  } else {
+    EXPECT_TRUE(connection_.connected());
+  }
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetry) {
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_id_in_config=*/false,
+                          /*wrong_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, ClientParsesInvalidRetry) {
+  TestClientRetryHandling(/*invalid_retry_tag=*/true,
+                          /*missing_id_in_config=*/false,
+                          /*wrong_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetryMissingId) {
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_id_in_config=*/true,
+                          /*wrong_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetryWrongId) {
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_id_in_config=*/false,
+                          /*wrong_id_in_config=*/true);
+}
+
+TEST_P(QuicConnectionTest, ClientReceivesOriginalConnectionIdWithoutRetry) {
+  // Make sure that receiving the original_connection_id transport parameter
+  // fails the handshake when no RETRY packet was received before it.
+  QuicConfig received_config;
+  QuicConfigPeer::SetNegotiated(&received_config, true);
+  QuicConfigPeer::SetReceivedOriginalConnectionId(&received_config,
+                                                  TestConnectionId(0x12345));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(1);
+  connection_.SetFromConfig(received_config);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
 // Regression test for http://crbug/1047977

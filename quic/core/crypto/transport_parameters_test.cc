@@ -7,6 +7,7 @@
 #include <cstring>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -533,7 +534,7 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   EXPECT_EQ(Perspective::IS_CLIENT, new_params.perspective);
   EXPECT_EQ(kFakeVersionLabel, new_params.version);
   EXPECT_TRUE(new_params.supported_versions.empty());
-  EXPECT_EQ(EmptyQuicConnectionId(), new_params.original_connection_id);
+  EXPECT_FALSE(new_params.original_connection_id.has_value());
   EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
             new_params.idle_timeout_milliseconds.value());
   EXPECT_TRUE(new_params.stateless_reset_token.empty());
@@ -895,8 +896,9 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(2u, new_params.supported_versions.size());
   EXPECT_EQ(kFakeVersionLabel, new_params.supported_versions[0]);
   EXPECT_EQ(kFakeVersionLabel2, new_params.supported_versions[1]);
+  ASSERT_TRUE(new_params.original_connection_id.has_value());
   EXPECT_EQ(CreateFakeOriginalConnectionId(),
-            new_params.original_connection_id);
+            new_params.original_connection_id.value());
   EXPECT_EQ(kFakeIdleTimeoutMilliseconds,
             new_params.idle_timeout_milliseconds.value());
   EXPECT_EQ(CreateFakeStatelessResetToken(), new_params.stateless_reset_token);
@@ -983,6 +985,59 @@ TEST_P(TransportParametersTest, ParseServerParametersRepeated) {
                                         server_params, server_params_length,
                                         &out_params, &error_details));
   EXPECT_EQ(error_details, "Received a second idle_timeout");
+}
+
+TEST_P(TransportParametersTest,
+       ParseServerParametersEmptyOriginalConnectionId) {
+  // clang-format off
+  const uint8_t kServerParamsEmptyOriginalConnectionIdOld[] = {
+      0x00, 0x1e,  // length of parameters array that follows
+      // original_connection_id
+      0x00, 0x00,  // parameter id
+      0x00, 0x00,  // length
+      // idle_timeout
+      0x00, 0x01,  // parameter id
+      0x00, 0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x00, 0x02,  // parameter id
+      0x00, 0x10,  // length
+      0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+      0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+  };
+  const uint8_t kServerParamsEmptyOriginalConnectionId[] = {
+      // original_connection_id
+      0x00,  // parameter id
+      0x00,  // length
+      // idle_timeout
+      0x01,  // parameter id
+      0x02,  // length
+      0x6e, 0xec,  // value
+      // stateless_reset_token
+      0x02,  // parameter id
+      0x10,  // length
+      0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+      0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
+  };
+  // clang-format on
+  const uint8_t* server_params =
+      reinterpret_cast<const uint8_t*>(kServerParamsEmptyOriginalConnectionId);
+  size_t server_params_length =
+      QUICHE_ARRAYSIZE(kServerParamsEmptyOriginalConnectionId);
+  if (!version_.HasVarIntTransportParams()) {
+    server_params = reinterpret_cast<const uint8_t*>(
+        kServerParamsEmptyOriginalConnectionIdOld);
+    server_params_length =
+        QUICHE_ARRAYSIZE(kServerParamsEmptyOriginalConnectionIdOld);
+  }
+  TransportParameters out_params;
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_SERVER,
+                                       server_params, server_params_length,
+                                       &out_params, &error_details))
+      << error_details;
+  ASSERT_TRUE(out_params.original_connection_id.has_value());
+  EXPECT_EQ(out_params.original_connection_id.value(), EmptyQuicConnectionId());
 }
 
 TEST_P(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {

@@ -1630,12 +1630,12 @@ MATCHER_P2(InRange, min, max, "") {
 
 // A GMock matcher that prints expected and actual QuicErrorCode strings
 // upon failure.  Example usage:
-// EXPECT_THAT(stream_->connection_error()), IsError(QUIC_INTERNAL_ERROR));
+// EXPECT_THAT(stream_->connection_error(), IsError(QUIC_INTERNAL_ERROR));
 MATCHER_P(IsError,
           expected,
           quiche::QuicheStrCat(negation ? "isn't equal to " : "is equal to ",
                                QuicErrorCodeToString(expected))) {
-  *result_listener << QuicErrorCodeToString(arg);
+  *result_listener << QuicErrorCodeToString(static_cast<QuicErrorCode>(arg));
   return arg == expected;
 }
 

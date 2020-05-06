@@ -10,6 +10,7 @@
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -323,24 +324,17 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
     return max_undecryptable_packets_;
   }
 
+  // Peer's connection id length, in bytes. Only used in Q043 and Q046.
   bool HasSetBytesForConnectionIdToSend() const;
-
-  // Sets the peer's connection id length, in bytes.
   void SetBytesForConnectionIdToSend(uint32_t bytes);
-
   bool HasReceivedBytesForConnectionId() const;
-
   uint32_t ReceivedBytesForConnectionId() const;
 
-  // Sets an estimated initial round trip time in us.
+  // Estimated initial round trip time in us.
   void SetInitialRoundTripTimeUsToSend(uint32_t rtt_us);
-
   bool HasReceivedInitialRoundTripTimeUs() const;
-
   uint32_t ReceivedInitialRoundTripTimeUs() const;
-
   bool HasInitialRoundTripTimeUsToSend() const;
-
   uint32_t GetInitialRoundTripTimeUsToSend() const;
 
   // Sets an initial stream flow control window size to transmit to the peer.
@@ -380,15 +374,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // Sets an initial session flow control window size to transmit to the peer.
   void SetInitialSessionFlowControlWindowToSend(uint64_t window_bytes);
-
   uint64_t GetInitialSessionFlowControlWindowToSend() const;
-
   bool HasReceivedInitialSessionFlowControlWindowBytes() const;
-
   uint64_t ReceivedInitialSessionFlowControlWindowBytes() const;
 
+  // Disable connection migration.
   void SetDisableConnectionMigration();
-
   bool DisableConnectionMigration() const;
 
   // IPv6 alternate server address.
@@ -403,10 +394,15 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
 
+  // Original connection ID.
+  void SetOriginalConnectionIdToSend(
+      const QuicConnectionId& original_connection_id);
+  bool HasReceivedOriginalConnectionId() const;
+  QuicConnectionId ReceivedOriginalConnectionId() const;
+
+  // Stateless reset token.
   void SetStatelessResetTokenToSend(QuicUint128 stateless_reset_token);
-
   bool HasReceivedStatelessResetToken() const;
-
   QuicUint128 ReceivedStatelessResetToken() const;
 
   // Manage the IETF QUIC Max ACK Delay transport parameter.
@@ -587,6 +583,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Maximum DATAGRAM/MESSAGE frame size in bytes.
   // Uses the max_datagram_frame_size transport parameter in IETF QUIC.
   QuicFixedUint62 max_datagram_frame_size_;
+
+  // Sent by the server when it has previously sent a RETRY packet.
+  // Uses the original_connection_id transport parameter in IETF QUIC.
+  quiche::QuicheOptional<QuicConnectionId> original_connection_id_to_send_;
+  quiche::QuicheOptional<QuicConnectionId> received_original_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.

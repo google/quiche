@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -131,7 +132,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.
-  QuicConnectionId original_connection_id;
+  quiche::QuicheOptional<QuicConnectionId> original_connection_id;
 
   // Idle timeout expressed in milliseconds.
   IntegerParameter idle_timeout_milliseconds;

@@ -375,5 +375,13 @@ QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
   return connection->idle_network_detector_.alarm_.get();
 }
 
+// static
+void QuicConnectionPeer::SetServerConnectionId(
+    QuicConnection* connection,
+    const QuicConnectionId& server_connection_id) {
+  connection->server_connection_id_ = server_connection_id;
+  connection->InstallInitialCrypters(server_connection_id);
+}
+
 }  // namespace test
 }  // namespace quic

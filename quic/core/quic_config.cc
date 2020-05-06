@@ -12,6 +12,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -851,6 +852,23 @@ const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
   return alternate_server_address_ipv4_.GetReceivedValue();
 }
 
+void QuicConfig::SetOriginalConnectionIdToSend(
+    const QuicConnectionId& original_connection_id) {
+  original_connection_id_to_send_ = original_connection_id;
+}
+
+bool QuicConfig::HasReceivedOriginalConnectionId() const {
+  return received_original_connection_id_.has_value();
+}
+
+QuicConnectionId QuicConfig::ReceivedOriginalConnectionId() const {
+  if (!HasReceivedOriginalConnectionId()) {
+    QUIC_BUG << "No received original connection ID";
+    return EmptyQuicConnectionId();
+  }
+  return received_original_connection_id_.value();
+}
+
 void QuicConfig::SetStatelessResetTokenToSend(
     QuicUint128 stateless_reset_token) {
   stateless_reset_token_.SetSendValue(stateless_reset_token);
@@ -1037,6 +1055,10 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 }
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
+  if (original_connection_id_to_send_.has_value()) {
+    params->original_connection_id = original_connection_id_to_send_.value();
+  }
+
   params->idle_timeout_milliseconds.set_value(
       idle_timeout_to_send_.ToMilliseconds());
 
@@ -1109,6 +1131,10 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     HelloType hello_type,
     bool is_resumption,
     std::string* error_details) {
+  if (!is_resumption && params.original_connection_id.has_value()) {
+    received_original_connection_id_ = params.original_connection_id.value();
+  }
+
   if (params.idle_timeout_milliseconds.value() > 0 &&
       params.idle_timeout_milliseconds.value() <
           static_cast<uint64_t>(idle_timeout_to_send_.ToMilliseconds())) {

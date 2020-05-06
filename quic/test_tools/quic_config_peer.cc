@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 
 namespace quic {
 namespace test {
@@ -100,6 +101,13 @@ void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
 // static
 void QuicConfigPeer::SetNegotiated(QuicConfig* config, bool negotiated) {
   config->negotiated_ = negotiated;
+}
+
+// static
+void QuicConfigPeer::SetReceivedOriginalConnectionId(
+    QuicConfig* config,
+    const QuicConnectionId& original_connection_id) {
+  config->received_original_connection_id_ = original_connection_id;
 }
 
 }  // namespace test

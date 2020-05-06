@@ -17,12 +17,56 @@ std::ostream& operator<<(std::ostream& os, const QuicConsumedData& s) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Perspective& s) {
-  if (s == Perspective::IS_SERVER) {
-    os << "IS_SERVER";
-  } else {
-    os << "IS_CLIENT";
+std::string PerspectiveToString(Perspective perspective) {
+  if (perspective == Perspective::IS_SERVER) {
+    return "IS_SERVER";
   }
+  if (perspective == Perspective::IS_CLIENT) {
+    return "IS_CLIENT";
+  }
+  return quiche::QuicheStrCat("Unknown(", static_cast<int>(perspective), ")");
+}
+
+std::ostream& operator<<(std::ostream& os, const Perspective& perspective) {
+  os << PerspectiveToString(perspective);
+  return os;
+}
+
+std::string ConnectionCloseSourceToString(
+    ConnectionCloseSource connection_close_source) {
+  if (connection_close_source == ConnectionCloseSource::FROM_PEER) {
+    return "FROM_PEER";
+  }
+  if (connection_close_source == ConnectionCloseSource::FROM_SELF) {
+    return "FROM_SELF";
+  }
+  return quiche::QuicheStrCat("Unknown(",
+                              static_cast<int>(connection_close_source), ")");
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const ConnectionCloseSource& connection_close_source) {
+  os << ConnectionCloseSourceToString(connection_close_source);
+  return os;
+}
+
+std::string ConnectionCloseBehaviorToString(
+    ConnectionCloseBehavior connection_close_behavior) {
+  if (connection_close_behavior == ConnectionCloseBehavior::SILENT_CLOSE) {
+    return "SILENT_CLOSE";
+  }
+  if (connection_close_behavior ==
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET) {
+    return "SEND_CONNECTION_CLOSE_PACKET";
+  }
+  return quiche::QuicheStrCat("Unknown(",
+                              static_cast<int>(connection_close_behavior), ")");
+}
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const ConnectionCloseBehavior& connection_close_behavior) {
+  os << ConnectionCloseBehaviorToString(connection_close_behavior);
   return os;
 }
 

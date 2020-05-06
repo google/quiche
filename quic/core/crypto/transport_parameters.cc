@@ -387,9 +387,9 @@ std::string TransportParameters::ToString() const {
     rv += " supported_versions " +
           QuicVersionLabelVectorToString(supported_versions);
   }
-  if (!original_connection_id.IsEmpty()) {
+  if (original_connection_id.has_value()) {
     rv += " " + TransportParameterIdToString(kOriginalConnectionId) + " " +
-          original_connection_id.ToString();
+          original_connection_id.value().ToString();
   }
   rv += idle_timeout_milliseconds.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
@@ -429,7 +429,6 @@ std::string TransportParameters::ToString() const {
 
 TransportParameters::TransportParameters()
     : version(0),
-      original_connection_id(EmptyQuicConnectionId()),
       idle_timeout_milliseconds(kIdleTimeout),
       max_packet_size(kMaxPacketSize,
                       kDefaultMaxPacketSizeTransportParam,
@@ -550,7 +549,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     return false;
   }
   if (perspective == Perspective::IS_CLIENT &&
-      !original_connection_id.IsEmpty()) {
+      original_connection_id.has_value()) {
     *error_details = "Client cannot send original connection ID";
     return false;
   }
@@ -638,17 +637,18 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   }
 
   // original_connection_id
-  if (!in.original_connection_id.IsEmpty()) {
+  if (in.original_connection_id.has_value()) {
     DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    QuicConnectionId original_connection_id = in.original_connection_id.value();
     if (!WriteTransportParameterId(
             &writer, TransportParameters::kOriginalConnectionId, version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(in.original_connection_id.data(),
-                                      in.original_connection_id.length()),
+            quiche::QuicheStringPiece(original_connection_id.data(),
+                                      original_connection_id.length()),
             version)) {
       QUIC_BUG << "Failed to write original_connection_id "
-               << in.original_connection_id << " for " << in;
+               << in.original_connection_id.value() << " for " << in;
       return false;
     }
   }
@@ -900,7 +900,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
     bool parse_success = true;
     switch (param_id) {
       case TransportParameters::kOriginalConnectionId: {
-        if (!out->original_connection_id.IsEmpty()) {
+        if (out->original_connection_id.has_value()) {
           *error_details = "Received a second original connection ID";
           return false;
         }
@@ -912,11 +912,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
               connection_id_length);
           return false;
         }
-        if (!value_reader.ReadConnectionId(&out->original_connection_id,
+        QuicConnectionId original_connection_id;
+        if (!value_reader.ReadConnectionId(&original_connection_id,
                                            connection_id_length)) {
           *error_details = "Failed to read original connection ID";
           return false;
         }
+        out->original_connection_id = original_connection_id;
       } break;
       case TransportParameters::kIdleTimeout:
         parse_success =

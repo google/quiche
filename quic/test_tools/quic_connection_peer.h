@@ -144,6 +144,10 @@ class QuicConnectionPeer {
   static QuicTime GetBlackholeDetectionDeadline(QuicConnection* connection);
 
   static QuicAlarm* GetIdleNetworkDetectorAlarm(QuicConnection* connection);
+
+  static void SetServerConnectionId(
+      QuicConnection* connection,
+      const QuicConnectionId& server_connection_id);
 };
 
 }  // namespace test

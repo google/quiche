@@ -49,6 +49,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -1593,6 +1594,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // received packets. This is conceptually a set but is implemented as a
   // vector to improve performance since it is expected to be very small.
   std::vector<QuicConnectionId> incoming_connection_ids_;
+
+  // When we receive a RETRY packet, we replace |server_connection_id_| with the
+  // value from the RETRY packet and save off the original value of
+  // |server_connection_id_| into |original_connection_id_| for validation.
+  quiche::QuicheOptional<QuicConnectionId> original_connection_id_;
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_;
