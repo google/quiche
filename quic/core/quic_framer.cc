@@ -1737,6 +1737,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         visitor_->OnUndecryptablePacket(
             QuicEncryptedPacket(encrypted_reader->FullPayload()),
             decryption_level, has_decryption_key);
+        RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
         set_detailed_error(quiche::QuicheStrCat(
             "Unable to decrypt ", EncryptionLevelToString(decryption_level),
             " header protection", has_decryption_key ? "" : " (missing key)",
