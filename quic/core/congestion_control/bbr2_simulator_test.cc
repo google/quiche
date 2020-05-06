@@ -933,9 +933,6 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeBwAfterQuiescencePostponeMinRttTimestamp) {
 
 // Regression test for http://shortn/_Jt1QWtshAM.
 TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
-  if (!GetQuicReloadableFlag(quic_bbr_copy_sampler_state_from_v1_to_v2)) {
-    return;
-  }
   QuicTime now = QuicTime::Zero();
   BbrSender old_sender(sender_connection()->clock()->Now(),
                        sender_connection()->sent_packet_manager().GetRttStats(),

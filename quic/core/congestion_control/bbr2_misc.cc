@@ -60,9 +60,7 @@ Bbr2NetworkModel::Bbr2NetworkModel(const Bbr2Params* params,
     : params_(params),
       bandwidth_sampler_([](QuicRoundTripCount max_height_tracker_window_length,
                             const BandwidthSampler* old_sampler) {
-        if (GetQuicReloadableFlag(quic_bbr_copy_sampler_state_from_v1_to_v2) &&
-            old_sampler != nullptr) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_copy_sampler_state_from_v1_to_v2);
+        if (old_sampler != nullptr) {
           return BandwidthSampler(*old_sampler);
         }
         return BandwidthSampler(/*unacked_packet_map=*/nullptr,
