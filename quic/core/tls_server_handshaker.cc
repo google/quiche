@@ -484,6 +484,15 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     hostname_ = hostname;
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname_);
+    if (GetQuicReloadableFlag(quic_tls_enforce_valid_sni)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_tls_enforce_valid_sni);
+      if (!QuicHostnameUtils::IsValidSNI(hostname_)) {
+        // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE
+        // frame.
+        QUIC_LOG(ERROR) << "Invalid SNI provided: \"" << hostname_ << "\"";
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+      }
+    }
   } else {
     QUIC_LOG(INFO) << "No hostname indicated in SNI";
   }

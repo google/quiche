@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -87,7 +88,14 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
+  if (QUIC_DLOG_INFO_IS_ON() &&
+      !QuicHostnameUtils::IsValidSNI(server_id_.host())) {
+    QUIC_DLOG(INFO) << "Client configured with invalid hostname \""
+                    << server_id_.host() << "\", not sending as SNI";
+  }
   if (!server_id_.host().empty() &&
+      (QuicHostnameUtils::IsValidSNI(server_id_.host()) ||
+       allow_invalid_sni_for_tests_) &&
       SSL_set_tlsext_host_name(ssl(), server_id_.host().c_str()) != 1) {
     return false;
   }

@@ -392,6 +392,26 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
   EXPECT_TRUE(server_stream()->encryption_established());
 }
 
+TEST_P(TlsClientHandshakerTest, InvalidSNI) {
+  // Test that a client will skip sending SNI if configured to send an invalid
+  // hostname. In this case, the inclusion of '!' is invalid.
+  server_id_ = QuicServerId("invalid!.example.com", 443);
+  crypto_config_.reset(new QuicCryptoClientConfig(
+      std::make_unique<FakeProofVerifier>(), nullptr));
+  CreateConnection();
+  InitializeFakeServer();
+
+  stream()->CryptoConnect();
+  crypto_test_utils::CommunicateHandshakeMessages(
+      connection_, stream(), server_connection_, server_stream());
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+
+  EXPECT_EQ(server_stream()->crypto_negotiated_params().sni, "");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

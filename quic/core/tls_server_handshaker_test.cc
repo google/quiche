@@ -356,6 +356,20 @@ TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {
   ExpectHandshakeSuccessful();
 }
 
+TEST_F(TlsServerHandshakerTest, RejectInvalidSNI) {
+  SetQuicReloadableFlag(quic_tls_enforce_valid_sni, true);
+  server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
+  InitializeFakeClient();
+  static_cast<TlsClientHandshaker*>(
+      QuicCryptoClientStreamPeer::GetHandshaker(client_stream()))
+      ->AllowInvalidSNIForTests();
+
+  // Run the handshake and expect it to fail.
+  AdvanceHandshakeWithFakeClient();
+  EXPECT_FALSE(server_stream()->encryption_established());
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
+}
+
 TEST_F(TlsServerHandshakerTest, Resumption) {
   // Do the first handshake
   InitializeFakeClient();
