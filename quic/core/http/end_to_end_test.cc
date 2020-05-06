@@ -3809,7 +3809,7 @@ TEST_P(EndToEndTest, SendMessages) {
     for (size_t i = 2; i <= kTestMaxNumberOfMessages; ++i) {
       size_t message_length =
           random->RandUint64() %
-              client_session->GetCurrentLargestMessagePayload() +
+              client_session->GetGuaranteedLargestMessagePayload() +
           1;
       MessageResult result = client_session->SendMessage(MakeSpan(
           client_session->connection()
