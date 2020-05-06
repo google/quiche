@@ -4016,7 +4016,8 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
   // Ensure the stream has been write closed upon receiving STOP_SENDING.
   EXPECT_EQ(stream_id, client_stream->id());
   EXPECT_TRUE(client_stream->write_side_closed());
-  EXPECT_LT(0u, observer.num_stop_sending_frames());
+  client_->WaitUntil(
+      -1, [&observer]() { return observer.num_stop_sending_frames() > 0; });
   if (!observer.stream_write_side_closed_before_receiving_stop_sending()) {
     EXPECT_EQ(kStopSendingTestCode,
               static_cast<uint16_t>(client_stream->stream_error()));
