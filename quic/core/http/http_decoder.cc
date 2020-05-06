@@ -50,19 +50,14 @@ bool HttpDecoder::DecodeSettings(const char* data,
     QUIC_DLOG(ERROR) << "Invalid frame type " << frame_type;
     return false;
   }
-  uint64_t frame_length;
-  if (!reader.ReadVarInt62(&frame_length)) {
-    QUIC_DLOG(ERROR) << "Unable to read frame length.";
+
+  quiche::QuicheStringPiece frame_contents;
+  if (!reader.ReadStringPieceVarInt62(&frame_contents)) {
+    QUIC_DLOG(ERROR) << "Failed to read SETTINGS frame contents";
     return false;
   }
 
-  std::string buffer;
-  if (!reader.ReadBytes(buffer.data(), frame_length)) {
-    QUIC_DLOG(ERROR) << "Unable to read frame payload.";
-    return false;
-  }
-
-  QuicDataReader frame_reader(buffer.data(), frame_length);
+  QuicDataReader frame_reader(frame_contents);
 
   while (!frame_reader.IsDoneReading()) {
     uint64_t id;
