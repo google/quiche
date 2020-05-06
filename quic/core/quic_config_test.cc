@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
@@ -23,6 +24,19 @@ namespace {
 
 const uint32_t kMaxPacketSizeForTest = 1234;
 const uint32_t kMaxDatagramFrameSizeForTest = 1333;
+const uint8_t kFakeStatelessResetTokenData[16] = {
+    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+    0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F};
+const uint64_t kFakeAckDelayExponent = 10;
+const uint64_t kFakeMaxAckDelay = 51;
+
+// TODO(b/153726130): Consider merging this with methods in
+// transport_parameters_test.cc.
+std::vector<uint8_t> CreateFakeStatelessResetToken() {
+  return std::vector<uint8_t>(
+      kFakeStatelessResetTokenData,
+      kFakeStatelessResetTokenData + sizeof(kFakeStatelessResetTokenData));
+}
 
 class QuicConfigTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
@@ -430,9 +444,9 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
   params.idle_timeout_milliseconds.set_value(120000);
 
   std::string error_details = "foobar";
-  EXPECT_THAT(
-      config_.ProcessTransportParameters(params, SERVER, &error_details),
-      IsQuicNoError());
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, SERVER, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
   EXPECT_EQ("", error_details);
   EXPECT_EQ(quic::QuicTime::Delta::FromSeconds(60),
             config_.IdleNetworkTimeout());
@@ -475,6 +489,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
+  SetQuicReloadableFlag(quic_negotiate_ack_delay_time, true);
   TransportParameters params;
 
   params.initial_max_stream_data_bidi_local.set_value(
@@ -486,12 +501,17 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.max_packet_size.set_value(kMaxPacketSizeForTest);
   params.max_datagram_frame_size.set_value(kMaxDatagramFrameSizeForTest);
   params.initial_max_streams_bidi.set_value(kDefaultMaxStreamsPerConnection);
+  params.stateless_reset_token = CreateFakeStatelessResetToken();
+  params.max_ack_delay.set_value(kFakeMaxAckDelay);
+  params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
 
   std::string error_details;
-  EXPECT_THAT(
-      config_.ProcessTransportParameters(params, SERVER, &error_details),
-      IsQuicNoError())
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, SERVER, /* is_resumption = */ true, &error_details),
+              IsQuicNoError())
       << error_details;
+
+  EXPECT_FALSE(config_.negotiated());
 
   ASSERT_TRUE(
       config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
@@ -520,6 +540,11 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   EXPECT_FALSE(config_.DisableConnectionMigration());
 
+  // The following config shouldn't be processed because of resumption.
+  EXPECT_FALSE(config_.HasReceivedStatelessResetToken());
+  EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
+  EXPECT_FALSE(config_.HasReceivedAckDelayExponent());
+
   // Let the config process another slightly tweaked transport paramters.
   // Note that the values for flow control and stream limit cannot be smaller
   // than before. This rule is enforced in QuicSession::OnConfigNegotiated().
@@ -535,10 +560,12 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
                                             kDefaultMaxStreamsPerConnection);
   params.disable_migration = true;
 
-  EXPECT_THAT(
-      config_.ProcessTransportParameters(params, SERVER, &error_details),
-      IsQuicNoError())
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, SERVER, /* is_resumption = */ false, &error_details),
+              IsQuicNoError())
       << error_details;
+
+  EXPECT_TRUE(config_.negotiated());
 
   ASSERT_TRUE(
       config_.HasReceivedInitialMaxStreamDataBytesIncomingBidirectional());
@@ -566,6 +593,13 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
             config_.ReceivedMaxBidirectionalStreams());
 
   EXPECT_TRUE(config_.DisableConnectionMigration());
+
+  ASSERT_TRUE(config_.HasReceivedStatelessResetToken());
+  ASSERT_TRUE(config_.HasReceivedMaxAckDelayMs());
+  EXPECT_EQ(config_.ReceivedMaxAckDelayMs(), kFakeMaxAckDelay);
+
+  ASSERT_TRUE(config_.HasReceivedAckDelayExponent());
+  EXPECT_EQ(config_.ReceivedAckDelayExponent(), kFakeAckDelayExponent);
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
@@ -576,9 +610,9 @@ TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
   TransportParameters params;
   params.disable_migration = true;
   std::string error_details;
-  EXPECT_THAT(
-      config_.ProcessTransportParameters(params, SERVER, &error_details),
-      IsQuicNoError());
+  EXPECT_THAT(config_.ProcessTransportParameters(
+                  params, SERVER, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
   EXPECT_TRUE(config_.DisableConnectionMigration());
 }
 

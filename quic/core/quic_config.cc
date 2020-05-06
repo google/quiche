@@ -1107,6 +1107,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
     HelloType hello_type,
+    bool is_resumption,
     std::string* error_details) {
   if (params.idle_timeout_milliseconds.value() > 0 &&
       params.idle_timeout_milliseconds.value() <
@@ -1118,7 +1119,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
         params.idle_timeout_milliseconds.value());
   }
 
-  if (!params.stateless_reset_token.empty()) {
+  if (!is_resumption && !params.stateless_reset_token.empty()) {
     QuicUint128 stateless_reset_token;
     if (params.stateless_reset_token.size() != sizeof(stateless_reset_token)) {
       QUIC_BUG << "Bad stateless reset token length "
@@ -1166,26 +1167,28 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   initial_max_stream_data_bytes_unidirectional_.SetReceivedValue(
       params.initial_max_stream_data_uni.value());
 
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
-    max_ack_delay_ms_.SetReceivedValue(params.max_ack_delay.value());
-  }
-  if (params.ack_delay_exponent.IsValid()) {
-    ack_delay_exponent_.SetReceivedValue(params.ack_delay_exponent.value());
-  }
-  if (params.disable_migration) {
-    connection_migration_disabled_.SetReceivedValue(1u);
+  if (!is_resumption) {
+    if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
+      max_ack_delay_ms_.SetReceivedValue(params.max_ack_delay.value());
+    }
+    if (params.ack_delay_exponent.IsValid()) {
+      ack_delay_exponent_.SetReceivedValue(params.ack_delay_exponent.value());
+    }
+    if (params.preferred_address != nullptr) {
+      if (params.preferred_address->ipv6_socket_address.port() != 0) {
+        alternate_server_address_ipv6_.SetReceivedValue(
+            params.preferred_address->ipv6_socket_address);
+      }
+      if (params.preferred_address->ipv4_socket_address.port() != 0) {
+        alternate_server_address_ipv4_.SetReceivedValue(
+            params.preferred_address->ipv4_socket_address);
+      }
+    }
   }
 
-  if (params.preferred_address != nullptr) {
-    if (params.preferred_address->ipv6_socket_address.port() != 0) {
-      alternate_server_address_ipv6_.SetReceivedValue(
-          params.preferred_address->ipv6_socket_address);
-    }
-    if (params.preferred_address->ipv4_socket_address.port() != 0) {
-      alternate_server_address_ipv4_.SetReceivedValue(
-          params.preferred_address->ipv4_socket_address);
-    }
+  if (params.disable_migration) {
+    connection_migration_disabled_.SetReceivedValue(1u);
   }
 
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
@@ -1206,7 +1209,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   received_custom_transport_parameters_ = params.custom_parameters;
 
-  negotiated_ = true;
+  if (!is_resumption) {
+    negotiated_ = true;
+  }
   *error_details = "";
   return QUIC_NO_ERROR;
 }

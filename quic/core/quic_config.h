@@ -460,10 +460,13 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
 
   // ProcessTransportParameters reads from |params| which was received from a
   // peer operating as a |hello_type|. It processes values for ICSL, MIDS, CFCW,
-  // and SFCW and sets the corresponding members of this QuicConfig. On failure,
-  // it returns a QuicErrorCode and puts a detailed error in |*error_details|.
+  // and SFCW and sets the corresponding members of this QuicConfig.
+  // If |is_resumption|, some configs will not be processed.
+  // On failure, it returns a QuicErrorCode and puts a detailed error in
+  // |*error_details|.
   QuicErrorCode ProcessTransportParameters(const TransportParameters& params,
                                            HelloType hello_type,
+                                           bool is_resumption,
                                            std::string* error_details);
 
   TransportParameters::ParameterMap& custom_transport_parameters_to_send() {

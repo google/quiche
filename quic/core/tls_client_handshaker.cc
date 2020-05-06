@@ -226,8 +226,8 @@ bool TlsClientHandshaker::ProcessTransportParameters(
           session()->connection()->server_supported_versions(),
           error_details) != QUIC_NO_ERROR ||
       session()->config()->ProcessTransportParameters(
-          *received_transport_params_, SERVER, error_details) !=
-          QUIC_NO_ERROR) {
+          *received_transport_params_, SERVER, /* is_resumption = */ false,
+          error_details) != QUIC_NO_ERROR) {
     DCHECK(!error_details->empty());
     return false;
   }

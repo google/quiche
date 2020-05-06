@@ -295,7 +295,8 @@ bool TlsServerHandshaker::ProcessTransportParameters(
           client_params.version, session()->connection()->version(),
           session()->supported_versions(), error_details) != QUIC_NO_ERROR ||
       session()->config()->ProcessTransportParameters(
-          client_params, CLIENT, error_details) != QUIC_NO_ERROR) {
+          client_params, CLIENT, /* is_resumption = */ false, error_details) !=
+          QUIC_NO_ERROR) {
     return false;
   }
   ProcessAdditionalTransportParameters(client_params);
