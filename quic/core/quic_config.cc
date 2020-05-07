@@ -453,7 +453,8 @@ QuicConfig::QuicConfig()
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_packet_size_(0, PRESENCE_OPTIONAL),
-      max_datagram_frame_size_(0, PRESENCE_OPTIONAL) {
+      max_datagram_frame_size_(0, PRESENCE_OPTIONAL),
+      active_connection_id_limit_(0, PRESENCE_OPTIONAL) {
   SetDefaults();
 }
 
@@ -650,6 +651,23 @@ bool QuicConfig::HasReceivedMaxDatagramFrameSize() const {
 
 uint64_t QuicConfig::ReceivedMaxDatagramFrameSize() const {
   return max_datagram_frame_size_.GetReceivedValue();
+}
+
+void QuicConfig::SetActiveConnectionIdLimitToSend(
+    uint64_t active_connection_id_limit) {
+  active_connection_id_limit_.SetSendValue(active_connection_id_limit);
+}
+
+uint64_t QuicConfig::GetActiveConnectionIdLimitToSend() const {
+  return active_connection_id_limit_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedActiveConnectionIdLimit() const {
+  return active_connection_id_limit_.HasReceivedValue();
+}
+
+uint64_t QuicConfig::ReceivedActiveConnectionIdLimit() const {
+  return active_connection_id_limit_.GetReceivedValue();
 }
 
 bool QuicConfig::HasSetBytesForConnectionIdToSend() const {
@@ -1115,6 +1133,11 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
             preferred_address);
   }
 
+  if (active_connection_id_limit_.HasSendValue()) {
+    params->active_connection_id_limit.set_value(
+        active_connection_id_limit_.GetSendValue());
+  }
+
   if (!params->google_quic_params) {
     params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
   }
@@ -1216,6 +1239,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (params.disable_migration) {
     connection_migration_disabled_.SetReceivedValue(1u);
   }
+
+  active_connection_id_limit_.SetReceivedValue(
+      params.active_connection_id_limit.value());
 
   const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
   if (peer_params != nullptr) {

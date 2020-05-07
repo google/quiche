@@ -22,13 +22,14 @@ namespace quic {
 namespace test {
 namespace {
 
-const uint32_t kMaxPacketSizeForTest = 1234;
-const uint32_t kMaxDatagramFrameSizeForTest = 1333;
-const uint8_t kFakeStatelessResetTokenData[16] = {
+constexpr uint32_t kMaxPacketSizeForTest = 1234;
+constexpr uint32_t kMaxDatagramFrameSizeForTest = 1333;
+constexpr uint8_t kFakeStatelessResetTokenData[16] = {
     0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
     0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F};
-const uint64_t kFakeAckDelayExponent = 10;
-const uint64_t kFakeMaxAckDelay = 51;
+constexpr uint64_t kFakeAckDelayExponent = 10;
+constexpr uint64_t kFakeMaxAckDelay = 51;
+constexpr uint64_t kFakeActiveConnectionIdLimit = 52;
 
 // TODO(b/153726130): Consider merging this with methods in
 // transport_parameters_test.cc.
@@ -465,6 +466,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
       4 * kMinimumFlowControlSendWindow);
   config_.SetMaxPacketSizeToSend(kMaxPacketSizeForTest);
   config_.SetMaxDatagramFrameSizeToSend(kMaxDatagramFrameSizeForTest);
+  config_.SetActiveConnectionIdLimitToSend(kFakeActiveConnectionIdLimit);
 
   TransportParameters params;
   config_.FillTransportParameters(&params);
@@ -482,6 +484,8 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(kMaxPacketSizeForTest, params.max_packet_size.value());
   EXPECT_EQ(kMaxDatagramFrameSizeForTest,
             params.max_datagram_frame_size.value());
+  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+            params.active_connection_id_limit.value());
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
@@ -504,6 +508,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.stateless_reset_token = CreateFakeStatelessResetToken();
   params.max_ack_delay.set_value(kFakeMaxAckDelay);
   params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
+  params.active_connection_id_limit.set_value(kFakeActiveConnectionIdLimit);
 
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
@@ -600,6 +605,10 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   ASSERT_TRUE(config_.HasReceivedAckDelayExponent());
   EXPECT_EQ(config_.ReceivedAckDelayExponent(), kFakeAckDelayExponent);
+
+  ASSERT_TRUE(config_.HasReceivedActiveConnectionIdLimit());
+  EXPECT_EQ(config_.ReceivedActiveConnectionIdLimit(),
+            kFakeActiveConnectionIdLimit);
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {

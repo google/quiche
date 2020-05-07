@@ -59,12 +59,14 @@ namespace {
 // The following constants define minimum and maximum allowed values for some of
 // the parameters. These come from the "Transport Parameter Definitions"
 // section of draft-ietf-quic-transport.
-const uint64_t kMinMaxPacketSizeTransportParam = 1200;
-const uint64_t kMaxAckDelayExponentTransportParam = 20;
-const uint64_t kDefaultAckDelayExponentTransportParam = 3;
-const uint64_t kMaxMaxAckDelayTransportParam = 16383;
-const uint64_t kDefaultMaxAckDelayTransportParam = 25;
-const size_t kStatelessResetTokenLength = 16;
+constexpr uint64_t kMinMaxPacketSizeTransportParam = 1200;
+constexpr uint64_t kMaxAckDelayExponentTransportParam = 20;
+constexpr uint64_t kDefaultAckDelayExponentTransportParam = 3;
+constexpr uint64_t kMaxMaxAckDelayTransportParam = 16383;
+constexpr uint64_t kDefaultMaxAckDelayTransportParam = 25;
+constexpr size_t kStatelessResetTokenLength = 16;
+constexpr uint64_t kMinActiveConnectionIdLimitTransportParam = 2;
+constexpr uint64_t kDefaultActiveConnectionIdLimitTransportParam = 2;
 
 std::string TransportParameterIdToString(
     TransportParameters::TransportParameterId param_id) {
@@ -449,7 +451,10 @@ TransportParameters::TransportParameters()
                     0,
                     kMaxMaxAckDelayTransportParam),
       disable_migration(false),
-      active_connection_id_limit(kActiveConnectionIdLimit),
+      active_connection_id_limit(kActiveConnectionIdLimit,
+                                 kDefaultActiveConnectionIdLimitTransportParam,
+                                 kMinActiveConnectionIdLimitTransportParam,
+                                 kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and

@@ -432,6 +432,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedMaxDatagramFrameSize() const;
   uint64_t ReceivedMaxDatagramFrameSize() const;
 
+  // IETF QUIC active_connection_id_limit transport parameter.
+  void SetActiveConnectionIdLimitToSend(uint64_t active_connection_id_limit);
+  uint64_t GetActiveConnectionIdLimitToSend() const;
+  bool HasReceivedActiveConnectionIdLimit() const;
+  uint64_t ReceivedActiveConnectionIdLimit() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -583,6 +589,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Maximum DATAGRAM/MESSAGE frame size in bytes.
   // Uses the max_datagram_frame_size transport parameter in IETF QUIC.
   QuicFixedUint62 max_datagram_frame_size_;
+
+  // Maximum number of connection IDs from the peer.
+  // Uses the active_connection_id_limit transport parameter in IETF QUIC.
+  QuicFixedUint62 active_connection_id_limit_;
 
   // Sent by the server when it has previously sent a RETRY packet.
   // Uses the original_connection_id transport parameter in IETF QUIC.

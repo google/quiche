@@ -388,6 +388,29 @@ TEST_P(TransportParametersTest, AreValid) {
               "Invalid transport parameters [Client ack_delay_exponent 21 "
               "(Invalid)]");
   }
+  {
+    TransportParameters params;
+    std::string error_details;
+    params.perspective = Perspective::IS_CLIENT;
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+    params.active_connection_id_limit.set_value(2);
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+    params.active_connection_id_limit.set_value(999999);
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+    params.active_connection_id_limit.set_value(1);
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details,
+              "Invalid transport parameters [Client active_connection_id_limit"
+              " 1 (Invalid)]");
+    params.active_connection_id_limit.set_value(0);
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details,
+              "Invalid transport parameters [Client active_connection_id_limit"
+              " 0 (Invalid)]");
+  }
 }
 
 TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
