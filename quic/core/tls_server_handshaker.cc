@@ -502,7 +502,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
       proof_source_->GetCertChain(session()->connection()->self_address(),
                                   session()->connection()->peer_address(),
                                   hostname_);
-  if (chain->certs.empty()) {
+  if (!chain || chain->certs.empty()) {
     QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }

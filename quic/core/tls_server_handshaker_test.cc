@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/failing_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/fake_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
@@ -73,6 +74,12 @@ class TlsServerHandshakerTest : public QuicTest {
     server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
         QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
         std::move(proof_source), KeyExchangeSource::Default());
+  }
+
+  void InitializeServerConfigWithFailingProofSource() {
+    server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
+        QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
+        std::make_unique<FailingProofSource>(), KeyExchangeSource::Default());
   }
 
   // Initializes the crypto server stream state for testing.  May be
@@ -441,6 +448,18 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
+}
+
+TEST_F(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
+  InitializeServerConfigWithFailingProofSource();
+  InitializeServer();
+  InitializeFakeClient();
+
+  // Attempt handshake.
+  AdvanceHandshakeWithFakeClient();
+  // Check that the server didn't send any handshake messages, because it failed
+  // to handshake.
+  EXPECT_EQ(moved_messages_counts_.second, 0u);
 }
 
 }  // namespace
