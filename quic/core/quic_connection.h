@@ -1259,6 +1259,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Whether connection is limited by amplification factor.
   bool LimitedByAmplificationFactor() const;
 
+  // Called before sending a packet to get packet send time and to set the
+  // release time delay in |per_packet_options_|. Return the time when the
+  // packet is scheduled to be released(a.k.a send time), which is NOW + delay.
+  // Returns Now() and does not update release time delay if
+  // |supports_release_time_| is false.
+  QuicTime CalculatePacketSentTime();
+
   // We've got a packet write error, should we ignore it?
   // NOTE: This is not a const function - if return true, the max packet size is
   // reverted to a previous(smaller) value to avoid write errors in the future.

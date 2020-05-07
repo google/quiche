@@ -28,8 +28,10 @@ struct QUIC_EXPORT_PRIVATE PerPacketOptions {
   // would not forget to override it.
   virtual std::unique_ptr<PerPacketOptions> Clone() const = 0;
 
-  // Specifies release time delay for this packet.
+  // Specifies ideal release time delay for this packet.
   QuicTime::Delta release_time_delay = QuicTime::Delta::Zero();
+  // Whether it is allowed to send this packet without |release_time_delay|.
+  bool allow_burst = false;
 };
 
 // An interface between writers and the entity managing the

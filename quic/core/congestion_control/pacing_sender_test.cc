@@ -27,6 +27,16 @@ namespace test {
 const QuicByteCount kBytesInFlight = 1024;
 const int kInitialBurstPackets = 10;
 
+class TestPacingSender : public PacingSender {
+ public:
+  using PacingSender::lumpy_tokens;
+  using PacingSender::PacingSender;
+
+  QuicTime ideal_next_packet_send_time() const {
+    return GetNextReleaseTime().release_time;
+  }
+};
+
 class PacingSenderTest : public QuicTest {
  protected:
   PacingSenderTest()
@@ -34,7 +44,7 @@ class PacingSenderTest : public QuicTest {
         infinite_time_(QuicTime::Delta::Infinite()),
         packet_number_(1),
         mock_sender_(new StrictMock<MockSendAlgorithm>()),
-        pacing_sender_(new PacingSender) {
+        pacing_sender_(new TestPacingSender) {
     pacing_sender_->set_sender(mock_sender_.get());
     // Pick arbitrary time.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(9));
@@ -44,7 +54,7 @@ class PacingSenderTest : public QuicTest {
 
   void InitPacingRate(QuicPacketCount burst_size, QuicBandwidth bandwidth) {
     mock_sender_ = std::make_unique<StrictMock<MockSendAlgorithm>>();
-    pacing_sender_ = std::make_unique<PacingSender>();
+    pacing_sender_ = std::make_unique<TestPacingSender>();
     pacing_sender_->set_sender(mock_sender_.get());
     EXPECT_CALL(*mock_sender_, PacingRate(_)).WillRepeatedly(Return(bandwidth));
     EXPECT_CALL(*mock_sender_, BandwidthEstimate())
@@ -132,7 +142,7 @@ class PacingSenderTest : public QuicTest {
   MockClock clock_;
   QuicPacketNumber packet_number_;
   std::unique_ptr<StrictMock<MockSendAlgorithm>> mock_sender_;
-  std::unique_ptr<PacingSender> pacing_sender_;
+  std::unique_ptr<TestPacingSender> pacing_sender_;
 };
 
 TEST_F(PacingSenderTest, NoSend) {
@@ -464,6 +474,78 @@ TEST_F(PacingSenderTest, NoLumpyPacingForLowBandwidthFlows) {
   for (int i = 0; i < 200; ++i) {
     CheckPacketIsDelayed(inter_packet_delay);
   }
+}
+
+TEST_F(PacingSenderTest, IdealNextPacketSendTimeWithLumpyPacing) {
+  // Set lumpy size to be 3, and cwnd faction to 0.5
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_size, 3);
+  SetQuicFlag(FLAGS_quic_lumpy_pacing_cwnd_fraction, 0.5f);
+
+  // Configure pacing rate of 1 packet per millisecond.
+  QuicTime::Delta inter_packet_delay = QuicTime::Delta::FromMilliseconds(1);
+  InitPacingRate(kInitialBurstPackets,
+                 QuicBandwidth::FromBytesAndTimeDelta(kMaxOutgoingPacketSize,
+                                                      inter_packet_delay));
+
+  // Send kInitialBurstPackets packets, and verify that they are not paced.
+  for (int i = 0; i < kInitialBurstPackets; ++i) {
+    CheckPacketIsSentImmediately();
+  }
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 2u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 2 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 1u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 3 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 0u);
+
+  CheckPacketIsDelayed(3 * inter_packet_delay);
+
+  // Wake up on time.
+  clock_.AdvanceTime(3 * inter_packet_delay);
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 2u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 2 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 1u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 3 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 0u);
+
+  CheckPacketIsDelayed(3 * inter_packet_delay);
+
+  // Wake up late.
+  clock_.AdvanceTime(4.5 * inter_packet_delay);
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() - 0.5 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 2u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 0.5 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 1u);
+
+  CheckPacketIsSentImmediately();
+  EXPECT_EQ(pacing_sender_->ideal_next_packet_send_time(),
+            clock_.Now() + 1.5 * inter_packet_delay);
+  EXPECT_EQ(pacing_sender_->lumpy_tokens(), 0u);
+
+  CheckPacketIsDelayed(1.5 * inter_packet_delay);
 }
 
 }  // namespace test

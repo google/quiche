@@ -2196,6 +2196,23 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   return true;
 }
 
+QuicTime QuicConnection::CalculatePacketSentTime() {
+  const QuicTime now = clock_->Now();
+  if (!supports_release_time_ || per_packet_options_ == nullptr) {
+    // Don't change the release delay.
+    return now;
+  }
+
+  auto next_release_time_result = sent_packet_manager_.GetNextReleaseTime();
+
+  // Release before |now| is impossible.
+  QuicTime next_release_time =
+      std::max(now, next_release_time_result.release_time);
+  per_packet_options_->release_time_delay = next_release_time - now;
+  per_packet_options_->allow_burst = next_release_time_result.allow_burst;
+  return next_release_time;
+}
+
 bool QuicConnection::WritePacket(SerializedPacket* packet) {
   if (ShouldDiscardPacket(*packet)) {
     ++stats_.packets_discarded;
@@ -2250,18 +2267,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // Measure the RTT from before the write begins to avoid underestimating the
   // min_rtt_, especially in cases where the thread blocks or gets swapped out
   // during the WritePacket below.
-  QuicTime packet_send_time = clock_->Now();
-  if (supports_release_time_ && per_packet_options_ != nullptr) {
-    QuicTime next_release_time = sent_packet_manager_.GetNextReleaseTime();
-    QuicTime::Delta release_time_delay = QuicTime::Delta::Zero();
-    QuicTime now = packet_send_time;
-    if (next_release_time > now) {
-      release_time_delay = next_release_time - now;
-      // Set packet_send_time to the future to make the RTT estimation accurate.
-      packet_send_time = next_release_time;
-    }
-    per_packet_options_->release_time_delay = release_time_delay;
-  }
+  QuicTime packet_send_time = CalculatePacketSentTime();
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   switch (fate) {
     case COALESCE:

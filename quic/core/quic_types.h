@@ -723,6 +723,13 @@ enum HandshakeState {
   HANDSHAKE_CONFIRMED,
 };
 
+struct QUIC_NO_EXPORT NextReleaseTimeResult {
+  // The ideal release time of the packet being sent.
+  QuicTime release_time;
+  // Whether it is allowed to send the packet before release_time.
+  bool allow_burst;
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

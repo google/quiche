@@ -1404,9 +1404,12 @@ void QuicSentPacketManager::OnApplicationLimited() {
   }
 }
 
-QuicTime QuicSentPacketManager::GetNextReleaseTime() const {
-  return using_pacing_ ? pacing_sender_.ideal_next_packet_send_time()
-                       : QuicTime::Zero();
+NextReleaseTimeResult QuicSentPacketManager::GetNextReleaseTime() const {
+  if (!using_pacing_) {
+    return {QuicTime::Zero(), false};
+  }
+
+  return pacing_sender_.GetNextReleaseTime();
 }
 
 void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {

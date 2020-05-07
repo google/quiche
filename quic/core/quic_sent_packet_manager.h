@@ -341,7 +341,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     unacked_packets_.SetSessionNotifier(session_notifier);
   }
 
-  QuicTime GetNextReleaseTime() const;
+  NextReleaseTimeResult GetNextReleaseTime() const;
 
   QuicPacketCount initial_congestion_window() const {
     return initial_congestion_window_;
