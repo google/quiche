@@ -506,6 +506,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     packet_creator_.SetMaxPacketLength(
         GetLimitedMaxPacketSize(packet_creator_.max_packet_length()));
   }
+  if (config.HasReceivedMaxDatagramFrameSize()) {
+    packet_creator_.SetMaxDatagramFrameSize(
+        config.ReceivedMaxDatagramFrameSize());
+  }
 
   supports_release_time_ =
       writer_ != nullptr && writer_->SupportsReleaseTime() &&

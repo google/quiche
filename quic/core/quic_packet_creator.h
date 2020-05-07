@@ -278,6 +278,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Sets the maximum packet length.
   void SetMaxPacketLength(QuicByteCount length);
 
+  // Sets the maximum DATAGRAM/MESSAGE frame size we can send.
+  void SetMaxDatagramFrameSize(QuicByteCount max_datagram_frame_size);
+
   // Set a soft maximum packet length in the creator. If a packet cannot be
   // successfully created, creator will remove the soft limit and use the actual
   // max packet length.
@@ -589,6 +592,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // SetSoftMaxPacketLength is called and max_packet_length_ gets
   // set to a soft value.
   QuicByteCount latched_hard_max_packet_length_;
+
+  // The maximum length of a MESSAGE/DATAGRAM frame that our peer is willing to
+  // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
+  // negotiates this during the handshake.
+  QuicByteCount max_datagram_frame_size_;
 };
 
 }  // namespace quic

@@ -9150,6 +9150,13 @@ TEST_P(QuicConnectionTest, SendMessage) {
   if (!VersionSupportsMessageFrames(connection_.transport_version())) {
     return;
   }
+  if (connection_.version().UsesTls()) {
+    QuicConfig config;
+    QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
+        &config, kMaxAcceptedDatagramFrameSize);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_.SetFromConfig(config);
+  }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
   quiche::QuicheStringPiece message_data(message);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
@@ -9190,6 +9197,94 @@ TEST_P(QuicConnectionTest, SendMessage) {
                              connection_.GetCurrentLargestMessagePayload() + 1),
                          &storage),
                 false));
+}
+
+TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
+  if (!connection_.version().SupportsMessageFrames()) {
+    return;
+  }
+  // Force use of this encrypter to simplify test expectations by making sure
+  // that the encryption overhead is constant across versions.
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x00));
+  QuicPacketLength expected_largest_payload = 1319;
+  if (connection_.version().SendsVariableLengthPacketNumberInLongHeader()) {
+    expected_largest_payload += 3;
+  }
+  if (connection_.version().HasLongHeaderLengths()) {
+    expected_largest_payload -= 2;
+  }
+  if (connection_.version().HasLengthPrefixedConnectionIds()) {
+    expected_largest_payload -= 1;
+  }
+  if (connection_.version().UsesTls()) {
+    // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
+    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), 0);
+    QuicConfig config;
+    QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
+        &config, kMaxAcceptedDatagramFrameSize);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_.SetFromConfig(config);
+    // Verify the value post-handshake.
+    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(),
+              expected_largest_payload);
+  } else {
+    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(),
+              expected_largest_payload);
+  }
+}
+
+TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
+  if (!connection_.version().SupportsMessageFrames()) {
+    return;
+  }
+  // Force use of this encrypter to simplify test expectations by making sure
+  // that the encryption overhead is constant across versions.
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x00));
+  QuicPacketLength expected_largest_payload = 1319;
+  if (connection_.version().HasLongHeaderLengths()) {
+    expected_largest_payload -= 2;
+  }
+  if (connection_.version().HasLengthPrefixedConnectionIds()) {
+    expected_largest_payload -= 1;
+  }
+  if (connection_.version().UsesTls()) {
+    // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
+    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(), 0);
+    QuicConfig config;
+    QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
+        &config, kMaxAcceptedDatagramFrameSize);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_.SetFromConfig(config);
+    // Verify the value post-handshake.
+    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+              expected_largest_payload);
+  } else {
+    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+              expected_largest_payload);
+  }
+}
+
+TEST_P(QuicConnectionTest, LimitedLargestMessagePayload) {
+  if (!connection_.version().SupportsMessageFrames() ||
+      !connection_.version().UsesTls()) {
+    return;
+  }
+  constexpr QuicPacketLength kFrameSizeLimit = 1000;
+  constexpr QuicPacketLength kPayloadSizeLimit =
+      kFrameSizeLimit - kQuicFrameTypeSize;
+  // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
+  EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), 0);
+  EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(), 0);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMaxDatagramFrameSize(&config, kFrameSizeLimit);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  // Verify the value post-handshake.
+  EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), kPayloadSizeLimit);
+  EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+            kPayloadSizeLimit);
 }
 
 // Test to check that the path challenge/path response logic works
@@ -10575,6 +10670,10 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   connection_options.push_back(kPTOS);
   connection_options.push_back(k1PTO);
   config.SetConnectionOptionsToSend(connection_options);
+  if (connection_.version().UsesTls()) {
+    QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
+        &config, kMaxAcceptedDatagramFrameSize);
+  }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());

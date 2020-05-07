@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -130,8 +131,15 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       next_transmission_type_(NOT_RETRANSMISSION),
       flusher_attached_(false),
       fully_pad_crypto_handshake_packets_(true),
-      latched_hard_max_packet_length_(0) {
+      latched_hard_max_packet_length_(0),
+      max_datagram_frame_size_(0) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
+  if (!framer_->version().UsesTls()) {
+    // QUIC+TLS negotiates the maximum datagram frame size via the
+    // IETF QUIC max_datagram_frame_size transport parameter.
+    // QUIC_CRYPTO however does not negotiate this so we set its value here.
+    SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
 }
 
 QuicPacketCreator::~QuicPacketCreator() {
@@ -163,6 +171,21 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
   QUIC_BUG_IF(max_plaintext_size_ - PacketHeaderSize() <
               MinPlaintextPacketSize(framer_->version()))
       << "Attempted to set max packet length too small";
+}
+
+void QuicPacketCreator::SetMaxDatagramFrameSize(
+    QuicByteCount max_datagram_frame_size) {
+  constexpr QuicByteCount upper_bound =
+      std::min<QuicByteCount>(std::numeric_limits<QuicPacketLength>::max(),
+                              std::numeric_limits<size_t>::max());
+  if (max_datagram_frame_size > upper_bound) {
+    // A value of |max_datagram_frame_size| that is equal or greater than
+    // 2^16-1 is effectively infinite because QUIC packets cannot be that large.
+    // We therefore clamp the value here to allow us to safely cast
+    // |max_datagram_frame_size_| to QuicPacketLength or size_t.
+    max_datagram_frame_size = upper_bound;
+  }
+  max_datagram_frame_size_ = max_datagram_frame_size;
 }
 
 void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
@@ -326,6 +349,10 @@ bool QuicPacketCreator::HasRoomForStreamFrame(QuicStreamId id,
 bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
   const size_t message_frame_size = QuicFramer::GetMessageFrameSize(
       framer_->transport_version(), /*last_frame_in_packet=*/true, length);
+  if (static_cast<QuicByteCount>(message_frame_size) >
+      max_datagram_frame_size_) {
+    return false;
+  }
   if (BytesFree() >= message_frame_size) {
     return true;
   }
@@ -1705,8 +1732,12 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
       latched_hard_max_packet_length_ == 0
           ? max_plaintext_size_
           : framer_->GetMaxPlaintextSize(latched_hard_max_packet_length_);
-  return max_plaintext_size -
-         std::min(max_plaintext_size, packet_header_size + kQuicFrameTypeSize);
+  size_t largest_frame =
+      max_plaintext_size - std::min(max_plaintext_size, packet_header_size);
+  if (static_cast<QuicByteCount>(largest_frame) > max_datagram_frame_size_) {
+    largest_frame = static_cast<size_t>(max_datagram_frame_size_);
+  }
+  return largest_frame - std::min(largest_frame, kQuicFrameTypeSize);
 }
 
 QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
@@ -1739,9 +1770,13 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       latched_hard_max_packet_length_ == 0
           ? max_plaintext_size_
           : framer_->GetMaxPlaintextSize(latched_hard_max_packet_length_);
+  size_t largest_frame =
+      max_plaintext_size - std::min(max_plaintext_size, packet_header_size);
+  if (static_cast<QuicByteCount>(largest_frame) > max_datagram_frame_size_) {
+    largest_frame = static_cast<size_t>(max_datagram_frame_size_);
+  }
   const QuicPacketLength largest_payload =
-      max_plaintext_size -
-      std::min(max_plaintext_size, packet_header_size + kQuicFrameTypeSize);
+      largest_frame - std::min(largest_frame, kQuicFrameTypeSize);
   // This must always be less than or equal to GetCurrentLargestMessagePayload.
   DCHECK_LE(largest_payload, GetCurrentLargestMessagePayload());
   return largest_payload;

@@ -65,6 +65,9 @@ class QuicConfigPeer {
   static void SetReceivedOriginalConnectionId(
       QuicConfig* config,
       const QuicConnectionId& original_connection_id);
+
+  static void SetReceivedMaxDatagramFrameSize(QuicConfig* config,
+                                              uint64_t max_datagram_frame_size);
 };
 
 }  // namespace test

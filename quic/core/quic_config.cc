@@ -1188,7 +1188,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   if (params.max_datagram_frame_size.IsValid()) {
     max_datagram_frame_size_.SetReceivedValue(
         params.max_datagram_frame_size.value());
-    // TODO(dschinazi) act on this.
   }
 
   initial_session_flow_control_window_bytes_.SetReceivedValue(

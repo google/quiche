@@ -1778,6 +1778,9 @@ TEST_P(QuicPacketCreatorTest, AddMessageFrame) {
   if (!VersionSupportsMessageFrames(client_framer_.transport_version())) {
     return;
   }
+  if (client_framer_.version().UsesTls()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
       .Times(3)
@@ -1830,6 +1833,9 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   if (!VersionSupportsMessageFrames(client_framer_.transport_version())) {
     return;
   }
+  if (client_framer_.version().UsesTls()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
   std::string message_data(kDefaultMaxPacketSize, 'a');
   quiche::QuicheStringPiece message_buffer(message_data);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
@@ -1871,21 +1877,93 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
   }
 }
 
-// Regression test for bugfix of GetPacketHeaderSize.
 TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestMessagePayload) {
-  QuicTransportVersion version = creator_.transport_version();
-  if (!VersionSupportsMessageFrames(version)) {
+  ParsedQuicVersion version = GetParam().version;
+  if (!version.SupportsMessageFrames()) {
     return;
   }
+  if (version.UsesTls()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
   QuicPacketLength expected_largest_payload = 1319;
-  if (QuicVersionHasLongHeaderLengths(version)) {
+  if (version.HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }
-  if (GetParam().version.HasLengthPrefixedConnectionIds()) {
+  if (version.HasLengthPrefixedConnectionIds()) {
     expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
             creator_.GetGuaranteedLargestMessagePayload());
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
+      creator_.GetGuaranteedLargestMessagePayload()));
+
+  // Now test whether SetMaxDatagramFrameSize works.
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload + 1 +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetGuaranteedLargestMessagePayload());
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
+      creator_.GetGuaranteedLargestMessagePayload()));
+
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetGuaranteedLargestMessagePayload());
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
+      creator_.GetGuaranteedLargestMessagePayload()));
+
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload - 1 +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload - 1,
+            creator_.GetGuaranteedLargestMessagePayload());
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(
+      creator_.GetGuaranteedLargestMessagePayload()));
+
+  constexpr QuicPacketLength kFrameSizeLimit = 1000;
+  constexpr QuicPacketLength kPayloadSizeLimit =
+      kFrameSizeLimit - kQuicFrameTypeSize;
+  creator_.SetMaxDatagramFrameSize(kFrameSizeLimit);
+  EXPECT_EQ(creator_.GetGuaranteedLargestMessagePayload(), kPayloadSizeLimit);
+  EXPECT_TRUE(creator_.HasRoomForMessageFrame(kPayloadSizeLimit));
+  EXPECT_FALSE(creator_.HasRoomForMessageFrame(kPayloadSizeLimit + 1));
+}
+
+TEST_P(QuicPacketCreatorTest, GetCurrentLargestMessagePayload) {
+  ParsedQuicVersion version = GetParam().version;
+  if (!version.SupportsMessageFrames()) {
+    return;
+  }
+  if (version.UsesTls()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
+  QuicPacketLength expected_largest_payload = 1319;
+  if (version.SendsVariableLengthPacketNumberInLongHeader()) {
+    expected_largest_payload += 3;
+  }
+  if (version.HasLongHeaderLengths()) {
+    expected_largest_payload -= 2;
+  }
+  if (version.HasLengthPrefixedConnectionIds()) {
+    expected_largest_payload -= 1;
+  }
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetCurrentLargestMessagePayload());
+
+  // Now test whether SetMaxDatagramFrameSize works.
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload + 1 +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetCurrentLargestMessagePayload());
+
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload,
+            creator_.GetCurrentLargestMessagePayload());
+
+  creator_.SetMaxDatagramFrameSize(expected_largest_payload - 1 +
+                                   kQuicFrameTypeSize);
+  EXPECT_EQ(expected_largest_payload - 1,
+            creator_.GetCurrentLargestMessagePayload());
 }
 
 TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
@@ -2189,6 +2267,9 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
   // Same for message frame.
   if (VersionSupportsMessageFrames(client_framer_.transport_version())) {
     creator_.SetSoftMaxPacketLength(overhead);
+    if (client_framer_.version().UsesTls()) {
+      creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+    }
     // Verify GetCurrentLargestMessagePayload is based on the actual
     // max_packet_length.
     EXPECT_LT(1u, creator_.GetCurrentLargestMessagePayload());
@@ -3676,6 +3757,9 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 TEST_F(QuicPacketCreatorMultiplePacketsTest, AddMessageFrame) {
   if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
+  }
+  if (framer_.version().UsesTls()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   quic::QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   delegate_.SetCanWriteAnything();

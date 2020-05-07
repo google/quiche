@@ -110,5 +110,12 @@ void QuicConfigPeer::SetReceivedOriginalConnectionId(
   config->received_original_connection_id_ = original_connection_id;
 }
 
+// static
+void QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
+    QuicConfig* config,
+    uint64_t max_datagram_frame_size) {
+  config->max_datagram_frame_size_.SetReceivedValue(max_datagram_frame_size);
+}
+
 }  // namespace test
 }  // namespace quic
