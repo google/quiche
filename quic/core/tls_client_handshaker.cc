@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
@@ -118,6 +119,20 @@ bool TlsClientHandshaker::CryptoConnect() {
         session_cache_->Lookup(server_id_, SSL_get_SSL_CTX(ssl()));
     if (cached_state) {
       SSL_set_session(ssl(), cached_state->tls_session.get());
+      if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
+          VersionHasIetfQuicFrames(session()->transport_version()) &&
+          SSL_SESSION_early_data_capable(cached_state->tls_session.get())) {
+        std::string error_details;
+        if (session()->config()->ProcessTransportParameters(
+                *(cached_state->transport_params), SERVER,
+                /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
+          QUIC_BUG << "Cached transport parameters failed to be parsed";
+          CloseConnection(QUIC_HANDSHAKE_FAILED,
+                          "Client failed to parse cached Transport Parameters");
+          return false;
+        }
+        session()->OnConfigNegotiated();
+      }
     }
   }
 
@@ -378,6 +393,7 @@ void TlsClientHandshaker::AdvanceHandshake() {
   int ssl_error = SSL_get_error(ssl(), rv);
   bool should_close = true;
   switch (state_) {
+    // TODO(b/153726130): handle the case where the server rejects early data.
     case STATE_HANDSHAKE_RUNNING:
       should_close = ssl_error != SSL_ERROR_WANT_READ;
       break;

@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -27,6 +28,9 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
       proof_source->GetTicketCrypter()) {
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
+    if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
+      SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
+    }
   } else {
     SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_TICKET);
   }
