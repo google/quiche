@@ -299,6 +299,7 @@ QuicConnection::QuicConnection(
       handshake_timeout_(QuicTime::Delta::Infinite()),
       time_of_first_packet_sent_after_receiving_(QuicTime::Zero()),
       time_of_last_received_packet_(clock_->ApproximateNow()),
+      time_of_last_decryptable_packet_(time_of_last_received_packet_),
       sent_packet_manager_(perspective,
                            clock_,
                            random_generator_,
@@ -844,6 +845,14 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
       last_decrypted_packet_level_ >= ENCRYPTION_HANDSHAKE) {
     // Address is validated by successfully processing a HANDSHAKE packet.
     address_validated_ = true;
+  }
+  if (extend_idle_time_on_decryptable_packets_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_extend_idle_time_on_decryptable_packets);
+    if (use_idle_network_detector_) {
+      idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
+    } else {
+      time_of_last_decryptable_packet_ = time_of_last_received_packet_;
+    }
   }
 
   visitor_->OnPacketDecrypted(level);
@@ -1834,7 +1843,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
              << " too far from current time:"
              << clock_->ApproximateNow().ToDebuggingValue();
   }
-  if (use_idle_network_detector_) {
+  if (!extend_idle_time_on_decryptable_packets_ && use_idle_network_detector_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 1, 6);
     idle_network_detector_.OnPacketReceived(packet.receipt_time());
   } else {
@@ -2414,7 +2423,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       idle_network_detector_.OnPacketSent(packet_send_time);
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 2, 6);
     } else if (time_of_first_packet_sent_after_receiving_ <
-               time_of_last_received_packet_) {
+               GetTimeOfLastReceivedPacket()) {
       // Update |time_of_first_packet_sent_after_receiving_| if this is the
       // first packet sent after the last packet was received. If it were
       // updated on every sent packet, then sending into a black hole might
@@ -3192,7 +3201,7 @@ void QuicConnection::CheckForTimeout() {
   }
 
   QuicTime time_of_last_packet =
-      std::max(time_of_last_received_packet_,
+      std::max(GetTimeOfLastReceivedPacket(),
                time_of_first_packet_sent_after_receiving_);
 
   // |delta| can be < 0 as |now| is approximate time but |time_of_last_packet|
@@ -3228,7 +3237,7 @@ void QuicConnection::CheckForTimeout() {
 void QuicConnection::SetTimeoutAlarm() {
   DCHECK(!use_idle_network_detector_);
   QuicTime time_of_last_packet =
-      std::max(time_of_last_received_packet_,
+      std::max(GetTimeOfLastReceivedPacket(),
                time_of_first_packet_sent_after_receiving_);
 
   QuicTime deadline = time_of_last_packet + idle_network_timeout_;
@@ -4359,6 +4368,11 @@ QuicTime::Delta QuicConnection::GetHandshakeTimeout() const {
 QuicTime QuicConnection::GetTimeOfLastReceivedPacket() const {
   if (use_idle_network_detector_) {
     return idle_network_detector_.time_of_last_received_packet();
+  }
+  if (extend_idle_time_on_decryptable_packets_) {
+    DCHECK(time_of_last_decryptable_packet_ == time_of_last_received_packet_ ||
+           !last_packet_decrypted_);
+    return time_of_last_decryptable_packet_;
   }
   return time_of_last_received_packet_;
 }

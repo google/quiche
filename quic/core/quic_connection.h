@@ -1471,13 +1471,20 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Timestamps used for timeouts.
   // The time of the first retransmittable packet that was sent after the most
   // recently received packet.
-  // TODO(fayang): Remove these two when deprecating
-  // quic_use_idle_network_detector.
+  // TODO(fayang): Remove time_of_first_packet_sent_after_receiving_ when
+  // deprecating quic_use_idle_network_detector.
   QuicTime time_of_first_packet_sent_after_receiving_;
   // The time that a packet is received for this connection. Initialized to
   // connection creation time.
-  // This is used for timeouts, and does not indicate the packet was processed.
+  // This does not indicate the packet was processed.
   QuicTime time_of_last_received_packet_;
+  // This gets set to time_of_last_received_packet_ when a packet gets
+  // decrypted. Please note, this is not necessarily the original receive time
+  // of this decrypt packet because connection can decryptable packet out of
+  // order.
+  // TODO(fayang): Remove time_of_last_decryptable_packet_ when
+  // deprecating quic_use_idle_network_detector.
+  QuicTime time_of_last_decryptable_packet_;
 
   // Sent packet manager which tracks the status of packets sent by this
   // connection and contains the send and receive algorithms to determine when
@@ -1651,6 +1658,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool use_idle_network_detector_ =
       use_blackhole_detector_ &&
       GetQuicReloadableFlag(quic_use_idle_network_detector);
+
+  const bool extend_idle_time_on_decryptable_packets_ =
+      GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets);
 };
 
 }  // namespace quic

@@ -10634,6 +10634,48 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
   }
 }
 
+TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  // Subtract a second from the idle timeout on the client side.
+  QuicTime initial_deadline =
+      clock_.ApproximateNow() +
+      QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs - 1);
+  EXPECT_EQ(initial_deadline, connection_.GetTimeoutAlarm()->deadline());
+
+  // Received an undecryptable packet.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
+  const uint8_t tag = 0x07;
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(tag));
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets) ||
+      !GetQuicReloadableFlag(quic_use_blackhole_detector)) {
+    // Verify deadline does not get extended.
+    EXPECT_EQ(initial_deadline, connection_.GetTimeoutAlarm()->deadline());
+  }
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
+  }
+  QuicTime::Delta delay = initial_deadline - clock_.ApproximateNow();
+  clock_.AdvanceTime(delay);
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets) ||
+      !GetQuicReloadableFlag(quic_use_blackhole_detector)) {
+    connection_.GetTimeoutAlarm()->Fire();
+  }
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
+    // Verify connection gets closed.
+    EXPECT_FALSE(connection_.connected());
+  } else {
+    // Verify the timeout alarm deadline is updated.
+    EXPECT_TRUE(connection_.connected());
+    EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
