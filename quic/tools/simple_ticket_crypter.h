@@ -17,7 +17,7 @@ namespace quic {
 // keeping track of the previous key used to facilitate decrypting older
 // tickets. This implementation is not suitable for server setups where multiple
 // servers need to share keys.
-class QUIC_EXPORT SimpleTicketCrypter
+class QUIC_NO_EXPORT SimpleTicketCrypter
     : public quic::ProofSource::TicketCrypter {
  public:
   explicit SimpleTicketCrypter(QuicClock* clock);
