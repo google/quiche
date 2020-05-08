@@ -3943,7 +3943,14 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   client_->WaitForResponse();
   EXPECT_EQ(kBarResponseBody, client_->response_body());
   QuicConnectionStats client_stats = GetClientConnection()->GetStats();
-  EXPECT_EQ(0u, client_stats.packets_lost);
+  if (GetQuicReloadableFlag(quic_advance_ack_timeout_update)) {
+    // Client sends CHLO in packet 1 and retransmitted in packet 2. Because of
+    // the delay, server processes packet 2 and later drops packet 1. ACK is
+    // bundled with SHLO, such that 1 can be detected loss by time threshold.
+    EXPECT_LE(0u, client_stats.packets_lost);
+  } else {
+    EXPECT_EQ(0u, client_stats.packets_lost);
+  }
   EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 }
 

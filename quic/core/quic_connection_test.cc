@@ -10775,6 +10775,27 @@ TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
   }
 }
 
+TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
+    connection_.SendControlFrame(QuicFrame(new QuicWindowUpdateFrame(1, 0, 0)));
+  }));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ProcessDataPacket(1);
+  QuicAlarm* ack_alarm = QuicConnectionPeer::GetAckAlarm(&connection_);
+  if (GetQuicReloadableFlag(quic_advance_ack_timeout_update)) {
+    // Verify ACK is bundled with WINDOW_UPDATE.
+    EXPECT_FALSE(writer_->ack_frames().empty());
+    EXPECT_FALSE(ack_alarm->IsSet());
+  } else {
+    // ACK is pending.
+    EXPECT_TRUE(writer_->ack_frames().empty());
+    EXPECT_TRUE(ack_alarm->IsSet());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

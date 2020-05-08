@@ -1226,6 +1226,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // and flags.
   void MaybeEnableMultiplePacketNumberSpacesSupport();
 
+  // Called to update ACK timeout when an retransmittable frame has been parsed.
+  void MaybeUpdateAckTimeout();
+
   // Returns packet fate when trying to write a packet via WritePacket().
   SerializedPacketFate DeterminePacketFate(bool is_mtu_discovery);
 
@@ -1661,6 +1664,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool extend_idle_time_on_decryptable_packets_ =
       GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets);
+
+  const bool advance_ack_timeout_update_ =
+      GetQuicReloadableFlag(quic_advance_ack_timeout_update);
 };
 
 }  // namespace quic
