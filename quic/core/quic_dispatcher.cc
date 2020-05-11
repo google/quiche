@@ -621,6 +621,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   if (connection->termination_packets() != nullptr &&
       !connection->termination_packets()->empty()) {
     if (GetQuicRestartFlag(quic_replace_time_wait_list_encryption_level)) {
+      QUIC_RESTART_FLAG_COUNT(quic_replace_time_wait_list_encryption_level);
       action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
     } else {
       action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
