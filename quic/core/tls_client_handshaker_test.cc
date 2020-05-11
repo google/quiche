@@ -12,8 +12,10 @@
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
@@ -167,6 +169,7 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
     SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
     server_crypto_config_ = crypto_test_utils::CryptoServerConfigForTesting();
     CreateConnection();
   }
@@ -410,6 +413,37 @@ TEST_P(TlsClientHandshakerTest, InvalidSNI) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 
   EXPECT_EQ(server_stream()->crypto_negotiated_params().sni, "");
+}
+
+TEST_P(TlsClientHandshakerTest, BadTransportParams) {
+  if (!connection_->version().UsesHttp3()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_notify_handshaker_on_connection_close, true);
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  // Create a second connection
+  CreateConnection();
+
+  stream()->CryptoConnect();
+  auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+            id_manager->max_outgoing_bidirectional_streams());
+  QuicConfig config;
+  config.SetMaxBidirectionalStreamsToSend(
+      config.GetMaxBidirectionalStreamsToSend() - 1);
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection));
+  // Close connection will be called again in the handshaker, but this will be
+  // no-op as the connection is already closed.
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
+      connection_, stream(), AlpnForVersion(connection_->version()));
 }
 
 }  // namespace

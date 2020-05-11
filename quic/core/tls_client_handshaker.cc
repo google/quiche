@@ -248,6 +248,11 @@ bool TlsClientHandshaker::ProcessTransportParameters(
   }
 
   session()->OnConfigNegotiated();
+  if (state_ == STATE_CONNECTION_CLOSED) {
+    *error_details =
+        "Session closed the connection when parsing negotiated config.";
+    return false;
+  }
   return true;
 }
 

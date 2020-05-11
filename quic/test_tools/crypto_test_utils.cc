@@ -262,7 +262,9 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
 
   CommunicateHandshakeMessages(client_conn, client, server_conn,
                                server_session.GetMutableCryptoStream());
-  CompareClientAndServerKeys(client, server_session.GetMutableCryptoStream());
+  if (client_conn->connected() && server_conn->connected()) {
+    CompareClientAndServerKeys(client, server_session.GetMutableCryptoStream());
+  }
 
   return client->num_sent_client_hellos();
 }
@@ -364,8 +366,9 @@ void CommunicateHandshakeMessages(PacketSavingConnection* client_conn,
                                   PacketSavingConnection* server_conn,
                                   QuicCryptoStream* server) {
   size_t client_i = 0, server_i = 0;
-  while (!client->one_rtt_keys_available() ||
-         !server->one_rtt_keys_available()) {
+  while (client_conn->connected() && server_conn->connected() &&
+         (!client->one_rtt_keys_available() ||
+          !server->one_rtt_keys_available())) {
     ASSERT_GT(client_conn->encrypted_packets_.size(), client_i);
     QUIC_LOG(INFO) << "Processing "
                    << client_conn->encrypted_packets_.size() - client_i
