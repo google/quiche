@@ -235,12 +235,25 @@ void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 void ImmediateGoAwaySession::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  // In IETF QUIC, GOAWAY lives up in HTTP/3 layer. Even if it's a immediate
-  // goaway session, goaway shouldn't be sent when crypto frame is received.
+  // In IETF QUIC, GOAWAY lives up in HTTP/3 layer. It's sent in a QUIC stream
+  // and requires encryption. Thus the sending is done in
+  // OnNewEncryptionKeyAvailable().
   if (!VersionUsesHttp3(transport_version())) {
     SendGoAway(QUIC_PEER_GOING_AWAY, "");
   }
   QuicSimpleServerSession::OnCryptoFrame(frame);
+}
+
+void ImmediateGoAwaySession::OnNewEncryptionKeyAvailable(
+    EncryptionLevel level,
+    std::unique_ptr<QuicEncrypter> encrypter) {
+  QuicSimpleServerSession::OnNewEncryptionKeyAvailable(level,
+                                                       std::move(encrypter));
+  if (VersionUsesHttp3(transport_version())) {
+    if (IsEncryptionEstablished() && !http3_goaway_sent()) {
+      SendHttp3GoAway();
+    }
+  }
 }
 
 }  // namespace test
