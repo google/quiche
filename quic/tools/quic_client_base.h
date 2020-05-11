@@ -230,6 +230,14 @@ class QuicClientBase {
     connection_debug_visitor_ = connection_debug_visitor;
   }
 
+  void set_server_connection_id_length(uint8_t server_connection_id_length) {
+    server_connection_id_length_ = server_connection_id_length;
+  }
+
+  void set_client_connection_id_length(uint8_t client_connection_id_length) {
+    client_connection_id_length_ = client_connection_id_length;
+  }
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -352,6 +360,14 @@ class QuicClientBase {
   // The debug visitor set on the connection right after it is constructed.
   // Not owned, must be valid for the lifetime of the QuicClientBase instance.
   QuicConnectionDebugVisitor* connection_debug_visitor_;
+
+  // GenerateNewConnectionId creates a random connection ID of this length.
+  // Defaults to 8.
+  uint8_t server_connection_id_length_;
+
+  // GetClientConnectionId creates a random connection ID of this length.
+  // Defaults to 0.
+  uint8_t client_connection_id_length_;
 };
 
 }  // namespace quic

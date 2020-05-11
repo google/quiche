@@ -37,7 +37,9 @@ QuicClientBase::QuicClientBase(
       connection_error_(QUIC_NO_ERROR),
       connected_or_attempting_connect_(false),
       network_helper_(std::move(network_helper)),
-      connection_debug_visitor_(nullptr) {}
+      connection_debug_visitor_(nullptr),
+      server_connection_id_length_(kQuicDefaultConnectionIdLength),
+      client_connection_id_length_(0) {}
 
 QuicClientBase::~QuicClientBase() = default;
 
@@ -306,11 +308,11 @@ QuicConnectionId QuicClientBase::GetNextServerDesignatedConnectionId() {
 }
 
 QuicConnectionId QuicClientBase::GenerateNewConnectionId() {
-  return QuicUtils::CreateRandomConnectionId();
+  return QuicUtils::CreateRandomConnectionId(server_connection_id_length_);
 }
 
 QuicConnectionId QuicClientBase::GetClientConnectionId() {
-  return EmptyQuicConnectionId();
+  return QuicUtils::CreateRandomConnectionId(client_connection_id_length_);
 }
 
 bool QuicClientBase::CanReconnectWithDifferentVersion(

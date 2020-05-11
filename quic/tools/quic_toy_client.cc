@@ -165,6 +165,16 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     false,
     "If true, do not change local port after each request.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
+                              server_connection_id_length,
+                              -1,
+                              "Length of the server connection ID used.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
+                              client_connection_id_length,
+                              -1,
+                              "Length of the client connection ID used.");
+
 namespace quic {
 
 QuicToyClient::QuicToyClient(ClientFactory* client_factory)
@@ -235,6 +245,16 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   client->set_initial_max_packet_length(
       initial_mtu != 0 ? initial_mtu : quic::kDefaultMaxPacketSize);
   client->set_drop_response_body(GetQuicFlag(FLAGS_drop_response_body));
+  const int32_t server_connection_id_length =
+      GetQuicFlag(FLAGS_server_connection_id_length);
+  if (server_connection_id_length >= 0) {
+    client->set_server_connection_id_length(server_connection_id_length);
+  }
+  const int32_t client_connection_id_length =
+      GetQuicFlag(FLAGS_client_connection_id_length);
+  if (client_connection_id_length >= 0) {
+    client->set_client_connection_id_length(client_connection_id_length);
+  }
   if (!client->Initialize()) {
     std::cerr << "Failed to initialize client." << std::endl;
     return 1;
