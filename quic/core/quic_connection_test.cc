@@ -9981,11 +9981,9 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
 
-  // 5PTO + 1 connection close.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(6));
-
   // Fire the retransmission alarm 5 times.
   for (int i = 0; i < 5; ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.GetRetransmissionAlarm()->Fire();
     EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
     EXPECT_TRUE(connection_.connected());
@@ -9999,6 +9997,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
   EXPECT_EQ(5u, connection_.sent_packet_manager().GetConsecutivePtoCount());
   // Closes connection on 6th PTO.
+  // May send multiple connecction close packets with multiple PN spaces.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
