@@ -2353,8 +2353,8 @@ TEST_P(EndToEndTest, RequestWithNoBodyWillNeverSendStreamFrameWithFIN) {
   server_thread_->Resume();
 }
 
-// A TestAckListener verifies that its OnAckNotification method has been
-// called exactly once on destruction.
+// A TestAckListener verifies that exactly |bytes_to_ack| bytes are acked during
+// its lifetime.
 class TestAckListener : public QuicAckListenerInterface {
  public:
   explicit TestAckListener(int bytes_to_ack) : bytes_to_ack_(bytes_to_ack) {}
@@ -2393,11 +2393,6 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // socket,  an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
   // demonstrates that retransmissions do not break this functionality.
-  if (version_.UsesTls()) {
-    // TODO(b/155489419): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
 
@@ -2428,6 +2423,12 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     QpackEncoder qpack_encoder(&decoder_stream_error_delegate);
     qpack_encoder.set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
+
+    qpack_encoder.SetMaximumDynamicTableCapacity(
+        kDefaultQpackMaxDynamicTableCapacity);
+    qpack_encoder.SetDynamicTableCapacity(kDefaultQpackMaxDynamicTableCapacity);
+    qpack_encoder.SetMaximumBlockedStreams(kDefaultMaximumBlockedStreams);
+
     std::string encoded_headers =
         qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, headers, nullptr);
     header_size = encoded_headers.size();
