@@ -996,7 +996,10 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   session_->OnSettingsFrame(settings);
 
   CreateConnection();
+  // Session configs should be in initial state.
   EXPECT_EQ(0u, session_->flow_controller()->send_window_offset());
+  EXPECT_EQ(std::numeric_limits<size_t>::max(),
+            session_->max_outbound_header_list_size());
   session_->CryptoConnect();
 
   // The client session should have a basic setup ready before the handshake
@@ -1013,6 +1016,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
       QuicSpdySessionPeer::GetSendControlStream(session_.get());
   EXPECT_EQ(kInitialStreamFlowControlWindowForTest,
             control_stream->flow_controller()->send_window_offset());
+  EXPECT_EQ(5u, session_->max_outbound_header_list_size());
 
   // Complete the handshake with a different config.
   QuicCryptoClientStream* stream =

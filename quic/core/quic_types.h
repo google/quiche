@@ -54,6 +54,10 @@ using QuicApplicationErrorCode = uint16_t;
 // the IETF QUIC NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames.
 using QuicConnectionIdSequenceNumber = uint64_t;
 
+// A custom data that represents application-specific settings.
+// In HTTP/3 for example, it includes the encoded SETTINGS.
+using ApplicationState = std::vector<uint8_t>;
+
 // A struct for functions which consume data payloads and fins.
 struct QUIC_EXPORT_PRIVATE QuicConsumedData {
   constexpr QuicConsumedData(size_t bytes_consumed, bool fin_consumed)

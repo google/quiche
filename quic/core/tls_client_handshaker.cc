@@ -122,16 +122,9 @@ bool TlsClientHandshaker::CryptoConnect() {
       if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
           VersionHasIetfQuicFrames(session()->transport_version()) &&
           SSL_SESSION_early_data_capable(cached_state->tls_session.get())) {
-        std::string error_details;
-        if (session()->config()->ProcessTransportParameters(
-                *(cached_state->transport_params), SERVER,
-                /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
-          QUIC_BUG << "Cached transport parameters failed to be parsed";
-          CloseConnection(QUIC_HANDSHAKE_FAILED,
-                          "Client failed to parse cached Transport Parameters");
+        if (!PrepareZeroRttConfig(cached_state.get())) {
           return false;
         }
-        session()->OnConfigNegotiated();
       }
     }
   }
@@ -139,6 +132,30 @@ bool TlsClientHandshaker::CryptoConnect() {
   // Start the handshake.
   AdvanceHandshake();
   return session()->connection()->connected();
+}
+
+bool TlsClientHandshaker::PrepareZeroRttConfig(
+    QuicResumptionState* cached_state) {
+  std::string error_details;
+  if (session()->config()->ProcessTransportParameters(
+          *(cached_state->transport_params), SERVER,
+          /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
+    QUIC_BUG << "Unable to parse cached transport parameters.";
+    CloseConnection(QUIC_HANDSHAKE_FAILED,
+                    "Client failed to parse cached Transport Parameters.");
+    return false;
+  }
+  session()->OnConfigNegotiated();
+
+  if (has_application_state_) {
+    if (!session()->SetApplicationState(cached_state->application_state)) {
+      QUIC_BUG << "Unable to parse cached application state.";
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      "Client failed to parse cached application state.");
+      return false;
+    }
+  }
+  return true;
 }
 
 static bool IsValidAlpn(const std::string& alpn_string) {
@@ -562,6 +579,7 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
 
 void TlsClientHandshaker::OnApplicationState(
     std::unique_ptr<ApplicationState> application_state) {
+  DCHECK_EQ(STATE_HANDSHAKE_COMPLETE, state_);
   received_application_state_ = std::move(application_state);
   // At least one tls session is cached before application state is received. So
   // insert now.

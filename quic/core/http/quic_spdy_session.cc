@@ -856,6 +856,24 @@ void QuicSpdySession::OnPromiseHeaderList(
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
+bool QuicSpdySession::SetApplicationState(ApplicationState* cached_state) {
+  DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
+  DCHECK(VersionUsesHttp3(transport_version()));
+
+  SettingsFrame out;
+  if (!HttpDecoder::DecodeSettings(
+          reinterpret_cast<char*>(cached_state->data()), cached_state->size(),
+          &out)) {
+    return false;
+  }
+
+  // TODO(b/153726130): Add OnSettingsFrameResumed() in debug visitor.
+  for (const auto& setting : out.values) {
+    OnSetting(setting.first, setting.second);
+  }
+  return true;
+}
+
 void QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (debug_visitor_ != nullptr) {

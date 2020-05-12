@@ -484,6 +484,21 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool break_close_loop() const { return break_close_loop_; }
 
+  // Called on clients by the crypto handshaker to provide application state
+  // necessary for sending application data in 0-RTT. The state provided here is
+  // the same state that was provided to the crypto handshaker in
+  // QuicCryptoClientStream::OnApplicationState on a previous connection.
+  // Application protocols that require state to be carried over from the
+  // previous connection to support 0-RTT data must implement this method to
+  // ingest this state. For example, an HTTP/3 QuicSession would implement this
+  // function to process the remembered server SETTINGS frame and apply those
+  // SETTINGS to 0-RTT data. This function returns true if the application state
+  // has been successfully processed, and false if there was an error processing
+  // the cached state and the connection should be closed.
+  virtual bool SetApplicationState(ApplicationState* /*cached_state*/) {
+    return true;
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 

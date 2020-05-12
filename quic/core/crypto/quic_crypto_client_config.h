@@ -30,9 +30,6 @@ class ProofVerifier;
 class ProofVerifyDetails;
 class QuicRandom;
 
-// A custom data that represents application-specific settings.
-// In HTTP/3 for example, it includes the encoded SETTINGS.
-using ApplicationState = std::vector<uint8_t>;
 // QuicResumptionState stores the state a client needs for performing connection
 // resumption.
 struct QUIC_EXPORT_PRIVATE QuicResumptionState {

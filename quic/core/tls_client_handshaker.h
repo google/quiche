@@ -131,6 +131,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   void InsertSession(bssl::UniquePtr<SSL_SESSION> session) override;
 
+  bool PrepareZeroRttConfig(QuicResumptionState* cached_state);
+
   QuicSession* session() { return session_; }
   QuicSession* session_;
 
