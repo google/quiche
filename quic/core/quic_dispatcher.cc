@@ -311,7 +311,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 
 QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
     QuicConnectionId server_connection_id,
-    ParsedQuicVersion version) {
+    ParsedQuicVersion version) const {
   if (server_connection_id.length() == expected_server_connection_id_length_) {
     return server_connection_id;
   }

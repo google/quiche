@@ -307,6 +307,13 @@ class QUIC_NO_EXPORT QuicDispatcher
   // element of the vector is returned.
   std::string SelectAlpn(const std::vector<std::string>& alpns);
 
+  // If the connection ID length is different from what the dispatcher expects,
+  // replace the connection ID with a random one of the right length,
+  // and save it to make sure the mapping is persistent.
+  QuicConnectionId MaybeReplaceServerConnectionId(
+      QuicConnectionId server_connection_id,
+      ParsedQuicVersion version) const;
+
  private:
   friend class test::QuicDispatcherPeer;
 
@@ -318,13 +325,6 @@ class QUIC_NO_EXPORT QuicDispatcher
   void DeliverPacketsToSession(
       const std::list<QuicBufferedPacketStore::BufferedPacket>& packets,
       QuicSession* session);
-
-  // If the connection ID length is different from what the dispatcher expects,
-  // replace the connection ID with a random one of the right length,
-  // and save it to make sure the mapping is persistent.
-  QuicConnectionId MaybeReplaceServerConnectionId(
-      QuicConnectionId server_connection_id,
-      ParsedQuicVersion version);
 
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
