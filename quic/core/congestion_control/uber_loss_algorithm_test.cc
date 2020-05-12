@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_unacked_packet_map_peer.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 namespace test {
@@ -64,10 +65,23 @@ class UberLossAlgorithmTest : public QuicTest {
   void VerifyLosses(uint64_t largest_newly_acked,
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
+    return VerifyLosses(largest_newly_acked, packets_acked, losses_expected,
+                        quiche::QuicheOptional<QuicPacketCount>());
+  }
+
+  void VerifyLosses(uint64_t largest_newly_acked,
+                    const AckedPacketVector& packets_acked,
+                    const std::vector<uint64_t>& losses_expected,
+                    quiche::QuicheOptional<QuicPacketCount>
+                        max_sequence_reordering_expected) {
     LostPacketVector lost_packets;
-    loss_algorithm_.DetectLosses(*unacked_packets_, clock_.Now(), rtt_stats_,
-                                 QuicPacketNumber(largest_newly_acked),
-                                 packets_acked, &lost_packets);
+    LossDetectionInterface::DetectionStats stats = loss_algorithm_.DetectLosses(
+        *unacked_packets_, clock_.Now(), rtt_stats_,
+        QuicPacketNumber(largest_newly_acked), packets_acked, &lost_packets);
+    if (max_sequence_reordering_expected.has_value()) {
+      EXPECT_EQ(stats.sent_packets_max_sequence_reordering,
+                max_sequence_reordering_expected.value());
+    }
     ASSERT_EQ(losses_expected.size(), lost_packets.size());
     for (size_t i = 0; i < losses_expected.size(); ++i) {
       EXPECT_EQ(lost_packets[i].packet_number,
@@ -98,7 +112,7 @@ TEST_F(UberLossAlgorithmTest, ScenarioA) {
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
       HANDSHAKE_DATA, QuicPacketNumber(4));
   // Verify no packet is detected lost.
-  VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
+  VerifyLosses(4, packets_acked_, std::vector<uint64_t>{}, 0);
   EXPECT_EQ(QuicTime::Zero(), loss_algorithm_.GetLossTimeout());
 }
 
@@ -114,7 +128,7 @@ TEST_F(UberLossAlgorithmTest, ScenarioB) {
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
       APPLICATION_DATA, QuicPacketNumber(4));
   // No packet loss by acking 4.
-  VerifyLosses(4, packets_acked_, std::vector<uint64_t>{});
+  VerifyLosses(4, packets_acked_, std::vector<uint64_t>{}, 1);
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
 
@@ -122,14 +136,14 @@ TEST_F(UberLossAlgorithmTest, ScenarioB) {
   AckPackets({6});
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
       APPLICATION_DATA, QuicPacketNumber(6));
-  VerifyLosses(6, packets_acked_, std::vector<uint64_t>{3});
+  VerifyLosses(6, packets_acked_, std::vector<uint64_t>{3}, 3);
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
   packets_acked_.clear();
 
   clock_.AdvanceTime(1.25 * rtt_stats_.latest_rtt());
   // Verify 5 will be early retransmitted.
-  VerifyLosses(6, packets_acked_, {5});
+  VerifyLosses(6, packets_acked_, {5}, 1);
 }
 
 TEST_F(UberLossAlgorithmTest, ScenarioC) {
@@ -151,14 +165,14 @@ TEST_F(UberLossAlgorithmTest, ScenarioC) {
   unacked_packets_->MaybeUpdateLargestAckedOfPacketNumberSpace(
       HANDSHAKE_DATA, QuicPacketNumber(5));
   // No packet loss by acking 5.
-  VerifyLosses(5, packets_acked_, std::vector<uint64_t>{});
+  VerifyLosses(5, packets_acked_, std::vector<uint64_t>{}, 2);
   EXPECT_EQ(clock_.Now() + 1.25 * rtt_stats_.smoothed_rtt(),
             loss_algorithm_.GetLossTimeout());
   packets_acked_.clear();
 
   clock_.AdvanceTime(1.25 * rtt_stats_.latest_rtt());
   // Verify 2 and 3 will be early retransmitted.
-  VerifyLosses(5, packets_acked_, std::vector<uint64_t>{2, 3});
+  VerifyLosses(5, packets_acked_, std::vector<uint64_t>{2, 3}, 2);
 }
 
 // Regression test for b/133771183.

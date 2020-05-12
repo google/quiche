@@ -2853,7 +2853,8 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   LostPacketVector lost_packets;
   lost_packets.push_back(LostPacket(original, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   QuicPacketNumber retransmission;
   // Packet 1 is short header for IETF QUIC because the encryption level
@@ -3573,7 +3574,8 @@ TEST_P(QuicConnectionTest, RetransmitOnNack) {
   lost_packets.push_back(
       LostPacket(QuicPacketNumber(2), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_FALSE(QuicPacketCreatorPeer::SendVersionInPacket(creator_));
@@ -3655,7 +3657,8 @@ TEST_P(QuicConnectionTest, RetransmitForQuicRstStreamNoErrorOnNack) {
   LostPacketVector lost_packets;
   lost_packets.push_back(LostPacket(last_packet - 1, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   ProcessAckPacket(&nack_two);
@@ -3775,7 +3778,8 @@ TEST_P(QuicConnectionTest, SendPendingRetransmissionForQuicRstStreamNoError) {
   LostPacketVector lost_packets;
   lost_packets.push_back(LostPacket(last_packet - 1, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   ProcessAckPacket(&ack);
@@ -3814,7 +3818,8 @@ TEST_P(QuicConnectionTest, RetransmitAckedPacket) {
   lost_packets.push_back(
       LostPacket(QuicPacketNumber(2), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _))
       .Times(1);
@@ -3851,7 +3856,8 @@ TEST_P(QuicConnectionTest, RetransmitNackedLargestObserved) {
   LostPacketVector lost_packets;
   lost_packets.push_back(LostPacket(original, kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   // Packet 1 is short header for IETF QUIC because the encryption level
   // switched to ENCRYPTION_FORWARD_SECURE in SendStreamDataToPeer.
@@ -4068,7 +4074,8 @@ TEST_P(QuicConnectionTest, NoLimitPacketsPerNack) {
         LostPacket(QuicPacketNumber(i), kMaxOutgoingPacketSize));
   }
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessAckPacket(&nack);
@@ -7156,7 +7163,8 @@ TEST_P(QuicConnectionTest, BundleAckWithDataOnIncomingAck) {
   lost_packets.push_back(
       LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&ack);
   size_t padding_frame_count = writer_->padding_frames().size();
@@ -7501,7 +7509,8 @@ TEST_P(QuicConnectionTest, CheckSendStats) {
   lost_packets.push_back(
       LostPacket(QuicPacketNumber(3), kMaxOutgoingPacketSize));
   EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
-      .WillOnce(SetArgPointee<5>(lost_packets));
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   ProcessAckPacket(&nack_three);

@@ -1264,7 +1264,7 @@ class MockLossAlgorithm : public LossDetectionInterface {
               (const QuicConfig& config, Perspective perspective),
               (override));
 
-  MOCK_METHOD(void,
+  MOCK_METHOD(DetectionStats,
               DetectLosses,
               (const QuicUnackedPacketMap& unacked_packets,
                QuicTime time,

@@ -934,9 +934,17 @@ void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
               packets_acked_.back().packet_number);
     largest_newly_acked_ = packets_acked_.back().packet_number;
   }
-  loss_algorithm_->DetectLosses(unacked_packets_, time, rtt_stats_,
-                                largest_newly_acked_, packets_acked_,
-                                &packets_lost_);
+  LossDetectionInterface::DetectionStats detection_stats =
+      loss_algorithm_->DetectLosses(unacked_packets_, time, rtt_stats_,
+                                    largest_newly_acked_, packets_acked_,
+                                    &packets_lost_);
+
+  if (detection_stats.sent_packets_max_sequence_reordering >
+      stats_->sent_packets_max_sequence_reordering) {
+    stats_->sent_packets_max_sequence_reordering =
+        detection_stats.sent_packets_max_sequence_reordering;
+  }
+
   for (const LostPacket& packet : packets_lost_) {
     QuicTransmissionInfo* info =
         unacked_packets_.GetMutableTransmissionInfo(packet.packet_number);

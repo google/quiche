@@ -23,13 +23,15 @@ GeneralLossAlgorithm::GeneralLossAlgorithm()
       packet_number_space_(NUM_PACKET_NUMBER_SPACES) {}
 
 // Uses nack counts to decide when packets are lost.
-void GeneralLossAlgorithm::DetectLosses(
+LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
     const QuicUnackedPacketMap& unacked_packets,
     QuicTime time,
     const RttStats& rtt_stats,
     QuicPacketNumber largest_newly_acked,
     const AckedPacketVector& packets_acked,
     LostPacketVector* packets_lost) {
+  DetectionStats detection_stats;
+
   loss_detection_timeout_ = QuicTime::Zero();
   if (!packets_acked.empty() && least_in_flight_.IsInitialized() &&
       packets_acked.front().packet_number == least_in_flight_) {
@@ -40,7 +42,7 @@ void GeneralLossAlgorithm::DetectLosses(
       // do not use this optimization if largest_newly_acked is not the largest
       // packet in packets_acked.
       least_in_flight_ = largest_newly_acked + 1;
-      return;
+      return detection_stats;
     }
     // There is hole in acked_packets, increment least_in_flight_ if possible.
     for (const auto& acked : packets_acked) {
@@ -50,6 +52,7 @@ void GeneralLossAlgorithm::DetectLosses(
       ++least_in_flight_;
     }
   }
+
   QuicTime::Delta max_rtt =
       std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
   max_rtt = std::max(kAlarmGranularity, max_rtt);
@@ -77,9 +80,17 @@ void GeneralLossAlgorithm::DetectLosses(
       // Skip packets of different packet number space.
       continue;
     }
+
     if (!it->in_flight) {
       continue;
     }
+
+    if (largest_newly_acked - packet_number >
+        detection_stats.sent_packets_max_sequence_reordering) {
+      detection_stats.sent_packets_max_sequence_reordering =
+          largest_newly_acked - packet_number;
+    }
+
     // Packet threshold loss detection.
     // Skip packet threshold loss detection if largest_newly_acked is a runt.
     const bool skip_packet_threshold_detection =
@@ -108,6 +119,8 @@ void GeneralLossAlgorithm::DetectLosses(
     // There is no in flight packet.
     least_in_flight_ = largest_newly_acked + 1;
   }
+
+  return detection_stats;
 }
 
 QuicTime GeneralLossAlgorithm::GetLossTimeout() const {

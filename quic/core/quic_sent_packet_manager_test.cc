@@ -622,6 +622,7 @@ TEST_F(QuicSentPacketManagerTest, RetransmitTwiceThenAckFirst) {
   EXPECT_EQ(1u, stats_.packets_spuriously_retransmitted);
   EXPECT_EQ(1u, stats_.packets_lost);
   EXPECT_LT(QuicTime::Delta::Zero(), stats_.total_loss_detection_time);
+  EXPECT_LE(1u, stats_.sent_packets_max_sequence_reordering);
 }
 
 TEST_F(QuicSentPacketManagerTest, AckOriginalTransmission) {

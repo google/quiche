@@ -27,13 +27,15 @@ void UberLossAlgorithm::SetFromConfig(const QuicConfig& config,
   }
 }
 
-void UberLossAlgorithm::DetectLosses(
+LossDetectionInterface::DetectionStats UberLossAlgorithm::DetectLosses(
     const QuicUnackedPacketMap& unacked_packets,
     QuicTime time,
     const RttStats& rtt_stats,
     QuicPacketNumber /*largest_newly_acked*/,
     const AckedPacketVector& packets_acked,
     LostPacketVector* packets_lost) {
+  DetectionStats overall_stats;
+
   for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     const QuicPacketNumber largest_acked =
         unacked_packets.GetLargestAckedOfPacketNumberSpace(
@@ -45,10 +47,16 @@ void UberLossAlgorithm::DetectLosses(
       continue;
     }
 
-    general_loss_algorithms_[i].DetectLosses(unacked_packets, time, rtt_stats,
-                                             largest_acked, packets_acked,
-                                             packets_lost);
+    DetectionStats stats = general_loss_algorithms_[i].DetectLosses(
+        unacked_packets, time, rtt_stats, largest_acked, packets_acked,
+        packets_lost);
+
+    overall_stats.sent_packets_max_sequence_reordering =
+        std::max(overall_stats.sent_packets_max_sequence_reordering,
+                 stats.sent_packets_max_sequence_reordering);
   }
+
+  return overall_stats;
 }
 
 QuicTime UberLossAlgorithm::GetLossTimeout() const {

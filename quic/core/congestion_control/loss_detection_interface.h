@@ -26,13 +26,19 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
   virtual void SetFromConfig(const QuicConfig& config,
                              Perspective perspective) = 0;
 
+  struct QUIC_NO_EXPORT DetectionStats {
+    // Maximum sequence reordering observed in newly acked packets.
+    QuicPacketCount sent_packets_max_sequence_reordering = 0;
+  };
+
   // Called when a new ack arrives or the loss alarm fires.
-  virtual void DetectLosses(const QuicUnackedPacketMap& unacked_packets,
-                            QuicTime time,
-                            const RttStats& rtt_stats,
-                            QuicPacketNumber largest_newly_acked,
-                            const AckedPacketVector& packets_acked,
-                            LostPacketVector* packets_lost) = 0;
+  virtual DetectionStats DetectLosses(
+      const QuicUnackedPacketMap& unacked_packets,
+      QuicTime time,
+      const RttStats& rtt_stats,
+      QuicPacketNumber largest_newly_acked,
+      const AckedPacketVector& packets_acked,
+      LostPacketVector* packets_lost) = 0;
 
   // Get the time the LossDetectionAlgorithm wants to re-evaluate losses.
   // Returns QuicTime::Zero if no alarm needs to be set.
