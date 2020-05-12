@@ -154,12 +154,6 @@ QuicAlarm* QuicConnectionPeer::GetMtuDiscoveryAlarm(
 }
 
 // static
-QuicAlarm* QuicConnectionPeer::GetPathDegradingAlarm(
-    QuicConnection* connection) {
-  return connection->path_degrading_alarm_.get();
-}
-
-// static
 QuicAlarm* QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
     QuicConnection* connection) {
   return connection->process_undecryptable_packets_alarm_.get();

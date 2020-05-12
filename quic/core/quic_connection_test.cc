@@ -845,8 +845,7 @@ class TestConnection : public QuicConnection {
   }
 
   TestAlarmFactory::TestAlarm* GetTimeoutAlarm() {
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-        GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+    if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
       return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
           QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
     }
@@ -859,40 +858,26 @@ class TestConnection : public QuicConnection {
         QuicConnectionPeer::GetMtuDiscoveryAlarm(this));
   }
 
-  TestAlarmFactory::TestAlarm* GetPathDegradingAlarm() {
-    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetPathDegradingAlarm(this));
-  }
-
   TestAlarmFactory::TestAlarm* GetProcessUndecryptablePacketsAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
         QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetBlackholeDetectorAlarm() {
-    DCHECK(GetQuicReloadableFlag(quic_use_blackhole_detector));
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
         QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
   }
 
   void PathDegradingTimeout() {
     DCHECK(PathDegradingDetectionInProgress());
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      GetBlackholeDetectorAlarm()->Fire();
-    } else {
-      GetPathDegradingAlarm()->Fire();
-    }
+    GetBlackholeDetectorAlarm()->Fire();
   }
 
   bool PathDegradingDetectionInProgress() {
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      return QuicConnectionPeer::GetPathDegradingDeadline(this).IsInitialized();
-    }
-    return GetPathDegradingAlarm()->IsSet();
+    return QuicConnectionPeer::GetPathDegradingDeadline(this).IsInitialized();
   }
 
   bool BlackholeDetectionInProgress() {
-    DCHECK(GetQuicReloadableFlag(quic_use_blackhole_detector));
     return QuicConnectionPeer::GetBlackholeDetectionDeadline(this)
         .IsInitialized();
   }
@@ -4795,8 +4780,7 @@ TEST_P(QuicConnectionTest, IdleTimeoutAfterFirstSentPacket) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
   QuicTime::Delta delay = initial_ddl - clock_.ApproximateNow();
   clock_.AdvanceTime(delay);
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   // Verify the timeout alarm deadline is updated.
@@ -4887,8 +4871,7 @@ TEST_P(QuicConnectionTest, HandshakeTimeout) {
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&frame);
 
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     // Fire early to verify it wouldn't timeout yet.
     connection_.GetTimeoutAlarm()->Fire();
   }
@@ -5633,8 +5616,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5647,8 +5629,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       3, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5659,8 +5640,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
@@ -5710,8 +5690,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5745,8 +5724,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   ASSERT_EQ(default_timeout.ToDebuggingValue(),
             clock_.Now().ToDebuggingValue());
   EXPECT_EQ(default_timeout, clock_.Now());
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
@@ -5802,8 +5780,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5816,8 +5793,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       3, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5828,8 +5804,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(default_idle_timeout - five_ms - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
@@ -5891,8 +5866,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -5952,8 +5926,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector) &&
-      GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     EXPECT_EQ(default_timeout + five_ms,
               connection_.GetTimeoutAlarm()->deadline());
   } else {
@@ -6008,8 +5981,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceive) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   EXPECT_TRUE(connection_.connected());
@@ -6067,8 +6039,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_blackhole_detector) ||
-      !GetQuicReloadableFlag(quic_use_idle_network_detector)) {
+  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   EXPECT_TRUE(connection_.connected());
@@ -6120,10 +6091,8 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
     EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
     EXPECT_TRUE(connection_.connected());
   }
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_CALL(visitor_, OnPathDegrading());
-    connection_.PathDegradingTimeout();
-  }
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.PathDegradingTimeout();
 
   EXPECT_EQ(2u, connection_.sent_packet_manager().GetConsecutiveTlpCount());
   EXPECT_EQ(4u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
@@ -6131,12 +6100,8 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
-    connection_.GetBlackholeDetectorAlarm()->Fire();
-  } else {
-    connection_.GetRetransmissionAlarm()->Fire();
-  }
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+  connection_.GetBlackholeDetectorAlarm()->Fire();
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
@@ -7886,13 +7851,8 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
   EXPECT_FALSE(connection_.IsPathDegrading());
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Fire the path degrading alarm, path degrading signal should be sent to
   // the visitor.
@@ -7925,33 +7885,22 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
     QuicTime::Delta delay =
         QuicConnectionPeer::GetSentPacketManager(&connection_)
             ->GetPathDegradingDelay();
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                           clock_.ApproximateNow());
-    } else {
-      EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                           clock_.ApproximateNow());
-    }
+    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                         clock_.ApproximateNow());
 
     // Send a second packet. The path degrading alarm's deadline should remain
     // the same.
     // Regression test for b/69979024.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-    QuicTime prev_deadline = connection_.GetPathDegradingAlarm()->deadline();
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
-    }
+    QuicTime prev_deadline =
+        connection_.GetBlackholeDetectorAlarm()->deadline();
     connection_.SendStreamDataWithString(
         GetNthClientInitiatedStreamId(1, connection_.transport_version()), data,
         offset, NO_FIN);
     offset += data_size;
     EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      EXPECT_EQ(prev_deadline,
-                connection_.GetBlackholeDetectorAlarm()->deadline());
-    } else {
-      EXPECT_EQ(prev_deadline, connection_.GetPathDegradingAlarm()->deadline());
-    }
+    EXPECT_EQ(prev_deadline,
+              connection_.GetBlackholeDetectorAlarm()->deadline());
 
     // Now receive an ACK of the first packet. This should advance the path
     // degrading alarm's deadline since forward progress has been made.
@@ -7967,13 +7916,8 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
     // Check the deadline of the path degrading alarm.
     delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                 ->GetPathDegradingDelay();
-    if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-      EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                           clock_.ApproximateNow());
-    } else {
-      EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                           clock_.ApproximateNow());
-    }
+    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                         clock_.ApproximateNow());
 
     if (i == 0) {
       // Now receive an ACK of the second packet. Since there are no more
@@ -8023,13 +7967,8 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
   ASSERT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
   // The ping alarm is set for the ping timeout, not the shorter
   // retransmittable_on_wire_timeout.
@@ -8065,13 +8004,8 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 }
 
 // This test verifies that the connection marks path as degrading and does not
@@ -8094,30 +8028,17 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   // Check the deadline of the path degrading alarm.
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Send a second packet. The path degrading alarm's deadline should remain
   // the same.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  QuicTime prev_deadline = connection_.GetPathDegradingAlarm()->deadline();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
-  }
+  QuicTime prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
   connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
   offset += data_size;
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(prev_deadline,
-              connection_.GetBlackholeDetectorAlarm()->deadline());
-  } else {
-    EXPECT_EQ(prev_deadline, connection_.GetPathDegradingAlarm()->deadline());
-  }
+  EXPECT_EQ(prev_deadline, connection_.GetBlackholeDetectorAlarm()->deadline());
 
   // Now receive an ACK of the first packet. This should advance the path
   // degrading alarm's deadline since forward progress has been made.
@@ -8131,13 +8052,8 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   // Check the deadline of the path degrading alarm.
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Advance time to the path degrading alarm's deadline and simulate
   // firing the path degrading alarm. This path will be considered as
@@ -8178,30 +8094,17 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   // Check the deadline of the path degrading alarm.
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Send a second packet. The path degrading alarm's deadline should remain
   // the same.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  QuicTime prev_deadline = connection_.GetPathDegradingAlarm()->deadline();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
-  }
+  QuicTime prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
   connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
   offset += data_size;
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(prev_deadline,
-              connection_.GetBlackholeDetectorAlarm()->deadline());
-  } else {
-    EXPECT_EQ(prev_deadline, connection_.GetPathDegradingAlarm()->deadline());
-  }
+  EXPECT_EQ(prev_deadline, connection_.GetBlackholeDetectorAlarm()->deadline());
 
   // Now receive an ACK of the first packet. This should advance the path
   // degrading alarm's deadline since forward progress has been made.
@@ -8215,13 +8118,8 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   // Check the deadline of the path degrading alarm.
   delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
               ->GetPathDegradingDelay();
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  } else {
-    EXPECT_EQ(delay, connection_.GetPathDegradingAlarm()->deadline() -
-                         clock_.ApproximateNow());
-  }
+  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
+                       clock_.ApproximateNow());
 
   // Advance time to the path degrading alarm's deadline and simulate
   // firing the alarm.
@@ -9988,10 +9886,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
     EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
     EXPECT_TRUE(connection_.connected());
   }
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_CALL(visitor_, OnPathDegrading());
-    connection_.PathDegradingTimeout();
-  }
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.PathDegradingTimeout();
 
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveTlpCount());
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
@@ -10001,12 +9897,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
-    connection_.GetBlackholeDetectorAlarm()->Fire();
-  } else {
-    connection_.GetRetransmissionAlarm()->Fire();
-  }
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+  connection_.GetBlackholeDetectorAlarm()->Fire();
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
@@ -10035,10 +9927,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
     EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
     EXPECT_TRUE(connection_.connected());
   }
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_CALL(visitor_, OnPathDegrading());
-    connection_.PathDegradingTimeout();
-  }
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.PathDegradingTimeout();
 
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveTlpCount());
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
@@ -10047,12 +9937,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
-    connection_.GetBlackholeDetectorAlarm()->Fire();
-  } else {
-    connection_.GetRetransmissionAlarm()->Fire();
-  }
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+  connection_.GetBlackholeDetectorAlarm()->Fire();
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
@@ -10081,10 +9967,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
     EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
     EXPECT_TRUE(connection_.connected());
   }
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    EXPECT_CALL(visitor_, OnPathDegrading());
-    connection_.PathDegradingTimeout();
-  }
+  EXPECT_CALL(visitor_, OnPathDegrading());
+  connection_.PathDegradingTimeout();
 
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveTlpCount());
   EXPECT_EQ(0u, connection_.sent_packet_manager().GetConsecutiveRtoCount());
@@ -10093,12 +9977,8 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
-  if (GetQuicReloadableFlag(quic_use_blackhole_detector)) {
-    ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
-    connection_.GetBlackholeDetectorAlarm()->Fire();
-  } else {
-    connection_.GetRetransmissionAlarm()->Fire();
-  }
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+  connection_.GetBlackholeDetectorAlarm()->Fire();
   EXPECT_FALSE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_RTOS);
@@ -10749,8 +10629,7 @@ TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<TaggingEncrypter>(tag));
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets) ||
-      !GetQuicReloadableFlag(quic_use_blackhole_detector)) {
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
     // Verify deadline does not get extended.
     EXPECT_EQ(initial_deadline, connection_.GetTimeoutAlarm()->deadline());
   }
@@ -10761,8 +10640,7 @@ TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
   }
   QuicTime::Delta delay = initial_deadline - clock_.ApproximateNow();
   clock_.AdvanceTime(delay);
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets) ||
-      !GetQuicReloadableFlag(quic_use_blackhole_detector)) {
+  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
     connection_.GetTimeoutAlarm()->Fire();
   }
   if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {

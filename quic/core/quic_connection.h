@@ -1152,9 +1152,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sets the retransmission alarm based on SentPacketManager.
   void SetRetransmissionAlarm();
 
-  // Sets the path degrading alarm.
-  void SetPathDegradingAlarm();
-
   // Sets the MTU discovery alarm if necessary.
   // |sent_packet_number| is the recently sent packet number.
   void MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number);
@@ -1196,10 +1193,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |send_stop_waiting| indicates whether a stop waiting needs to be sent.
   // |acked_new_packet| is true if a previously-unacked packet was acked.
   void PostProcessAfterAckFrame(bool send_stop_waiting, bool acked_new_packet);
-
-  // Called when an ACK is received to set the path degrading alarm or
-  // retransmittable on wire alarm.
-  void MaybeSetPathDegradingAlarm(bool acked_new_packet);
 
   // Updates the release time into the future.
   void UpdateReleaseTimeIntoFuture();
@@ -1448,10 +1441,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
   // An alarm that fires when an MTU probe should be sent.
   QuicArenaScopedPtr<QuicAlarm> mtu_discovery_alarm_;
-  // An alarm that fires when this connection is considered degrading.
-  // TODO(fayang): Remove this when deprecating quic_use_blackhole_detector
-  // flag.
-  QuicArenaScopedPtr<QuicAlarm> path_degrading_alarm_;
   // An alarm that fires to process undecryptable packets when new decyrption
   // keys are available.
   QuicArenaScopedPtr<QuicAlarm> process_undecryptable_packets_alarm_;
@@ -1655,11 +1644,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicIdleNetworkDetector idle_network_detector_;
 
-  const bool use_blackhole_detector_ =
-      GetQuicReloadableFlag(quic_use_blackhole_detector);
-
   const bool use_idle_network_detector_ =
-      use_blackhole_detector_ &&
       GetQuicReloadableFlag(quic_use_idle_network_detector);
 
   const bool extend_idle_time_on_decryptable_packets_ =

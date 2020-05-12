@@ -13,7 +13,7 @@ namespace {
 enum class TestParam { kFromHeap, kFromArena };
 
 struct TestObject {
-  explicit TestObject(uintptr_t value) : value(value) { buffer.resize(1200); }
+  explicit TestObject(uintptr_t value) : value(value) { buffer.resize(1024); }
   uintptr_t value;
 
   // Ensure that we have a non-trivial destructor that will leak memory if it's
@@ -51,7 +51,7 @@ class QuicArenaScopedPtrParamTest : public QuicTestWithParam<TestParam> {
   }
 
  private:
-  QuicOneBlockArena<1200> arena_;
+  QuicOneBlockArena<1024> arena_;
 };
 
 INSTANTIATE_TEST_SUITE_P(QuicArenaScopedPtrParamTest,
@@ -69,7 +69,7 @@ TEST_P(QuicArenaScopedPtrParamTest, NullObjects) {
 }
 
 TEST_P(QuicArenaScopedPtrParamTest, FromArena) {
-  QuicOneBlockArena<1200> arena_;
+  QuicOneBlockArena<1024> arena_;
   EXPECT_TRUE(arena_.New<TestObject>(0).is_from_arena());
   EXPECT_FALSE(
       QuicArenaScopedPtr<TestObject>(new TestObject(0)).is_from_arena());

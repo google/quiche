@@ -286,9 +286,6 @@ QuicConnection::QuicConnection(
       mtu_discovery_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<MtuDiscoveryAlarmDelegate>(this),
           &arena_)),
-      path_degrading_alarm_(alarm_factory_->CreateAlarm(
-          arena_.New<PathDegradingAlarmDelegate>(this),
-          &arena_)),
       process_undecryptable_packets_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<ProcessUndecryptablePacketsAlarmDelegate>(this),
           &arena_)),
@@ -2460,22 +2457,15 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       !is_termination_packet) {
     // Start blackhole/path degrading detections if the sent packet is not
     // termination packet and contains retransmittable data.
-    if (use_blackhole_detector_) {
-      // Do not restart detection if detection is in progress indicating no
-      // forward progress has been made since last event (i.e., packet was sent
-      // or new packets were acknowledged).
-      if (!blackhole_detector_.IsDetectionInProgress()) {
-        // Try to start detections if no detection in progress. This could
-        // because either both detections are inactive when sending last packet
-        // or this connection just gets out of quiescence.
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_blackhole_detector, 1, 4);
-        blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
-                                             GetNetworkBlackholeDeadline());
-      }
-    } else if (!is_path_degrading_ && !path_degrading_alarm_->IsSet()) {
-      // This is the first retransmittable packet on the working path.
-      // Start the path degrading alarm to detect new path degrading.
-      SetPathDegradingAlarm();
+    // Do not restart detection if detection is in progress indicating no
+    // forward progress has been made since last event (i.e., packet was sent
+    // or new packets were acknowledged).
+    if (!blackhole_detector_.IsDetectionInProgress()) {
+      // Try to start detections if no detection in progress. This could
+      // because either both detections are inactive when sending last packet
+      // or this connection just gets out of quiescence.
+      blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
+                                           GetNetworkBlackholeDeadline());
     }
 
     if (use_idle_network_detector_) {
@@ -2777,28 +2767,6 @@ void QuicConnection::OnRetransmissionTimeout() {
 
   QuicPacketNumber previous_created_packet_number =
       packet_creator_.packet_number();
-  if (!use_blackhole_detector_) {
-    if (close_connection_after_five_rtos_ &&
-        sent_packet_manager_.GetConsecutiveRtoCount() >= 4) {
-      // Close on the 5th consecutive RTO, so after 4 previous RTOs have
-      // occurred.
-      CloseConnection(QUIC_TOO_MANY_RTOS,
-                      "5 consecutive retransmission timeouts",
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
-    if (sent_packet_manager_.pto_enabled() && max_consecutive_ptos_ > 0 &&
-        sent_packet_manager_.GetConsecutivePtoCount() >=
-            max_consecutive_ptos_) {
-      CloseConnection(
-          QUIC_TOO_MANY_RTOS,
-          quiche::QuicheStrCat(max_consecutive_ptos_ + 1,
-                               "consecutive retransmission timeouts"),
-          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return;
-    }
-  }
-
   const auto retransmission_mode =
       sent_packet_manager_.OnRetransmissionTimeout();
   if (sent_packet_manager_.skip_packet_number_for_pto() &&
@@ -3173,12 +3141,8 @@ void QuicConnection::CancelAllAlarms() {
   send_alarm_->Cancel();
   timeout_alarm_->Cancel();
   mtu_discovery_alarm_->Cancel();
-  path_degrading_alarm_->Cancel();
   process_undecryptable_packets_alarm_->Cancel();
-  if (use_blackhole_detector_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_blackhole_detector, 4, 4);
-    blackhole_detector_.StopDetection();
-  }
+  blackhole_detector_.StopDetection();
   if (use_idle_network_detector_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 3, 6);
     idle_network_detector_.StopDetection();
@@ -3376,16 +3340,6 @@ void QuicConnection::SetRetransmissionAlarm() {
   }
 
   retransmission_alarm_->Update(sent_packet_manager_.GetRetransmissionTime(),
-                                kAlarmGranularity);
-}
-
-void QuicConnection::SetPathDegradingAlarm() {
-  DCHECK(!use_blackhole_detector_);
-  if (perspective_ == Perspective::IS_SERVER) {
-    return;
-  }
-  const QuicTime::Delta delay = sent_packet_manager_.GetPathDegradingDelay();
-  path_degrading_alarm_->Update(clock_->ApproximateNow() + delay,
                                 kAlarmGranularity);
 }
 
@@ -3912,43 +3866,22 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.
   SetRetransmissionAlarm();
-  if (use_blackhole_detector_) {
-    if (acked_new_packet) {
-      is_path_degrading_ = false;
-      if (sent_packet_manager_.HasInFlightPackets()) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_blackhole_detector, 2, 4);
-        // Restart detections if forward progress has been made.
-        blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
-                                             GetNetworkBlackholeDeadline());
-      } else {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_blackhole_detector, 3, 4);
-        // Stop detections in quiecense.
-        blackhole_detector_.StopDetection();
-      }
+  if (acked_new_packet) {
+    is_path_degrading_ = false;
+    if (sent_packet_manager_.HasInFlightPackets()) {
+      // Restart detections if forward progress has been made.
+      blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
+                                           GetNetworkBlackholeDeadline());
+    } else {
+      // Stop detections in quiecense.
+      blackhole_detector_.StopDetection();
     }
-  } else {
-    MaybeSetPathDegradingAlarm(acked_new_packet);
   }
 
   if (send_stop_waiting) {
     ++stop_waiting_count_;
   } else {
     stop_waiting_count_ = 0;
-  }
-}
-
-void QuicConnection::MaybeSetPathDegradingAlarm(bool acked_new_packet) {
-  DCHECK(!use_blackhole_detector_);
-  if (!sent_packet_manager_.HasInFlightPackets()) {
-    // There are no retransmittable packets on the wire, so it's impossible to
-    // say if the connection has degraded.
-    path_degrading_alarm_->Cancel();
-  } else if (acked_new_packet) {
-    // A previously-unacked packet has been acked, which means forward progress
-    // has been made. Unset |is_path_degrading| if the path was considered as
-    // degrading previously. Set/update the path degrading alarm.
-    is_path_degrading_ = false;
-    SetPathDegradingAlarm();
   }
 }
 
@@ -4326,13 +4259,11 @@ void QuicConnection::set_client_connection_id(
 }
 
 void QuicConnection::OnPathDegradingDetected() {
-  DCHECK(use_blackhole_detector_);
   is_path_degrading_ = true;
   visitor_->OnPathDegrading();
 }
 
 void QuicConnection::OnBlackholeDetected() {
-  DCHECK(use_blackhole_detector_);
   CloseConnection(QUIC_TOO_MANY_RTOS, "Network blackhole detected.",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
@@ -4387,7 +4318,6 @@ void QuicConnection::MaybeUpdateAckTimeout() {
 }
 
 QuicTime QuicConnection::GetPathDegradingDeadline() const {
-  DCHECK(use_blackhole_detector_);
   if (!ShouldDetectPathDegrading()) {
     return QuicTime::Zero();
   }
@@ -4396,7 +4326,6 @@ QuicTime QuicConnection::GetPathDegradingDeadline() const {
 }
 
 bool QuicConnection::ShouldDetectPathDegrading() const {
-  DCHECK(use_blackhole_detector_);
   if (!connected_) {
     return false;
   }
@@ -4408,7 +4337,6 @@ bool QuicConnection::ShouldDetectPathDegrading() const {
 }
 
 QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
-  DCHECK(use_blackhole_detector_);
   if (!ShouldDetectBlackhole()) {
     return QuicTime::Zero();
   }
@@ -4417,7 +4345,6 @@ QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {
-  DCHECK(use_blackhole_detector_);
   if (!connected_) {
     return false;
   }
