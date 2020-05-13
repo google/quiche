@@ -119,14 +119,14 @@ SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
 }
 
 // static
-OwningSerializedPacketPointer
+std::unique_ptr<SerializedPacket>
 QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
     QuicPacketCreator* creator) {
   return creator->SerializeConnectivityProbingPacket();
 }
 
 // static
-OwningSerializedPacketPointer
+std::unique_ptr<SerializedPacket>
 QuicPacketCreatorPeer::SerializePathChallengeConnectivityProbingPacket(
     QuicPacketCreator* creator,
     QuicPathFrameBuffer* payload) {

@@ -460,7 +460,7 @@ void QuicPacketCreator::OnSerializedPacket() {
   SerializedPacket packet(std::move(packet_));
   ClearPacket();
   RemoveSoftMaxPacketLength();
-  delegate_->OnSerializedPacket(&packet);
+  delegate_->OnSerializedPacket(std::move(packet));
 }
 
 void QuicPacketCreator::ClearPacket() {
@@ -768,7 +768,7 @@ QuicPacketCreator::SerializeVersionNegotiationPacket(
   return encrypted;
 }
 
-OwningSerializedPacketPointer
+std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializeConnectivityProbingPacket() {
   QUIC_BUG_IF(VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must not be version 99 to serialize padded ping connectivity probe";
@@ -791,17 +791,20 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
       kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
-  OwningSerializedPacketPointer serialize_packet(new SerializedPacket(
+  std::unique_ptr<SerializedPacket> serialize_packet(new SerializedPacket(
       header.packet_number, header.packet_number_length, buffer.release(),
       encrypted_length, /*has_ack=*/false, /*has_stop_waiting=*/false));
 
+  serialize_packet->release_encrypted_buffer = [](const char* p) {
+    delete[] p;
+  };
   serialize_packet->encryption_level = packet_.encryption_level;
   serialize_packet->transmission_type = NOT_RETRANSMISSION;
 
   return serialize_packet;
 }
 
-OwningSerializedPacketPointer
+std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
     QuicPathFrameBuffer* payload) {
   QUIC_BUG_IF(!VersionHasIetfQuicFrames(framer_->transport_version()))
@@ -827,17 +830,21 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
       kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
-  OwningSerializedPacketPointer serialize_packet(new SerializedPacket(
-      header.packet_number, header.packet_number_length, buffer.release(),
-      encrypted_length, /*has_ack=*/false, /*has_stop_waiting=*/false));
+  std::unique_ptr<SerializedPacket> serialize_packet(
+      new SerializedPacket(header.packet_number, header.packet_number_length,
+                           buffer.release(), encrypted_length,
+                           /*has_ack=*/false, /*has_stop_waiting=*/false));
 
+  serialize_packet->release_encrypted_buffer = [](const char* p) {
+    delete[] p;
+  };
   serialize_packet->encryption_level = packet_.encryption_level;
   serialize_packet->transmission_type = NOT_RETRANSMISSION;
 
   return serialize_packet;
 }
 
-OwningSerializedPacketPointer
+std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
     const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
     const bool is_padded) {
@@ -864,10 +871,14 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
       kMaxOutgoingPacketSize, buffer.get());
   DCHECK(encrypted_length);
 
-  OwningSerializedPacketPointer serialize_packet(new SerializedPacket(
-      header.packet_number, header.packet_number_length, buffer.release(),
-      encrypted_length, /*has_ack=*/false, /*has_stop_waiting=*/false));
+  std::unique_ptr<SerializedPacket> serialize_packet(
+      new SerializedPacket(header.packet_number, header.packet_number_length,
+                           buffer.release(), encrypted_length,
+                           /*has_ack=*/false, /*has_stop_waiting=*/false));
 
+  serialize_packet->release_encrypted_buffer = [](const char* p) {
+    delete[] p;
+  };
   serialize_packet->encryption_level = packet_.encryption_level;
   serialize_packet->transmission_type = NOT_RETRANSMISSION;
 

@@ -90,9 +90,6 @@ void QuicCoalescedPacket::Clear() {
   for (auto& packet : encrypted_buffers_) {
     packet.clear();
   }
-  if (initial_packet_ != nullptr) {
-    ClearSerializedPacket(initial_packet_.get());
-  }
   initial_packet_ = nullptr;
 }
 

@@ -138,28 +138,16 @@ class TestPacketCreator : public QuicPacketCreator {
 
 class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
  public:
-  void ClearSerializedPacketForTests(SerializedPacket* serialized_packet) {
-    if (serialized_packet == nullptr) {
-      return;
-    }
-    ClearSerializedPacket(serialized_packet);
+  void ClearSerializedPacketForTests(SerializedPacket /*serialized_packet*/) {
+    // serialized packet self-clears on destruction.
   }
 
-  void SaveSerializedPacket(SerializedPacket* serialized_packet) {
-    if (serialized_packet == nullptr) {
-      return;
-    }
-    delete[] serialized_packet_.encrypted_buffer;
-    serialized_packet_ = *serialized_packet;
-    serialized_packet_.encrypted_buffer = CopyBuffer(*serialized_packet);
-    serialized_packet->retransmittable_frames.clear();
+  void SaveSerializedPacket(SerializedPacket serialized_packet) {
+    serialized_packet_.reset(CopySerializedPacket(
+        serialized_packet, &allocator_, /*copy_buffer=*/true));
   }
 
-  void DeleteSerializedPacket() {
-    delete[] serialized_packet_.encrypted_buffer;
-    serialized_packet_.encrypted_buffer = nullptr;
-    ClearSerializedPacket(&serialized_packet_);
-  }
+  void DeleteSerializedPacket() { serialized_packet_ = nullptr; }
 
  protected:
   QuicPacketCreatorTest()
@@ -173,8 +161,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
                        Perspective::IS_CLIENT,
                        connection_id_.length()),
         data_("foo"),
-        creator_(connection_id_, &client_framer_, &delegate_, &producer_),
-        serialized_packet_(creator_.NoPacket()) {
+        creator_(connection_id_, &client_framer_, &delegate_, &producer_) {
     EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
     creator_.SetEncrypter(ENCRYPTION_INITIAL, std::make_unique<NullEncrypter>(
                                                   Perspective::IS_CLIENT));
@@ -208,10 +195,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  ~QuicPacketCreatorTest() override {
-    delete[] serialized_packet_.encrypted_buffer;
-    ClearSerializedPacket(&serialized_packet_);
-  }
+  ~QuicPacketCreatorTest() override {}
 
   SerializedPacket SerializeAllFrames(const QuicFrames& frames) {
     SerializedPacket packet = QuicPacketCreatorPeer::SerializeAllFrames(
@@ -297,7 +281,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
   std::string data_;
   struct iovec iov_;
   TestPacketCreator creator_;
-  SerializedPacket serialized_packet_;
+  std::unique_ptr<SerializedPacket> serialized_packet_;
   SimpleDataProducer producer_;
   SimpleBufferAllocator allocator_;
 };
@@ -354,12 +338,12 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
-  QuicConnectionCloseFrame frame(creator_.transport_version(), QUIC_NO_ERROR,
-                                 "error",
-                                 /*transport_close_frame_type=*/0);
+  QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
+      creator_.transport_version(), QUIC_NO_ERROR, "error",
+      /*transport_close_frame_type=*/0);
 
   QuicFrames frames;
-  frames.push_back(QuicFrame(&frame));
+  frames.push_back(QuicFrame(frame));
   SerializedPacket serialized = SerializeAllFrames(frames);
   EXPECT_EQ(ENCRYPTION_INITIAL, serialized.encryption_level);
   ASSERT_EQ(QuicPacketNumber(1u), serialized.packet_number);
@@ -489,7 +473,7 @@ TEST_P(QuicPacketCreatorTest, StreamFrameConsumption) {
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
     creator_.FlushCurrentPacket();
-    ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+    ASSERT_TRUE(serialized_packet_->encrypted_buffer);
     DeleteSerializedPacket();
   }
 }
@@ -537,7 +521,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
       EXPECT_LT(0u, bytes_consumed);
     }
     creator_.FlushCurrentPacket();
-    ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+    ASSERT_TRUE(serialized_packet_->encrypted_buffer);
     // If there is not enough space in the packet to fit a padding frame
     // (1 byte) and to expand the stream frame (another 2 bytes) the packet
     // will not be padded.
@@ -546,9 +530,9 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
          !QuicVersionUsesCryptoFrames(client_framer_.transport_version())) ||
         client_framer_.version().CanSendCoalescedPackets()) {
       EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
-                serialized_packet_.encrypted_length);
+                serialized_packet_->encrypted_length);
     } else {
-      EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_.encrypted_length);
+      EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_->encrypted_length);
     }
     DeleteSerializedPacket();
   }
@@ -578,12 +562,12 @@ TEST_P(QuicPacketCreatorTest, NonCryptoStreamFramePacketNonPadding) {
     size_t bytes_consumed = frame.stream_frame.data_length;
     EXPECT_LT(0u, bytes_consumed);
     creator_.FlushCurrentPacket();
-    ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+    ASSERT_TRUE(serialized_packet_->encrypted_buffer);
     if (bytes_free > 0) {
       EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
-                serialized_packet_.encrypted_length);
+                serialized_packet_->encrypted_length);
     } else {
-      EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_.encrypted_length);
+      EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_->encrypted_length);
     }
     DeleteSerializedPacket();
   }
@@ -951,7 +935,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
 
     creator_.set_encryption_level(level);
 
-    OwningSerializedPacketPointer encrypted;
+    std::unique_ptr<SerializedPacket> encrypted;
     if (VersionHasIetfQuicFrames(creator_.transport_version())) {
       QuicPathFrameBuffer payload = {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
@@ -994,7 +978,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
 
     creator_.set_encryption_level(level);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathChallengeConnectivityProbingPacket(&payload));
     {
       InSequence s;
@@ -1027,7 +1011,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
     QuicCircularDeque<QuicPathFrameBuffer> payloads;
     payloads.push_back(payload0);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 true));
     {
@@ -1061,7 +1045,7 @@ TEST_P(QuicPacketCreatorTest,
     QuicCircularDeque<QuicPathFrameBuffer> payloads;
     payloads.push_back(payload0);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 false));
     {
@@ -1096,7 +1080,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
     payloads.push_back(payload0);
     payloads.push_back(payload1);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 true));
     {
@@ -1133,7 +1117,7 @@ TEST_P(QuicPacketCreatorTest,
     payloads.push_back(payload0);
     payloads.push_back(payload1);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 false));
     {
@@ -1171,7 +1155,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
     payloads.push_back(payload1);
     payloads.push_back(payload2);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 true));
     {
@@ -1211,7 +1195,7 @@ TEST_P(QuicPacketCreatorTest,
     payloads.push_back(payload1);
     payloads.push_back(payload2);
 
-    OwningSerializedPacketPointer encrypted(
+    std::unique_ptr<SerializedPacket> encrypted(
         creator_.SerializePathResponseConnectivityProbingPacket(payloads,
                                                                 false));
     InSequence s;
@@ -1364,7 +1348,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrame) {
   }
   ProcessPacket(serialized);
   EXPECT_EQ(GetParam().version_serialization, header.version_flag);
-  DeleteFrames(&frames_);
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
@@ -1405,7 +1388,6 @@ TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
   }
   ProcessPacket(serialized);
   EXPECT_EQ(GetParam().version_serialization, header.version_flag);
-  DeleteFrames(&frames_);
 }
 
 TEST_P(QuicPacketCreatorTest, ConsumeDataLargerThanOneStreamFrame) {
@@ -1491,13 +1473,14 @@ TEST_P(QuicPacketCreatorTest, AddFrameAndFlush) {
   EXPECT_FALSE(creator_.AddFrame(QuicFrame(&ack_frame), NOT_RETRANSMISSION));
 
   // Ensure the packet is successfully created.
-  ASSERT_TRUE(serialized_packet_.encrypted_buffer);
-  ASSERT_FALSE(serialized_packet_.retransmittable_frames.empty());
-  const QuicFrames& retransmittable = serialized_packet_.retransmittable_frames;
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->retransmittable_frames.empty());
+  const QuicFrames& retransmittable =
+      serialized_packet_->retransmittable_frames;
   ASSERT_EQ(1u, retransmittable.size());
   EXPECT_EQ(STREAM_FRAME, retransmittable[0].type);
-  EXPECT_TRUE(serialized_packet_.has_ack);
-  EXPECT_EQ(QuicPacketNumber(10u), serialized_packet_.largest_acked);
+  EXPECT_TRUE(serialized_packet_->has_ack);
+  EXPECT_EQ(QuicPacketNumber(10u), serialized_packet_->largest_acked);
   DeleteSerializedPacket();
 
   EXPECT_FALSE(creator_.HasPendingFrames());
@@ -1536,9 +1519,10 @@ TEST_P(QuicPacketCreatorTest, SerializeAndSendStreamFrame) {
   EXPECT_EQ(4u, num_bytes_consumed);
 
   // Ensure the packet is successfully created.
-  ASSERT_TRUE(serialized_packet_.encrypted_buffer);
-  ASSERT_FALSE(serialized_packet_.retransmittable_frames.empty());
-  const QuicFrames& retransmittable = serialized_packet_.retransmittable_frames;
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->retransmittable_frames.empty());
+  const QuicFrames& retransmittable =
+      serialized_packet_->retransmittable_frames;
   ASSERT_EQ(1u, retransmittable.size());
   EXPECT_EQ(STREAM_FRAME, retransmittable[0].type);
   DeleteSerializedPacket();
@@ -1568,8 +1552,8 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
   EXPECT_EQ(1u, num_bytes_consumed);
 
   // Check that a packet is created.
-  ASSERT_TRUE(serialized_packet_.encrypted_buffer);
-  ASSERT_FALSE(serialized_packet_.retransmittable_frames.empty());
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  ASSERT_FALSE(serialized_packet_->retransmittable_frames.empty());
   {
     InSequence s;
     EXPECT_CALL(framer_visitor_, OnPacket());
@@ -1583,7 +1567,7 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
     }
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
   }
-  ProcessPacket(serialized_packet_);
+  ProcessPacket(*serialized_packet_);
 }
 
 TEST_P(QuicPacketCreatorTest, AddUnencryptedStreamDataClosesConnection) {
@@ -1672,7 +1656,7 @@ TEST_P(QuicPacketCreatorTest, PendingPadding) {
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
     }
     // Packet only contains padding.
-    ProcessPacket(serialized_packet_);
+    ProcessPacket(*serialized_packet_);
   }
   EXPECT_EQ(0u, creator_.pending_padding_bytes());
 }
@@ -1754,9 +1738,8 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([expected_buffer](SerializedPacket* serialized_packet) {
-        EXPECT_EQ(expected_buffer, serialized_packet->encrypted_buffer);
-        ClearSerializedPacket(serialized_packet);
+      .WillOnce(Invoke([expected_buffer](SerializedPacket serialized_packet) {
+        EXPECT_EQ(expected_buffer, serialized_packet.encrypted_buffer);
       }));
   creator_.FlushCurrentPacket();
 }
@@ -1871,7 +1854,7 @@ TEST_P(QuicPacketCreatorTest, MessageFrameConsumption) {
       EXPECT_CALL(delegate_, OnSerializedPacket(_))
           .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
       creator_.FlushCurrentPacket();
-      ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+      ASSERT_TRUE(serialized_packet_->encrypted_buffer);
       DeleteSerializedPacket();
     }
   }
@@ -1987,18 +1970,18 @@ TEST_P(QuicPacketCreatorTest, PacketTransmissionType) {
       .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
 
   EXPECT_TRUE(creator_.AddFrame(ack_frame, LOSS_RETRANSMISSION));
-  ASSERT_FALSE(serialized_packet_.encrypted_buffer);
+  ASSERT_EQ(serialized_packet_, nullptr);
 
   EXPECT_TRUE(creator_.AddFrame(stream_frame, RTO_RETRANSMISSION));
-  ASSERT_FALSE(serialized_packet_.encrypted_buffer);
+  ASSERT_EQ(serialized_packet_, nullptr);
 
   EXPECT_TRUE(creator_.AddFrame(padding_frame, TLP_RETRANSMISSION));
   creator_.FlushCurrentPacket();
-  ASSERT_TRUE(serialized_packet_.encrypted_buffer);
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
 
   // The last retransmittable frame on packet is a stream frame, the packet's
   // transmission type should be the same as the stream frame's.
-  EXPECT_EQ(serialized_packet_.transmission_type, RTO_RETRANSMISSION);
+  EXPECT_EQ(serialized_packet_->transmission_type, RTO_RETRANSMISSION);
   DeleteSerializedPacket();
 }
 
@@ -2053,7 +2036,6 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
   quiche::test::CompareCharArraysWithHexError(
       "retry token", header.retry_token.data(), header.retry_token.length(),
       retry_token_bytes, sizeof(retry_token_bytes));
-  DeleteFrames(&frames_);
 }
 
 TEST_P(QuicPacketCreatorTest, GetConnectionId) {
@@ -2149,7 +2131,7 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
-  ProcessPacket(serialized_packet_);
+  ProcessPacket(*serialized_packet_);
 }
 
 TEST_P(QuicPacketCreatorTest, SaveNonRetransmittableFrames) {
@@ -2330,7 +2312,7 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
               (),
               (override));
   MOCK_METHOD(char*, GetPacketBuffer, (), (override));
-  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket*), (override));
+  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void,
               OnUnrecoverableError,
               (QuicErrorCode, const std::string&),
@@ -2498,18 +2480,13 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
     creator_.AttachPacketFlusher();
   }
 
-  ~QuicPacketCreatorMultiplePacketsTest() override {
-    for (SerializedPacket& packet : packets_) {
-      delete[] packet.encrypted_buffer;
-      ClearSerializedPacket(&packet);
-    }
-  }
+  ~QuicPacketCreatorMultiplePacketsTest() override {}
 
-  void SavePacket(SerializedPacket* packet) {
-    packet->encrypted_buffer = CopyBuffer(*packet);
-    packets_.push_back(*packet);
-    packet->encrypted_buffer = nullptr;
-    packet->retransmittable_frames.clear();
+  void SavePacket(SerializedPacket packet) {
+    DCHECK(packet.release_encrypted_buffer == nullptr);
+    packet.encrypted_buffer = CopyBuffer(packet);
+    packet.release_encrypted_buffer = [](const char* p) { delete[] p; };
+    packets_.push_back(std::move(packet));
   }
 
  protected:
@@ -2994,7 +2971,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataFastPath) {
   contents.num_stream_frames = 1;
   CheckPacketContains(contents, 0);
   EXPECT_FALSE(packets_.empty());
-  SerializedPacket packet = packets_.back();
+  SerializedPacket& packet = packets_.back();
   EXPECT_TRUE(!packet.retransmittable_frames.empty());
   EXPECT_EQ(LOSS_RETRANSMISSION, packet.transmission_type);
   EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
@@ -3024,7 +3001,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLarge) {
   contents.num_stream_frames = 1;
   CheckPacketContains(contents, 0);
   EXPECT_FALSE(packets_.empty());
-  SerializedPacket packet = packets_.back();
+  SerializedPacket& packet = packets_.back();
   EXPECT_TRUE(!packet.retransmittable_frames.empty());
   EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
   const QuicStreamFrame& stream_frame =
@@ -3067,7 +3044,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckFalse) {
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
 
   EXPECT_FALSE(packets_.empty());
-  SerializedPacket packet = packets_.back();
+  SerializedPacket& packet = packets_.back();
   EXPECT_TRUE(!packet.retransmittable_frames.empty());
   EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
   const QuicStreamFrame& stream_frame =
@@ -3096,7 +3073,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeDataLargeSendAckTrue) {
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
 
   EXPECT_FALSE(packets_.empty());
-  SerializedPacket packet = packets_.back();
+  SerializedPacket& packet = packets_.back();
   EXPECT_TRUE(!packet.retransmittable_frames.empty());
   EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
   const QuicStreamFrame& stream_frame =
@@ -3443,7 +3420,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
        GenerateConnectivityProbingPacket) {
   delegate_.SetCanWriteAnything();
 
-  OwningSerializedPacketPointer probing_packet;
+  std::unique_ptr<SerializedPacket> probing_packet;
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
     QuicPathFrameBuffer payload = {
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};

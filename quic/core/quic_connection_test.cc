@@ -674,7 +674,7 @@ class TestConnection : public QuicConnection {
       serialized_packet.retransmittable_frames.push_back(
           QuicFrame(QuicPingFrame()));
     }
-    OnSerializedPacket(&serialized_packet);
+    OnSerializedPacket(std::move(serialized_packet));
   }
 
   QuicConsumedData SaveAndSendStreamData(QuicStreamId id,
@@ -1160,6 +1160,15 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
   }
 
+  QuicFrame MakeCryptoFrame() const {
+    if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+      return QuicFrame(new QuicCryptoFrame(crypto_frame_));
+    }
+    return QuicFrame(QuicStreamFrame(
+        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
+        0u, quiche::QuicheStringPiece()));
+  }
+
   void ProcessFramePacket(QuicFrame frame) {
     ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
   }
@@ -1506,7 +1515,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     return ConstructPacket(header, frames);
   }
 
-  OwningSerializedPacketPointer ConstructProbingPacket() {
+  std::unique_ptr<SerializedPacket> ConstructProbingPacket() {
     if (VersionHasIetfQuicFrames(version().transport_version)) {
       QuicPathFrameBuffer payload = {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
@@ -1780,17 +1789,13 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_));
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_));
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   // Cause change in self_address.
   QuicIpAddress host;
   host.FromString("1.1.1.1");
@@ -1800,7 +1805,8 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtClient) {
   } else {
     EXPECT_CALL(visitor_, OnStreamFrame(_));
   }
-  ProcessFramePacketWithAddresses(frame, self_address, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
+                                  kPeerAddress);
   EXPECT_TRUE(connection_.connected());
 }
 
@@ -1811,24 +1817,21 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_));
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_));
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   // Cause change in self_address.
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address(host, 123);
   EXPECT_CALL(visitor_, AllowSelfAddressChange()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-  ProcessFramePacketWithAddresses(frame, self_address, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address,
+                                  kPeerAddress);
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_ERROR_MIGRATING_ADDRESS);
 }
@@ -1840,29 +1843,27 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
   EXPECT_TRUE(connection_.connected());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(3);
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
   }
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address1(host, 443);
-  ProcessFramePacketWithAddresses(frame, self_address1, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address1,
+                                  kPeerAddress);
   // Cause self_address change to mapped Ipv4 address.
   QuicIpAddress host2;
   host2.FromString(quiche::QuicheStrCat(
       "::ffff:", connection_.self_address().host().ToString()));
   QuicSocketAddress self_address2(host2, connection_.self_address().port());
-  ProcessFramePacketWithAddresses(frame, self_address2, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address2,
+                                  kPeerAddress);
   EXPECT_TRUE(connection_.connected());
   // self_address change back to Ipv4 address.
-  ProcessFramePacketWithAddresses(frame, self_address1, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address1,
+                                  kPeerAddress);
   EXPECT_TRUE(connection_.connected());
 }
 
@@ -1877,21 +1878,17 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
   QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
                                               QuicSocketAddress());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(),
                         /*port=*/23456);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 
@@ -1899,7 +1896,8 @@ TEST_P(QuicConnectionTest, ClientAddressChangeAndPacketReordered) {
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 4);
   // This is an old packet, do not migrate.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -1917,17 +1915,13 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -1936,7 +1930,8 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -1956,17 +1951,13 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/43210);
   connection_.ReturnEffectivePeerAddressForNextPacket(kEffectivePeerAddress);
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kEffectivePeerAddress, connection_.effective_peer_address());
 
@@ -1976,7 +1967,8 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/54321);
   connection_.ReturnEffectivePeerAddressForNextPacket(kNewEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
 
@@ -2005,7 +1997,8 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   connection_.ReturnEffectivePeerAddressForNextPacket(
       kNewerEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kFinalPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kFinalPeerAddress);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewerEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(PORT_CHANGE, connection_.active_effective_peer_migration_type());
@@ -2019,7 +2012,8 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
       kNewestEffectivePeerAddress);
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(1);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kFinalPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kFinalPeerAddress);
   EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewestEffectivePeerAddress, connection_.effective_peer_address());
   EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
@@ -2039,17 +2033,13 @@ TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2058,7 +2048,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
 
   // Process a padded PING or PATH CHALLENGE packet with no peer address change
   // on server side will be ignored.
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
 
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
@@ -2141,17 +2131,13 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2168,7 +2154,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
 
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2186,7 +2172,8 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
   // Process another packet with the old peer address on server side will not
   // start peer migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
@@ -2205,17 +2192,13 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (GetParam().version.UsesCryptoFrames()) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2269,7 +2252,8 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
   } else {
     EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
@@ -2287,18 +2271,14 @@ TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 5);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2320,7 +2300,7 @@ TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
 
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2349,17 +2329,13 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2377,7 +2353,7 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
 
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2390,7 +2366,8 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
   // side will start peer migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
 
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -2408,17 +2385,13 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2427,7 +2400,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
   EXPECT_CALL(visitor_, OnPacketReceived(_, _, false)).Times(1);
 
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2461,17 +2434,13 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingResponseAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2489,7 +2458,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingResponseAtClient) {
   const QuicSocketAddress kNewSelfAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
 
-  OwningSerializedPacketPointer probing_packet = ConstructProbingPacket();
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
   std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
@@ -2517,17 +2486,13 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
@@ -2536,7 +2501,8 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtClient) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kNewPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }
@@ -7382,31 +7348,31 @@ TEST_P(QuicConnectionTest, GoAway) {
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicGoAwayFrame goaway;
-  goaway.last_good_stream_id = 1;
-  goaway.error_code = QUIC_PEER_GOING_AWAY;
-  goaway.reason_phrase = "Going away.";
+  QuicGoAwayFrame* goaway = new QuicGoAwayFrame();
+  goaway->last_good_stream_id = 1;
+  goaway->error_code = QUIC_PEER_GOING_AWAY;
+  goaway->reason_phrase = "Going away.";
   EXPECT_CALL(visitor_, OnGoAway(_));
-  ProcessGoAwayPacket(&goaway);
+  ProcessGoAwayPacket(goaway);
 }
 
 TEST_P(QuicConnectionTest, WindowUpdate) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicWindowUpdateFrame window_update;
-  window_update.stream_id = 3;
-  window_update.max_data = 1234;
+  QuicWindowUpdateFrame* window_update = new QuicWindowUpdateFrame();
+  window_update->stream_id = 3;
+  window_update->max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
-  ProcessFramePacket(QuicFrame(&window_update));
+  ProcessFramePacket(QuicFrame(window_update));
 }
 
 TEST_P(QuicConnectionTest, Blocked) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicBlockedFrame blocked;
-  blocked.stream_id = 3;
+  QuicBlockedFrame* blocked = new QuicBlockedFrame();
+  blocked->stream_id = 3;
   EXPECT_CALL(visitor_, OnBlockedFrame(_));
-  ProcessFramePacket(QuicFrame(&blocked));
+  ProcessFramePacket(QuicFrame(blocked));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_received);
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
 }
@@ -7684,11 +7650,11 @@ TEST_P(QuicConnectionTest, WindowUpdateInstigateAcks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a WINDOW_UPDATE frame.
-  QuicWindowUpdateFrame window_update;
-  window_update.stream_id = 3;
-  window_update.max_data = 1234;
+  QuicWindowUpdateFrame* window_update = new QuicWindowUpdateFrame();
+  window_update->stream_id = 3;
+  window_update->max_data = 1234;
   EXPECT_CALL(visitor_, OnWindowUpdateFrame(_));
-  ProcessFramePacket(QuicFrame(&window_update));
+  ProcessFramePacket(QuicFrame(window_update));
 
   // Ensure that this has caused the ACK alarm to be set.
   QuicAlarm* ack_alarm = QuicConnectionPeer::GetAckAlarm(&connection_);
@@ -7699,10 +7665,10 @@ TEST_P(QuicConnectionTest, BlockedFrameInstigateAcks) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   // Send a BLOCKED frame.
-  QuicBlockedFrame blocked;
-  blocked.stream_id = 3;
+  QuicBlockedFrame* blocked = new QuicBlockedFrame();
+  blocked->stream_id = 3;
   EXPECT_CALL(visitor_, OnBlockedFrame(_));
-  ProcessFramePacket(QuicFrame(&blocked));
+  ProcessFramePacket(QuicFrame(blocked));
 
   // Ensure that this has caused the ACK alarm to be set.
   QuicAlarm* ack_alarm = QuicConnectionPeer::GetAckAlarm(&connection_);
@@ -9304,17 +9270,13 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
 
   // Let connection process a Google QUIC packet.
   peer_framer_.set_version_for_tests(
@@ -9625,20 +9587,16 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
                                    /*transport_close_frame_type=*/0));
 
   // Received 2 packets.
-  QuicFrame frame;
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    frame = QuicFrame(&crypto_frame_);
     EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   } else {
-    frame = QuicFrame(QuicStreamFrame(
-        QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
     EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
   }
-  ProcessFramePacketWithAddresses(frame, kSelfAddress, kPeerAddress);
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
   QuicAlarm* ack_alarm = QuicConnectionPeer::GetAckAlarm(&connection_);
   EXPECT_TRUE(ack_alarm->IsSet());
-  ProcessFramePacketWithAddresses(QuicFrame(connection_close_frame.get()),
+  ProcessFramePacketWithAddresses(QuicFrame(connection_close_frame.release()),
                                   kSelfAddress, kPeerAddress);
   // Verify ack alarm is not set.
   EXPECT_FALSE(ack_alarm->IsSet());

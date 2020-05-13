@@ -106,10 +106,6 @@ TEST_F(QuicPacketsTest, CopySerializedPacket) {
       CopySerializedPacket(packet, &allocator, /*copy_buffer=*/false));
   EXPECT_EQ(packet.encrypted_buffer, copy2->encrypted_buffer);
   EXPECT_EQ(1000u, copy2->encrypted_length);
-  ClearSerializedPacket(&packet);
-  delete[] copy->encrypted_buffer;
-  ClearSerializedPacket(copy.get());
-  ClearSerializedPacket(copy2.get());
 }
 
 }  // namespace

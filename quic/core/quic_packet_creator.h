@@ -44,10 +44,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // packet. If return nullptr, QuicPacketCreator will serialize on a stack
     // buffer.
     virtual char* GetPacketBuffer() = 0;
-    // Called when a packet is serialized. Delegate does not take the ownership
-    // of |serialized_packet|, but takes ownership of any frames it removes
-    // from |packet.retransmittable_frames|.
-    virtual void OnSerializedPacket(SerializedPacket* serialized_packet) = 0;
+    // Called when a packet is serialized. Delegate take the ownership of
+    // |serialized_packet|.
+    virtual void OnSerializedPacket(SerializedPacket serialized_packet) = 0;
 
     // Called when an unrecoverable error is encountered.
     virtual void OnUnrecoverableError(QuicErrorCode error,
@@ -210,19 +209,20 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       const ParsedQuicVersionVector& supported_versions);
 
   // Creates a connectivity probing packet for versions prior to version 99.
-  OwningSerializedPacketPointer SerializeConnectivityProbingPacket();
+  std::unique_ptr<SerializedPacket> SerializeConnectivityProbingPacket();
 
   // Create connectivity probing request and response packets using PATH
   // CHALLENGE and PATH RESPONSE frames, respectively, for version 99/IETF QUIC.
   // SerializePathChallengeConnectivityProbingPacket will pad the packet to be
   // MTU bytes long.
-  OwningSerializedPacketPointer SerializePathChallengeConnectivityProbingPacket(
-      QuicPathFrameBuffer* payload);
+  std::unique_ptr<SerializedPacket>
+  SerializePathChallengeConnectivityProbingPacket(QuicPathFrameBuffer* payload);
 
   // If |is_padded| is true then SerializePathResponseConnectivityProbingPacket
   // will pad the packet to be MTU bytes long, else it will not pad the packet.
   // |payloads| is cleared.
-  OwningSerializedPacketPointer SerializePathResponseConnectivityProbingPacket(
+  std::unique_ptr<SerializedPacket>
+  SerializePathResponseConnectivityProbingPacket(
       const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
@@ -458,8 +458,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Serializes all frames which have been added and adds any which should be
   // retransmitted to packet_.retransmittable_frames. All frames must fit into
   // a single packet.
-  // Fails if |buffer_len| isn't long enough for the encrypted packet.
-  void SerializePacket(char* encrypted_buffer, size_t buffer_len);
+  // Fails if |encrypted_buffer_len| isn't long enough for the encrypted packet.
+  void SerializePacket(char* encrypted_buffer, size_t encrypted_buffer_len);
 
   // Called after a new SerialiedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.

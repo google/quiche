@@ -736,7 +736,7 @@ class PacketSavingConnection : public MockQuicConnection {
 
   ~PacketSavingConnection() override;
 
-  void SendOrQueuePacket(SerializedPacket* packet) override;
+  void SendOrQueuePacket(SerializedPacket packet) override;
 
   std::vector<std::unique_ptr<QuicEncryptedPacket>> encrypted_packets_;
   MockClock clock_;
@@ -1444,7 +1444,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
   ~MockPacketCreatorDelegate() override;
 
   MOCK_METHOD(char*, GetPacketBuffer, (), (override));
-  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket*), (override));
+  MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void,
               OnUnrecoverableError,
               (QuicErrorCode, const std::string&),

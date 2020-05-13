@@ -588,7 +588,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
   char* GetPacketBuffer() override;
-  void OnSerializedPacket(SerializedPacket* packet) override;
+  void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& error_details) override;
 
@@ -971,7 +971,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Send a packet to the peer, and takes ownership of the packet if the packet
   // cannot be written immediately.
-  virtual void SendOrQueuePacket(SerializedPacket* packet);
+  virtual void SendOrQueuePacket(SerializedPacket packet);
 
   // Called after a packet is received from a new effective peer address and is
   // decrypted. Starts validation of effective peer's address change. Calls

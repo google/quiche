@@ -50,9 +50,9 @@ class QuicPacketCreatorPeer {
                                              const QuicFrames& frames,
                                              char* buffer,
                                              size_t buffer_len);
-  static OwningSerializedPacketPointer SerializeConnectivityProbingPacket(
+  static std::unique_ptr<SerializedPacket> SerializeConnectivityProbingPacket(
       QuicPacketCreator* creator);
-  static OwningSerializedPacketPointer
+  static std::unique_ptr<SerializedPacket>
   SerializePathChallengeConnectivityProbingPacket(QuicPacketCreator* creator,
                                                   QuicPathFrameBuffer* payload);
 

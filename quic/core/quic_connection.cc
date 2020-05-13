@@ -2299,7 +2299,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   QuicPacketNumber packet_number = packet->packet_number;
-  QuicPacketLength encrypted_length = packet->encrypted_length;
+  const QuicPacketLength encrypted_length = packet->encrypted_length;
   // Termination packets are eventually owned by TimeWaitListManager.
   // Others are deleted at the end of this call.
   if (is_termination_packet) {
@@ -2422,8 +2422,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     // When MSG_TOO_BIG is returned, the system typically knows what the
     // actual MTU is, so there is no need to probe further.
     // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
-    QUIC_DVLOG(1) << ENDPOINT << " MTU probe packet too big, size:"
-                  << packet->encrypted_length
+    QUIC_DVLOG(1) << ENDPOINT
+                  << " MTU probe packet too big, size:" << encrypted_length
                   << ", long_term_mtu_:" << long_term_mtu_;
     mtu_discoverer_.Disable();
     mtu_discovery_alarm_->Cancel();
@@ -2487,7 +2487,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   if (EnforceAntiAmplificationLimit()) {
     // Include bytes sent even if they are not in flight.
-    bytes_sent_before_address_validation_ += packet->encrypted_length;
+    bytes_sent_before_address_validation_ += encrypted_length;
   }
 
   const bool in_flight = sent_packet_manager_.OnPacketSent(
@@ -2623,8 +2623,8 @@ char* QuicConnection::GetPacketBuffer() {
   return writer_->GetNextWriteLocation(self_address().host(), peer_address());
 }
 
-void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
-  if (serialized_packet->encrypted_buffer == nullptr) {
+void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
+  if (serialized_packet.encrypted_buffer == nullptr) {
     // We failed to serialize the packet, so close the connection.
     // Specify that the close is silent, that no packet be sent, so no infinite
     // loop here.
@@ -2643,14 +2643,14 @@ void QuicConnection::OnSerializedPacket(SerializedPacket* serialized_packet) {
     return;
   }
 
-  if (serialized_packet->retransmittable_frames.empty()) {
+  if (serialized_packet.retransmittable_frames.empty()) {
     // Increment consecutive_num_packets_with_no_retransmittable_frames_ if
     // this packet is a new transmission with no retransmittable frames.
     ++consecutive_num_packets_with_no_retransmittable_frames_;
   } else {
     consecutive_num_packets_with_no_retransmittable_frames_ = 0;
   }
-  SendOrQueuePacket(serialized_packet);
+  SendOrQueuePacket(std::move(serialized_packet));
 }
 
 void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
@@ -2709,14 +2709,9 @@ void QuicConnection::OnHandshakeComplete() {
                      kAlarmGranularity);
 }
 
-void QuicConnection::SendOrQueuePacket(SerializedPacket* packet) {
+void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
   // The caller of this function is responsible for checking CanWrite().
-  if (packet->encrypted_buffer == nullptr) {
-    QUIC_BUG << "packet.encrypted_buffer == nullptr in to SendOrQueuePacket";
-    return;
-  }
-  WritePacket(packet);
-  ClearSerializedPacket(packet);
+  WritePacket(&packet);
 }
 
 void QuicConnection::OnPingTimeout() {
@@ -3568,7 +3563,7 @@ bool QuicConnection::SendGenericPathProbePacket(
                   << "Sending path probe packet for connection_id = "
                   << server_connection_id_;
 
-  OwningSerializedPacketPointer probing_packet;
+  std::unique_ptr<SerializedPacket> probing_packet;
   if (!version().HasIetfQuicFrames()) {
     // Non-IETF QUIC, generate a padded ping regardless of whether this is a
     // request or a response.

@@ -560,14 +560,14 @@ PacketSavingConnection::PacketSavingConnection(
 
 PacketSavingConnection::~PacketSavingConnection() {}
 
-void PacketSavingConnection::SendOrQueuePacket(SerializedPacket* packet) {
+void PacketSavingConnection::SendOrQueuePacket(SerializedPacket packet) {
   encrypted_packets_.push_back(std::make_unique<QuicEncryptedPacket>(
-      CopyBuffer(*packet), packet->encrypted_length, true));
+      CopyBuffer(packet), packet.encrypted_length, true));
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   // Transfer ownership of the packet to the SentPacketManager and the
   // ack notifier to the AckNotifierManager.
   QuicConnectionPeer::GetSentPacketManager(this)->OnPacketSent(
-      packet, clock_.ApproximateNow(), NOT_RETRANSMISSION,
+      &packet, clock_.ApproximateNow(), NOT_RETRANSMISSION,
       HAS_RETRANSMITTABLE_DATA);
 }
 

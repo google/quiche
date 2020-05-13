@@ -357,6 +357,13 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacket : public QuicEncryptedPacket {
   bool owns_header_buffer_;
 };
 
+// SerializedPacket contains information of a serialized(encrypted) packet.
+//
+// WARNING:
+//
+//   If you add a member field to this class, please make sure it is properly
+//   copied in |CopySerializedPacket|.
+//
 struct QUIC_EXPORT_PRIVATE SerializedPacket {
   SerializedPacket(QuicPacketNumber packet_number,
                    QuicPacketNumberLength packet_number_length,
@@ -364,14 +371,20 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
                    QuicPacketLength encrypted_length,
                    bool has_ack,
                    bool has_stop_waiting);
-  SerializedPacket(const SerializedPacket& other);
-  SerializedPacket& operator=(const SerializedPacket& other);
+
+  // Copy constructor & assignment are deleted. Use |CopySerializedPacket| to
+  // make a copy.
+  SerializedPacket(const SerializedPacket& other) = delete;
+  SerializedPacket& operator=(const SerializedPacket& other) = delete;
   SerializedPacket(SerializedPacket&& other);
   ~SerializedPacket();
 
-  // Not owned.
+  // Not owned if |release_encrypted_buffer| is nullptr. Otherwise it is
+  // released by |release_encrypted_buffer| on destruction.
   const char* encrypted_buffer;
   QuicPacketLength encrypted_length;
+  std::function<void(const char*)> release_encrypted_buffer;
+
   QuicFrames retransmittable_frames;
   QuicFrames nonretransmittable_frames;
   IsHandshake has_crypto_handshake;
@@ -401,10 +414,6 @@ QUIC_EXPORT_PRIVATE SerializedPacket* CopySerializedPacket(
     QuicBufferAllocator* allocator,
     bool copy_buffer);
 
-// Deletes and clears all the frames and the packet from serialized packet.
-QUIC_EXPORT_PRIVATE void ClearSerializedPacket(
-    SerializedPacket* serialized_packet);
-
 // Allocates a new char[] of size |packet.encrypted_length| and copies in
 // |packet.encrypted_buffer|.
 QUIC_EXPORT_PRIVATE char* CopyBuffer(const SerializedPacket& packet);
@@ -412,21 +421,6 @@ QUIC_EXPORT_PRIVATE char* CopyBuffer(const SerializedPacket& packet);
 // |encrypted_buffer|.
 QUIC_EXPORT_PRIVATE char* CopyBuffer(const char* encrypted_buffer,
                                      QuicPacketLength encrypted_length);
-
-struct QUIC_EXPORT_PRIVATE SerializedPacketDeleter {
-  void operator()(SerializedPacket* packet) {
-    if (packet->encrypted_buffer != nullptr) {
-      delete[] packet->encrypted_buffer;
-    }
-    delete packet;
-  }
-};
-
-// On destruction, OwningSerializedPacketPointer deletes a packet's (on-heap)
-// encrypted_buffer before deleting the (also on-heap) packet itself.
-// TODO(wub): Maybe delete retransmittable_frames too?
-typedef std::unique_ptr<SerializedPacket, SerializedPacketDeleter>
-    OwningSerializedPacketPointer;
 
 // Context for an incoming packet.
 struct QUIC_EXPORT_PRIVATE QuicPerPacketContext {
