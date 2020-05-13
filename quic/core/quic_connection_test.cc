@@ -2065,6 +2065,24 @@ TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 }
 
+// Regression test for b/150161358.
+TEST_P(QuicConnectionTest, BufferedMtuPacketTooBig) {
+  if (!GetQuicReloadableFlag(quic_ignore_msg_too_big_from_buffered_packets)) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(1);
+  writer_->SetWriteBlocked();
+
+  // Send a MTU packet while blocked. It should be buffered.
+  connection_.SendMtuDiscoveryPacket(kMaxOutgoingPacketSize);
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
+  EXPECT_TRUE(writer_->IsWriteBlocked());
+
+  writer_->AlwaysGetPacketTooLarge();
+  writer_->SetWritable();
+  connection_.OnCanWrite();
+}
+
 TEST_P(QuicConnectionTest, WriteOutOfOrderQueuedPackets) {
   // EXPECT_QUIC_BUG tests are expensive so only run one instance of them.
   if (!IsDefaultTestConfiguration()) {

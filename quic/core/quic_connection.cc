@@ -2122,6 +2122,12 @@ void QuicConnection::WriteQueuedPackets() {
       // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
       mtu_discoverer_.Disable();
       mtu_discovery_alarm_->Cancel();
+      if (GetQuicReloadableFlag(
+              quic_ignore_msg_too_big_from_buffered_packets)) {
+        QUIC_RELOADABLE_FLAG_COUNT(
+            quic_ignore_msg_too_big_from_buffered_packets);
+        buffered_packets_.pop_front();
+      }
       continue;
     }
     if (IsWriteError(result.status)) {
