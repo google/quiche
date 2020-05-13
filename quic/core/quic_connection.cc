@@ -3903,6 +3903,7 @@ void QuicConnection::SetTransmissionType(TransmissionType type) {
 void QuicConnection::UpdateReleaseTimeIntoFuture() {
   DCHECK(supports_release_time_);
 
+  const QuicTime::Delta prior_max_release_time = release_time_into_future_;
   release_time_into_future_ = std::max(
       QuicTime::Delta::FromMilliseconds(kMinReleaseTimeIntoFutureMs),
       std::min(
@@ -3910,6 +3911,9 @@ void QuicConnection::UpdateReleaseTimeIntoFuture() {
               GetQuicFlag(FLAGS_quic_max_pace_time_into_future_ms)),
           sent_packet_manager_.GetRttStats()->SmoothedOrInitialRtt() *
               GetQuicFlag(FLAGS_quic_pace_time_into_future_srtt_fraction)));
+  QUIC_DVLOG(3) << "Updated max release time delay from "
+                << prior_max_release_time << " to "
+                << release_time_into_future_;
 }
 
 void QuicConnection::ResetAckStates() {
