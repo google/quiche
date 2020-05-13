@@ -98,7 +98,7 @@ QuicSentPacketManager::QuicSentPacketManager(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       rtt_updated_(false),
       acked_packets_iter_(last_ack_frame_.packets.rbegin()),
-      pto_enabled_(false),
+      pto_enabled_(GetQuicReloadableFlag(quic_default_on_pto)),
       max_probe_packets_per_pto_(2),
       consecutive_pto_count_(0),
       handshake_mode_disabled_(false),
@@ -112,6 +112,13 @@ QuicSentPacketManager::QuicSentPacketManager(
       first_pto_srtt_multiplier_(0),
       use_standard_deviation_for_pto_(false) {
   SetSendAlgorithm(congestion_control_type);
+  if (pto_enabled_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
+    // TODO(fayang): change the default values when deprecating
+    // quic_default_on_pto.
+    first_pto_srtt_multiplier_ = 1.5;
+    pto_rttvar_multiplier_ = 2;
+  }
 }
 
 QuicSentPacketManager::~QuicSentPacketManager() {}
@@ -891,6 +898,12 @@ void QuicSentPacketManager::AdjustPendingTimerTransmissions() {
 }
 
 void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
+  if (pto_enabled_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 2, 2);
+    // Disable handshake mode.
+    handshake_mode_disabled_ = true;
+    return;
+  }
   pto_enabled_ = true;
   handshake_mode_disabled_ = true;
   // Default to 1 packet per PTO and skip a packet number. Arm the 1st PTO with

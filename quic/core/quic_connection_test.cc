@@ -901,7 +901,8 @@ class TestConnection : public QuicConnection {
     if (QuicConnectionPeer::GetSentPacketManager(this)->pto_enabled()) {
       // PTO mode is default enabled for T099. And TLP/RTO related tests are
       // stale.
-      DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
+      DCHECK(PROTOCOL_TLS1_3 == version().handshake_protocol ||
+             GetQuicReloadableFlag(quic_default_on_pto));
       return true;
     }
     return false;
@@ -3936,8 +3937,10 @@ TEST_P(QuicConnectionTest, RetransmitWriteBlockedAckedOriginalThenSent) {
   writer_->SetWritable();
   connection_.OnCanWrite();
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  const uint64_t retransmission =
-      connection_.SupportsMultiplePacketNumberSpaces() ? 3 : 2;
+  uint64_t retransmission = connection_.SupportsMultiplePacketNumberSpaces() &&
+                                    !GetQuicReloadableFlag(quic_default_on_pto)
+                                ? 3
+                                : 2;
   EXPECT_FALSE(QuicConnectionPeer::HasRetransmittableFrames(&connection_,
                                                             retransmission));
 }
@@ -4167,6 +4170,9 @@ TEST_P(QuicConnectionTest, DontLatchUnackedPacket) {
 }
 
 TEST_P(QuicConnectionTest, TLP) {
+  if (connection_.PtoEnabled()) {
+    return;
+  }
   connection_.SetMaxTailLossProbes(1);
 
   SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
@@ -9994,7 +10000,12 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
 
   // PTO fires, verify a PING packet gets sent because there is no data to send.
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _,
+                           GetQuicReloadableFlag(quic_default_on_pto)
+                               ? QuicPacketNumber(2)
+                               : QuicPacketNumber(3),
+                           _, _));
   EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
@@ -10242,7 +10253,12 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(4), _, _));
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _,
+                           GetQuicReloadableFlag(quic_default_on_pto)
+                               ? QuicPacketNumber(3)
+                               : QuicPacketNumber(4),
+                           _, _));
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
@@ -10256,7 +10272,12 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit handshake data again.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(7), _, _));
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _,
+                           GetQuicReloadableFlag(quic_default_on_pto)
+                               ? QuicPacketNumber(5)
+                               : QuicPacketNumber(7),
+                           _, _));
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
@@ -10268,7 +10289,12 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
 
   // Retransmit application data.
   clock_.AdvanceTime(retransmission_time - clock_.Now());
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(9), _, _));
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, _,
+                           GetQuicReloadableFlag(quic_default_on_pto)
+                               ? QuicPacketNumber(6)
+                               : QuicPacketNumber(9),
+                           _, _));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
