@@ -345,9 +345,9 @@ void TlsClientHandshaker::OnHandshakePacketSent() {
   if (initial_keys_dropped_) {
     return;
   }
+  initial_keys_dropped_ = true;
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_INITIAL);
-  initial_keys_dropped_ = true;
 }
 
 void TlsClientHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
