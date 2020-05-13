@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 
+#include <limits>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -461,7 +462,10 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
       MaybeIncreaseHighestReceivedOffset(frame.offset + frame_payload_size)) {
     // As the highest received offset has changed, check to see if this is a
     // violation of flow control.
-    if (flow_controller_->FlowControlViolation() ||
+    QUIC_BUG_IF(!flow_controller_.has_value())
+        << ENDPOINT << "OnStreamFrame called on stream without flow control";
+    if ((flow_controller_.has_value() &&
+         flow_controller_->FlowControlViolation()) ||
         connection_flow_controller_->FlowControlViolation()) {
       OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
                            "Flow control violation after increasing offset");
@@ -525,7 +529,10 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   }
 
   MaybeIncreaseHighestReceivedOffset(frame.byte_offset);
-  if (flow_controller_->FlowControlViolation() ||
+  QUIC_BUG_IF(!flow_controller_.has_value())
+      << ENDPOINT << "OnStreamReset called on stream without flow control";
+  if ((flow_controller_.has_value() &&
+       flow_controller_->FlowControlViolation()) ||
       connection_flow_controller_->FlowControlViolation()) {
     OnUnrecoverableError(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA,
                          "Flow control violation after increasing offset");
@@ -678,6 +685,11 @@ void QuicStream::OnCanWrite() {
 }
 
 void QuicStream::MaybeSendBlocked() {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << ENDPOINT
+             << "MaybeSendBlocked called on stream without flow control";
+    return;
+  }
   if (flow_controller_->ShouldSendBlocked()) {
     session_->SendBlocked(id_);
   }
@@ -833,7 +845,8 @@ void QuicStream::OnClose() {
     rst_sent_ = true;
   }
 
-  if (flow_controller_->FlowControlViolation() ||
+  if (!flow_controller_.has_value() ||
+      flow_controller_->FlowControlViolation() ||
       connection_flow_controller_->FlowControlViolation()) {
     return;
   }
@@ -855,6 +868,12 @@ void QuicStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
     return;
   }
 
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << ENDPOINT
+             << "OnWindowUpdateFrame called on stream without flow control";
+    return;
+  }
+
   if (flow_controller_->UpdateSendWindowOffset(frame.max_data)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);
@@ -863,6 +882,12 @@ void QuicStream::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
 bool QuicStream::MaybeIncreaseHighestReceivedOffset(
     QuicStreamOffset new_offset) {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << ENDPOINT
+             << "MaybeIncreaseHighestReceivedOffset called on stream without "
+                "flow control";
+    return false;
+  }
   uint64_t increment =
       new_offset - flow_controller_->highest_received_byte_offset();
   if (!flow_controller_->UpdateHighestReceivedOffset(new_offset)) {
@@ -881,6 +906,11 @@ bool QuicStream::MaybeIncreaseHighestReceivedOffset(
 }
 
 void QuicStream::AddBytesSent(QuicByteCount bytes) {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << ENDPOINT
+             << "AddBytesSent called on stream without flow control";
+    return;
+  }
   flow_controller_->AddBytesSent(bytes);
   if (stream_contributes_to_connection_flow_control_) {
     connection_flow_controller_->AddBytesSent(bytes);
@@ -894,6 +924,12 @@ void QuicStream::AddBytesConsumed(QuicByteCount bytes) {
     // QuicStreamSequencers used by QuicCryptoStream.
     return;
   }
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG
+        << ENDPOINT
+        << "AddBytesConsumed called on non-crypto stream without flow control";
+    return;
+  }
   // Only adjust stream level flow controller if still reading.
   if (!read_side_closed_) {
     flow_controller_->AddBytesConsumed(bytes);
@@ -905,6 +941,11 @@ void QuicStream::AddBytesConsumed(QuicByteCount bytes) {
 }
 
 bool QuicStream::ConfigSendWindowOffset(QuicStreamOffset new_offset) {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << ENDPOINT
+             << "ConfigSendWindowOffset called on stream without flow control";
+    return false;
+  }
   if (perspective_ == Perspective::IS_CLIENT &&
       session()->version().AllowsLowFlowControlLimits() &&
       new_offset < flow_controller_->send_window_offset()) {
@@ -1072,7 +1113,14 @@ void QuicStream::WriteBufferedData() {
   bool fin = fin_buffered_;
 
   // How much data flow control permits to be written.
-  QuicByteCount send_window = flow_controller_->SendWindowSize();
+  QuicByteCount send_window;
+  if (flow_controller_.has_value()) {
+    send_window = flow_controller_->SendWindowSize();
+  } else {
+    send_window = std::numeric_limits<QuicByteCount>::max();
+    QUIC_BUG << ENDPOINT
+             << "WriteBufferedData called on stream without flow control";
+  }
   if (stream_contributes_to_connection_flow_control_) {
     send_window =
         std::min(send_window, connection_flow_controller_->SendWindowSize());
