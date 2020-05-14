@@ -262,7 +262,9 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   AttemptResumption(client.get());
 }
 
-std::set<Feature> ServerSupport(std::string host, int port) {
+std::set<Feature> ServerSupport(std::string dns_host,
+                                std::string url_host,
+                                int port) {
   // Enable IETF version support.
   QuicVersionInitializeSupportForIetfDraft();
   ParsedQuicVersion version = UnsupportedQuicVersion();
@@ -279,13 +281,13 @@ std::set<Feature> ServerSupport(std::string host, int port) {
 
   // Build the client, and try to connect.
   QuicSocketAddress addr =
-      tools::LookupAddress(host, quiche::QuicheStrCat(port));
+      tools::LookupAddress(dns_host, quiche::QuicheStrCat(port));
   if (!addr.IsInitialized()) {
-    QUIC_LOG(ERROR) << "Failed to resolve " << host;
+    QUIC_LOG(ERROR) << "Failed to resolve " << dns_host;
     return std::set<Feature>();
   }
-  QuicServerId server_id(host, port, false);
-  std::string authority = quiche::QuicheStrCat(host, ":", port);
+  QuicServerId server_id(url_host, port, false);
+  std::string authority = quiche::QuicheStrCat(url_host, ":", port);
 
   QuicClientInteropRunner runner;
 
@@ -308,13 +310,15 @@ int main(int argc, char* argv[]) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     exit(1);
   }
-  std::string host = GetQuicFlag(FLAGS_host);
+  std::string dns_host = GetQuicFlag(FLAGS_host);
+  std::string url_host = "";
   int port = GetQuicFlag(FLAGS_port);
 
   if (!args.empty()) {
     quic::QuicUrl url(args[0], "https");
-    if (host.empty()) {
-      host = url.host();
+    url_host = url.host();
+    if (dns_host.empty()) {
+      dns_host = url_host;
     }
     if (port == 0) {
       port = url.port();
@@ -323,13 +327,16 @@ int main(int argc, char* argv[]) {
   if (port == 0) {
     port = 443;
   }
-  if (host.empty()) {
+  if (dns_host.empty()) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     exit(1);
   }
+  if (url_host.empty()) {
+    url_host = dns_host;
+  }
 
-  auto supported_features = quic::ServerSupport(host, port);
-  std::cout << "Results for " << host << ":" << port << std::endl;
+  auto supported_features = quic::ServerSupport(dns_host, url_host, port);
+  std::cout << "Results for " << url_host << ":" << port << std::endl;
   int current_row = 1;
   for (auto feature : supported_features) {
     if (current_row < 2 && feature >= quic::Feature::kRebinding) {
