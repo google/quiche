@@ -10009,7 +10009,7 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
   EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
-  EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
+  EXPECT_EQ(1u, connection_.GetStats().crypto_retransmit_count);
   EXPECT_EQ(1u, writer_->ping_frames().size());
 }
 

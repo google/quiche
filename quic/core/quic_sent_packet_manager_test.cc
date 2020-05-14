@@ -2811,7 +2811,7 @@ TEST_F(QuicSentPacketManagerTest, SendOneProbePacket) {
 
 TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  manager_.EnableIetfPtoAndLossDetection();
+  manager_.EnableMultiplePacketNumberSpacesSupport();
   // Send CHLO.
   SendCryptoPacket(1);
   EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
@@ -3340,6 +3340,7 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_EQ(1u, stats_.pto_count);
+  EXPECT_EQ(1u, stats_.crypto_retransmit_count);
 
   // Verify probe packet gets sent.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
@@ -3911,7 +3912,7 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
 // Regression test for b/154050235.
 TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
-  manager_.EnableIetfPtoAndLossDetection();
+  manager_.EnableMultiplePacketNumberSpacesSupport();
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(kInitialRttMs),
             rtt_stats->initial_rtt());
@@ -3939,7 +3940,7 @@ TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
 }
 
 TEST_F(QuicSentPacketManagerTest, PtoDelayWithTinyInitialRtt) {
-  manager_.EnableIetfPtoAndLossDetection();
+  manager_.EnableMultiplePacketNumberSpacesSupport();
   RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
   // Assume client provided a tiny initial RTT.
   rtt_stats->set_initial_rtt(QuicTime::Delta::FromMicroseconds(1));

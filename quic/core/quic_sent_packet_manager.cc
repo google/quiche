@@ -754,6 +754,9 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
     case PTO_MODE:
       QUIC_DVLOG(1) << ENDPOINT << "PTO mode";
       ++stats_->pto_count;
+      if (handshake_mode_disabled_ && !ShouldArmPtoForApplicationData()) {
+        ++stats_->crypto_retransmit_count;
+      }
       ++consecutive_pto_count_;
       pending_timer_transmission_count_ = max_probe_packets_per_pto_;
       return PTO_MODE;
