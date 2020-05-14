@@ -2388,7 +2388,10 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
   }
 };
 
-TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
+// TODO(dschinazi) Fix this test's flakiness in Chrome.
+TEST_P(
+    EndToEndTest,
+    QUIC_TEST_DISABLED_IN_CHROME(AckNotifierWithPacketLossAndBlockedSocket)) {
   // Verify that even in the presence of packet loss and occasionally blocked
   // socket,  an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
