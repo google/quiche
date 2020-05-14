@@ -49,6 +49,9 @@ enum TransportParameters::TransportParameterId : uint64_t {
 
   kMaxDatagramFrameSize = 0x20,
 
+  kInitialRoundTripTime = 0x3127,
+  kGoogleConnectionOptions = 0x3128,
+  kGoogleUserAgentId = 0x3129,
   kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
   kGoogleQuicVersion =
       18258,  // Used to transmit version and supported_versions.
@@ -103,6 +106,12 @@ std::string TransportParameterIdToString(
       return "active_connection_id_limit";
     case TransportParameters::kMaxDatagramFrameSize:
       return "max_datagram_frame_size";
+    case TransportParameters::kInitialRoundTripTime:
+      return "initial_round_trip_time";
+    case TransportParameters::kGoogleConnectionOptions:
+      return "google_connection_options";
+    case TransportParameters::kGoogleUserAgentId:
+      return "user_agent_id";
     case TransportParameters::kGoogleQuicParam:
       return "google";
     case TransportParameters::kGoogleQuicVersion:
@@ -130,6 +139,9 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kPreferredAddress:
     case TransportParameters::kActiveConnectionIdLimit:
     case TransportParameters::kMaxDatagramFrameSize:
+    case TransportParameters::kInitialRoundTripTime:
+    case TransportParameters::kGoogleConnectionOptions:
+    case TransportParameters::kGoogleUserAgentId:
     case TransportParameters::kGoogleQuicParam:
     case TransportParameters::kGoogleQuicVersion:
       return true;
@@ -418,14 +430,31 @@ std::string TransportParameters::ToString() const {
   }
   rv += active_connection_id_limit.ToString(/*for_use_in_list=*/true);
   rv += max_datagram_frame_size.ToString(/*for_use_in_list=*/true);
+  rv += initial_round_trip_time_us.ToString(/*for_use_in_list=*/true);
+  if (google_connection_options.has_value()) {
+    rv += " " + TransportParameterIdToString(kGoogleConnectionOptions) + " ";
+    bool first = true;
+    for (const QuicTag& connection_option : google_connection_options.value()) {
+      if (first) {
+        first = false;
+      } else {
+        rv += ",";
+      }
+      rv += QuicTagToString(connection_option);
+    }
+  }
+  if (user_agent_id.has_value()) {
+    rv += " " + TransportParameterIdToString(kGoogleUserAgentId) + " \"" +
+          user_agent_id.value() + "\"";
+  }
   if (google_quic_params) {
     rv += " " + TransportParameterIdToString(kGoogleQuicParam);
   }
-  rv += "]";
   for (const auto& kv : custom_parameters) {
     rv += " 0x" + quiche::QuicheTextUtils::Hex(static_cast<uint32_t>(kv.first));
     rv += "=" + quiche::QuicheTextUtils::HexEncode(kv.second);
   }
+  rv += "]";
   return rv;
 }
 
@@ -455,7 +484,8 @@ TransportParameters::TransportParameters()
                                  kDefaultActiveConnectionIdLimitTransportParam,
                                  kMinActiveConnectionIdLimitTransportParam,
                                  kVarInt62MaxValue),
-      max_datagram_frame_size(kMaxDatagramFrameSize)
+      max_datagram_frame_size(kMaxDatagramFrameSize),
+      initial_round_trip_time_us(kInitialRoundTripTime)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
 // ParseTransportParameters, TransportParameters's custom copy constructor, the
@@ -483,6 +513,9 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       disable_migration(other.disable_migration),
       active_connection_id_limit(other.active_connection_id_limit),
       max_datagram_frame_size(other.max_datagram_frame_size),
+      initial_round_trip_time_us(other.initial_round_trip_time_us),
+      google_connection_options(other.google_connection_options),
+      user_agent_id(other.user_agent_id),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
     preferred_address = std::make_unique<TransportParameters::PreferredAddress>(
@@ -520,6 +553,10 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.active_connection_id_limit.value() &&
         max_datagram_frame_size.value() ==
             rhs.max_datagram_frame_size.value() &&
+        initial_round_trip_time_us.value() ==
+            rhs.initial_round_trip_time_us.value() &&
+        google_connection_options == rhs.google_connection_options &&
+        user_agent_id == rhs.user_agent_id &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
   }
@@ -590,6 +627,15 @@ bool TransportParameters::AreValid(std::string* error_details) const {
       return false;
     }
   }
+  if (perspective == Perspective::IS_SERVER &&
+      initial_round_trip_time_us.value() > 0) {
+    *error_details = "Server cannot send initial round trip time";
+    return false;
+  }
+  if (perspective == Perspective::IS_SERVER && user_agent_id.has_value()) {
+    *error_details = "Server cannot send user agent ID";
+    return false;
+  }
   const bool ok =
       idle_timeout_milliseconds.IsValid() && max_packet_size.IsValid() &&
       initial_max_data.IsValid() &&
@@ -598,7 +644,8 @@ bool TransportParameters::AreValid(std::string* error_details) const {
       initial_max_stream_data_uni.IsValid() &&
       initial_max_streams_bidi.IsValid() && initial_max_streams_uni.IsValid() &&
       ack_delay_exponent.IsValid() && max_ack_delay.IsValid() &&
-      active_connection_id_limit.IsValid() && max_datagram_frame_size.IsValid();
+      active_connection_id_limit.IsValid() &&
+      max_datagram_frame_size.IsValid() && initial_round_trip_time_us.IsValid();
   if (!ok) {
     *error_details = "Invalid transport parameters " + this->ToString();
   }
@@ -691,7 +738,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       !in.ack_delay_exponent.Write(&writer, version) ||
       !in.max_ack_delay.Write(&writer, version) ||
       !in.active_connection_id_limit.Write(&writer, version) ||
-      !in.max_datagram_frame_size.Write(&writer, version)) {
+      !in.max_datagram_frame_size.Write(&writer, version) ||
+      !in.initial_round_trip_time_us.Write(&writer, version)) {
     QUIC_BUG << "Failed to write integers for " << in;
     return false;
   }
@@ -739,6 +787,42 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             in.preferred_address->stateless_reset_token.data(),
             in.preferred_address->stateless_reset_token.size())) {
       QUIC_BUG << "Failed to write preferred_address for " << in;
+      return false;
+    }
+  }
+
+  // Google-specific connection options.
+  if (in.google_connection_options.has_value()) {
+    static_assert(sizeof(in.google_connection_options.value().front()) == 4,
+                  "bad size");
+    uint64_t connection_options_length =
+        in.google_connection_options.value().size() * 4;
+    if (!WriteTransportParameterId(
+            &writer, TransportParameters::kGoogleConnectionOptions, version) ||
+        !WriteTransportParameterLength(&writer, connection_options_length,
+                                       version)) {
+      QUIC_BUG << "Failed to write google_connection_options of length "
+               << connection_options_length << " for " << in;
+      return false;
+    }
+    for (const QuicTag& connection_option :
+         in.google_connection_options.value()) {
+      if (!writer.WriteTag(connection_option)) {
+        QUIC_BUG << "Failed to write google_connection_option "
+                 << QuicTagToString(connection_option) << " for " << in;
+        return false;
+      }
+    }
+  }
+
+  // Google-specific user agent identifier.
+  if (in.user_agent_id.has_value()) {
+    if (!WriteTransportParameterId(
+            &writer, TransportParameters::kGoogleUserAgentId, version) ||
+        !WriteTransportParameterStringPiece(&writer, in.user_agent_id.value(),
+                                            version)) {
+      QUIC_BUG << "Failed to write Google user agent ID \""
+               << in.user_agent_id.value() << "\" for " << in;
       return false;
     }
   }
@@ -862,6 +946,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
 
   QUIC_DLOG(INFO) << "Serialized " << in << " as " << writer.length()
                   << " bytes";
+
   return true;
 }
 
@@ -1032,6 +1117,32 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       case TransportParameters::kMaxDatagramFrameSize:
         parse_success =
             out->max_datagram_frame_size.Read(&value_reader, error_details);
+        break;
+      case TransportParameters::kInitialRoundTripTime:
+        parse_success =
+            out->initial_round_trip_time_us.Read(&value_reader, error_details);
+        break;
+      case TransportParameters::kGoogleConnectionOptions: {
+        if (out->google_connection_options.has_value()) {
+          *error_details = "Received a second Google connection options";
+          return false;
+        }
+        out->google_connection_options = QuicTagVector{};
+        while (!value_reader.IsDoneReading()) {
+          QuicTag connection_option;
+          if (!value_reader.ReadTag(&connection_option)) {
+            *error_details = "Failed to read a Google connection option";
+            return false;
+          }
+          out->google_connection_options.value().push_back(connection_option);
+        }
+      } break;
+      case TransportParameters::kGoogleUserAgentId:
+        if (out->user_agent_id.has_value()) {
+          *error_details = "Received a second user agent ID";
+          return false;
+        }
+        out->user_agent_id = std::string(value_reader.ReadRemainingPayload());
         break;
       case TransportParameters::kGoogleQuicParam: {
         if (out->google_quic_params) {

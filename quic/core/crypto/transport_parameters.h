@@ -184,6 +184,16 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // the sender accepts. See draft-ietf-quic-datagram.
   IntegerParameter max_datagram_frame_size;
 
+  // Google-specific transport parameter that carries an estimate of the
+  // initial round-trip time in microseconds.
+  IntegerParameter initial_round_trip_time_us;
+
+  // Google-specific connection options.
+  quiche::QuicheOptional<QuicTagVector> google_connection_options;
+
+  // Google-specific user agent identifier.
+  quiche::QuicheOptional<std::string> user_agent_id;
+
   // Transport parameters used by Google QUIC but not IETF QUIC. This is
   // serialized into a TransportParameter struct with a TransportParameterId of
   // kGoogleQuicParamId.

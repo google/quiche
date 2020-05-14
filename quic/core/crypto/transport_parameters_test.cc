@@ -7,7 +7,9 @@
 #include <cstring>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -38,6 +40,7 @@ const uint64_t kFakeAckDelayExponent = 10;
 const uint64_t kFakeMaxAckDelay = 51;
 const bool kFakeDisableMigration = true;
 const uint64_t kFakeActiveConnectionIdLimit = 52;
+const uint64_t kFakeInitialRoundTripTime = 53;
 const uint8_t kFakePreferredStatelessResetTokenData[16] = {
     0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
     0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F};
@@ -98,6 +101,15 @@ CreateFakePreferredAddress() {
       CreateFakePreferredStatelessResetToken();
   return std::make_unique<TransportParameters::PreferredAddress>(
       preferred_address);
+}
+
+QuicTagVector CreateFakeGoogleConnectionOptions() {
+  return {kALPN, MakeQuicTag('E', 'F', 'G', 0x00),
+          MakeQuicTag('H', 'I', 'J', 0xff)};
+}
+
+std::string CreateFakeUserAgentId() {
+  return "FakeUAID";
 }
 
 void RemoveGreaseParameters(TransportParameters* params) {
@@ -237,6 +249,9 @@ TEST_P(TransportParametersTest, CopyConstructor) {
   orig_params.preferred_address = CreateFakePreferredAddress();
   orig_params.active_connection_id_limit.set_value(
       kFakeActiveConnectionIdLimit);
+  orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
+  orig_params.user_agent_id = CreateFakeUserAgentId();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
@@ -264,6 +279,9 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.disable_migration = kFakeDisableMigration;
   orig_params.active_connection_id_limit.set_value(
       kFakeActiveConnectionIdLimit);
+  orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
+  orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
+  orig_params.user_agent_id = CreateFakeUserAgentId();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
@@ -306,6 +324,7 @@ TEST_P(TransportParametersTest, RoundTripServer) {
   orig_params.preferred_address = CreateFakePreferredAddress();
   orig_params.active_connection_id_limit.set_value(
       kFakeActiveConnectionIdLimit);
+  orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
 
   std::vector<uint8_t> serialized;
   ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
@@ -433,7 +452,7 @@ TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
 TEST_P(TransportParametersTest, ParseClientParams) {
   // clang-format off
   const uint8_t kClientParamsOld[] = {
-      0x00, 0x49,              // length of the parameters array that follows
+      0x00, 0x6a,              // length of the parameters array that follows
       // idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
@@ -481,6 +500,20 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x00, 0x0e,  // parameter id
       0x00, 0x01,  // length
       0x34,  // value
+      // initial_round_trip_time_us
+      0x31, 0x27,  // parameter id
+      0x00, 0x01,  // length
+      0x35,  // value
+      // google_connection_options
+      0x31, 0x28,  // parameter id
+      0x00, 0x0c,  // length
+      'A', 'L', 'P', 'N',  // value
+      'E', 'F', 'G', 0x00,
+      'H', 'I', 'J', 0xff,
+      // user_agent_id
+      0x31, 0x29,  // parameter id
+      0x00, 0x08,  // length
+      'F', 'a', 'k', 'e', 'U', 'A', 'I', 'D',  // value
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x04,  // length
@@ -534,6 +567,20 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x0e,  // parameter id
       0x01,  // length
       0x34,  // value
+      // initial_round_trip_time_us
+      0x71, 0x27,  // parameter id
+      0x01,  // length
+      0x35,  // value
+      // google_connection_options
+      0x71, 0x28,  // parameter id
+      0x0c,  // length
+      'A', 'L', 'P', 'N',  // value
+      'E', 'F', 'G', 0x00,
+      'H', 'I', 'J', 0xff,
+      // user_agent_id
+      0x71, 0x29,  // parameter id
+      0x08,  // length
+      'F', 'a', 'k', 'e', 'U', 'A', 'I', 'D',  // value
       // Google version extension
       0x80, 0x00, 0x47, 0x52,  // parameter id
       0x04,  // length
@@ -578,6 +625,13 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_migration);
   EXPECT_EQ(kFakeActiveConnectionIdLimit,
             new_params.active_connection_id_limit.value());
+  EXPECT_EQ(kFakeInitialRoundTripTime,
+            new_params.initial_round_trip_time_us.value());
+  ASSERT_TRUE(new_params.google_connection_options.has_value());
+  EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
+            new_params.google_connection_options.value());
+  ASSERT_TRUE(new_params.user_agent_id.has_value());
+  EXPECT_EQ(CreateFakeUserAgentId(), new_params.user_agent_id.value());
 }
 
 TEST_P(TransportParametersTest,
@@ -745,7 +799,7 @@ TEST_P(TransportParametersTest, ParseClientParametersRepeated) {
 TEST_P(TransportParametersTest, ParseServerParams) {
   // clang-format off
   const uint8_t kServerParamsOld[] = {
-      0x00, 0xa7,  // length of parameters array that follows
+      0x00, 0xb7,  // length of parameters array that follows
       // original_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
@@ -814,6 +868,12 @@ TEST_P(TransportParametersTest, ParseServerParams) {
       0x00, 0x0e,  // parameter id
       0x00, 0x01,  // length
       0x34,  // value
+      // google_connection_options
+      0x31, 0x28,  // parameter id
+      0x00, 0x0c,  // length
+      'A', 'L', 'P', 'N',  // value
+      'E', 'F', 'G', 0x00,
+      'H', 'I', 'J', 0xff,
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x0d,  // length
@@ -891,6 +951,12 @@ TEST_P(TransportParametersTest, ParseServerParams) {
       0x0e,  // parameter id
       0x01,  // length
       0x34,  // value
+      // google_connection_options
+      0x71, 0x28,  // parameter id
+      0x0c,  // length
+      'A', 'L', 'P', 'N',  // value
+      'E', 'F', 'G', 0x00,
+      'H', 'I', 'J', 0xff,
       // Google version extension
       0x80, 0x00, 0x47, 0x52,  // parameter id
       0x0d,  // length
@@ -951,6 +1017,10 @@ TEST_P(TransportParametersTest, ParseServerParams) {
             new_params.preferred_address->stateless_reset_token);
   EXPECT_EQ(kFakeActiveConnectionIdLimit,
             new_params.active_connection_id_limit.value());
+  ASSERT_TRUE(new_params.google_connection_options.has_value());
+  EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
+            new_params.google_connection_options.value());
+  EXPECT_FALSE(new_params.user_agent_id.has_value());
 }
 
 TEST_P(TransportParametersTest, ParseServerParametersRepeated) {

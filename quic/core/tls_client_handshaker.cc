@@ -207,7 +207,14 @@ bool TlsClientHandshaker::SetTransportParameters() {
   if (!session()->config()->FillTransportParameters(&params)) {
     return false;
   }
-  params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
+  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
+    if (!user_agent_id_.empty()) {
+      params.user_agent_id = user_agent_id_;
+    }
+  }
+  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
+    params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
+  }
 
   std::vector<uint8_t> param_bytes;
   return SerializeTransportParameters(session()->connection()->version(),

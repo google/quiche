@@ -686,7 +686,7 @@ uint32_t QuicConfig::ReceivedBytesForConnectionId() const {
   return bytes_for_connection_id_.GetReceivedValue();
 }
 
-void QuicConfig::SetInitialRoundTripTimeUsToSend(uint32_t rtt) {
+void QuicConfig::SetInitialRoundTripTimeUsToSend(uint64_t rtt) {
   initial_round_trip_time_us_.SetSendValue(rtt);
 }
 
@@ -694,7 +694,7 @@ bool QuicConfig::HasReceivedInitialRoundTripTimeUs() const {
   return initial_round_trip_time_us_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedInitialRoundTripTimeUs() const {
+uint64_t QuicConfig::ReceivedInitialRoundTripTimeUs() const {
   return initial_round_trip_time_us_.GetReceivedValue();
 }
 
@@ -702,7 +702,7 @@ bool QuicConfig::HasInitialRoundTripTimeUsToSend() const {
   return initial_round_trip_time_us_.HasSendValue();
 }
 
-uint32_t QuicConfig::GetInitialRoundTripTimeUsToSend() const {
+uint64_t QuicConfig::GetInitialRoundTripTimeUsToSend() const {
   return initial_round_trip_time_us_.GetSendValue();
 }
 
@@ -1138,12 +1138,29 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
         active_connection_id_limit_.GetSendValue());
   }
 
-  if (!params->google_quic_params) {
-    params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
+  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_send_new, 1, 3);
+    if (initial_round_trip_time_us_.HasSendValue()) {
+      params->initial_round_trip_time_us.set_value(
+          initial_round_trip_time_us_.GetSendValue());
+    }
+    if (connection_options_.HasSendValues() &&
+        !connection_options_.GetSendValues().empty()) {
+      params->google_connection_options = connection_options_.GetSendValues();
+    }
   }
-  initial_round_trip_time_us_.ToHandshakeMessage(
-      params->google_quic_params.get());
-  connection_options_.ToHandshakeMessage(params->google_quic_params.get());
+
+  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
+    if (!params->google_quic_params) {
+      params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
+    }
+    initial_round_trip_time_us_.ToHandshakeMessage(
+        params->google_quic_params.get());
+    connection_options_.ToHandshakeMessage(params->google_quic_params.get());
+  } else {
+    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_omit_old, 1, 3);
+  }
+
   params->custom_parameters = custom_transport_parameters_to_send_;
 
   return true;
@@ -1242,20 +1259,39 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   active_connection_id_limit_.SetReceivedValue(
       params.active_connection_id_limit.value());
 
-  const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
-  if (peer_params != nullptr) {
-    QuicErrorCode error = initial_round_trip_time_us_.ProcessPeerHello(
-        *peer_params, hello_type, error_details);
-    if (error != QUIC_NO_ERROR) {
-      DCHECK(!error_details->empty());
-      return error;
+  bool google_params_already_parsed = false;
+  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_send_new, 2, 3);
+    if (params.initial_round_trip_time_us.value() > 0) {
+      google_params_already_parsed = true;
+      initial_round_trip_time_us_.SetReceivedValue(
+          params.initial_round_trip_time_us.value());
     }
-    error = connection_options_.ProcessPeerHello(*peer_params, hello_type,
-                                                 error_details);
-    if (error != QUIC_NO_ERROR) {
-      DCHECK(!error_details->empty());
-      return error;
+    if (params.google_connection_options.has_value()) {
+      google_params_already_parsed = true;
+      connection_options_.SetReceivedValues(
+          params.google_connection_options.value());
     }
+  }
+
+  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
+    const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
+    if (peer_params != nullptr && !google_params_already_parsed) {
+      QuicErrorCode error = initial_round_trip_time_us_.ProcessPeerHello(
+          *peer_params, hello_type, error_details);
+      if (error != QUIC_NO_ERROR) {
+        DCHECK(!error_details->empty());
+        return error;
+      }
+      error = connection_options_.ProcessPeerHello(*peer_params, hello_type,
+                                                   error_details);
+      if (error != QUIC_NO_ERROR) {
+        DCHECK(!error_details->empty());
+        return error;
+      }
+    }
+  } else {
+    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_omit_old, 2, 3);
   }
 
   received_custom_transport_parameters_ = params.custom_parameters;

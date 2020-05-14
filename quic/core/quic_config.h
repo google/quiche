@@ -331,11 +331,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   uint32_t ReceivedBytesForConnectionId() const;
 
   // Estimated initial round trip time in us.
-  void SetInitialRoundTripTimeUsToSend(uint32_t rtt_us);
+  void SetInitialRoundTripTimeUsToSend(uint64_t rtt_us);
   bool HasReceivedInitialRoundTripTimeUs() const;
-  uint32_t ReceivedInitialRoundTripTimeUs() const;
+  uint64_t ReceivedInitialRoundTripTimeUs() const;
   bool HasInitialRoundTripTimeUsToSend() const;
-  uint32_t GetInitialRoundTripTimeUsToSend() const;
+  uint64_t GetInitialRoundTripTimeUsToSend() const;
 
   // Sets an initial stream flow control window size to transmit to the peer.
   void SetInitialStreamFlowControlWindowToSend(uint64_t window_bytes);
@@ -528,7 +528,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // the legacy header format used only by Q043 at this point.
   QuicFixedUint32 bytes_for_connection_id_;
   // Initial round trip time estimate in microseconds.
-  QuicFixedUint32 initial_round_trip_time_us_;
+  QuicFixedUint62 initial_round_trip_time_us_;
 
   // Initial IETF QUIC stream flow control receive windows in bytes.
   // Incoming bidirectional streams.
