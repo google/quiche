@@ -116,18 +116,6 @@ class QUIC_NO_EXPORT QuicDispatcher
                                            QuicConnectionId,
                                            QuicConnectionIdHash>;
 
-  // The largest packet number we expect to receive with a connection
-  // ID for a connection that is not established yet.  The current design will
-  // send a handshake and then up to 50 or so data packets, and then it may
-  // resend the handshake packet up to 10 times.  (Retransmitted packets are
-  // sent with unique packet numbers.)
-  static constexpr uint64_t kMaxReasonableInitialPacketNumber = 100;
-  static_assert(kMaxReasonableInitialPacketNumber >=
-                    kInitialCongestionWindow + 10,
-                "kMaxReasonableInitialPacketNumber is unreasonably small "
-                "relative to kInitialCongestionWindow.");
-
-
   // QuicBufferedPacketStore::VisitorInterface implementation.
   void OnExpiredPackets(QuicConnectionId server_connection_id,
                         QuicBufferedPacketStore::BufferedPacketList

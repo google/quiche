@@ -1010,37 +1010,6 @@ TEST_P(QuicDispatcherTestAllVersions,
   ProcessFirstFlight(client_address, EmptyQuicConnectionId());
 }
 
-TEST_P(QuicDispatcherTestAllVersions, OKSeqNoPacketProcessed) {
-  if (version_.UsesTls()) {
-    // QUIC+TLS allows clients to start with any packet number.
-    return;
-  }
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  QuicConnectionId connection_id = TestConnectionId(1);
-
-  EXPECT_CALL(*dispatcher_,
-              CreateQuicSession(TestConnectionId(1), client_address,
-                                Eq(ExpectedAlpn()), _))
-      .WillOnce(Return(ByMove(CreateSession(
-          dispatcher_.get(), config_, TestConnectionId(1), client_address,
-          &mock_helper_, &mock_alarm_factory_, &crypto_config_,
-          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
-  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-              ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
-        ValidatePacket(TestConnectionId(1), packet);
-      })));
-
-  // A packet whose packet number is the largest that is allowed to start a
-  // connection.
-  EXPECT_CALL(*dispatcher_,
-              ShouldCreateOrBufferPacketForConnection(
-                  ReceivedPacketInfoConnectionIdEquals(connection_id)));
-  ProcessPacket(client_address, connection_id, true, SerializeCHLO(),
-                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
-                QuicDispatcher::kMaxReasonableInitialPacketNumber);
-}
-
 TEST_P(QuicDispatcherTestOneVersion, VersionsChangeInFlight) {
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
   for (ParsedQuicVersion version : CurrentSupportedVersions()) {
