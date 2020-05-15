@@ -2408,34 +2408,54 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 
   client_->SendMessage(headers, "", /*fin=*/false);
 
-  // Size of headers on the request stream.  Zero if headers are sent on the
-  // header stream.
-  size_t header_size = 0;
-  QuicByteCount encoder_stream_sent_byte_count = 0;
+  // Bounds on the size of headers on the request stream. These are both zero
+  // if headers are sent on the header stream. The connection might send the
+  // /foo request before or after receiving the peer's SETTINGS, which
+  // would impact whether QPACK uses the dynamic table or not, so we have two
+  // potential expected values.
+  size_t header_size_low = 0;
+  size_t header_size_high = 0;
   if (version_.UsesHttp3()) {
-    // Determine size of compressed headers.
+    // Determine size of headers after QPACK compression in both scenarios.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
-    QpackEncoder qpack_encoder(&decoder_stream_error_delegate);
-    qpack_encoder.set_qpack_stream_sender_delegate(
+    QpackEncoder qpack_encoder_low(&decoder_stream_error_delegate);
+    qpack_encoder_low.set_qpack_stream_sender_delegate(
         &encoder_stream_sender_delegate);
 
-    qpack_encoder.SetMaximumDynamicTableCapacity(
+    qpack_encoder_low.SetMaximumDynamicTableCapacity(
         kDefaultQpackMaxDynamicTableCapacity);
-    qpack_encoder.SetDynamicTableCapacity(kDefaultQpackMaxDynamicTableCapacity);
-    qpack_encoder.SetMaximumBlockedStreams(kDefaultMaximumBlockedStreams);
+    qpack_encoder_low.SetDynamicTableCapacity(
+        kDefaultQpackMaxDynamicTableCapacity);
+    qpack_encoder_low.SetMaximumBlockedStreams(kDefaultMaximumBlockedStreams);
 
-    std::string encoded_headers = qpack_encoder.EncodeHeaderList(
-        /* stream_id = */ 0, headers, &encoder_stream_sent_byte_count);
-    header_size = encoded_headers.size();
+    std::string encoded_headers_low = qpack_encoder_low.EncodeHeaderList(
+        /* stream_id = */ 0, headers, nullptr);
+    header_size_low = encoded_headers_low.size();
+
+    QpackEncoder qpack_encoder_high(&decoder_stream_error_delegate);
+    qpack_encoder_high.set_qpack_stream_sender_delegate(
+        &encoder_stream_sender_delegate);
+
+    qpack_encoder_high.SetMaximumDynamicTableCapacity(0);
+    qpack_encoder_high.SetDynamicTableCapacity(0);
+    qpack_encoder_high.SetMaximumBlockedStreams(0);
+
+    std::string encoded_headers_high = qpack_encoder_high.EncodeHeaderList(
+        /* stream_id = */ 0, headers, nullptr);
+    header_size_high = encoded_headers_high.size();
   }
+  ASSERT_LE(header_size_low, header_size_high);
 
   // Test the AckNotifier's ability to track multiple packets by making the
   // request body exceed the size of a single packet.
   std::string request_string = "a request body bigger than one packet" +
                                std::string(kMaxOutgoingPacketSize, '.');
 
-  const int expected_bytes_acked = header_size + request_string.length();
+  const int expected_bytes_acked_low =
+      header_size_low + request_string.length();
+  const int expected_bytes_acked_high =
+      header_size_high + request_string.length();
 
   // The TestAckListener will cause a failure if not notified.
   QuicReferenceCountedPointer<TestAckListener> ack_listener(
@@ -2451,23 +2471,18 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   client_->SendSynchronousRequest("/bar");
 
   // Make sure the delegate does get the notification it expects.
-  while (ack_listener->total_bytes_acked() < expected_bytes_acked) {
+  while (ack_listener->total_bytes_acked() < expected_bytes_acked_low) {
     // Waits for up to 50 ms.
     client_->client()->WaitForEvents();
   }
-  if (version_.UsesHttp3()) {
-    // TODO(b/156628545) Replace the check below with
-    // EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
-    // once we understand why sometimes 16 extra bytes are ACKed.
-    EXPECT_TRUE(ack_listener->total_bytes_acked() == expected_bytes_acked ||
-                ack_listener->total_bytes_acked() == expected_bytes_acked + 16)
-        << " header_size " << header_size << " encoder_stream_sent_byte_count "
-        << encoder_stream_sent_byte_count << " request length "
-        << request_string.length();
+  if (expected_bytes_acked_low != expected_bytes_acked_high) {
+    EXPECT_TRUE(ack_listener->total_bytes_acked() == expected_bytes_acked_low ||
+                ack_listener->total_bytes_acked() == expected_bytes_acked_high)
+        << " header_size_low " << header_size_low << " header_size_high "
+        << header_size_low << " request length " << request_string.length();
   } else {
-    EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
-        << " header_size " << header_size << " encoder_stream_sent_byte_count "
-        << encoder_stream_sent_byte_count << " request length "
+    EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked_low)
+        << " header_size " << header_size_low << " request length "
         << request_string.length();
   }
 }
