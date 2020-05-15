@@ -1700,7 +1700,8 @@ size_t QuicConnection::SendCryptoData(EncryptionLevel level,
     QUIC_BUG << "Attempt to send empty crypto frame";
     return 0;
   }
-  if (!ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
+  if (!GetQuicReloadableFlag(quic_fix_checking_should_generate_packet) &&
+      !ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
     return 0;
   }
   ScopedPacketFlusher flusher(this);
