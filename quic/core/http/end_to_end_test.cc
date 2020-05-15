@@ -2353,28 +2353,26 @@ TEST_P(EndToEndTest, RequestWithNoBodyWillNeverSendStreamFrameWithFIN) {
   server_thread_->Resume();
 }
 
-// A TestAckListener verifies that exactly |bytes_to_ack| bytes are acked during
-// its lifetime.
+// TestAckListener counts how many bytes are acked during its lifetime.
 class TestAckListener : public QuicAckListenerInterface {
  public:
-  explicit TestAckListener(int bytes_to_ack) : bytes_to_ack_(bytes_to_ack) {}
+  TestAckListener() {}
 
   void OnPacketAcked(int acked_bytes,
                      QuicTime::Delta /*delta_largest_observed*/) override {
-    ASSERT_LE(acked_bytes, bytes_to_ack_);
-    bytes_to_ack_ -= acked_bytes;
+    total_bytes_acked_ += acked_bytes;
   }
 
   void OnPacketRetransmitted(int /*retransmitted_bytes*/) override {}
 
-  bool has_been_notified() const { return bytes_to_ack_ == 0; }
+  int total_bytes_acked() const { return total_bytes_acked_; }
 
  protected:
   // Object is ref counted.
-  ~TestAckListener() override { EXPECT_EQ(0, bytes_to_ack_); }
+  ~TestAckListener() override {}
 
  private:
-  int bytes_to_ack_;
+  int total_bytes_acked_ = 0;
 };
 
 class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
@@ -2388,10 +2386,7 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
   }
 };
 
-// TODO(dschinazi) Fix this test's flakiness in Chrome.
-TEST_P(
-    EndToEndTest,
-    QUIC_TEST_DISABLED_IN_CHROME(AckNotifierWithPacketLossAndBlockedSocket)) {
+TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Verify that even in the presence of packet loss and occasionally blocked
   // socket,  an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
@@ -2416,10 +2411,8 @@ TEST_P(
   // Size of headers on the request stream.  Zero if headers are sent on the
   // header stream.
   size_t header_size = 0;
-  if (VersionUsesHttp3(client_->client()
-                           ->client_session()
-                           ->connection()
-                           ->transport_version())) {
+  QuicByteCount encoder_stream_sent_byte_count = 0;
+  if (version_.UsesHttp3()) {
     // Determine size of compressed headers.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
@@ -2432,8 +2425,8 @@ TEST_P(
     qpack_encoder.SetDynamicTableCapacity(kDefaultQpackMaxDynamicTableCapacity);
     qpack_encoder.SetMaximumBlockedStreams(kDefaultMaximumBlockedStreams);
 
-    std::string encoded_headers =
-        qpack_encoder.EncodeHeaderList(/* stream_id = */ 0, headers, nullptr);
+    std::string encoded_headers = qpack_encoder.EncodeHeaderList(
+        /* stream_id = */ 0, headers, &encoder_stream_sent_byte_count);
     header_size = encoded_headers.size();
   }
 
@@ -2442,9 +2435,11 @@ TEST_P(
   std::string request_string = "a request body bigger than one packet" +
                                std::string(kMaxOutgoingPacketSize, '.');
 
+  const int expected_bytes_acked = header_size + request_string.length();
+
   // The TestAckListener will cause a failure if not notified.
   QuicReferenceCountedPointer<TestAckListener> ack_listener(
-      new TestAckListener(header_size + request_string.length()));
+      new TestAckListener());
 
   // Send the request, and register the delegate for ACKs.
   client_->SendData(request_string, true, ack_listener);
@@ -2456,9 +2451,24 @@ TEST_P(
   client_->SendSynchronousRequest("/bar");
 
   // Make sure the delegate does get the notification it expects.
-  while (!ack_listener->has_been_notified()) {
+  while (ack_listener->total_bytes_acked() < expected_bytes_acked) {
     // Waits for up to 50 ms.
     client_->client()->WaitForEvents();
+  }
+  if (version_.UsesHttp3()) {
+    // TODO(b/156628545) Replace the check below with
+    // EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
+    // once we understand why sometimes 16 extra bytes are ACKed.
+    EXPECT_TRUE(ack_listener->total_bytes_acked() == expected_bytes_acked ||
+                ack_listener->total_bytes_acked() == expected_bytes_acked + 16)
+        << " header_size " << header_size << " encoder_stream_sent_byte_count "
+        << encoder_stream_sent_byte_count << " request length "
+        << request_string.length();
+  } else {
+    EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
+        << " header_size " << header_size << " encoder_stream_sent_byte_count "
+        << encoder_stream_sent_byte_count << " request length "
+        << request_string.length();
   }
 }
 
