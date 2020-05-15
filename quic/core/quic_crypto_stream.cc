@@ -268,6 +268,12 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
           level, pending.length, pending.offset, HANDSHAKE_RETRANSMISSION);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
       if (bytes_consumed < pending.length) {
+        if (GetQuicReloadableFlag(
+                quic_fix_write_pending_crypto_retransmission)) {
+          QUIC_RELOADABLE_FLAG_COUNT(
+              quic_fix_write_pending_crypto_retransmission);
+          return;
+        }
         break;
       }
     }

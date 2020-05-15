@@ -722,7 +722,12 @@ void QuicPacketCreator::SerializePacket(char* encrypted_buffer,
       framer_->BuildDataPacket(header, queued_frames_, encrypted_buffer,
                                packet_size_, packet_.encryption_level);
   if (length == 0) {
-    QUIC_BUG << "Failed to serialize " << queued_frames_.size() << " frames.";
+    QUIC_BUG << "Failed to serialize " << QuicFramesToString(queued_frames_)
+             << " at encryption_level: "
+             << EncryptionLevelToString(packet_.encryption_level)
+             << ", needs_full_padding_: " << needs_full_padding_
+             << ", packet_.num_padding_bytes: " << packet_.num_padding_bytes
+             << ", pending_padding_bytes_: " << pending_padding_bytes_;
     return;
   }
 
@@ -1291,7 +1296,8 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
       // The only pending data in the packet is non-retransmittable frames. I'm
       // assuming here that they won't occupy so much of the packet that a
       // CRYPTO frame won't fit.
-      QUIC_BUG << "Failed to ConsumeCryptoData at level " << level;
+      QUIC_BUG << "Failed to ConsumeCryptoData at level "
+               << EncryptionLevelToString(level);
       return 0;
     }
     total_bytes_consumed += frame.crypto_frame->data_length;
