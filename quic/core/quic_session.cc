@@ -1034,7 +1034,8 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     // Stream Id manager has been informed with draining streams.
     return;
   }
-  if (!connection_->connected()) {
+  if (!GetQuicReloadableFlag(quic_notify_stream_id_manager_when_disconnected) &&
+      !connection_->connected()) {
     // Do not bother informing stream ID manager if connection has been
     // disconnected.
     return;
@@ -1043,6 +1044,11 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
       !VersionHasIetfQuicFrames(transport_version())) {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
+  }
+  if (GetQuicReloadableFlag(quic_notify_stream_id_manager_when_disconnected) &&
+      !connection_->connected()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_notify_stream_id_manager_when_disconnected);
+    return;
   }
   if (IsIncomingStream(stream_id)) {
     // Stream Id manager is only interested in peer initiated stream IDs.
