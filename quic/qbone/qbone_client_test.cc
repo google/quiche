@@ -139,13 +139,6 @@ class QuicQboneDispatcher : public QuicDispatcher {
     return session;
   }
 
-  QuicConnectionId GenerateNewServerConnectionId(
-      ParsedQuicVersion version,
-      QuicConnectionId connection_id) const override {
-    char connection_id_bytes[kQuicDefaultConnectionIdLength] = {};
-    return QuicConnectionId(connection_id_bytes, sizeof(connection_id_bytes));
-  }
-
  private:
   QbonePacketWriter* writer_;
 };

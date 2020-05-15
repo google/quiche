@@ -121,7 +121,7 @@ class QUIC_NO_EXPORT QuicDispatcher
   // send a handshake and then up to 50 or so data packets, and then it may
   // resend the handshake packet up to 10 times.  (Retransmitted packets are
   // sent with unique packet numbers.)
-  static const uint64_t kMaxReasonableInitialPacketNumber = 100;
+  static constexpr uint64_t kMaxReasonableInitialPacketNumber = 100;
   static_assert(kMaxReasonableInitialPacketNumber >=
                     kInitialCongestionWindow + 10,
                 "kMaxReasonableInitialPacketNumber is unreasonably small "
@@ -162,11 +162,29 @@ class QUIC_NO_EXPORT QuicDispatcher
   virtual bool MaybeDispatchPacket(const ReceivedPacketInfo& packet_info);
 
   // Generate a connection ID with a length that is expected by the dispatcher.
+  // Called only when |server_connection_id| is shorter than
+  // |expected_connection_id_length|.
   // Note that this MUST produce a deterministic result (calling this method
   // with two connection IDs that are equal must produce the same result).
-  virtual QuicConnectionId GenerateNewServerConnectionId(
-      ParsedQuicVersion version,
-      QuicConnectionId connection_id) const;
+  // Note that this is not used in general operation because our default
+  // |expected_server_connection_id_length| is 8, and the IETF specification
+  // requires clients to use an initial length of at least 8. However, we
+  // allow disabling that requirement via
+  // |allow_short_initial_server_connection_ids_|.
+  virtual QuicConnectionId ReplaceShortServerConnectionId(
+      const ParsedQuicVersion& version,
+      const QuicConnectionId& server_connection_id,
+      uint8_t expected_server_connection_id_length) const;
+
+  // Generate a connection ID with a length that is expected by the dispatcher.
+  // Called only when |server_connection_id| is longer than
+  // |expected_connection_id_length|.
+  // Note that this MUST produce a deterministic result (calling this method
+  // with two connection IDs that are equal must produce the same result).
+  virtual QuicConnectionId ReplaceLongServerConnectionId(
+      const ParsedQuicVersion& version,
+      const QuicConnectionId& server_connection_id,
+      uint8_t expected_server_connection_id_length) const;
 
   // Values to be returned by ValidityChecks() to indicate what should be done
   // with a packet. Fates with greater values are considered to be higher
@@ -308,11 +326,12 @@ class QUIC_NO_EXPORT QuicDispatcher
   std::string SelectAlpn(const std::vector<std::string>& alpns);
 
   // If the connection ID length is different from what the dispatcher expects,
-  // replace the connection ID with a random one of the right length,
-  // and save it to make sure the mapping is persistent.
+  // replace the connection ID with one of the right length.
+  // Note that this MUST produce a deterministic result (calling this method
+  // with two connection IDs that are equal must produce the same result).
   QuicConnectionId MaybeReplaceServerConnectionId(
-      QuicConnectionId server_connection_id,
-      ParsedQuicVersion version) const;
+      const QuicConnectionId& server_connection_id,
+      const ParsedQuicVersion& version) const;
 
  private:
   friend class test::QuicDispatcherPeer;

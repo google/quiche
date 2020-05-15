@@ -307,30 +307,54 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
 }
 
 QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
-    QuicConnectionId server_connection_id,
-    ParsedQuicVersion version) const {
-  if (server_connection_id.length() == expected_server_connection_id_length_) {
+    const QuicConnectionId& server_connection_id,
+    const ParsedQuicVersion& version) const {
+  const uint8_t server_connection_id_length = server_connection_id.length();
+  if (server_connection_id_length == expected_server_connection_id_length_) {
     return server_connection_id;
   }
   DCHECK(version.AllowsVariableLengthConnectionIds());
-
-  QuicConnectionId new_connection_id =
-      GenerateNewServerConnectionId(version, server_connection_id);
+  QuicConnectionId new_connection_id;
+  if (server_connection_id_length < expected_server_connection_id_length_) {
+    new_connection_id = ReplaceShortServerConnectionId(
+        version, server_connection_id, expected_server_connection_id_length_);
+    // Verify that ReplaceShortServerConnectionId is deterministic.
+    DCHECK_EQ(new_connection_id, ReplaceShortServerConnectionId(
+                                     version, server_connection_id,
+                                     expected_server_connection_id_length_));
+  } else {
+    new_connection_id = ReplaceLongServerConnectionId(
+        version, server_connection_id, expected_server_connection_id_length_);
+    // Verify that ReplaceLongServerConnectionId is deterministic.
+    DCHECK_EQ(new_connection_id, ReplaceLongServerConnectionId(
+                                     version, server_connection_id,
+                                     expected_server_connection_id_length_));
+  }
   DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
-
-  // Verify that GenerateNewServerConnectionId is deterministic.
-  DCHECK_EQ(new_connection_id,
-            GenerateNewServerConnectionId(version, server_connection_id));
 
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
                   << " with " << new_connection_id;
   return new_connection_id;
 }
 
-QuicConnectionId QuicDispatcher::GenerateNewServerConnectionId(
-    ParsedQuicVersion /*version*/,
-    QuicConnectionId connection_id) const {
-  return QuicUtils::CreateReplacementConnectionId(connection_id);
+QuicConnectionId QuicDispatcher::ReplaceShortServerConnectionId(
+    const ParsedQuicVersion& /*version*/,
+    const QuicConnectionId& server_connection_id,
+    uint8_t expected_server_connection_id_length) const {
+  DCHECK_LT(server_connection_id.length(),
+            expected_server_connection_id_length);
+  return QuicUtils::CreateReplacementConnectionId(
+      server_connection_id, expected_server_connection_id_length);
+}
+
+QuicConnectionId QuicDispatcher::ReplaceLongServerConnectionId(
+    const ParsedQuicVersion& /*version*/,
+    const QuicConnectionId& server_connection_id,
+    uint8_t expected_server_connection_id_length) const {
+  DCHECK_GT(server_connection_id.length(),
+            expected_server_connection_id_length);
+  return QuicUtils::CreateReplacementConnectionId(
+      server_connection_id, expected_server_connection_id_length);
 }
 
 bool QuicDispatcher::MaybeDispatchPacket(
