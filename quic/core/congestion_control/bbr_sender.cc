@@ -502,13 +502,10 @@ QuicTime::Delta BbrSender::GetMinRtt() const {
   if (!min_rtt_.IsZero()) {
     return min_rtt_;
   }
-  if (GetQuicReloadableFlag(quic_bbr_use_available_min_rtt)) {
-    // min_rtt could be available if the handshake packet gets neutered then
-    // gets acknowledged. This could only happen for QUIC crypto where we do not
-    // drop keys.
-    return rtt_stats_->MinOrInitialRtt();
-  }
-  return rtt_stats_->initial_rtt();
+  // min_rtt could be available if the handshake packet gets neutered then
+  // gets acknowledged. This could only happen for QUIC crypto where we do not
+  // drop keys.
+  return rtt_stats_->MinOrInitialRtt();
 }
 
 QuicByteCount BbrSender::GetTargetCongestionWindow(float gain) const {
