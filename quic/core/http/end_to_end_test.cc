@@ -629,14 +629,10 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
 // Simple transaction, but set a non-default ack exponent at the client
 // and ensure it gets to the server.
 TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
-  const uint32_t kClientAckDelayExponent = kDefaultAckDelayExponent + 100u;
+  const uint32_t kClientAckDelayExponent = 19;
+  EXPECT_NE(kClientAckDelayExponent, kDefaultAckDelayExponent);
   // Force the ACK exponent to be something other than the default.
-  // Note that it is sent only if doing IETF QUIC.
+  // Note that it is sent only with QUIC+TLS.
   client_config_.SetAckDelayExponentToSend(kClientAckDelayExponent);
   ASSERT_TRUE(Initialize());
 
@@ -645,12 +641,12 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-  if (VersionHasIetfQuicFrames(version_.transport_version)) {
-    // Should be only for IETF QUIC.
+  if (version_.UsesTls()) {
+    // Should be only sent with QUIC+TLS.
     EXPECT_EQ(kClientAckDelayExponent,
               GetServerConnection()->framer().peer_ack_delay_exponent());
   } else {
-    // No change for Google QUIC.
+    // No change for QUIC_CRYPTO.
     EXPECT_EQ(kDefaultAckDelayExponent,
               GetServerConnection()->framer().peer_ack_delay_exponent());
   }
@@ -2060,11 +2056,6 @@ TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
 }
 
 TEST_P(EndToEndTest, DifferentFlowControlWindows) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Client and server can set different initial flow control receive windows.
   // These are sent in CHLO/SHLO. Tests that these values are exchanged properly
   // in the crypto handshake.
@@ -2089,17 +2080,28 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
   WriteHeadersOnStream(stream);
   stream->WriteOrBufferBody("hello", false);
 
-  // Client should have the right values for server's receive window.
-  EXPECT_EQ(kServerStreamIFCW,
-            client_->client()
-                ->client_session()
-                ->config()
-                ->ReceivedInitialStreamFlowControlWindowBytes());
-  EXPECT_EQ(kServerSessionIFCW,
-            client_->client()
-                ->client_session()
-                ->config()
-                ->ReceivedInitialSessionFlowControlWindowBytes());
+  if (!version_.UsesTls()) {
+    // IFWA only exists with QUIC_CRYPTO.
+    // Client should have the right values for server's receive window.
+    ASSERT_TRUE(client_->client()
+                    ->client_session()
+                    ->config()
+                    ->HasReceivedInitialStreamFlowControlWindowBytes());
+    EXPECT_EQ(kServerStreamIFCW,
+              client_->client()
+                  ->client_session()
+                  ->config()
+                  ->ReceivedInitialStreamFlowControlWindowBytes());
+    ASSERT_TRUE(client_->client()
+                    ->client_session()
+                    ->config()
+                    ->HasReceivedInitialSessionFlowControlWindowBytes());
+    EXPECT_EQ(kServerSessionIFCW,
+              client_->client()
+                  ->client_session()
+                  ->config()
+                  ->ReceivedInitialSessionFlowControlWindowBytes());
+  }
   EXPECT_EQ(kServerStreamIFCW, QuicFlowControllerPeer::SendWindowOffset(
                                    stream->flow_controller()));
   EXPECT_EQ(kServerSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
@@ -2107,23 +2109,24 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
 
   // Server should have the right values for client's receive window.
   server_thread_->Pause();
-  QuicSession* session = GetServerSession();
-  EXPECT_EQ(kClientStreamIFCW,
-            session->config()->ReceivedInitialStreamFlowControlWindowBytes());
-  EXPECT_EQ(kClientSessionIFCW,
-            session->config()->ReceivedInitialSessionFlowControlWindowBytes());
+  QuicConfig server_config = *GetServerSession()->config();
   EXPECT_EQ(kClientSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
-                                    session->flow_controller()));
+                                    GetServerSession()->flow_controller()));
   server_thread_->Resume();
+  if (version_.UsesTls()) {
+    // IFWA only exists with QUIC_CRYPTO.
+    return;
+  }
+  ASSERT_TRUE(server_config.HasReceivedInitialStreamFlowControlWindowBytes());
+  EXPECT_EQ(kClientStreamIFCW,
+            server_config.ReceivedInitialStreamFlowControlWindowBytes());
+  ASSERT_TRUE(server_config.HasReceivedInitialSessionFlowControlWindowBytes());
+  EXPECT_EQ(kClientSessionIFCW,
+            server_config.ReceivedInitialSessionFlowControlWindowBytes());
 }
 
 // Test negotiation of IFWA connection option.
 TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   const uint32_t kClientStreamIFCW = 123456;
   const uint32_t kClientSessionIFCW = 234567;
   set_client_initial_stream_flow_control_receive_window(kClientStreamIFCW);
@@ -2150,17 +2153,28 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
   WriteHeadersOnStream(stream);
   stream->WriteOrBufferBody("hello", false);
 
-  // Client should have the right values for server's receive window.
-  EXPECT_EQ(kExpectedStreamIFCW,
-            client_->client()
-                ->client_session()
-                ->config()
-                ->ReceivedInitialStreamFlowControlWindowBytes());
-  EXPECT_EQ(kExpectedSessionIFCW,
-            client_->client()
-                ->client_session()
-                ->config()
-                ->ReceivedInitialSessionFlowControlWindowBytes());
+  if (!version_.UsesTls()) {
+    // IFWA only exists with QUIC_CRYPTO.
+    // Client should have the right values for server's receive window.
+    ASSERT_TRUE(client_->client()
+                    ->client_session()
+                    ->config()
+                    ->HasReceivedInitialStreamFlowControlWindowBytes());
+    EXPECT_EQ(kExpectedStreamIFCW,
+              client_->client()
+                  ->client_session()
+                  ->config()
+                  ->ReceivedInitialStreamFlowControlWindowBytes());
+    ASSERT_TRUE(client_->client()
+                    ->client_session()
+                    ->config()
+                    ->HasReceivedInitialSessionFlowControlWindowBytes());
+    EXPECT_EQ(kExpectedSessionIFCW,
+              client_->client()
+                  ->client_session()
+                  ->config()
+                  ->ReceivedInitialSessionFlowControlWindowBytes());
+  }
   EXPECT_EQ(kExpectedStreamIFCW, QuicFlowControllerPeer::SendWindowOffset(
                                      stream->flow_controller()));
   EXPECT_EQ(kExpectedSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
@@ -3036,9 +3050,10 @@ TEST_P(EndToEndTest, Trailers) {
 // TODO(b/151749109): Test server push for IETF QUIC.
 class EndToEndTestServerPush : public EndToEndTest {
  protected:
-  const size_t kNumMaxStreams = 10;
+  static constexpr size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
+    SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
     client_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
     server_config_.SetMaxBidirectionalStreamsToSend(kNumMaxStreams);
     client_config_.SetMaxUnidirectionalStreamsToSend(kNumMaxStreams);
@@ -3117,10 +3132,7 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
   EXPECT_EQ(kBody, client_->SendSynchronousRequest(
                        "https://example.com/push_example"));
   QuicStreamSequencer* sequencer;
-  if (!VersionUsesHttp3(client_->client()
-                            ->client_session()
-                            ->connection()
-                            ->transport_version())) {
+  if (!version_.UsesHttp3()) {
     QuicHeadersStream* headers_stream =
         QuicSpdySessionPeer::GetHeadersStream(GetClientSession());
     sequencer = QuicStreamPeer::sequencer(headers_stream);
@@ -3138,27 +3150,23 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
   }
-  if (!VersionUsesHttp3(client_->client()
-                            ->client_session()
-                            ->connection()
-                            ->transport_version())) {
+  if (!version_.UsesHttp3()) {
     EXPECT_FALSE(
         QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
   }
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Tests that sending a request which has 4 push resources will trigger server
   // to push those 4 resources and client can handle pushed resources and match
   // them with requests later.
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  if (version_.UsesHttp3()) {
+    static_cast<QuicSpdySession*>(client_->client()->session())
+        ->SetMaxPushId(kMaxQuicStreamId);
+  }
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -3202,9 +3210,10 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
+  if (version_.UsesHttp3()) {
+    // TODO(b/142504641): Re-enable this test when we support push streams
+    // arriving before the corresponding promises.
+    ASSERT_TRUE(Initialize());
     return;
   }
   // Tests that when streams are not blocked by flow control or congestion
@@ -3213,14 +3222,9 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   // immediately after pushing resources.
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
-
-  if (VersionUsesHttp3(client_->client()
-                           ->client_session()
-                           ->connection()
-                           ->transport_version())) {
-    // TODO(b/142504641): Re-enable this test when we support push streams
-    // arriving before the corresponding promises.
-    return;
+  if (version_.UsesHttp3()) {
+    static_cast<QuicSpdySession*>(client_->client()->session())
+        ->SetMaxPushId(kMaxQuicStreamId);
   }
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
@@ -3265,11 +3269,6 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
 }
 
 TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Tests that when server tries to send more large resources(large enough to
   // be blocked by flow control window or congestion control window) than max
   // open outgoing streams , server can open upto max number of outgoing
@@ -3287,6 +3286,10 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
 
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  if (version_.UsesHttp3()) {
+    static_cast<QuicSpdySession*>(client_->client()->session())
+        ->SetMaxPushId(kMaxQuicStreamId);
+  }
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -3318,9 +3321,11 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
 
   // Check server session to see if it has max number of outgoing streams opened
   // though more resources need to be pushed.
-  server_thread_->Pause();
-  EXPECT_EQ(kNumMaxStreams, GetServerSession()->GetNumOpenOutgoingStreams());
-  server_thread_->Resume();
+  if (!version_.HasIetfQuicFrames()) {
+    server_thread_->Pause();
+    EXPECT_EQ(kNumMaxStreams, GetServerSession()->GetNumOpenOutgoingStreams());
+    server_thread_->Resume();
+  }
 
   EXPECT_EQ(1u, client_->num_requests());
   EXPECT_EQ(1u, client_->num_responses());
@@ -4241,14 +4246,12 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
 }
 
 TEST_P(EndToEndTest, TestMaxPushId) {
-  if (version_.UsesTls() ||
-      !VersionHasIetfQuicFrames(version_.transport_version)) {
-    // TODO(b/155316241): Enable this test for TLS.
-    // Only runs for IETF QUIC.
+  if (!version_.HasIetfQuicFrames()) {
+    // MaxPushId is only implemented for IETF QUIC.
     Initialize();
     return;
   }
-  // Has to be before version test, see EndToEndTest::TearDown()
+  SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
@@ -4264,8 +4267,12 @@ TEST_P(EndToEndTest, TestMaxPushId) {
                   ->CanCreatePushStreamWithId(kMaxQuicStreamId));
 }
 
-TEST_P(EndToEndTest, DISABLED_CustomTransportParameters) {
-  // TODO(b/155316241): Enable this test.
+TEST_P(EndToEndTest, CustomTransportParameters) {
+  if (!version_.UsesTls()) {
+    // Custom transport parameters are only supported with TLS.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
   constexpr auto kCustomParameter =
       static_cast<TransportParameters::TransportParameterId>(0xff34);
   client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
@@ -4273,9 +4280,16 @@ TEST_P(EndToEndTest, DISABLED_CustomTransportParameters) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
-  EXPECT_EQ(server_config_.received_custom_transport_parameters().at(
+
+  server_thread_->Pause();
+  QuicConfig server_config = *GetServerSession()->config();
+  server_thread_->Resume();
+  ASSERT_NE(server_config.received_custom_transport_parameters().find(
                 kCustomParameter),
-            "test");
+            server_config.received_custom_transport_parameters().end());
+  EXPECT_EQ(
+      server_config.received_custom_transport_parameters().at(kCustomParameter),
+      "test");
 }
 
 }  // namespace
