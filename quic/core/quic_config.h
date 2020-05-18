@@ -411,7 +411,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // The received delay is the value received from
   // the peer (QuicSentPacketManager::peer_max_ack_delay_).
   void SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms);
-  uint32_t GetMaxAckDelayToToSendMs() const;
+  uint32_t GetMaxAckDelayToSendMs() const;
   bool HasReceivedMaxAckDelayMs() const;
   uint32_t ReceivedMaxAckDelayMs() const;
 

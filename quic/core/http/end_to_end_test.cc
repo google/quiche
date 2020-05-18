@@ -599,14 +599,9 @@ TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {
 // Simple transaction, but set a non-default ack delay at the client
 // and ensure it gets to the server.
 TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
-  if (version_.UsesTls()) {
-    // TODO(b/155316241): Enable this test for TLS.
-    Initialize();
-    return;
-  }
   // Force the ACK delay to be something other than the default.
-  // Note that it is sent only if doing IETF QUIC.
-  client_config_.SetMaxAckDelayToSendMs(kDefaultDelayedAckTimeMs + 100u);
+  constexpr uint32_t kClientMaxAckDelay = kDefaultDelayedAckTimeMs + 100u;
+  client_config_.SetMaxAckDelayToSendMs(kClientMaxAckDelay);
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
@@ -614,10 +609,9 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    EXPECT_EQ(kDefaultDelayedAckTimeMs + 100u,
-              GetSentPacketManagerFromFirstServerSession()
-                  ->peer_max_ack_delay()
-                  .ToMilliseconds());
+    EXPECT_EQ(kClientMaxAckDelay, GetSentPacketManagerFromFirstServerSession()
+                                      ->peer_max_ack_delay()
+                                      .ToMilliseconds());
   } else {
     EXPECT_EQ(kDefaultDelayedAckTimeMs,
               GetSentPacketManagerFromFirstServerSession()

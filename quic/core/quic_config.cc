@@ -592,7 +592,7 @@ void QuicConfig::SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms) {
   return max_ack_delay_ms_.SetSendValue(max_ack_delay_ms);
 }
 
-uint32_t QuicConfig::GetMaxAckDelayToToSendMs() const {
+uint32_t QuicConfig::GetMaxAckDelayToSendMs() const {
   return max_ack_delay_ms_.GetSendValue();
 }
 
@@ -1110,7 +1110,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       GetMaxUnidirectionalStreamsToSend());
   if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 3, 4);
-    params->max_ack_delay.set_value(kDefaultDelayedAckTimeMs);
+    params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
   }
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_migration =
