@@ -53,7 +53,6 @@ class QuicEndpoint : public QuicEndpointBase,
   bool SendProbingData() override;
   void OnStatelessResetForProbing() override {}
   bool WillingAndAbleToWrite() const override;
-  bool HasPendingHandshake() const override;
   bool ShouldKeepConnectionAlive() const override;
 
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/) override {}

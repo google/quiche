@@ -619,7 +619,7 @@ void QuicSession::OnCanWrite() {
                                    ConnectionCloseBehavior::SILENT_CLOSE);
       return;
     }
-    if (!connection_->CanWriteStreamData()) {
+    if (!CanWriteStreamData()) {
       return;
     }
     currently_writing_stream_id_ = write_blocked_streams_.PopFront();
@@ -2279,6 +2279,18 @@ QuicUint128 QuicSession::GetStatelessResetToken() const {
   return QuicUtils::GenerateStatelessResetToken(connection_->connection_id());
 }
 
+bool QuicSession::CanWriteStreamData() const {
+  // Don't write stream data if there are queued data packets.
+  if (connection_->HasQueuedPackets()) {
+    return false;
+  }
+  // Immediately write handshake data.
+  if (HasPendingHandshake()) {
+    return true;
+  }
+  return connection_->CanWrite(HAS_RETRANSMITTABLE_DATA);
+}
+
 bool QuicSession::RetransmitLostData() {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   // Retransmit crypto data first.
@@ -2311,7 +2323,7 @@ bool QuicSession::RetransmitLostData() {
     }
   }
   while (!streams_with_pending_retransmission_.empty()) {
-    if (!connection_->CanWriteStreamData()) {
+    if (!CanWriteStreamData()) {
       break;
     }
     // Retransmit lost data on headers and data streams.

@@ -3177,22 +3177,6 @@ bool QuicConnection::HasQueuedData() const {
          packet_creator_.HasPendingFrames() || !buffered_packets_.empty();
 }
 
-bool QuicConnection::CanWriteStreamData() {
-  // Don't write stream data if there are negotiation or queued data packets
-  // to send. Otherwise, continue and bundle as many frames as possible.
-  if (pending_version_negotiation_packet_ || !buffered_packets_.empty()) {
-    return false;
-  }
-
-  IsHandshake pending_handshake =
-      visitor_->HasPendingHandshake() ? IS_HANDSHAKE : NOT_HANDSHAKE;
-  // Sending queued packets may have caused the socket to become write blocked,
-  // or the congestion manager to prohibit sending.  If we've sent everything
-  // we had queued and we're still not blocked, let the visitor know it can
-  // write more.
-  return ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, pending_handshake);
-}
-
 void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
                                         QuicTime::Delta idle_timeout) {
   QUIC_BUG_IF(idle_timeout > handshake_timeout)

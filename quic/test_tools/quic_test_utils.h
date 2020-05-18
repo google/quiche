@@ -506,7 +506,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, OnPathDegrading, (), (override));
   MOCK_METHOD(bool, WillingAndAbleToWrite, (), (const, override));
-  MOCK_METHOD(bool, HasPendingHandshake, (), (const, override));
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(void,
               OnSuccessfulVersionNegotiation,

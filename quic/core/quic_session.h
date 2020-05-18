@@ -117,7 +117,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnAckNeedsRetransmittableFrame() override;
   void SendPing() override;
   bool WillingAndAbleToWrite() const override;
-  bool HasPendingHandshake() const override;
   void OnPathDegrading() override;
   bool AllowSelfAddressChange() const override;
   HandshakeState GetHandshakeState() const override;
@@ -363,6 +362,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called when stream |id| is newly waiting for acks.
   void OnStreamWaitingForAcks(QuicStreamId id);
+
+  // Returns true if there is pending handshake data in the crypto stream.
+  // TODO(ianswett): Make this private or remove.
+  bool HasPendingHandshake() const;
 
   // Returns true if the session has data to be sent, either queued in the
   // connection, or in a write-blocked stream.
@@ -704,6 +707,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Let streams and control frame managers retransmit lost data, returns true
   // if all lost data is retransmitted. Returns false otherwise.
   bool RetransmitLostData();
+
+  // Returns true if stream data should be written.
+  bool CanWriteStreamData() const;
 
   // Closes the pending stream |stream_id| before it has been created.
   void ClosePendingStream(QuicStreamId stream_id);

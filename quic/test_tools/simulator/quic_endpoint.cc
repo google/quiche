@@ -153,9 +153,6 @@ bool QuicEndpoint::WillingAndAbleToWrite() const {
   }
   return bytes_to_transfer_ != 0;
 }
-bool QuicEndpoint::HasPendingHandshake() const {
-  return false;
-}
 bool QuicEndpoint::ShouldKeepConnectionAlive() const {
   return true;
 }

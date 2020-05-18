@@ -158,9 +158,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // or yielded to other connections.
   virtual bool WillingAndAbleToWrite() const = 0;
 
-  // Called to ask if any handshake messages are pending in this visitor.
-  virtual bool HasPendingHandshake() const = 0;
-
   // Called to ask if the connection should be kept alive and prevented
   // from timing out, for example if there are outstanding application
   // transactions expecting a response.
@@ -672,13 +669,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return server_supported_versions_;
   }
 
-  // Testing only.
+  bool HasQueuedPackets() const { return !buffered_packets_.empty(); }
+  // Testing only. TODO(ianswett): Use a peer instead.
   size_t NumQueuedPackets() const { return buffered_packets_.size(); }
-
-  // Returns true if the underlying UDP socket is writable, there is
-  // no queued data and the connection is not congestion-control
-  // blocked.
-  bool CanWriteStreamData();
 
   // Returns true if the connection has queued packets or frames.
   bool HasQueuedData() const;

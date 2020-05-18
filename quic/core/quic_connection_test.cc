@@ -740,7 +740,7 @@ class TestConnection : public QuicConnection {
 
   // Ensures the connection can write stream data before writing.
   QuicConsumedData EnsureWritableAndSendStreamData5() {
-    EXPECT_TRUE(CanWriteStreamData());
+    EXPECT_TRUE(CanWrite(HAS_RETRANSMITTABLE_DATA));
     return SendStreamData5();
   }
 
@@ -1092,7 +1092,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_CALL(*send_algorithm_, OnApplicationLimited(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, WillingAndAbleToWrite()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnPacketDecrypted(_)).Times(AnyNumber());
-    EXPECT_CALL(visitor_, HasPendingHandshake()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnCanWrite())
         .WillRepeatedly(Invoke(&notifier_, &SimpleSessionNotifier::OnCanWrite));
     EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
@@ -7226,7 +7225,7 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
   connection_.CloseConnection(QUIC_PEER_GOING_AWAY, "no reason",
                               ConnectionCloseBehavior::SILENT_CLOSE);
   EXPECT_FALSE(connection_.connected());
-  EXPECT_FALSE(connection_.CanWriteStreamData());
+  EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
   std::unique_ptr<QuicPacket> packet =
       ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
@@ -7250,7 +7249,7 @@ TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
   connection_.CloseConnection(QUIC_PEER_GOING_AWAY, "no reason",
                               ConnectionCloseBehavior::SILENT_CLOSE);
   EXPECT_FALSE(connection_.connected());
-  EXPECT_FALSE(connection_.CanWriteStreamData());
+  EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
       .Times(0);
