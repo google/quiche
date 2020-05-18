@@ -605,6 +605,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   // here.  (Check for a bug regression.)
   DCHECK_EQ(server_connection_id_, packet.connection_id);
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  DCHECK(!VersionHasIetfInvariantHeader(transport_version()));
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPublicResetPacket(packet);
   }
@@ -1579,6 +1580,14 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
     const QuicIetfStatelessResetPacket& /*packet*/) {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
+  DCHECK(VersionHasIetfInvariantHeader(transport_version()));
+  DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  if (last_packet_destination_address_ != self_address()) {
+    // This packet is received on a probing path. Do not close connection.
+    visitor_->OnStatelessResetForProbing();
+    return;
+  }
+
   const std::string error_details = "Received stateless reset.";
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_stateless_reset);
   TearDownLocalConnectionState(QUIC_PUBLIC_RESET, error_details,

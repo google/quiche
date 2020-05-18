@@ -28,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
@@ -7366,6 +7367,33 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(QUIC_PUBLIC_RESET));
+}
+
+TEST_P(QuicConnectionTest, IetfStatelessResetOnProbingPath) {
+  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
+    return;
+  }
+  const QuicUint128 kTestStatelessResetToken = 1010101;
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  // Process a normal packet first to set the self address.
+  QuicReceivedPacket encrypted(nullptr, 0, QuicTime::Zero());
+  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, encrypted);
+
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
+                                                kTestStatelessResetToken));
+  std::unique_ptr<QuicReceivedPacket> received(
+      ConstructReceivedPacket(*packet, QuicTime::Zero()));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
+  EXPECT_CALL(visitor_, OnStatelessResetForProbing());
+  auto host = kSelfAddress.host();
+  QuicSocketAddress alternate_address(host, 80);
+  connection_.ProcessUdpPacket(alternate_address, kPeerAddress, *received);
 }
 
 TEST_P(QuicConnectionTest, GoAway) {
