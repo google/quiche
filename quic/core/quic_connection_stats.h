@@ -139,6 +139,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   // Packet number of first decrypted packet.
   QuicPacketNumber first_decrypted_packet;
+
+  // Max consecutive retransmission timeout before making forward progress.
+  size_t max_consecutive_rto_with_forward_progress = 0;
 };
 
 }  // namespace quic

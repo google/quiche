@@ -403,6 +403,17 @@ void QuicSentPacketManager::PostProcessNewlyAckedPackets(
         }
       }
     }
+    // Records the max consecutive RTO or PTO before forward progress has been
+    // made.
+    if (consecutive_rto_count_ >
+        stats_->max_consecutive_rto_with_forward_progress) {
+      stats_->max_consecutive_rto_with_forward_progress =
+          consecutive_rto_count_;
+    } else if (consecutive_pto_count_ >
+               stats_->max_consecutive_rto_with_forward_progress) {
+      stats_->max_consecutive_rto_with_forward_progress =
+          consecutive_pto_count_;
+    }
     // Reset all retransmit counters any time a new packet is acked.
     consecutive_rto_count_ = 0;
     consecutive_tlp_count_ = 0;

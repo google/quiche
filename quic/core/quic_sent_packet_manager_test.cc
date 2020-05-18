@@ -942,6 +942,7 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(2u, stats_.tlp_count);
   EXPECT_EQ(1u, stats_.rto_count);
+  EXPECT_EQ(0u, stats_.max_consecutive_rto_with_forward_progress);
   // There are 2 RTO retransmissions.
   EXPECT_EQ(104 * kDefaultLength, manager_.GetBytesInFlight());
   QuicPacketNumber largest_acked = QuicPacketNumber(103);
@@ -965,6 +966,7 @@ TEST_F(QuicSentPacketManagerTest, TailLossProbeThenRTO) {
   // All packets before 103 should be lost.
   // Packet 104 is still in flight.
   EXPECT_EQ(1000u, manager_.GetBytesInFlight());
+  EXPECT_EQ(1u, stats_.max_consecutive_rto_with_forward_progress);
 }
 
 TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
@@ -2732,6 +2734,7 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeout) {
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(QuicTime::Delta::Zero(), manager_.TimeUntilSend(clock_.Now()));
   EXPECT_EQ(1u, stats_.pto_count);
+  EXPECT_EQ(0u, stats_.max_consecutive_rto_with_forward_progress);
 
   // Verify two probe packets get sent.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
@@ -2765,6 +2768,7 @@ TEST_F(QuicSentPacketManagerTest, ComputingProbeTimeout) {
 
   // Verify PTO is correctly re-armed based on sent time of packet 4.
   EXPECT_EQ(sent_time + expected_pto_delay, manager_.GetRetransmissionTime());
+  EXPECT_EQ(1u, stats_.max_consecutive_rto_with_forward_progress);
 }
 
 TEST_F(QuicSentPacketManagerTest, SendOneProbePacket) {
