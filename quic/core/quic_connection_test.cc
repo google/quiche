@@ -3129,9 +3129,12 @@ TEST_P(QuicConnectionTest, BasicSending) {
   if (connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
+  const QuicConnectionStats& stats = connection_.GetStats();
+  EXPECT_FALSE(stats.first_decrypted_packet.IsInitialized());
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacket(1);
+  EXPECT_EQ(QuicPacketNumber(1), stats.first_decrypted_packet);
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 2);
   QuicPacketNumber last_packet;
   SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);  // Packet 1
@@ -3215,6 +3218,7 @@ TEST_P(QuicConnectionTest, BasicSending) {
   } else {
     EXPECT_EQ(QuicPacketNumber(7u), least_unacked());
   }
+  EXPECT_EQ(QuicPacketNumber(1), stats.first_decrypted_packet);
 }
 
 // QuicConnection should record the packet sent-time prior to sending the

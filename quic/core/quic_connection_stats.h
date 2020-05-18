@@ -136,6 +136,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   // Whether there is any non app-limited bandwidth sample.
   bool has_non_app_limited_sample = false;
+
+  // Packet number of first decrypted packet.
+  QuicPacketNumber first_decrypted_packet;
 };
 
 }  // namespace quic

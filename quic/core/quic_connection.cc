@@ -923,6 +923,9 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
   last_header_ = header;
+  if (!stats_.first_decrypted_packet.IsInitialized()) {
+    stats_.first_decrypted_packet = last_header_.packet_number;
+  }
 
   // Record packet receipt to populate ack info before processing stream
   // frames, since the processing may result in sending a bundled ack.
