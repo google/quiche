@@ -15,6 +15,7 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
+#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
@@ -1414,6 +1415,16 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
   MOCK_METHOD(void,
               OnVersionNegotiationPacket,
               (const QuicVersionNegotiationPacket&),
+              (override));
+
+  MOCK_METHOD(void,
+              OnTransportParametersSent,
+              (const TransportParameters&),
+              (override));
+
+  MOCK_METHOD(void,
+              OnTransportParametersReceived,
+              (const TransportParameters&),
               (override));
 };
 

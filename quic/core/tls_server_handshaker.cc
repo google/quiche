@@ -284,6 +284,9 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     return false;
   }
 
+  // Notify QuicConnectionDebugVisitor.
+  session()->connection()->OnTransportParametersReceived(client_params);
+
   // When interoperating with non-Google implementations that do not send
   // the version extension, set it to what we expect.
   if (client_params.version == 0) {
@@ -318,6 +321,10 @@ bool TlsServerHandshaker::SetTransportParameters() {
 
   // TODO(nharper): Provide an actual value for the stateless reset token.
   server_params.stateless_reset_token.resize(16);
+
+  // Notify QuicConnectionDebugVisitor.
+  session()->connection()->OnTransportParametersSent(server_params);
+
   std::vector<uint8_t> server_params_bytes;
   if (!SerializeTransportParameters(session()->connection()->version(),
                                     server_params, &server_params_bytes) ||
