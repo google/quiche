@@ -28,6 +28,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
     : perspective_(perspective),
       least_unacked_(FirstSendingPacketNumber()),
       bytes_in_flight_(0),
+      bytes_in_flight_per_packet_number_space_{0, 0, 0},
       packets_in_flight_(0),
       last_inflight_packet_sent_time_(QuicTime::Zero()),
       last_inflight_packets_sent_time_{{QuicTime::Zero()},
@@ -72,6 +73,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
     const PacketNumberSpace packet_number_space =
         GetPacketNumberSpace(info.encryption_level);
     bytes_in_flight_ += bytes_sent;
+    bytes_in_flight_per_packet_number_space_[packet_number_space] += bytes_sent;
     ++packets_in_flight_;
     info.in_flight = true;
     largest_sent_retransmittable_packets_[packet_number_space] = packet_number;
@@ -195,6 +197,27 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
     QUIC_BUG_IF(packets_in_flight_ == 0);
     bytes_in_flight_ -= info->bytes_sent;
     --packets_in_flight_;
+
+    const PacketNumberSpace packet_number_space =
+        GetPacketNumberSpace(info->encryption_level);
+    if (bytes_in_flight_per_packet_number_space_[packet_number_space] <
+        info->bytes_sent) {
+      QUIC_BUG << "bytes_in_flight: "
+               << bytes_in_flight_per_packet_number_space_[packet_number_space]
+               << " is smaller than bytes_sent: " << info->bytes_sent
+               << " for packet number space: "
+               << PacketNumberSpaceToString(packet_number_space);
+      bytes_in_flight_per_packet_number_space_[packet_number_space] = 0;
+    } else {
+      bytes_in_flight_per_packet_number_space_[packet_number_space] -=
+          info->bytes_sent;
+    }
+    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time) &&
+        bytes_in_flight_per_packet_number_space_[packet_number_space] == 0) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_last_inflight_packets_sent_time);
+      last_inflight_packets_sent_time_[packet_number_space] = QuicTime::Zero();
+    }
+
     info->in_flight = false;
   }
 }
@@ -230,7 +253,12 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
     }
   }
   if (supports_multiple_packet_number_spaces_) {
-    last_inflight_packets_sent_time_[INITIAL_DATA] = QuicTime::Zero();
+    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
+      DCHECK_EQ(QuicTime::Zero(),
+                last_inflight_packets_sent_time_[INITIAL_DATA]);
+    } else {
+      last_inflight_packets_sent_time_[INITIAL_DATA] = QuicTime::Zero();
+    }
   }
   return neutered_packets;
 }
@@ -254,7 +282,12 @@ QuicUnackedPacketMap::NeuterHandshakePackets() {
     }
   }
   if (supports_multiple_packet_number_spaces()) {
-    last_inflight_packets_sent_time_[HANDSHAKE_DATA] = QuicTime::Zero();
+    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
+      DCHECK_EQ(QuicTime::Zero(),
+                last_inflight_packets_sent_time_[HANDSHAKE_DATA]);
+    } else {
+      last_inflight_packets_sent_time_[HANDSHAKE_DATA] = QuicTime::Zero();
+    }
   }
   return neutered_packets;
 }

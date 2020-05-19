@@ -281,6 +281,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicPacketNumber least_unacked_;
 
   QuicByteCount bytes_in_flight_;
+  // Bytes in flight per packet number space.
+  QuicByteCount
+      bytes_in_flight_per_packet_number_space_[NUM_PACKET_NUMBER_SPACES];
   QuicPacketCount packets_in_flight_;
 
   // Time that the last inflight packet was sent.

@@ -4003,6 +4003,68 @@ TEST_F(QuicSentPacketManagerTest, HandshakeAckCausesInitialKeyDropping) {
   manager_.MaybeSendProbePackets();
 }
 
+// Regression test for b/156487311
+TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+
+  // Send INITIAL 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  const QuicTime packet1_sent_time = clock_.Now();
+  // Send HANDSHAKE 2.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(4, ENCRYPTION_HANDSHAKE);
+  const QuicTime packet2_sent_time = clock_.Now();
+
+  // Send half RTT 5.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(5, ENCRYPTION_FORWARD_SECURE);
+
+  // Received ACK for INITIAL 1.
+  ExpectAck(1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  int pto_rttvar_multiplier =
+      GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
+  const QuicTime::Delta pto_delay =
+      rtt_stats->smoothed_rtt() +
+      pto_rttvar_multiplier * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
+    // Verify PTO is armed based on handshake data.
+    EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
+  } else {
+    // Problematic: PTO is still armed based on initial data.
+    EXPECT_EQ(packet1_sent_time + pto_delay, manager_.GetRetransmissionTime());
+    clock_.AdvanceTime(pto_delay);
+    manager_.OnRetransmissionTimeout();
+    // Nothing to retransmit in INITIAL space.
+    EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
+    manager_.MaybeSendProbePackets();
+    // PING packet gets sent.
+    SendPingPacket(6, ENCRYPTION_INITIAL);
+
+    // Verify PTO is armed based on packet 2.
+    EXPECT_EQ(packet2_sent_time + pto_delay * 2,
+              manager_.GetRetransmissionTime());
+    clock_.AdvanceTime(pto_delay * 2);
+    manager_.OnRetransmissionTimeout();
+    EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(testing::AtLeast(1));
+    manager_.MaybeSendProbePackets();
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
