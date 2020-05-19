@@ -841,6 +841,20 @@ void QuicConnection::OnSuccessfulVersionNegotiation() {
   }
 }
 
+void QuicConnection::OnTransportParametersSent(
+    const TransportParameters& transport_parameters) const {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnTransportParametersSent(transport_parameters);
+  }
+}
+
+void QuicConnection::OnTransportParametersReceived(
+    const TransportParameters& transport_parameters) const {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnTransportParametersReceived(transport_parameters);
+  }
+}
+
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;

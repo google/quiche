@@ -216,6 +216,9 @@ bool TlsClientHandshaker::SetTransportParameters() {
     params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
   }
 
+  // Notify QuicConnectionDebugVisitor.
+  session()->connection()->OnTransportParametersSent(params);
+
   std::vector<uint8_t> param_bytes;
   return SerializeTransportParameters(session()->connection()->version(),
                                       params, &param_bytes) &&
@@ -243,6 +246,10 @@ bool TlsClientHandshaker::ProcessTransportParameters(
         "Unable to parse server's transport parameters: " + parse_error_details;
     return false;
   }
+
+  // Notify QuicConnectionDebugVisitor.
+  session()->connection()->OnTransportParametersReceived(
+      *received_transport_params_);
 
   // When interoperating with non-Google implementations that do not send
   // the version extension, set it to what we expect.

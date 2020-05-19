@@ -70,6 +70,9 @@ using spdy::SpdyFramer;
 using spdy::SpdyHeaderBlock;
 using spdy::SpdySerializedFrame;
 using spdy::SpdySettingsIR;
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::NiceMock;
 
 namespace quic {
 namespace test {
@@ -662,9 +665,9 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
-  EXPECT_CALL(visitor, OnVersionNegotiationPacket(testing::_)).Times(1);
+  EXPECT_CALL(visitor, OnVersionNegotiationPacket(_)).Times(1);
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
 
@@ -2542,7 +2545,7 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   QuicFramer framer(server_supported_versions_, QuicTime::Zero(),
                     Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
   std::unique_ptr<QuicEncryptedPacket> packet;
-  testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
   GetClientConnection()->set_debug_visitor(&visitor);
   if (VersionHasIetfInvariantHeader(client_connection->transport_version())) {
     packet = framer.BuildIetfStatelessResetPacket(incorrect_connection_id,
@@ -2618,7 +2621,7 @@ TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
           VersionHasIetfInvariantHeader(client_connection->transport_version()),
           client_connection->version().HasLengthPrefixedConnectionIds(),
           server_supported_versions_));
-  testing::NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);
   EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))
       .Times(1);
@@ -4262,6 +4265,42 @@ TEST_P(EndToEndTest, TestMaxPushId) {
 
   EXPECT_TRUE(static_cast<QuicSpdySession*>(GetServerSession())
                   ->CanCreatePushStreamWithId(kMaxQuicStreamId));
+}
+
+TEST_P(EndToEndTest, CustomTransportParameters) {
+  if (!version_.UsesTls()) {
+    // Custom transport parameters are only supported with TLS.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  constexpr auto kCustomParameter =
+      static_cast<TransportParameters::TransportParameterId>(0xff34);
+  client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
+      "test";
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  EXPECT_CALL(visitor, OnTransportParametersSent(_))
+      .WillOnce(Invoke([kCustomParameter](
+                           const TransportParameters& transport_parameters) {
+        ASSERT_NE(transport_parameters.custom_parameters.find(kCustomParameter),
+                  transport_parameters.custom_parameters.end());
+        EXPECT_EQ(transport_parameters.custom_parameters.at(kCustomParameter),
+                  "test");
+      }));
+  EXPECT_CALL(visitor, OnTransportParametersReceived(_)).Times(1);
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+
+  server_thread_->Pause();
+  QuicConfig server_config = *GetServerSession()->config();
+  server_thread_->Resume();
+  ASSERT_NE(server_config.received_custom_transport_parameters().find(
+                kCustomParameter),
+            server_config.received_custom_transport_parameters().end());
+  EXPECT_EQ(
+      server_config.received_custom_transport_parameters().at(kCustomParameter),
+      "test");
 }
 
 TEST_P(EndToEndTest, DISABLED_CustomTransportParameters) {

@@ -26,6 +26,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
@@ -341,6 +342,14 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when |count| packet numbers have been skipped.
   virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/) {}
+
+  // Called for QUIC+TLS versions when we send transport parameters.
+  virtual void OnTransportParametersSent(
+      const TransportParameters& /*transport_parameters*/) {}
+
+  // Called for QUIC+TLS versions when we receive transport parameters.
+  virtual void OnTransportParametersReceived(
+      const TransportParameters& /*transport_parameters*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
@@ -964,6 +973,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called when version is considered negotiated.
   void OnSuccessfulVersionNegotiation();
+
+  // Called for QUIC+TLS versions when we send transport parameters.
+  void OnTransportParametersSent(
+      const TransportParameters& transport_parameters) const;
+
+  // Called for QUIC+TLS versions when we receive transport parameters.
+  void OnTransportParametersReceived(
+      const TransportParameters& transport_parameters) const;
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
