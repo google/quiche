@@ -47,10 +47,10 @@ class MasquePacketWriter : public QuicPacketWriter {
   bool SupportsReleaseTime() const override { return false; }
 
   bool IsBatchMode() const override { return false; }
-  char* GetNextWriteLocation(
+  QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
-    return nullptr;
+    return {nullptr, nullptr};
   }
 
   WriteResult Flush() override { return WriteResult(WRITE_STATUS_OK, 0); }

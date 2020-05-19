@@ -178,10 +178,10 @@ bool QuicEndpointBase::Writer::IsBatchMode() const {
   return false;
 }
 
-char* QuicEndpointBase::Writer::GetNextWriteLocation(
+QuicPacketBuffer QuicEndpointBase::Writer::GetNextWriteLocation(
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/) {
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 WriteResult QuicEndpointBase::Writer::Flush() {

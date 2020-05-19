@@ -131,9 +131,10 @@ class DummyPacketWriter : public QuicPacketWriter {
 
   bool IsBatchMode() const override { return false; }
 
-  char* GetNextWriteLocation(const QuicIpAddress& self_address,
-                             const QuicSocketAddress& peer_address) override {
-    return nullptr;
+  QuicPacketBuffer GetNextWriteLocation(
+      const QuicIpAddress& self_address,
+      const QuicSocketAddress& peer_address) override {
+    return {nullptr, nullptr};
   }
 
   WriteResult Flush() override { return WriteResult(WRITE_STATUS_OK, 0); }

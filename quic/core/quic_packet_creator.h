@@ -41,9 +41,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
    public:
     virtual ~DelegateInterface() {}
     // Get a buffer of kMaxOutgoingPacketSize bytes to serialize the next
-    // packet. If return nullptr, QuicPacketCreator will serialize on a stack
-    // buffer.
-    virtual char* GetPacketBuffer() = 0;
+    // packet. If the return value's buffer is nullptr, QuicPacketCreator will
+    // serialize on a stack buffer.
+    virtual QuicPacketBuffer GetPacketBuffer() = 0;
     // Called when a packet is serialized. Delegate take the ownership of
     // |serialized_packet|.
     virtual void OnSerializedPacket(SerializedPacket serialized_packet) = 0;
@@ -459,7 +459,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // retransmitted to packet_.retransmittable_frames. All frames must fit into
   // a single packet.
   // Fails if |encrypted_buffer_len| isn't long enough for the encrypted packet.
-  void SerializePacket(char* encrypted_buffer, size_t encrypted_buffer_len);
+  void SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
+                       size_t encrypted_buffer_len);
 
   // Called after a new SerialiedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.
@@ -597,6 +598,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
+
+  const bool avoid_leak_writer_buffer_ =
+      GetQuicReloadableFlag(quic_avoid_leak_writer_buffer);
 };
 
 }  // namespace quic

@@ -68,9 +68,9 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
                                 serialized_packet.encrypted_length, true));
   }
 
-  char* GetPacketBuffer() override {
+  QuicPacketBuffer GetPacketBuffer() override {
     // Let QuicPacketCreator to serialize packets on stack buffer.
-    return nullptr;
+    return {nullptr, nullptr};
   }
 
   void OnUnrecoverableError(QuicErrorCode /*error*/,

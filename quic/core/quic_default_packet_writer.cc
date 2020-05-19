@@ -54,10 +54,10 @@ bool QuicDefaultPacketWriter::IsBatchMode() const {
   return false;
 }
 
-char* QuicDefaultPacketWriter::GetNextWriteLocation(
+QuicPacketBuffer QuicDefaultPacketWriter::GetNextWriteLocation(
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/) {
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 WriteResult QuicDefaultPacketWriter::Flush() {

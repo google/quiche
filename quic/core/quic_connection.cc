@@ -2404,6 +2404,14 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       buffered_packets_.emplace_back(*packet, self_address(), peer_address());
       break;
     case SEND_TO_WRITER:
+      // At this point, packet->release_encrypted_buffer is either nullptr,
+      // meaning |packet->encrypted_buffer| is a stack buffer, or not-nullptr,
+      /// meaning it's a writer-allocated buffer. Note that connectivity probing
+      // packets do not use this function, so setting release_encrypted_buffer
+      // to nullptr will not cause probing packets to be leaked.
+      //
+      // writer_->WritePacket transfers buffer ownership back to the writer.
+      packet->release_encrypted_buffer = nullptr;
       result = writer_->WritePacket(packet->encrypted_buffer, encrypted_length,
                                     self_address().host(), peer_address(),
                                     per_packet_options_);
@@ -2647,11 +2655,11 @@ void QuicConnection::OnWriteError(int error_code) {
   }
 }
 
-char* QuicConnection::GetPacketBuffer() {
+QuicPacketBuffer QuicConnection::GetPacketBuffer() {
   if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
     // Do not use writer's packet buffer for coalesced packets which may contain
     // multiple QUIC packets.
-    return nullptr;
+    return {nullptr, nullptr};
   }
   return writer_->GetNextWriteLocation(self_address().host(), peer_address());
 }

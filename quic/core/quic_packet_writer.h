@@ -125,17 +125,22 @@ class QUIC_EXPORT_PRIVATE QuicPacketWriter {
   // True=Batch mode. False=PassThrough mode.
   virtual bool IsBatchMode() const = 0;
 
-  // PassThrough mode: Return nullptr.
+  // PassThrough mode: Return {nullptr, nullptr}
   //
   // Batch mode:
-  // Return the starting address for the next packet's data. A minimum of
+  // Return the QuicPacketBuffer for the next packet. A minimum of
   // kMaxOutgoingPacketSize is guaranteed to be available from the returned
-  // address. If the internal buffer does not have enough space, nullptr is
-  // returned. All arguments should be identical to the follow-up call to
-  // |WritePacket|, they are here to allow advanced packet memory management in
-  // packet writers, e.g. one packet buffer pool per |peer_address|.
-  virtual char* GetNextWriteLocation(const QuicIpAddress& self_address,
-                                     const QuicSocketAddress& peer_address) = 0;
+  // address. If the internal buffer does not have enough space,
+  // {nullptr, nullptr} is returned. All arguments should be identical to the
+  // follow-up call to |WritePacket|, they are here to allow advanced packet
+  // memory management in packet writers, e.g. one packet buffer pool per
+  // |peer_address|.
+  //
+  // If QuicPacketBuffer.release_buffer is !nullptr, it should be called iff
+  // the caller does not call WritePacket for the returned buffer.
+  virtual QuicPacketBuffer GetNextWriteLocation(
+      const QuicIpAddress& self_address,
+      const QuicSocketAddress& peer_address) = 0;
 
   // PassThrough mode: Return WriteResult(WRITE_STATUS_OK, 0).
   //

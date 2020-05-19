@@ -799,7 +799,7 @@ MockPacketWriter::MockPacketWriter() {
       .WillByDefault(testing::Return(kMaxOutgoingPacketSize));
   ON_CALL(*this, IsBatchMode()).WillByDefault(testing::Return(false));
   ON_CALL(*this, GetNextWriteLocation(_, _))
-      .WillByDefault(testing::Return(nullptr));
+      .WillByDefault(testing::Return(QuicPacketBuffer()));
   ON_CALL(*this, Flush())
       .WillByDefault(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
   ON_CALL(*this, SupportsReleaseTime()).WillByDefault(testing::Return(false));

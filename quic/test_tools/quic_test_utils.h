@@ -1183,7 +1183,7 @@ class MockPacketWriter : public QuicPacketWriter {
               (const, override));
   MOCK_METHOD(bool, SupportsReleaseTime, (), (const, override));
   MOCK_METHOD(bool, IsBatchMode, (), (const, override));
-  MOCK_METHOD(char*,
+  MOCK_METHOD(QuicPacketBuffer,
               GetNextWriteLocation,
               (const QuicIpAddress& self_address,
                const QuicSocketAddress& peer_address),
@@ -1454,7 +1454,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
       delete;
   ~MockPacketCreatorDelegate() override;
 
-  MOCK_METHOD(char*, GetPacketBuffer, (), (override));
+  MOCK_METHOD(QuicPacketBuffer, GetPacketBuffer, (), (override));
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void,
               OnUnrecoverableError,

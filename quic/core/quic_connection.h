@@ -596,7 +596,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
-  char* GetPacketBuffer() override;
+  QuicPacketBuffer GetPacketBuffer() override;
   void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& error_details) override;

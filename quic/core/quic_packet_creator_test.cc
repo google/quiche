@@ -162,7 +162,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
                        connection_id_.length()),
         data_("foo"),
         creator_(connection_id_, &client_framer_, &delegate_, &producer_) {
-    EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(delegate_, GetPacketBuffer())
+        .WillRepeatedly(Return(QuicPacketBuffer()));
     creator_.SetEncrypter(ENCRYPTION_INITIAL, std::make_unique<NullEncrypter>(
                                                   Perspective::IS_CLIENT));
     creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, std::make_unique<NullEncrypter>(
@@ -1725,9 +1726,10 @@ TEST_P(QuicPacketCreatorTest, ConsumeDataAndRandomPadding) {
 
 TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
-  char external_buffer[kMaxOutgoingPacketSize];
-  char* expected_buffer = external_buffer;
-  EXPECT_CALL(delegate_, GetPacketBuffer()).WillOnce(Return(expected_buffer));
+  char* buffer = new char[kMaxOutgoingPacketSize];
+  QuicPacketBuffer external_buffer = {buffer,
+                                      [](const char* p) { delete[] p; }};
+  EXPECT_CALL(delegate_, GetPacketBuffer()).WillOnce(Return(external_buffer));
 
   QuicFrame frame;
   MakeIOVector("test", &iov_);
@@ -1738,10 +1740,13 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([expected_buffer](SerializedPacket serialized_packet) {
-        EXPECT_EQ(expected_buffer, serialized_packet.encrypted_buffer);
+      .WillOnce(Invoke([&external_buffer](SerializedPacket serialized_packet) {
+        EXPECT_EQ(external_buffer.buffer, serialized_packet.encrypted_buffer);
       }));
   creator_.FlushCurrentPacket();
+  if (!GetQuicReloadableFlag(quic_avoid_leak_writer_buffer)) {
+    delete[] buffer;
+  }
 }
 
 // Test for error found in
@@ -2311,7 +2316,7 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
               MaybeBundleAckOpportunistically,
               (),
               (override));
-  MOCK_METHOD(char*, GetPacketBuffer, (), (override));
+  MOCK_METHOD(QuicPacketBuffer, GetPacketBuffer, (), (override));
   MOCK_METHOD(void, OnSerializedPacket, (SerializedPacket), (override));
   MOCK_METHOD(void,
               OnUnrecoverableError,
@@ -2466,7 +2471,8 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
                  &delegate_,
                  &producer_),
         ack_frame_(InitAckFrame(1)) {
-    EXPECT_CALL(delegate_, GetPacketBuffer()).WillRepeatedly(Return(nullptr));
+    EXPECT_CALL(delegate_, GetPacketBuffer())
+        .WillRepeatedly(Return(QuicPacketBuffer()));
     creator_.SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));

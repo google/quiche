@@ -379,6 +379,8 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   SerializedPacket(SerializedPacket&& other);
   ~SerializedPacket();
 
+  // TODO(wub): replace |encrypted_buffer|+|release_encrypted_buffer| by a
+  // QuicOwnedPacketBuffer.
   // Not owned if |release_encrypted_buffer| is nullptr. Otherwise it is
   // released by |release_encrypted_buffer| on destruction.
   const char* encrypted_buffer;

@@ -60,10 +60,10 @@ bool QuartcPacketWriter::IsBatchMode() const {
   return false;
 }
 
-char* QuartcPacketWriter::GetNextWriteLocation(
+QuicPacketBuffer QuartcPacketWriter::GetNextWriteLocation(
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/) {
-  return nullptr;
+  return {nullptr, nullptr};
 }
 
 WriteResult QuartcPacketWriter::Flush() {

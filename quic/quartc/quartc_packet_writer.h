@@ -91,8 +91,9 @@ class QuartcPacketWriter : public QuicPacketWriter {
 
   bool IsBatchMode() const override;
 
-  char* GetNextWriteLocation(const QuicIpAddress& self_address,
-                             const QuicSocketAddress& peer_address) override;
+  QuicPacketBuffer GetNextWriteLocation(
+      const QuicIpAddress& self_address,
+      const QuicSocketAddress& peer_address) override;
 
   WriteResult Flush() override;
 

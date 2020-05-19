@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -337,6 +338,11 @@ class TestAlarmFactory : public QuicAlarmFactory {
 };
 
 class TestPacketWriter : public QuicPacketWriter {
+  struct PacketBuffer {
+    QUIC_CACHELINE_ALIGNED char buffer[1500];
+    bool in_use = false;
+  };
+
  public:
   TestPacketWriter(ParsedQuicVersion version, MockClock* clock)
       : version_(version),
@@ -345,9 +351,26 @@ class TestPacketWriter : public QuicPacketWriter {
     QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
                                                         TestConnectionId());
     framer_.framer()->SetInitialObfuscators(TestConnectionId());
+
+    for (int i = 0; i < 128; ++i) {
+      PacketBuffer* p = new PacketBuffer();
+      packet_buffer_pool_.push_back(p);
+      packet_buffer_pool_index_[p->buffer] = p;
+      packet_buffer_free_list_.push_back(p);
+    }
   }
   TestPacketWriter(const TestPacketWriter&) = delete;
   TestPacketWriter& operator=(const TestPacketWriter&) = delete;
+
+  ~TestPacketWriter() override {
+    EXPECT_EQ(packet_buffer_pool_.size(), packet_buffer_free_list_.size())
+        << packet_buffer_pool_.size() - packet_buffer_free_list_.size()
+        << " out of " << packet_buffer_pool_.size()
+        << " packet buffers have been leaked.";
+    for (auto p : packet_buffer_pool_) {
+      delete p;
+    }
+  }
 
   // QuicPacketWriter interface
   WriteResult WritePacket(const char* buffer,
@@ -355,6 +378,13 @@ class TestPacketWriter : public QuicPacketWriter {
                           const QuicIpAddress& /*self_address*/,
                           const QuicSocketAddress& /*peer_address*/,
                           PerPacketOptions* /*options*/) override {
+    // If the buffer is allocated from the pool, return it back to the pool.
+    // Note the buffer content doesn't change.
+    if (packet_buffer_pool_index_.find(const_cast<char*>(buffer)) !=
+        packet_buffer_pool_index_.end()) {
+      FreePacketBuffer(buffer);
+    }
+
     QuicEncryptedPacket packet(buffer, buf_len);
     ++packets_write_attempts_;
 
@@ -441,10 +471,15 @@ class TestPacketWriter : public QuicPacketWriter {
 
   bool IsBatchMode() const override { return is_batch_mode_; }
 
-  char* GetNextWriteLocation(
+  QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
-    return nullptr;
+    if (GetQuicReloadableFlag(quic_avoid_leak_writer_buffer)) {
+      return {AllocPacketBuffer(),
+              [this](const char* p) { FreePacketBuffer(p); }};
+    }
+    // Do not use writer buffer for serializing packets.
+    return {nullptr, nullptr};
   }
 
   WriteResult Flush() override {
@@ -592,6 +627,23 @@ class TestPacketWriter : public QuicPacketWriter {
   SimpleQuicFramer* framer() { return &framer_; }
 
  private:
+  char* AllocPacketBuffer() {
+    PacketBuffer* p = packet_buffer_free_list_.front();
+    EXPECT_FALSE(p->in_use);
+    p->in_use = true;
+    packet_buffer_free_list_.pop_front();
+    return p->buffer;
+  }
+
+  void FreePacketBuffer(const char* buffer) {
+    auto iter = packet_buffer_pool_index_.find(const_cast<char*>(buffer));
+    ASSERT_TRUE(iter != packet_buffer_pool_index_.end());
+    PacketBuffer* p = iter->second;
+    ASSERT_TRUE(p->in_use);
+    p->in_use = false;
+    packet_buffer_free_list_.push_back(p);
+  }
+
   ParsedQuicVersion version_;
   SimpleQuicFramer framer_;
   size_t last_packet_size_ = 0;
@@ -620,6 +672,12 @@ class TestPacketWriter : public QuicPacketWriter {
   QuicTime::Delta write_pause_time_delta_ = QuicTime::Delta::Zero();
   QuicByteCount max_packet_size_ = kMaxOutgoingPacketSize;
   bool supports_release_time_ = false;
+  // Used to verify writer-allocated packet buffers are properly released.
+  std::vector<PacketBuffer*> packet_buffer_pool_;
+  // Buffer address => Address of the owning PacketBuffer.
+  QuicHashMap<char*, PacketBuffer*> packet_buffer_pool_index_;
+  // Indices in packet_buffer_pool_ that are not allocated.
+  std::list<PacketBuffer*> packet_buffer_free_list_;
 };
 
 class TestConnection : public QuicConnection {

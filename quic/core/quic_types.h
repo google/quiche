@@ -734,6 +734,45 @@ struct QUIC_NO_EXPORT NextReleaseTimeResult {
   bool allow_burst;
 };
 
+// QuicPacketBuffer bundles a buffer and a function that releases it. Note
+// it does not assume ownership of buffer, i.e. it doesn't release the buffer on
+// destruction.
+struct QUIC_NO_EXPORT QuicPacketBuffer {
+  QuicPacketBuffer() = default;
+
+  QuicPacketBuffer(char* buffer,
+                   std::function<void(const char*)> release_buffer)
+      : buffer(buffer), release_buffer(std::move(release_buffer)) {}
+
+  char* buffer = nullptr;
+  std::function<void(const char*)> release_buffer;
+};
+
+// QuicOwnedPacketBuffer is a QuicPacketBuffer that assumes buffer ownership.
+struct QUIC_NO_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
+  QuicOwnedPacketBuffer(const QuicOwnedPacketBuffer&) = delete;
+  QuicOwnedPacketBuffer& operator=(const QuicOwnedPacketBuffer&) = delete;
+
+  QuicOwnedPacketBuffer(char* buffer,
+                        std::function<void(const char*)> release_buffer)
+      : QuicPacketBuffer(buffer, std::move(release_buffer)) {}
+
+  QuicOwnedPacketBuffer(QuicOwnedPacketBuffer&& owned_buffer)
+      : QuicPacketBuffer(std::move(owned_buffer)) {
+    // |owned_buffer| does not own a buffer any more.
+    owned_buffer.buffer = nullptr;
+  }
+
+  explicit QuicOwnedPacketBuffer(QuicPacketBuffer&& packet_buffer)
+      : QuicPacketBuffer(std::move(packet_buffer)) {}
+
+  ~QuicOwnedPacketBuffer() {
+    if (release_buffer != nullptr && buffer != nullptr) {
+      release_buffer(buffer);
+    }
+  }
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

@@ -54,12 +54,12 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
 
   void SetWritable() override;
 
-  char* GetNextWriteLocation(
+  QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
     // If the wrapped writer supports zero-copy, disable it, because it is not
     // compatible with delayed writes in this class.
-    return nullptr;
+    return {nullptr, nullptr};
   }
 
   // Writes out any packet which should have been sent by now
