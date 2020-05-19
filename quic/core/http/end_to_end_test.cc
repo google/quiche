@@ -3044,7 +3044,7 @@ TEST_P(EndToEndTest, Trailers) {
 // TODO(b/151749109): Test server push for IETF QUIC.
 class EndToEndTestServerPush : public EndToEndTest {
  protected:
-  static constexpr size_t kNumMaxStreams = 10;
+  const size_t kNumMaxStreams = 10;
 
   EndToEndTestServerPush() : EndToEndTest() {
     SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
