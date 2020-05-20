@@ -120,7 +120,6 @@ bool TlsClientHandshaker::CryptoConnect() {
     if (cached_state) {
       SSL_set_session(ssl(), cached_state->tls_session.get());
       if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
-          VersionHasIetfQuicFrames(session()->transport_version()) &&
           SSL_SESSION_early_data_capable(cached_state->tls_session.get())) {
         if (!PrepareZeroRttConfig(cached_state.get())) {
           return false;
