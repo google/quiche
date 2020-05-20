@@ -131,8 +131,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // bandwidth.  Returns true if data was sent, false otherwise.
   virtual bool SendProbingData() = 0;
 
-  // Called when stateless reset packet is received but is on a different path.
-  virtual void OnStatelessResetForProbing() = 0;
+  // Called when stateless reset packet is received. Returns true if the
+  // connection needs to be closed.
+  virtual bool ValidateStatelessReset(
+      const quic::QuicSocketAddress& self_address,
+      const quic::QuicSocketAddress& peer_address) = 0;
 
   // Called when the connection experiences a change in congestion window.
   virtual void OnCongestionWindowChange(QuicTime now) = 0;

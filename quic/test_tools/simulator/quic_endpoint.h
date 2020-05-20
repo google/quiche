@@ -51,7 +51,11 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnCanWrite() override;
   bool SendProbingData() override;
-  void OnStatelessResetForProbing() override {}
+  bool ValidateStatelessReset(
+      const quic::QuicSocketAddress& /*self_address*/,
+      const quic::QuicSocketAddress& /*peer_address*/) override {
+    return true;
+  }
   bool WillingAndAbleToWrite() const override;
   bool ShouldKeepConnectionAlive() const override;
 

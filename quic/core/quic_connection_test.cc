@@ -7418,39 +7418,13 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
                                                 kTestStatelessResetToken));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
+  EXPECT_CALL(visitor_, ValidateStatelessReset(_, _)).WillOnce(Return(true));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(QUIC_PUBLIC_RESET));
-}
-
-TEST_P(QuicConnectionTest, IetfStatelessResetOnProbingPath) {
-  if (!VersionHasIetfInvariantHeader(GetParam().version.transport_version)) {
-    return;
-  }
-  const QuicUint128 kTestStatelessResetToken = 1010101;
-  QuicConfig config;
-  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
-                                                 kTestStatelessResetToken);
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  connection_.SetFromConfig(config);
-
-  // Process a normal packet first to set the self address.
-  QuicReceivedPacket encrypted(nullptr, 0, QuicTime::Zero());
-  connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, encrypted);
-
-  std::unique_ptr<QuicEncryptedPacket> packet(
-      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
-                                                kTestStatelessResetToken));
-  std::unique_ptr<QuicReceivedPacket> received(
-      ConstructReceivedPacket(*packet, QuicTime::Zero()));
-  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
-  EXPECT_CALL(visitor_, OnStatelessResetForProbing());
-  auto host = kSelfAddress.host();
-  QuicSocketAddress alternate_address(host, 80);
-  connection_.ProcessUdpPacket(alternate_address, kPeerAddress, *received);
 }
 
 TEST_P(QuicConnectionTest, GoAway) {

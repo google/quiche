@@ -1596,9 +1596,9 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
   // debug_visitor_.
   DCHECK(VersionHasIetfInvariantHeader(transport_version()));
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  if (last_packet_destination_address_ != self_address()) {
+  if (!visitor_->ValidateStatelessReset(last_packet_destination_address_,
+                                        last_packet_source_address_)) {
     // This packet is received on a probing path. Do not close connection.
-    visitor_->OnStatelessResetForProbing();
     return;
   }
 
