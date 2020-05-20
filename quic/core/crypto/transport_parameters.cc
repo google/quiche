@@ -452,7 +452,16 @@ std::string TransportParameters::ToString() const {
   }
   for (const auto& kv : custom_parameters) {
     rv += " 0x" + quiche::QuicheTextUtils::Hex(static_cast<uint32_t>(kv.first));
-    rv += "=" + quiche::QuicheTextUtils::HexEncode(kv.second);
+    rv += "=";
+    static constexpr size_t kMaxPrintableLength = 32;
+    if (kv.second.length() <= kMaxPrintableLength) {
+      rv += quiche::QuicheTextUtils::HexEncode(kv.second);
+    } else {
+      quiche::QuicheStringPiece truncated(kv.second.data(),
+                                          kMaxPrintableLength);
+      rv += quiche::QuicheStrCat(quiche::QuicheTextUtils::HexEncode(truncated),
+                                 "...(length ", kv.second.length(), ")");
+    }
   }
   rv += "]";
   return rv;
@@ -669,11 +678,75 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     return false;
   }
 
-  // Empirically transport parameters generally fit within 128 bytes.
-  // For now we hope this will be enough.
-  // TODO(dschinazi) make this grow if needed.
-  static const size_t kMaxTransportParametersLength = 4096;
-  out->resize(kMaxTransportParametersLength);
+  // Maximum length of the GREASE transport parameter (see below).
+  static constexpr size_t kMaxGreaseLength = 16;
+
+  // Empirically transport parameters generally fit within 128 bytes, but we
+  // need to allocate the size up front. Integer transport parameters
+  // have a maximum encoded length of 24 bytes (3 variable length integers),
+  // other transport parameters have a length of 16 + the maximum value length.
+  static constexpr size_t kTypeAndValueLength = 2 * sizeof(uint64_t);
+  static constexpr size_t kIntegerParameterLength =
+      kTypeAndValueLength + sizeof(uint64_t);
+  static constexpr size_t kStatelessResetParameterLength =
+      kTypeAndValueLength + 16 /* stateless reset token length */;
+  static constexpr size_t kConnectionIdParameterLength =
+      kTypeAndValueLength + 255 /* maximum connection ID length */;
+  static constexpr size_t kPreferredAddressParameterLength =
+      kTypeAndValueLength + 4 /*IPv4 address */ + 2 /* IPv4 port */ +
+      16 /* IPv6 address */ + 1 /* Connection ID length */ +
+      255 /* maximum connection ID length */ + 16 /* stateless reset token */;
+  static constexpr size_t kGreaseParameterLength =
+      kTypeAndValueLength + kMaxGreaseLength;
+  static constexpr size_t kKnownTransportParamLength =
+      kConnectionIdParameterLength +      // original_connection_id
+      kIntegerParameterLength +           // max_idle_timeout
+      kStatelessResetParameterLength +    // stateless_reset_token
+      kIntegerParameterLength +           // max_udp_payload_size
+      kIntegerParameterLength +           // initial_max_data
+      kIntegerParameterLength +           // initial_max_stream_data_bidi_local
+      kIntegerParameterLength +           // initial_max_stream_data_bidi_remote
+      kIntegerParameterLength +           // initial_max_stream_data_uni
+      kIntegerParameterLength +           // initial_max_streams_bidi
+      kIntegerParameterLength +           // initial_max_streams_uni
+      kIntegerParameterLength +           // ack_delay_exponent
+      kIntegerParameterLength +           // max_ack_delay
+      kTypeAndValueLength +               // disable_active_migration
+      kPreferredAddressParameterLength +  // preferred_address
+      kIntegerParameterLength +           // active_connection_id_limit
+      kIntegerParameterLength +           // max_datagram_frame_size
+      kIntegerParameterLength +           // initial_round_trip_time_us
+      kTypeAndValueLength +               // google_connection_options
+      kTypeAndValueLength +               // user_agent_id
+      kTypeAndValueLength +               // google
+      kTypeAndValueLength +               // google-version
+      kGreaseParameterLength;             // GREASE
+
+  size_t max_transport_param_length = kKnownTransportParamLength;
+  // google_connection_options.
+  if (in.google_connection_options.has_value()) {
+    max_transport_param_length +=
+        in.google_connection_options.value().size() * sizeof(QuicTag);
+  }
+  // user_agent_id.
+  if (in.user_agent_id.has_value()) {
+    max_transport_param_length += in.user_agent_id.value().length();
+  }
+  // Google-specific version extension.
+  max_transport_param_length +=
+      sizeof(in.version) + 1 /* versions length */ +
+      in.supported_versions.size() * sizeof(QuicVersionLabel);
+  // Custom parameters.
+  for (const auto& kv : in.custom_parameters) {
+    max_transport_param_length += kTypeAndValueLength + kv.second.length();
+  }
+  // Google-specific non-standard parameter.
+  if (in.google_quic_params) {
+    max_transport_param_length +=
+        in.google_quic_params->GetSerialized().length();
+  }
+
+  out->resize(max_transport_param_length);
   QuicDataWriter writer(out->size(), reinterpret_cast<char*>(out->data()));
 
   if (!version.HasVarIntTransportParams()) {
@@ -910,7 +983,6 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
         << grease_id64 << " invalid for " << version;
     TransportParameters::TransportParameterId grease_id =
         static_cast<TransportParameters::TransportParameterId>(grease_id64);
-    const size_t kMaxGreaseLength = 16;
     const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
     DCHECK_GE(kMaxGreaseLength, grease_length);
     char grease_contents[kMaxGreaseLength];

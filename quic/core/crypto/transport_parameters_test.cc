@@ -1169,5 +1169,32 @@ TEST_P(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
   EXPECT_EQ(kFakeMaxPacketSize, new_params.max_packet_size.value());
 }
 
+TEST_P(TransportParametersTest, VeryLongCustomParameter) {
+  // Ensure we can handle a 70KB custom parameter on both send and receive.
+  size_t custom_value_length = 70000;
+  if (!version_.HasVarIntTransportParams()) {
+    // These versions encode lengths as uint16 so they cannot send as much.
+    custom_value_length = 65000;
+  }
+  std::string custom_value(custom_value_length, '?');
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.version = kFakeVersionLabel;
+  orig_params.custom_parameters[kCustomParameter1] = custom_value;
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
+
+  TransportParameters new_params;
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
+                                       serialized.data(), serialized.size(),
+                                       &new_params, &error_details))
+      << error_details;
+  EXPECT_TRUE(error_details.empty());
+  RemoveGreaseParameters(&new_params);
+  EXPECT_EQ(new_params, orig_params);
+}
+
 }  // namespace test
 }  // namespace quic
