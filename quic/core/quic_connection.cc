@@ -4043,7 +4043,13 @@ void QuicConnection::SendAllPendingAcks() {
       uber_received_packet_manager_.GetEarliestAckTimeout();
   if (timeout.IsInitialized()) {
     // If there are ACKs pending, re-arm ack alarm.
-    ack_alarm_->Set(timeout);
+    if (update_ack_alarm_in_send_all_pending_acks_) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_update_ack_alarm_in_send_all_pending_acks);
+      ack_alarm_->Update(timeout, kAlarmGranularity);
+    } else {
+      ack_alarm_->Set(timeout);
+    }
   }
   // Only try to bundle retransmittable data with ACK frame if default
   // encryption level is forward secure.
