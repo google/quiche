@@ -319,9 +319,6 @@ bool TlsServerHandshaker::SetTransportParameters() {
     return false;
   }
 
-  // TODO(nharper): Provide an actual value for the stateless reset token.
-  server_params.stateless_reset_token.resize(16);
-
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersSent(server_params);
 
