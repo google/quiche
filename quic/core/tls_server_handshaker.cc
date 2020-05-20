@@ -353,6 +353,16 @@ void TlsServerHandshaker::SetWriteSecret(
 }
 
 void TlsServerHandshaker::FinishHandshake() {
+  if (SSL_in_early_data(ssl())) {
+    // If the server accepts early data, SSL_do_handshake returns success twice:
+    // once after processing the ClientHello and sending the server's first
+    // flight, and then again after the handshake is complete. This results in
+    // FinishHandshake getting called twice. On the first call to
+    // FinishHandshake, we don't have any confirmation that the client is live,
+    // so all end of handshake processing is deferred until the handshake is
+    // actually complete.
+    return;
+  }
   if (!valid_alpn_received_) {
     QUIC_DLOG(ERROR)
         << "Server: handshake finished without receiving a known ALPN";

@@ -93,6 +93,8 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)) {
     auto client_cache = std::make_unique<test::SimpleSessionCache>();
     client_session_cache_ = client_cache.get();
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
     crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(), std::move(client_cache));
     Initialize();
@@ -171,8 +173,6 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     } else {
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     }
-    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
-    SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
     std::unique_ptr<QuicCryptoServerConfig> crypto_config =
         crypto_test_utils::CryptoServerConfigForTesting();
     crypto_test_utils::HandshakeWithFakeServer(
@@ -1028,7 +1028,6 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
       kInitialSessionFlowControlWindowForTest + 1);
   config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection + 1);
   config.SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection + 1);
-  SetQuicReloadableFlag(quic_enable_tls_resumption, true);
   std::unique_ptr<QuicCryptoServerConfig> crypto_config =
       crypto_test_utils::CryptoServerConfigForTesting();
   crypto_test_utils::HandshakeWithFakeServer(

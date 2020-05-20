@@ -574,7 +574,7 @@ void CompareCrypters(const QuicEncrypter* encrypter,
                      std::string label) {
   if (encrypter == nullptr || decrypter == nullptr) {
     ADD_FAILURE() << "Expected non-null crypters; have " << encrypter << " and "
-                  << decrypter;
+                  << decrypter << " for " << label;
     return;
   }
   quiche::QuicheStringPiece encrypter_key = encrypter->GetKey();
@@ -605,7 +605,8 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
     const QuicDecrypter* server_decrypter(
         QuicFramerPeer::GetDecrypter(server_framer, level));
     if (level == ENCRYPTION_FORWARD_SECURE ||
-        !((level == ENCRYPTION_HANDSHAKE || client_encrypter == nullptr) &&
+        !((level == ENCRYPTION_HANDSHAKE || level == ENCRYPTION_ZERO_RTT ||
+           client_encrypter == nullptr) &&
           server_decrypter == nullptr)) {
       CompareCrypters(client_encrypter, server_decrypter,
                       "client " + EncryptionLevelString(level) + " write");
@@ -616,7 +617,8 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
         QuicFramerPeer::GetDecrypter(client_framer, level));
     if (level == ENCRYPTION_FORWARD_SECURE ||
         !(server_encrypter == nullptr &&
-          (level == ENCRYPTION_HANDSHAKE || client_decrypter == nullptr))) {
+          (level == ENCRYPTION_HANDSHAKE || level == ENCRYPTION_ZERO_RTT ||
+           client_decrypter == nullptr))) {
       CompareCrypters(server_encrypter, client_decrypter,
                       "server " + EncryptionLevelString(level) + " write");
     }

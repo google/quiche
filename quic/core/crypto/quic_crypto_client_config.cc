@@ -67,7 +67,9 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
     std::unique_ptr<SessionCache> session_cache)
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
-      ssl_ctx_(TlsClientConnection::CreateSslCtx()) {
+      enable_zero_rtt_for_tls_(
+          GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)),
+      ssl_ctx_(TlsClientConnection::CreateSslCtx(enable_zero_rtt_for_tls_)) {
   DCHECK(proof_verifier_.get());
   SetDefaults();
 }

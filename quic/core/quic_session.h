@@ -255,6 +255,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void DiscardOldEncryptionKey(EncryptionLevel level) override;
   void NeuterUnencryptedData() override;
   void NeuterHandshakeData() override;
+  void OnZeroRttRejected() override;
 
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,

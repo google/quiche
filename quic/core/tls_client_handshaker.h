@@ -124,6 +124,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
   void FinishHandshake();
+  void HandleZeroRttReject();
 
   // Called when server completes handshake (i.e., either handshake done is
   // received or 1-RTT packet gets acknowledged).
@@ -175,6 +176,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool allow_invalid_sni_for_tests_ = false;
 
   const bool has_application_state_;
+  bool attempting_zero_rtt_;
 
   TlsClientConnection tls_connection_;
 

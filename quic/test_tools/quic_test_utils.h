@@ -1139,6 +1139,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD(bool, ShouldCreateOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
+  MOCK_METHOD(void, OnZeroRttRejected, (), (override));
 
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;

@@ -39,7 +39,7 @@ class QUIC_EXPORT_PRIVATE TlsClientConnection : public TlsConnection {
   TlsClientConnection(SSL_CTX* ssl_ctx, Delegate* delegate);
 
   // Creates and configures an SSL_CTX that is appropriate for clients to use.
-  static bssl::UniquePtr<SSL_CTX> CreateSslCtx();
+  static bssl::UniquePtr<SSL_CTX> CreateSslCtx(bool enable_early_data);
 
  private:
   // Registered as the callback for SSL_CTX_set_custom_verify. The

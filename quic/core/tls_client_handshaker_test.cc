@@ -163,13 +163,13 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   TlsClientHandshakerTest()
       : supported_versions_({GetParam()}),
         server_id_(kServerHostname, kServerPort, false),
-        crypto_config_(std::make_unique<QuicCryptoClientConfig>(
-            std::make_unique<TestProofVerifier>(),
-            std::make_unique<test::SimpleSessionCache>())),
         server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize) {
     SetQuicReloadableFlag(quic_enable_tls_resumption, true);
     SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
+    crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+        std::make_unique<TestProofVerifier>(),
+        std::make_unique<test::SimpleSessionCache>());
     server_crypto_config_ = crypto_test_utils::CryptoServerConfigForTesting();
     CreateConnection();
   }
@@ -336,6 +336,59 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
+}
+
+// TODO(b/152551499): This test is currently broken because the logic to reject
+// 0-RTT is overzealous. It currently requires a byte-for-byte match of the
+// Transport Parameters (between the ones that the server sent on the connection
+// where it issued a ticket, and the ones that the server is sending on the
+// connection where it is potentially accepting early data). This is broken
+// because the stateless reset token in the Transport Parameters necessarily
+// must be different between those two connections. Once that check is relaxed,
+// this test can be enabled.
+TEST_P(TlsClientHandshakerTest, DISABLED_ZeroRttResumption) {
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection
+  CreateConnection();
+  CompleteCryptoHandshake();
+
+  // TODO(b/152551499): Add a test that checks we have keys after calling
+  // stream()->CryptoConnect().
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->IsResumption());
+  EXPECT_TRUE(stream()->EarlyDataAccepted());
+}
+
+// TODO(b/152551499): Also test resumption getting rejected.
+TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection, but disable 0-RTT on the server.
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  CreateConnection();
+  EXPECT_CALL(*session_, OnZeroRttRejected());
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->IsResumption());
+  EXPECT_FALSE(stream()->EarlyDataAccepted());
 }
 
 TEST_P(TlsClientHandshakerTest, ClientSendsNoSNI) {

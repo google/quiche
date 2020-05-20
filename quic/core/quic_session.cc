@@ -1609,6 +1609,10 @@ void QuicSession::NeuterHandshakeData() {
   connection()->OnHandshakeComplete();
 }
 
+void QuicSession::OnZeroRttRejected() {
+  // TODO(b/153726130): Handle early data rejection.
+}
+
 void QuicSession::OnCryptoHandshakeMessageSent(
     const CryptoHandshakeMessage& /*message*/) {}
 

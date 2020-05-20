@@ -11,7 +11,8 @@ TlsClientConnection::TlsClientConnection(SSL_CTX* ssl_ctx, Delegate* delegate)
       delegate_(delegate) {}
 
 // static
-bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx() {
+bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx(
+    bool enable_early_data) {
   bssl::UniquePtr<SSL_CTX> ssl_ctx = TlsConnection::CreateSslCtx();
   // Configure certificate verification.
   SSL_CTX_set_custom_verify(ssl_ctx.get(), SSL_VERIFY_PEER, &VerifyCallback);
@@ -22,6 +23,8 @@ bssl::UniquePtr<SSL_CTX> TlsClientConnection::CreateSslCtx() {
   SSL_CTX_set_session_cache_mode(
       ssl_ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
   SSL_CTX_sess_set_new_cb(ssl_ctx.get(), NewSessionCallback);
+
+  SSL_CTX_set_early_data_enabled(ssl_ctx.get(), enable_early_data);
   return ssl_ctx;
 }
 

@@ -54,6 +54,10 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // encryption level and 2) a server successfully processes a forward secure
   // packet.
   virtual void NeuterHandshakeData() = 0;
+
+  // Called when 0-RTT data is rejected by the server. This is only called in
+  // TLS handshakes and only called on clients.
+  virtual void OnZeroRttRejected() = 0;
 };
 
 }  // namespace quic

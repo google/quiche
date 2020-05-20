@@ -368,6 +368,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   void set_proof_source(std::unique_ptr<ProofSource> proof_source);
   SSL_CTX* ssl_ctx() const;
 
+  bool early_data_enabled_for_tls() const { return enable_zero_rtt_for_tls_; }
+
   // Initialize the CachedState from |canonical_crypto_config| for the
   // |canonical_server_id| as the initial CachedState for |server_id|. We will
   // copy config data only if |canonical_crypto_config| has valid proof.
@@ -450,6 +452,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   std::unique_ptr<ProofVerifier> proof_verifier_;
   std::unique_ptr<SessionCache> session_cache_;
   std::unique_ptr<ProofSource> proof_source_;
+
+  // Latched value of reloadable flag quic_enable_zero_rtt_for_tls
+  bool enable_zero_rtt_for_tls_;
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
 
   // The |user_agent_id_| passed in QUIC's CHLO message.
