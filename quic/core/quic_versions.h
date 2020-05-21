@@ -4,13 +4,21 @@
 
 // Definitions and utility functions related to handling of QUIC versions.
 //
-// QUIC version is a four-byte tag that can be represented in memory as a
-// QuicVersionLabel type (which is an alias to uint32_t).  In actuality, all
-// versions supported by this implementation have the following format:
-//   [QT]0\d\d
-// e.g. Q046.  Q or T distinguishes the type of handshake used (Q for QUIC
-// Crypto handshake, T for TLS-based handshake), and the two digits at the end
-// is the actual numeric value of transport version used by the code.
+// QUIC versions are encoded over the wire as an opaque 32bit field. The wire
+// encoding is represented in memory as a QuicVersionLabel type (which is an
+// alias to uint32_t). Conceptual versions are represented in memory as
+// ParsedQuicVersion.
+//
+// We currently support two kinds of QUIC versions, GoogleQUIC and IETF QUIC.
+//
+// All GoogleQUIC versions use a wire encoding that matches the following regex
+// when converted to ASCII: "[QT]0\d\d" (e.g. Q050). Q or T distinguishes the
+// type of handshake used (Q for the QUIC_CRYPTO handshake, T for the QUIC+TLS
+// handshake), and the two digits at the end contain the numeric value of
+// the transport version used.
+//
+// All IETF QUIC versions use the wire encoding described in:
+// https://tools.ietf.org/html/draft-ietf-quic-transport
 
 #ifndef QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 #define QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
@@ -25,11 +33,12 @@
 
 namespace quic {
 
-// The available versions of QUIC.  The numeric value of the enum is guaranteed
-// to match the number in the name.  The versions not currently supported are
-// documented in comments.
-//
-// See go/new-quic-version for more details on how to roll out new versions.
+// The list of existing QUIC transport versions. Note that QUIC versions are
+// sent over the wire as an encoding of ParsedQuicVersion, which requires a
+// QUIC transport version and handshake protocol. For transport versions of the
+// form QUIC_VERSION_XX where XX is decimal, the enum numeric value is
+// guaranteed to match the name. Older deprecated transport versions are
+// documented in comments below.
 enum QuicTransportVersion {
   // Special case to indicate unknown/unsupported QUIC version.
   QUIC_VERSION_UNSUPPORTED = 0,
@@ -123,11 +132,7 @@ enum QuicTransportVersion {
 };
 
 // This array contains QUIC transport versions which we currently support.
-// This should be ordered such that the highest supported version is the first
-// element, with subsequent elements in descending order (versions can be
-// skipped as necessary).
-//
-// See go/new-quic-version for more details on how to roll out new versions.
+// DEPRECATED. Use SupportedVersions() instead.
 constexpr std::array<QuicTransportVersion, 7> SupportedTransportVersions() {
   return {QUIC_VERSION_IETF_DRAFT_27,
           QUIC_VERSION_IETF_DRAFT_25,
