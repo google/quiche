@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
   void OnConnectionClosed(QuicErrorCode /*error*/,
-                          ConnectionCloseSource /*source*/) override {}
+                          ConnectionCloseSource /*source*/) override;
   void OnHandshakeDoneReceived() override;
   void OnApplicationState(
       std::unique_ptr<ApplicationState> /*application_state*/) override {
@@ -103,6 +103,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
     STATE_RECV_SHLO,
     STATE_INITIALIZE_SCUP,
     STATE_NONE,
+    STATE_CONNECTION_CLOSED,
   };
 
   // Handles new server config and optional source-address token provided by the
