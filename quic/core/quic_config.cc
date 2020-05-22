@@ -434,7 +434,7 @@ QuicConfig::QuicConfig()
       max_undecryptable_packets_(0),
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
-      idle_timeout_to_send_(QuicTime::Delta::Infinite()),
+      max_idle_timeout_to_send_(QuicTime::Delta::Infinite()),
       max_bidirectional_streams_(kMIBS, PRESENCE_REQUIRED),
       max_unidirectional_streams_(kMIUS, PRESENCE_OPTIONAL),
       bytes_for_connection_id_(kTCID, PRESENCE_OPTIONAL),
@@ -452,7 +452,7 @@ QuicConfig::QuicConfig()
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
-      max_packet_size_(0, PRESENCE_OPTIONAL),
+      max_udp_payload_size_(0, PRESENCE_OPTIONAL),
       max_datagram_frame_size_(0, PRESENCE_OPTIONAL),
       active_connection_id_limit_(0, PRESENCE_OPTIONAL) {
   SetDefaults();
@@ -543,17 +543,17 @@ void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
     QUIC_BUG << "Invalid idle network timeout " << idle_network_timeout;
     return;
   }
-  idle_timeout_to_send_ = idle_network_timeout;
+  max_idle_timeout_to_send_ = idle_network_timeout;
 }
 
 QuicTime::Delta QuicConfig::IdleNetworkTimeout() const {
   // TODO(b/152032210) add a QUIC_BUG to ensure that is not called before we've
   // received the peer's values. This is true in production code but not in all
   // of our tests that use a fake QuicConfig.
-  if (!received_idle_timeout_.has_value()) {
-    return idle_timeout_to_send_;
+  if (!received_max_idle_timeout_.has_value()) {
+    return max_idle_timeout_to_send_;
   }
-  return received_idle_timeout_.value();
+  return received_max_idle_timeout_.value();
 }
 
 void QuicConfig::SetMaxBidirectionalStreamsToSend(uint32_t max_streams) {
@@ -620,20 +620,20 @@ uint32_t QuicConfig::ReceivedAckDelayExponent() const {
   return ack_delay_exponent_.GetReceivedValue();
 }
 
-void QuicConfig::SetMaxPacketSizeToSend(uint64_t max_packet_size) {
-  max_packet_size_.SetSendValue(max_packet_size);
+void QuicConfig::SetMaxPacketSizeToSend(uint64_t max_udp_payload_size) {
+  max_udp_payload_size_.SetSendValue(max_udp_payload_size);
 }
 
 uint64_t QuicConfig::GetMaxPacketSizeToSend() const {
-  return max_packet_size_.GetSendValue();
+  return max_udp_payload_size_.GetSendValue();
 }
 
 bool QuicConfig::HasReceivedMaxPacketSize() const {
-  return max_packet_size_.HasReceivedValue();
+  return max_udp_payload_size_.HasReceivedValue();
 }
 
 uint64_t QuicConfig::ReceivedMaxPacketSize() const {
-  return max_packet_size_.GetReceivedValue();
+  return max_udp_payload_size_.GetReceivedValue();
 }
 
 void QuicConfig::SetMaxDatagramFrameSizeToSend(
@@ -871,12 +871,13 @@ const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
 }
 
 void QuicConfig::SetOriginalConnectionIdToSend(
-    const QuicConnectionId& original_connection_id) {
-  original_connection_id_to_send_ = original_connection_id;
+    const QuicConnectionId& original_destination_connection_id) {
+  original_destination_connection_id_to_send_ =
+      original_destination_connection_id;
 }
 
 bool QuicConfig::HasReceivedOriginalConnectionId() const {
-  return received_original_connection_id_.has_value();
+  return received_original_destination_connection_id_.has_value();
 }
 
 QuicConnectionId QuicConfig::ReceivedOriginalConnectionId() const {
@@ -884,7 +885,7 @@ QuicConnectionId QuicConfig::ReceivedOriginalConnectionId() const {
     QUIC_BUG << "No received original connection ID";
     return EmptyQuicConnectionId();
   }
-  return received_original_connection_id_.value();
+  return received_original_destination_connection_id_.value();
 }
 
 void QuicConfig::SetStatelessResetTokenToSend(
@@ -938,14 +939,16 @@ void QuicConfig::ToHandshakeMessage(
   // the one received. Additionally, when QUIC_CRYPTO is used, the server
   // MUST send an idle timeout no greater than the idle timeout it received
   // from the client. We therefore send the received value if it is lower.
-  QuicFixedUint32 idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
-  uint32_t idle_timeout_to_send_seconds = idle_timeout_to_send_.ToSeconds();
-  if (received_idle_timeout_.has_value() &&
-      received_idle_timeout_->ToSeconds() < idle_timeout_to_send_seconds) {
-    idle_timeout_to_send_seconds = received_idle_timeout_->ToSeconds();
+  QuicFixedUint32 max_idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
+  uint32_t max_idle_timeout_to_send_seconds =
+      max_idle_timeout_to_send_.ToSeconds();
+  if (received_max_idle_timeout_.has_value() &&
+      received_max_idle_timeout_->ToSeconds() <
+          max_idle_timeout_to_send_seconds) {
+    max_idle_timeout_to_send_seconds = received_max_idle_timeout_->ToSeconds();
   }
-  idle_timeout_seconds.SetSendValue(idle_timeout_to_send_seconds);
-  idle_timeout_seconds.ToHandshakeMessage(out);
+  max_idle_timeout_seconds.SetSendValue(max_idle_timeout_to_send_seconds);
+  max_idle_timeout_seconds.ToHandshakeMessage(out);
 
   // Do not need a version check here, max...bi... will encode
   // as "MIDS" -- the max initial dynamic streams tag -- if
@@ -986,12 +989,12 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
     // the one received. Additionally, when QUIC_CRYPTO is used, the server
     // MUST send an idle timeout no greater than the idle timeout it received
     // from the client.
-    QuicFixedUint32 idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
-    error = idle_timeout_seconds.ProcessPeerHello(peer_hello, hello_type,
-                                                  error_details);
+    QuicFixedUint32 max_idle_timeout_seconds(kICSL, PRESENCE_REQUIRED);
+    error = max_idle_timeout_seconds.ProcessPeerHello(peer_hello, hello_type,
+                                                      error_details);
     if (error == QUIC_NO_ERROR) {
-      if (idle_timeout_seconds.GetReceivedValue() >
-          idle_timeout_to_send_.ToSeconds()) {
+      if (max_idle_timeout_seconds.GetReceivedValue() >
+          max_idle_timeout_to_send_.ToSeconds()) {
         // The received value is higher than ours, ignore it if from the client
         // and raise an error if from the server.
         if (hello_type == SERVER) {
@@ -1000,8 +1003,8 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
               "Invalid value received for " + QuicTagToString(kICSL);
         }
       } else {
-        received_idle_timeout_ = QuicTime::Delta::FromSeconds(
-            idle_timeout_seconds.GetReceivedValue());
+        received_max_idle_timeout_ = QuicTime::Delta::FromSeconds(
+            max_idle_timeout_seconds.GetReceivedValue());
       }
     }
   }
@@ -1073,12 +1076,13 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
 }
 
 bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
-  if (original_connection_id_to_send_.has_value()) {
-    params->original_connection_id = original_connection_id_to_send_.value();
+  if (original_destination_connection_id_to_send_.has_value()) {
+    params->original_destination_connection_id =
+        original_destination_connection_id_to_send_.value();
   }
 
-  params->idle_timeout_milliseconds.set_value(
-      idle_timeout_to_send_.ToMilliseconds());
+  params->max_idle_timeout_ms.set_value(
+      max_idle_timeout_to_send_.ToMilliseconds());
 
   if (stateless_reset_token_.HasSendValue()) {
     QuicUint128 stateless_reset_token = stateless_reset_token_.GetSendValue();
@@ -1088,7 +1092,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
             sizeof(stateless_reset_token));
   }
 
-  params->max_packet_size.set_value(GetMaxPacketSizeToSend());
+  params->max_udp_payload_size.set_value(GetMaxPacketSizeToSend());
   params->max_datagram_frame_size.set_value(GetMaxDatagramFrameSizeToSend());
   params->initial_max_data.set_value(
       GetInitialSessionFlowControlWindowToSend());
@@ -1113,7 +1117,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
   }
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
-  params->disable_migration =
+  params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;
 
@@ -1171,18 +1175,19 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     HelloType hello_type,
     bool is_resumption,
     std::string* error_details) {
-  if (!is_resumption && params.original_connection_id.has_value()) {
-    received_original_connection_id_ = params.original_connection_id.value();
+  if (!is_resumption && params.original_destination_connection_id.has_value()) {
+    received_original_destination_connection_id_ =
+        params.original_destination_connection_id.value();
   }
 
-  if (params.idle_timeout_milliseconds.value() > 0 &&
-      params.idle_timeout_milliseconds.value() <
-          static_cast<uint64_t>(idle_timeout_to_send_.ToMilliseconds())) {
+  if (params.max_idle_timeout_ms.value() > 0 &&
+      params.max_idle_timeout_ms.value() <
+          static_cast<uint64_t>(max_idle_timeout_to_send_.ToMilliseconds())) {
     // An idle timeout of zero indicates it is disabled.
     // We also ignore values higher than ours which will cause us to use the
     // smallest value between ours and our peer's.
-    received_idle_timeout_ = QuicTime::Delta::FromMilliseconds(
-        params.idle_timeout_milliseconds.value());
+    received_max_idle_timeout_ =
+        QuicTime::Delta::FromMilliseconds(params.max_idle_timeout_ms.value());
   }
 
   if (!is_resumption && !params.stateless_reset_token.empty()) {
@@ -1198,8 +1203,8 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     stateless_reset_token_.SetReceivedValue(stateless_reset_token);
   }
 
-  if (params.max_packet_size.IsValid()) {
-    max_packet_size_.SetReceivedValue(params.max_packet_size.value());
+  if (params.max_udp_payload_size.IsValid()) {
+    max_udp_payload_size_.SetReceivedValue(params.max_udp_payload_size.value());
   }
 
   if (params.max_datagram_frame_size.IsValid()) {
@@ -1252,7 +1257,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     }
   }
 
-  if (params.disable_migration) {
+  if (params.disable_active_migration) {
     connection_migration_disabled_.SetReceivedValue(1u);
   }
 

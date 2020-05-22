@@ -442,7 +442,7 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
   // Since the received value is above ours, we should then use ours.
   config_.SetIdleNetworkTimeout(quic::QuicTime::Delta::FromSeconds(60));
   TransportParameters params;
-  params.idle_timeout_milliseconds.set_value(120000);
+  params.max_idle_timeout_ms.set_value(120000);
 
   std::string error_details = "foobar";
   EXPECT_THAT(config_.ProcessTransportParameters(
@@ -479,9 +479,9 @@ TEST_P(QuicConfigTest, FillTransportParams) {
             params.initial_max_stream_data_uni.value());
 
   EXPECT_EQ(static_cast<uint64_t>(kMaximumIdleTimeoutSecs * 1000),
-            params.idle_timeout_milliseconds.value());
+            params.max_idle_timeout_ms.value());
 
-  EXPECT_EQ(kMaxPacketSizeForTest, params.max_packet_size.value());
+  EXPECT_EQ(kMaxPacketSizeForTest, params.max_udp_payload_size.value());
   EXPECT_EQ(kMaxDatagramFrameSizeForTest,
             params.max_datagram_frame_size.value());
   EXPECT_EQ(kFakeActiveConnectionIdLimit,
@@ -502,7 +502,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
       3 * kMinimumFlowControlSendWindow);
   params.initial_max_stream_data_uni.set_value(4 *
                                                kMinimumFlowControlSendWindow);
-  params.max_packet_size.set_value(kMaxPacketSizeForTest);
+  params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
   params.max_datagram_frame_size.set_value(kMaxDatagramFrameSizeForTest);
   params.initial_max_streams_bidi.set_value(kDefaultMaxStreamsPerConnection);
   params.stateless_reset_token = CreateFakeStatelessResetToken();
@@ -559,11 +559,11 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
       4 * kMinimumFlowControlSendWindow);
   params.initial_max_stream_data_uni.set_value(5 *
                                                kMinimumFlowControlSendWindow);
-  params.max_packet_size.set_value(2 * kMaxPacketSizeForTest);
+  params.max_udp_payload_size.set_value(2 * kMaxPacketSizeForTest);
   params.max_datagram_frame_size.set_value(2 * kMaxDatagramFrameSizeForTest);
   params.initial_max_streams_bidi.set_value(2 *
                                             kDefaultMaxStreamsPerConnection);
-  params.disable_migration = true;
+  params.disable_active_migration = true;
 
   EXPECT_THAT(config_.ProcessTransportParameters(
                   params, SERVER, /* is_resumption = */ false, &error_details),
@@ -617,7 +617,7 @@ TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
     return;
   }
   TransportParameters params;
-  params.disable_migration = true;
+  params.disable_active_migration = true;
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
                   params, SERVER, /* is_resumption = */ false, &error_details),

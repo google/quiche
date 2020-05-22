@@ -394,9 +394,9 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
 
-  // Original connection ID.
+  // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
-      const QuicConnectionId& original_connection_id);
+      const QuicConnectionId& original_destination_connection_id);
   bool HasReceivedOriginalConnectionId() const;
   QuicConnectionId ReceivedOriginalConnectionId() const;
 
@@ -420,8 +420,8 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedAckDelayExponent() const;
   uint32_t ReceivedAckDelayExponent() const;
 
-  // IETF QUIC max_packet_size transport parameter.
-  void SetMaxPacketSizeToSend(uint64_t max_packet_size);
+  // IETF QUIC max_udp_payload_size transport parameter.
+  void SetMaxPacketSizeToSend(uint64_t max_udp_payload_size);
   uint64_t GetMaxPacketSizeToSend() const;
   bool HasReceivedMaxPacketSize() const;
   uint64_t ReceivedMaxPacketSize() const;
@@ -501,12 +501,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicFixedTagVector connection_options_;
   // Connection options which only affect the client side.
   QuicFixedTagVector client_connection_options_;
-  // Idle network timeout.
+  // Maximum idle network timeout.
   // Uses the max_idle_timeout transport parameter in IETF QUIC.
-  // Note that received_idle_timeout_ is only populated if we receive the
+  // Note that received_max_idle_timeout_ is only populated if we receive the
   // peer's value, which isn't guaranteed in IETF QUIC as sending is optional.
-  QuicTime::Delta idle_timeout_to_send_;
-  quiche::QuicheOptional<QuicTime::Delta> received_idle_timeout_;
+  QuicTime::Delta max_idle_timeout_to_send_;
+  quiche::QuicheOptional<QuicTime::Delta> received_max_idle_timeout_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.
@@ -583,8 +583,8 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicFixedUint32 ack_delay_exponent_;
 
   // Maximum packet size in bytes.
-  // Uses the max_packet_size transport parameter in IETF QUIC.
-  QuicFixedUint62 max_packet_size_;
+  // Uses the max_udp_payload_size transport parameter in IETF QUIC.
+  QuicFixedUint62 max_udp_payload_size_;
 
   // Maximum DATAGRAM/MESSAGE frame size in bytes.
   // Uses the max_datagram_frame_size transport parameter in IETF QUIC.
@@ -595,9 +595,12 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   QuicFixedUint62 active_connection_id_limit_;
 
   // Sent by the server when it has previously sent a RETRY packet.
-  // Uses the original_connection_id transport parameter in IETF QUIC.
-  quiche::QuicheOptional<QuicConnectionId> original_connection_id_to_send_;
-  quiche::QuicheOptional<QuicConnectionId> received_original_connection_id_;
+  // Uses the original_destination_connection_id transport parameter in
+  // IETF QUIC.
+  quiche::QuicheOptional<QuicConnectionId>
+      original_destination_connection_id_to_send_;
+  quiche::QuicheOptional<QuicConnectionId>
+      received_original_destination_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.

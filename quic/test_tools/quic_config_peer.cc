@@ -94,8 +94,8 @@ void QuicConfigPeer::SetReceivedStatelessResetToken(QuicConfig* config,
 
 // static
 void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
-                                              uint32_t max_packet_size) {
-  config->max_packet_size_.SetReceivedValue(max_packet_size);
+                                              uint32_t max_udp_payload_size) {
+  config->max_udp_payload_size_.SetReceivedValue(max_udp_payload_size);
 }
 
 // static
@@ -106,8 +106,9 @@ void QuicConfigPeer::SetNegotiated(QuicConfig* config, bool negotiated) {
 // static
 void QuicConfigPeer::SetReceivedOriginalConnectionId(
     QuicConfig* config,
-    const QuicConnectionId& original_connection_id) {
-  config->received_original_connection_id_ = original_connection_id;
+    const QuicConnectionId& original_destination_connection_id) {
+  config->received_original_destination_connection_id_ =
+      original_destination_connection_id;
 }
 
 // static

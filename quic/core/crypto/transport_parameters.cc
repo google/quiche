@@ -31,8 +31,8 @@ namespace quic {
 // which parameter is encoded. The supported draft version is noted in
 // transport_parameters.h.
 enum TransportParameters::TransportParameterId : uint64_t {
-  kOriginalConnectionId = 0,
-  kIdleTimeout = 1,
+  kOriginalDestinationConnectionId = 0,
+  kMaxIdleTimeout = 1,
   kStatelessResetToken = 2,
   kMaxPacketSize = 3,
   kInitialMaxData = 4,
@@ -43,7 +43,7 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kInitialMaxStreamsUni = 9,
   kAckDelayExponent = 0xa,
   kMaxAckDelay = 0xb,
-  kDisableMigration = 0xc,
+  kDisableActiveMigration = 0xc,
   kPreferredAddress = 0xd,
   kActiveConnectionIdLimit = 0xe,
 
@@ -74,14 +74,14 @@ constexpr uint64_t kDefaultActiveConnectionIdLimitTransportParam = 2;
 std::string TransportParameterIdToString(
     TransportParameters::TransportParameterId param_id) {
   switch (param_id) {
-    case TransportParameters::kOriginalConnectionId:
-      return "original_connection_id";
-    case TransportParameters::kIdleTimeout:
-      return "idle_timeout";
+    case TransportParameters::kOriginalDestinationConnectionId:
+      return "original_destination_connection_id";
+    case TransportParameters::kMaxIdleTimeout:
+      return "max_idle_timeout";
     case TransportParameters::kStatelessResetToken:
       return "stateless_reset_token";
     case TransportParameters::kMaxPacketSize:
-      return "max_packet_size";
+      return "max_udp_payload_size";
     case TransportParameters::kInitialMaxData:
       return "initial_max_data";
     case TransportParameters::kInitialMaxStreamDataBidiLocal:
@@ -98,8 +98,8 @@ std::string TransportParameterIdToString(
       return "ack_delay_exponent";
     case TransportParameters::kMaxAckDelay:
       return "max_ack_delay";
-    case TransportParameters::kDisableMigration:
-      return "disable_migration";
+    case TransportParameters::kDisableActiveMigration:
+      return "disable_active_migration";
     case TransportParameters::kPreferredAddress:
       return "preferred_address";
     case TransportParameters::kActiveConnectionIdLimit:
@@ -123,8 +123,8 @@ std::string TransportParameterIdToString(
 bool TransportParameterIdIsKnown(
     TransportParameters::TransportParameterId param_id) {
   switch (param_id) {
-    case TransportParameters::kOriginalConnectionId:
-    case TransportParameters::kIdleTimeout:
+    case TransportParameters::kOriginalDestinationConnectionId:
+    case TransportParameters::kMaxIdleTimeout:
     case TransportParameters::kStatelessResetToken:
     case TransportParameters::kMaxPacketSize:
     case TransportParameters::kInitialMaxData:
@@ -135,7 +135,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialMaxStreamsUni:
     case TransportParameters::kAckDelayExponent:
     case TransportParameters::kMaxAckDelay:
-    case TransportParameters::kDisableMigration:
+    case TransportParameters::kDisableActiveMigration:
     case TransportParameters::kPreferredAddress:
     case TransportParameters::kActiveConnectionIdLimit:
     case TransportParameters::kMaxDatagramFrameSize:
@@ -401,18 +401,18 @@ std::string TransportParameters::ToString() const {
     rv += " supported_versions " +
           QuicVersionLabelVectorToString(supported_versions);
   }
-  if (original_connection_id.has_value()) {
-    rv += " " + TransportParameterIdToString(kOriginalConnectionId) + " " +
-          original_connection_id.value().ToString();
+  if (original_destination_connection_id.has_value()) {
+    rv += " " + TransportParameterIdToString(kOriginalDestinationConnectionId) +
+          " " + original_destination_connection_id.value().ToString();
   }
-  rv += idle_timeout_milliseconds.ToString(/*for_use_in_list=*/true);
+  rv += max_idle_timeout_ms.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
     rv += " " + TransportParameterIdToString(kStatelessResetToken) + " " +
           quiche::QuicheTextUtils::HexEncode(
               reinterpret_cast<const char*>(stateless_reset_token.data()),
               stateless_reset_token.size());
   }
-  rv += max_packet_size.ToString(/*for_use_in_list=*/true);
+  rv += max_udp_payload_size.ToString(/*for_use_in_list=*/true);
   rv += initial_max_data.ToString(/*for_use_in_list=*/true);
   rv += initial_max_stream_data_bidi_local.ToString(/*for_use_in_list=*/true);
   rv += initial_max_stream_data_bidi_remote.ToString(/*for_use_in_list=*/true);
@@ -421,8 +421,8 @@ std::string TransportParameters::ToString() const {
   rv += initial_max_streams_uni.ToString(/*for_use_in_list=*/true);
   rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
   rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
-  if (disable_migration) {
-    rv += " " + TransportParameterIdToString(kDisableMigration);
+  if (disable_active_migration) {
+    rv += " " + TransportParameterIdToString(kDisableActiveMigration);
   }
   if (preferred_address) {
     rv += " " + TransportParameterIdToString(kPreferredAddress) + " " +
@@ -469,11 +469,11 @@ std::string TransportParameters::ToString() const {
 
 TransportParameters::TransportParameters()
     : version(0),
-      idle_timeout_milliseconds(kIdleTimeout),
-      max_packet_size(kMaxPacketSize,
-                      kDefaultMaxPacketSizeTransportParam,
-                      kMinMaxPacketSizeTransportParam,
-                      kVarInt62MaxValue),
+      max_idle_timeout_ms(kMaxIdleTimeout),
+      max_udp_payload_size(kMaxPacketSize,
+                           kDefaultMaxPacketSizeTransportParam,
+                           kMinMaxPacketSizeTransportParam,
+                           kVarInt62MaxValue),
       initial_max_data(kInitialMaxData),
       initial_max_stream_data_bidi_local(kInitialMaxStreamDataBidiLocal),
       initial_max_stream_data_bidi_remote(kInitialMaxStreamDataBidiRemote),
@@ -488,7 +488,7 @@ TransportParameters::TransportParameters()
                     kDefaultMaxAckDelayTransportParam,
                     0,
                     kMaxMaxAckDelayTransportParam),
-      disable_migration(false),
+      disable_active_migration(false),
       active_connection_id_limit(kActiveConnectionIdLimit,
                                  kDefaultActiveConnectionIdLimitTransportParam,
                                  kMinActiveConnectionIdLimitTransportParam,
@@ -505,10 +505,11 @@ TransportParameters::TransportParameters(const TransportParameters& other)
     : perspective(other.perspective),
       version(other.version),
       supported_versions(other.supported_versions),
-      original_connection_id(other.original_connection_id),
-      idle_timeout_milliseconds(other.idle_timeout_milliseconds),
+      original_destination_connection_id(
+          other.original_destination_connection_id),
+      max_idle_timeout_ms(other.max_idle_timeout_ms),
       stateless_reset_token(other.stateless_reset_token),
-      max_packet_size(other.max_packet_size),
+      max_udp_payload_size(other.max_udp_payload_size),
       initial_max_data(other.initial_max_data),
       initial_max_stream_data_bidi_local(
           other.initial_max_stream_data_bidi_local),
@@ -519,7 +520,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_max_streams_uni(other.initial_max_streams_uni),
       ack_delay_exponent(other.ack_delay_exponent),
       max_ack_delay(other.max_ack_delay),
-      disable_migration(other.disable_migration),
+      disable_active_migration(other.disable_active_migration),
       active_connection_id_limit(other.active_connection_id_limit),
       max_datagram_frame_size(other.max_datagram_frame_size),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
@@ -539,11 +540,11 @@ TransportParameters::TransportParameters(const TransportParameters& other)
 bool TransportParameters::operator==(const TransportParameters& rhs) const {
   if (!(perspective == rhs.perspective && version == rhs.version &&
         supported_versions == rhs.supported_versions &&
-        original_connection_id == rhs.original_connection_id &&
-        idle_timeout_milliseconds.value() ==
-            rhs.idle_timeout_milliseconds.value() &&
+        original_destination_connection_id ==
+            rhs.original_destination_connection_id &&
+        max_idle_timeout_ms.value() == rhs.max_idle_timeout_ms.value() &&
         stateless_reset_token == rhs.stateless_reset_token &&
-        max_packet_size.value() == rhs.max_packet_size.value() &&
+        max_udp_payload_size.value() == rhs.max_udp_payload_size.value() &&
         initial_max_data.value() == rhs.initial_max_data.value() &&
         initial_max_stream_data_bidi_local.value() ==
             rhs.initial_max_stream_data_bidi_local.value() &&
@@ -557,7 +558,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_max_streams_uni.value() &&
         ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
         max_ack_delay.value() == rhs.max_ack_delay.value() &&
-        disable_migration == rhs.disable_migration &&
+        disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
             rhs.active_connection_id_limit.value() &&
         max_datagram_frame_size.value() ==
@@ -600,7 +601,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     return false;
   }
   if (perspective == Perspective::IS_CLIENT &&
-      original_connection_id.has_value()) {
+      original_destination_connection_id.has_value()) {
     *error_details = "Client cannot send original connection ID";
     return false;
   }
@@ -646,7 +647,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     return false;
   }
   const bool ok =
-      idle_timeout_milliseconds.IsValid() && max_packet_size.IsValid() &&
+      max_idle_timeout_ms.IsValid() && max_udp_payload_size.IsValid() &&
       initial_max_data.IsValid() &&
       initial_max_stream_data_bidi_local.IsValid() &&
       initial_max_stream_data_bidi_remote.IsValid() &&
@@ -699,7 +700,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   static constexpr size_t kGreaseParameterLength =
       kTypeAndValueLength + kMaxGreaseLength;
   static constexpr size_t kKnownTransportParamLength =
-      kConnectionIdParameterLength +      // original_connection_id
+      kConnectionIdParameterLength +      // original_destination_connection_id
       kIntegerParameterLength +           // max_idle_timeout
       kStatelessResetParameterLength +    // stateless_reset_token
       kIntegerParameterLength +           // max_udp_payload_size
@@ -761,24 +762,27 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     }
   }
 
-  // original_connection_id
-  if (in.original_connection_id.has_value()) {
+  // original_destination_connection_id
+  if (in.original_destination_connection_id.has_value()) {
     DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
-    QuicConnectionId original_connection_id = in.original_connection_id.value();
+    QuicConnectionId original_destination_connection_id =
+        in.original_destination_connection_id.value();
     if (!WriteTransportParameterId(
-            &writer, TransportParameters::kOriginalConnectionId, version) ||
+            &writer, TransportParameters::kOriginalDestinationConnectionId,
+            version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(original_connection_id.data(),
-                                      original_connection_id.length()),
+            quiche::QuicheStringPiece(
+                original_destination_connection_id.data(),
+                original_destination_connection_id.length()),
             version)) {
-      QUIC_BUG << "Failed to write original_connection_id "
-               << in.original_connection_id.value() << " for " << in;
+      QUIC_BUG << "Failed to write original_destination_connection_id "
+               << original_destination_connection_id << " for " << in;
       return false;
     }
   }
 
-  if (!in.idle_timeout_milliseconds.Write(&writer, version)) {
+  if (!in.max_idle_timeout_ms.Write(&writer, version)) {
     QUIC_BUG << "Failed to write idle_timeout for " << in;
     return false;
   }
@@ -801,7 +805,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     }
   }
 
-  if (!in.max_packet_size.Write(&writer, version) ||
+  if (!in.max_udp_payload_size.Write(&writer, version) ||
       !in.initial_max_data.Write(&writer, version) ||
       !in.initial_max_stream_data_bidi_local.Write(&writer, version) ||
       !in.initial_max_stream_data_bidi_remote.Write(&writer, version) ||
@@ -817,12 +821,12 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     return false;
   }
 
-  // disable_migration
-  if (in.disable_migration) {
+  // disable_active_migration
+  if (in.disable_active_migration) {
     if (!WriteTransportParameterId(
-            &writer, TransportParameters::kDisableMigration, version) ||
+            &writer, TransportParameters::kDisableActiveMigration, version) ||
         !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
-      QUIC_BUG << "Failed to write disable_migration for " << in;
+      QUIC_BUG << "Failed to write disable_active_migration for " << in;
       return false;
     }
   }
@@ -1061,41 +1065,43 @@ bool ParseTransportParameters(ParsedQuicVersion version,
     QuicDataReader value_reader(value);
     bool parse_success = true;
     switch (param_id) {
-      case TransportParameters::kOriginalConnectionId: {
-        if (out->original_connection_id.has_value()) {
-          *error_details = "Received a second original connection ID";
+      case TransportParameters::kOriginalDestinationConnectionId: {
+        if (out->original_destination_connection_id.has_value()) {
+          *error_details =
+              "Received a second original_destination_connection_id";
           return false;
         }
         const size_t connection_id_length = value_reader.BytesRemaining();
         if (!QuicUtils::IsConnectionIdLengthValidForVersion(
                 connection_id_length, version.transport_version)) {
           *error_details = quiche::QuicheStrCat(
-              "Received original connection ID of invalid length ",
+              "Received original_destination_connection_id of invalid length ",
               connection_id_length);
           return false;
         }
-        QuicConnectionId original_connection_id;
-        if (!value_reader.ReadConnectionId(&original_connection_id,
+        QuicConnectionId original_destination_connection_id;
+        if (!value_reader.ReadConnectionId(&original_destination_connection_id,
                                            connection_id_length)) {
-          *error_details = "Failed to read original connection ID";
+          *error_details = "Failed to read original_destination_connection_id";
           return false;
         }
-        out->original_connection_id = original_connection_id;
+        out->original_destination_connection_id =
+            original_destination_connection_id;
       } break;
-      case TransportParameters::kIdleTimeout:
+      case TransportParameters::kMaxIdleTimeout:
         parse_success =
-            out->idle_timeout_milliseconds.Read(&value_reader, error_details);
+            out->max_idle_timeout_ms.Read(&value_reader, error_details);
         break;
       case TransportParameters::kStatelessResetToken: {
         if (!out->stateless_reset_token.empty()) {
-          *error_details = "Received a second stateless reset token";
+          *error_details = "Received a second stateless_reset_token";
           return false;
         }
         quiche::QuicheStringPiece stateless_reset_token =
             value_reader.ReadRemainingPayload();
         if (stateless_reset_token.length() != kStatelessResetTokenLength) {
           *error_details = quiche::QuicheStrCat(
-              "Received stateless reset token of invalid length ",
+              "Received stateless_reset_token of invalid length ",
               stateless_reset_token.length());
           return false;
         }
@@ -1104,7 +1110,8 @@ bool ParseTransportParameters(ParsedQuicVersion version,
             stateless_reset_token.data() + stateless_reset_token.length());
       } break;
       case TransportParameters::kMaxPacketSize:
-        parse_success = out->max_packet_size.Read(&value_reader, error_details);
+        parse_success =
+            out->max_udp_payload_size.Read(&value_reader, error_details);
         break;
       case TransportParameters::kInitialMaxData:
         parse_success =
@@ -1137,12 +1144,12 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       case TransportParameters::kMaxAckDelay:
         parse_success = out->max_ack_delay.Read(&value_reader, error_details);
         break;
-      case TransportParameters::kDisableMigration:
-        if (out->disable_migration) {
-          *error_details = "Received a second disable migration";
+      case TransportParameters::kDisableActiveMigration:
+        if (out->disable_active_migration) {
+          *error_details = "Received a second disable_active_migration";
           return false;
         }
-        out->disable_migration = true;
+        out->disable_active_migration = true;
         break;
       case TransportParameters::kPreferredAddress: {
         TransportParameters::PreferredAddress preferred_address;
@@ -1159,7 +1166,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
                 &preferred_address.connection_id) ||
             !value_reader.ReadBytes(&preferred_address.stateless_reset_token[0],
                                     kStatelessResetTokenLength)) {
-          *error_details = "Failed to read preferred address";
+          *error_details = "Failed to read preferred_address";
           return false;
         }
         preferred_address.ipv4_socket_address =
@@ -1168,13 +1175,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
             QuicSocketAddress(QuicIpAddress(ipv6_address), ipv6_port);
         if (!preferred_address.ipv4_socket_address.host().IsIPv4() ||
             !preferred_address.ipv6_socket_address.host().IsIPv6()) {
-          *error_details = "Received preferred addresses of bad families " +
+          *error_details = "Received preferred_address of bad families " +
                            preferred_address.ToString();
           return false;
         }
         if (!QuicUtils::IsConnectionIdValidForVersion(
                 preferred_address.connection_id, version.transport_version)) {
-          *error_details = "Received invalid preferred address connection ID " +
+          *error_details = "Received invalid preferred_address connection ID " +
                            preferred_address.ToString();
           return false;
         }
@@ -1196,14 +1203,14 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         break;
       case TransportParameters::kGoogleConnectionOptions: {
         if (out->google_connection_options.has_value()) {
-          *error_details = "Received a second Google connection options";
+          *error_details = "Received a second google_connection_options";
           return false;
         }
         out->google_connection_options = QuicTagVector{};
         while (!value_reader.IsDoneReading()) {
           QuicTag connection_option;
           if (!value_reader.ReadTag(&connection_option)) {
-            *error_details = "Failed to read a Google connection option";
+            *error_details = "Failed to read a google_connection_options";
             return false;
           }
           out->google_connection_options.value().push_back(connection_option);
@@ -1211,7 +1218,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       } break;
       case TransportParameters::kGoogleUserAgentId:
         if (out->user_agent_id.has_value()) {
-          *error_details = "Received a second user agent ID";
+          *error_details = "Received a second user_agent_id";
           return false;
         }
         out->user_agent_id = std::string(value_reader.ReadRemainingPayload());

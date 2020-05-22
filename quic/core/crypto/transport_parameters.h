@@ -132,17 +132,17 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.
-  quiche::QuicheOptional<QuicConnectionId> original_connection_id;
+  quiche::QuicheOptional<QuicConnectionId> original_destination_connection_id;
 
-  // Idle timeout expressed in milliseconds.
-  IntegerParameter idle_timeout_milliseconds;
+  // Maximum idle timeout expressed in milliseconds.
+  IntegerParameter max_idle_timeout_ms;
 
   // Stateless reset token used in verifying stateless resets.
   std::vector<uint8_t> stateless_reset_token;
 
   // Limits the size of packets that the endpoint is willing to receive.
   // This indicates that packets larger than this limit will be dropped.
-  IntegerParameter max_packet_size;
+  IntegerParameter max_udp_payload_size;
 
   // Contains the initial value for the maximum amount of data that can
   // be sent on the connection.
@@ -171,7 +171,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   IntegerParameter max_ack_delay;
 
   // Indicates lack of support for connection migration.
-  bool disable_migration;
+  bool disable_active_migration;
 
   // Used to effect a change in server address at the end of the handshake.
   std::unique_ptr<PreferredAddress> preferred_address;
