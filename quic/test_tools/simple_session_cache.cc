@@ -34,11 +34,22 @@ std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
   if (it == cache_entries_.end()) {
     return nullptr;
   }
+
+  if (!it->second.session) {
+    cache_entries_.erase(it);
+    return nullptr;
+  }
+
   auto state = std::make_unique<QuicResumptionState>();
   state->tls_session = std::move(it->second.session);
   state->application_state = it->second.application_state.get();
   state->transport_params = it->second.params.get();
   return state;
+}
+
+void SimpleSessionCache::ClearEarlyData(const QuicServerId& /*server_id*/) {
+  // The simple session cache only stores 1 SSL ticket per entry, so no need to
+  // do anything here.
 }
 
 }  // namespace test

@@ -28,6 +28,7 @@ class SimpleSessionCache : public SessionCache {
               const ApplicationState* application_state) override;
   std::unique_ptr<QuicResumptionState> Lookup(const QuicServerId& server_id,
                                               const SSL_CTX* ctx) override;
+  void ClearEarlyData(const QuicServerId& server_id) override;
 
  private:
   struct Entry {

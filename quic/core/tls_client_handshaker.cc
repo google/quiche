@@ -520,8 +520,10 @@ void TlsClientHandshaker::FinishHandshake() {
 
 void TlsClientHandshaker::HandleZeroRttReject() {
   QUIC_LOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
+  DCHECK(session_cache_);
   handshaker_delegate()->OnZeroRttRejected();
   SSL_reset_early_data_reject(ssl());
+  session_cache_->ClearEarlyData(server_id_);
   AdvanceHandshake();
 }
 
