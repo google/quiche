@@ -104,6 +104,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   // Maximum sequence reordering observed from acked packets.
   QuicPacketCount sent_packets_max_sequence_reordering = 0;
+  // Number of times that a packet is not detected as lost per reordering_shift,
+  // but would have been if the reordering_shift increases by one.
+  QuicPacketCount sent_packets_num_borderline_time_reorderings = 0;
 
   // The following stats are used only in TcpCubicSender.
   // The number of loss events from TCP's perspective.  Each loss event includes

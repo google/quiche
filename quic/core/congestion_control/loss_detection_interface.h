@@ -29,6 +29,7 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
   struct QUIC_NO_EXPORT DetectionStats {
     // Maximum sequence reordering observed in newly acked packets.
     QuicPacketCount sent_packets_max_sequence_reordering = 0;
+    QuicPacketCount sent_packets_num_borderline_time_reorderings = 0;
   };
 
   // Called when a new ack arrives or the loss alarm fires.
