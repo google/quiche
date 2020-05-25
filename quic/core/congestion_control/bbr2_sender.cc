@@ -127,6 +127,11 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_ignore_inflight_lo);
     params_.ignore_inflight_lo = true;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_limit_inflight_hi) &&
+      config.HasClientRequestedIndependentOption(kB2HI, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_limit_inflight_hi);
+    params_.limit_inflight_hi_by_cwnd = true;
+  }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
 }

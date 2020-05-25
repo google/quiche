@@ -184,6 +184,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Can be enabled by connection option 'B2LO'.
   bool ignore_inflight_lo = false;
+
+  // Can be enabled by connection optoin 'B2HI'.
+  bool limit_inflight_hi_by_cwnd = false;
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {
