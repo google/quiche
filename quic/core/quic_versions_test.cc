@@ -555,10 +555,11 @@ TEST_F(QuicVersionsTest, LookUpVersionByIndex) {
   QuicTransportVersionVector all_versions = {QUIC_VERSION_43};
   int version_count = all_versions.size();
   for (int i = -5; i <= version_count + 1; ++i) {
+    QuicTransportVersionVector index = VersionOfIndex(all_versions, i);
     if (i >= 0 && i < version_count) {
-      EXPECT_EQ(all_versions[i], VersionOfIndex(all_versions, i)[0]);
+      EXPECT_EQ(all_versions[i], index[0]);
     } else {
-      EXPECT_EQ(QUIC_VERSION_UNSUPPORTED, VersionOfIndex(all_versions, i)[0]);
+      EXPECT_EQ(QUIC_VERSION_UNSUPPORTED, index[0]);
     }
   }
 }
@@ -567,11 +568,11 @@ TEST_F(QuicVersionsTest, LookUpParsedVersionByIndex) {
   ParsedQuicVersionVector all_versions = AllSupportedVersions();
   int version_count = all_versions.size();
   for (int i = -5; i <= version_count + 1; ++i) {
+    ParsedQuicVersionVector index = ParsedVersionOfIndex(all_versions, i);
     if (i >= 0 && i < version_count) {
-      EXPECT_EQ(all_versions[i], ParsedVersionOfIndex(all_versions, i)[0]);
+      EXPECT_EQ(all_versions[i], index[0]);
     } else {
-      EXPECT_EQ(UnsupportedQuicVersion(),
-                ParsedVersionOfIndex(all_versions, i)[0]);
+      EXPECT_EQ(UnsupportedQuicVersion(), index[0]);
     }
   }
 }
@@ -704,7 +705,8 @@ TEST_F(QuicVersionsTest, SupportedVersionsHasCorrectList) {
          SupportedTransportVersions()) {
       SCOPED_TRACE(index);
       if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
-        EXPECT_EQ(SupportedVersions()[index],
+        ParsedQuicVersion version = SupportedVersions()[index];
+        EXPECT_EQ(version,
                   ParsedQuicVersion(handshake_protocol, transport_version));
         index++;
       }

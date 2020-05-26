@@ -48,8 +48,9 @@ class TlsChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   void ValidateChloDetails() {
     EXPECT_TRUE(tls_chlo_extractor_.HasParsedFullChlo());
-    ASSERT_EQ(tls_chlo_extractor_.alpns().size(), 1u);
-    EXPECT_EQ(tls_chlo_extractor_.alpns()[0], AlpnForVersion(version_));
+    std::vector<std::string> alpns = tls_chlo_extractor_.alpns();
+    ASSERT_EQ(alpns.size(), 1u);
+    EXPECT_EQ(alpns[0], AlpnForVersion(version_));
     EXPECT_EQ(tls_chlo_extractor_.server_name(), TestHostname());
   }
 

@@ -148,7 +148,7 @@ class FakeQuartcStreamDelegate : public QuartcStream::Delegate {
   void OnBufferChanged(QuartcStream* /*stream*/) override {}
 
   bool has_data() { return !received_data_.empty(); }
-  std::map<QuicStreamId, std::string> data() { return received_data_; }
+  std::map<QuicStreamId, std::string>& data() { return received_data_; }
 
   QuicRstStreamErrorCode stream_error(QuicStreamId id) { return errors_[id]; }
 
