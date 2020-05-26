@@ -1231,9 +1231,9 @@ QuicConsumedData QuicPacketCreator::ConsumeData(QuicStreamId id,
       write_length - total_bytes_consumed > kMaxOutgoingPacketSize &&
       latched_hard_max_packet_length_ == 0;
 
-  while (!run_fast_path && delegate_->ShouldGeneratePacket(
-                               HAS_RETRANSMITTABLE_DATA,
-                               has_handshake ? IS_HANDSHAKE : NOT_HANDSHAKE)) {
+  while (!run_fast_path &&
+         (has_handshake || delegate_->ShouldGeneratePacket(
+                               HAS_RETRANSMITTABLE_DATA, NOT_HANDSHAKE))) {
     QuicFrame frame;
     bool needs_full_padding =
         has_handshake && fully_pad_crypto_handshake_packets_;
