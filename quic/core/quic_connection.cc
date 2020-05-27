@@ -4001,21 +4001,27 @@ void QuicConnection::SendAllPendingAcks() {
   DCHECK(SupportsMultiplePacketNumberSpaces());
   QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
   ack_alarm_->Cancel();
+  const QuicTime earliest_ack_timeout =
+      uber_received_packet_manager_.GetEarliestAckTimeout();
+  QUIC_BUG_IF(!earliest_ack_timeout.IsInitialized());
   // Latches current encryption level.
   const EncryptionLevel current_encryption_level = encryption_level_;
   for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
     const QuicTime ack_timeout = uber_received_packet_manager_.GetAckTimeout(
         static_cast<PacketNumberSpace>(i));
-    if (!ack_timeout.IsInitialized() ||
-        ack_timeout > clock_->ApproximateNow()) {
+    if (!ack_timeout.IsInitialized()) {
       continue;
     }
-    if (!framer_.HasEncrypterOfEncryptionLevel(
-            QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)))) {
-      QUIC_BUG << ENDPOINT << "Cannot send ACKs for packet number space "
-               << PacketNumberSpaceToString(static_cast<PacketNumberSpace>(i))
-               << " without corresponding encrypter";
-      continue;
+    if (ack_timeout > clock_->ApproximateNow()) {
+      if (!GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
+        continue;
+      }
+      QUIC_RELOADABLE_FLAG_COUNT(quic_always_send_earliest_ack);
+      if (ack_timeout > earliest_ack_timeout) {
+        // Always send the earliest ACK to make forward progress in case alarm
+        // fires early.
+        continue;
+      }
     }
     QUIC_DVLOG(1) << ENDPOINT << "Sending ACK of packet number space "
                   << PacketNumberSpaceToString(

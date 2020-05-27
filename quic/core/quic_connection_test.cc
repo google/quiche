@@ -10715,6 +10715,52 @@ TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
   }
 }
 
+TEST_P(QuicConnectionTest, AckAlarmFiresEarly) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+
+  peer_framer_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                            std::make_unique<TaggingEncrypter>(0x02));
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  // Receives packet 1000 in application data.
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_ZERO_RTT);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  // Verify ACK deadline does not change.
+  EXPECT_EQ(clock_.ApproximateNow() + kAlarmGranularity,
+            connection_.GetAckAlarm()->deadline());
+
+  // Ack alarm fires early.
+  if (GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
+    // Verify the earliest ACK is flushed.
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  }
+  connection_.GetAckAlarm()->Fire();
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  if (GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
+    EXPECT_EQ(clock_.ApproximateNow() + DefaultDelayedAckTime(),
+              connection_.GetAckAlarm()->deadline());
+  } else {
+    // No forward progress has been made.
+    EXPECT_EQ(clock_.ApproximateNow() + kAlarmGranularity,
+              connection_.GetAckAlarm()->deadline());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
