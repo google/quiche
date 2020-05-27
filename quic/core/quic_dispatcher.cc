@@ -908,8 +908,8 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
         CreateQuicSession(server_connection_id, packets.front().peer_address,
                           alpn, packet_list.version);
     if (original_connection_id != server_connection_id) {
-      session->connection()->AddIncomingConnectionId(original_connection_id);
-      session->connection()->InstallInitialCrypters(original_connection_id);
+      session->connection()->SetOriginalDestinationConnectionId(
+          original_connection_id);
     }
     QUIC_DLOG(INFO) << "Created new session for " << server_connection_id;
 
@@ -1002,8 +1002,8 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
                         packet_info->peer_address, alpn, packet_info->version);
   DCHECK(session);
   if (original_connection_id != packet_info->destination_connection_id) {
-    session->connection()->AddIncomingConnectionId(original_connection_id);
-    session->connection()->InstallInitialCrypters(original_connection_id);
+    session->connection()->SetOriginalDestinationConnectionId(
+        original_connection_id);
   }
   QUIC_DLOG(INFO) << "Created new session for "
                   << packet_info->destination_connection_id;

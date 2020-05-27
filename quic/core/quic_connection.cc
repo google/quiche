@@ -739,11 +739,13 @@ bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
   return false;
 }
 
-void QuicConnection::AddIncomingConnectionId(QuicConnectionId connection_id) {
-  if (HasIncomingConnectionId(connection_id)) {
-    return;
+void QuicConnection::SetOriginalDestinationConnectionId(
+    const QuicConnectionId& original_destination_connection_id) {
+  DCHECK_NE(original_destination_connection_id, server_connection_id_);
+  if (!HasIncomingConnectionId(original_destination_connection_id)) {
+    incoming_connection_ids_.push_back(original_destination_connection_id);
   }
-  incoming_connection_ids_.push_back(connection_id);
+  InstallInitialCrypters(original_destination_connection_id);
 }
 
 bool QuicConnection::OnUnauthenticatedPublicHeader(

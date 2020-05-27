@@ -947,9 +947,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns the largest received packet number sent by peer.
   QuicPacketNumber GetLargestReceivedPacket() const;
 
-  // Adds the connection ID to a set of connection IDs that are accepted as
-  // destination on incoming packets.
-  void AddIncomingConnectionId(QuicConnectionId connection_id);
+  // Sets the original destination connection ID on the connection.
+  // This is called by QuicDispatcher when it has replaced the connection ID.
+  void SetOriginalDestinationConnectionId(
+      const QuicConnectionId& original_destination_connection_id);
 
   // Called when ACK alarm goes off. Sends ACKs of those packet number spaces
   // which have expired ACK timeout. Only used when this connection supports
