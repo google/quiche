@@ -140,15 +140,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // TODO(fayang): Rename this function to OnHandshakeComplete.
   void SetHandshakeConfirmed();
 
-  // Requests retransmission of all unacked packets of |retransmission_type|.
-  // The behavior of this method depends on the value of |retransmission_type|:
-  // ALL_UNACKED_RETRANSMISSION - All unacked packets will be retransmitted.
-  // This can happen, for example, after a version negotiation packet has been
-  // received and all packets needs to be retransmitted with the new version.
-  // ALL_INITIAL_RETRANSMISSION - Only initially encrypted packets will be
-  // retransmitted. This can happen, for example, when a CHLO has been rejected
-  // and the previously encrypted data needs to be encrypted with a new key.
-  void RetransmitUnackedPackets(TransmissionType retransmission_type);
+  // Requests retransmission of all unacked 0-RTT packets.
+  // Only initially encrypted packets will be retransmitted. This can happen,
+  // for example, when a CHLO has been rejected and the previously encrypted
+  // data needs to be encrypted with a new key.
+  void RetransmitZeroRttPackets();
 
   // Notify the sent packet manager of an external network measurement or
   // prediction for either |bandwidth| or |rtt|; either can be empty.

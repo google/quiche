@@ -4476,47 +4476,6 @@ TEST_P(QuicConnectionTest, RtoWithNoDataToRetransmit) {
   }
 }
 
-TEST_P(QuicConnectionTest, RetransmitWithSameEncryptionLevel) {
-  use_tagging_decrypter();
-
-  // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
-  // the end of the packet. We can test this to check which encrypter was used.
-  connection_.SetEncrypter(ENCRYPTION_INITIAL,
-                           std::make_unique<TaggingEncrypter>(0x01));
-  QuicByteCount packet_size;
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(SaveArg<3>(&packet_size));
-  connection_.SendCryptoDataWithString("foo", 0);
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
-  EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
-
-  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                           std::make_unique<TaggingEncrypter>(0x02));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-  SendStreamDataToPeer(3, "foo", 0, NO_FIN, nullptr);
-  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
-
-  {
-    InSequence s;
-    EXPECT_CALL(*send_algorithm_,
-                OnPacketSent(_, _, QuicPacketNumber(3), _, _));
-    EXPECT_CALL(*send_algorithm_,
-                OnPacketSent(_, _, QuicPacketNumber(4), _, _));
-  }
-
-  // Manually mark both packets for retransmission.
-  connection_.RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
-  if (!connection_.version().CanSendCoalescedPackets()) {
-    // Packet should have been sent with ENCRYPTION_INITIAL.
-    // If connection can send coalesced packet, both retransmissions will be
-    // coalesced in the same UDP datagram.
-    EXPECT_EQ(0x01010101u, writer_->final_bytes_of_previous_packet());
-  }
-
-  // Packet should have been sent with ENCRYPTION_ZERO_RTT.
-  EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
-}
-
 TEST_P(QuicConnectionTest, SendHandshakeMessages) {
   use_tagging_decrypter();
   // A TaggingEncrypter puts kTagSize copies of the given byte (0x01 here) at
@@ -4590,7 +4549,7 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
   SendStreamDataToPeer(2, "bar", 0, NO_FIN, nullptr);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
 
-  connection_.RetransmitUnackedPackets(ALL_INITIAL_RETRANSMISSION);
+  connection_.RetransmitZeroRttPackets();
 }
 
 TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {

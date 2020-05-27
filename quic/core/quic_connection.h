@@ -710,12 +710,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // remaining unacked packets.
   void OnRetransmissionTimeout();
 
-  // Retransmits all unacked packets with retransmittable frames if
-  // |retransmission_type| is ALL_UNACKED_PACKETS, otherwise retransmits only
-  // initially encrypted packets. Used when the negotiated protocol version is
-  // different from what was initially assumed and when the initial encryption
-  // changes.
-  void RetransmitUnackedPackets(TransmissionType retransmission_type);
+  // Retransmits all sent 0-RTT encrypted packets. Called when new 0-RTT or
+  // 1-RTT key is available.
+  void RetransmitZeroRttPackets();
 
   // Calls |sent_packet_manager_|'s NeuterUnencryptedPackets. Used when the
   // connection becomes forward secure and hasn't received acks for all packets.

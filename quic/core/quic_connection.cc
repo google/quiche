@@ -2183,9 +2183,8 @@ void QuicConnection::SendProbingRetransmissions() {
   }
 }
 
-void QuicConnection::RetransmitUnackedPackets(
-    TransmissionType retransmission_type) {
-  sent_packet_manager_.RetransmitUnackedPackets(retransmission_type);
+void QuicConnection::RetransmitZeroRttPackets() {
+  sent_packet_manager_.RetransmitZeroRttPackets();
 
   WriteIfNotBlocked();
 }

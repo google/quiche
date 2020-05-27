@@ -1021,54 +1021,6 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   EXPECT_FALSE(manager_.HasUnackedCryptoPackets());
 }
 
-TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutVersionNegotiation) {
-  // Send 2 crypto packets and 3 data packets.
-  const size_t kNumSentCryptoPackets = 2;
-  for (size_t i = 1; i <= kNumSentCryptoPackets; ++i) {
-    SendCryptoPacket(i);
-  }
-  const size_t kNumSentDataPackets = 3;
-  for (size_t i = 1; i <= kNumSentDataPackets; ++i) {
-    SendDataPacket(kNumSentCryptoPackets + i);
-  }
-  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
-
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .Times(2)
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(6); }))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(7); }));
-  manager_.OnRetransmissionTimeout();
-  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
-
-  // Now act like a version negotiation packet arrived, which would cause all
-  // unacked packets to be retransmitted.
-  // Mark packets [1, 7] lost. And the frames in 6 and 7 are same as packets 1
-  // and 2, respectively.
-  EXPECT_CALL(notifier_, OnFrameLost(_)).Times(7);
-  manager_.RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
-
-  // Ensure the first two pending packets are the crypto retransmits.
-  RetransmitCryptoPacket(8);
-  RetransmitCryptoPacket(9);
-  RetransmitDataPacket(10, ALL_UNACKED_RETRANSMISSION);
-  RetransmitDataPacket(11, ALL_UNACKED_RETRANSMISSION);
-  RetransmitDataPacket(12, ALL_UNACKED_RETRANSMISSION);
-
-  EXPECT_EQ(QuicPacketNumber(1u), manager_.GetLeastUnacked());
-  // Least unacked isn't raised until an ack is received, so ack the
-  // crypto packets.
-  uint64_t acked[] = {8, 9};
-  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
-  manager_.OnAckFrameStart(QuicPacketNumber(9), QuicTime::Delta::Infinite(),
-                           clock_.Now());
-  manager_.OnAckRange(QuicPacketNumber(8), QuicPacketNumber(10));
-  EXPECT_EQ(PACKETS_NEWLY_ACKED,
-            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
-                                   ENCRYPTION_INITIAL));
-  EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(false));
-  EXPECT_EQ(QuicPacketNumber(10u), manager_.GetLeastUnacked());
-}
-
 TEST_F(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
   // Send 1 crypto packet.
   SendCryptoPacket(1);
@@ -1118,28 +1070,6 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
       .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(5); }));
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
-}
-
-TEST_F(QuicSentPacketManagerTest,
-       CryptoHandshakeRetransmissionThenRetransmitAll) {
-  // Send 1 crypto packet.
-  SendCryptoPacket(1);
-
-  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
-
-  // Retransmit the crypto packet as 2.
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(InvokeWithoutArgs([this]() { RetransmitCryptoPacket(2); }));
-  manager_.OnRetransmissionTimeout();
-  // Now retransmit all the unacked packets, which occurs when there is a
-  // version negotiation.
-  EXPECT_CALL(notifier_, OnFrameLost(_)).Times(2);
-  manager_.RetransmitUnackedPackets(ALL_UNACKED_RETRANSMISSION);
-  // Both packets 1 and 2 are unackable.
-  EXPECT_FALSE(manager_.unacked_packets().IsUnacked(QuicPacketNumber(1)));
-  EXPECT_FALSE(manager_.unacked_packets().IsUnacked(QuicPacketNumber(2)));
-  EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
-  EXPECT_FALSE(manager_.HasInFlightPackets());
 }
 
 TEST_F(QuicSentPacketManagerTest,

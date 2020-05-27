@@ -453,29 +453,20 @@ void QuicSentPacketManager::MaybeInvokeCongestionEvent(
   }
 }
 
-void QuicSentPacketManager::RetransmitUnackedPackets(
-    TransmissionType retransmission_type) {
-  DCHECK(retransmission_type == ALL_UNACKED_RETRANSMISSION ||
-         retransmission_type == ALL_INITIAL_RETRANSMISSION);
+void QuicSentPacketManager::RetransmitZeroRttPackets() {
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
   for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {
-    if ((retransmission_type == ALL_UNACKED_RETRANSMISSION ||
-         it->encryption_level == ENCRYPTION_ZERO_RTT)) {
+    if (it->encryption_level == ENCRYPTION_ZERO_RTT) {
       if (it->in_flight) {
         // Remove 0-RTT packets and packets of the wrong version from flight,
         // because neither can be processed by the peer.
         unacked_packets_.RemoveFromInFlight(&*it);
       }
       if (unacked_packets_.HasRetransmittableFrames(*it)) {
-        MarkForRetransmission(packet_number, retransmission_type);
+        MarkForRetransmission(packet_number, ALL_INITIAL_RETRANSMISSION);
       }
     }
-  }
-  if (retransmission_type == ALL_UNACKED_RETRANSMISSION &&
-      unacked_packets_.bytes_in_flight() > 0) {
-    QUIC_BUG << "RetransmitUnackedPackets should remove all packets from flight"
-             << ", bytes_in_flight:" << unacked_packets_.bytes_in_flight();
   }
 }
 
