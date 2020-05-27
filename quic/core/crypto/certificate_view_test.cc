@@ -47,6 +47,17 @@ TEST(CertificateViewTest, Parse) {
   EXPECT_EQ(EVP_PKEY_id(view->public_key()), EVP_PKEY_RSA);
 }
 
+TEST(CertificateViewTest, ParseCertWithUnknownSanType) {
+  std::stringstream stream(kTestCertWithUnknownSanTypePem);
+  PemReadResult result = ReadNextPemMessage(&stream);
+  EXPECT_EQ(result.status, PemReadResult::kOk);
+  EXPECT_EQ(result.type, "CERTIFICATE");
+
+  std::unique_ptr<CertificateView> view =
+      CertificateView::ParseSingleCertificate(result.contents);
+  EXPECT_TRUE(view != nullptr);
+}
+
 TEST(CertificateViewTest, PemSingleCertificate) {
   std::stringstream pem_stream(kTestCertificatePem);
   std::vector<std::string> chain =

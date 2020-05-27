@@ -20,6 +20,10 @@ QUIC_CONST_INIT extern const char kTestCertificatePem[];
 // |kTestCertificatePem| with a PEM-encoded root appended to the end.
 QUIC_CONST_INIT extern const char kTestCertificateChainPem[];
 
+// PEM-encoded certificate that contains a subjectAltName with an
+// unknown/unsupported type.
+QUIC_CONST_INIT extern const char kTestCertWithUnknownSanTypePem[];
+
 // DER-encoded private key for |kTestCertificate|.
 QUIC_CONST_INIT extern const quiche::QuicheStringPiece
     kTestCertificatePrivateKey;

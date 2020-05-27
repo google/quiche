@@ -306,8 +306,8 @@ bool CertificateView::ParseExtensions(CBS extensions) {
             break;
 
           default:
-            QUIC_DLOG(WARNING) << "Invalid subjectAltName tag";
-            return false;
+            QUIC_DLOG(INFO) << "Unknown subjectAltName tag " << alt_name_tag;
+            continue;
         }
       }
     }
