@@ -103,18 +103,17 @@ class QUIC_NO_EXPORT QuicDispatcher
   void OnConnectionAddedToTimeWaitList(
       QuicConnectionId server_connection_id) override;
 
-  using SessionMap = QuicUnorderedMap<QuicConnectionId,
-                                      std::unique_ptr<QuicSession>,
-                                      QuicConnectionIdHash>;
+  using SessionMap = QuicHashMap<QuicConnectionId,
+                                 std::unique_ptr<QuicSession>,
+                                 QuicConnectionIdHash>;
 
   const SessionMap& session_map() const { return session_map_; }
 
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
 
-  using ConnectionIdMap = QuicUnorderedMap<QuicConnectionId,
-                                           QuicConnectionId,
-                                           QuicConnectionIdHash>;
+  using ConnectionIdMap =
+      QuicHashMap<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
   void OnExpiredPackets(QuicConnectionId server_connection_id,

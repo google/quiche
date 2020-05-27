@@ -561,7 +561,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
   // open yet.
-  QuicUnorderedMap<QuicStreamId, int> buffered_stream_priorities_;
+  QuicHashMap<QuicStreamId, int> buffered_stream_priorities_;
 };
 
 }  // namespace quic

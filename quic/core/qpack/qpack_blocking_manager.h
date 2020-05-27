@@ -77,7 +77,7 @@ class QUIC_EXPORT_PRIVATE QpackBlockingManager {
   // same time.  Use std::list instead of QuicCircularDeque because it has lower
   // memory footprint when holding few elements.
   using HeaderBlocksForStream = std::list<IndexSet>;
-  using HeaderBlocks = QuicUnorderedMap<QuicStreamId, HeaderBlocksForStream>;
+  using HeaderBlocks = QuicHashMap<QuicStreamId, HeaderBlocksForStream>;
 
   // Increase or decrease the reference count for each index in |indices|.
   void IncreaseReferenceCounts(const IndexSet& indices);
