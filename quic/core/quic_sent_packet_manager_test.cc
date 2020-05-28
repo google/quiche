@@ -3977,6 +3977,7 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
     manager_.MaybeSendProbePackets();
     // PING packet gets sent.
     SendPingPacket(6, ENCRYPTION_INITIAL);
+    manager_.AdjustPendingTimerTransmissions();
 
     // Verify PTO is armed based on packet 2.
     EXPECT_EQ(packet2_sent_time + pto_delay * 2,
