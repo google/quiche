@@ -385,7 +385,7 @@ void TlsClientHandshaker::SetWriteSecret(
   if (state_ == STATE_CONNECTION_CLOSED) {
     return;
   }
-  if (level == ENCRYPTION_FORWARD_SECURE) {
+  if (level == ENCRYPTION_FORWARD_SECURE || level == ENCRYPTION_ZERO_RTT) {
     encryption_established_ = true;
   }
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);

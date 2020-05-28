@@ -750,10 +750,11 @@ void MovePackets(PacketSavingConnection* source_conn,
     QuicConnectionPeer::AddBytesReceived(
         dest_conn, source_conn->encrypted_packets_[index]->length());
     if (!framer.ProcessPacket(*source_conn->encrypted_packets_[index])) {
-      // The framer will be unable to decrypt forward-secure packets sent after
-      // the handshake is complete. Don't treat them as handshake packets.
+      // The framer will be unable to decrypt zero-rtt packets sent during
+      // handshake or forward-secure packets sent after the handshake is
+      // complete. Don't treat them as handshake packets.
       QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-      break;
+      continue;
     }
     QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
     dest_conn->OnDecryptedPacket(framer.last_decrypted_level());

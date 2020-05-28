@@ -1001,6 +1001,8 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   EXPECT_EQ(std::numeric_limits<size_t>::max(),
             session_->max_outbound_header_list_size());
   session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
 
   // The client session should have a basic setup ready before the handshake
   // succeeds.
