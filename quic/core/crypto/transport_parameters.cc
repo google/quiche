@@ -46,6 +46,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kDisableActiveMigration = 0xc,
   kPreferredAddress = 0xd,
   kActiveConnectionIdLimit = 0xe,
+  kInitialSourceConnectionId = 0xf,
+  kRetrySourceConnectionId = 0x10,
 
   kMaxDatagramFrameSize = 0x20,
 
@@ -104,6 +106,10 @@ std::string TransportParameterIdToString(
       return "preferred_address";
     case TransportParameters::kActiveConnectionIdLimit:
       return "active_connection_id_limit";
+    case TransportParameters::kInitialSourceConnectionId:
+      return "initial_source_connection_id";
+    case TransportParameters::kRetrySourceConnectionId:
+      return "retry_source_connection_id";
     case TransportParameters::kMaxDatagramFrameSize:
       return "max_datagram_frame_size";
     case TransportParameters::kInitialRoundTripTime:
@@ -138,6 +144,8 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kDisableActiveMigration:
     case TransportParameters::kPreferredAddress:
     case TransportParameters::kActiveConnectionIdLimit:
+    case TransportParameters::kInitialSourceConnectionId:
+    case TransportParameters::kRetrySourceConnectionId:
     case TransportParameters::kMaxDatagramFrameSize:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
@@ -429,6 +437,14 @@ std::string TransportParameters::ToString() const {
           preferred_address->ToString();
   }
   rv += active_connection_id_limit.ToString(/*for_use_in_list=*/true);
+  if (initial_source_connection_id.has_value()) {
+    rv += " " + TransportParameterIdToString(kInitialSourceConnectionId) + " " +
+          initial_source_connection_id.value().ToString();
+  }
+  if (retry_source_connection_id.has_value()) {
+    rv += " " + TransportParameterIdToString(kRetrySourceConnectionId) + " " +
+          retry_source_connection_id.value().ToString();
+  }
   rv += max_datagram_frame_size.ToString(/*for_use_in_list=*/true);
   rv += initial_round_trip_time_us.ToString(/*for_use_in_list=*/true);
   if (google_connection_options.has_value()) {
@@ -522,6 +538,8 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       max_ack_delay(other.max_ack_delay),
       disable_active_migration(other.disable_active_migration),
       active_connection_id_limit(other.active_connection_id_limit),
+      initial_source_connection_id(other.initial_source_connection_id),
+      retry_source_connection_id(other.retry_source_connection_id),
       max_datagram_frame_size(other.max_datagram_frame_size),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_connection_options(other.google_connection_options),
@@ -561,6 +579,8 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
         disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
             rhs.active_connection_id_limit.value() &&
+        initial_source_connection_id == rhs.initial_source_connection_id &&
+        retry_source_connection_id == rhs.retry_source_connection_id &&
         max_datagram_frame_size.value() ==
             rhs.max_datagram_frame_size.value() &&
         initial_round_trip_time_us.value() ==
@@ -602,7 +622,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   }
   if (perspective == Perspective::IS_CLIENT &&
       original_destination_connection_id.has_value()) {
-    *error_details = "Client cannot send original connection ID";
+    *error_details = "Client cannot send original_destination_connection_id";
     return false;
   }
   if (!stateless_reset_token.empty() &&
@@ -627,6 +647,11 @@ bool TransportParameters::AreValid(std::string* error_details) const {
        !preferred_address->ipv6_socket_address.host().IsIPv6())) {
     QUIC_BUG << "Preferred address family failure";
     *error_details = "Internal preferred address family failure";
+    return false;
+  }
+  if (perspective == Perspective::IS_CLIENT &&
+      retry_source_connection_id.has_value()) {
+    *error_details = "Client cannot send retry_source_connection_id";
     return false;
   }
   for (const auto& kv : custom_parameters) {
@@ -715,6 +740,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       kTypeAndValueLength +               // disable_active_migration
       kPreferredAddressParameterLength +  // preferred_address
       kIntegerParameterLength +           // active_connection_id_limit
+      kConnectionIdParameterLength +      // initial_source_connection_id
+      kConnectionIdParameterLength +      // retry_source_connection_id
       kIntegerParameterLength +           // max_datagram_frame_size
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // google_connection_options
@@ -864,6 +891,42 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             in.preferred_address->stateless_reset_token.data(),
             in.preferred_address->stateless_reset_token.size())) {
       QUIC_BUG << "Failed to write preferred_address for " << in;
+      return false;
+    }
+  }
+
+  // initial_source_connection_id
+  if (in.initial_source_connection_id.has_value()) {
+    QuicConnectionId initial_source_connection_id =
+        in.initial_source_connection_id.value();
+    if (!WriteTransportParameterId(
+            &writer, TransportParameters::kInitialSourceConnectionId,
+            version) ||
+        !WriteTransportParameterStringPiece(
+            &writer,
+            quiche::QuicheStringPiece(initial_source_connection_id.data(),
+                                      initial_source_connection_id.length()),
+            version)) {
+      QUIC_BUG << "Failed to write initial_source_connection_id "
+               << initial_source_connection_id << " for " << in;
+      return false;
+    }
+  }
+
+  // retry_source_connection_id
+  if (in.retry_source_connection_id.has_value()) {
+    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    QuicConnectionId retry_source_connection_id =
+        in.retry_source_connection_id.value();
+    if (!WriteTransportParameterId(
+            &writer, TransportParameters::kRetrySourceConnectionId, version) ||
+        !WriteTransportParameterStringPiece(
+            &writer,
+            quiche::QuicheStringPiece(retry_source_connection_id.data(),
+                                      retry_source_connection_id.length()),
+            version)) {
+      QUIC_BUG << "Failed to write retry_source_connection_id "
+               << retry_source_connection_id << " for " << in;
       return false;
     }
   }
@@ -1193,6 +1256,48 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         parse_success =
             out->active_connection_id_limit.Read(&value_reader, error_details);
         break;
+      case TransportParameters::kInitialSourceConnectionId: {
+        if (out->initial_source_connection_id.has_value()) {
+          *error_details = "Received a second initial_source_connection_id";
+          return false;
+        }
+        const size_t connection_id_length = value_reader.BytesRemaining();
+        if (!QuicUtils::IsConnectionIdLengthValidForVersion(
+                connection_id_length, version.transport_version)) {
+          *error_details = quiche::QuicheStrCat(
+              "Received initial_source_connection_id of invalid length ",
+              connection_id_length);
+          return false;
+        }
+        QuicConnectionId initial_source_connection_id;
+        if (!value_reader.ReadConnectionId(&initial_source_connection_id,
+                                           connection_id_length)) {
+          *error_details = "Failed to read initial_source_connection_id";
+          return false;
+        }
+        out->initial_source_connection_id = initial_source_connection_id;
+      } break;
+      case TransportParameters::kRetrySourceConnectionId: {
+        if (out->retry_source_connection_id.has_value()) {
+          *error_details = "Received a second retry_source_connection_id";
+          return false;
+        }
+        const size_t connection_id_length = value_reader.BytesRemaining();
+        if (!QuicUtils::IsConnectionIdLengthValidForVersion(
+                connection_id_length, version.transport_version)) {
+          *error_details = quiche::QuicheStrCat(
+              "Received retry_source_connection_id of invalid length ",
+              connection_id_length);
+          return false;
+        }
+        QuicConnectionId retry_source_connection_id;
+        if (!value_reader.ReadConnectionId(&retry_source_connection_id,
+                                           connection_id_length)) {
+          *error_details = "Failed to read retry_source_connection_id";
+          return false;
+        }
+        out->retry_source_connection_id = retry_source_connection_id;
+      } break;
       case TransportParameters::kMaxDatagramFrameSize:
         parse_success =
             out->max_datagram_frame_size.Read(&value_reader, error_details);

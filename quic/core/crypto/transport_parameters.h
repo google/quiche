@@ -180,6 +180,14 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // to store.
   IntegerParameter active_connection_id_limit;
 
+  // The value that the endpoint included in the Source Connection ID field of
+  // the first Initial packet it sent.
+  quiche::QuicheOptional<QuicConnectionId> initial_source_connection_id;
+
+  // The value that the server included in the Source Connection ID field of a
+  // Retry packet it sent.
+  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id;
+
   // Indicates support for the DATAGRAM frame and the maximum frame size that
   // the sender accepts. See draft-ietf-quic-datagram.
   IntegerParameter max_datagram_frame_size;
