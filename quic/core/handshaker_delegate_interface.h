@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_HANDSHAKER_DELEGATE_INTERFACE_H_
 #define QUICHE_QUIC_CORE_HANDSHAKER_DELEGATE_INTERFACE_H_
 
+#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
@@ -58,6 +59,18 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
   // Called when 0-RTT data is rejected by the server. This is only called in
   // TLS handshakes and only called on clients.
   virtual void OnZeroRttRejected() = 0;
+
+  // Fills in |params| with values from the delegate's QuicConfig.
+  // Returns whether the operation succeeded.
+  virtual bool FillTransportParameters(TransportParameters* params) = 0;
+
+  // Read |params| and apply the values to the delegate's QuicConfig.
+  // On failure, returns a QuicErrorCode and saves a detailed error in
+  // |error_details|.
+  virtual QuicErrorCode ProcessTransportParameters(
+      const TransportParameters& params,
+      bool is_resumption,
+      std::string* error_details) = 0;
 };
 
 }  // namespace quic

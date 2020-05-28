@@ -137,8 +137,8 @@ bool TlsClientHandshaker::CryptoConnect() {
 bool TlsClientHandshaker::PrepareZeroRttConfig(
     QuicResumptionState* cached_state) {
   std::string error_details;
-  if (session()->config()->ProcessTransportParameters(
-          *(cached_state->transport_params), SERVER,
+  if (handshaker_delegate()->ProcessTransportParameters(
+          *(cached_state->transport_params),
           /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
     QUIC_BUG << "Unable to parse cached transport parameters.";
     CloseConnection(QUIC_HANDSHAKE_FAILED,
@@ -204,7 +204,7 @@ bool TlsClientHandshaker::SetTransportParameters() {
   params.version =
       CreateQuicVersionLabel(session()->supported_versions().front());
 
-  if (!session()->config()->FillTransportParameters(&params)) {
+  if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
   }
   if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
@@ -271,8 +271,8 @@ bool TlsClientHandshaker::ProcessTransportParameters(
           received_transport_params_->supported_versions,
           session()->connection()->server_supported_versions(),
           error_details) != QUIC_NO_ERROR ||
-      session()->config()->ProcessTransportParameters(
-          *received_transport_params_, SERVER, /* is_resumption = */ false,
+      handshaker_delegate()->ProcessTransportParameters(
+          *received_transport_params_, /* is_resumption = */ false,
           error_details) != QUIC_NO_ERROR) {
     DCHECK(!error_details->empty());
     return false;

@@ -260,6 +260,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void NeuterUnencryptedData() override;
   void NeuterHandshakeData() override;
   void OnZeroRttRejected() override;
+  bool FillTransportParameters(TransportParameters* params) override;
+  QuicErrorCode ProcessTransportParameters(const TransportParameters& params,
+                                           bool is_resumption,
+                                           std::string* error_details) override;
 
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,

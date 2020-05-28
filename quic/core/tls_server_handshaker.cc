@@ -297,8 +297,8 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   if (CryptoUtils::ValidateClientHelloVersion(
           client_params.version, session()->connection()->version(),
           session()->supported_versions(), error_details) != QUIC_NO_ERROR ||
-      session()->config()->ProcessTransportParameters(
-          client_params, CLIENT, /* is_resumption = */ false, error_details) !=
+      handshaker_delegate()->ProcessTransportParameters(
+          client_params, /* is_resumption = */ false, error_details) !=
           QUIC_NO_ERROR) {
     return false;
   }
@@ -315,7 +315,7 @@ bool TlsServerHandshaker::SetTransportParameters() {
   server_params.version =
       CreateQuicVersionLabel(session()->connection()->version());
 
-  if (!session()->config()->FillTransportParameters(&server_params)) {
+  if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
     return false;
   }
 
