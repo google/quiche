@@ -106,7 +106,7 @@ class QuartcPacketWriter : public QuicPacketWriter {
   QuicByteCount max_packet_size_;
 
   // Whether packets can be written.
-  bool writable_ = false;
+  bool writable_ = true;
 };
 
 }  // namespace quic

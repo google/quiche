@@ -979,6 +979,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnTransportParametersReceived(
       const TransportParameters& transport_parameters) const;
 
+  size_t anti_amplification_factor() const {
+    return anti_amplification_factor_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1669,6 +1673,19 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool update_ack_alarm_in_send_all_pending_acks_ =
       GetQuicReloadableFlag(quic_update_ack_alarm_in_send_all_pending_acks);
+
+  const bool move_amplification_limit_ =
+      GetQuicReloadableFlag(quic_move_amplification_limit);
+
+  // TODO(fayang): Change the default value of quic_anti_amplification_factor to
+  // 5 when deprecating quic_move_amplification_limit.
+  // TODO(b/153892665): Change the default value of
+  // quic_anti_amplification_factor back to 3 when cert compression is
+  // supported.
+  const size_t anti_amplification_factor_ =
+      move_amplification_limit_
+          ? 5
+          : GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 };
 
 }  // namespace quic

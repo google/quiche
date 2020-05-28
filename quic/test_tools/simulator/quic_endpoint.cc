@@ -55,6 +55,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
     // Skip version negotiation.
     test::QuicConnectionPeer::SetNegotiatedVersion(connection_.get());
   }
+  test::QuicConnectionPeer::SetAddressValidated(connection_.get());
   connection_->SetDataProducer(&producer_);
   connection_->SetSessionNotifier(this);
   notifier_ = std::make_unique<test::SimpleSessionNotifier>(connection_.get());

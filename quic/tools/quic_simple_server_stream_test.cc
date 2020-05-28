@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
@@ -239,6 +240,9 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_.config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
     session_.Initialize();
+    if (connection_->version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(connection_);
+    }
     stream_ = new StrictMock<TestStream>(
         GetNthClientInitiatedBidirectionalStreamId(
             connection_->transport_version(), 0),

@@ -2206,9 +2206,13 @@ void QuicConnection::NeuterUnencryptedPackets() {
 bool QuicConnection::ShouldGeneratePacket(
     HasRetransmittableData retransmittable,
     IsHandshake handshake) {
+  DCHECK(handshake != IS_HANDSHAKE ||
+         QuicVersionUsesCryptoFrames(transport_version()))
+      << ENDPOINT
+      << "Handshake in STREAM frames should not check ShouldGeneratePacket";
   // We should serialize handshake packets immediately to ensure that they
   // end up sent at the right encryption level.
-  if (handshake == IS_HANDSHAKE) {
+  if (!move_amplification_limit_ && handshake == IS_HANDSHAKE) {
     if (LimitedByAmplificationFactor()) {
       // Server is constrained by the amplification restriction.
       QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
@@ -2250,6 +2254,14 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
 
 bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   if (!connected_) {
+    return false;
+  }
+
+  if (move_amplification_limit_ && LimitedByAmplificationFactor()) {
+    // Server is constrained by the amplification restriction.
+    QUIC_RELOADABLE_FLAG_COUNT(quic_move_amplification_limit);
+    QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
+    QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
     return false;
   }
 
@@ -4033,8 +4045,12 @@ void QuicConnection::SendAllPendingAcks() {
     const bool flushed = packet_creator_.FlushAckFrame(frames);
     if (!flushed) {
       // Connection is write blocked.
-      QUIC_BUG_IF(!writer_->IsWriteBlocked())
-          << "Writer not blocked, but ACK not flushed for packet space:" << i;
+      QUIC_BUG_IF(
+          !writer_->IsWriteBlocked() &&
+          (!move_amplification_limit_ || !LimitedByAmplificationFactor()))
+          << "Writer not blocked and not throttled by amplification factor, "
+             "but ACK not flushed for packet space:"
+          << i;
       break;
     }
     ResetAckStates();
@@ -4215,7 +4231,7 @@ bool QuicConnection::EnforceAntiAmplificationLimit() const {
 bool QuicConnection::LimitedByAmplificationFactor() const {
   return EnforceAntiAmplificationLimit() &&
          bytes_sent_before_address_validation_ >=
-             GetQuicFlag(FLAGS_quic_anti_amplification_factor) *
+             anti_amplification_factor_ *
                  bytes_received_before_address_validation_;
 }
 

@@ -157,6 +157,9 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
     session_->OnConfigNegotiated();
+    if (connection_->version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(connection_);
+    }
   }
 
   QuicStreamId GetNthClientInitiatedBidirectionalId(int n) {

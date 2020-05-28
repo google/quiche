@@ -1752,6 +1752,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   void MtuDiscoveryTestInit() {
     set_perspective(Perspective::IS_SERVER);
     QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+    if (version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(&connection_);
+    }
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
     // QuicFramer::GetMaxPlaintextSize uses the smallest max plaintext size
@@ -1999,6 +2002,9 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -7074,12 +7080,24 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
   ProcessPacket(1);
   BlockOnNextWrite();
   writer_->set_is_write_blocked_data_buffered(true);
+  if (GetQuicReloadableFlag(quic_move_amplification_limit) &&
+      QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  }
   connection_.SendCryptoDataWithString("foo", 0);
   EXPECT_TRUE(writer_->IsWriteBlocked());
   EXPECT_FALSE(connection_.HasQueuedData());
   connection_.SendCryptoDataWithString("bar", 3);
   EXPECT_TRUE(writer_->IsWriteBlocked());
-  EXPECT_TRUE(connection_.HasQueuedData());
+  if (GetQuicReloadableFlag(quic_move_amplification_limit) &&
+      QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    // CRYPTO frames are not flushed when writer is blocked.
+    EXPECT_FALSE(connection_.HasQueuedData());
+  } else {
+    EXPECT_TRUE(connection_.HasQueuedData());
+  }
 }
 
 TEST_P(QuicConnectionTest, BundleAckForSecondCHLO) {
@@ -10045,13 +10063,17 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   // Verify no data can be sent at the beginning because bytes received is 0.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.SendCryptoDataWithString("foo", 0);
+  if (GetQuicReloadableFlag(quic_move_amplification_limit)) {
+    EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
+    EXPECT_FALSE(connection_.CanWrite(NO_RETRANSMITTABLE_DATA));
+  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Receives packet 1.
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor =
-      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+      connection_.anti_amplification_factor();
   // Verify now packets can be sent.
   for (size_t i = 0; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
@@ -10084,6 +10106,48 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
     connection_.SendStreamDataWithString(3, "first", i * 0, NO_FIN);
   }
+}
+
+TEST_P(QuicConnectionTest, AckPendingWithAmplificationLimited) {
+  if (!connection_.version().SupportsAntiAmplificationLimit() ||
+      !GetQuicReloadableFlag(quic_move_amplification_limit)) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+  set_perspective(Perspective::IS_SERVER);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Receives packet 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+  // Send response in different encryption level and cause amplification factor
+  // throttled.
+  size_t i = 0;
+  while (connection_.CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+    connection_.SendCryptoDataWithString(std::string(1024, 'a'), i * 1024,
+                                         ENCRYPTION_HANDSHAKE);
+    ++i;
+  }
+  // Verify ACK is still pending.
+  EXPECT_TRUE(connection_.GetAckAlarm()->IsSet());
+
+  // Fire ACK alarm and verify ACK cannot be sent due to amplification factor.
+  clock_.AdvanceTime(connection_.GetAckAlarm()->deadline() - clock_.Now());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.GetAckAlarm()->Fire();
+  // Verify ACK alarm is cancelled.
+  EXPECT_FALSE(connection_.GetAckAlarm()->IsSet());
+
+  // Receives packet 2 and verify ACK gets flushed.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+  EXPECT_FALSE(writer_->ack_frames().empty());
 }
 
 TEST_P(QuicConnectionTest, ConnectionCloseFrameType) {

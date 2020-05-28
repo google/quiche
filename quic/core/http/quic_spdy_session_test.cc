@@ -197,6 +197,9 @@ class TestSession : public QuicSpdySession {
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection->perspective()));
+    if (this->connection()->version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(this->connection());
+    }
   }
 
   ~TestSession() override { DeleteConnection(); }

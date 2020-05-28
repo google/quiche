@@ -324,6 +324,9 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         &helper_, &alarm_factory_, perspective, SupportedVersions(GetParam()));
     session_ = std::make_unique<StrictMock<TestSession>>(connection_);
     session_->Initialize();
+    if (connection_->version().SupportsAntiAmplificationLimit()) {
+      QuicConnectionPeer::SetAddressValidated(connection_);
+    }
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     ON_CALL(*session_, WritevData(_, _, _, _, _, _))
         .WillByDefault(
