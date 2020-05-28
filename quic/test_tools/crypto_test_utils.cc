@@ -404,9 +404,6 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
   QUIC_LOG(INFO) << "Processing "
                  << server_conn->encrypted_packets_.size() - server_i
                  << " packets server->client";
-  if (server_conn->encrypted_packets_.size() - server_i == 2) {
-    QUIC_LOG(INFO) << "here";
-  }
   MovePackets(server_conn, &server_i, client, client_conn,
               Perspective::IS_CLIENT);
 
