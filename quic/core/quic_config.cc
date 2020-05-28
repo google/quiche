@@ -888,6 +888,40 @@ QuicConnectionId QuicConfig::ReceivedOriginalConnectionId() const {
   return received_original_destination_connection_id_.value();
 }
 
+void QuicConfig::SetInitialSourceConnectionIdToSend(
+    const QuicConnectionId& initial_source_connection_id) {
+  initial_source_connection_id_to_send_ = initial_source_connection_id;
+}
+
+bool QuicConfig::HasReceivedInitialSourceConnectionId() const {
+  return received_initial_source_connection_id_.has_value();
+}
+
+QuicConnectionId QuicConfig::ReceivedInitialSourceConnectionId() const {
+  if (!HasReceivedInitialSourceConnectionId()) {
+    QUIC_BUG << "No received initial source connection ID";
+    return EmptyQuicConnectionId();
+  }
+  return received_initial_source_connection_id_.value();
+}
+
+void QuicConfig::SetRetrySourceConnectionIdToSend(
+    const QuicConnectionId& retry_source_connection_id) {
+  retry_source_connection_id_to_send_ = retry_source_connection_id;
+}
+
+bool QuicConfig::HasReceivedRetrySourceConnectionId() const {
+  return received_retry_source_connection_id_.has_value();
+}
+
+QuicConnectionId QuicConfig::ReceivedRetrySourceConnectionId() const {
+  if (!HasReceivedRetrySourceConnectionId()) {
+    QUIC_BUG << "No received retry source connection ID";
+    return EmptyQuicConnectionId();
+  }
+  return received_retry_source_connection_id_.value();
+}
+
 void QuicConfig::SetStatelessResetTokenToSend(
     QuicUint128 stateless_reset_token) {
   stateless_reset_token_.SetSendValue(stateless_reset_token);
@@ -1142,6 +1176,16 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
         active_connection_id_limit_.GetSendValue());
   }
 
+  if (initial_source_connection_id_to_send_.has_value()) {
+    params->initial_source_connection_id =
+        initial_source_connection_id_to_send_.value();
+  }
+
+  if (retry_source_connection_id_to_send_.has_value()) {
+    params->retry_source_connection_id =
+        retry_source_connection_id_to_send_.value();
+  }
+
   if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
     QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_send_new, 1, 3);
     if (initial_round_trip_time_us_.HasSendValue()) {
@@ -1263,6 +1307,17 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   active_connection_id_limit_.SetReceivedValue(
       params.active_connection_id_limit.value());
+
+  if (!is_resumption) {
+    if (params.initial_source_connection_id.has_value()) {
+      received_initial_source_connection_id_ =
+          params.initial_source_connection_id.value();
+    }
+    if (params.retry_source_connection_id.has_value()) {
+      received_retry_source_connection_id_ =
+          params.retry_source_connection_id.value();
+    }
+  }
 
   bool google_params_already_parsed = false;
   if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {

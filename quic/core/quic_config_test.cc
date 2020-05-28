@@ -468,6 +468,10 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetMaxDatagramFrameSizeToSend(kMaxDatagramFrameSizeForTest);
   config_.SetActiveConnectionIdLimitToSend(kFakeActiveConnectionIdLimit);
 
+  config_.SetOriginalConnectionIdToSend(TestConnectionId(0x1111));
+  config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
+  config_.SetRetrySourceConnectionIdToSend(TestConnectionId(0x3333));
+
   TransportParameters params;
   config_.FillTransportParameters(&params);
 
@@ -486,6 +490,16 @@ TEST_P(QuicConfigTest, FillTransportParams) {
             params.max_datagram_frame_size.value());
   EXPECT_EQ(kFakeActiveConnectionIdLimit,
             params.active_connection_id_limit.value());
+
+  ASSERT_TRUE(params.original_destination_connection_id.has_value());
+  EXPECT_EQ(TestConnectionId(0x1111),
+            params.original_destination_connection_id.value());
+  ASSERT_TRUE(params.initial_source_connection_id.has_value());
+  EXPECT_EQ(TestConnectionId(0x2222),
+            params.initial_source_connection_id.value());
+  ASSERT_TRUE(params.retry_source_connection_id.has_value());
+  EXPECT_EQ(TestConnectionId(0x3333),
+            params.retry_source_connection_id.value());
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
@@ -509,6 +523,9 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.max_ack_delay.set_value(kFakeMaxAckDelay);
   params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
   params.active_connection_id_limit.set_value(kFakeActiveConnectionIdLimit);
+  params.original_destination_connection_id = TestConnectionId(0x1111);
+  params.initial_source_connection_id = TestConnectionId(0x2222);
+  params.retry_source_connection_id = TestConnectionId(0x3333);
 
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
@@ -549,6 +566,9 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   EXPECT_FALSE(config_.HasReceivedStatelessResetToken());
   EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
   EXPECT_FALSE(config_.HasReceivedAckDelayExponent());
+  EXPECT_FALSE(config_.HasReceivedOriginalConnectionId());
+  EXPECT_FALSE(config_.HasReceivedInitialSourceConnectionId());
+  EXPECT_FALSE(config_.HasReceivedRetrySourceConnectionId());
 
   // Let the config process another slightly tweaked transport paramters.
   // Note that the values for flow control and stream limit cannot be smaller
@@ -609,6 +629,15 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   ASSERT_TRUE(config_.HasReceivedActiveConnectionIdLimit());
   EXPECT_EQ(config_.ReceivedActiveConnectionIdLimit(),
             kFakeActiveConnectionIdLimit);
+
+  ASSERT_TRUE(config_.HasReceivedOriginalConnectionId());
+  EXPECT_EQ(config_.ReceivedOriginalConnectionId(), TestConnectionId(0x1111));
+  ASSERT_TRUE(config_.HasReceivedInitialSourceConnectionId());
+  EXPECT_EQ(config_.ReceivedInitialSourceConnectionId(),
+            TestConnectionId(0x2222));
+  ASSERT_TRUE(config_.HasReceivedRetrySourceConnectionId());
+  EXPECT_EQ(config_.ReceivedRetrySourceConnectionId(),
+            TestConnectionId(0x3333));
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {

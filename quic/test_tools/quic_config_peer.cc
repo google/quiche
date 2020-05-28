@@ -112,6 +112,20 @@ void QuicConfigPeer::SetReceivedOriginalConnectionId(
 }
 
 // static
+void QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+    QuicConfig* config,
+    const QuicConnectionId& initial_source_connection_id) {
+  config->received_initial_source_connection_id_ = initial_source_connection_id;
+}
+
+// static
+void QuicConfigPeer::SetReceivedRetrySourceConnectionId(
+    QuicConfig* config,
+    const QuicConnectionId& retry_source_connection_id) {
+  config->received_retry_source_connection_id_ = retry_source_connection_id;
+}
+
+// static
 void QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
     QuicConfig* config,
     uint64_t max_datagram_frame_size) {

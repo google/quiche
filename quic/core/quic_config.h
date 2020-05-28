@@ -438,6 +438,18 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HasReceivedActiveConnectionIdLimit() const;
   uint64_t ReceivedActiveConnectionIdLimit() const;
 
+  // Initial source connection ID.
+  void SetInitialSourceConnectionIdToSend(
+      const QuicConnectionId& initial_source_connection_id);
+  bool HasReceivedInitialSourceConnectionId() const;
+  QuicConnectionId ReceivedInitialSourceConnectionId() const;
+
+  // Retry source connection ID.
+  void SetRetrySourceConnectionIdToSend(
+      const QuicConnectionId& retry_source_connection_id);
+  bool HasReceivedRetrySourceConnectionId() const;
+  QuicConnectionId ReceivedRetrySourceConnectionId() const;
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -594,13 +606,28 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Uses the active_connection_id_limit transport parameter in IETF QUIC.
   QuicFixedUint62 active_connection_id_limit_;
 
-  // Sent by the server when it has previously sent a RETRY packet.
+  // The value of the Destination Connection ID field from the first
+  // Initial packet sent by the client.
   // Uses the original_destination_connection_id transport parameter in
   // IETF QUIC.
   quiche::QuicheOptional<QuicConnectionId>
       original_destination_connection_id_to_send_;
   quiche::QuicheOptional<QuicConnectionId>
       received_original_destination_connection_id_;
+
+  // The value that the endpoint included in the Source Connection ID field of
+  // the first Initial packet it sent.
+  // Uses the initial_source_connection_id transport parameter in IETF QUIC.
+  quiche::QuicheOptional<QuicConnectionId>
+      initial_source_connection_id_to_send_;
+  quiche::QuicheOptional<QuicConnectionId>
+      received_initial_source_connection_id_;
+
+  // The value that the server included in the Source Connection ID field of a
+  // Retry packet it sent.
+  // Uses the retry_source_connection_id transport parameter in IETF QUIC.
+  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id_to_send_;
+  quiche::QuicheOptional<QuicConnectionId> received_retry_source_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.
