@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -94,6 +95,15 @@ TlsServerHandshaker::TlsServerHandshaker(
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
+
+  if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
+    // TODO(b/152551499): Properly set early data context. This change is to
+    // temporarily unblock QuicSpdyClientSessionTest.IetfZeroRttSetup which
+    // assumes that the server will sent an early data capable ticket, and then
+    // accept early data on resumption.
+    uint8_t context[] = {0};
+    SSL_set_quic_early_data_context(ssl(), context, QUICHE_ARRAYSIZE(context));
+  }
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() {
