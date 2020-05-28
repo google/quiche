@@ -163,10 +163,14 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
  public:
   // Creates a non-blocking udp socket, sets the receive/send buffer and enable
   // receiving of self ip addresses on read.
-  // Return kQuicInvalidSocketFd if failed.
+  // If address_family == AF_INET6 and ipv6_only is true, receiving of IPv4 self
+  // addresses is disabled. This is only necessary for IPv6 sockets on iOS - all
+  // other platforms can ignore this parameter. Return kQuicInvalidSocketFd if
+  // failed.
   QuicUdpSocketFd Create(int address_family,
                          int receive_buffer_size,
-                         int send_buffer_size);
+                         int send_buffer_size,
+                         bool ipv6_only = false);
 
   // Closes |fd|. No-op if |fd| equals to kQuicInvalidSocketFd.
   void Destroy(QuicUdpSocketFd fd);
@@ -238,7 +242,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpSocketApi {
   bool SetupSocket(QuicUdpSocketFd fd,
                    int address_family,
                    int receive_buffer_size,
-                   int send_buffer_size);
+                   int send_buffer_size,
+                   bool ipv6_only);
   bool EnableReceiveSelfIpAddressForV4(QuicUdpSocketFd fd);
   bool EnableReceiveSelfIpAddressForV6(QuicUdpSocketFd fd);
 };

@@ -3,6 +3,11 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
+#include <sys/socket.h>
+
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -15,33 +20,49 @@ struct ReadBuffers {
   char control_buffer[512];
   char packet_buffer[1536];
 };
+
+// Allows IPv6-specific testing.
+struct TestParameters {
+  // If true, the test will only use IPv6.  If false, IPv4 will be used if
+  // possible, with IPv6 used as a fallback.
+  bool force_ipv6;
+  // The value of ipv6_only to be used in QuicUdpSocketApi::Create calls.
+  bool ipv6_only;
+};
 }  // namespace
 
-class QuicUdpSocketTest : public QuicTest {
+class QuicUdpSocketTest : public QuicTestWithParam<TestParameters> {
  protected:
   void SetUp() override {
-    // Try creating AF_INET socket, if it fails because of unsupported address
-    // family then tests are being run under IPv6-only environment, initialize
-    // address family to use for running the test under as AF_INET6 otherwise
-    // initialize it as AF_INET.
-    address_family_ = AF_INET;
-    fd_client_ =
-        api_.Create(address_family_,
-                    /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-                    /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+    const TestParameters& parameters = GetParam();
+    if (!parameters.force_ipv6) {
+      // Try creating AF_INET socket, if it fails because of unsupported address
+      // family then tests are being run under IPv6-only environment, initialize
+      // address family to use for running the test under as AF_INET6 otherwise
+      // initialize it as AF_INET.
+      address_family_ = AF_INET;
+      fd_client_ =
+          api_.Create(address_family_,
+                      /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
+                      /*send_buffer_size =*/kDefaultSocketReceiveBuffer,
+                      /*ipv6_only =*/parameters.ipv6_only);
+    }
     if (fd_client_ == kQuicInvalidSocketFd) {
+      // Either AF_INET is unsupported, or force_ipv6 is true.
       address_family_ = AF_INET6;
       fd_client_ =
           api_.Create(address_family_,
                       /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-                      /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+                      /*send_buffer_size =*/kDefaultSocketReceiveBuffer,
+                      /*ipv6_only =*/parameters.ipv6_only);
     }
     ASSERT_NE(fd_client_, kQuicInvalidSocketFd);
 
     fd_server_ =
         api_.Create(address_family_,
                     /*receive_buffer_size =*/kDefaultSocketReceiveBuffer,
-                    /*send_buffer_size =*/kDefaultSocketReceiveBuffer);
+                    /*send_buffer_size =*/kDefaultSocketReceiveBuffer,
+                    /*ipv6_only =*/parameters.ipv6_only);
     ASSERT_NE(fd_server_, kQuicInvalidSocketFd);
 
     ASSERT_TRUE(
@@ -114,8 +135,8 @@ class QuicUdpSocketTest : public QuicTest {
   }
 
   QuicUdpSocketApi api_;
-  QuicUdpSocketFd fd_client_;
-  QuicUdpSocketFd fd_server_;
+  QuicUdpSocketFd fd_client_ = kQuicInvalidSocketFd;
+  QuicUdpSocketFd fd_server_ = kQuicInvalidSocketFd;
   QuicSocketAddress server_address_;
   int address_family_;
   char client_packet_buffer_[kEthernetMTU] = {0};
@@ -123,7 +144,22 @@ class QuicUdpSocketTest : public QuicTest {
   char server_control_buffer_[512] = {0};
 };
 
-TEST_F(QuicUdpSocketTest, ReadPacketResultReset) {
+INSTANTIATE_TEST_SUITE_P(
+    PlatformIndependent,
+    QuicUdpSocketTest,
+    testing::Values(TestParameters{/*force_ipv6 =*/false, /*ipv6_only =*/false},
+                    TestParameters{/*force_ipv6 =*/false, /*ipv6_only =*/true},
+                    TestParameters{/*force_ipv6 =*/true, /*ipv6_only =*/true}));
+
+#ifndef TARGET_OS_IPHONE
+// IPv6 on iOS is known to fail without ipv6_only, so should not be tested.
+INSTANTIATE_TEST_SUITE_P(NonIos,
+                         QuicUdpSocketTest,
+                         testing::Values(TestParameters{/*force_ipv6 =*/true,
+                                                        /*ipv6_only =*/false}));
+#endif
+
+TEST_P(QuicUdpSocketTest, ReadPacketResultReset) {
   QuicUdpSocketApi::ReadPacketResult result;
   result.packet_info.SetDroppedPackets(100);
   result.packet_buffer.buffer_len = 100;
@@ -137,7 +173,7 @@ TEST_F(QuicUdpSocketTest, ReadPacketResultReset) {
   EXPECT_EQ(200u, result.packet_buffer.buffer_len);
 }
 
-TEST_F(QuicUdpSocketTest, ReadPacketOnly) {
+TEST_P(QuicUdpSocketTest, ReadPacketOnly) {
   const size_t kPacketSize = 512;
   memset(client_packet_buffer_, '-', kPacketSize);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
@@ -150,7 +186,7 @@ TEST_F(QuicUdpSocketTest, ReadPacketOnly) {
   ASSERT_EQ(0, ComparePacketBuffers(kPacketSize));
 }
 
-TEST_F(QuicUdpSocketTest, ReadTruncated) {
+TEST_P(QuicUdpSocketTest, ReadTruncated) {
   const size_t kPacketSize = kDefaultMaxPacketSize + 1;
   memset(client_packet_buffer_, '*', kPacketSize);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
@@ -161,7 +197,7 @@ TEST_F(QuicUdpSocketTest, ReadTruncated) {
   ASSERT_FALSE(read_result.ok);
 }
 
-TEST_F(QuicUdpSocketTest, ReadDroppedPackets) {
+TEST_P(QuicUdpSocketTest, ReadDroppedPackets) {
   const size_t kPacketSize = kDefaultMaxPacketSize;
   memset(client_packet_buffer_, '-', kPacketSize);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
@@ -193,7 +229,7 @@ TEST_F(QuicUdpSocketTest, ReadDroppedPackets) {
   }
 }
 
-TEST_F(QuicUdpSocketTest, ReadSelfIp) {
+TEST_P(QuicUdpSocketTest, ReadSelfIp) {
   const QuicUdpPacketInfoBit self_ip_bit =
       (address_family_ == AF_INET) ? QuicUdpPacketInfoBit::V4_SELF_IP
                                    : QuicUdpPacketInfoBit::V6_SELF_IP;
@@ -214,7 +250,7 @@ TEST_F(QuicUdpSocketTest, ReadSelfIp) {
                             : read_result.packet_info.self_v6_ip());
 }
 
-TEST_F(QuicUdpSocketTest, ReadReceiveTimestamp) {
+TEST_P(QuicUdpSocketTest, ReadReceiveTimestamp) {
   const size_t kPacketSize = kDefaultMaxPacketSize;
   memset(client_packet_buffer_, '-', kPacketSize);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
@@ -249,7 +285,7 @@ TEST_F(QuicUdpSocketTest, ReadReceiveTimestamp) {
       QuicWallTime::FromUNIXSeconds(1577836800).IsBefore(recv_timestamp));
 }
 
-TEST_F(QuicUdpSocketTest, Ttl) {
+TEST_P(QuicUdpSocketTest, Ttl) {
   const size_t kPacketSize = 512;
   memset(client_packet_buffer_, '$', kPacketSize);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, kPacketSize),
@@ -282,7 +318,7 @@ TEST_F(QuicUdpSocketTest, Ttl) {
   EXPECT_EQ(13, read_result.packet_info.ttl());
 }
 
-TEST_F(QuicUdpSocketTest, ReadMultiplePackets) {
+TEST_P(QuicUdpSocketTest, ReadMultiplePackets) {
   const QuicUdpPacketInfoBit self_ip_bit =
       (address_family_ == AF_INET) ? QuicUdpPacketInfoBit::V4_SELF_IP
                                    : QuicUdpPacketInfoBit::V6_SELF_IP;
@@ -335,7 +371,7 @@ TEST_F(QuicUdpSocketTest, ReadMultiplePackets) {
   }
 }
 
-TEST_F(QuicUdpSocketTest, ReadMultiplePacketsSomeTruncated) {
+TEST_P(QuicUdpSocketTest, ReadMultiplePacketsSomeTruncated) {
   const QuicUdpPacketInfoBit self_ip_bit =
       (address_family_ == AF_INET) ? QuicUdpPacketInfoBit::V4_SELF_IP
                                    : QuicUdpPacketInfoBit::V6_SELF_IP;
