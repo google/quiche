@@ -1362,8 +1362,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
                  << ", least_unacked: " << unacked_packets_.GetLeastUnacked()
                  << ", packets_acked_: " << packets_acked_;
       } else {
-        QUIC_PEER_BUG << "Received "
-                      << EncryptionLevelToString(ack_decrypted_level)
+        QUIC_PEER_BUG << "Received " << ack_decrypted_level
                       << " ack for unackable packet: "
                       << acked_packet.packet_number << " with state: "
                       << QuicUtils::SentPacketStateToString(info->state);
@@ -1376,8 +1375,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       }
       continue;
     }
-    QUIC_DVLOG(1) << ENDPOINT << "Got an "
-                  << EncryptionLevelToString(ack_decrypted_level)
+    QUIC_DVLOG(1) << ENDPOINT << "Got an " << ack_decrypted_level
                   << " ack for packet " << acked_packet.packet_number
                   << " , state: "
                   << QuicUtils::SentPacketStateToString(info->state);

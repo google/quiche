@@ -1763,8 +1763,7 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
     // anti-amplification limit is used, client needs to send something to avoid
     // handshake deadlock.
     QUIC_DVLOG(1) << ENDPOINT << "Failed to send control frame: " << frame
-                  << " at encryption level: "
-                  << EncryptionLevelToString(encryption_level_);
+                  << " at encryption level: " << encryption_level_;
     return false;
   }
   ScopedPacketFlusher flusher(this);
@@ -1838,9 +1837,9 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
   QUIC_DVLOG(1) << ENDPOINT << "Received undecryptable packet of length "
                 << packet.length() << " with"
                 << (has_decryption_key ? "" : "out") << " key at level "
-                << EncryptionLevelToString(decryption_level)
+                << decryption_level
                 << " while connection is at encryption level "
-                << EncryptionLevelToString(encryption_level_);
+                << encryption_level_;
   DCHECK(EncryptionLevelIsValid(decryption_level));
   if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
     ++stats_.undecryptable_packets_received_before_handshake_complete;
@@ -2237,9 +2236,8 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   QuicFrame updated_ack_frame = GetUpdatedAckFrame();
   QUIC_BUG_IF(updated_ack_frame.ack_frame->packets.Empty())
       << ENDPOINT << "Attempted to opportunistically bundle an empty "
-      << EncryptionLevelToString(encryption_level_) << " ACK, "
-      << (has_pending_ack ? "" : "!") << "has_pending_ack, stop_waiting_count_ "
-      << stop_waiting_count_;
+      << encryption_level_ << " ACK, " << (has_pending_ack ? "" : "!")
+      << "has_pending_ack, stop_waiting_count_ " << stop_waiting_count_;
   frames.push_back(updated_ack_frame);
 
   if (!no_stop_waiting_frames_) {
@@ -2355,8 +2353,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
                         : " ack only ")
-                << ", encryption level: "
-                << EncryptionLevelToString(packet->encryption_level)
+                << ", encryption level: " << packet->encryption_level
                 << ", encrypted length:" << encrypted_length
                 << ", fate: " << SerializedPacketFateToString(fate);
   QUIC_DVLOG(2) << ENDPOINT << "packet(" << packet_number << "): " << std::endl
@@ -2895,8 +2892,7 @@ void QuicConnection::SetDiversificationNonce(
 
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   QUIC_DVLOG(1) << ENDPOINT << "Setting default encryption level from "
-                << EncryptionLevelToString(encryption_level_) << " to "
-                << EncryptionLevelToString(level);
+                << encryption_level_ << " to " << level;
   if (level != encryption_level_ && packet_creator_.HasPendingFrames()) {
     // Flush all queued frames when encryption level changes.
     ScopedPacketFlusher flusher(this);
@@ -3110,8 +3106,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     if (!framer_.HasEncrypterOfEncryptionLevel(level)) {
       continue;
     }
-    QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet at level: "
-                    << EncryptionLevelToString(level);
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Sending connection close packet at level: " << level;
     SetDefaultEncryptionLevel(level);
     // Bundle an ACK of the corresponding packet number space for debugging
     // purpose.
@@ -3983,7 +3979,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
     // A forward secure packet has been received.
     QUIC_BUG_IF(encryption_level_ != ENCRYPTION_FORWARD_SECURE)
         << ENDPOINT << "Unexpected connection close encryption level "
-        << EncryptionLevelToString(encryption_level_);
+        << encryption_level_;
     return ENCRYPTION_FORWARD_SECURE;
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {

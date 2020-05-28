@@ -1507,8 +1507,7 @@ void QuicSession::OnNewEncryptionKeyAvailable(
   if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
       (perspective() == Perspective::IS_CLIENT ||
        GetQuicReloadableFlag(quic_change_default_encryption_level))) {
-    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
-                  << EncryptionLevelToString(level);
+    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
     QUIC_RELOADABLE_FLAG_COUNT(quic_change_default_encryption_level);
     connection()->SetDefaultEncryptionLevel(level);
     return;
@@ -1518,16 +1517,14 @@ void QuicSession::OnNewEncryptionKeyAvailable(
       level == ENCRYPTION_FORWARD_SECURE) {
     // Set connection's default encryption level once 1-RTT write key is
     // available.
-    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
-                  << EncryptionLevelToString(level);
+    QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
     connection()->SetDefaultEncryptionLevel(level);
   }
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
   DCHECK_EQ(PROTOCOL_QUIC_CRYPTO, connection_->version().handshake_protocol);
-  QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
   connection()->SetDefaultEncryptionLevel(level);
 
   switch (level) {
@@ -1552,8 +1549,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
       }
       break;
     default:
-      QUIC_BUG << "Unknown encryption level: "
-               << EncryptionLevelToString(level);
+      QUIC_BUG << "Unknown encryption level: " << level;
   }
 }
 
@@ -1582,8 +1578,7 @@ void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
 }
 
 void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
-  QUIC_DVLOG(1) << ENDPOINT << "Discard keys of "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Discard keys of " << level;
   if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
     connection()->RemoveEncrypter(level);
   }
@@ -1600,8 +1595,7 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
       QUIC_BUG << "Tries to drop 1-RTT keys";
       break;
     default:
-      QUIC_BUG << "Unknown encryption level: "
-               << EncryptionLevelToString(level);
+      QUIC_BUG << "Unknown encryption level: " << level;
   }
 }
 

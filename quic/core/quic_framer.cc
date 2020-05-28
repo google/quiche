@@ -4097,8 +4097,7 @@ void QuicFramer::SetDecrypter(EncryptionLevel level,
   DCHECK_GE(level, decrypter_level_);
   DCHECK(!version_.KnowsWhichDecrypterToUse());
   QUIC_DVLOG(1) << ENDPOINT << "Setting decrypter from level "
-                << EncryptionLevelToString(decrypter_level_) << " to "
-                << EncryptionLevelToString(level);
+                << decrypter_level_ << " to " << level;
   decrypter_[decrypter_level_] = nullptr;
   decrypter_[level] = std::move(decrypter);
   decrypter_level_ = level;
@@ -4111,8 +4110,7 @@ void QuicFramer::SetAlternativeDecrypter(
   DCHECK_NE(level, decrypter_level_);
   DCHECK(!version_.KnowsWhichDecrypterToUse());
   QUIC_DVLOG(1) << ENDPOINT << "Setting alternative decrypter from level "
-                << EncryptionLevelToString(alternative_decrypter_level_)
-                << " to " << EncryptionLevelToString(level);
+                << alternative_decrypter_level_ << " to " << level;
   if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     decrypter_[alternative_decrypter_level_] = nullptr;
   }
@@ -4124,15 +4122,13 @@ void QuicFramer::SetAlternativeDecrypter(
 void QuicFramer::InstallDecrypter(EncryptionLevel level,
                                   std::unique_ptr<QuicDecrypter> decrypter) {
   DCHECK(version_.KnowsWhichDecrypterToUse());
-  QUIC_DVLOG(1) << ENDPOINT << "Installing decrypter at level "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Installing decrypter at level " << level;
   decrypter_[level] = std::move(decrypter);
 }
 
 void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
   DCHECK(version_.KnowsWhichDecrypterToUse());
-  QUIC_DVLOG(1) << ENDPOINT << "Removing decrypter at level "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Removing decrypter at level " << level;
   decrypter_[level] = nullptr;
 }
 
@@ -4156,14 +4152,12 @@ void QuicFramer::SetEncrypter(EncryptionLevel level,
                               std::unique_ptr<QuicEncrypter> encrypter) {
   DCHECK_GE(level, 0);
   DCHECK_LT(level, NUM_ENCRYPTION_LEVELS);
-  QUIC_DVLOG(1) << ENDPOINT << "Setting encrypter at level "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Setting encrypter at level " << level;
   encrypter_[level] = std::move(encrypter);
 }
 
 void QuicFramer::RemoveEncrypter(EncryptionLevel level) {
-  QUIC_DVLOG(1) << ENDPOINT << "Removing encrypter of "
-                << EncryptionLevelToString(level);
+  QUIC_DVLOG(1) << ENDPOINT << "Removing encrypter of " << level;
   encrypter_[level] = nullptr;
 }
 
@@ -4185,7 +4179,7 @@ size_t QuicFramer::EncryptInPlace(EncryptionLevel level,
   if (encrypter_[level] == nullptr) {
     QUIC_BUG << ENDPOINT
              << "Attempted to encrypt in place without encrypter at level "
-             << EncryptionLevelToString(level);
+             << level;
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
@@ -4248,7 +4242,7 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level,
     QUIC_BUG
         << ENDPOINT
         << "Attempted to apply header protection without encrypter at level "
-        << EncryptionLevelToString(level) << " using " << version_;
+        << level << " using " << version_;
     return false;
   }
 
@@ -4318,7 +4312,7 @@ bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
     QUIC_DVLOG(1)
         << ENDPOINT
         << "No decrypter available for removing header protection at level "
-        << EncryptionLevelToString(expected_decryption_level);
+        << expected_decryption_level;
     return false;
   }
 
@@ -4439,7 +4433,7 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
   DCHECK(packet_number.IsInitialized());
   if (encrypter_[level] == nullptr) {
     QUIC_BUG << ENDPOINT << "Attempted to encrypt without encrypter at level "
-             << EncryptionLevelToString(level);
+             << level;
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
@@ -4474,7 +4468,7 @@ size_t QuicFramer::GetCiphertextSize(EncryptionLevel level,
   if (encrypter_[level] == nullptr) {
     QUIC_BUG << ENDPOINT
              << "Attempted to get ciphertext size without encrypter at level "
-             << EncryptionLevelToString(level) << " using " << version_;
+             << level << " using " << version_;
     return plaintext_size;
   }
   return encrypter_[level]->GetCiphertextSize(plaintext_size);

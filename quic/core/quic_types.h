@@ -438,6 +438,9 @@ inline bool EncryptionLevelIsValid(EncryptionLevel level) {
 
 QUIC_EXPORT_PRIVATE std::string EncryptionLevelToString(EncryptionLevel level);
 
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             EncryptionLevel level);
+
 // Enumeration of whether a server endpoint will request a client certificate,
 // and whether that endpoint requires a valid client certificate to establish a
 // connection.

@@ -180,8 +180,7 @@ void QuartcSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
       session_delegate_->OnCryptoHandshakeComplete();
       break;
     default:
-      QUIC_BUG << "Unknown encryption level: "
-               << EncryptionLevelToString(level);
+      QUIC_BUG << "Unknown encryption level: " << level;
   }
 }
 

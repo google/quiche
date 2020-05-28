@@ -47,10 +47,10 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       QUIC_BUG
           << "Try to derive long header type for packet with encryption level: "
-          << EncryptionLevelToString(level);
+          << level;
       return INVALID_PACKET_TYPE;
     default:
-      QUIC_BUG << EncryptionLevelToString(level);
+      QUIC_BUG << level;
       return INVALID_PACKET_TYPE;
   }
 }
@@ -741,14 +741,13 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
 
   QUIC_DVLOG(2) << ENDPOINT << "Serializing packet " << header
                 << QuicFramesToString(queued_frames_) << " at encryption_level "
-                << EncryptionLevelToString(packet_.encryption_level);
+                << packet_.encryption_level;
 
   if (!framer_->HasEncrypterOfEncryptionLevel(packet_.encryption_level)) {
     QUIC_BUG << ENDPOINT << "Attempting to serialize " << header
              << QuicFramesToString(queued_frames_)
-             << " at missing encryption_level "
-             << EncryptionLevelToString(packet_.encryption_level) << " using "
-             << framer_->version();
+             << " at missing encryption_level " << packet_.encryption_level
+             << " using " << framer_->version();
     return;
   }
 
@@ -760,8 +759,7 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                packet_size_, packet_.encryption_level);
   if (length == 0) {
     QUIC_BUG << "Failed to serialize " << QuicFramesToString(queued_frames_)
-             << " at encryption_level: "
-             << EncryptionLevelToString(packet_.encryption_level)
+             << " at encryption_level: " << packet_.encryption_level
              << ", needs_full_padding_: " << needs_full_padding_
              << ", packet_.num_padding_bytes: " << packet_.num_padding_bytes
              << ", pending_padding_bytes_: " << pending_padding_bytes_;
@@ -1348,8 +1346,7 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
       // The only pending data in the packet is non-retransmittable frames. I'm
       // assuming here that they won't occupy so much of the packet that a
       // CRYPTO frame won't fit.
-      QUIC_BUG << "Failed to ConsumeCryptoData at level "
-               << EncryptionLevelToString(level);
+      QUIC_BUG << "Failed to ConsumeCryptoData at level " << level;
       return 0;
     }
     total_bytes_consumed += frame.crypto_frame->data_length;

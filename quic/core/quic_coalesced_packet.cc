@@ -61,7 +61,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
     return false;
   }
   QUIC_DVLOG(1) << "Successfully coalesced packet: encryption_level: "
-                << EncryptionLevelToString(packet.encryption_level)
+                << packet.encryption_level
                 << ", encrypted_length: " << packet.encrypted_length
                 << ", current length: " << length_
                 << ", max_packet_length: " << max_packet_length_;

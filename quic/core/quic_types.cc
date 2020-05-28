@@ -277,6 +277,11 @@ std::string EncryptionLevelToString(EncryptionLevel level) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, EncryptionLevel level) {
+  os << EncryptionLevelToString(level);
+  return os;
+}
+
 std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
   switch (type) {
     RETURN_STRING_LITERAL(GOOGLE_QUIC_CONNECTION_CLOSE);

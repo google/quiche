@@ -629,7 +629,7 @@ PacketNumberSpace QuicUtils::GetPacketNumberSpace(
       return APPLICATION_DATA;
     default:
       QUIC_BUG << "Try to get packet number space of encryption level: "
-               << EncryptionLevelToString(encryption_level);
+               << encryption_level;
       return NUM_PACKET_NUMBER_SPACES;
   }
 }
