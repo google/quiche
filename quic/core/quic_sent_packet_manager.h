@@ -652,9 +652,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // If true, use standard deviation (instead of mean deviation) when
   // calculating PTO timeout.
   bool use_standard_deviation_for_pto_;
-
-  const bool avoid_overestimate_bandwidth_with_aggregation_ =
-      GetQuicReloadableFlag(quic_avoid_overestimate_bandwidth_with_aggregation);
 };
 
 }  // namespace quic

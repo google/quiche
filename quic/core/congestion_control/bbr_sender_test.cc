@@ -389,10 +389,7 @@ TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
 
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    SetConnectionOption(kBSAO);
-  }
+  SetConnectionOption(kBSAO);
   CreateDefaultSetup();
   // 2 RTTs of aggregation, with a max of 10kb.
   EnableAggregation(10 * 1024, 2 * kTestRtt);
@@ -401,20 +398,10 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_TRUE(sender_->ExportDebugState().mode == BbrSender::PROBE_BW ||
               sender_->ExportDebugState().mode == BbrSender::PROBE_RTT);
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_APPROX_EQ(kTestLinkBandwidth,
-                     sender_->ExportDebugState().max_bandwidth, 0.01f);
-  } else {
-    // It's possible to read a bandwidth as much as 50% too high with
-    // aggregation.
-    EXPECT_LE(kTestLinkBandwidth * 0.93f,
-              sender_->ExportDebugState().max_bandwidth);
-    // TODO(ianswett): Tighten this bound once we understand why BBR is
-    // overestimating bandwidth with aggregation. b/36022633
-    EXPECT_GE(kTestLinkBandwidth * 1.5f,
-              sender_->ExportDebugState().max_bandwidth);
-  }
+
+  EXPECT_APPROX_EQ(kTestLinkBandwidth,
+                   sender_->ExportDebugState().max_bandwidth, 0.01f);
+
   // The margin here is high, because the aggregation greatly increases
   // smoothed rtt.
   EXPECT_GE(kTestRtt * 4, rtt_stats_->smoothed_rtt());
@@ -423,10 +410,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes) {
 
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    SetConnectionOption(kBSAO);
-  }
+  SetConnectionOption(kBSAO);
   // Decrease the CWND gain so extra CWND is required with stretch acks.
   SetQuicFlag(FLAGS_quic_bbr_cwnd_gain, 1.0);
   sender_ = new BbrSender(
@@ -446,20 +430,9 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
 
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_APPROX_EQ(kTestLinkBandwidth,
-                     sender_->ExportDebugState().max_bandwidth, 0.01f);
-  } else {
-    // It's possible to read a bandwidth as much as 50% too high with
-    // aggregation.
-    EXPECT_LE(kTestLinkBandwidth * 0.93f,
-              sender_->ExportDebugState().max_bandwidth);
-    // TODO(ianswett): Tighten this bound once we understand why BBR is
-    // overestimating bandwidth with aggregation. b/36022633
-    EXPECT_GE(kTestLinkBandwidth * 1.5f,
-              sender_->ExportDebugState().max_bandwidth);
-  }
+  EXPECT_APPROX_EQ(kTestLinkBandwidth,
+                   sender_->ExportDebugState().max_bandwidth, 0.01f);
+
   // TODO(ianswett): Expect 0 packets are lost once BBR no longer measures
   // bandwidth higher than the link rate.
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
@@ -471,10 +444,7 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
 
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    SetConnectionOption(kBSAO);
-  }
+  SetConnectionOption(kBSAO);
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
@@ -486,20 +456,10 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_TRUE(sender_->ExportDebugState().mode == BbrSender::PROBE_BW ||
               sender_->ExportDebugState().mode == BbrSender::PROBE_RTT);
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_APPROX_EQ(kTestLinkBandwidth,
-                     sender_->ExportDebugState().max_bandwidth, 0.01f);
-  } else {
-    // It's possible to read a bandwidth as much as 50% too high with
-    // aggregation.
-    EXPECT_LE(kTestLinkBandwidth * 0.93f,
-              sender_->ExportDebugState().max_bandwidth);
-    // TODO(ianswett): Tighten this bound once we understand why BBR is
-    // overestimating bandwidth with aggregation. b/36022633
-    EXPECT_GE(kTestLinkBandwidth * 1.5f,
-              sender_->ExportDebugState().max_bandwidth);
-  }
+
+  EXPECT_APPROX_EQ(kTestLinkBandwidth,
+                   sender_->ExportDebugState().max_bandwidth, 0.01f);
+
   // TODO(ianswett): Expect 0 packets are lost once BBR no longer measures
   // bandwidth higher than the link rate.
   // The margin here is high, because the aggregation greatly increases
@@ -510,10 +470,7 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
 
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes40RTTWindow) {
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    SetConnectionOption(kBSAO);
-  }
+  SetConnectionOption(kBSAO);
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
@@ -525,20 +482,10 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes40RTTWindow) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
   EXPECT_TRUE(sender_->ExportDebugState().mode == BbrSender::PROBE_BW ||
               sender_->ExportDebugState().mode == BbrSender::PROBE_RTT);
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_APPROX_EQ(kTestLinkBandwidth,
-                     sender_->ExportDebugState().max_bandwidth, 0.01f);
-  } else {
-    // It's possible to read a bandwidth as much as 50% too high with
-    // aggregation.
-    EXPECT_LE(kTestLinkBandwidth * 0.93f,
-              sender_->ExportDebugState().max_bandwidth);
-    // TODO(ianswett): Tighten this bound once we understand why BBR is
-    // overestimating bandwidth with aggregation. b/36022633
-    EXPECT_GE(kTestLinkBandwidth * 1.5f,
-              sender_->ExportDebugState().max_bandwidth);
-  }
+
+  EXPECT_APPROX_EQ(kTestLinkBandwidth,
+                   sender_->ExportDebugState().max_bandwidth, 0.01f);
+
   // TODO(ianswett): Expect 0 packets are lost once BBR no longer measures
   // bandwidth higher than the link rate.
   // The margin here is high, because the aggregation greatly increases

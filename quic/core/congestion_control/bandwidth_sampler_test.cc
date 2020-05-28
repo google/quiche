@@ -34,8 +34,18 @@ const QuicByteCount kRegularPacketSize = 1280;
 static_assert((kRegularPacketSize & 31) == 0,
               "kRegularPacketSize has to be five times divisible by 2");
 
+struct TestParameters {
+  bool overestimate_avoidance;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParameters& p) {
+  return p.overestimate_avoidance ? "enable_overestimate_avoidance"
+                                  : "no_enable_overestimate_avoidance";
+}
+
 // A test fixture with utility methods for BandwidthSampler tests.
-class BandwidthSamplerTest : public QuicTest {
+class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
  protected:
   BandwidthSamplerTest()
       : sampler_(nullptr, /*max_height_tracker_window_length=*/0),
@@ -46,8 +56,7 @@ class BandwidthSamplerTest : public QuicTest {
         round_trip_count_(0) {
     // Ensure that the clock does not start at zero.
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
-    if (GetQuicReloadableFlag(
-            quic_avoid_overestimate_bandwidth_with_aggregation)) {
+    if (GetParam().overestimate_avoidance) {
       sampler_.EnableOverestimateAvoidance();
     }
   }
@@ -170,8 +179,15 @@ class BandwidthSamplerTest : public QuicTest {
   }
 };
 
+INSTANTIATE_TEST_SUITE_P(
+    BandwidthSamplerTests,
+    BandwidthSamplerTest,
+    testing::Values(TestParameters{/*overestimate_avoidance=*/false},
+                    TestParameters{/*overestimate_avoidance=*/true}),
+    testing::PrintToStringParamName());
+
 // Test the sampler in a simple stop-and-wait sender setting.
-TEST_F(BandwidthSamplerTest, SendAndWait) {
+TEST_P(BandwidthSamplerTest, SendAndWait) {
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth expected_bandwidth =
       QuicBandwidth::FromBytesPerSecond(kRegularPacketSize * 100);
@@ -200,7 +216,7 @@ TEST_F(BandwidthSamplerTest, SendAndWait) {
   EXPECT_EQ(0u, bytes_in_flight_);
 }
 
-TEST_F(BandwidthSamplerTest, SendTimeState) {
+TEST_P(BandwidthSamplerTest, SendTimeState) {
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
 
   // Send packets 1-5.
@@ -266,7 +282,7 @@ TEST_F(BandwidthSamplerTest, SendTimeState) {
 
 // Test the sampler during regular windowed sender scenario with fixed
 // CWND of 20.
-TEST_F(BandwidthSamplerTest, SendPaced) {
+TEST_P(BandwidthSamplerTest, SendPaced) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -288,7 +304,7 @@ TEST_F(BandwidthSamplerTest, SendPaced) {
 }
 
 // Test the sampler in a scenario where 50% of packets is consistently lost.
-TEST_F(BandwidthSamplerTest, SendWithLosses) {
+TEST_P(BandwidthSamplerTest, SendWithLosses) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -333,7 +349,7 @@ TEST_F(BandwidthSamplerTest, SendWithLosses) {
 // congestion controlled (specifically, non-retransmittable data is not
 // congestion controlled).  Should be functionally consistent in behavior with
 // the SendWithLosses test.
-TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
+TEST_P(BandwidthSamplerTest, NotCongestionControlled) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -382,7 +398,7 @@ TEST_F(BandwidthSamplerTest, NotCongestionControlled) {
 
 // Simulate a situation where ACKs arrive in burst and earlier than usual, thus
 // producing an ACK rate which is higher than the original send rate.
-TEST_F(BandwidthSamplerTest, CompressedAck) {
+TEST_P(BandwidthSamplerTest, CompressedAck) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -410,7 +426,7 @@ TEST_F(BandwidthSamplerTest, CompressedAck) {
 }
 
 // Tests receiving ACK packets in the reverse order.
-TEST_F(BandwidthSamplerTest, ReorderedAck) {
+TEST_P(BandwidthSamplerTest, ReorderedAck) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -441,7 +457,7 @@ TEST_F(BandwidthSamplerTest, ReorderedAck) {
 }
 
 // Test the app-limited logic.
-TEST_F(BandwidthSamplerTest, AppLimited) {
+TEST_P(BandwidthSamplerTest, AppLimited) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   QuicBandwidth expected_bandwidth =
@@ -508,7 +524,7 @@ TEST_F(BandwidthSamplerTest, AppLimited) {
 }
 
 // Test the samples taken at the first flight of packets sent.
-TEST_F(BandwidthSamplerTest, FirstRoundTrip) {
+TEST_P(BandwidthSamplerTest, FirstRoundTrip) {
   const QuicTime::Delta time_between_packets =
       QuicTime::Delta::FromMilliseconds(1);
   const QuicTime::Delta rtt = QuicTime::Delta::FromMilliseconds(800);
@@ -543,7 +559,7 @@ TEST_F(BandwidthSamplerTest, FirstRoundTrip) {
 }
 
 // Test sampler's ability to remove obsolete packets.
-TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
+TEST_P(BandwidthSamplerTest, RemoveObsoletePackets) {
   SendPacket(1);
   SendPacket(2);
   SendPacket(3);
@@ -566,7 +582,7 @@ TEST_F(BandwidthSamplerTest, RemoveObsoletePackets) {
   EXPECT_EQ(0u, BandwidthSamplerPeer::GetNumberOfTrackedPackets(sampler_));
 }
 
-TEST_F(BandwidthSamplerTest, NeuterPacket) {
+TEST_P(BandwidthSamplerTest, NeuterPacket) {
   SendPacket(1);
   EXPECT_EQ(0u, sampler_.total_bytes_neutered());
 
@@ -589,7 +605,7 @@ TEST_F(BandwidthSamplerTest, NeuterPacket) {
   EXPECT_EQ(0u, sample.extra_acked);
 }
 
-TEST_F(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
+TEST_P(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
   // Make sure a default constructed CongestionEventSample has the correct
   // initial values for BandwidthSampler::OnCongestionEvent() to work.
   BandwidthSampler::CongestionEventSample sample;
@@ -602,7 +618,7 @@ TEST_F(BandwidthSamplerTest, CongestionEventSampleDefaultValues) {
 }
 
 // 1) Send 2 packets, 2) Ack both in 1 event, 3) Repeat.
-TEST_F(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
+TEST_P(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
       kRegularPacketSize, time_between_packets);
@@ -631,7 +647,7 @@ TEST_F(BandwidthSamplerTest, TwoAckedPacketsPerEvent) {
   }
 }
 
-TEST_F(BandwidthSamplerTest, LoseEveryOtherPacket) {
+TEST_P(BandwidthSamplerTest, LoseEveryOtherPacket) {
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth sending_rate = QuicBandwidth::FromBytesAndTimeDelta(
       kRegularPacketSize, time_between_packets);
@@ -663,7 +679,7 @@ TEST_F(BandwidthSamplerTest, LoseEveryOtherPacket) {
   }
 }
 
-TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
+TEST_P(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
   QuicTime::Delta time_between_packets = QuicTime::Delta::FromMilliseconds(10);
   QuicBandwidth first_packet_sending_rate =
       QuicBandwidth::FromBytesAndTimeDelta(kRegularPacketSize,
@@ -693,10 +709,7 @@ TEST_F(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
 class MaxAckHeightTrackerTest : public QuicTest {
  protected:
   MaxAckHeightTrackerTest() : tracker_(/*initial_filter_window=*/10) {
-    if (GetQuicReloadableFlag(
-            quic_avoid_overestimate_bandwidth_with_aggregation)) {
-      tracker_.SetAckAggregationBandwidthThreshold(1.8);
-    }
+    tracker_.SetAckAggregationBandwidthThreshold(1.8);
   }
 
   // Run a full aggregation episode, which is one or more aggregated acks,

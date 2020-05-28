@@ -565,8 +565,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   MaxAckHeightTracker max_ack_height_tracker_;
   QuicByteCount total_bytes_acked_after_last_ack_event_;
 
-  // True if --quic_avoid_overestimate_bandwidth_with_aggregation=true and
-  // connection option 'BSAO' is set.
+  // True if connection option 'BSAO' is set.
   bool overestimate_avoidance_;
 };
 

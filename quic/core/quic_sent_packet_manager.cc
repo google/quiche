@@ -473,11 +473,7 @@ void QuicSentPacketManager::RetransmitZeroRttPackets() {
 void QuicSentPacketManager::NeuterUnencryptedPackets() {
   for (QuicPacketNumber packet_number :
        unacked_packets_.NeuterUnencryptedPackets()) {
-    if (avoid_overestimate_bandwidth_with_aggregation_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_avoid_overestimate_bandwidth_with_aggregation, 1, 4);
-      send_algorithm_->OnPacketNeutered(packet_number);
-    }
+    send_algorithm_->OnPacketNeutered(packet_number);
   }
   if (handshake_mode_disabled_) {
     consecutive_pto_count_ = 0;
@@ -488,11 +484,7 @@ void QuicSentPacketManager::NeuterUnencryptedPackets() {
 void QuicSentPacketManager::NeuterHandshakePackets() {
   for (QuicPacketNumber packet_number :
        unacked_packets_.NeuterHandshakePackets()) {
-    if (avoid_overestimate_bandwidth_with_aggregation_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_avoid_overestimate_bandwidth_with_aggregation, 2, 4);
-      send_algorithm_->OnPacketNeutered(packet_number);
-    }
+    send_algorithm_->OnPacketNeutered(packet_number);
   }
   if (handshake_mode_disabled_) {
     consecutive_pto_count_ = 0;

@@ -95,11 +95,7 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
     params_.flexible_app_limited = true;
   }
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation) &&
-      config.HasClientRequestedIndependentOption(kBSAO, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_avoid_overestimate_bandwidth_with_aggregation, 4, 4);
+  if (config.HasClientRequestedIndependentOption(kBSAO, perspective)) {
     model_.EnableOverestimateAvoidance();
   }
   if (config.HasClientRequestedIndependentOption(kB2NA, perspective)) {

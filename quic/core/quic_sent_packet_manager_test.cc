@@ -3758,11 +3758,7 @@ TEST_F(QuicSentPacketManagerTest, SetHandshakeConfirmed) {
             return true;
           }));
 
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(2)))
-        .Times(1);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(2))).Times(1);
   manager_.SetHandshakeConfirmed();
 }
 
@@ -3776,11 +3772,8 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
       .WillOnce(Return(false))
       .WillOnce(Return(true));
   EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(false));
-  if (GetQuicReloadableFlag(
-          quic_avoid_overestimate_bandwidth_with_aggregation)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
-        .Times(1);
-  }
+
+  EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1))).Times(1);
   manager_.NeuterUnencryptedPackets();
 }
 
