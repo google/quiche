@@ -37,6 +37,12 @@ class QuicTcpLikeTraceConverter {
 
   ~QuicTcpLikeTraceConverter() {}
 
+  // Called when a crypto frame is sent. Returns the corresponding connection
+  // offsets.
+  QuicIntervalSet<uint64_t> OnCryptoFrameSent(EncryptionLevel level,
+                                              QuicStreamOffset offset,
+                                              QuicByteCount data_length);
+
   // Called when a stream frame is sent. Returns the corresponding connection
   // offsets.
   QuicIntervalSet<uint64_t> OnStreamFrameSent(QuicStreamId stream_id,
@@ -59,6 +65,14 @@ class QuicTcpLikeTraceConverter {
     bool fin;
   };
 
+  // Called when frame with |offset|, |data_length| and |fin| has been sent.
+  // Update |info| and returns connection offsets.
+  QuicIntervalSet<uint64_t> OnFrameSent(QuicStreamOffset offset,
+                                        QuicByteCount data_length,
+                                        bool fin,
+                                        StreamInfo* info);
+
+  StreamInfo crypto_frames_info_[NUM_ENCRYPTION_LEVELS];
   QuicHashMap<QuicStreamId, StreamInfo> streams_info_;
   QuicHashMap<QuicControlFrameId, QuicInterval<uint64_t>> control_frames_info_;
 

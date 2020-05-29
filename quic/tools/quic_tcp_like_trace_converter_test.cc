@@ -98,6 +98,27 @@ TEST(QuicTcpLikeTraceConverterTest, FuzzerTest) {
   EXPECT_EQ(expected, converter.OnStreamFrameSent(1, 50, 600, false));
 }
 
+TEST(QuicTcpLikeTraceConverterTest, OnCryptoFrameSent) {
+  QuicTcpLikeTraceConverter converter;
+
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(0, 100),
+            converter.OnCryptoFrameSent(ENCRYPTION_INITIAL, 0, 100));
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(100, 200),
+            converter.OnStreamFrameSent(1, 0, 100, false));
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(200, 300),
+            converter.OnStreamFrameSent(1, 100, 100, false));
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(300, 400),
+            converter.OnCryptoFrameSent(ENCRYPTION_HANDSHAKE, 0, 100));
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(400, 500),
+            converter.OnCryptoFrameSent(ENCRYPTION_HANDSHAKE, 100, 100));
+
+  // Verify crypto frame retransmission works as intended.
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(0, 100),
+            converter.OnCryptoFrameSent(ENCRYPTION_INITIAL, 0, 100));
+  EXPECT_EQ(QuicIntervalSet<uint64_t>(400, 500),
+            converter.OnCryptoFrameSent(ENCRYPTION_HANDSHAKE, 100, 100));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

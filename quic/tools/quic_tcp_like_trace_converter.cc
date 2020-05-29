@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/tools/quic_tcp_like_trace_converter.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
 
@@ -24,20 +25,40 @@ QuicTcpLikeTraceConverter::StreamOffsetSegment::StreamOffsetSegment(
 
 QuicTcpLikeTraceConverter::StreamInfo::StreamInfo() : fin(false) {}
 
+QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnCryptoFrameSent(
+    EncryptionLevel level,
+    QuicStreamOffset offset,
+    QuicByteCount data_length) {
+  if (level >= NUM_ENCRYPTION_LEVELS) {
+    QUIC_BUG << "Invalid encryption level";
+    return {};
+  }
+  return OnFrameSent(offset, data_length, /*fin=*/false,
+                     &crypto_frames_info_[level]);
+}
+
 QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnStreamFrameSent(
     QuicStreamId stream_id,
     QuicStreamOffset offset,
     QuicByteCount data_length,
     bool fin) {
+  return OnFrameSent(
+      offset, data_length, fin,
+      &streams_info_.emplace(stream_id, StreamInfo()).first->second);
+}
+
+QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnFrameSent(
+    QuicStreamOffset offset,
+    QuicByteCount data_length,
+    bool fin,
+    StreamInfo* info) {
   QuicIntervalSet<uint64_t> connection_offsets;
   if (fin) {
     // Stream fin consumes a connection offset.
     ++data_length;
   }
-  StreamInfo* stream_info =
-      &streams_info_.emplace(stream_id, StreamInfo()).first->second;
   // Get connection offsets of retransmission data in this frame.
-  for (const auto& segment : stream_info->segments) {
+  for (const auto& segment : info->segments) {
     QuicInterval<QuicStreamOffset> retransmission(offset, offset + data_length);
     retransmission.IntersectWith(segment.stream_data);
     if (retransmission.Empty()) {
@@ -50,15 +71,13 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnStreamFrameSent(
                            connection_offset + retransmission.Length());
   }
 
-  if (stream_info->fin) {
+  if (info->fin) {
     return connection_offsets;
   }
 
   // Get connection offsets of new data in this frame.
   QuicStreamOffset least_unsent_offset =
-      stream_info->segments.empty()
-          ? 0
-          : stream_info->segments.back().stream_data.max();
+      info->segments.empty() ? 0 : info->segments.back().stream_data.max();
   if (least_unsent_offset >= offset + data_length) {
     return connection_offsets;
   }
@@ -68,20 +87,17 @@ QuicIntervalSet<uint64_t> QuicTcpLikeTraceConverter::OnStreamFrameSent(
   QuicByteCount new_data_length = offset + data_length - new_data_offset;
   connection_offsets.Add(connection_offset_,
                          connection_offset_ + new_data_length);
-  if (!stream_info->segments.empty() &&
-      new_data_offset == least_unsent_offset &&
-      connection_offset_ ==
-          stream_info->segments.back().connection_offset +
-              stream_info->segments.back().stream_data.Length()) {
+  if (!info->segments.empty() && new_data_offset == least_unsent_offset &&
+      connection_offset_ == info->segments.back().connection_offset +
+                                info->segments.back().stream_data.Length()) {
     // Extend the last segment if both stream and connection offsets are
     // contiguous.
-    stream_info->segments.back().stream_data.SetMax(new_data_offset +
-                                                    new_data_length);
+    info->segments.back().stream_data.SetMax(new_data_offset + new_data_length);
   } else {
-    stream_info->segments.emplace_back(new_data_offset, connection_offset_,
-                                       new_data_length);
+    info->segments.emplace_back(new_data_offset, connection_offset_,
+                                new_data_length);
   }
-  stream_info->fin = fin;
+  info->fin = fin;
   connection_offset_ += new_data_length;
 
   return connection_offsets;
