@@ -638,12 +638,11 @@ bool QuicVersionLabelUses4BitConnectionIdLength(
 }
 
 ParsedQuicVersion UnsupportedQuicVersion() {
-  return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+  return ParsedQuicVersion::Unsupported();
 }
 
 ParsedQuicVersion QuicVersionReservedForNegotiation() {
-  return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
-                           QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
+  return ParsedQuicVersion::ReservedForNegotiation();
 }
 
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {

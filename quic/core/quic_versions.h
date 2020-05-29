@@ -250,6 +250,51 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
            transport_version != other.transport_version;
   }
 
+  static constexpr ParsedQuicVersion Draft28() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28);
+  }
+
+  static constexpr ParsedQuicVersion Draft27() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27);
+  }
+
+  static constexpr ParsedQuicVersion Draft25() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25);
+  }
+
+  static constexpr ParsedQuicVersion T050() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50);
+  }
+
+  static constexpr ParsedQuicVersion Q050() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50);
+  }
+
+  static constexpr ParsedQuicVersion Q049() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49);
+  }
+
+  static constexpr ParsedQuicVersion Q048() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48);
+  }
+
+  static constexpr ParsedQuicVersion Q046() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46);
+  }
+
+  static constexpr ParsedQuicVersion Q043() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43);
+  }
+
+  static constexpr ParsedQuicVersion Unsupported() {
+    return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+  }
+
+  static constexpr ParsedQuicVersion ReservedForNegotiation() {
+    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
+                             QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
+  }
+
   // Returns whether our codebase understands this version. This should only be
   // called on valid versions, see ParsedQuicVersionIsValid. Assuming the
   // version is valid, IsKnown returns whether the version is not
@@ -379,15 +424,11 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
 
 constexpr std::array<ParsedQuicVersion, 9> SupportedVersions() {
   return {
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_49),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_48),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46),
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43),
+      ParsedQuicVersion::Draft28(), ParsedQuicVersion::Draft27(),
+      ParsedQuicVersion::Draft25(), ParsedQuicVersion::T050(),
+      ParsedQuicVersion::Q050(),    ParsedQuicVersion::Q049(),
+      ParsedQuicVersion::Q048(),    ParsedQuicVersion::Q046(),
+      ParsedQuicVersion::Q043(),
   };
 }
 

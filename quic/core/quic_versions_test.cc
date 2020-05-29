@@ -84,10 +84,8 @@ TEST_F(QuicVersionsTest, KnownAndValid) {
 }
 
 TEST_F(QuicVersionsTest, Features) {
-  ParsedQuicVersion parsed_version_q043 =
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43);
-  ParsedQuicVersion parsed_version_draft_27 =
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27);
+  ParsedQuicVersion parsed_version_q043 = ParsedQuicVersion::Q043();
+  ParsedQuicVersion parsed_version_draft_27 = ParsedQuicVersion::Draft27();
 
   EXPECT_TRUE(parsed_version_q043.IsKnown());
   EXPECT_FALSE(parsed_version_q043.KnowsWhichDecrypterToUse());
