@@ -4,9 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/uber_loss_algorithm.h"
 
+#include <memory>
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
+#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
@@ -202,6 +205,137 @@ TEST_F(UberLossAlgorithmTest, PacketInLimbo) {
       APPLICATION_DATA, QuicPacketNumber(6));
   // Verify packet 2 is detected lost.
   VerifyLosses(6, packets_acked_, std::vector<uint64_t>{2});
+}
+
+class TestLossTuner : public LossDetectionTunerInterface {
+ public:
+  TestLossTuner(bool forced_start_result,
+                LossDetectionParameters forced_parameters)
+      : forced_start_result_(forced_start_result),
+        forced_parameters_(std::move(forced_parameters)) {}
+
+  ~TestLossTuner() override = default;
+
+  bool Start(LossDetectionParameters* params) override {
+    start_called_ = true;
+    *params = forced_parameters_;
+    return forced_start_result_;
+  }
+
+  void Finish(const LossDetectionParameters& /*params*/) override {}
+
+  bool start_called() const { return start_called_; }
+
+ private:
+  bool forced_start_result_;
+  LossDetectionParameters forced_parameters_;
+  bool start_called_ = false;
+};
+
+// Verify the parameters are changed if first call SetFromConfig(), then call
+// OnMinRttAvailable().
+TEST_F(UberLossAlgorithmTest, LossDetectionTuning_SetFromConfigFirst) {
+  const int old_reordering_shift = loss_algorithm_.GetPacketReorderingShift();
+  const QuicPacketCount old_reordering_threshold =
+      loss_algorithm_.GetPacketReorderingThreshold();
+
+  // Not owned.
+  TestLossTuner* test_tuner = new TestLossTuner(
+      /*forced_start_result=*/true,
+      LossDetectionParameters{
+          /*reordering_shift=*/old_reordering_shift + 1,
+          /*reordering_threshold=*/old_reordering_threshold * 2});
+  loss_algorithm_.SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface>(test_tuner));
+
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kELDT);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  loss_algorithm_.SetFromConfig(config, Perspective::IS_SERVER);
+
+  // MinRtt was not available when SetFromConfig was called.
+  EXPECT_FALSE(test_tuner->start_called());
+  EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_EQ(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
+
+  // Tuning should start when MinRtt becomes available.
+  loss_algorithm_.OnMinRttAvailable();
+  EXPECT_TRUE(test_tuner->start_called());
+  EXPECT_NE(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_NE(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
+}
+
+// Verify the parameters are changed if first call OnMinRttAvailable(), then
+// call SetFromConfig().
+TEST_F(UberLossAlgorithmTest, LossDetectionTuning_OnMinRttAvailableFirst) {
+  const int old_reordering_shift = loss_algorithm_.GetPacketReorderingShift();
+  const QuicPacketCount old_reordering_threshold =
+      loss_algorithm_.GetPacketReorderingThreshold();
+
+  // Not owned.
+  TestLossTuner* test_tuner = new TestLossTuner(
+      /*forced_start_result=*/true,
+      LossDetectionParameters{
+          /*reordering_shift=*/old_reordering_shift + 1,
+          /*reordering_threshold=*/old_reordering_threshold * 2});
+  loss_algorithm_.SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface>(test_tuner));
+
+  loss_algorithm_.OnMinRttAvailable();
+  EXPECT_FALSE(test_tuner->start_called());
+  EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_EQ(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
+
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kELDT);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  // Should start tuning since MinRtt is available.
+  loss_algorithm_.SetFromConfig(config, Perspective::IS_SERVER);
+
+  EXPECT_TRUE(test_tuner->start_called());
+  EXPECT_NE(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_NE(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
+}
+
+// Verify the parameters are not changed if Tuner.Start() returns false.
+TEST_F(UberLossAlgorithmTest, LossDetectionTuning_StartFailed) {
+  const int old_reordering_shift = loss_algorithm_.GetPacketReorderingShift();
+  const QuicPacketCount old_reordering_threshold =
+      loss_algorithm_.GetPacketReorderingThreshold();
+
+  // Not owned.
+  TestLossTuner* test_tuner = new TestLossTuner(
+      /*forced_start_result=*/false,
+      LossDetectionParameters{
+          /*reordering_shift=*/old_reordering_shift + 1,
+          /*reordering_threshold=*/old_reordering_threshold * 2});
+  loss_algorithm_.SetLossDetectionTuner(
+      std::unique_ptr<LossDetectionTunerInterface>(test_tuner));
+
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kELDT);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  loss_algorithm_.SetFromConfig(config, Perspective::IS_SERVER);
+
+  // MinRtt was not available when SetFromConfig was called.
+  EXPECT_FALSE(test_tuner->start_called());
+  EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_EQ(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
+
+  // Parameters should not change since test_tuner->Start() returns false.
+  loss_algorithm_.OnMinRttAvailable();
+  EXPECT_TRUE(test_tuner->start_called());
+  EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
+  EXPECT_EQ(old_reordering_threshold,
+            loss_algorithm_.GetPacketReorderingThreshold());
 }
 
 }  // namespace

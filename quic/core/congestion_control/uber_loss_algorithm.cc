@@ -103,6 +103,21 @@ void UberLossAlgorithm::MaybeStartTuning() {
   }
 
   tuner_started_ = tuner_->Start(&tuned_parameters_);
+  if (!tuner_started_) {
+    return;
+  }
+
+  if (tuned_parameters_.reordering_shift.has_value() &&
+      tuned_parameters_.reordering_threshold.has_value()) {
+    QUIC_DLOG(INFO) << "Setting reordering shift to "
+                    << *tuned_parameters_.reordering_shift
+                    << ", and reordering threshold to "
+                    << *tuned_parameters_.reordering_threshold;
+    SetReorderingShift(*tuned_parameters_.reordering_shift);
+    SetReorderingThreshold(*tuned_parameters_.reordering_threshold);
+  } else {
+    QUIC_BUG << "Tuner started but some parameters are missing";
+  }
 }
 
 void UberLossAlgorithm::OnConfigNegotiated() {}
@@ -151,6 +166,10 @@ void UberLossAlgorithm::EnableAdaptiveTimeThreshold() {
 
 QuicPacketCount UberLossAlgorithm::GetPacketReorderingThreshold() const {
   return general_loss_algorithms_[APPLICATION_DATA].reordering_threshold();
+}
+
+int UberLossAlgorithm::GetPacketReorderingShift() const {
+  return general_loss_algorithms_[APPLICATION_DATA].reordering_shift();
 }
 
 void UberLossAlgorithm::DisablePacketThresholdForRuntPackets() {

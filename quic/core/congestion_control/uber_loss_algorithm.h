@@ -93,11 +93,24 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   // Always 3 when adaptive reordering is not enabled.
   QuicPacketCount GetPacketReorderingThreshold() const;
 
+  // Get the packet reordering shift from the APPLICATION_DATA PN space.
+  int GetPacketReorderingShift() const;
+
   // Disable packet threshold loss detection for *runt* packets.
   void DisablePacketThresholdForRuntPackets();
 
   // Called to reset loss detection of |space|.
   void ResetLossDetection(PacketNumberSpace space);
+
+  bool use_adaptive_reordering_threshold() const {
+    return general_loss_algorithms_[APPLICATION_DATA]
+        .use_adaptive_reordering_threshold();
+  }
+
+  bool use_adaptive_time_threshold() const {
+    return general_loss_algorithms_[APPLICATION_DATA]
+        .use_adaptive_time_threshold();
+  }
 
  private:
   friend class test::QuicSentPacketManagerPeer;
