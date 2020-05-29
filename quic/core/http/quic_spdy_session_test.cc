@@ -2988,6 +2988,26 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
   }
 }
 
+TEST_P(QuicSpdySessionTestServer,
+       H3ControlStreamsLimitedByConnectionFlowControl) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  // Ensure connection level flow control blockage.
+  QuicFlowControllerPeer::SetSendWindowOffset(session_.flow_controller(), 0);
+  EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());
+
+  QuicSendControlStream* send_control_stream =
+      QuicSpdySessionPeer::GetSendControlStream(&session_);
+  // Mark send_control stream write blocked.
+  session_.MarkConnectionLevelWriteBlocked(send_control_stream->id());
+  if (GetQuicReloadableFlag(quic_fix_willing_and_able_to_write)) {
+    EXPECT_FALSE(session_.WillingAndAbleToWrite());
+  } else {
+    EXPECT_TRUE(session_.WillingAndAbleToWrite());
+  }
+}
+
 TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   if (!VersionUsesHttp3(transport_version())) {
     return;

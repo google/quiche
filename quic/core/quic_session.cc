@@ -663,11 +663,26 @@ bool QuicSession::WillingAndAbleToWrite() const {
       HasPendingHandshake()) {
     return true;
   }
-  return control_frame_manager_.WillingToWrite() ||
-         !streams_with_pending_retransmission_.empty() ||
-         write_blocked_streams_.HasWriteBlockedSpecialStream() ||
-         (!flow_controller_.IsBlocked() &&
-          write_blocked_streams_.HasWriteBlockedDataStreams());
+  if (control_frame_manager_.WillingToWrite() ||
+      !streams_with_pending_retransmission_.empty()) {
+    return true;
+  }
+  if (!GetQuicReloadableFlag(quic_fix_willing_and_able_to_write)) {
+    return write_blocked_streams_.HasWriteBlockedSpecialStream() ||
+           (!flow_controller_.IsBlocked() &&
+            write_blocked_streams_.HasWriteBlockedDataStreams());
+  }
+  QUIC_RELOADABLE_FLAG_COUNT(quic_fix_willing_and_able_to_write);
+  if (flow_controller_.IsBlocked()) {
+    if (VersionUsesHttp3(transport_version())) {
+      return false;
+    }
+    // Crypto and headers streams are not blocked by connection level flow
+    // control.
+    return write_blocked_streams_.HasWriteBlockedSpecialStream();
+  }
+  return write_blocked_streams_.HasWriteBlockedSpecialStream() ||
+         write_blocked_streams_.HasWriteBlockedDataStreams();
 }
 
 bool QuicSession::HasPendingHandshake() const {
