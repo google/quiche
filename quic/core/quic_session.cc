@@ -1623,6 +1623,16 @@ void QuicSession::OnZeroRttRejected() {
 }
 
 bool QuicSession::FillTransportParameters(TransportParameters* params) {
+  if (version().AuthenticatesHandshakeConnectionIds()) {
+    if (perspective() == Perspective::IS_SERVER) {
+      config_.SetOriginalConnectionIdToSend(
+          connection_->GetOriginalDestinationConnectionId());
+      config_.SetInitialSourceConnectionIdToSend(connection_->connection_id());
+    } else {
+      config_.SetInitialSourceConnectionIdToSend(
+          connection_->client_connection_id());
+    }
+  }
   return config_.FillTransportParameters(params);
 }
 

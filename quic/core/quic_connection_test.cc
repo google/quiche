@@ -1774,8 +1774,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   void TestClientRetryHandling(bool invalid_retry_tag,
-                               bool missing_id_in_config,
-                               bool wrong_id_in_config);
+                               bool missing_original_id_in_config,
+                               bool wrong_original_id_in_config,
+                               bool missing_retry_id_in_config,
+                               bool wrong_retry_id_in_config);
 
   QuicConnectionId connection_id_;
   QuicFramer framer_;
@@ -4309,6 +4311,12 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   options.push_back(kTLPR);
   config.SetConnectionOptionsToSend(options);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   connection_.SetFromConfig(config);
   connection_.SetMaxTailLossProbes(1);
 
@@ -5791,6 +5799,12 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_THAT(error, IsQuicNoError());
 
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   connection_.SetFromConfig(config);
 
   const QuicTime::Delta default_idle_timeout =
@@ -5937,6 +5951,12 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_THAT(error, IsQuicNoError());
 
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   connection_.SetFromConfig(config);
 
   const QuicTime::Delta default_idle_timeout =
@@ -6101,6 +6121,12 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   connection_.SetFromConfig(config);
 
   // Send stream data.
@@ -9901,6 +9927,12 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   connection_options.push_back(k6PTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9942,6 +9974,12 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   connection_options.push_back(k7PTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
@@ -9981,6 +10019,12 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   connection_options.push_back(k2PTO);
   connection_options.push_back(k8PTO);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
@@ -10385,14 +10429,20 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
 }
 
-void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
-                                                 bool missing_id_in_config,
-                                                 bool wrong_id_in_config) {
+void QuicConnectionTest::TestClientRetryHandling(
+    bool invalid_retry_tag,
+    bool missing_original_id_in_config,
+    bool wrong_original_id_in_config,
+    bool missing_retry_id_in_config,
+    bool wrong_retry_id_in_config) {
   if (invalid_retry_tag) {
-    ASSERT_FALSE(missing_id_in_config);
-    ASSERT_FALSE(wrong_id_in_config);
+    ASSERT_FALSE(missing_original_id_in_config);
+    ASSERT_FALSE(wrong_original_id_in_config);
+    ASSERT_FALSE(missing_retry_id_in_config);
+    ASSERT_FALSE(wrong_retry_id_in_config);
   } else {
-    ASSERT_FALSE(missing_id_in_config && wrong_id_in_config);
+    ASSERT_FALSE(missing_original_id_in_config && wrong_original_id_in_config);
+    ASSERT_FALSE(missing_retry_id_in_config && wrong_retry_id_in_config);
   }
   if (!version().HasRetryIntegrityTag()) {
     return;
@@ -10454,10 +10504,16 @@ void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
   }
 
   QuicConnectionId config_original_connection_id = original_connection_id;
-  if (wrong_id_in_config) {
+  if (wrong_original_id_in_config) {
     // Flip the first bit of the connection ID.
     ASSERT_FALSE(config_original_connection_id.IsEmpty());
     config_original_connection_id.mutable_data()[0] ^= 0x80;
+  }
+  QuicConnectionId config_retry_source_connection_id = new_connection_id;
+  if (wrong_retry_id_in_config) {
+    // Flip the first bit of the connection ID.
+    ASSERT_FALSE(config_retry_source_connection_id.IsEmpty());
+    config_retry_source_connection_id.mutable_data()[0] ^= 0x80;
   }
 
   // Make sure the connection uses the connection ID from the test vectors,
@@ -10491,11 +10547,21 @@ void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
   // Test validating the original_connection_id from the config.
   QuicConfig received_config;
   QuicConfigPeer::SetNegotiated(&received_config, true);
-  if (!missing_id_in_config) {
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &received_config, connection_.connection_id());
+    if (!missing_retry_id_in_config) {
+      QuicConfigPeer::SetReceivedRetrySourceConnectionId(
+          &received_config, config_retry_source_connection_id);
+    }
+  }
+  if (!missing_original_id_in_config) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &received_config, config_original_connection_id);
   }
-  if (missing_id_in_config || wrong_id_in_config) {
+
+  if (missing_original_id_in_config || wrong_original_id_in_config ||
+      missing_retry_id_in_config || wrong_retry_id_in_config) {
     EXPECT_CALL(visitor_,
                 OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
         .Times(1);
@@ -10506,8 +10572,9 @@ void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
   connection_.SetFromConfig(received_config);
-  if (missing_id_in_config || wrong_id_in_config) {
-    EXPECT_FALSE(connection_.connected());
+  if (missing_original_id_in_config || wrong_original_id_in_config ||
+      missing_retry_id_in_config || wrong_retry_id_in_config) {
+    ASSERT_FALSE(connection_.connected());
     TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
   } else {
     EXPECT_TRUE(connection_.connected());
@@ -10516,35 +10583,98 @@ void QuicConnectionTest::TestClientRetryHandling(bool invalid_retry_tag,
 
 TEST_P(QuicConnectionTest, ClientParsesRetry) {
   TestClientRetryHandling(/*invalid_retry_tag=*/false,
-                          /*missing_id_in_config=*/false,
-                          /*wrong_id_in_config=*/false);
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
 }
 
-TEST_P(QuicConnectionTest, ClientParsesInvalidRetry) {
+TEST_P(QuicConnectionTest, ClientParsesRetryInvalidTag) {
   TestClientRetryHandling(/*invalid_retry_tag=*/true,
-                          /*missing_id_in_config=*/false,
-                          /*wrong_id_in_config=*/false);
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
 }
 
-TEST_P(QuicConnectionTest, ClientParsesRetryMissingId) {
+TEST_P(QuicConnectionTest, ClientParsesRetryMissingOriginalId) {
   TestClientRetryHandling(/*invalid_retry_tag=*/false,
-                          /*missing_id_in_config=*/true,
-                          /*wrong_id_in_config=*/false);
+                          /*missing_original_id_in_config=*/true,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
 }
 
-TEST_P(QuicConnectionTest, ClientParsesRetryWrongId) {
+TEST_P(QuicConnectionTest, ClientParsesRetryWrongOriginalId) {
   TestClientRetryHandling(/*invalid_retry_tag=*/false,
-                          /*missing_id_in_config=*/false,
-                          /*wrong_id_in_config=*/true);
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/true,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetryMissingRetryId) {
+  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    // Versions that do not authenticate connection IDs never send the
+    // retry_source_connection_id transport parameter.
+    return;
+  }
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/true,
+                          /*wrong_retry_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, ClientParsesRetryWrongRetryId) {
+  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    // Versions that do not authenticate connection IDs never send the
+    // retry_source_connection_id transport parameter.
+    return;
+  }
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/true);
 }
 
 TEST_P(QuicConnectionTest, ClientReceivesOriginalConnectionIdWithoutRetry) {
-  // Make sure that receiving the original_connection_id transport parameter
-  // fails the handshake when no RETRY packet was received before it.
+  if (!connection_.version().UsesTls()) {
+    // QUIC+TLS is required to transmit connection ID transport parameters.
+    return;
+  }
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    // Versions that authenticate connection IDs always send the
+    // original_destination_connection_id transport parameter.
+    return;
+  }
+  // Make sure that receiving the original_destination_connection_id transport
+  // parameter fails the handshake when no RETRY packet was received before it.
   QuicConfig received_config;
   QuicConfigPeer::SetNegotiated(&received_config, true);
   QuicConfigPeer::SetReceivedOriginalConnectionId(&received_config,
                                                   TestConnectionId(0x12345));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(1);
+  connection_.SetFromConfig(received_config);
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
+TEST_P(QuicConnectionTest, ClientReceivesRetrySourceConnectionIdWithoutRetry) {
+  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    // Versions that do not authenticate connection IDs never send the
+    // retry_source_connection_id transport parameter.
+    return;
+  }
+  // Make sure that receiving the retry_source_connection_id transport parameter
+  // fails the handshake when no RETRY packet was received before it.
+  QuicConfig received_config;
+  QuicConfigPeer::SetNegotiated(&received_config, true);
+  QuicConfigPeer::SetReceivedRetrySourceConnectionId(&received_config,
+                                                     TestConnectionId(0x12345));
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _)).Times(AnyNumber());
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);

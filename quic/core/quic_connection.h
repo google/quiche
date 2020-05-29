@@ -952,6 +952,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetOriginalDestinationConnectionId(
       const QuicConnectionId& original_destination_connection_id);
 
+  // Returns the original destination connection ID used for this connection.
+  QuicConnectionId GetOriginalDestinationConnectionId();
+
   // Called when ACK alarm goes off. Sends ACKs of those packet number spaces
   // which have expired ACK timeout. Only used when this connection supports
   // multiple packet number spaces.
@@ -1303,6 +1306,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicTime::Delta GetHandshakeTimeout() const;
   QuicTime GetTimeOfLastReceivedPacket() const;
 
+  // Validate connection IDs used during the handshake. Closes the connection
+  // on validation failure.
+  bool ValidateConfigConnectionIds(const QuicConfig& config);
+  bool ValidateConfigConnectionIdsOld(const QuicConfig& config);
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1619,10 +1627,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // vector to improve performance since it is expected to be very small.
   std::vector<QuicConnectionId> incoming_connection_ids_;
 
-  // When we receive a RETRY packet, we replace |server_connection_id_| with the
-  // value from the RETRY packet and save off the original value of
-  // |server_connection_id_| into |original_connection_id_| for validation.
-  quiche::QuicheOptional<QuicConnectionId> original_connection_id_;
+  // When we receive a RETRY packet or some INITIAL packets, we replace
+  // |server_connection_id_| with the value from that packet and save off the
+  // original value of |server_connection_id_| into
+  // |original_destination_connection_id_| for validation.
+  quiche::QuicheOptional<QuicConnectionId> original_destination_connection_id_;
+
+  // After we receive a RETRY packet, |retry_source_connection_id_| contains
+  // the source connection ID from that packet.
+  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id_;
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_;

@@ -91,6 +91,17 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
+    if (session()->version().AuthenticatesHandshakeConnectionIds()) {
+      if (session()->perspective() == Perspective::IS_CLIENT) {
+        session()->config()->SetOriginalConnectionIdToSend(
+            session()->connection()->connection_id());
+        session()->config()->SetInitialSourceConnectionIdToSend(
+            session()->connection()->connection_id());
+      } else {
+        session()->config()->SetInitialSourceConnectionIdToSend(
+            session()->connection()->client_connection_id());
+      }
+    }
     if (session()->connection()->version().handshake_protocol ==
         PROTOCOL_TLS1_3) {
       TransportParameters transport_parameters;

@@ -20,6 +20,7 @@ Queue::Queue(Simulator* simulator, std::string name, QuicByteCount capacity)
       aggregation_timeout_(QuicTime::Delta::Infinite()),
       current_bundle_(0),
       current_bundle_bytes_(0),
+      tx_port_(nullptr),
       listener_(nullptr) {
   aggregation_timeout_alarm_.reset(simulator_->GetAlarmFactory()->CreateAlarm(
       new AggregationAlarmDelegate(this)));
@@ -116,7 +117,12 @@ void Queue::ScheduleNextPacketDequeue() {
     return;
   }
 
-  Schedule(clock_->Now() + tx_port_->TimeUntilAvailable());
+  QuicTime::Delta time_until_available = QuicTime::Delta::Zero();
+  if (tx_port_) {
+    time_until_available = tx_port_->TimeUntilAvailable();
+  }
+
+  Schedule(clock_->Now() + time_until_available);
 }
 
 }  // namespace simulator

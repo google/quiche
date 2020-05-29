@@ -402,6 +402,141 @@ void QuicConnection::ClearQueuedPackets() {
   buffered_packets_.clear();
 }
 
+bool QuicConnection::ValidateConfigConnectionIdsOld(const QuicConfig& config) {
+  // This function validates connection IDs as defined in IETF draft-27 and
+  // earlier.
+  DCHECK(config.negotiated());
+  DCHECK(!version().AuthenticatesHandshakeConnectionIds());
+  if (original_destination_connection_id_.has_value() &&
+      retry_source_connection_id_.has_value()) {
+    DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+    // We received a RETRY packet, validate that the original destination
+    // connection ID from the config matches the one from the RETRY.
+    if (!config.HasReceivedOriginalConnectionId() ||
+        config.ReceivedOriginalConnectionId() !=
+            original_destination_connection_id_.value()) {
+      std::string received_value;
+      if (config.HasReceivedOriginalConnectionId()) {
+        received_value = config.ReceivedOriginalConnectionId().ToString();
+      } else {
+        received_value = "none";
+      }
+      std::string error_details = quiche::QuicheStrCat(
+          "Bad original_connection_id: expected ",
+          original_destination_connection_id_.value().ToString(), ", received ",
+          received_value, ", RETRY used ", server_connection_id_.ToString());
+      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+  } else {
+    // We did not receive a RETRY packet, make sure we did not receive the
+    // original_destination_connection_id transport parameter.
+    if (config.HasReceivedOriginalConnectionId()) {
+      std::string error_details = quiche::QuicheStrCat(
+          "Bad original_connection_id: did not receive RETRY but received ",
+          config.ReceivedOriginalConnectionId().ToString());
+      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+  }
+  return true;
+}
+
+bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
+  DCHECK(config.negotiated());
+  if (!version().UsesTls()) {
+    // QUIC+TLS is required to transmit connection ID transport parameters.
+    return true;
+  }
+  if (!version().AuthenticatesHandshakeConnectionIds()) {
+    return ValidateConfigConnectionIdsOld(config);
+  }
+  // This function validates connection IDs as defined in IETF draft-28 and
+  // later.
+
+  // Validate initial_source_connection_id.
+  QuicConnectionId expected_initial_source_connection_id;
+  if (perspective_ == Perspective::IS_CLIENT) {
+    expected_initial_source_connection_id = server_connection_id_;
+  } else {
+    expected_initial_source_connection_id = client_connection_id_;
+  }
+  if (!config.HasReceivedInitialSourceConnectionId() ||
+      config.ReceivedInitialSourceConnectionId() !=
+          expected_initial_source_connection_id) {
+    std::string received_value;
+    if (config.HasReceivedInitialSourceConnectionId()) {
+      received_value = config.ReceivedInitialSourceConnectionId().ToString();
+    } else {
+      received_value = "none";
+    }
+    std::string error_details =
+        quiche::QuicheStrCat("Bad initial_source_connection_id: expected ",
+                             expected_initial_source_connection_id.ToString(),
+                             ", received ", received_value);
+    CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+  if (perspective_ == Perspective::IS_CLIENT) {
+    // Validate original_destination_connection_id.
+    if (!config.HasReceivedOriginalConnectionId() ||
+        config.ReceivedOriginalConnectionId() !=
+            GetOriginalDestinationConnectionId()) {
+      std::string received_value;
+      if (config.HasReceivedOriginalConnectionId()) {
+        received_value = config.ReceivedOriginalConnectionId().ToString();
+      } else {
+        received_value = "none";
+      }
+      std::string error_details = quiche::QuicheStrCat(
+          "Bad original_destination_connection_id: expected ",
+          GetOriginalDestinationConnectionId().ToString(), ", received ",
+          received_value);
+      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+    // Validate retry_source_connection_id.
+    if (retry_source_connection_id_.has_value()) {
+      // We received a RETRY packet, validate that the retry source
+      // connection ID from the config matches the one from the RETRY.
+      if (!config.HasReceivedRetrySourceConnectionId() ||
+          config.ReceivedRetrySourceConnectionId() !=
+              retry_source_connection_id_.value()) {
+        std::string received_value;
+        if (config.HasReceivedRetrySourceConnectionId()) {
+          received_value = config.ReceivedRetrySourceConnectionId().ToString();
+        } else {
+          received_value = "none";
+        }
+        std::string error_details =
+            quiche::QuicheStrCat("Bad retry_source_connection_id: expected ",
+                                 retry_source_connection_id_.value().ToString(),
+                                 ", received ", received_value);
+        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return false;
+      }
+    } else {
+      // We did not receive a RETRY packet, make sure we did not receive the
+      // retry_source_connection_id transport parameter.
+      if (config.HasReceivedRetrySourceConnectionId()) {
+        std::string error_details = quiche::QuicheStrCat(
+            "Bad retry_source_connection_id: did not receive RETRY but "
+            "received ",
+            config.ReceivedRetrySourceConnectionId().ToString());
+        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.negotiated()) {
     // Handshake complete, set handshake timeout to Infinite.
@@ -409,38 +544,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                        config.IdleNetworkTimeout());
     idle_timeout_connection_close_behavior_ =
         ConnectionCloseBehavior::SILENT_CLOSE;
-    if (original_connection_id_.has_value()) {
-      DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-      // We received a RETRY packet, validate that the |original_connection_id|
-      // from the config matches the one from the RETRY.
-      if (!config.HasReceivedOriginalConnectionId() ||
-          config.ReceivedOriginalConnectionId() !=
-              original_connection_id_.value()) {
-        std::string received_value;
-        if (config.HasReceivedOriginalConnectionId()) {
-          received_value = config.ReceivedOriginalConnectionId().ToString();
-        } else {
-          received_value = "none";
-        }
-        std::string error_details = quiche::QuicheStrCat(
-            "Bad original_connection_id: expected ",
-            original_connection_id_.value().ToString(), ", received ",
-            received_value, ", RETRY used ", server_connection_id_.ToString());
-        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return;
-      }
-    } else {
-      // We did not receive a RETRY packet, make sure we did not receive the
-      // original_connection_id transport parameter.
-      if (config.HasReceivedOriginalConnectionId()) {
-        std::string error_details = quiche::QuicheStrCat(
-            "Bad original_connection_id: did not receive RETRY but received ",
-            config.ReceivedOriginalConnectionId().ToString());
-        CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return;
-      }
+    if (!ValidateConfigConnectionIds(config)) {
+      return;
     }
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
@@ -719,8 +824,12 @@ void QuicConnection::OnRetryPacket(
                   << server_connection_id_ << " with " << new_connection_id
                   << ", received token "
                   << quiche::QuicheTextUtils::HexEncode(retry_token);
-  DCHECK(!original_connection_id_.has_value());
-  original_connection_id_ = server_connection_id_;
+  if (!original_destination_connection_id_.has_value()) {
+    original_destination_connection_id_ = server_connection_id_;
+  }
+  DCHECK(!retry_source_connection_id_.has_value())
+      << retry_source_connection_id_.value();
+  retry_source_connection_id_ = new_connection_id;
   server_connection_id_ = new_connection_id;
   packet_creator_.SetServerConnectionId(server_connection_id_);
   packet_creator_.SetRetryToken(retry_token);
@@ -741,11 +850,25 @@ bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
 
 void QuicConnection::SetOriginalDestinationConnectionId(
     const QuicConnectionId& original_destination_connection_id) {
+  QUIC_DLOG(INFO) << "Setting original_destination_connection_id to "
+                  << original_destination_connection_id
+                  << " on connection with server_connection_id "
+                  << server_connection_id_;
   DCHECK_NE(original_destination_connection_id, server_connection_id_);
   if (!HasIncomingConnectionId(original_destination_connection_id)) {
     incoming_connection_ids_.push_back(original_destination_connection_id);
   }
   InstallInitialCrypters(original_destination_connection_id);
+  DCHECK(!original_destination_connection_id_.has_value())
+      << original_destination_connection_id_.value();
+  original_destination_connection_id_ = original_destination_connection_id;
+}
+
+QuicConnectionId QuicConnection::GetOriginalDestinationConnectionId() {
+  if (original_destination_connection_id_.has_value()) {
+    return original_destination_connection_id_.value();
+  }
+  return server_connection_id_;
 }
 
 bool QuicConnection::OnUnauthenticatedPublicHeader(
@@ -2068,6 +2191,9 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
     QUIC_DLOG(INFO) << ENDPOINT << "Replacing connection ID "
                     << server_connection_id_ << " with "
                     << header.source_connection_id;
+    if (!original_destination_connection_id_.has_value()) {
+      original_destination_connection_id_ = server_connection_id_;
+    }
     server_connection_id_ = header.source_connection_id;
     packet_creator_.SetServerConnectionId(server_connection_id_);
   }
