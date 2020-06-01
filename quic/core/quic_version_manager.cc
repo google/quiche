@@ -22,7 +22,7 @@ QuicVersionManager::QuicVersionManager(
       enable_version_draft_25_(
           GetQuicReloadableFlag(quic_enable_version_draft_25_v3)),
       disable_version_q050_(GetQuicReloadableFlag(quic_disable_version_q050)),
-      enable_version_t050_(GetQuicReloadableFlag(quic_enable_version_t050_v2)),
+      disable_version_t050_(GetQuicReloadableFlag(quic_disable_version_t050)),
       disable_version_q049_(GetQuicReloadableFlag(quic_disable_version_q049)),
       disable_version_q048_(GetQuicReloadableFlag(quic_disable_version_q048)),
       disable_version_q046_(GetQuicReloadableFlag(quic_disable_version_q046)),
@@ -68,8 +68,8 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
           GetQuicReloadableFlag(quic_enable_version_draft_25_v3) ||
       disable_version_q050_ !=
           GetQuicReloadableFlag(quic_disable_version_q050) ||
-      enable_version_t050_ !=
-          GetQuicReloadableFlag(quic_enable_version_t050_v2) ||
+      disable_version_t050_ !=
+          GetQuicReloadableFlag(quic_disable_version_t050) ||
       disable_version_q049_ !=
           GetQuicReloadableFlag(quic_disable_version_q049) ||
       disable_version_q048_ !=
@@ -85,7 +85,7 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
     enable_version_draft_25_ =
         GetQuicReloadableFlag(quic_enable_version_draft_25_v3);
     disable_version_q050_ = GetQuicReloadableFlag(quic_disable_version_q050);
-    enable_version_t050_ = GetQuicReloadableFlag(quic_enable_version_t050_v2);
+    disable_version_t050_ = GetQuicReloadableFlag(quic_disable_version_t050);
     disable_version_q049_ = GetQuicReloadableFlag(quic_disable_version_q049);
     disable_version_q048_ = GetQuicReloadableFlag(quic_disable_version_q048);
     disable_version_q046_ = GetQuicReloadableFlag(quic_disable_version_q046);

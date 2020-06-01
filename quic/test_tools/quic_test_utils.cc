@@ -844,7 +844,7 @@ void DisableQuicVersionsWithTls() {
   SetQuicReloadableFlag(quic_enable_version_draft_28, false);
   SetQuicReloadableFlag(quic_enable_version_draft_27, false);
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
-  SetQuicReloadableFlag(quic_enable_version_t050_v2, false);
+  SetQuicReloadableFlag(quic_disable_version_t050, true);
 }
 
 QuicEncryptedPacket* ConstructEncryptedPacket(

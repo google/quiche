@@ -424,7 +424,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
           filtered_versions.push_back(version);
         }
       } else {
-        if (GetQuicReloadableFlag(quic_enable_version_t050_v2)) {
+        if (!GetQuicReloadableFlag(quic_disable_version_t050)) {
           filtered_versions.push_back(version);
         }
       }
@@ -678,7 +678,7 @@ void QuicEnableVersion(ParsedQuicVersion parsed_version) {
     if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
       SetQuicReloadableFlag(quic_disable_version_q050, false);
     } else {
-      SetQuicReloadableFlag(quic_enable_version_t050_v2, true);
+      SetQuicReloadableFlag(quic_disable_version_t050, false);
     }
   } else if (parsed_version.transport_version == QUIC_VERSION_49) {
     SetQuicReloadableFlag(quic_disable_version_q049, false);
