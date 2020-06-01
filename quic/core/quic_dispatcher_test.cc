@@ -1244,55 +1244,6 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEnd) {
       destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
 }
 
-TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTestOld) {
-  if (GetQuicReloadableFlag(quic_remove_android_conformance_test_workaround)) {
-    // TODO(b/139691956) Remove this test once the flag is deprecated.
-    return;
-  }
-  SavingWriter* saving_writer = new SavingWriter();
-  // dispatcher_ takes ownership of saving_writer.
-  QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
-
-  QuicTimeWaitListManager* time_wait_list_manager = new QuicTimeWaitListManager(
-      saving_writer, dispatcher_.get(), mock_helper_.GetClock(),
-      &mock_alarm_factory_);
-  // dispatcher_ takes ownership of time_wait_list_manager.
-  QuicDispatcherPeer::SetTimeWaitListManager(dispatcher_.get(),
-                                             time_wait_list_manager);
-  // clang-format off
-  static const unsigned char packet[] = {
-    // Android UDP network conformance test packet as it was before this change:
-    // https://android-review.googlesource.com/c/platform/cts/+/1104285
-    0x0c,  // public flags: 8-byte connection ID, 1-byte packet number
-    0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,  // 8-byte connection ID
-    0x01,  // 1-byte packet number
-    0x00,  // private flags
-    0x07,  // PING frame
-  };
-  // clang-format on
-
-  QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
-                                sizeof(packet), false);
-  std::unique_ptr<QuicReceivedPacket> received_packet(
-      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _)).Times(0);
-
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
-  ASSERT_EQ(1u, saving_writer->packets()->size());
-
-  // The Android UDP network conformance test directly checks that bytes 1-9
-  // of the response match the connection ID that was sent.
-  static const char connection_id_bytes[] = {0x71, 0x72, 0x73, 0x74,
-                                             0x75, 0x76, 0x77, 0x78};
-  ASSERT_GE((*(saving_writer->packets()))[0]->length(),
-            1u + sizeof(connection_id_bytes));
-  quiche::test::CompareCharArraysWithHexError(
-      "response connection ID", &(*(saving_writer->packets()))[0]->data()[1],
-      sizeof(connection_id_bytes), connection_id_bytes,
-      sizeof(connection_id_bytes));
-}
-
 TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTest) {
   // WARNING: do not remove or modify this test without making sure that we
   // still have adequate coverage for the Android conformance test.
