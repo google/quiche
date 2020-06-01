@@ -2134,9 +2134,6 @@ TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
 
 // Regression test for b/150161358.
 TEST_P(QuicConnectionTest, BufferedMtuPacketTooBig) {
-  if (!GetQuicReloadableFlag(quic_ignore_msg_too_big_from_buffered_packets)) {
-    return;
-  }
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(1);
   writer_->SetWriteBlocked();
 
