@@ -491,8 +491,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // uses TLS handshake.
   virtual void OnAlpnSelected(quiche::QuicheStringPiece alpn);
 
-  bool break_close_loop() const { return break_close_loop_; }
-
   // Called on clients by the crypto handshaker to provide application state
   // necessary for sending application data in 0-RTT. The state provided here is
   // the same state that was provided to the crypto handshaker in
@@ -556,11 +554,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Returns the maximum bidirectional streams parameter sent with the handshake
   // as a transport parameter, or in the most recent MAX_STREAMS frame.
   QuicStreamCount GetAdvertisedMaxIncomingBidirectionalStreams() const;
-
-  // Performs the work required to close |stream_id|.  If |rst_sent| then a
-  // Reset Stream frame has already been sent for this stream.
-  // TODO(fayang): Remove CloseStreamInner.
-  virtual void CloseStreamInner(QuicStreamId stream_id, bool rst_sent);
 
   // When a stream is closed locally, it may not yet know how many bytes the
   // peer sent on that stream.
@@ -856,9 +849,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // If true, enables round robin scheduling.
   bool enable_round_robin_scheduling_;
-
-  // Latched value of quic_break_session_stream_close_loop.
-  const bool break_close_loop_;
 };
 
 }  // namespace quic

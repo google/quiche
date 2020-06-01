@@ -580,14 +580,12 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
   stream_error_ = error;
   session()->SendRstStream(id(), error, stream_bytes_written());
   rst_sent_ = true;
-  if (session_->break_close_loop()) {
-    if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
-      session()->OnStreamDoneWaitingForAcks(id_);
-      return;
-    }
-    CloseReadSide();
-    CloseWriteSide();
+  if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
+    session()->OnStreamDoneWaitingForAcks(id_);
+    return;
   }
+  CloseReadSide();
+  CloseWriteSide();
 }
 
 void QuicStream::OnUnrecoverableError(QuicErrorCode error,
@@ -779,12 +777,8 @@ void QuicStream::CloseReadSide() {
 
   if (write_side_closed_) {
     QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << id();
-    if (session_->break_close_loop()) {
-      session_->OnStreamClosed(id());
-      OnClose();
-    } else {
-      session_->CloseStream(id());
-    }
+    session_->OnStreamClosed(id());
+    OnClose();
   }
 }
 
@@ -797,12 +791,8 @@ void QuicStream::CloseWriteSide() {
   write_side_closed_ = true;
   if (read_side_closed_) {
     QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << id();
-    if (session_->break_close_loop()) {
-      session_->OnStreamClosed(id());
-      OnClose();
-    } else {
-      session_->CloseStream(id());
-    }
+    session_->OnStreamClosed(id());
+    OnClose();
   }
 }
 
@@ -825,12 +815,7 @@ void QuicStream::StopReading() {
 }
 
 void QuicStream::OnClose() {
-  if (session()->break_close_loop()) {
-    DCHECK(read_side_closed_ && write_side_closed_);
-  } else {
-    CloseReadSide();
-    CloseWriteSide();
-  }
+  DCHECK(read_side_closed_ && write_side_closed_);
 
   if (!fin_sent_ && !rst_sent_) {
     // For flow control accounting, tell the peer how many bytes have been

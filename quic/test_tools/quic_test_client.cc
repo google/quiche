@@ -389,13 +389,8 @@ ssize_t QuicTestClient::SendRequestAndRstTogether(const std::string& uri) {
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalStreamId(
       session->transport_version(), 0);
   QuicStream* stream = session->GetOrCreateStream(stream_id);
-  if (session->break_close_loop()) {
-    session->ResetStream(stream_id, QUIC_STREAM_CANCELLED,
-                         stream->stream_bytes_written());
-  } else {
-    session->SendRstStream(stream_id, QUIC_STREAM_CANCELLED,
-                           stream->stream_bytes_written());
-  }
+  session->ResetStream(stream_id, QUIC_STREAM_CANCELLED,
+                       stream->stream_bytes_written());
   return ret;
 }
 

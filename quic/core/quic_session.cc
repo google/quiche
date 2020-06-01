@@ -100,9 +100,7 @@ QuicSession::QuicSession(
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),
       is_configured_(false),
-      enable_round_robin_scheduling_(false),
-      break_close_loop_(
-          GetQuicReloadableFlag(quic_break_session_stream_close_loop)) {
+      enable_round_robin_scheduling_(false) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -114,9 +112,6 @@ QuicSession::QuicSession(
     config_.SetMaxUnidirectionalStreamsToSend(
         config_.GetMaxUnidirectionalStreamsToSend() +
         num_expected_unidirectional_static_streams);
-  }
-  if (break_close_loop_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_break_session_stream_close_loop);
   }
 }
 
@@ -776,22 +771,11 @@ void QuicSession::SendRstStream(QuicStreamId id,
 
     connection_->OnStreamReset(id, error);
   }
-
-  if (break_close_loop_) {
-    return;
-  }
-
-  if (error != QUIC_STREAM_NO_ERROR && QuicContainsKey(zombie_streams_, id)) {
-    OnStreamDoneWaitingForAcks(id);
-    return;
-  }
-  CloseStreamInner(id, true);
 }
 
 void QuicSession::ResetStream(QuicStreamId id,
                               QuicRstStreamErrorCode error,
                               QuicStreamOffset bytes_written) {
-  DCHECK(break_close_loop_);
   QuicStream* stream = GetStream(id);
   if (stream != nullptr && stream->is_static()) {
     connection()->CloseConnection(
@@ -867,24 +851,11 @@ void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
 }
 
 void QuicSession::CloseStream(QuicStreamId stream_id) {
-  CloseStreamInner(stream_id, false);
-}
-
-void QuicSession::InsertLocallyClosedStreamsHighestOffset(
-    const QuicStreamId id,
-    QuicStreamOffset offset) {
-  locally_closed_streams_highest_offset_[id] = offset;
-  if (IsIncomingStream(id)) {
-    ++num_locally_closed_incoming_streams_highest_offset_;
-  }
-}
-
-void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
 
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    // When CloseStreamInner has been called recursively (via
+    // When CloseStream has been called recursively (via
     // QuicStream::OnClose), the stream will already have been deleted
     // from stream_map_, so return immediately.
     QUIC_DVLOG(1) << ENDPOINT << "Stream is already closed: " << stream_id;
@@ -900,81 +871,21 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  if (break_close_loop_) {
-    stream->CloseReadSide();
-    stream->CloseWriteSide();
-    return;
-  }
-  StreamType type = stream->type();
+  stream->CloseReadSide();
+  stream->CloseWriteSide();
+}
 
-  // Tell the stream that a RST has been sent.
-  if (rst_sent) {
-    stream->set_rst_sent(true);
-  }
-
-  if (stream->IsWaitingForAcks()) {
-    zombie_streams_[stream->id()] = std::move(it->second);
-  } else {
-    // Clean up the stream since it is no longer waiting for acks.
-    streams_waiting_for_acks_.erase(stream->id());
-    closed_streams_.push_back(std::move(it->second));
-    // Do not retransmit data of a closed stream.
-    streams_with_pending_retransmission_.erase(stream_id);
-    if (!closed_streams_clean_up_alarm_->IsSet()) {
-      closed_streams_clean_up_alarm_->Set(
-          connection_->clock()->ApproximateNow());
-    }
-  }
-
-  // If we haven't received a FIN or RST for this stream, we need to keep track
-  // of the how many bytes the stream's flow controller believes it has
-  // received, for accurate connection level flow control accounting.
-  const bool had_fin_or_rst = stream->HasReceivedFinalOffset();
-  if (!had_fin_or_rst) {
-    InsertLocallyClosedStreamsHighestOffset(
-        stream_id, stream->flow_controller()->highest_received_byte_offset());
-  }
-  const bool stream_was_draining = stream->was_draining();
-  QUIC_DVLOG_IF(1, stream_was_draining)
-      << ENDPOINT << "Stream " << stream_id << " was draining";
-  stream_map_.erase(it);
-  if (IsIncomingStream(stream_id)) {
-    --num_dynamic_incoming_streams_;
-  }
-  if (stream_was_draining) {
-    if (IsIncomingStream(stream_id)) {
-      QUIC_BUG_IF(num_draining_incoming_streams_ == 0);
-      --num_draining_incoming_streams_;
-    } else {
-      QUIC_BUG_IF(num_draining_outgoing_streams_ == 0);
-      --num_draining_outgoing_streams_;
-    }
-  } else if (VersionHasIetfQuicFrames(transport_version())) {
-    // Stream was not draining, but we did have a fin or rst, so we can now
-    // free the stream ID if version 99.
-    if (had_fin_or_rst && connection_->connected()) {
-      // Do not bother informing stream ID manager if connection is closed.
-      v99_streamid_manager_.OnStreamClosed(stream_id);
-    }
-  } else if (stream_id_manager_.handles_accounting() && had_fin_or_rst &&
-             connection_->connected()) {
-    stream_id_manager_.OnStreamClosed(
-        /*is_incoming=*/IsIncomingStream(stream_id));
-  }
-
-  stream->OnClose();
-
-  if (!stream_was_draining && !IsIncomingStream(stream_id) && had_fin_or_rst &&
-      !VersionHasIetfQuicFrames(transport_version())) {
-    // Streams that first became draining already called OnCanCreate...
-    // This covers the case where the stream went directly to being closed.
-    OnCanCreateNewOutgoingStream(type != BIDIRECTIONAL);
+void QuicSession::InsertLocallyClosedStreamsHighestOffset(
+    const QuicStreamId id,
+    QuicStreamOffset offset) {
+  locally_closed_streams_highest_offset_[id] = offset;
+  if (IsIncomingStream(id)) {
+    ++num_locally_closed_incoming_streams_highest_offset_;
   }
 }
 
 void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream: " << stream_id;
-  DCHECK(break_close_loop_);
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
     QUIC_DVLOG(1) << ENDPOINT << "Stream is already closed: " << stream_id;
@@ -1780,11 +1691,7 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
     if (!stream_id_manager_.CanOpenIncomingStream(
             GetNumOpenIncomingStreams())) {
       // Refuse to open the stream.
-      if (break_close_loop_) {
-        ResetStream(stream_id, QUIC_REFUSED_STREAM, 0);
-      } else {
-        SendRstStream(stream_id, QUIC_REFUSED_STREAM, 0);
-      }
+      ResetStream(stream_id, QUIC_REFUSED_STREAM, 0);
       return nullptr;
     }
   }
