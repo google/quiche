@@ -539,8 +539,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // If initialized, reset this stream at this deadline.
   QuicTime deadline_;
 
-  // True if this stream has entered draining state. Only used when
-  // quic_deprecate_draining_streams is true.
+  // True if this stream has entered draining state.
   bool was_draining_;
 
   // Indicates whether this stream is bidirectional, read unidirectional or

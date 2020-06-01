@@ -101,8 +101,6 @@ QuicSession::QuicSession(
       use_http2_priority_write_scheduler_(false),
       is_configured_(false),
       enable_round_robin_scheduling_(false),
-      deprecate_draining_streams_(
-          GetQuicReloadableFlag(quic_deprecate_draining_streams)),
       break_close_loop_(
           GetQuicReloadableFlag(quic_break_session_stream_close_loop)) {
   closed_streams_clean_up_alarm_ =
@@ -936,29 +934,21 @@ void QuicSession::CloseStreamInner(QuicStreamId stream_id, bool rst_sent) {
     InsertLocallyClosedStreamsHighestOffset(
         stream_id, stream->flow_controller()->highest_received_byte_offset());
   }
-  bool stream_was_draining = false;
-  if (deprecate_draining_streams_) {
-    stream_was_draining = stream->was_draining();
-    QUIC_DVLOG_IF(1, stream_was_draining)
-        << ENDPOINT << "Stream " << stream_id << " was draining";
-  }
+  const bool stream_was_draining = stream->was_draining();
+  QUIC_DVLOG_IF(1, stream_was_draining)
+      << ENDPOINT << "Stream " << stream_id << " was draining";
   stream_map_.erase(it);
   if (IsIncomingStream(stream_id)) {
     --num_dynamic_incoming_streams_;
-  }
-  if (!deprecate_draining_streams_) {
-    stream_was_draining =
-        draining_streams_.find(stream_id) != draining_streams_.end();
   }
   if (stream_was_draining) {
     if (IsIncomingStream(stream_id)) {
       QUIC_BUG_IF(num_draining_incoming_streams_ == 0);
       --num_draining_incoming_streams_;
-    } else if (deprecate_draining_streams_) {
+    } else {
       QUIC_BUG_IF(num_draining_outgoing_streams_ == 0);
       --num_draining_outgoing_streams_;
     }
-    draining_streams_.erase(stream_id);
   } else if (VersionHasIetfQuicFrames(transport_version())) {
     // Stream was not draining, but we did have a fin or rst, so we can now
     // free the stream ID if version 99.
@@ -1023,29 +1013,21 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     return;
   }
 
-  bool stream_was_draining = false;
-  if (deprecate_draining_streams_) {
-    stream_was_draining = stream->was_draining();
-    QUIC_DVLOG_IF(1, stream_was_draining)
-        << ENDPOINT << "Stream " << stream_id << " was draining";
-  }
+  const bool stream_was_draining = stream->was_draining();
+  QUIC_DVLOG_IF(1, stream_was_draining)
+      << ENDPOINT << "Stream " << stream_id << " was draining";
   stream_map_.erase(it);
   if (IsIncomingStream(stream_id)) {
     --num_dynamic_incoming_streams_;
-  }
-  if (!deprecate_draining_streams_) {
-    stream_was_draining =
-        draining_streams_.find(stream_id) != draining_streams_.end();
   }
   if (stream_was_draining) {
     if (IsIncomingStream(stream_id)) {
       QUIC_BUG_IF(num_draining_incoming_streams_ == 0);
       --num_draining_incoming_streams_;
-    } else if (deprecate_draining_streams_) {
+    } else {
       QUIC_BUG_IF(num_draining_outgoing_streams_ == 0);
       --num_draining_outgoing_streams_;
     }
-    draining_streams_.erase(stream_id);
     // Stream Id manager has been informed with draining streams.
     return;
   }
@@ -1812,49 +1794,19 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
 
 void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
   DCHECK(QuicContainsKey(stream_map_, stream_id));
-  if (deprecate_draining_streams_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_deprecate_draining_streams);
-    QUIC_DVLOG(1) << ENDPOINT << "Stream " << stream_id << " is draining";
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      v99_streamid_manager_.OnStreamClosed(stream_id);
-    } else if (stream_id_manager_.handles_accounting()) {
-      stream_id_manager_.OnStreamClosed(
-          /*is_incoming=*/IsIncomingStream(stream_id));
-    }
-    if (IsIncomingStream(stream_id)) {
-      ++num_draining_incoming_streams_;
-      return;
-    }
-    ++num_draining_outgoing_streams_;
-    OnCanCreateNewOutgoingStream(unidirectional);
+  QUIC_DVLOG(1) << ENDPOINT << "Stream " << stream_id << " is draining";
+  if (VersionHasIetfQuicFrames(transport_version())) {
+    v99_streamid_manager_.OnStreamClosed(stream_id);
+  } else if (stream_id_manager_.handles_accounting()) {
+    stream_id_manager_.OnStreamClosed(
+        /*is_incoming=*/IsIncomingStream(stream_id));
+  }
+  if (IsIncomingStream(stream_id)) {
+    ++num_draining_incoming_streams_;
     return;
   }
-  if (!QuicContainsKey(draining_streams_, stream_id)) {
-    draining_streams_.insert(stream_id);
-    if (IsIncomingStream(stream_id)) {
-      ++num_draining_incoming_streams_;
-    }
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      v99_streamid_manager_.OnStreamClosed(stream_id);
-    } else if (stream_id_manager_.handles_accounting()) {
-      stream_id_manager_.OnStreamClosed(
-          /*is_incoming=*/IsIncomingStream(stream_id));
-    }
-  }
-  if (!IsIncomingStream(stream_id)) {
-    // Inform application that a stream is available.
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      OnCanCreateNewOutgoingStream(
-          !QuicUtils::IsBidirectionalStreamId(stream_id));
-    } else {
-      QuicStream* stream = GetStream(stream_id);
-      if (!stream) {
-        QUIC_BUG << "Stream doesn't exist when draining.";
-        return;
-      }
-      OnCanCreateNewOutgoingStream(stream->type() != BIDIRECTIONAL);
-    }
-  }
+  ++num_draining_outgoing_streams_;
+  OnCanCreateNewOutgoingStream(unidirectional);
 }
 
 bool QuicSession::MaybeIncreaseLargestPeerStreamId(
@@ -2007,10 +1959,7 @@ size_t QuicSession::GetNumActiveStreams() const {
 }
 
 size_t QuicSession::GetNumDrainingStreams() const {
-  if (deprecate_draining_streams_) {
-    return num_draining_incoming_streams_ + num_draining_outgoing_streams_;
-  }
-  return draining_streams_.size();
+  return num_draining_incoming_streams_ + num_draining_outgoing_streams_;
 }
 
 void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
@@ -2052,11 +2001,7 @@ size_t QuicSession::GetNumDynamicOutgoingStreams() const {
 }
 
 size_t QuicSession::GetNumDrainingOutgoingStreams() const {
-  if (deprecate_draining_streams_) {
-    return num_draining_outgoing_streams_;
-  }
-  DCHECK_GE(draining_streams_.size(), num_draining_incoming_streams_);
-  return draining_streams_.size() - num_draining_incoming_streams_;
+  return num_draining_outgoing_streams_;
 }
 
 size_t QuicSession::GetNumLocallyClosedOutgoingStreamsHighestOffset() const {

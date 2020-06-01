@@ -491,10 +491,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // uses TLS handshake.
   virtual void OnAlpnSelected(quiche::QuicheStringPiece alpn);
 
-  bool deprecate_draining_streams() const {
-    return deprecate_draining_streams_;
-  }
-
   bool break_close_loop() const { return break_close_loop_; }
 
   // Called on clients by the crypto handshaker to provide application state
@@ -772,13 +768,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // which are waiting for the first byte of payload to arrive.
   PendingStreamMap pending_stream_map_;
 
-  // Set of stream ids that are "draining" -- a FIN has been sent and received,
-  // but the stream object still exists because not all the received data has
-  // been consumed.
-  // TODO(fayang): Remove draining_streams_ when deprecate
-  // quic_deprecate_draining_streams.
-  QuicHashSet<QuicStreamId> draining_streams_;
-
   // Set of stream ids that are waiting for acks excluding crypto stream id.
   QuicHashSet<QuicStreamId> streams_waiting_for_acks_;
 
@@ -802,8 +791,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   size_t num_draining_incoming_streams_;
 
   // A counter for self initiated streams which have sent and received FIN but
-  // waiting for application to consume data. Only used when
-  // deprecate_draining_streams_ is true.
+  // waiting for application to consume data.
   // TODO(fayang): Remove this when deprecating
   // quic_stream_id_manager_handles_accounting.
   size_t num_draining_outgoing_streams_;
@@ -868,9 +856,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // If true, enables round robin scheduling.
   bool enable_round_robin_scheduling_;
-
-  // Latched value of quic_deprecate_draining_streams.
-  const bool deprecate_draining_streams_;
 
   // Latched value of quic_break_session_stream_close_loop.
   const bool break_close_loop_;

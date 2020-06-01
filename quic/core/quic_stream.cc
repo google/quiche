@@ -432,15 +432,13 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
     return;
   }
 
-  if (frame.fin) {
-    if (!session_->deprecate_draining_streams() || !fin_received_) {
-      fin_received_ = true;
-      if (fin_sent_) {
-        DCHECK(!was_draining_ || !session_->deprecate_draining_streams());
-        session_->StreamDraining(id_,
-                                 /*unidirectional=*/type_ != BIDIRECTIONAL);
-        was_draining_ = true;
-      }
+  if (frame.fin && !fin_received_) {
+    fin_received_ = true;
+    if (fin_sent_) {
+      DCHECK(!was_draining_);
+      session_->StreamDraining(id_,
+                               /*unidirectional=*/type_ != BIDIRECTIONAL);
+      was_draining_ = true;
     }
   }
 
