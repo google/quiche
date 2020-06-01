@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/core/tls_server_handshaker.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
@@ -51,6 +52,9 @@ test::QuicTestMemSliceVector CreateMemSliceVector(
 
 class QuartcSessionTest : public QuicTest {
  public:
+  QuartcSessionTest() {
+    SetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value, true);
+  }
   ~QuartcSessionTest() override {}
 
   void Init(bool create_client_endpoint = true) {
