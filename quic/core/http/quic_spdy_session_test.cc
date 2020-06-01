@@ -240,7 +240,7 @@ class TestSession : public QuicSpdySession {
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
     if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
-        GetNumOpenIncomingStreams() + 1 >
+        stream_id_manager().num_open_incoming_streams() + 1 >
             max_open_incoming_bidirectional_streams()) {
       connection()->CloseConnection(
           QUIC_TOO_MANY_OPEN_STREAMS, "Too many streams!",

@@ -29,11 +29,10 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
   ~LegacyQuicStreamIdManager();
 
   // Returns true if the next outgoing stream ID can be allocated.
-  bool CanOpenNextOutgoingStream(
-      size_t current_num_open_outgoing_streams) const;
+  bool CanOpenNextOutgoingStream() const;
 
   // Returns true if a new incoming stream can be opened.
-  bool CanOpenIncomingStream(size_t current_num_open_incoming_streams) const;
+  bool CanOpenIncomingStream() const;
 
   // Returns false when increasing the largest created stream id to |id| would
   // violate the limit, so the connection should be closed.
@@ -95,8 +94,6 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
     return num_open_outgoing_streams_;
   }
 
-  bool handles_accounting() const { return handles_accounting_; }
-
  private:
   friend class test::QuicSessionPeer;
 
@@ -118,16 +115,11 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
 
   QuicStreamId largest_peer_created_stream_id_;
 
-  // A counter for peer initiated open streams. Used when handles_accounting_ is
-  // true.
+  // A counter for peer initiated open streams.
   size_t num_open_incoming_streams_;
 
-  // A counter for self initiated open streams. Used when handles_accounting_ is
-  // true.
+  // A counter for self initiated open streams.
   size_t num_open_outgoing_streams_;
-
-  // Latched value of quic_stream_id_manager_handles_accounting.
-  const bool handles_accounting_;
 };
 
 }  // namespace quic

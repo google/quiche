@@ -3307,7 +3307,9 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
   // though more resources need to be pushed.
   if (!version_.HasIetfQuicFrames()) {
     server_thread_->Pause();
-    EXPECT_EQ(kNumMaxStreams, GetServerSession()->GetNumOpenOutgoingStreams());
+    EXPECT_EQ(kNumMaxStreams,
+              QuicSessionPeer::GetStreamIdManager(GetServerSession())
+                  ->num_open_outgoing_streams());
     server_thread_->Resume();
   }
 

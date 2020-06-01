@@ -230,7 +230,7 @@ class TestSession : public QuicSession {
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
     if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
-        GetNumOpenIncomingStreams() + 1 >
+        stream_id_manager().num_open_incoming_streams() + 1 >
             max_open_incoming_bidirectional_streams()) {
       // No need to do this test for version 99; it's done by
       // QuicSession::GetOrCreateStream.

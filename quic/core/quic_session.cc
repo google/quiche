@@ -73,12 +73,10 @@ QuicSession::QuicSession(
                             config_.GetMaxBidirectionalStreamsToSend(),
                             config_.GetMaxUnidirectionalStreamsToSend() +
                                 num_expected_unidirectional_static_streams),
-      num_dynamic_incoming_streams_(0),
       num_draining_incoming_streams_(0),
       num_draining_outgoing_streams_(0),
       num_outgoing_static_streams_(0),
       num_incoming_static_streams_(0),
-      num_locally_closed_incoming_streams_highest_offset_(0),
       flow_controller_(
           this,
           QuicUtils::GetInvalidStreamId(connection->transport_version()),
@@ -137,16 +135,6 @@ void QuicSession::Initialize() {
 
 QuicSession::~QuicSession() {
   QUIC_LOG_IF(WARNING, !zombie_streams_.empty()) << "Still have zombie streams";
-  QUIC_LOG_IF(WARNING, num_locally_closed_incoming_streams_highest_offset() >
-                           stream_id_manager_.max_open_incoming_streams())
-      << "Surprisingly high number of locally closed peer initiated streams"
-         "still waiting for final byte offset: "
-      << num_locally_closed_incoming_streams_highest_offset();
-  QUIC_LOG_IF(WARNING, GetNumLocallyClosedOutgoingStreamsHighestOffset() >
-                           stream_id_manager_.max_open_outgoing_streams())
-      << "Surprisingly high number of locally closed self initiated streams"
-         "still waiting for final byte offset: "
-      << GetNumLocallyClosedOutgoingStreamsHighestOffset();
 }
 
 void QuicSession::PendingStreamOnStreamFrame(const QuicStreamFrame& frame) {
@@ -879,9 +867,6 @@ void QuicSession::InsertLocallyClosedStreamsHighestOffset(
     const QuicStreamId id,
     QuicStreamOffset offset) {
   locally_closed_streams_highest_offset_[id] = offset;
-  if (IsIncomingStream(id)) {
-    ++num_locally_closed_incoming_streams_highest_offset_;
-  }
 }
 
 void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
@@ -918,9 +903,6 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     InsertLocallyClosedStreamsHighestOffset(
         stream_id, stream->flow_controller()->highest_received_byte_offset());
     stream_map_.erase(it);
-    if (IsIncomingStream(stream_id)) {
-      --num_dynamic_incoming_streams_;
-    }
     return;
   }
 
@@ -928,9 +910,6 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   QUIC_DVLOG_IF(1, stream_was_draining)
       << ENDPOINT << "Stream " << stream_id << " was draining";
   stream_map_.erase(it);
-  if (IsIncomingStream(stream_id)) {
-    --num_dynamic_incoming_streams_;
-  }
   if (stream_was_draining) {
     if (IsIncomingStream(stream_id)) {
       QUIC_BUG_IF(num_draining_incoming_streams_ == 0);
@@ -948,8 +927,7 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     // disconnected.
     return;
   }
-  if (stream_id_manager_.handles_accounting() &&
-      !VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
   }
@@ -1004,13 +982,11 @@ void QuicSession::OnFinalByteOffsetReceived(
 
   flow_controller_.AddBytesConsumed(offset_diff);
   locally_closed_streams_highest_offset_.erase(it);
-  if (stream_id_manager_.handles_accounting() &&
-      !VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
   }
   if (IsIncomingStream(stream_id)) {
-    --num_locally_closed_incoming_streams_highest_offset_;
     if (VersionHasIetfQuicFrames(transport_version())) {
       v99_streamid_manager_.OnStreamClosed(stream_id);
     }
@@ -1588,14 +1564,12 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
                 << ". activating stream " << stream_id;
   DCHECK(!QuicContainsKey(stream_map_, stream_id));
   stream_map_[stream_id] = std::move(stream);
-  if (IsIncomingStream(stream_id)) {
-    is_static ? ++num_incoming_static_streams_
-              : ++num_dynamic_incoming_streams_;
-  } else if (is_static) {
-    ++num_outgoing_static_streams_;
+  if (is_static) {
+    IsIncomingStream(stream_id) ? ++num_incoming_static_streams_
+                                : ++num_outgoing_static_streams_;
+    return;
   }
-  if (stream_id_manager_.handles_accounting() && !is_static &&
-      !VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // Do not inform stream ID manager of static streams.
     stream_id_manager_.ActivateStream(
         /*is_incoming=*/IsIncomingStream(stream_id));
@@ -1618,8 +1592,7 @@ QuicStreamId QuicSession::GetNextOutgoingUnidirectionalStreamId() {
 
 bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    return stream_id_manager_.CanOpenNextOutgoingStream(
-        GetNumOpenOutgoingStreams());
+    return stream_id_manager_.CanOpenNextOutgoingStream();
   }
   if (v99_streamid_manager_.CanOpenNextOutgoingBidirectionalStream()) {
     return true;
@@ -1635,8 +1608,7 @@ bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
 
 bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    return stream_id_manager_.CanOpenNextOutgoingStream(
-        GetNumOpenOutgoingStreams());
+    return stream_id_manager_.CanOpenNextOutgoingStream();
   }
   if (v99_streamid_manager_.CanOpenNextOutgoingUnidirectionalStream()) {
     return true;
@@ -1685,15 +1657,11 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
     return nullptr;
   }
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    // TODO(fayang): Let LegacyQuicStreamIdManager count open streams and make
-    // CanOpenIncomingStream interface consistent with that of v99.
-    if (!stream_id_manager_.CanOpenIncomingStream(
-            GetNumOpenIncomingStreams())) {
-      // Refuse to open the stream.
-      ResetStream(stream_id, QUIC_REFUSED_STREAM, 0);
-      return nullptr;
-    }
+  if (!VersionHasIetfQuicFrames(transport_version()) &&
+      !stream_id_manager_.CanOpenIncomingStream()) {
+    // Refuse to open the stream.
+    ResetStream(stream_id, QUIC_REFUSED_STREAM, 0);
+    return nullptr;
   }
 
   return CreateIncomingStream(stream_id);
@@ -1704,7 +1672,7 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
   QUIC_DVLOG(1) << ENDPOINT << "Stream " << stream_id << " is draining";
   if (VersionHasIetfQuicFrames(transport_version())) {
     v99_streamid_manager_.OnStreamClosed(stream_id);
-  } else if (stream_id_manager_.handles_accounting()) {
+  } else {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
   }
@@ -1830,31 +1798,8 @@ bool QuicSession::IsStaticStream(QuicStreamId id) const {
   return it->second->is_static();
 }
 
-size_t QuicSession::GetNumOpenIncomingStreams() const {
-  DCHECK(!VersionHasIetfQuicFrames(transport_version()));
-  if (stream_id_manager_.handles_accounting()) {
-    return stream_id_manager_.num_open_incoming_streams();
-  }
-  return num_dynamic_incoming_streams_ - num_draining_incoming_streams_ +
-         num_locally_closed_incoming_streams_highest_offset_;
-}
-
-size_t QuicSession::GetNumOpenOutgoingStreams() const {
-  DCHECK(!VersionHasIetfQuicFrames(transport_version()));
-  if (stream_id_manager_.handles_accounting()) {
-    return stream_id_manager_.num_open_outgoing_streams();
-  }
-  DCHECK_GE(GetNumDynamicOutgoingStreams() +
-                GetNumLocallyClosedOutgoingStreamsHighestOffset(),
-            GetNumDrainingOutgoingStreams());
-  return GetNumDynamicOutgoingStreams() +
-         GetNumLocallyClosedOutgoingStreamsHighestOffset() -
-         GetNumDrainingOutgoingStreams();
-}
-
 size_t QuicSession::GetNumActiveStreams() const {
-  if (!VersionHasIetfQuicFrames(transport_version()) &&
-      stream_id_manager_.handles_accounting()) {
+  if (!VersionHasIetfQuicFrames(transport_version())) {
     // Exclude locally_closed_streams when determine whether to keep connection
     // alive.
     return stream_id_manager_.num_open_incoming_streams() +
@@ -1897,25 +1842,8 @@ void QuicSession::SendPing() {
   control_frame_manager_.WritePing();
 }
 
-size_t QuicSession::GetNumDynamicOutgoingStreams() const {
-  DCHECK_GE(
-      static_cast<size_t>(stream_map_.size() + pending_stream_map_.size()),
-      num_dynamic_incoming_streams_ + num_outgoing_static_streams_ +
-          num_incoming_static_streams_);
-  return stream_map_.size() + pending_stream_map_.size() -
-         num_dynamic_incoming_streams_ - num_outgoing_static_streams_ -
-         num_incoming_static_streams_;
-}
-
 size_t QuicSession::GetNumDrainingOutgoingStreams() const {
   return num_draining_outgoing_streams_;
-}
-
-size_t QuicSession::GetNumLocallyClosedOutgoingStreamsHighestOffset() const {
-  DCHECK_GE(locally_closed_streams_highest_offset_.size(),
-            num_locally_closed_incoming_streams_highest_offset_);
-  return locally_closed_streams_highest_offset_.size() -
-         num_locally_closed_incoming_streams_highest_offset_;
 }
 
 bool QuicSession::IsConnectionFlowControlBlocked() const {

@@ -78,33 +78,21 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::PrintToStringParamName());
 
 TEST_P(LegacyQuicStreamIdManagerTest, CanOpenNextOutgoingStream) {
-  if (GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
-    for (size_t i = 0; i < manager_.max_open_outgoing_streams() - 1; ++i) {
-      manager_.ActivateStream(/*is_incoming=*/false);
-    }
-  }
-  EXPECT_TRUE(manager_.CanOpenNextOutgoingStream(
-      manager_.max_open_outgoing_streams() - 1));
-  if (GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
+  for (size_t i = 0; i < manager_.max_open_outgoing_streams() - 1; ++i) {
     manager_.ActivateStream(/*is_incoming=*/false);
   }
-  EXPECT_FALSE(
-      manager_.CanOpenNextOutgoingStream(manager_.max_open_outgoing_streams()));
+  EXPECT_TRUE(manager_.CanOpenNextOutgoingStream());
+  manager_.ActivateStream(/*is_incoming=*/false);
+  EXPECT_FALSE(manager_.CanOpenNextOutgoingStream());
 }
 
 TEST_P(LegacyQuicStreamIdManagerTest, CanOpenIncomingStream) {
-  if (GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
-    for (size_t i = 0; i < manager_.max_open_incoming_streams() - 1; ++i) {
-      manager_.ActivateStream(/*is_incoming=*/true);
-    }
-  }
-  EXPECT_TRUE(
-      manager_.CanOpenIncomingStream(manager_.max_open_incoming_streams() - 1));
-  if (GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
+  for (size_t i = 0; i < manager_.max_open_incoming_streams() - 1; ++i) {
     manager_.ActivateStream(/*is_incoming=*/true);
   }
-  EXPECT_FALSE(
-      manager_.CanOpenIncomingStream(manager_.max_open_incoming_streams()));
+  EXPECT_TRUE(manager_.CanOpenIncomingStream());
+  manager_.ActivateStream(/*is_incoming=*/true);
+  EXPECT_FALSE(manager_.CanOpenIncomingStream());
 }
 
 TEST_P(LegacyQuicStreamIdManagerTest, AvailableStreams) {

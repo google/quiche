@@ -31,42 +31,20 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
                      : QuicUtils::GetCryptoStreamId(transport_version_))
               : QuicUtils::GetInvalidStreamId(transport_version_)),
       num_open_incoming_streams_(0),
-      num_open_outgoing_streams_(0),
-      handles_accounting_(
-          GetQuicReloadableFlag(quic_stream_id_manager_handles_accounting)) {
-  if (handles_accounting_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_stream_id_manager_handles_accounting);
-  }
-}
+      num_open_outgoing_streams_(0) {}
 
 LegacyQuicStreamIdManager::~LegacyQuicStreamIdManager() {}
 
-bool LegacyQuicStreamIdManager::CanOpenNextOutgoingStream(
-    size_t current_num_open_outgoing_streams) const {
-  if (handles_accounting_) {
-    DCHECK_LE(num_open_outgoing_streams_, max_open_outgoing_streams_);
-    QUIC_DLOG_IF(INFO, num_open_outgoing_streams_ == max_open_outgoing_streams_)
-        << "Failed to create a new outgoing stream. "
-        << "Already " << num_open_outgoing_streams_ << " open.";
-    return num_open_outgoing_streams_ < max_open_outgoing_streams_;
-  }
-  if (current_num_open_outgoing_streams >= max_open_outgoing_streams_) {
-    QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
-                    << "Already " << current_num_open_outgoing_streams
-                    << " open.";
-    return false;
-  }
-  return true;
+bool LegacyQuicStreamIdManager::CanOpenNextOutgoingStream() const {
+  DCHECK_LE(num_open_outgoing_streams_, max_open_outgoing_streams_);
+  QUIC_DLOG_IF(INFO, num_open_outgoing_streams_ == max_open_outgoing_streams_)
+      << "Failed to create a new outgoing stream. "
+      << "Already " << num_open_outgoing_streams_ << " open.";
+  return num_open_outgoing_streams_ < max_open_outgoing_streams_;
 }
 
-bool LegacyQuicStreamIdManager::CanOpenIncomingStream(
-    size_t current_num_open_incoming_streams) const {
-  if (handles_accounting_) {
-    return num_open_incoming_streams_ < max_open_incoming_streams_;
-  }
-  // Check if the new number of open streams would cause the number of
-  // open streams to exceed the limit.
-  return current_num_open_incoming_streams < max_open_incoming_streams_;
+bool LegacyQuicStreamIdManager::CanOpenIncomingStream() const {
+  return num_open_incoming_streams_ < max_open_incoming_streams_;
 }
 
 bool LegacyQuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
@@ -121,7 +99,6 @@ QuicStreamId LegacyQuicStreamIdManager::GetNextOutgoingStreamId() {
 }
 
 void LegacyQuicStreamIdManager::ActivateStream(bool is_incoming) {
-  DCHECK(handles_accounting_);
   if (is_incoming) {
     ++num_open_incoming_streams_;
     return;
@@ -130,7 +107,6 @@ void LegacyQuicStreamIdManager::ActivateStream(bool is_incoming) {
 }
 
 void LegacyQuicStreamIdManager::OnStreamClosed(bool is_incoming) {
-  DCHECK(handles_accounting_);
   if (is_incoming) {
     QUIC_BUG_IF(num_open_incoming_streams_ == 0);
     --num_open_incoming_streams_;

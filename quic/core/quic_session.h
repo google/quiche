@@ -334,20 +334,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Returns the number of currently draining streams.
   size_t GetNumDrainingStreams() const;
 
-  // Returns the number of currently open peer initiated streams, excluding
-  // static streams.
-  // TODO(fayang): remove this and instead use
-  // LegacyStreamIdManager::num_open_incoming_streams() in tests when
-  // deprecating quic_stream_id_manager_handles_accounting.
-  size_t GetNumOpenIncomingStreams() const;
-
-  // Returns the number of currently open self initiated streams, excluding
-  // static streams.
-  // TODO(fayang): remove this and instead use
-  // LegacyStreamIdManager::num_open_outgoing_streams() in tests when
-  // deprecating quic_stream_id_manager_handles_accounting.
-  size_t GetNumOpenOutgoingStreams() const;
-
   // Returns the number of open peer initiated static streams.
   size_t num_incoming_static_streams() const {
     return num_incoming_static_streams_;
@@ -447,12 +433,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Return true if given stream is peer initiated.
   bool IsIncomingStream(QuicStreamId id) const;
-
-  size_t GetNumLocallyClosedOutgoingStreamsHighestOffset() const;
-
-  size_t num_locally_closed_incoming_streams_highest_offset() const {
-    return num_locally_closed_incoming_streams_highest_offset_;
-  }
 
   // Record errors when a connection is closed at the server side, should only
   // be called from server's perspective.
@@ -590,8 +570,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicWriteBlockedList* write_blocked_streams() {
     return &write_blocked_streams_;
   }
-
-  size_t GetNumDynamicOutgoingStreams() const;
 
   size_t GetNumDrainingOutgoingStreams() const;
 
@@ -772,36 +750,25 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager v99_streamid_manager_;
 
-  // A counter for peer initiated dynamic streams which are in the stream_map_.
-  // TODO(fayang): Remove this when deprecating
-  // quic_stream_id_manager_handles_accounting.
-  size_t num_dynamic_incoming_streams_;
-
   // A counter for peer initiated streams which have sent and received FIN but
   // waiting for application to consume data.
-  // TODO(fayang): Remove this when deprecating
-  // quic_stream_id_manager_handles_accounting.
+  // TODO(fayang): Merge num_draining_incoming_streams_ and
+  // num_draining_outgoing_streams_.
   size_t num_draining_incoming_streams_;
 
   // A counter for self initiated streams which have sent and received FIN but
   // waiting for application to consume data.
-  // TODO(fayang): Remove this when deprecating
-  // quic_stream_id_manager_handles_accounting.
   size_t num_draining_outgoing_streams_;
 
   // A counter for self initiated static streams which are in
   // stream_map_.
+  // TODO(fayang): Merge num_outgoing_static_streams_ and
+  // num_incoming_static_streams_.
   size_t num_outgoing_static_streams_;
 
   // A counter for peer initiated static streams which are in
   // stream_map_.
   size_t num_incoming_static_streams_;
-
-  // A counter for peer initiated streams which are in the
-  // locally_closed_streams_highest_offset_.
-  // TODO(fayang): Remove this when deprecating
-  // quic_stream_id_manager_handles_accounting.
-  size_t num_locally_closed_incoming_streams_highest_offset_;
 
   // Received information for a connection close.
   QuicConnectionCloseFrame on_closed_frame_;
