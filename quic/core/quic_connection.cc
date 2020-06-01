@@ -2055,9 +2055,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
     idle_network_detector_.OnPacketReceived(packet.receipt_time());
   } else {
     time_of_last_received_packet_ = packet.receipt_time();
+    QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
+                  << packet.receipt_time().ToDebuggingValue();
   }
-  QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
-                << GetTimeOfLastReceivedPacket().ToDebuggingValue();
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
