@@ -110,6 +110,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // Returns true if there are no active requests and no promised streams.
   bool ShouldReleaseHeadersStreamSequencerBuffer() override;
 
+  // Override to wait for all received responses to be consumed by application.
+  bool ShouldKeepConnectionAlive() const override;
+
   size_t get_max_promises() const {
     return max_open_incoming_unidirectional_streams() *
            kMaxPromisedStreamsMultiplier;

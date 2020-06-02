@@ -74,6 +74,7 @@ QuicSession::QuicSession(
                             config_.GetMaxUnidirectionalStreamsToSend() +
                                 num_expected_unidirectional_static_streams),
       num_draining_streams_(0),
+      num_outgoing_draining_streams_(0),
       num_static_streams_(0),
       flow_controller_(
           this,
@@ -905,6 +906,10 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   if (stream_was_draining) {
     QUIC_BUG_IF(num_draining_streams_ == 0);
     --num_draining_streams_;
+    if (!IsIncomingStream(stream_id)) {
+      QUIC_BUG_IF(num_outgoing_draining_streams_ == 0);
+      --num_outgoing_draining_streams_;
+    }
     // Stream Id manager has been informed with draining streams.
     return;
   }
@@ -1664,6 +1669,7 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
   }
   ++num_draining_streams_;
   if (!IsIncomingStream(stream_id)) {
+    ++num_outgoing_draining_streams_;
     OnCanCreateNewOutgoingStream(unidirectional);
   }
 }

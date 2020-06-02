@@ -594,6 +594,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   size_t num_static_streams() const { return num_static_streams_; }
 
+  size_t num_outgoing_draining_streams() const {
+    return num_outgoing_draining_streams_;
+  }
+
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules. Returns true if the pending stream
   // is converted into a normal stream.
@@ -737,6 +741,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // A counter for streams which have sent and received FIN but waiting for
   // application to consume data.
   size_t num_draining_streams_;
+
+  // A counter for self initiated streams which have sent and received FIN but
+  // waiting for application to consume data.
+  size_t num_outgoing_draining_streams_;
 
   // A counter for static streams which are in stream_map_.
   size_t num_static_streams_;

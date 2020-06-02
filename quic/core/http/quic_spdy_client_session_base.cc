@@ -228,6 +228,11 @@ bool QuicSpdyClientSessionBase::ShouldReleaseHeadersStreamSequencerBuffer() {
   return !HasActiveRequestStreams() && promised_by_id_.empty();
 }
 
+bool QuicSpdyClientSessionBase::ShouldKeepConnectionAlive() const {
+  return QuicSpdySession::ShouldKeepConnectionAlive() ||
+         num_outgoing_draining_streams() > 0;
+}
+
 void QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
   QuicSpdySession::OnSettingsFrame(frame);
   std::unique_ptr<char[]> buffer;
