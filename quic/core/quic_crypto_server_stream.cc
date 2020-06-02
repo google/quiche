@@ -298,6 +298,11 @@ bool QuicCryptoServerStream::IsZeroRtt() const {
          num_handshake_messages_with_server_nonces_ == 0;
 }
 
+bool QuicCryptoServerStream::IsResumption() const {
+  // QUIC Crypto doesn't have a non-0-RTT resumption mode.
+  return IsZeroRtt();
+}
+
 int QuicCryptoServerStream::NumServerConfigUpdateMessagesSent() const {
   return num_server_config_update_messages_sent_;
 }
@@ -307,7 +312,7 @@ QuicCryptoServerStream::PreviousCachedNetworkParams() const {
   return previous_cached_network_params_.get();
 }
 
-bool QuicCryptoServerStream::ZeroRttAttempted() const {
+bool QuicCryptoServerStream::ResumptionAttempted() const {
   return zero_rtt_attempted_;
 }
 

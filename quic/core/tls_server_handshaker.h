@@ -40,9 +40,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   void SendServerConfigUpdate(
       const CachedNetworkParameters* cached_network_params) override;
   bool IsZeroRtt() const override;
+  bool IsResumption() const override;
+  bool ResumptionAttempted() const override;
   int NumServerConfigUpdateMessagesSent() const override;
   const CachedNetworkParameters* PreviousCachedNetworkParams() const override;
-  bool ZeroRttAttempted() const override;
   void SetPreviousCachedNetworkParams(
       CachedNetworkParameters cached_network_params) override;
   void OnPacketDecrypted(EncryptionLevel level) override;
@@ -181,6 +182,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // |decrypted_session_ticket_| contains the decrypted session ticket after the
   // callback has run but before it is passed to BoringSSL.
   std::vector<uint8_t> decrypted_session_ticket_;
+  // |ticket_received_| tracks whether we received a resumption ticket from the
+  // client. It does not matter whether we were able to decrypt said ticket or
+  // if we actually resumed a session with it - the presence of this ticket
+  // indicates that the client attempted a resumption.
+  bool ticket_received_ = false;
 
   std::string hostname_;
   std::string cert_verify_sig_;

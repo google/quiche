@@ -137,6 +137,14 @@ bool TlsServerHandshaker::IsZeroRtt() const {
   return false;
 }
 
+bool TlsServerHandshaker::IsResumption() const {
+  return SSL_session_reused(ssl());
+}
+
+bool TlsServerHandshaker::ResumptionAttempted() const {
+  return ticket_received_;
+}
+
 int TlsServerHandshaker::NumServerConfigUpdateMessagesSent() const {
   // SCUP messages aren't supported when using the TLS handshake.
   return 0;
@@ -145,11 +153,6 @@ int TlsServerHandshaker::NumServerConfigUpdateMessagesSent() const {
 const CachedNetworkParameters*
 TlsServerHandshaker::PreviousCachedNetworkParams() const {
   return nullptr;
-}
-
-bool TlsServerHandshaker::ZeroRttAttempted() const {
-  // TODO(nharper): Support 0-RTT with TLS 1.3 in QUIC.
-  return false;
 }
 
 void TlsServerHandshaker::SetPreviousCachedNetworkParams(
@@ -470,6 +473,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   DCHECK(proof_source_->GetTicketCrypter());
 
   if (!ticket_decryption_callback_) {
+    ticket_received_ = true;
     ticket_decryption_callback_ = new DecryptCallback(this);
     proof_source_->GetTicketCrypter()->Decrypt(
         in, std::unique_ptr<DecryptCallback>(ticket_decryption_callback_));

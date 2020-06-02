@@ -383,6 +383,8 @@ TEST_F(TlsServerHandshakerTest, Resumption) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->ResumptionAttempted());
 
   // Now do another handshake
   InitializeServer();
@@ -390,6 +392,8 @@ TEST_F(TlsServerHandshakerTest, Resumption) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
 TEST_F(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
@@ -411,6 +415,8 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
 TEST_F(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
@@ -426,6 +432,8 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
 TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
@@ -448,6 +456,8 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
 TEST_F(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
