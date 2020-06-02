@@ -762,7 +762,11 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
              << " at encryption_level: " << packet_.encryption_level
              << ", needs_full_padding_: " << needs_full_padding_
              << ", packet_.num_padding_bytes: " << packet_.num_padding_bytes
-             << ", pending_padding_bytes_: " << pending_padding_bytes_;
+             << ", pending_padding_bytes_: " << pending_padding_bytes_
+             << ", latched_hard_max_packet_length_: "
+             << latched_hard_max_packet_length_
+             << ", max_packet_length_: " << max_packet_length_
+             << ", header: " << header;
     return;
   }
 
