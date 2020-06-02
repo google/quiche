@@ -82,6 +82,7 @@ class QuicSessionPeer {
   static void set_is_configured(QuicSession* session, bool value);
   static void SetPerspective(QuicSession* session, Perspective perspective);
   static size_t GetNumOpenDynamicStreams(QuicSession* session);
+  static size_t GetNumDrainingStreams(QuicSession* session);
 };
 
 }  // namespace test

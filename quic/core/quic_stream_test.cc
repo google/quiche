@@ -750,7 +750,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
                              nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
-  EXPECT_EQ(1u, session_->GetNumDrainingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumDrainingStreams(session_.get()));
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 
@@ -778,7 +778,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
   EXPECT_FALSE(stream_->reading_stopped());
 
-  EXPECT_EQ(1u, session_->GetNumDrainingStreams());
+  EXPECT_EQ(1u, QuicSessionPeer::GetNumDrainingStreams(session_.get()));
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 }
 

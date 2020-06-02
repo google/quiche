@@ -94,8 +94,7 @@ void QboneClientSession::OnProofVerifyDetailsAvailable(
     const ProofVerifyDetails& verify_details) {}
 
 bool QboneClientSession::HasActiveRequests() const {
-  return (stream_map().size() - num_incoming_static_streams() -
-          num_outgoing_static_streams()) > 0;
+  return (stream_map().size() - num_static_streams()) > 0;
 }
 
 }  // namespace quic

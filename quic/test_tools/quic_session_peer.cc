@@ -242,11 +242,16 @@ size_t QuicSessionPeer::GetNumOpenDynamicStreams(QuicSession* session) {
     }
   }
   // Exclude draining streams.
-  result -= session->GetNumDrainingStreams();
+  result -= session->num_draining_streams_;
   // Add locally closed streams.
   result += session->locally_closed_streams_highest_offset_.size();
 
   return result;
+}
+
+// static
+size_t QuicSessionPeer::GetNumDrainingStreams(QuicSession* session) {
+  return session->num_draining_streams_;
 }
 
 }  // namespace test

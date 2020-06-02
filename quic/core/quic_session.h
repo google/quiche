@@ -331,19 +331,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // never counting unfinished streams.
   size_t GetNumActiveStreams() const;
 
-  // Returns the number of currently draining streams.
-  size_t GetNumDrainingStreams() const;
-
-  // Returns the number of open peer initiated static streams.
-  size_t num_incoming_static_streams() const {
-    return num_incoming_static_streams_;
-  }
-
-  // Returns the number of open self initiated static streams.
-  size_t num_outgoing_static_streams() const {
-    return num_outgoing_static_streams_;
-  }
-
   // Add the stream to the session's write-blocked list because it is blocked by
   // connection-level flow control but not by its own stream-level flow control.
   // The stream will be given a chance to write when a connection-level
@@ -528,9 +515,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool CanOpenNextOutgoingBidirectionalStream();
   bool CanOpenNextOutgoingUnidirectionalStream();
 
-  // Returns the number of open dynamic streams.
-  uint64_t GetNumOpenDynamicStreams() const;
-
   // Returns the maximum bidirectional streams parameter sent with the handshake
   // as a transport parameter, or in the most recent MAX_STREAMS frame.
   QuicStreamCount GetAdvertisedMaxIncomingBidirectionalStreams() const;
@@ -571,8 +555,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return &write_blocked_streams_;
   }
 
-  size_t GetNumDrainingOutgoingStreams() const;
-
   // Returns true if the stream is still active.
   bool IsOpenStream(QuicStreamId id);
 
@@ -609,6 +591,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   }
 
   QuicDatagramQueue* datagram_queue() { return &datagram_queue_; }
+
+  size_t num_static_streams() const { return num_static_streams_; }
 
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules. Returns true if the pending stream
@@ -750,25 +734,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager v99_streamid_manager_;
 
-  // A counter for peer initiated streams which have sent and received FIN but
-  // waiting for application to consume data.
-  // TODO(fayang): Merge num_draining_incoming_streams_ and
-  // num_draining_outgoing_streams_.
-  size_t num_draining_incoming_streams_;
+  // A counter for streams which have sent and received FIN but waiting for
+  // application to consume data.
+  size_t num_draining_streams_;
 
-  // A counter for self initiated streams which have sent and received FIN but
-  // waiting for application to consume data.
-  size_t num_draining_outgoing_streams_;
-
-  // A counter for self initiated static streams which are in
-  // stream_map_.
-  // TODO(fayang): Merge num_outgoing_static_streams_ and
-  // num_incoming_static_streams_.
-  size_t num_outgoing_static_streams_;
-
-  // A counter for peer initiated static streams which are in
-  // stream_map_.
-  size_t num_incoming_static_streams_;
+  // A counter for static streams which are in stream_map_.
+  size_t num_static_streams_;
 
   // Received information for a connection close.
   QuicConnectionCloseFrame on_closed_frame_;

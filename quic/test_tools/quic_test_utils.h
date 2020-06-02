@@ -801,7 +801,6 @@ class MockQuicSession : public QuicSession {
   MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
 
   using QuicSession::ActivateStream;
-  using QuicSession::GetNumDrainingStreams;
 
   // Returns a QuicConsumedData that indicates all of |write_length| (and |fin|
   // if set) has been consumed.

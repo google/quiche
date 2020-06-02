@@ -73,10 +73,8 @@ QuicSession::QuicSession(
                             config_.GetMaxBidirectionalStreamsToSend(),
                             config_.GetMaxUnidirectionalStreamsToSend() +
                                 num_expected_unidirectional_static_streams),
-      num_draining_incoming_streams_(0),
-      num_draining_outgoing_streams_(0),
-      num_outgoing_static_streams_(0),
-      num_incoming_static_streams_(0),
+      num_draining_streams_(0),
+      num_static_streams_(0),
       flow_controller_(
           this,
           QuicUtils::GetInvalidStreamId(connection->transport_version()),
@@ -677,12 +675,6 @@ bool QuicSession::HasPendingHandshake() const {
              QuicUtils::GetCryptoStreamId(transport_version()));
 }
 
-uint64_t QuicSession::GetNumOpenDynamicStreams() const {
-  return stream_map_.size() - GetNumDrainingStreams() +
-         locally_closed_streams_highest_offset_.size() -
-         num_incoming_static_streams_ - num_outgoing_static_streams_;
-}
-
 void QuicSession::ProcessUdpPacket(const QuicSocketAddress& self_address,
                                    const QuicSocketAddress& peer_address,
                                    const QuicReceivedPacket& packet) {
@@ -911,13 +903,8 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
       << ENDPOINT << "Stream " << stream_id << " was draining";
   stream_map_.erase(it);
   if (stream_was_draining) {
-    if (IsIncomingStream(stream_id)) {
-      QUIC_BUG_IF(num_draining_incoming_streams_ == 0);
-      --num_draining_incoming_streams_;
-    } else {
-      QUIC_BUG_IF(num_draining_outgoing_streams_ == 0);
-      --num_draining_outgoing_streams_;
-    }
+    QUIC_BUG_IF(num_draining_streams_ == 0);
+    --num_draining_streams_;
     // Stream Id manager has been informed with draining streams.
     return;
   }
@@ -1565,8 +1552,7 @@ void QuicSession::ActivateStream(std::unique_ptr<QuicStream> stream) {
   DCHECK(!QuicContainsKey(stream_map_, stream_id));
   stream_map_[stream_id] = std::move(stream);
   if (is_static) {
-    IsIncomingStream(stream_id) ? ++num_incoming_static_streams_
-                                : ++num_outgoing_static_streams_;
+    ++num_static_streams_;
     return;
   }
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -1676,12 +1662,10 @@ void QuicSession::StreamDraining(QuicStreamId stream_id, bool unidirectional) {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
   }
-  if (IsIncomingStream(stream_id)) {
-    ++num_draining_incoming_streams_;
-    return;
+  ++num_draining_streams_;
+  if (!IsIncomingStream(stream_id)) {
+    OnCanCreateNewOutgoingStream(unidirectional);
   }
-  ++num_draining_outgoing_streams_;
-  OnCanCreateNewOutgoingStream(unidirectional);
 }
 
 bool QuicSession::MaybeIncreaseLargestPeerStreamId(
@@ -1806,12 +1790,7 @@ size_t QuicSession::GetNumActiveStreams() const {
            stream_id_manager_.num_open_outgoing_streams() -
            locally_closed_streams_highest_offset_.size();
   }
-  return stream_map_.size() - GetNumDrainingStreams() -
-         num_incoming_static_streams_ - num_outgoing_static_streams_;
-}
-
-size_t QuicSession::GetNumDrainingStreams() const {
-  return num_draining_incoming_streams_ + num_draining_outgoing_streams_;
+  return stream_map_.size() - num_draining_streams_ - num_static_streams_;
 }
 
 void QuicSession::MarkConnectionLevelWriteBlocked(QuicStreamId id) {
@@ -1840,10 +1819,6 @@ void QuicSession::OnAckNeedsRetransmittableFrame() {
 
 void QuicSession::SendPing() {
   control_frame_manager_.WritePing();
-}
-
-size_t QuicSession::GetNumDrainingOutgoingStreams() const {
-  return num_draining_outgoing_streams_;
 }
 
 bool QuicSession::IsConnectionFlowControlBlocked() const {

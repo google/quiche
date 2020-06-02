@@ -243,9 +243,9 @@ void QuicSimpleServerSession::OnCanCreateNewOutgoingStream(
 }
 
 void QuicSimpleServerSession::MaybeInitializeHttp3UnidirectionalStreams() {
-  size_t previous_static_stream_count = num_outgoing_static_streams();
+  size_t previous_static_stream_count = num_static_streams();
   QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams();
-  size_t current_static_stream_count = num_outgoing_static_streams();
+  size_t current_static_stream_count = num_static_streams();
   DCHECK_GE(current_static_stream_count, previous_static_stream_count);
   highest_promised_stream_id_ +=
       QuicUtils::StreamIdDelta(transport_version()) *
