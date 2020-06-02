@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
@@ -3987,6 +3988,60 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
     EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(testing::AtLeast(1));
     manager_.MaybeSendProbePackets();
   }
+}
+
+// Regression test for b/157895910.
+TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
+  SetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time, true);
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+
+  // Send INITIAL 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+
+  // Send HANDSHAKE packets.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
+  SendDataPacket(4, ENCRYPTION_HANDSHAKE);
+
+  // Send half RTT packet.
+  SendDataPacket(5, ENCRYPTION_FORWARD_SECURE);
+
+  // Received ACK for INITIAL packet 1.
+  ExpectAck(1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+
+  // Received ACK for HANDSHAKE packets.
+  uint64_t acked[] = {2, 3, 4};
+  ExpectAcksAndLosses(true, acked, QUICHE_ARRAYSIZE(acked), nullptr, 0);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(5));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_HANDSHAKE));
+  if (GetQuicReloadableFlag(quic_fix_server_pto_timeout)) {
+    // Verify PTO will not be armed.
+    EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
+    return;
+  }
+  // PTO fires but there is nothing to send.
+  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  manager_.OnRetransmissionTimeout();
+  EXPECT_QUIC_BUG(manager_.MaybeSendProbePackets(),
+                  "earlist_sent_time not initialized when trying to send PTO "
+                  "retransmissions");
 }
 
 }  // namespace
