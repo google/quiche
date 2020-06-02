@@ -196,6 +196,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
     AddToCache("/foo", 200, kFooResponseBody);
     AddToCache("/bar", 200, kBarResponseBody);
+    // Enable fixes for bugs found in tests and prod.
+    SetQuicReloadableFlag(quic_donot_change_queued_ack, true);
+    SetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time, true);
+    SetQuicReloadableFlag(quic_fix_server_pto_timeout, true);
   }
 
   ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
