@@ -336,7 +336,7 @@ bool QuicUtils::ContainsFrameType(const QuicFrames& frames,
 SentPacketState QuicUtils::RetransmissionTypeToPacketState(
     TransmissionType retransmission_type) {
   switch (retransmission_type) {
-    case ALL_INITIAL_RETRANSMISSION:
+    case ALL_ZERO_RTT_RETRANSMISSION:
       return UNACKABLE;
     case HANDSHAKE_RETRANSMISSION:
       return HANDSHAKE_RETRANSMITTED;

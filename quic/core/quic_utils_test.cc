@@ -125,7 +125,7 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
       EXPECT_EQ(HANDSHAKE_RETRANSMITTED, state);
     } else if (i == LOSS_RETRANSMISSION) {
       EXPECT_EQ(LOST, state);
-    } else if (i == ALL_INITIAL_RETRANSMISSION) {
+    } else if (i == ALL_ZERO_RTT_RETRANSMISSION) {
       EXPECT_EQ(UNACKABLE, state);
     } else if (i == TLP_RETRANSMISSION) {
       EXPECT_EQ(TLP_RETRANSMITTED, state);

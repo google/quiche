@@ -163,13 +163,14 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
 enum TransmissionType : int8_t {
   NOT_RETRANSMISSION,
   FIRST_TRANSMISSION_TYPE = NOT_RETRANSMISSION,
-  HANDSHAKE_RETRANSMISSION,  // Retransmits due to handshake timeouts.
-  ALL_INITIAL_RETRANSMISSION,  // Retransmits all initially encrypted packets.
-  LOSS_RETRANSMISSION,         // Retransmits due to loss detection.
-  RTO_RETRANSMISSION,          // Retransmits due to retransmit time out.
-  TLP_RETRANSMISSION,          // Tail loss probes.
-  PTO_RETRANSMISSION,          // Retransmission due to probe timeout.
-  PROBING_RETRANSMISSION,      // Retransmission in order to probe bandwidth.
+  HANDSHAKE_RETRANSMISSION,     // Retransmits due to handshake timeouts.
+  ALL_ZERO_RTT_RETRANSMISSION,  // Retransmits all packets encrypted with 0-RTT
+                                // key.
+  LOSS_RETRANSMISSION,          // Retransmits due to loss detection.
+  RTO_RETRANSMISSION,           // Retransmits due to retransmit time out.
+  TLP_RETRANSMISSION,           // Tail loss probes.
+  PTO_RETRANSMISSION,           // Retransmission due to probe timeout.
+  PROBING_RETRANSMISSION,       // Retransmission in order to probe bandwidth.
   LAST_TRANSMISSION_TYPE = PROBING_RETRANSMISSION,
 };
 

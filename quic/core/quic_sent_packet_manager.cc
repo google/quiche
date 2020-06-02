@@ -464,7 +464,7 @@ void QuicSentPacketManager::RetransmitZeroRttPackets() {
         unacked_packets_.RemoveFromInFlight(&*it);
       }
       if (unacked_packets_.HasRetransmittableFrames(*it)) {
-        MarkForRetransmission(packet_number, ALL_INITIAL_RETRANSMISSION);
+        MarkForRetransmission(packet_number, ALL_ZERO_RTT_RETRANSMISSION);
       }
     }
   }
