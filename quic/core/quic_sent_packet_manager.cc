@@ -567,7 +567,7 @@ void QuicSentPacketManager::MarkForRetransmission(
   QUIC_BUG_IF(transmission_type != LOSS_RETRANSMISSION &&
               transmission_type != RTO_RETRANSMISSION &&
               !unacked_packets_.HasRetransmittableFrames(*transmission_info))
-      << "transmission_type: " << TransmissionTypeToString(transmission_type);
+      << "transmission_type: " << transmission_type;
   // Handshake packets should never be sent as probing retransmissions.
   DCHECK(!transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
@@ -640,8 +640,7 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
       // Record as a spurious retransmission if this packet is a
       // retransmission and no new data gets acked.
       QUIC_DVLOG(1) << "Detect spurious retransmitted packet " << packet_number
-                    << " transmission type: "
-                    << TransmissionTypeToString(info->transmission_type);
+                    << " transmission type: " << info->transmission_type;
       RecordOneSpuriousRetransmission(*info);
     }
   }

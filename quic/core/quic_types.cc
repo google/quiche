@@ -190,6 +190,11 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, TransmissionType transmission_type) {
+  os << TransmissionTypeToString(transmission_type);
+  return os;
+}
+
 std::string PacketHeaderFormatToString(PacketHeaderFormat format) {
   switch (format) {
     RETURN_STRING_LITERAL(IETF_QUIC_LONG_HEADER_PACKET);

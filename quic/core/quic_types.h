@@ -177,6 +177,10 @@ enum TransmissionType : int8_t {
 QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(
     TransmissionType transmission_type);
 
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& os,
+    TransmissionType transmission_type);
+
 enum HasRetransmittableData : uint8_t {
   NO_RETRANSMITTABLE_DATA,
   HAS_RETRANSMITTABLE_DATA,

@@ -1543,7 +1543,7 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
 bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
                                  TransmissionType transmission_type) {
   QUIC_DVLOG(1) << ENDPOINT << "Adding frame with transmission type "
-                << TransmissionTypeToString(transmission_type) << ": " << frame;
+                << transmission_type << ": " << frame;
   if (frame.type == STREAM_FRAME &&
       !QuicUtils::IsCryptoStreamId(framer_->transport_version(),
                                    frame.stream_frame.stream_id) &&
@@ -1734,8 +1734,7 @@ void QuicPacketCreator::MaybeAddPadding() {
   bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)),
                           packet_.transmission_type);
   QUIC_BUG_IF(!success) << "Failed to add padding_bytes: " << padding_bytes
-                        << " transmission_type: "
-                        << TransmissionTypeToString(packet_.transmission_type);
+                        << " transmission_type: " << packet_.transmission_type;
 }
 
 bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
