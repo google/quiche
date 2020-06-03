@@ -176,16 +176,9 @@ void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation,
   SPDY_DVLOG(2) << "Emitting nonindexed literal: (" << representation.first
                 << ", " << representation.second << ")";
   output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
-  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
-    SPDY_CODE_COUNT(spdy_hpack_use_indexed_name);
-    const HpackEntry* name_entry =
-        header_table_.GetByName(representation.first);
-    if (enable_compression && name_entry != nullptr) {
-      output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
-    } else {
-      output_stream_.AppendUint32(0);
-      EmitString(representation.first);
-    }
+  const HpackEntry* name_entry = header_table_.GetByName(representation.first);
+  if (enable_compression && name_entry != nullptr) {
+    output_stream_.AppendUint32(header_table_.IndexOf(name_entry));
   } else {
     output_stream_.AppendUint32(0);
     EmitString(representation.first);

@@ -274,12 +274,8 @@ TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
                      {"accept", "text/html, text/plain,application/xml"},
                      {"cookie", "val4"},
                      {"withnul", quiche::QuicheStringPiece("one\0two", 7)}};
-  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
-    ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
-                                         "/home");
-  } else {
-    ExpectNonIndexedLiteral(":path", "/home");
-  }
+  ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
+                                       "/home");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val1");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val2");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val3");
@@ -566,12 +562,8 @@ TEST_P(HpackEncoderTest, PseudoHeadersFirst) {
 
   // Headers are indexed in the order in which they were added.
   // This entry pushes "cookie: a=bb" back to 63.
-  if (GetSpdyReloadableFlag(spdy_hpack_use_indexed_name)) {
-    ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
-                                         "/spam/eggs.html");
-  } else {
-    ExpectNonIndexedLiteral(":path", "/spam/eggs.html");
-  }
+  ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
+                                       "/spam/eggs.html");
   ExpectIndexedLiteral(peer_.table()->GetByName(":authority"),
                        "www.example.com");
   ExpectIndexedLiteral("-foo", "bar");
