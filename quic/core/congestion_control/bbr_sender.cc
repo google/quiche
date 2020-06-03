@@ -430,7 +430,7 @@ void BbrSender::OnCongestionEvent(bool /*rtt_updated*/,
   // ack-only packets). In both cases, sampler_.total_bytes_acked() will not
   // change.
   if (total_bytes_acked_before != sampler_.total_bytes_acked()) {
-    QUIC_BUG_IF(sample.sample_max_bandwidth.IsZero())
+    QUIC_LOG_IF(WARNING, sample.sample_max_bandwidth.IsZero())
         << sampler_.total_bytes_acked() - total_bytes_acked_before
         << " bytes from " << acked_packets.size()
         << " packets have been acked, but sample_max_bandwidth is zero.";

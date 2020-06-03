@@ -110,7 +110,7 @@ void Bbr2NetworkModel::OnCongestionEventStart(
   // b) all packets in |acked_packets| did not generate valid samples. (e.g. ack
   // of ack-only packets). In both cases, total_bytes_acked() will not change.
   if (prior_bytes_acked != total_bytes_acked()) {
-    QUIC_BUG_IF(sample.sample_max_bandwidth.IsZero())
+    QUIC_LOG_IF(WARNING, sample.sample_max_bandwidth.IsZero())
         << total_bytes_acked() - prior_bytes_acked << " bytes from "
         << acked_packets.size()
         << " packets have been acked, but sample_max_bandwidth is zero.";
