@@ -10,11 +10,15 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
@@ -381,8 +385,33 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // Create a second connection, but disable 0-RTT on the server.
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   CreateConnection();
-  EXPECT_CALL(*session_, OnZeroRttRejected());
+
+  EXPECT_CALL(*session_, OnZeroRttRejected())
+      .WillOnce(testing::Invoke(
+          session_.get(), &TestQuicSpdyClientSession::ReallyOnZeroRttRejected));
+
+  // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
+  // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
+  // packet retransmission.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+  if (VersionUsesHttp3(session_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
+  }
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION));
+  if (VersionUsesHttp3(session_->transport_version())) {
+    // TODO(b/158027651): change transmission type to
+    // ALL_ZERO_RTT_RETRANSMISSION.
+    EXPECT_CALL(*connection_,
+                OnPacketSent(ENCRYPTION_FORWARD_SECURE, LOSS_RETRANSMISSION));
+  }
+
   CompleteCryptoHandshake();
+
+  QuicFramer* framer = QuicConnectionPeer::GetFramer(connection_);
+  EXPECT_EQ(nullptr, QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_ZERO_RTT));
 
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());

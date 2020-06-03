@@ -1035,6 +1035,57 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
             control_stream->flow_controller()->send_window_offset());
 }
 
+TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
+  // This feature is HTTP/3 only
+  if (!VersionUsesHttp3(session_->transport_version())) {
+    return;
+  }
+
+  CompleteCryptoHandshake();
+  EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[256] = 4;  // unknown setting
+  session_->OnSettingsFrame(settings);
+
+  // Create a second connection, but disable 0-RTT on the server.
+  CreateConnection();
+  QuicCryptoClientStream* crypto_stream =
+      static_cast<QuicCryptoClientStream*>(session_->GetMutableCryptoStream());
+  std::unique_ptr<QuicCryptoServerConfig> crypto_config =
+      crypto_test_utils::CryptoServerConfigForTesting();
+  QuicConfig config = DefaultQuicConfig();
+  config.SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
+  config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
+  SSL_CTX_set_early_data_enabled(crypto_config->ssl_ctx(), false);
+
+  // 3 packets will be written: CHLO, HTTP/3 SETTINGS, and request data.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION))
+      .Times(2);
+  session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
+  QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream);
+  stream->WriteOrBufferData("hello", true, nullptr);
+
+  // When handshake is done, the client sends 2 packet: HANDSHAKE FINISHED, and
+  // coalesced retransmission of HTTP/3 SETTINGS and request data.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION));
+  // TODO(b/158027651): change transmission type to ALL_ZERO_RTT_RETRANSMISSION.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_FORWARD_SECURE, LOSS_RETRANSMISSION));
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
+      crypto_stream, AlpnForVersion(connection_->version()));
+  EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

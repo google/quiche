@@ -1386,6 +1386,11 @@ void QuicSession::OnNewEncryptionKeyAvailable(
     QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
     QUIC_RELOADABLE_FLAG_COUNT(quic_change_default_encryption_level);
     connection()->SetDefaultEncryptionLevel(level);
+    if (perspective() == Perspective::IS_CLIENT &&
+        level == ENCRYPTION_FORWARD_SECURE) {
+      // 1-RTT write key is available. Retransmit 0-RTT data if there is any.
+      OnCanWrite();
+    }
     return;
   }
 
@@ -1395,6 +1400,9 @@ void QuicSession::OnNewEncryptionKeyAvailable(
     // available.
     QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
     connection()->SetDefaultEncryptionLevel(level);
+    if (perspective() == Perspective::IS_CLIENT) {
+      OnCanWrite();
+    }
   }
 }
 
@@ -1480,7 +1488,13 @@ void QuicSession::NeuterHandshakeData() {
 }
 
 void QuicSession::OnZeroRttRejected() {
-  // TODO(b/153726130): Handle early data rejection.
+  // TODO(b/153726130): Read stream limit and flow control limit from server
+  // transport params, and close the connection proactively if client has used
+  // too many.
+  connection_->RetransmitZeroRttPackets();
+  if (connection_->encryption_level() == ENCRYPTION_FORWARD_SECURE) {
+    OnCanWrite();
+  }
 }
 
 bool QuicSession::FillTransportParameters(TransportParameters* params) {

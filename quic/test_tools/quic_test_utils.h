@@ -742,6 +742,8 @@ class PacketSavingConnection : public MockQuicConnection {
 
   void SendOrQueuePacket(SerializedPacket packet) override;
 
+  MOCK_METHOD(void, OnPacketSent, (EncryptionLevel, TransmissionType));
+
   std::vector<std::unique_ptr<QuicEncryptedPacket>> encrypted_packets_;
   MockClock clock_;
 };
@@ -1142,6 +1144,8 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
   MOCK_METHOD(void, OnZeroRttRejected, (), (override));
+
+  void ReallyOnZeroRttRejected() { QuicSession::OnZeroRttRejected(); }
 
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;

@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -387,6 +388,9 @@ void TlsClientHandshaker::SetWriteSecret(
   }
   if (level == ENCRYPTION_FORWARD_SECURE || level == ENCRYPTION_ZERO_RTT) {
     encryption_established_ = true;
+  }
+  if (level == ENCRYPTION_FORWARD_SECURE) {
+    handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_ZERO_RTT);
   }
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
 }
