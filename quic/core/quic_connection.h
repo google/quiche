@@ -1420,9 +1420,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // a connection close packet is sent, but not after.
   ConnectionCloseBehavior idle_timeout_connection_close_behavior_;
 
-  // When true, close the QUIC connection after 5 RTOs.  Due to the min rto of
-  // 200ms, this is over 5 seconds.
-  bool close_connection_after_five_rtos_;
+  // When > 0, close the QUIC connection after this number of RTOs.
+  size_t num_rtos_for_blackhole_detection_;
 
   UberReceivedPacketManager uber_received_packet_manager_;
 
@@ -1639,10 +1638,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_;
-
-  // If max_consecutive_ptos_ > 0, close connection if consecutive PTOs is
-  // greater than max_consecutive_ptos.
-  size_t max_consecutive_ptos_;
 
   // Bytes received before address validation. Only used when
   // EnforceAntiAmplificationLimit returns true.

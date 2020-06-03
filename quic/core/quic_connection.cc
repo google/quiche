@@ -260,7 +260,7 @@ QuicConnection::QuicConnection(
       send_version_negotiation_packet_with_prefixed_lengths_(false),
       idle_timeout_connection_close_behavior_(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
-      close_connection_after_five_rtos_(false),
+      num_rtos_for_blackhole_detection_(0),
       uber_received_packet_manager_(&stats_),
       stop_waiting_count_(0),
       pending_retransmission_alarm_(false),
@@ -327,7 +327,6 @@ QuicConnection::QuicConnection(
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
       drop_incoming_retry_packets_(false),
-      max_consecutive_ptos_(0),
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
@@ -572,18 +571,13 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
   uber_received_packet_manager_.SetFromConfig(config, perspective_);
   if (config.HasClientSentConnectionOption(k5RTO, perspective_)) {
-    close_connection_after_five_rtos_ = true;
+    num_rtos_for_blackhole_detection_ = 5;
   }
   if (sent_packet_manager_.pto_enabled()) {
-    if (config.HasClientSentConnectionOption(k6PTO, perspective_)) {
-      max_consecutive_ptos_ = 5;
-      QUIC_CODE_COUNT(quic_close_connection_6pto);
-    }
-    if (config.HasClientSentConnectionOption(k7PTO, perspective_)) {
-      max_consecutive_ptos_ = 6;
-    }
-    if (config.HasClientSentConnectionOption(k8PTO, perspective_)) {
-      max_consecutive_ptos_ = 7;
+    if (config.HasClientSentConnectionOption(k6PTO, perspective_) ||
+        config.HasClientSentConnectionOption(k7PTO, perspective_) ||
+        config.HasClientSentConnectionOption(k8PTO, perspective_)) {
+      num_rtos_for_blackhole_detection_ = 5;
     }
   }
   if (config.HasClientSentConnectionOption(kNSTP, perspective_)) {
@@ -4510,8 +4504,10 @@ QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
   if (!ShouldDetectBlackhole()) {
     return QuicTime::Zero();
   }
+  DCHECK_LT(0u, num_rtos_for_blackhole_detection_);
   return clock_->ApproximateNow() +
-         sent_packet_manager_.GetNetworkBlackholeDelay();
+         sent_packet_manager_.GetNetworkBlackholeDelay(
+             num_rtos_for_blackhole_detection_);
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {
@@ -4522,8 +4518,7 @@ bool QuicConnection::ShouldDetectBlackhole() const {
   if (!GetHandshakeTimeout().IsInfinite()) {
     return false;
   }
-  return close_connection_after_five_rtos_ ||
-         (sent_packet_manager_.pto_enabled() && max_consecutive_ptos_ > 0);
+  return num_rtos_for_blackhole_detection_ > 0;
 }
 
 QuicTime::Delta QuicConnection::GetHandshakeTimeout() const {

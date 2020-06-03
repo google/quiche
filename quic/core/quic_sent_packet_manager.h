@@ -212,7 +212,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   const QuicTime::Delta GetPathDegradingDelay() const;
 
   // Returns the current delay for detecting network blackhole.
-  const QuicTime::Delta GetNetworkBlackholeDelay() const;
+  const QuicTime::Delta GetNetworkBlackholeDelay(
+      int8_t num_rtos_for_blackhole_detection) const;
 
   const RttStats* GetRttStats() const { return &rtt_stats_; }
 
