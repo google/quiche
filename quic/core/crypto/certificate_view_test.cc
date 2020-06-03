@@ -8,19 +8,23 @@
 #include <sstream>
 
 #include "third_party/boringssl/src/include/openssl/base.h"
+#include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/test_certificates.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 
 namespace quic {
 namespace test {
 namespace {
 
-using testing::ElementsAre;
-using testing::HasSubstr;
+using ::testing::ElementsAre;
+using ::testing::HasSubstr;
+using ::testing::Optional;
 
 TEST(CertificateViewTest, PemParser) {
   std::stringstream stream(kTestCertificatePem);
@@ -45,6 +49,13 @@ TEST(CertificateViewTest, Parse) {
   EXPECT_THAT(view->subject_alt_name_ips(),
               ElementsAre(QuicIpAddress::Loopback4()));
   EXPECT_EQ(EVP_PKEY_id(view->public_key()), EVP_PKEY_RSA);
+
+  const QuicWallTime validity_start = QuicWallTime::FromUNIXSeconds(
+      *quiche::QuicheUtcDateTimeToUnixSeconds(2020, 1, 30, 18, 13, 59));
+  EXPECT_EQ(view->validity_start(), validity_start);
+  const QuicWallTime validity_end = QuicWallTime::FromUNIXSeconds(
+      *quiche::QuicheUtcDateTimeToUnixSeconds(2020, 2, 2, 18, 13, 59));
+  EXPECT_EQ(view->validity_end(), validity_end);
 }
 
 TEST(CertificateViewTest, ParseCertWithUnknownSanType) {
@@ -118,6 +129,47 @@ TEST(CertificateViewTest, PrivateKeyPem) {
       CertificatePrivateKey::LoadPemFromStream(&legacy_stream);
   ASSERT_TRUE(legacy_key != nullptr);
   EXPECT_TRUE(legacy_key->MatchesPublicKey(*view));
+}
+
+TEST(CertificateViewTest, DerTime) {
+  EXPECT_THAT(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024Z"),
+              Optional(QuicWallTime::FromUNIXSeconds(24)));
+  EXPECT_THAT(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19710101000024Z"),
+              Optional(QuicWallTime::FromUNIXSeconds(365 * 86400 + 24)));
+  EXPECT_THAT(ParseDerTime(CBS_ASN1_UTCTIME, "700101000024Z"),
+              Optional(QuicWallTime::FromUNIXSeconds(24)));
+  EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "200101000024Z").has_value());
+
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, ""), QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.001Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024Q"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024-0500"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "700101000024ZZ"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.00Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "197O0101000024Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.0O1Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "-9700101000024Z"),
+            QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "1970-101000024Z"),
+            QuicheNullOpt);
+
+  EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "490101000024Z").has_value());
+  // This should parse as 1950, which predates UNIX epoch.
+  EXPECT_FALSE(ParseDerTime(CBS_ASN1_UTCTIME, "500101000024Z").has_value());
+
+  EXPECT_THAT(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101230000Z"),
+              Optional(QuicWallTime::FromUNIXSeconds(23 * 3600)));
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101240000Z"),
+            QuicheNullOpt);
 }
 
 }  // namespace

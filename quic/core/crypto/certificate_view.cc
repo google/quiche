@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -17,6 +18,8 @@
 #include "third_party/boringssl/src/include/openssl/rsa.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -24,10 +27,13 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
+#include "net/third_party/quiche/src/common/quiche_data_reader.h"
+
+namespace {
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
 // above the literals are the contents in the der2ascii syntax.
-namespace {
 
 // X.509 version 3 (version numbering starts with zero).
 // INTEGER { 2 }
@@ -93,6 +99,40 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
 }  // namespace
 
 namespace quic {
+
+quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
+    unsigned tag,
+    quiche::QuicheStringPiece payload) {
+  if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
+    QUIC_BUG << "Invalid tag supplied for a DER timestamp";
+    return QuicheNullOpt;
+  }
+
+  const size_t year_length = tag == CBS_ASN1_GENERALIZEDTIME ? 4 : 2;
+  uint64_t year, month, day, hour, minute, second;
+  quiche::QuicheDataReader reader(payload);
+  if (!reader.ReadDecimal64(year_length, &year) ||
+      !reader.ReadDecimal64(2, &month) || !reader.ReadDecimal64(2, &day) ||
+      !reader.ReadDecimal64(2, &hour) || !reader.ReadDecimal64(2, &minute) ||
+      !reader.ReadDecimal64(2, &second) ||
+      reader.ReadRemainingPayload() != "Z") {
+    QUIC_DLOG(WARNING) << "Failed to parse the DER timestamp";
+    return QuicheNullOpt;
+  }
+
+  if (tag == CBS_ASN1_UTCTIME) {
+    DCHECK_LE(year, 100u);
+    year += (year >= 50) ? 1900 : 2000;
+  }
+
+  const quiche::QuicheOptional<int64_t> unix_time =
+      quiche::QuicheUtcDateTimeToUnixSeconds(year, month, day, hour, minute,
+                                             second);
+  if (!unix_time.has_value() || *unix_time < 0) {
+    return QuicheNullOpt;
+  }
+  return QuicWallTime::FromUNIXSeconds(*unix_time);
+}
 
 PemReadResult ReadNextPemMessage(std::istream* input) {
   constexpr quiche::QuicheStringPiece kPemBegin = "-----BEGIN ";
@@ -214,6 +254,25 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
       CBS_len(&tbs_certificate) != 0) {
     return nullptr;
   }
+
+  unsigned not_before_tag, not_after_tag;
+  CBS not_before, not_after;
+  if (!CBS_get_any_asn1(&validity, &not_before, &not_before_tag) ||
+      !CBS_get_any_asn1(&validity, &not_after, &not_after_tag) ||
+      CBS_len(&validity) != 0) {
+    QUIC_DLOG(WARNING) << "Failed to extract the validity dates";
+    return nullptr;
+  }
+  quiche::QuicheOptional<QuicWallTime> not_before_parsed =
+      ParseDerTime(not_before_tag, CbsToStringPiece(not_before));
+  quiche::QuicheOptional<QuicWallTime> not_after_parsed =
+      ParseDerTime(not_after_tag, CbsToStringPiece(not_after));
+  if (!not_before_parsed.has_value() || !not_after_parsed.has_value()) {
+    QUIC_DLOG(WARNING) << "Failed to parse validity dates";
+    return nullptr;
+  }
+  result->validity_start_ = *not_before_parsed;
+  result->validity_end_ = *not_after_parsed;
 
   result->public_key_.reset(EVP_parse_public_key(&spki));
   if (result->public_key_ == nullptr) {

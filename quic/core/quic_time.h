@@ -184,6 +184,10 @@ class QUIC_EXPORT_PRIVATE QuicWallTime {
   QUIC_TIME_WARN_UNUSED_RESULT QuicWallTime
   Subtract(QuicTime::Delta delta) const;
 
+  bool operator==(const QuicWallTime& other) const {
+    return microseconds_ == other.microseconds_;
+  }
+
  private:
   explicit constexpr QuicWallTime(uint64_t microseconds)
       : microseconds_(microseconds) {}

@@ -87,6 +87,11 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   // endian.
   bool ReadTag(uint32_t* tag);
 
+  // Reads a sequence of a fixed number of decimal digits, parses them as an
+  // unsigned integer and returns them as a uint64_t.  Forwards internal
+  // iterator on success, may forward it even in case of failure.
+  bool ReadDecimal64(size_t num_digits, uint64_t* result);
+
   // Returns the remaining payload as a quiche::QuicheStringPiece.
   //
   // NOTE: Does not copy but rather references strings in the underlying buffer.

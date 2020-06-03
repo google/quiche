@@ -13,8 +13,11 @@
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -46,6 +49,8 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   // without parsing them.  Returns an empty vector if any parsing error occurs.
   static std::vector<std::string> LoadPemFromStream(std::istream* input);
 
+  QuicWallTime validity_start() const { return validity_start_; }
+  QuicWallTime validity_end() const { return validity_end_; }
   const EVP_PKEY* public_key() const { return public_key_.get(); }
 
   const std::vector<quiche::QuicheStringPiece>& subject_alt_name_domains()
@@ -63,6 +68,9 @@ class QUIC_EXPORT_PRIVATE CertificateView {
 
  private:
   CertificateView() = default;
+
+  QuicWallTime validity_start_ = QuicWallTime::Zero();
+  QuicWallTime validity_end_ = QuicWallTime::Zero();
 
   // Public key parsed from SPKI.
   bssl::UniquePtr<EVP_PKEY> public_key_;
@@ -102,6 +110,12 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 
   bssl::UniquePtr<EVP_PKEY> private_key_;
 };
+
+// Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
+// testing.
+quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
+    unsigned tag,
+    quiche::QuicheStringPiece payload);
 
 }  // namespace quic
 
