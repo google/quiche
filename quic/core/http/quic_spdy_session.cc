@@ -1228,11 +1228,15 @@ void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
   ietf_server_push_enabled_ = true;
 
   if (max_push_id_.has_value()) {
-    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
+    if (max_push_id == max_push_id_.value()) {
+      QUIC_DVLOG(1) << "Not changing max_push_id: " << max_push_id;
+      return;
+    }
+
+    QUIC_DVLOG(1) << "Setting max_push_id to: " << max_push_id
                   << " from: " << max_push_id_.value();
   } else {
-    QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
-                  << " from unset";
+    QUIC_DVLOG(1) << "Setting max_push_id to: " << max_push_id << " from unset";
   }
   max_push_id_ = max_push_id;
 
