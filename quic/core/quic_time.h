@@ -188,6 +188,10 @@ class QUIC_EXPORT_PRIVATE QuicWallTime {
     return microseconds_ == other.microseconds_;
   }
 
+  QuicTime::Delta operator-(const QuicWallTime& rhs) const {
+    return QuicTime::Delta::FromMicroseconds(microseconds_ - rhs.microseconds_);
+  }
+
  private:
   explicit constexpr QuicWallTime(uint64_t microseconds)
       : microseconds_(microseconds) {}

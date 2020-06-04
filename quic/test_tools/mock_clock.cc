@@ -14,6 +14,10 @@ void MockClock::AdvanceTime(QuicTime::Delta delta) {
   now_ = now_ + delta;
 }
 
+void MockClock::Reset() {
+  now_ = QuicTime::Zero();
+}
+
 QuicTime MockClock::Now() const {
   return now_;
 }

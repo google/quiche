@@ -24,6 +24,8 @@ class MockClock : public QuicClock {
 
   // Advances the current time by |delta|, which may be negative.
   void AdvanceTime(QuicTime::Delta delta);
+  // Resets time back to zero.
+  void Reset();
 
  private:
   QuicTime now_;
