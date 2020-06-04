@@ -446,8 +446,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
-  void SendMaxPushId();
-
  private:
   friend class test::QuicSpdySessionPeer;
 
@@ -471,6 +469,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Sends any data which should be sent at the start of a connection,
   // including the initial SETTINGS frame, etc.
   void SendInitialData();
+
+  // Send a MAX_PUSH_ID frame.  Used in IETF QUIC only.
+  void SendMaxPushId();
 
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;

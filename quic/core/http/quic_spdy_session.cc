@@ -736,7 +736,8 @@ void QuicSpdySession::SendInitialData() {
   }
   QuicConnection::ScopedPacketFlusher flusher(connection());
   send_control_stream_->MaybeSendSettingsFrame();
-  if (perspective() == Perspective::IS_CLIENT && !http3_max_push_id_sent_) {
+  if (perspective() == Perspective::IS_CLIENT && max_push_id_.has_value() &&
+      !http3_max_push_id_sent_) {
     SendMaxPushId();
     http3_max_push_id_sent_ = true;
   }
@@ -1282,9 +1283,7 @@ void QuicSpdySession::SendMaxPushId() {
   DCHECK(VersionUsesHttp3(transport_version()));
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
 
-  if (max_push_id_.has_value()) {
-    send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
-  }
+  send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
 }
 
 void QuicSpdySession::EnableServerPush() {
