@@ -38,12 +38,12 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyHeaderBlock;
-using testing::_;
-using testing::AnyNumber;
-using testing::AtLeast;
-using testing::AtMost;
-using testing::Invoke;
-using testing::Truly;
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::AtLeast;
+using ::testing::AtMost;
+using ::testing::Invoke;
+using ::testing::Truly;
 
 namespace quic {
 namespace test {
@@ -95,8 +95,9 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     client_session_cache_ = client_cache.get();
     SetQuicReloadableFlag(quic_enable_tls_resumption, true);
     SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
-    crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+    client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(), std::move(client_cache));
+    server_crypto_config_ = crypto_test_utils::CryptoServerConfigForTesting();
     Initialize();
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
@@ -109,14 +110,16 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   void Initialize() {
     session_.reset();
-    connection_ = new PacketSavingConnection(&helper_, &alarm_factory_,
-                                             Perspective::IS_CLIENT,
-                                             SupportedVersions(GetParam()));
+    connection_ = new ::testing::NiceMock<PacketSavingConnection>(
+        &helper_, &alarm_factory_, Perspective::IS_CLIENT,
+        SupportedVersions(GetParam()));
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
-        QuicServerId(kServerHostname, kPort, false), crypto_config_.get(),
-        &push_promise_index_);
+        QuicServerId(kServerHostname, kPort, false),
+        client_crypto_config_.get(), &push_promise_index_);
     session_->Initialize();
+    crypto_stream_ = static_cast<QuicCryptoClientStream*>(
+        session_->GetMutableCryptoStream());
     push_promise_[":path"] = "/bar";
     push_promise_[":authority"] = "www.google.com";
     push_promise_[":method"] = "GET";
@@ -159,13 +162,11 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   void CompleteCryptoHandshake(uint32_t server_max_incoming_streams) {
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .Times(testing::AnyNumber())
+          .Times(::testing::AnyNumber())
           .WillRepeatedly(Invoke(
               this, &QuicSpdyClientSessionTest::ClearMaxStreamsControlFrame));
     }
     session_->CryptoConnect();
-    QuicCryptoClientStream* stream = static_cast<QuicCryptoClientStream*>(
-        session_->GetMutableCryptoStream());
     QuicConfig config = DefaultQuicConfig();
     if (VersionHasIetfQuicFrames(connection_->transport_version())) {
       config.SetMaxUnidirectionalStreamsToSend(server_max_incoming_streams);
@@ -173,30 +174,33 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     } else {
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     }
-    std::unique_ptr<QuicCryptoServerConfig> crypto_config =
-        crypto_test_utils::CryptoServerConfigForTesting();
     crypto_test_utils::HandshakeWithFakeServer(
-        &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
-        stream, AlpnForVersion(connection_->version()));
+        &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+        connection_, crypto_stream_, AlpnForVersion(connection_->version()));
   }
 
   void CreateConnection() {
-    connection_ = new PacketSavingConnection(&helper_, &alarm_factory_,
-                                             Perspective::IS_CLIENT,
-                                             SupportedVersions(GetParam()));
+    connection_ = new ::testing::NiceMock<PacketSavingConnection>(
+        &helper_, &alarm_factory_, Perspective::IS_CLIENT,
+        SupportedVersions(GetParam()));
     // Advance the time, because timers do not like uninitialized times.
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = std::make_unique<TestQuicSpdyClientSession>(
         DefaultQuicConfig(), SupportedVersions(GetParam()), connection_,
-        QuicServerId(kServerHostname, kPort, false), crypto_config_.get(),
-        &push_promise_index_);
+        QuicServerId(kServerHostname, kPort, false),
+        client_crypto_config_.get(), &push_promise_index_);
     session_->Initialize();
+    crypto_stream_ = static_cast<QuicCryptoClientStream*>(
+        session_->GetMutableCryptoStream());
   }
 
-  std::unique_ptr<QuicCryptoClientConfig> crypto_config_;
+  // Owned by |session_|.
+  QuicCryptoClientStream* crypto_stream_;
+  std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
+  std::unique_ptr<QuicCryptoClientConfig> client_crypto_config_;
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
-  PacketSavingConnection* connection_;
+  ::testing::NiceMock<PacketSavingConnection>* connection_;
   std::unique_ptr<TestQuicSpdyClientSession> session_;
   QuicClientPushPromiseIndex push_promise_index_;
   SpdyHeaderBlock push_promise_;
@@ -1008,8 +1012,6 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   EXPECT_EQ(5u, session_->max_outbound_header_list_size());
 
   // Complete the handshake with a different config.
-  QuicCryptoClientStream* stream =
-      static_cast<QuicCryptoClientStream*>(session_->GetMutableCryptoStream());
   QuicConfig config = DefaultQuicConfig();
   config.SetInitialMaxStreamDataBytesUnidirectionalToSend(
       kInitialStreamFlowControlWindowForTest + 1);
@@ -1017,11 +1019,9 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
       kInitialSessionFlowControlWindowForTest + 1);
   config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection + 1);
   config.SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection + 1);
-  std::unique_ptr<QuicCryptoServerConfig> crypto_config =
-      crypto_test_utils::CryptoServerConfigForTesting();
   crypto_test_utils::HandshakeWithFakeServer(
-      &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
-      stream, AlpnForVersion(connection_->version()));
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
 
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest + 1,
@@ -1051,14 +1051,10 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
-  QuicCryptoClientStream* crypto_stream =
-      static_cast<QuicCryptoClientStream*>(session_->GetMutableCryptoStream());
-  std::unique_ptr<QuicCryptoServerConfig> crypto_config =
-      crypto_test_utils::CryptoServerConfigForTesting();
   QuicConfig config = DefaultQuicConfig();
   config.SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
-  SSL_CTX_set_early_data_enabled(crypto_config->ssl_ctx(), false);
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
 
   // 3 packets will be written: CHLO, HTTP/3 SETTINGS, and request data.
   EXPECT_CALL(*connection_,
@@ -1081,8 +1077,8 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_FORWARD_SECURE, LOSS_RETRANSMISSION));
   crypto_test_utils::HandshakeWithFakeServer(
-      &config, crypto_config.get(), &helper_, &alarm_factory_, connection_,
-      crypto_stream, AlpnForVersion(connection_->version()));
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
 }
 
