@@ -4443,6 +4443,14 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
   // Copy in the header, because the encrypter only populates the encrypted
   // plaintext content.
   const size_t ad_len = associated_data.length();
+  if (packet.length() < ad_len) {
+    QUIC_BUG << ENDPOINT
+             << "packet is shorter than associated data length. version:"
+             << version() << ", packet length:" << packet.length()
+             << ", associated data length:" << ad_len;
+    RaiseError(QUIC_ENCRYPTION_FAILURE);
+    return 0;
+  }
   memmove(buffer, associated_data.data(), ad_len);
   // Encrypt the plaintext into the buffer.
   size_t output_length = 0;
@@ -4799,7 +4807,9 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
           type_byte = IETF_CONNECTION_CLOSE;
           break;
         default:
-          set_detailed_error("Invalid QuicConnectionCloseFrame type.");
+          set_detailed_error(quiche::QuicheStrCat(
+              "Invalid QuicConnectionCloseFrame type: ",
+              static_cast<int>(frame.connection_close_frame->close_type)));
           return RaiseError(QUIC_INTERNAL_ERROR);
       }
       break;

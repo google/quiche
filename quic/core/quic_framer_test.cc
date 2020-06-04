@@ -9013,6 +9013,24 @@ TEST_P(QuicFramerTest, EncryptPacket) {
   EXPECT_TRUE(CheckEncryption(packet_number, raw.get()));
 }
 
+// Regression test for b/158014497.
+TEST_P(QuicFramerTest, EncryptEmptyPacket) {
+  auto packet = std::make_unique<QuicPacket>(
+      new char[100], 0, true, PACKET_8BYTE_CONNECTION_ID,
+      PACKET_0BYTE_CONNECTION_ID,
+      /*includes_version=*/true,
+      /*includes_diversification_nonce=*/true, PACKET_1BYTE_PACKET_NUMBER,
+      VARIABLE_LENGTH_INTEGER_LENGTH_0,
+      /*retry_token_length=*/0, VARIABLE_LENGTH_INTEGER_LENGTH_0);
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length = 1;
+  EXPECT_QUIC_BUG(encrypted_length = framer_.EncryptPayload(
+                      ENCRYPTION_INITIAL, kPacketNumber, *packet, buffer,
+                      kMaxOutgoingPacketSize),
+                  "packet is shorter than associated data length");
+  EXPECT_EQ(0u, encrypted_length);
+}
+
 TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketNumber packet_number = kPacketNumber;
