@@ -106,6 +106,11 @@ class QuicClientBase {
   // Returns true once 1-RTT keys are available, false otherwise.
   QUIC_MUST_USE_RESULT bool WaitForOneRttKeysAvailable();
 
+  // Wait for handshake state proceeds to HANDSHAKE_CONFIRMED.
+  // In QUIC crypto, this does the same as WaitForOneRttKeysAvailable, while in
+  // TLS, this waits for HANDSHAKE_DONE frame is received.
+  QUIC_MUST_USE_RESULT bool WaitForHandshakeConfirmed();
+
   // Wait up to 50ms, and handle any events which occur.
   // Returns true if there are any outstanding requests.
   bool WaitForEvents();

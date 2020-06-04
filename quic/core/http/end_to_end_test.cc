@@ -1144,9 +1144,10 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
   // brutal.
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
-
-  // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   SetPacketLossPercentage(30);
 
   // 10 KB body.
@@ -1165,9 +1166,10 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
 // Regression test for b/80090281.
 TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
   ASSERT_TRUE(Initialize());
-
-  // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Normally server only bundles a retransmittable frame once every other
@@ -1198,9 +1200,10 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
-
-  // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   SetPacketLossPercentage(10);
   client_writer_->set_fake_blocked_socket_percentage(10);
 
@@ -1218,8 +1221,10 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
 
 TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
   ASSERT_TRUE(Initialize());
-
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   // Both of these must be called when the writer is not actively used.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
   SetReorderPercentage(30);
@@ -2406,9 +2411,11 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // demonstrates that retransmissions do not break this functionality.
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
-
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
   // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   SetPacketLossPercentage(30);
   client_writer_->set_fake_blocked_socket_percentage(10);
 
@@ -3777,7 +3784,10 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
 
 TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  if (version_.UsesTls() && !version_.HasHandshakeDone()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   SetPacketLossPercentage(30);
 
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();

@@ -247,6 +247,19 @@ bool QuicClientBase::WaitForOneRttKeysAvailable() {
   return connected();
 }
 
+bool QuicClientBase::WaitForHandshakeConfirmed() {
+  if (!session_->connection()->version().HasHandshakeDone()) {
+    return WaitForOneRttKeysAvailable();
+  }
+  while (connected() && session_->GetHandshakeState() < HANDSHAKE_CONFIRMED) {
+    WaitForEvents();
+  }
+
+  // If the handshake fails due to a timeout, the connection will be closed.
+  QUIC_LOG_IF(ERROR, !connected()) << "Handshake with server failed.";
+  return connected();
+}
+
 bool QuicClientBase::connected() const {
   return session_.get() && session_->connection() &&
          session_->connection()->connected();
