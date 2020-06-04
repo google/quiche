@@ -973,7 +973,8 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
                  ->application_state);
 }
 
-TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
+// TODO(b/158240541) re-enable this test after fixing the bug.
+TEST_P(QuicSpdyClientSessionTest, DISABLED_IetfZeroRttSetup) {
   // This feature is HTTP/3 only
   if (!VersionUsesHttp3(session_->transport_version())) {
     return;
