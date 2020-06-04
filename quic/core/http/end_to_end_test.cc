@@ -3931,7 +3931,10 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
             server_connection->GetStats().num_connectivity_probing_received);
   server_thread_->Resume();
 
-  EXPECT_EQ(
+  // Server definitely responded to the connectivity probing. Sometime it also
+  // sends a padded ping that is not a connectivity probing, which is recognized
+  // as connectivity probing because client's self address is ANY.
+  EXPECT_LE(
       1u, GetClientConnection()->GetStats().num_connectivity_probing_received);
 }
 
