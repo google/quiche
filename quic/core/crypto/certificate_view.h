@@ -113,7 +113,7 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
-quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
+QUIC_EXPORT_PRIVATE quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
     unsigned tag,
     quiche::QuicheStringPiece payload);
 
