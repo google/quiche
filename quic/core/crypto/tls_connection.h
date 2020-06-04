@@ -101,11 +101,6 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   static const SSL_QUIC_METHOD kSslQuicMethod;
 
   // The following static functions make up the members of kSslQuicMethod:
-  static int SetEncryptionSecretCallback(SSL* ssl,
-                                         enum ssl_encryption_level_t level,
-                                         const uint8_t* read_key,
-                                         const uint8_t* write_key,
-                                         size_t key_length);
   static int SetReadSecretCallback(SSL* ssl,
                                    enum ssl_encryption_level_t level,
                                    const SSL_CIPHER* cipher,
