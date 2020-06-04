@@ -660,6 +660,7 @@ std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
 
 void QuicVersionInitializeSupportForIetfDraft() {
   // Enable necessary flags.
+  SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
