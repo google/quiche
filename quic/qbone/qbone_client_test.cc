@@ -241,7 +241,7 @@ TEST_P(QboneClientTest, SendDataFromClient) {
       crypto_test_utils::ProofVerifierForTesting());
   ASSERT_TRUE(client.Initialize());
   ASSERT_TRUE(client.Connect());
-  ASSERT_TRUE(client.WaitForCryptoHandshakeConfirmed());
+  ASSERT_TRUE(client.WaitForOneRttKeysAvailable());
   client.SendData(TestPacketIn("hello"));
   client.SendData(TestPacketIn("world"));
   client.WaitForWriteToFlush();

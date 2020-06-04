@@ -235,7 +235,7 @@ void QuicClientBase::WaitForStreamToClose(QuicStreamId id) {
   }
 }
 
-bool QuicClientBase::WaitForCryptoHandshakeConfirmed() {
+bool QuicClientBase::WaitForOneRttKeysAvailable() {
   DCHECK(connected());
 
   while (connected() && !session_->OneRttKeysAvailable()) {

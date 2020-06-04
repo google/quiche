@@ -538,7 +538,7 @@ INSTANTIATE_TEST_SUITE_P(EndToEndTests,
 
 TEST_P(EndToEndTest, HandshakeSuccessful) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
   QuicCryptoStream* crypto_stream =
       QuicSessionPeer::GetMutableCryptoStream(GetClientSession());
@@ -1102,7 +1102,7 @@ TEST_P(EndToEndTest, PostMissingBytes) {
 TEST_P(EndToEndTest, LargePostNoPacketLoss) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // 1 MB body.
   std::string body(1024 * 1024, 'a');
@@ -1123,7 +1123,7 @@ TEST_P(EndToEndTest, LargePostNoPacketLoss1sRTT) {
   ASSERT_TRUE(Initialize());
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(1000));
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // 100 KB body.
   std::string body(100 * 1024, 'a');
@@ -1146,7 +1146,7 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(30);
 
   // 10 KB body.
@@ -1167,7 +1167,7 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Normally server only bundles a retransmittable frame once every other
@@ -1200,7 +1200,7 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(10);
   client_writer_->set_fake_blocked_socket_percentage(10);
 
@@ -1219,7 +1219,7 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
 TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   // Both of these must be called when the writer is not actively used.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
   SetReorderPercentage(30);
@@ -1264,7 +1264,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1280,7 +1280,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   StartServer();
 
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1312,7 +1312,7 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
@@ -1327,7 +1327,7 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   StartServer();
 
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
@@ -1366,7 +1366,7 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1382,7 +1382,7 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   StartServer();
 
   client_->Connect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
   EXPECT_EQ(kFooResponseBody,
             client_->SendCustomSynchronousRequest(headers, body));
@@ -1412,7 +1412,7 @@ TEST_P(EndToEndTest, SetInitialReceivedConnectionOptions) {
       initial_received_options));
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   EXPECT_FALSE(server_config_.SetInitialReceivedConnectionOptions(
@@ -1437,7 +1437,7 @@ TEST_P(EndToEndTest, LargePostSmallBandwidthLargeBuffer) {
   server_writer_->set_max_bandwidth_and_buffer_size(
       QuicBandwidth::FromBytesPerSecond(256 * 1024), 256 * 1024);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // 1 MB body.
   std::string body(1024 * 1024, 'a');
@@ -1461,7 +1461,7 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
   // an infinite loop in the EpollServer, as the alarm fires and is immediately
   // rescheduled.
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // Ensure both stream and connection level are flow control blocked by setting
   // the send window offset to 0.
@@ -1497,7 +1497,7 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
 
 TEST_P(EndToEndTest, InvalidStream) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   std::string body(kMaxOutgoingPacketSize, 'a');
   SpdyHeaderBlock headers;
@@ -1522,7 +1522,7 @@ TEST_P(EndToEndTest, InvalidStream) {
 // with overly large headers.
 TEST_P(EndToEndTest, LargeHeaders) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   std::string body(kMaxOutgoingPacketSize, 'a');
   SpdyHeaderBlock headers;
@@ -1551,7 +1551,7 @@ TEST_P(EndToEndTest, LargeHeaders) {
 
 TEST_P(EndToEndTest, EarlyResponseWithQuicStreamNoError) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   std::string large_body(1024 * 1024, 'a');
   SpdyHeaderBlock headers;
@@ -1617,7 +1617,7 @@ TEST_P(EndToEndTest, MaxDynamicStreamsLimitRespected) {
     // not properly set up.
     return;
   }
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // Make the client misbehave after negotiation.
   const int kServerMaxStreams = kMaxStreamsMinimumIncrement + 1;
@@ -1653,7 +1653,7 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   server_config_.SetMaxUnidirectionalStreamsToSend(kServerMaxDynamicStreams);
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // The client has received the server's limit and vice versa.
   QuicSpdyClientSession* client_session = GetClientSession();
@@ -1710,7 +1710,7 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
 TEST_P(EndToEndTest, NegotiateCongestionControl) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   CongestionControlType expected_congestion_control_type = kRenoBytes;
   switch (GetParam().congestion_control_tag) {
@@ -1744,7 +1744,7 @@ TEST_P(EndToEndTest, ClientSuggestsRTT) {
   client_config_.SetInitialRoundTripTimeUsToSend(kInitialRTT.ToMicroseconds());
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Pause the server so we can access the server's internals without races.
@@ -1773,7 +1773,7 @@ TEST_P(EndToEndTest, ClientSuggestsIgnoredRTT) {
   client_config_.SetConnectionOptionsToSend(options);
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Pause the server so we can access the server's internals without races.
@@ -1800,7 +1800,7 @@ TEST_P(EndToEndTest, MaxInitialRTT) {
                                                  kMaxInitialRoundTripTimeUs);
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Pause the server so we can access the server's internals without races.
@@ -1826,7 +1826,7 @@ TEST_P(EndToEndTest, MinInitialRTT) {
   client_config_.SetInitialRoundTripTimeUsToSend(0);
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Pause the server so we can access the server's internals without races.
@@ -1907,7 +1907,7 @@ TEST_P(EndToEndTest, ResetConnection) {
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   client_->ResetConnection();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
 }
@@ -1922,7 +1922,7 @@ TEST_P(EndToEndTest, MaxStreamsUberTest) {
 
   AddToCache("/large_response", 200, large_body);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(10);
 
   for (int i = 0; i < max_streams; ++i) {
@@ -1941,7 +1941,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
 
   AddToCache("/small_response", 200, small_body);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   QuicSession* session = GetClientSession();
   // Lose the request.
@@ -2045,7 +2045,7 @@ TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
   ASSERT_TRUE(Initialize());
 
   // Values are exchanged during crypto handshake, so wait for that to finish.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
   server_thread_->Pause();
 
@@ -2071,7 +2071,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
   ASSERT_TRUE(Initialize());
 
   // Values are exchanged during crypto handshake, so wait for that to finish.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Open a data stream to make sure the stream level flow control is updated.
@@ -2144,7 +2144,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
   ASSERT_TRUE(Initialize());
 
   // Values are exchanged during crypto handshake, so wait for that to finish.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   // Open a data stream to make sure the stream level flow control is updated.
@@ -2195,7 +2195,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   // Wait for crypto handshake to finish. This should have contributed to the
   // crypto stream flow control window, but not affected the session flow
   // control window.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   QuicCryptoStream* crypto_stream =
@@ -2249,7 +2249,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
 
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   server_thread_->WaitForCryptoHandshakeConfirmed();
 
   QuicSpdySession* const client_session = GetClientSession();
@@ -2408,7 +2408,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   ASSERT_TRUE(Initialize());
 
   // Wait for the server SHLO before upping the packet loss.
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(30);
   client_writer_->set_fake_blocked_socket_percentage(10);
 
@@ -2493,7 +2493,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 TEST_P(EndToEndTest, ServerSendPublicReset) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicConnection* client_connection = GetClientConnection();
   QuicConfig* config = client_->client()->session()->config();
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
@@ -2531,7 +2531,7 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
 TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicConnection* client_connection = GetClientConnection();
   QuicConfig* config = client_->client()->session()->config();
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
@@ -2608,7 +2608,7 @@ TEST_P(EndToEndTest, ClientSendPublicResetWithDifferentConnectionId) {
 TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // Send the version negotiation packet.
   QuicConnection* client_connection = GetClientConnection();
@@ -2760,7 +2760,7 @@ TEST_P(EndToEndTest, BadEncryptedData) {
 
 TEST_P(EndToEndTest, CanceledStreamDoesNotBecomeZombie) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   // Lose the request.
   SetPacketLossPercentage(100);
   SpdyHeaderBlock headers;
@@ -2961,7 +2961,7 @@ TEST_P(EndToEndTest, EarlyResponseFinRecording) {
 
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // A POST that gets an early error response, after the headers are received
   // and before the body is received, due to invalid content-length.
@@ -3009,7 +3009,7 @@ TEST_P(EndToEndTest, EarlyResponseFinRecording) {
 TEST_P(EndToEndTest, Trailers) {
   // Test sending and receiving HTTP/2 Trailers (trailing HEADERS frames).
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // Set reordering to ensure that Trailers arriving before body is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -3096,7 +3096,7 @@ INSTANTIATE_TEST_SUITE_P(EndToEndTestsServerPush,
 
 TEST_P(EndToEndTestServerPush, ServerPush) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   // Set reordering to ensure that body arriving before PUSH_PROMISE is ok.
   SetPacketSendDelay(QuicTime::Delta::FromMilliseconds(2));
@@ -3150,7 +3150,7 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
   // them with requests later.
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   if (version_.UsesHttp3()) {
     static_cast<QuicSpdySession*>(client_->client()->session())
         ->SetMaxPushId(kMaxQuicStreamId);
@@ -3209,7 +3209,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   // streams should still work because all response streams get closed
   // immediately after pushing resources.
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   if (version_.UsesHttp3()) {
     static_cast<QuicSpdySession*>(client_->client()->session())
         ->SetMaxPushId(kMaxQuicStreamId);
@@ -3273,7 +3273,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
       kBodySize * kNumMaxStreams + 1024);
 
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   if (version_.UsesHttp3()) {
     static_cast<QuicSpdySession*>(client_->client()->session())
         ->SetMaxPushId(kMaxQuicStreamId);
@@ -3354,7 +3354,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugePostWithPacketLoss) {
   // within a short time.
   client_->epoll_server()->set_timeout_in_us(0);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(1);
   // To avoid storing the whole request body in memory, use a loop to repeatedly
   // send body size of kSizeBytes until the whole request body size is reached.
@@ -3412,7 +3412,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
   initialized_ = true;
   ASSERT_TRUE(client_->client()->connected());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(1);
   client_->SendRequest("/huge_response");
   client_->WaitForResponse();
@@ -3422,7 +3422,7 @@ TEST_P(EndToEndTest, DISABLED_TestHugeResponseWithPacketLoss) {
 // Regression test for b/111515567
 TEST_P(EndToEndTest, AgreeOnStopWaiting) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   QuicConnection* client_connection = GetClientConnection();
   server_thread_->Pause();
@@ -3440,7 +3440,7 @@ TEST_P(EndToEndTest, AgreeOnStopWaitingWithNoStopWaitingOption) {
   options.push_back(kNSTP);
   client_config_.SetConnectionOptionsToSend(options);
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   QuicConnection* client_connection = GetClientConnection();
   server_thread_->Pause();
@@ -3513,7 +3513,7 @@ class WindowUpdateObserver : public QuicConnectionDebugVisitor {
 
 TEST_P(EndToEndTest, WindowUpdateInAck) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   WindowUpdateObserver observer;
   QuicConnection* client_connection = GetClientConnection();
   client_connection->set_debug_visitor(&observer);
@@ -3534,7 +3534,7 @@ TEST_P(EndToEndTest, WindowUpdateInAck) {
 
 TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicConfig* config = client_->client()->session()->config();
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
   EXPECT_EQ(QuicUtils::GenerateStatelessResetToken(
@@ -3694,8 +3694,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   // 2. Crypto handshake has not completed, Initialize() returns true. The call
   //    to WaitForCryptoHandshakeConfirmed() will wait for the handshake and
   //    return whether it is successful.
-  ASSERT_FALSE(Initialize() &&
-               client_->client()->WaitForCryptoHandshakeConfirmed());
+  ASSERT_FALSE(Initialize() && client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
@@ -3716,8 +3715,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
     return;
   }
 
-  ASSERT_FALSE(Initialize() &&
-               client_->client()->WaitForCryptoHandshakeConfirmed());
+  ASSERT_FALSE(Initialize() && client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
@@ -3738,8 +3736,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
     return;
   }
 
-  ASSERT_FALSE(Initialize() &&
-               client_->client()->WaitForCryptoHandshakeConfirmed());
+  ASSERT_FALSE(Initialize() && client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_THAT(client_->connection_error(), IsError(QUIC_HANDSHAKE_TIMEOUT));
 }
 
@@ -3758,7 +3755,7 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
       server_hostname_, "/test_url", std::move(response_headers), response_body,
       QuicBackendResponse::INCOMPLETE_RESPONSE);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   client_->WaitForDelayedAcks();
 
   QuicSession* session = GetClientSession();
@@ -3780,7 +3777,7 @@ TEST_P(EndToEndTest, RequestAndStreamRstInOnePacket) {
 
 TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   SetPacketLossPercentage(30);
 
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
@@ -3801,7 +3798,7 @@ TEST_P(EndToEndTest, SendMessages) {
     return;
   }
   ASSERT_TRUE(Initialize());
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSession* client_session = GetClientSession();
   QuicConnection* client_connection = client_session->connection();
 
@@ -3956,7 +3953,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   // Only send out a CHLO.
   client_->client()->Initialize();
   client_->client()->StartConnect();
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   ASSERT_TRUE(client_->client()->connected());
 
   // Send a request before handshake finishes.
@@ -4033,7 +4030,7 @@ TEST_P(EndToEndTest, SimpleStopSendingTest) {
       server_hostname_, "/test_url", std::move(response_headers), response_body,
       kStopSendingTestCode);
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   client_->WaitForDelayedAcks();
 
   QuicSession* session = GetClientSession();
@@ -4211,7 +4208,7 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
     // Only runs for IETF QUIC.
     return;
   }
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   std::string body(kMaxOutgoingPacketSize, 'a');
   SpdyHeaderBlock headers;
@@ -4247,7 +4244,7 @@ TEST_P(EndToEndTest, TestMaxPushId) {
   SetQuicFlag(FLAGS_quic_enable_http3_server_push, true);
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   static_cast<QuicSpdySession*>(client_->client()->session())
       ->SetMaxPushId(kMaxQuicStreamId);
 
@@ -4283,7 +4280,7 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   EXPECT_CALL(visitor, OnTransportParametersReceived(_)).Times(1);
   ASSERT_TRUE(Initialize());
 
-  EXPECT_TRUE(client_->client()->WaitForCryptoHandshakeConfirmed());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
   server_thread_->Pause();
   QuicConfig server_config = *GetServerSession()->config();

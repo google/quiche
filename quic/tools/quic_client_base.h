@@ -102,9 +102,9 @@ class QuicClientBase {
   // Wait for events until the stream with the given ID is closed.
   void WaitForStreamToClose(QuicStreamId id);
 
-  // Wait for events until the handshake is confirmed.
-  // Returns true if the crypto handshake succeeds, false otherwise.
-  QUIC_MUST_USE_RESULT bool WaitForCryptoHandshakeConfirmed();
+  // Wait for 1-RTT keys become available.
+  // Returns true once 1-RTT keys are available, false otherwise.
+  QUIC_MUST_USE_RESULT bool WaitForOneRttKeysAvailable();
 
   // Wait up to 50ms, and handle any events which occur.
   // Returns true if there are any outstanding requests.
