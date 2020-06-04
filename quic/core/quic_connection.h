@@ -982,6 +982,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnTransportParametersReceived(
       const TransportParameters& transport_parameters) const;
 
+  // Returns true if ack_alarm_ is set.
+  bool HasPendingAcks() const;
+
   size_t anti_amplification_factor() const {
     return anti_amplification_factor_;
   }
