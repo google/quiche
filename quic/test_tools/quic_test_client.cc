@@ -957,7 +957,7 @@ void QuicTestClient::WaitForDelayedAcks() {
   const QuicClock* clock = client()->client_session()->connection()->clock();
 
   QuicTime wait_until = clock->ApproximateNow() + kWaitDuration;
-  while (clock->ApproximateNow() < wait_until) {
+  while (connected() && clock->ApproximateNow() < wait_until) {
     // This waits for up to 50 ms.
     client()->WaitForEvents();
   }

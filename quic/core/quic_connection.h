@@ -1697,6 +1697,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       move_amplification_limit_
           ? 5
           : GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+
+  const bool default_enable_5rto_blackhole_detection_ =
+      GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection);
 };
 
 }  // namespace quic

@@ -376,6 +376,9 @@ QuicConnection::QuicConnection(
   if (perspective_ == Perspective::IS_SERVER) {
     SetVersionNegotiated();
   }
+  if (default_enable_5rto_blackhole_detection_) {
+    num_rtos_for_blackhole_detection_ = 5;
+  }
 }
 
 void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
@@ -4519,6 +4522,11 @@ bool QuicConnection::ShouldDetectBlackhole() const {
     return false;
   }
   // No blackhole detection before handshake completes.
+  if (default_enable_5rto_blackhole_detection_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_default_enable_5rto_blackhole_detection);
+    return IsHandshakeComplete();
+  }
+
   if (!GetHandshakeTimeout().IsInfinite()) {
     return false;
   }

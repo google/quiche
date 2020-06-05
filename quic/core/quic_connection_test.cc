@@ -9926,6 +9926,10 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
@@ -9973,6 +9977,10 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
@@ -10019,6 +10027,10 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
