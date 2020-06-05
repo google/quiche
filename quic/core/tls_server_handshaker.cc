@@ -380,6 +380,7 @@ void TlsServerHandshaker::FinishHandshake() {
   handshaker_delegate()->OnOneRttKeysAvailable();
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
+  handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_ZERO_RTT);
 }
 
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
