@@ -82,13 +82,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   virtual void ProcessAdditionalTransportParameters(
       const TransportParameters& /*params*/) {}
 
-  // Override of TlsHandshaker::SetReadSecret so that setting the read secret
-  // for ENCRYPTION_FORWARD_SECURE can be delayed until the handshake is
-  // complete.
-  bool SetReadSecret(EncryptionLevel level,
-                     const SSL_CIPHER* cipher,
-                     const std::vector<uint8_t>& read_secret) override;
-
   // Called when a new message is received on the crypto stream and is available
   // for the TLS stack to read.
   void AdvanceHandshake() override;
@@ -194,11 +187,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;
-
-  // Used to hold the ENCRYPTION_FORWARD_SECURE read secret until the handshake
-  // is complete. This is temporary until
-  // https://bugs.chromium.org/p/boringssl/issues/detail?id=303 is resolved.
-  std::vector<uint8_t> app_data_read_secret_;
 
   bool encryption_established_ = false;
   bool one_rtt_keys_available_ = false;
