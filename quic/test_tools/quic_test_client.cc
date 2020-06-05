@@ -661,9 +661,7 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
           ->GetClock();
   QuicTime end_waiting_time =
       clock->Now() + QuicTime::Delta::FromMicroseconds(timeout_us);
-  while ((HaveActiveStream() ||
-          client()->session()->connection()->HasPendingAcks()) &&
-         !(trigger && trigger()) &&
+  while (HaveActiveStream() && !(trigger && trigger()) &&
          (timeout_us < 0 || clock->Now() < end_waiting_time)) {
     client_->WaitForEvents();
   }
@@ -847,8 +845,7 @@ const QuicSocketAddress& QuicTestClient::address() const {
 }
 
 void QuicTestClient::WaitForWriteToFlush() {
-  while (connected() && (client()->session()->HasDataToWrite() ||
-                         client()->session()->connection()->HasPendingAcks())) {
+  while (connected() && client()->session()->HasDataToWrite()) {
     client_->WaitForEvents();
   }
 }
