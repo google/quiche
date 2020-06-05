@@ -387,10 +387,6 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   CreateConnection();
 
-  EXPECT_CALL(*session_, OnZeroRttRejected())
-      .WillOnce(testing::Invoke(
-          session_.get(), &TestQuicSpdyClientSession::ReallyOnZeroRttRejected));
-
   // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
   // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
   // packet retransmission.
