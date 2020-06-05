@@ -93,6 +93,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
       std::unique_ptr<ProofVerifierCallback> callback) override;
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
+      const uint16_t port,
       const std::vector<std::string>& certs,
       const std::string& ocsp_response,
       const std::string& cert_sct,

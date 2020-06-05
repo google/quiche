@@ -41,7 +41,8 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
     VerifyResult result;
     std::unique_ptr<ProofVerifyDetails> details;
     result.status = verifier_->VerifyCertChain(
-        /*hostname=*/"", std::vector<std::string>{std::string(certificate)},
+        /*hostname=*/"", /*port=*/0,
+        std::vector<std::string>{std::string(certificate)},
         /*ocsp_response=*/"",
         /*cert_sct=*/"",
         /*context=*/nullptr, &result.error, &details,

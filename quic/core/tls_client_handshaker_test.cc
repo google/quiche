@@ -66,6 +66,7 @@ class TestProofVerifier : public ProofVerifier {
 
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
+      const uint16_t port,
       const std::vector<std::string>& certs,
       const std::string& ocsp_response,
       const std::string& cert_sct,
@@ -74,12 +75,12 @@ class TestProofVerifier : public ProofVerifier {
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
-      return verifier_->VerifyCertChain(hostname, certs, ocsp_response,
+      return verifier_->VerifyCertChain(hostname, port, certs, ocsp_response,
                                         cert_sct, context, error_details,
                                         details, std::move(callback));
     }
     pending_ops_.push_back(std::make_unique<VerifyChainPendingOp>(
-        hostname, certs, ocsp_response, cert_sct, context, error_details,
+        hostname, port, certs, ocsp_response, cert_sct, context, error_details,
         details, std::move(callback), verifier_.get()));
     return QUIC_PENDING;
   }
@@ -114,6 +115,7 @@ class TestProofVerifier : public ProofVerifier {
   class VerifyChainPendingOp {
    public:
     VerifyChainPendingOp(const std::string& hostname,
+                         const uint16_t port,
                          const std::vector<std::string>& certs,
                          const std::string& ocsp_response,
                          const std::string& cert_sct,
@@ -123,6 +125,7 @@ class TestProofVerifier : public ProofVerifier {
                          std::unique_ptr<ProofVerifierCallback> callback,
                          ProofVerifier* delegate)
         : hostname_(hostname),
+          port_(port),
           certs_(certs),
           ocsp_response_(ocsp_response),
           cert_sct_(cert_sct),
@@ -138,7 +141,7 @@ class TestProofVerifier : public ProofVerifier {
       // runs the original callback after asserting that the verification ran
       // synchronously.
       QuicAsyncStatus status = delegate_->VerifyCertChain(
-          hostname_, certs_, ocsp_response_, cert_sct_, context_,
+          hostname_, port_, certs_, ocsp_response_, cert_sct_, context_,
           error_details_, details_,
           std::make_unique<FailingProofVerifierCallback>());
       ASSERT_NE(status, QUIC_PENDING);
@@ -147,6 +150,7 @@ class TestProofVerifier : public ProofVerifier {
 
    private:
     std::string hostname_;
+    const uint16_t port_;
     std::vector<std::string> certs_;
     std::string ocsp_response_;
     std::string cert_sct_;
