@@ -261,7 +261,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   char data[] = "hello world";
   EXPECT_QUIC_BUG(
       session_->WritevData(stream->id(), QUICHE_ARRAYSIZE(data), 0, NO_FIN,
-                           NOT_RETRANSMISSION, QuicheNullOpt),
+                           NOT_RETRANSMISSION, QUICHE_NULLOPT),
       "Client: Try to send data of stream");
 }
 

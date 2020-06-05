@@ -105,7 +105,7 @@ quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
     quiche::QuicheStringPiece payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
     QUIC_BUG << "Invalid tag supplied for a DER timestamp";
-    return QuicheNullOpt;
+    return QUICHE_NULLOPT;
   }
 
   const size_t year_length = tag == CBS_ASN1_GENERALIZEDTIME ? 4 : 2;
@@ -117,7 +117,7 @@ quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
       !reader.ReadDecimal64(2, &second) ||
       reader.ReadRemainingPayload() != "Z") {
     QUIC_DLOG(WARNING) << "Failed to parse the DER timestamp";
-    return QuicheNullOpt;
+    return QUICHE_NULLOPT;
   }
 
   if (tag == CBS_ASN1_UTCTIME) {
@@ -129,7 +129,7 @@ quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
       quiche::QuicheUtcDateTimeToUnixSeconds(year, month, day, hour, minute,
                                              second);
   if (!unix_time.has_value() || *unix_time < 0) {
-    return QuicheNullOpt;
+    return QUICHE_NULLOPT;
   }
   return QuicWallTime::FromUNIXSeconds(*unix_time);
 }

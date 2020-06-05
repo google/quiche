@@ -140,27 +140,27 @@ TEST(CertificateViewTest, DerTime) {
               Optional(QuicWallTime::FromUNIXSeconds(24)));
   EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "200101000024Z").has_value());
 
-  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, ""), QuicheNullOpt);
+  EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, ""), QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.001Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024Q"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024-0500"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "700101000024ZZ"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.00Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "197O0101000024Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101000024.0O1Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "-9700101000024Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "1970-101000024Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
 
   EXPECT_TRUE(ParseDerTime(CBS_ASN1_UTCTIME, "490101000024Z").has_value());
   // This should parse as 1950, which predates UNIX epoch.
@@ -169,7 +169,7 @@ TEST(CertificateViewTest, DerTime) {
   EXPECT_THAT(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101230000Z"),
               Optional(QuicWallTime::FromUNIXSeconds(23 * 3600)));
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101240000Z"),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
 }
 
 }  // namespace

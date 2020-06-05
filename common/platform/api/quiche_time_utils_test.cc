@@ -19,24 +19,26 @@ TEST(QuicheTimeUtilsTest, Basic) {
             QuicheUtcDateTimeToUnixSeconds(2006, 7, 15, 12, 34, 56));
   EXPECT_EQ(1591130001, QuicheUtcDateTimeToUnixSeconds(2020, 6, 2, 20, 33, 21));
 
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 2, 29, 0, 0, 1));
-  EXPECT_NE(QuicheNullOpt,
+  EXPECT_NE(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1972, 2, 29, 0, 0, 1));
 }
 
 TEST(QuicheTimeUtilsTest, Bounds) {
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 32, 0, 0, 1));
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 4, 31, 0, 0, 1));
-  EXPECT_EQ(QuicheNullOpt, QuicheUtcDateTimeToUnixSeconds(1970, 1, 0, 0, 0, 1));
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
+            QuicheUtcDateTimeToUnixSeconds(1970, 1, 0, 0, 0, 1));
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 13, 1, 0, 0, 1));
-  EXPECT_EQ(QuicheNullOpt, QuicheUtcDateTimeToUnixSeconds(1970, 0, 1, 0, 0, 1));
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
+            QuicheUtcDateTimeToUnixSeconds(1970, 0, 1, 0, 0, 1));
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 1, 24, 0, 0));
-  EXPECT_EQ(QuicheNullOpt,
+  EXPECT_EQ(QUICHE_NULLOPT,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 1, 0, 60, 0));
 }
 
@@ -44,7 +46,7 @@ TEST(QuicheTimeUtilsTest, LeapSecond) {
   EXPECT_EQ(QuicheUtcDateTimeToUnixSeconds(2015, 6, 30, 23, 59, 60),
             QuicheUtcDateTimeToUnixSeconds(2015, 7, 1, 0, 0, 0));
   EXPECT_EQ(QuicheUtcDateTimeToUnixSeconds(2015, 6, 30, 25, 59, 60),
-            QuicheNullOpt);
+            QUICHE_NULLOPT);
 }
 
 }  // namespace
