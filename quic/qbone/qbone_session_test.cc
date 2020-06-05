@@ -160,6 +160,7 @@ class IndirectionProofVerifier : public ProofVerifier {
 
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname,
+      const uint16_t port,
       const std::vector<std::string>& certs,
       const std::string& ocsp_response,
       const std::string& cert_sct,
@@ -170,9 +171,9 @@ class IndirectionProofVerifier : public ProofVerifier {
     if (!proof_verifier_) {
       return QUIC_FAILURE;
     }
-    return proof_verifier_->VerifyCertChain(hostname, certs, ocsp_response,
-                                            cert_sct, context, error_details,
-                                            details, std::move(callback));
+    return proof_verifier_->VerifyCertChain(
+        hostname, port, certs, ocsp_response, cert_sct, context, error_details,
+        details, std::move(callback));
   }
 
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {

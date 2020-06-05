@@ -532,8 +532,8 @@ enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
       new ProofVerifierCallbackImpl(this);
 
   QuicAsyncStatus verify_result = proof_verifier_->VerifyCertChain(
-      server_id_.host(), certs, ocsp_response, sct_list, verify_context_.get(),
-      &cert_verify_error_details_, &verify_details_,
+      server_id_.host(), server_id_.port(), certs, ocsp_response, sct_list,
+      verify_context_.get(), &cert_verify_error_details_, &verify_details_,
       std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
   switch (verify_result) {
     case QUIC_SUCCESS:
