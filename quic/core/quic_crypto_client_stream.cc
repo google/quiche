@@ -126,9 +126,10 @@ void QuicCryptoClientStream::OnHandshakeDoneReceived() {
   handshaker_->OnHandshakeDoneReceived();
 }
 
-void QuicCryptoClientStream::OnApplicationState(
+void QuicCryptoClientStream::SetServerApplicationStateForResumption(
     std::unique_ptr<ApplicationState> application_state) {
-  handshaker_->OnApplicationState(std::move(application_state));
+  handshaker_->SetServerApplicationStateForResumption(
+      std::move(application_state));
 }
 
 }  // namespace quic

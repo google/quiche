@@ -756,8 +756,8 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
                                 &push_promise_index_,
                                 config,
                                 supported_versions) {
-  // TODO(b/153726130): Consider adding OnApplicationState calls in tests and
-  // set |has_application_state| to true.
+  // TODO(b/153726130): Consider adding SetServerApplicationStateForResumption
+  // calls in tests and set |has_application_state| to true.
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       server_id, this, crypto_test_utils::ProofVerifyContextForTesting(),
       crypto_config, this, /*has_application_state = */ false);

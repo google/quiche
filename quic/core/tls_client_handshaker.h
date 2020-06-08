@@ -71,7 +71,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   void WriteMessage(EncryptionLevel level,
                     quiche::QuicheStringPiece data) override;
 
-  void OnApplicationState(
+  void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;
 
   void AllowEmptyAlpnForTests() { allow_empty_alpn_for_tests_ = true; }

@@ -55,7 +55,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientHandshaker
   void OnConnectionClosed(QuicErrorCode /*error*/,
                           ConnectionCloseSource /*source*/) override;
   void OnHandshakeDoneReceived() override;
-  void OnApplicationState(
+  void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {
     QUICHE_NOTREACHED();
   }

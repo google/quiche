@@ -140,6 +140,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   HandshakeState GetHandshakeState() const override {
     return one_rtt_keys_available() ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
   }
+  void SetServerApplicationStateForResumption(
+      std::unique_ptr<ApplicationState> /*application_state*/) override {}
   const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
       const override {
     return *params_;

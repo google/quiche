@@ -149,7 +149,7 @@ bool TlsClientHandshaker::PrepareZeroRttConfig(
   session()->OnConfigNegotiated();
 
   if (has_application_state_) {
-    if (!session()->SetApplicationState(cached_state->application_state)) {
+    if (!session()->ResumeApplicationState(cached_state->application_state)) {
       QUIC_BUG << "Unable to parse cached application state.";
       CloseConnection(QUIC_HANDSHAKE_FAILED,
                       "Client failed to parse cached application state.");
@@ -617,7 +617,7 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
   TlsHandshaker::WriteMessage(level, data);
 }
 
-void TlsClientHandshaker::OnApplicationState(
+void TlsClientHandshaker::SetServerApplicationStateForResumption(
     std::unique_ptr<ApplicationState> application_state) {
   DCHECK_EQ(STATE_HANDSHAKE_COMPLETE, state_);
   received_application_state_ = std::move(application_state);

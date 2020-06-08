@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -95,15 +96,6 @@ TlsServerHandshaker::TlsServerHandshaker(
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
-
-  if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
-    // TODO(b/152551499): Properly set early data context. This change is to
-    // temporarily unblock QuicSpdyClientSessionTest.IetfZeroRttSetup which
-    // assumes that the server will sent an early data capable ticket, and then
-    // accept early data on resumption.
-    uint8_t context[] = {0};
-    SSL_set_quic_early_data_context(ssl(), context, QUICHE_ARRAYSIZE(context));
-  }
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() {
@@ -133,8 +125,7 @@ void TlsServerHandshaker::SendServerConfigUpdate(
 }
 
 bool TlsServerHandshaker::IsZeroRtt() const {
-  // TODO(nharper): Support 0-RTT with TLS 1.3 in QUIC.
-  return false;
+  return SSL_early_data_accepted(ssl());
 }
 
 bool TlsServerHandshaker::IsResumption() const {
@@ -205,6 +196,11 @@ HandshakeState TlsServerHandshaker::GetHandshakeState() const {
     return HANDSHAKE_PROCESSED;
   }
   return HANDSHAKE_START;
+}
+
+void TlsServerHandshaker::SetServerApplicationStateForResumption(
+    std::unique_ptr<ApplicationState> state) {
+  application_state_ = std::move(state);
 }
 
 size_t TlsServerHandshaker::BufferSizeLimitForLevel(
@@ -328,6 +324,17 @@ bool TlsServerHandshaker::SetTransportParameters() {
       SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
                                     server_params_bytes.size()) != 1) {
     return false;
+  }
+  if (application_state_) {
+    std::vector<uint8_t> early_data_context;
+    if (!SerializeTransportParametersForTicket(
+            server_params, *application_state_, &early_data_context)) {
+      QUIC_BUG << "Failed to serialize Transport Parameters for ticket.";
+      return false;
+    }
+    SSL_set_quic_early_data_context(ssl(), early_data_context.data(),
+                                    early_data_context.size());
+    application_state_.reset(nullptr);
   }
   return true;
 }

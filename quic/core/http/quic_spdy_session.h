@@ -378,7 +378,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void OnStreamCreated(QuicSpdyStream* stream);
 
   // Decode SETTINGS from |cached_state| and apply it to the session.
-  bool SetApplicationState(ApplicationState* cached_state) override;
+  bool ResumeApplicationState(ApplicationState* cached_state) override;
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and

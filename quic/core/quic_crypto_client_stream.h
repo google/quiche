@@ -63,9 +63,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStreamBase : public QuicCryptoStream {
   // client.  Does not count update messages that were received prior
   // to handshake confirmation.
   virtual int num_scup_messages_received() const = 0;
-
-  virtual void OnApplicationState(
-      std::unique_ptr<ApplicationState> application_state) = 0;
 };
 
 class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
@@ -167,7 +164,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     virtual void OnHandshakeDoneReceived() = 0;
 
     // Called when application state is received.
-    virtual void OnApplicationState(
+    virtual void SetServerApplicationStateForResumption(
         std::unique_ptr<ApplicationState> application_state) = 0;
   };
 
@@ -223,10 +220,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   HandshakeState GetHandshakeState() const override;
-  size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
-
-  void OnApplicationState(
+  void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;
+  size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
 
   std::string chlo_hash() const;
 

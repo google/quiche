@@ -192,6 +192,8 @@ class TestQuicCryptoStream : public QuicCryptoStream {
   HandshakeState GetHandshakeState() const override {
     return handshaker()->GetHandshakeState();
   }
+  void SetServerApplicationStateForResumption(
+      std::unique_ptr<ApplicationState> /*application_state*/) override {}
 
   const std::vector<std::pair<std::string, EncryptionLevel>>& pending_writes() {
     return pending_writes_;

@@ -242,7 +242,12 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
   TestQuicSpdyServerSession server_session(
       server_conn, *server_quic_config, client_conn->supported_versions(),
       crypto_config, &compressed_certs_cache);
+  // Call SetServerApplicationStateForResumption so that the fake server
+  // supports 0-RTT in TLS.
   server_session.Initialize();
+  server_session.GetMutableCryptoStream()
+      ->SetServerApplicationStateForResumption(
+          std::make_unique<ApplicationState>());
   EXPECT_CALL(*server_session.helper(),
               CanAcceptClientHello(testing::_, testing::_, testing::_,
                                    testing::_, testing::_))

@@ -375,6 +375,12 @@ HandshakeState QuicCryptoServerStream::GetHandshakeState() const {
   return one_rtt_packet_decrypted_ ? HANDSHAKE_COMPLETE : HANDSHAKE_START;
 }
 
+void QuicCryptoServerStream::SetServerApplicationStateForResumption(
+    std::unique_ptr<ApplicationState> /*state*/) {
+  // QUIC Crypto doesn't need to remember any application state as part of doing
+  // 0-RTT resumption, so this function is a no-op.
+}
+
 size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);

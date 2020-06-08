@@ -61,6 +61,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       const override;
   CryptoMessageParser* crypto_message_parser() override;
   HandshakeState GetHandshakeState() const override;
+  void SetServerApplicationStateForResumption(
+      std::unique_ptr<ApplicationState> state) override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
   void SetWriteSecret(EncryptionLevel level,
                       const SSL_CIPHER* cipher,
@@ -184,6 +186,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   std::string hostname_;
   std::string cert_verify_sig_;
   std::unique_ptr<ProofSource::Details> proof_source_details_;
+
+  std::unique_ptr<ApplicationState> application_state_;
 
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;

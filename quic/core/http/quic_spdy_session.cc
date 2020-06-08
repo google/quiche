@@ -857,7 +857,7 @@ void QuicSpdySession::OnPromiseHeaderList(
                                 ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
-bool QuicSpdySession::SetApplicationState(ApplicationState* cached_state) {
+bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
   DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
   DCHECK(VersionUsesHttp3(transport_version()));
 

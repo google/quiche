@@ -240,8 +240,8 @@ void QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
       HttpEncoder::SerializeSettingsFrame(frame, &buffer);
   auto serialized_data = std::make_unique<ApplicationState>(
       buffer.get(), buffer.get() + frame_length);
-  static_cast<QuicCryptoClientStreamBase*>(GetMutableCryptoStream())
-      ->OnApplicationState(std::move(serialized_data));
+  GetMutableCryptoStream()->SetServerApplicationStateForResumption(
+      std::move(serialized_data));
 }
 
 }  // namespace quic

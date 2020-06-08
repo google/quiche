@@ -100,6 +100,21 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Returns current handshake state.
   virtual HandshakeState GetHandshakeState() const = 0;
 
+  // Called to provide the server-side application state that must be checked
+  // when performing a 0-RTT TLS resumption.
+  //
+  // On a client, this may be called at any time; 0-RTT tickets will not be
+  // cached until this function is called. When a 0-RTT resumption is attempted,
+  // QuicSession::SetApplicationState will be called with the state provided by
+  // a call to this function on a previous connection.
+  //
+  // On a server, this function must be called before commencing the handshake,
+  // otherwise 0-RTT tickets will not be issued. On subsequent connections,
+  // 0-RTT will be rejected if the data passed into this function does not match
+  // the data passed in on the connection where the 0-RTT ticket was issued.
+  virtual void SetServerApplicationStateForResumption(
+      std::unique_ptr<ApplicationState> state) = 0;
+
   // Returns the maximum number of bytes that can be buffered at a particular
   // encryption level |level|.
   virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const;

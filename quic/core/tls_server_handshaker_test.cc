@@ -47,9 +47,12 @@ class TlsServerHandshakerTest : public QuicTest {
   TlsServerHandshakerTest()
       : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false),
-        client_crypto_config_(crypto_test_utils::ProofVerifierForTesting(),
-                              std::make_unique<test::SimpleSessionCache>()) {
+        server_id_(kServerHostname, kServerPort, false) {
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
+    client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+        crypto_test_utils::ProofVerifierForTesting(),
+        std::make_unique<test::SimpleSessionCache>());
     InitializeServerConfig();
     InitializeServer();
     InitializeFakeClient();
@@ -65,7 +68,6 @@ class TlsServerHandshakerTest : public QuicTest {
   }
 
   void InitializeServerConfig() {
-    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
     auto ticket_crypter = std::make_unique<TestTicketCrypter>();
     ticket_crypter_ = ticket_crypter.get();
     auto proof_source = std::make_unique<FakeProofSource>();
@@ -126,7 +128,7 @@ class TlsServerHandshakerTest : public QuicTest {
     CreateClientSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),
-        &client_crypto_config_, &client_connection_, &client_session);
+        client_crypto_config_.get(), &client_connection_, &client_session);
     const std::string default_alpn =
         AlpnForVersion(client_connection_->version());
     ON_CALL(*client_session, GetAlpnsToOffer())
@@ -212,7 +214,7 @@ class TlsServerHandshakerTest : public QuicTest {
 
   // Client state.
   PacketSavingConnection* client_connection_;
-  QuicCryptoClientConfig client_crypto_config_;
+  std::unique_ptr<QuicCryptoClientConfig> client_crypto_config_;
   std::unique_ptr<TestQuicSpdyClientSession> client_session_;
 
   crypto_test_utils::FakeClientOptions client_options_;
@@ -470,6 +472,53 @@ TEST_F(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
   // Check that the server didn't send any handshake messages, because it failed
   // to handshake.
   EXPECT_EQ(moved_messages_counts_.second, 0u);
+}
+
+TEST_F(TlsServerHandshakerTest, ZeroRttResumption) {
+  std::vector<uint8_t> application_state = {0, 1, 2, 3};
+
+  // Do the first handshake
+  server_stream()->SetServerApplicationStateForResumption(
+      std::make_unique<ApplicationState>(application_state));
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+
+  // Now do another handshake
+  InitializeServer();
+  server_stream()->SetServerApplicationStateForResumption(
+      std::make_unique<ApplicationState>(application_state));
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_TRUE(server_stream()->IsZeroRtt());
+}
+
+TEST_F(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
+  std::vector<uint8_t> original_application_state = {1, 2};
+  std::vector<uint8_t> new_application_state = {3, 4};
+
+  // Do the first handshake
+  server_stream()->SetServerApplicationStateForResumption(
+      std::make_unique<ApplicationState>(original_application_state));
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
+
+  // Do another handshake, but change the application state
+  InitializeServer();
+  server_stream()->SetServerApplicationStateForResumption(
+      std::make_unique<ApplicationState>(new_application_state));
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_FALSE(server_stream()->IsZeroRtt());
 }
 
 }  // namespace
