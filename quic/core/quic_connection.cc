@@ -568,6 +568,28 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kMTUL, perspective_)) {
     SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeLow);
   }
+  if (default_enable_5rto_blackhole_detection_) {
+    if (config.HasClientRequestedIndependentOption(kCBHD, perspective_)) {
+      QUIC_CODE_COUNT(quic_client_only_blackhole_detection);
+      blackhole_detection_disabled_ = true;
+    }
+    if (config.HasClientSentConnectionOption(k2RTO, perspective_)) {
+      QUIC_CODE_COUNT(quic_2rto_blackhole_detection);
+      num_rtos_for_blackhole_detection_ = 2;
+    }
+    if (config.HasClientSentConnectionOption(k3RTO, perspective_)) {
+      QUIC_CODE_COUNT(quic_3rto_blackhole_detection);
+      num_rtos_for_blackhole_detection_ = 3;
+    }
+    if (config.HasClientSentConnectionOption(k4RTO, perspective_)) {
+      QUIC_CODE_COUNT(quic_4rto_blackhole_detection);
+      num_rtos_for_blackhole_detection_ = 4;
+    }
+    if (config.HasClientSentConnectionOption(k6RTO, perspective_)) {
+      QUIC_CODE_COUNT(quic_6rto_blackhole_detection);
+      num_rtos_for_blackhole_detection_ = 6;
+    }
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);
@@ -4518,7 +4540,7 @@ QuicTime QuicConnection::GetNetworkBlackholeDeadline() const {
 }
 
 bool QuicConnection::ShouldDetectBlackhole() const {
-  if (!connected_) {
+  if (!connected_ || blackhole_detection_disabled_) {
     return false;
   }
   // No blackhole detection before handshake completes.

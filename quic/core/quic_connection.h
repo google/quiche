@@ -1673,6 +1673,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicIdleNetworkDetector idle_network_detector_;
 
+  bool blackhole_detection_disabled_ = false;
+
   const bool use_idle_network_detector_ =
       GetQuicReloadableFlag(quic_use_idle_network_detector);
 

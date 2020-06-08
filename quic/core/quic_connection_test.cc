@@ -6117,6 +6117,10 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
   if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
@@ -10955,6 +10959,161 @@ TEST_P(QuicConnectionTest, AckAlarmFiresEarly) {
     EXPECT_EQ(clock_.ApproximateNow() + kAlarmGranularity,
               connection_.GetAckAlarm()->deadline());
   }
+}
+
+TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionClient) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kCBHD);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole detection is in progress.
+  EXPECT_TRUE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionServer) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kCBHD);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole detection is disabled.
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, 2RtoBlackholeDetection) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k2RTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole delay is expected.
+  EXPECT_EQ(clock_.Now() +
+                connection_.sent_packet_manager().GetNetworkBlackholeDelay(2),
+            QuicConnectionPeer::GetBlackholeDetectionDeadline(&connection_));
+}
+
+TEST_P(QuicConnectionTest, 3RtoBlackholeDetection) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k3RTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole delay is expected.
+  EXPECT_EQ(clock_.Now() +
+                connection_.sent_packet_manager().GetNetworkBlackholeDelay(3),
+            QuicConnectionPeer::GetBlackholeDetectionDeadline(&connection_));
+}
+
+TEST_P(QuicConnectionTest, 4RtoBlackholeDetection) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k4RTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole delay is expected.
+  EXPECT_EQ(clock_.Now() +
+                connection_.sent_packet_manager().GetNetworkBlackholeDelay(4),
+            QuicConnectionPeer::GetBlackholeDetectionDeadline(&connection_));
+}
+
+TEST_P(QuicConnectionTest, 6RtoBlackholeDetection) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+    return;
+  }
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k6RTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  const size_t kMinRttMs = 40;
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(kMinRttMs),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  EXPECT_FALSE(connection_.GetBlackholeDetectorAlarm()->IsSet());
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify blackhole delay is expected.
+  EXPECT_EQ(clock_.Now() +
+                connection_.sent_packet_manager().GetNetworkBlackholeDelay(6),
+            QuicConnectionPeer::GetBlackholeDetectionDeadline(&connection_));
 }
 
 }  // namespace
