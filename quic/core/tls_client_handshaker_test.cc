@@ -501,7 +501,6 @@ TEST_P(TlsClientHandshakerTest, BadTransportParams) {
   if (!connection_->version().UsesHttp3()) {
     return;
   }
-  SetQuicReloadableFlag(quic_notify_handshaker_on_connection_close, true);
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 

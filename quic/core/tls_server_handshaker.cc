@@ -336,8 +336,7 @@ void TlsServerHandshaker::SetWriteSecret(
     EncryptionLevel level,
     const SSL_CIPHER* cipher,
     const std::vector<uint8_t>& write_secret) {
-  if (GetQuicReloadableFlag(quic_notify_handshaker_on_connection_close) &&
-      state_ == STATE_CONNECTION_CLOSED) {
+  if (state_ == STATE_CONNECTION_CLOSED) {
     return;
   }
   if (level == ENCRYPTION_FORWARD_SECURE) {
