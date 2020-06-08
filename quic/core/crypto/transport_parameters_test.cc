@@ -1266,5 +1266,103 @@ TEST_P(TransportParametersTest, VeryLongCustomParameter) {
   EXPECT_EQ(new_params, orig_params);
 }
 
+class TransportParametersTicketSerializationTest : public QuicTest {
+ protected:
+  void SetUp() override {
+    original_params_.perspective = Perspective::IS_SERVER;
+    original_params_.version = kFakeVersionLabel;
+    original_params_.supported_versions.push_back(kFakeVersionLabel);
+    original_params_.supported_versions.push_back(kFakeVersionLabel2);
+    original_params_.original_destination_connection_id =
+        CreateFakeOriginalDestinationConnectionId();
+    original_params_.max_idle_timeout_ms.set_value(
+        kFakeIdleTimeoutMilliseconds);
+    original_params_.stateless_reset_token = CreateFakeStatelessResetToken();
+    original_params_.max_udp_payload_size.set_value(kFakeMaxPacketSize);
+    original_params_.initial_max_data.set_value(kFakeInitialMaxData);
+    original_params_.initial_max_stream_data_bidi_local.set_value(
+        kFakeInitialMaxStreamDataBidiLocal);
+    original_params_.initial_max_stream_data_bidi_remote.set_value(
+        kFakeInitialMaxStreamDataBidiRemote);
+    original_params_.initial_max_stream_data_uni.set_value(
+        kFakeInitialMaxStreamDataUni);
+    original_params_.initial_max_streams_bidi.set_value(
+        kFakeInitialMaxStreamsBidi);
+    original_params_.initial_max_streams_uni.set_value(
+        kFakeInitialMaxStreamsUni);
+    original_params_.ack_delay_exponent.set_value(kFakeAckDelayExponent);
+    original_params_.max_ack_delay.set_value(kFakeMaxAckDelay);
+    original_params_.disable_active_migration = kFakeDisableMigration;
+    original_params_.preferred_address = CreateFakePreferredAddress();
+    original_params_.active_connection_id_limit.set_value(
+        kFakeActiveConnectionIdLimit);
+    original_params_.initial_source_connection_id =
+        CreateFakeInitialSourceConnectionId();
+    original_params_.retry_source_connection_id =
+        CreateFakeRetrySourceConnectionId();
+    original_params_.google_connection_options =
+        CreateFakeGoogleConnectionOptions();
+
+    ASSERT_TRUE(SerializeTransportParametersForTicket(
+        original_params_, application_state_, &original_serialized_params_));
+  }
+
+  TransportParameters original_params_;
+  std::vector<uint8_t> application_state_ = {0, 1};
+  std::vector<uint8_t> original_serialized_params_;
+};
+
+TEST_F(TransportParametersTicketSerializationTest,
+       StatelessResetTokenDoesntChangeOutput) {
+  // Test that changing the stateless reset token doesn't change the ticket
+  // serialization.
+  TransportParameters new_params = original_params_;
+  new_params.stateless_reset_token = CreateFakePreferredStatelessResetToken();
+  EXPECT_NE(new_params, original_params_);
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParametersForTicket(
+      new_params, application_state_, &serialized));
+  EXPECT_EQ(original_serialized_params_, serialized);
+}
+
+TEST_F(TransportParametersTicketSerializationTest,
+       ConnectionIDDoesntChangeOutput) {
+  // Changing original destination CID doesn't change serialization.
+  TransportParameters new_params = original_params_;
+  new_params.original_destination_connection_id = TestConnectionId(0xCAFE);
+  EXPECT_NE(new_params, original_params_);
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParametersForTicket(
+      new_params, application_state_, &serialized));
+  EXPECT_EQ(original_serialized_params_, serialized);
+}
+
+TEST_F(TransportParametersTicketSerializationTest, StreamLimitChangesOutput) {
+  // Changing a stream limit does change the serialization.
+  TransportParameters new_params = original_params_;
+  new_params.initial_max_stream_data_bidi_local.set_value(
+      kFakeInitialMaxStreamDataBidiLocal + 1);
+  EXPECT_NE(new_params, original_params_);
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParametersForTicket(
+      new_params, application_state_, &serialized));
+  EXPECT_NE(original_serialized_params_, serialized);
+}
+
+TEST_F(TransportParametersTicketSerializationTest,
+       ApplicationStateChangesOutput) {
+  // Changing the application state changes the serialization.
+  std::vector<uint8_t> new_application_state = {0};
+  EXPECT_NE(new_application_state, application_state_);
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParametersForTicket(
+      original_params_, new_application_state, &serialized));
+  EXPECT_NE(original_serialized_params_, serialized);
+}
+
 }  // namespace test
 }  // namespace quic

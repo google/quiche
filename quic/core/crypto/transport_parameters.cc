@@ -10,6 +10,8 @@
 #include <memory>
 #include <utility>
 
+#include "third_party/boringssl/src/include/openssl/digest.h"
+#include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
@@ -1389,6 +1391,89 @@ bool ParseTransportParameters(ParsedQuicVersion version,
   QUIC_DLOG(INFO) << "Parsed transport parameters " << *out << " from "
                   << in_len << " bytes";
 
+  return true;
+}
+
+namespace {
+
+bool DigestUpdateIntegerParam(
+    EVP_MD_CTX* hash_ctx,
+    const TransportParameters::IntegerParameter& param) {
+  uint64_t value = param.value();
+  return EVP_DigestUpdate(hash_ctx, &value, sizeof(value));
+}
+
+}  // namespace
+
+bool SerializeTransportParametersForTicket(
+    const TransportParameters& in,
+    const std::vector<uint8_t>& application_data,
+    std::vector<uint8_t>* out) {
+  std::string error_details;
+  if (!in.AreValid(&error_details)) {
+    QUIC_BUG << "Not serializing invalid transport parameters: "
+             << error_details;
+    return false;
+  }
+
+  out->resize(SHA256_DIGEST_LENGTH + 1);
+  const uint8_t serialization_version = 0;
+  (*out)[0] = serialization_version;
+
+  bssl::ScopedEVP_MD_CTX hash_ctx;
+  // Write application data:
+  uint64_t app_data_len = application_data.size();
+  const uint64_t parameter_version = 0;
+  // The format of the input to the hash function is as follows:
+  // - The application data, prefixed with a 64-bit length field.
+  // - Transport parameters:
+  //   - A 64-bit version field indicating which version of encoding is used
+  //     for transport parameters.
+  //   - A list of 64-bit integers representing the relevant parameters.
+  //
+  //   When changing which parameters are included, additional parameters can be
+  //   added to the end of the list without changing the version field. New
+  //   parameters that are variable length must be length prefixed. If
+  //   parameters are removed from the list, the version field must be
+  //   incremented.
+  //
+  // Integers happen to be written in host byte order, not network byte order.
+  if (!EVP_DigestInit(hash_ctx.get(), EVP_sha256()) ||
+      !EVP_DigestUpdate(hash_ctx.get(), &app_data_len, sizeof(app_data_len)) ||
+      !EVP_DigestUpdate(hash_ctx.get(), application_data.data(),
+                        application_data.size()) ||
+      !EVP_DigestUpdate(hash_ctx.get(), &parameter_version,
+                        sizeof(parameter_version))) {
+    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
+                "Transport Parameters for ticket";
+    return false;
+  }
+
+  // Write transport parameters specified by draft-ietf-quic-transport-28,
+  // section 7.4.1, that are remembered for 0-RTT.
+  if (!DigestUpdateIntegerParam(hash_ctx.get(), in.initial_max_data) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(),
+                                in.initial_max_stream_data_bidi_local) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(),
+                                in.initial_max_stream_data_bidi_remote) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(),
+                                in.initial_max_stream_data_uni) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(), in.initial_max_streams_bidi) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(), in.initial_max_streams_uni) ||
+      !DigestUpdateIntegerParam(hash_ctx.get(),
+                                in.active_connection_id_limit)) {
+    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
+                "Transport Parameters for ticket";
+    return false;
+  }
+  uint8_t disable_active_migration = in.disable_active_migration ? 1 : 0;
+  if (!EVP_DigestUpdate(hash_ctx.get(), &disable_active_migration,
+                        sizeof(disable_active_migration)) ||
+      !EVP_DigestFinal(hash_ctx.get(), out->data() + 1, nullptr)) {
+    QUIC_BUG << "Unexpected failure of EVP_Digest functions when hashing "
+                "Transport Parameters for ticket";
+    return false;
+  }
   return true;
 }
 

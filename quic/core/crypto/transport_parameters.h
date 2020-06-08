@@ -243,6 +243,19 @@ QUIC_EXPORT_PRIVATE bool ParseTransportParameters(ParsedQuicVersion version,
                                                   TransportParameters* out,
                                                   std::string* error_details);
 
+// Serializes |in| and |application_data| in a deterministic format so that
+// multiple calls to SerializeTransportParametersForTicket with the same inputs
+// will generate the same output, and if the inputs differ, then the output will
+// differ. The output of this function is used by the server in
+// SSL_set_quic_early_data_context to determine whether early data should be
+// accepted: Early data will only be accepted if the inputs to this function
+// match what they were on the connection that issued an early data capable
+// ticket.
+QUIC_EXPORT_PRIVATE bool SerializeTransportParametersForTicket(
+    const TransportParameters& in,
+    const std::vector<uint8_t>& application_data,
+    std::vector<uint8_t>* out);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_CRYPTO_TRANSPORT_PARAMETERS_H_
