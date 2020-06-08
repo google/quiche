@@ -352,6 +352,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // more than the negotiated stream limit to deal with rare cases where a
   // client FIN/RST is lost.
 
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // The slightly increased stream limit is set during config negotiation.  It
@@ -404,6 +405,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
 
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   const size_t kAvailableStreamLimit =
       session_->MaxAvailableBidirectionalStreams();
@@ -509,6 +511,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   QuicTagVector copt;
   copt.push_back(kBWRE);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -699,6 +702,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
   QuicTagVector copt;
   copt.push_back(kBWMX);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -707,6 +711,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
 TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));

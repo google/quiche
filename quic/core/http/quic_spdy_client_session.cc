@@ -186,7 +186,7 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
   return std::make_unique<QuicCryptoClientStream>(
       server_id_, this,
       crypto_config_->proof_verifier()->CreateDefaultContext(), crypto_config_,
-      this, /*has_application_state = */ true);
+      this, /*has_application_state = */ version().UsesHttp3());
 }
 
 bool QuicSpdyClientSession::IsAuthorized(const std::string& /*authority*/) {

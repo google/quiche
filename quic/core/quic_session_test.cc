@@ -611,6 +611,7 @@ TEST_P(QuicSessionTestServer, OneRttKeysAvailable) {
   if (connection_->version().HasHandshakeDone()) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
   }
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
@@ -1006,6 +1007,7 @@ TEST_P(QuicSessionTestServer, Http2Priority) {
   QuicTagVector copt;
   copt.push_back(kH2PR);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
   ASSERT_TRUE(session_.use_http2_priority_write_scheduler());
 
@@ -1088,6 +1090,7 @@ TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
   QuicTagVector copt;
   copt.push_back(kRRWS);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 
   session_.set_writev_consumes_all_data(true);
@@ -1133,6 +1136,7 @@ TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   CryptoHandshakeMessage msg;
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
 
   // Drive congestion control manually.
@@ -1511,6 +1515,7 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
   }
   CryptoHandshakeMessage msg;
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
   EXPECT_EQ(kMaximumIdleTimeoutSecs + 3,
             QuicConnectionPeer::GetNetworkTimeout(connection_).ToSeconds());
@@ -1791,6 +1796,7 @@ TEST_P(QuicSessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   } else {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   }
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
 
@@ -1800,6 +1806,7 @@ TEST_P(QuicSessionTestServer, CustomFlowControlWindow) {
   copt.push_back(kIFW7);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
 
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
   EXPECT_EQ(192 * 1024u, QuicFlowControllerPeer::ReceiveWindowSize(
                              session_.flow_controller()));
@@ -2065,6 +2072,7 @@ TEST_P(QuicSessionTestClient, InvalidSessionFlowControlWindowInHandshake) {
                                                              kInvalidWindow);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
 
@@ -2076,6 +2084,7 @@ TEST_P(QuicSessionTestClient, InvalidBidiStreamLimitInHandshake) {
   QuicConfigPeer::SetReceivedMaxBidirectionalStreams(
       session_.config(), kDefaultMaxStreamsPerConnection - 1);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
 
@@ -2087,6 +2096,7 @@ TEST_P(QuicSessionTestClient, InvalidUniStreamLimitInHandshake) {
   QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
       session_.config(), kDefaultMaxStreamsPerConnection - 1);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
 
@@ -2104,6 +2114,8 @@ TEST_P(QuicSessionTestClient, InvalidStreamFlowControlWindowInHandshake) {
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
 
@@ -2477,6 +2489,7 @@ TEST_P(QuicSessionTestServer, SendMessage) {
     EXPECT_CALL(*connection_, SendControlFrame(_));
   }
   CryptoHandshakeMessage handshake_message;
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.GetMutableCryptoStream()->OnHandshakeMessage(handshake_message);
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 

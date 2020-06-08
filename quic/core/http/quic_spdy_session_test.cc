@@ -1615,6 +1615,7 @@ TEST_P(QuicSpdySessionTestServer, TooLowUnidirectionalStreamLimitHttp3) {
     return;
   }
   QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 2u);
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
   EXPECT_CALL(
       *connection_,
@@ -1629,6 +1630,7 @@ TEST_P(QuicSpdySessionTestServer, CustomFlowControlWindow) {
   copt.push_back(kIFW7);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
 
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
   EXPECT_EQ(192 * 1024u, QuicFlowControllerPeer::ReceiveWindowSize(
                              session_.flow_controller()));

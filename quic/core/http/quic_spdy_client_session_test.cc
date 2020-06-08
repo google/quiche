@@ -974,23 +974,31 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
-  // This feature is HTTP/3 only
-  if (!VersionUsesHttp3(session_->transport_version())) {
+  // This feature is TLS-only.
+  if (session_->version().UsesQuicCrypto()) {
     return;
   }
+
   CompleteCryptoHandshake();
   EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
-  SettingsFrame settings;
-  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
-  settings.values[256] = 4;  // unknown setting
-  session_->OnSettingsFrame(settings);
+  if (session_->version().UsesHttp3()) {
+    SettingsFrame settings;
+    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+    settings.values[256] = 4;  // unknown setting
+    session_->OnSettingsFrame(settings);
+  }
 
   CreateConnection();
   // Session configs should be in initial state.
-  EXPECT_EQ(0u, session_->flow_controller()->send_window_offset());
-  EXPECT_EQ(std::numeric_limits<size_t>::max(),
-            session_->max_outbound_header_list_size());
+  if (session_->version().UsesHttp3()) {
+    EXPECT_EQ(0u, session_->flow_controller()->send_window_offset());
+    EXPECT_EQ(std::numeric_limits<size_t>::max(),
+              session_->max_outbound_header_list_size());
+  } else {
+    EXPECT_EQ(kMinimumFlowControlSendWindow,
+              session_->flow_controller()->send_window_offset());
+  }
   session_->CryptoConnect();
   EXPECT_TRUE(session_->IsEncryptionEstablished());
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
@@ -999,17 +1007,23 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   // succeeds.
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest,
             session_->flow_controller()->send_window_offset());
-  auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection,
-            id_manager->max_outgoing_bidirectional_streams());
-  EXPECT_EQ(
-      kDefaultMaxStreamsPerConnection + kHttp3StaticUnidirectionalStreamCount,
-      id_manager->max_outgoing_unidirectional_streams());
-  auto* control_stream =
-      QuicSpdySessionPeer::GetSendControlStream(session_.get());
-  EXPECT_EQ(kInitialStreamFlowControlWindowForTest,
-            control_stream->flow_controller()->send_window_offset());
-  EXPECT_EQ(5u, session_->max_outbound_header_list_size());
+  if (session_->version().UsesHttp3()) {
+    auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+    EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+              id_manager->max_outgoing_bidirectional_streams());
+    EXPECT_EQ(
+        kDefaultMaxStreamsPerConnection + kHttp3StaticUnidirectionalStreamCount,
+        id_manager->max_outgoing_unidirectional_streams());
+    auto* control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    EXPECT_EQ(kInitialStreamFlowControlWindowForTest,
+              control_stream->flow_controller()->send_window_offset());
+    EXPECT_EQ(5u, session_->max_outbound_header_list_size());
+  } else {
+    auto* id_manager = QuicSessionPeer::GetStreamIdManager(session_.get());
+    EXPECT_EQ(kDefaultMaxStreamsPerConnection,
+              id_manager->max_open_outgoing_streams());
+  }
 
   // Complete the handshake with a different config.
   QuicConfig config = DefaultQuicConfig();
@@ -1026,28 +1040,39 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest + 1,
             session_->flow_controller()->send_window_offset());
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,
-            id_manager->max_outgoing_bidirectional_streams());
-  EXPECT_EQ(kDefaultMaxStreamsPerConnection +
-                kHttp3StaticUnidirectionalStreamCount + 1,
-            id_manager->max_outgoing_unidirectional_streams());
-  EXPECT_EQ(kInitialStreamFlowControlWindowForTest + 1,
-            control_stream->flow_controller()->send_window_offset());
+  if (session_->version().UsesHttp3()) {
+    auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+    auto* control_stream =
+        QuicSpdySessionPeer::GetSendControlStream(session_.get());
+    EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,
+              id_manager->max_outgoing_bidirectional_streams());
+    EXPECT_EQ(kDefaultMaxStreamsPerConnection +
+                  kHttp3StaticUnidirectionalStreamCount + 1,
+              id_manager->max_outgoing_unidirectional_streams());
+    EXPECT_EQ(kInitialStreamFlowControlWindowForTest + 1,
+              control_stream->flow_controller()->send_window_offset());
+  } else {
+    auto* id_manager = QuicSessionPeer::GetStreamIdManager(session_.get());
+    EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,
+              id_manager->max_open_outgoing_streams());
+  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
-  // This feature is HTTP/3 only
-  if (!VersionUsesHttp3(session_->transport_version())) {
+  // This feature is TLS-only.
+  if (session_->version().UsesQuicCrypto()) {
     return;
   }
 
   CompleteCryptoHandshake();
   EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
-  SettingsFrame settings;
-  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
-  settings.values[256] = 4;  // unknown setting
-  session_->OnSettingsFrame(settings);
+  if (session_->version().UsesHttp3()) {
+    SettingsFrame settings;
+    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+    settings.values[256] = 4;  // unknown setting
+    session_->OnSettingsFrame(settings);
+  }
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
@@ -1056,12 +1081,13 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
   config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
 
-  // 3 packets will be written: CHLO, HTTP/3 SETTINGS, and request data.
+  // Packets will be written: CHLO, HTTP/3 SETTINGS (H/3 only), and request
+  // data.
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION))
-      .Times(2);
+      .Times(session_->version().UsesHttp3() ? 2 : 1);
   session_->CryptoConnect();
   EXPECT_TRUE(session_->IsEncryptionEstablished());
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());

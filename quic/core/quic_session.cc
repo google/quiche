@@ -999,6 +999,21 @@ bool QuicSession::OneRttKeysAvailable() const {
 }
 
 void QuicSession::OnConfigNegotiated() {
+  // In versions with TLS, the configs will be set twice if 0-RTT is available.
+  // In the second config setting, 1-RTT keys are guaranteed to be available.
+  if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
+      version().UsesTls() && is_configured_ &&
+      connection_->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
+    QUIC_BUG
+        << ENDPOINT
+        << "1-RTT keys missing when config is negotiated for the second time.";
+    connection_->CloseConnection(
+        QUIC_INTERNAL_ERROR,
+        "1-RTT keys missing when config is negotiated for the second time.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+
   QUIC_DVLOG(1) << ENDPOINT << "OnConfigNegotiated";
   connection_->SetFromConfig(config_);
 
@@ -1150,11 +1165,16 @@ void QuicSession::OnConfigNegotiated() {
     OnNewSessionFlowControlWindow(
         config_.ReceivedInitialSessionFlowControlWindowBytes());
   }
+
   is_configured_ = true;
   connection()->OnConfigNegotiated();
 
   // Ask flow controllers to try again since the config could have unblocked us.
-  if (connection_->version().AllowsLowFlowControlLimits()) {
+  // Or if this session is configured on TLS enabled QUIC versions,
+  // attempt to retransmit 0-RTT data if there's any.
+  if (connection_->version().AllowsLowFlowControlLimits() ||
+      (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
+       version().UsesTls())) {
     OnCanWrite();
   }
 }
@@ -1382,11 +1402,6 @@ void QuicSession::OnNewEncryptionKeyAvailable(
 
   QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
   connection()->SetDefaultEncryptionLevel(level);
-  if (perspective() == Perspective::IS_CLIENT &&
-      level == ENCRYPTION_FORWARD_SECURE) {
-    // 1-RTT write key is available. Retransmit 0-RTT data if there is any.
-    OnCanWrite();
-  }
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
@@ -1476,7 +1491,11 @@ void QuicSession::OnZeroRttRejected() {
   // too many.
   connection_->RetransmitZeroRttPackets();
   if (connection_->encryption_level() == ENCRYPTION_FORWARD_SECURE) {
-    OnCanWrite();
+    QUIC_BUG << "1-RTT keys already available when 0-RTT is rejected.";
+    connection_->CloseConnection(
+        QUIC_INTERNAL_ERROR,
+        "1-RTT keys already available when 0-RTT is rejected.",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 }
 
