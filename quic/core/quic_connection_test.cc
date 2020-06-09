@@ -6117,7 +6117,7 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
   connection_options.push_back(k5RTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
@@ -9930,7 +9930,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
@@ -9981,7 +9981,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
@@ -10031,7 +10031,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   config.SetConnectionOptionsToSend(connection_options);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
-  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
@@ -10962,7 +10962,7 @@ TEST_P(QuicConnectionTest, AckAlarmFiresEarly) {
 }
 
 TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionClient) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   QuicConfig config;
@@ -10983,7 +10983,7 @@ TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionClient) {
 }
 
 TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionServer) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -11009,7 +11009,7 @@ TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionServer) {
 }
 
 TEST_P(QuicConnectionTest, 2RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   QuicConfig config;
@@ -11036,7 +11036,7 @@ TEST_P(QuicConnectionTest, 2RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 3RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   QuicConfig config;
@@ -11063,7 +11063,7 @@ TEST_P(QuicConnectionTest, 3RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 4RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   QuicConfig config;
@@ -11090,7 +11090,7 @@ TEST_P(QuicConnectionTest, 4RtoBlackholeDetection) {
 }
 
 TEST_P(QuicConnectionTest, 6RtoBlackholeDetection) {
-  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection)) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     return;
   }
   QuicConfig config;
@@ -11114,6 +11114,49 @@ TEST_P(QuicConnectionTest, 6RtoBlackholeDetection) {
   EXPECT_EQ(clock_.Now() +
                 connection_.sent_packet_manager().GetNetworkBlackholeDelay(6),
             QuicConnectionPeer::GetBlackholeDetectionDeadline(&connection_));
+}
+
+// Regresstion test for b/158491591.
+TEST_P(QuicConnectionTest, MadeForwardProgressOnDiscardingKeys) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  use_tagging_decrypter();
+  // Send handshake packet.
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k5RTO);
+  config.SetConnectionOptionsToSend(connection_options);
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+  EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
+  // Discard handshake keys.
+  connection_.OnHandshakeComplete();
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+    // Verify blackhole detection stops.
+    EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
+  } else {
+    // Problematic: although there is nothing in flight, blackhole detection is
+    // still in progress.
+    EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
+  }
 }
 
 }  // namespace

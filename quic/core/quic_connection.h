@@ -1261,6 +1261,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // received packet number which contains an ACK frame.
   void SetLargestReceivedPacketWithAck(QuicPacketNumber new_value);
 
+  // Called when new packets have been acknowledged or old keys have been
+  // discarded.
+  void OnForwardProgressMade();
+
   // Returns largest received packet number which contains an ACK frame.
   QuicPacketNumber GetLargestReceivedPacketWithAck() const;
 
@@ -1701,7 +1705,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
           : GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 
   const bool default_enable_5rto_blackhole_detection_ =
-      GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection);
+      GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);
 };
 
 }  // namespace quic

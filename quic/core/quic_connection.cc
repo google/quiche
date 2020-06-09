@@ -2338,6 +2338,13 @@ void QuicConnection::NeuterUnencryptedPackets() {
   sent_packet_manager_.NeuterUnencryptedPackets();
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
+  if (default_enable_5rto_blackhole_detection_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_enable_5rto_blackhole_detection2,
+                                 1, 3);
+    // Consider this as forward progress since this is called when initial key
+    // gets discarded (or previous unencrypted data is not needed anymore).
+    OnForwardProgressMade();
+  }
   if (SupportsMultiplePacketNumberSpaces()) {
     // Stop sending ack of initial packet number space.
     uber_received_packet_manager_.ResetAckStates(ENCRYPTION_INITIAL);
@@ -2889,6 +2896,11 @@ void QuicConnection::OnHandshakeComplete() {
   sent_packet_manager_.SetHandshakeConfirmed();
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
+  if (default_enable_5rto_blackhole_detection_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_enable_5rto_blackhole_detection2,
+                                 2, 3);
+    OnForwardProgressMade();
+  }
   if (!SupportsMultiplePacketNumberSpaces()) {
     // The client should immediately ack the SHLO to confirm the handshake is
     // complete with the server.
@@ -4040,15 +4052,7 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   // have a better estimate of the current rtt than when it was set.
   SetRetransmissionAlarm();
   if (acked_new_packet) {
-    is_path_degrading_ = false;
-    if (sent_packet_manager_.HasInFlightPackets()) {
-      // Restart detections if forward progress has been made.
-      blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
-                                           GetNetworkBlackholeDeadline());
-    } else {
-      // Stop detections in quiecense.
-      blackhole_detector_.StopDetection();
-    }
+    OnForwardProgressMade();
   }
 
   if (send_stop_waiting) {
@@ -4346,6 +4350,18 @@ void QuicConnection::SetLargestReceivedPacketWithAck(
   }
 }
 
+void QuicConnection::OnForwardProgressMade() {
+  is_path_degrading_ = false;
+  if (sent_packet_manager_.HasInFlightPackets()) {
+    // Restart detections if forward progress has been made.
+    blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
+                                         GetNetworkBlackholeDeadline());
+  } else {
+    // Stop detections in quiecense.
+    blackhole_detector_.StopDetection();
+  }
+}
+
 QuicPacketNumber QuicConnection::GetLargestReceivedPacketWithAck() const {
   if (SupportsMultiplePacketNumberSpaces()) {
     return largest_seen_packets_with_ack_[QuicUtils::GetPacketNumberSpace(
@@ -4545,7 +4561,8 @@ bool QuicConnection::ShouldDetectBlackhole() const {
   }
   // No blackhole detection before handshake completes.
   if (default_enable_5rto_blackhole_detection_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_default_enable_5rto_blackhole_detection);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_enable_5rto_blackhole_detection2,
+                                 3, 3);
     return IsHandshakeComplete();
   }
 
