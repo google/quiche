@@ -49,6 +49,14 @@ class MockableQuicClient : public QuicClient {
                      const ParsedQuicVersionVector& supported_versions,
                      QuicEpollServer* epoll_server,
                      std::unique_ptr<ProofVerifier> proof_verifier);
+
+  MockableQuicClient(QuicSocketAddress server_address,
+                     const QuicServerId& server_id,
+                     const QuicConfig& config,
+                     const ParsedQuicVersionVector& supported_versions,
+                     QuicEpollServer* epoll_server,
+                     std::unique_ptr<ProofVerifier> proof_verifier,
+                     std::unique_ptr<SessionCache> session_cache);
   MockableQuicClient(const MockableQuicClient&) = delete;
   MockableQuicClient& operator=(const MockableQuicClient&) = delete;
 
@@ -100,6 +108,12 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
                  const QuicConfig& config,
                  const ParsedQuicVersionVector& supported_versions,
                  std::unique_ptr<ProofVerifier> proof_verifier);
+  QuicTestClient(QuicSocketAddress server_address,
+                 const std::string& server_hostname,
+                 const QuicConfig& config,
+                 const ParsedQuicVersionVector& supported_versions,
+                 std::unique_ptr<ProofVerifier> proof_verifier,
+                 std::unique_ptr<SessionCache> session_cache);
 
   ~QuicTestClient() override;
 

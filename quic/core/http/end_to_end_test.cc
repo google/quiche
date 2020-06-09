@@ -57,6 +57,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_server.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
+#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
@@ -212,7 +213,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     QuicTestClient* client =
         new QuicTestClient(server_address_, server_hostname_, client_config_,
                            client_supported_versions_,
-                           crypto_test_utils::ProofVerifierForTesting());
+                           crypto_test_utils::ProofVerifierForTesting(),
+                           std::make_unique<SimpleSessionCache>());
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
