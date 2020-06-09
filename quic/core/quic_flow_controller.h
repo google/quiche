@@ -91,6 +91,8 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
 
   QuicByteCount bytes_consumed() const { return bytes_consumed_; }
 
+  QuicByteCount bytes_sent() const { return bytes_sent_; }
+
   QuicStreamOffset send_window_offset() const { return send_window_offset_; }
 
   QuicStreamOffset highest_received_byte_offset() const {

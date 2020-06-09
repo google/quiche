@@ -795,6 +795,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // If true, enables round robin scheduling.
   bool enable_round_robin_scheduling_;
+
+  // Whether the session has received a 0-RTT rejection (QUIC+TLS only).
+  bool was_zero_rtt_rejected_;
 };
 
 }  // namespace quic

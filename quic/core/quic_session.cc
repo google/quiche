@@ -97,7 +97,8 @@ QuicSession::QuicSession(
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),
       is_configured_(false),
-      enable_round_robin_scheduling_(false) {
+      enable_round_robin_scheduling_(false),
+      was_zero_rtt_rejected_(false) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -1022,6 +1023,19 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxBidirectionalStreams()) {
       max_streams = config_.ReceivedMaxBidirectionalStreams();
     }
+    if (was_zero_rtt_rejected_ &&
+        max_streams <
+            v99_streamid_manager_.outgoing_bidirectional_stream_count()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new bidirectional "
+              "initial stream limit ",
+              max_streams, " is less than current open streams: ",
+              v99_streamid_manager_.outgoing_bidirectional_stream_count()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     QUIC_DVLOG(1) << ENDPOINT
                   << "Setting Bidirectional outgoing_max_streams_ to "
                   << max_streams;
@@ -1046,6 +1060,21 @@ void QuicSession::OnConfigNegotiated() {
     if (config_.HasReceivedMaxUnidirectionalStreams()) {
       max_streams = config_.ReceivedMaxUnidirectionalStreams();
     }
+
+    if (was_zero_rtt_rejected_ &&
+        max_streams <
+            v99_streamid_manager_.outgoing_unidirectional_stream_count()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new unidirectional "
+              "initial stream limit ",
+              max_streams, " is less than current open streams: ",
+              v99_streamid_manager_.outgoing_unidirectional_stream_count()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+
     if (max_streams <
         v99_streamid_manager_.max_outgoing_unidirectional_streams()) {
       connection_->CloseConnection(
@@ -1071,6 +1100,17 @@ void QuicSession::OnConfigNegotiated() {
     }
     QUIC_DVLOG(1) << ENDPOINT << "Setting max_open_outgoing_streams_ to "
                   << max_streams;
+    if (was_zero_rtt_rejected_ &&
+        max_streams < stream_id_manager_.num_open_outgoing_streams()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new stream limit ",
+              max_streams, " is less than current open streams: ",
+              stream_id_manager_.num_open_outgoing_streams()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     stream_id_manager_.set_max_open_outgoing_streams(max_streams);
   }
 
@@ -1281,6 +1321,18 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing unidirectional stream " << id
                   << " of new stream flow control window " << new_window;
+    if (was_zero_rtt_rejected_ &&
+        new_window < kv.second->flow_controller()->bytes_sent()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new stream max data ",
+              new_window, " for stream ", kv.first,
+              " is less than currently used: ",
+              kv.second->flow_controller()->bytes_sent()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
       return;
     }
@@ -1305,6 +1357,18 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing outgoing bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
+    if (was_zero_rtt_rejected_ &&
+        new_window < kv.second->flow_controller()->bytes_sent()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new stream max data ",
+              new_window, " for stream ", kv.first,
+              " is less than currently used: ",
+              kv.second->flow_controller()->bytes_sent()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
       return;
     }
@@ -1329,6 +1393,18 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing incoming bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
+    if (was_zero_rtt_rejected_ &&
+        new_window < kv.second->flow_controller()->bytes_sent()) {
+      connection_->CloseConnection(
+          QUIC_INTERNAL_ERROR,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new stream max data ",
+              new_window, " for stream ", kv.first,
+              " is less than currently used: ",
+              kv.second->flow_controller()->bytes_sent()),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
       return;
     }
@@ -1337,28 +1413,40 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
 
 void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   QUIC_DVLOG(1) << ENDPOINT << "OnNewSessionFlowControlWindow " << new_window;
-  bool close_connection = false;
-  if (!connection_->version().AllowsLowFlowControlLimits()) {
-    if (new_window < kMinimumFlowControlSendWindow) {
-      close_connection = true;
-      QUIC_LOG_FIRST_N(ERROR, 1)
-          << "Peer sent us an invalid session flow control send window: "
-          << new_window << ", below default: " << kMinimumFlowControlSendWindow;
-    }
-  } else if (perspective_ == Perspective::IS_CLIENT &&
-             new_window < flow_controller_.send_window_offset()) {
+
+  if (was_zero_rtt_rejected_ && new_window < flow_controller_.bytes_sent()) {
+    std::string error_details = quiche::QuicheStrCat(
+        "Server rejected 0-RTT. Aborting because the client received session "
+        "flow control send window: ",
+        new_window,
+        ", which is below currently used: ", flow_controller_.bytes_sent());
+    QUIC_LOG(ERROR) << error_details;
+    connection_->CloseConnection(
+        QUIC_INTERNAL_ERROR, error_details,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  if (!connection_->version().AllowsLowFlowControlLimits() &&
+      new_window < kMinimumFlowControlSendWindow) {
+    std::string error_details = quiche::QuicheStrCat(
+        "Peer sent us an invalid session flow control send window: ",
+        new_window, ", below minimum: ", kMinimumFlowControlSendWindow);
+    QUIC_LOG_FIRST_N(ERROR, 1) << error_details;
+    connection_->CloseConnection(
+        QUIC_FLOW_CONTROL_INVALID_WINDOW, error_details,
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  if (perspective_ == Perspective::IS_CLIENT &&
+      new_window < flow_controller_.send_window_offset()) {
     // The client receives a lower limit than remembered, violating
     // https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-7.3.1
-    QUIC_LOG_FIRST_N(ERROR, 1)
-        << "Peer sent us an invalid session flow control send window: "
-        << new_window
-        << ", below current: " << flow_controller_.send_window_offset();
-    close_connection = true;
-  }
-  if (close_connection) {
+    std::string error_details = quiche::QuicheStrCat(
+        "Peer sent us an invalid session flow control send window: ",
+        new_window, ", below current: ", flow_controller_.send_window_offset());
+    QUIC_LOG(ERROR) << error_details;
     connection_->CloseConnection(
-        QUIC_FLOW_CONTROL_INVALID_WINDOW,
-        quiche::QuicheStrCat("New connection window too low: ", new_window),
+        QUIC_FLOW_CONTROL_INVALID_WINDOW, error_details,
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
@@ -1486,9 +1574,7 @@ void QuicSession::NeuterHandshakeData() {
 }
 
 void QuicSession::OnZeroRttRejected() {
-  // TODO(b/153726130): Read stream limit and flow control limit from server
-  // transport params, and close the connection proactively if client has used
-  // too many.
+  was_zero_rtt_rejected_ = true;
   connection_->RetransmitZeroRttPackets();
   if (connection_->encryption_level() == ENCRYPTION_FORWARD_SECURE) {
     QUIC_BUG << "1-RTT keys already available when 0-RTT is rejected.";

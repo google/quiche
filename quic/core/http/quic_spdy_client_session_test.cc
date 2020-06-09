@@ -194,6 +194,18 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         session_->GetMutableCryptoStream());
   }
 
+  void CompleteFirstConnection() {
+    CompleteCryptoHandshake();
+    EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
+    if (session_->version().UsesHttp3()) {
+      SettingsFrame settings;
+      settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+      settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+      settings.values[256] = 4;  // unknown setting
+      session_->OnSettingsFrame(settings);
+    }
+  }
+
   // Owned by |session_|.
   QuicCryptoClientStream* crypto_stream_;
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
@@ -979,15 +991,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
     return;
   }
 
-  CompleteCryptoHandshake();
-  EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
-  if (session_->version().UsesHttp3()) {
-    SettingsFrame settings;
-    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
-    settings.values[256] = 4;  // unknown setting
-    session_->OnSettingsFrame(settings);
-  }
+  CompleteFirstConnection();
 
   CreateConnection();
   // Session configs should be in initial state.
@@ -1064,15 +1068,7 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
     return;
   }
 
-  CompleteCryptoHandshake();
-  EXPECT_FALSE(session_->GetCryptoStream()->IsResumption());
-  if (session_->version().UsesHttp3()) {
-    SettingsFrame settings;
-    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
-    settings.values[256] = 4;  // unknown setting
-    session_->OnSettingsFrame(settings);
-  }
+  CompleteFirstConnection();
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
@@ -1106,6 +1102,136 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
       &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
       connection_, crypto_stream_, AlpnForVersion(connection_->version()));
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
+}
+
+// When IETF QUIC 0-RTT is rejected, a server-sent fresh transport params is
+// available. If the new transport params reduces stream/flow control limit to
+// lower than what the client has already used, connection will be closed.
+TEST_P(QuicSpdyClientSessionTest, ZeroRttRejectReducesStreamLimitTooMuch) {
+  // This feature is TLS-only.
+  if (session_->version().UsesQuicCrypto()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  // Create a second connection, but disable 0-RTT on the server.
+  CreateConnection();
+  QuicConfig config = DefaultQuicConfig();
+  // Server doesn't allow any bidirectional streams.
+  config.SetMaxBidirectionalStreamsToSend(0);
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream);
+
+  if (session_->version().UsesHttp3()) {
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(
+            QUIC_INTERNAL_ERROR,
+            "Server rejected 0-RTT, aborting because new bidirectional initial "
+            "stream limit 0 is less than current open streams: 1",
+            _))
+        .WillOnce(testing::Invoke(connection_,
+                                  &MockQuicConnection::ReallyCloseConnection));
+  } else {
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_INTERNAL_ERROR,
+                        "Server rejected 0-RTT, aborting because new stream "
+                        "limit 0 is less than current open streams: 1",
+                        _))
+        .WillOnce(testing::Invoke(connection_,
+                                  &MockQuicConnection::ReallyCloseConnection));
+  }
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+}
+
+TEST_P(QuicSpdyClientSessionTest,
+       ZeroRttRejectReducesStreamFlowControlTooMuch) {
+  // This feature is TLS-only.
+  if (session_->version().UsesQuicCrypto()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  // Create a second connection, but disable 0-RTT on the server.
+  CreateConnection();
+  QuicConfig config = DefaultQuicConfig();
+  // Server doesn't allow any outgoing streams.
+  config.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(1);
+  config.SetInitialMaxStreamDataBytesUnidirectionalToSend(1);
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream);
+  // Let the stream write more than 1 byte of data.
+  stream->WriteOrBufferData("hello", true, nullptr);
+
+  if (session_->version().UsesHttp3()) {
+    // Both control stream and the request stream will report errors.
+    EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+        .Times(2)
+        .WillOnce(testing::Invoke(connection_,
+                                  &MockQuicConnection::ReallyCloseConnection));
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(
+                    QUIC_INTERNAL_ERROR,
+                    "Server rejected 0-RTT, aborting because new stream max "
+                    "data 1 for stream 3 is less than currently used: 5",
+                    _))
+        .Times(1)
+        .WillOnce(testing::Invoke(connection_,
+                                  &MockQuicConnection::ReallyCloseConnection));
+  }
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+}
+
+TEST_P(QuicSpdyClientSessionTest,
+       ZeroRttRejectReducesSessionFlowControlTooMuch) {
+  // This feature is TLS-only.
+  if (session_->version().UsesQuicCrypto()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  // Create a second connection, but disable 0-RTT on the server.
+  CreateConnection();
+  QuicConfig config = DefaultQuicConfig();
+  // Server doesn't allow minimum data in session.
+  config.SetInitialSessionFlowControlWindowToSend(
+      kMinimumFlowControlSendWindow);
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream);
+  std::string data_to_send(kMinimumFlowControlSendWindow + 1, 'x');
+  // Let the stream write some data.
+  stream->WriteOrBufferData(data_to_send, true, nullptr);
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
 }
 
 }  // namespace

@@ -162,4 +162,14 @@ UberQuicStreamIdManager::advertised_max_incoming_unidirectional_streams()
   return unidirectional_stream_id_manager_.incoming_advertised_max_streams();
 }
 
+QuicStreamCount UberQuicStreamIdManager::outgoing_bidirectional_stream_count()
+    const {
+  return bidirectional_stream_id_manager_.outgoing_stream_count();
+}
+
+QuicStreamCount UberQuicStreamIdManager::outgoing_unidirectional_stream_count()
+    const {
+  return unidirectional_stream_id_manager_.outgoing_stream_count();
+}
+
 }  // namespace quic
