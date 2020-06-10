@@ -45,6 +45,9 @@ enum class Feature {
   kZeroRtt,
   // A RETRY packet was successfully processed.
   kRetry,
+  // A handshake using a ClientHello that spans multiple packets completed
+  // successfully.
+  kQuantum,
 
   // Second row of features (anything else protocol-related)
   // We switched to a different port and the server migrated to it.
@@ -74,6 +77,8 @@ char MatrixLetter(Feature f) {
       return 'Z';
     case Feature::kRetry:
       return 'S';
+    case Feature::kQuantum:
+      return 'Q';
     case Feature::kRebinding:
       return 'B';
     case Feature::kHttp3:
@@ -101,7 +106,8 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
                       QuicServerId server_id,
                       ParsedQuicVersion version,
                       bool test_version_negotiation,
-                      bool attempt_rebind);
+                      bool attempt_rebind,
+                      bool attempt_multi_packet_chlo);
 
   // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
   // GET request to "/" on the hostname |authority|.
@@ -184,7 +190,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
                                              QuicServerId server_id,
                                              ParsedQuicVersion version,
                                              bool test_version_negotiation,
-                                             bool attempt_rebind) {
+                                             bool attempt_rebind,
+                                             bool attempt_multi_packet_chlo) {
   ParsedQuicVersionVector versions = {version};
   if (test_version_negotiation) {
     versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
@@ -197,6 +204,15 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   QuicConfig config;
   QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(20);
   config.SetIdleNetworkTimeout(timeout);
+  if (attempt_multi_packet_chlo) {
+    // Make the ClientHello span multiple packets by adding a custom transport
+    // parameter.
+    constexpr auto kCustomParameter =
+        static_cast<TransportParameters::TransportParameterId>(0x173E);
+    std::string custom_value(2000, '?');
+    config.custom_transport_parameters_to_send()[kCustomParameter] =
+        custom_value;
+  }
   auto client = std::make_unique<QuicClient>(
       addr, server_id, versions, config, &epoll_server,
       std::move(proof_verifier), std::move(session_cache));
@@ -221,13 +237,24 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   if (test_version_negotiation && !connect_result) {
     // Failed to negotiate version, retry without version negotiation.
     AttemptRequest(addr, authority, server_id, version,
-                   /*test_version_negotiation=*/false, attempt_rebind);
+                   /*test_version_negotiation=*/false, attempt_rebind,
+                   attempt_multi_packet_chlo);
     return;
   }
   if (!client->session()->OneRttKeysAvailable()) {
+    if (attempt_multi_packet_chlo) {
+      // Failed to handshake with multi-packet client hello, retry without it.
+      AttemptRequest(addr, authority, server_id, version,
+                     test_version_negotiation, attempt_rebind,
+                     /*attempt_multi_packet_chlo=*/false);
+      return;
+    }
     return;
   }
   InsertFeature(Feature::kHandshake);
+  if (attempt_multi_packet_chlo) {
+    InsertFeature(Feature::kQuantum);
+  }
 
   spdy::SpdyHeaderBlock header_block = ConstructHeaderBlock(authority);
   SendRequest(client.get(), header_block);
@@ -250,7 +277,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
         if (!client->connected()) {
           // Rebinding does not work, retry without attempting it.
           AttemptRequest(addr, authority, server_id, version,
-                         test_version_negotiation, /*attempt_rebind=*/false);
+                         test_version_negotiation, /*attempt_rebind=*/false,
+                         attempt_multi_packet_chlo);
           return;
         }
         InsertFeature(Feature::kRebinding);
@@ -339,7 +367,8 @@ std::set<Feature> ServerSupport(std::string dns_host,
 
   runner.AttemptRequest(addr, authority, server_id, version,
                         /*test_version_negotiation=*/true,
-                        /*attempt_rebind=*/true);
+                        /*attempt_rebind=*/true,
+                        /*attempt_multi_packet_chlo=*/true);
 
   return runner.features();
 }
