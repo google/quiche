@@ -41,6 +41,8 @@ enum class Feature {
   kConnectionClose,
   // The connection was established using TLS resumption.
   kResumption,
+  // 0-RTT data is being sent and acted on.
+  kZeroRtt,
   // A RETRY packet was successfully processed.
   kRetry,
 
@@ -68,6 +70,8 @@ char MatrixLetter(Feature f) {
       return 'C';
     case Feature::kResumption:
       return 'R';
+    case Feature::kZeroRtt:
+      return 'Z';
     case Feature::kRetry:
       return 'S';
     case Feature::kRebinding:
@@ -90,7 +94,7 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   // Attempts a resumption using |client| by disconnecting and reconnecting. If
   // resumption is successful, |features_| is modified to add
   // Feature::kResumption to it, otherwise it is left unmodified.
-  void AttemptResumption(QuicClient* client);
+  void AttemptResumption(QuicClient* client, const std::string& authority);
 
   void AttemptRequest(QuicSocketAddress addr,
                       std::string authority,
@@ -98,6 +102,14 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
                       ParsedQuicVersion version,
                       bool test_version_negotiation,
                       bool attempt_rebind);
+
+  // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
+  // GET request to "/" on the hostname |authority|.
+  spdy::SpdyHeaderBlock ConstructHeaderBlock(const std::string& authority);
+
+  // Sends an HTTP request represented by |header_block| using |client|.
+  void SendRequest(QuicClient* client,
+                   const spdy::SpdyHeaderBlock& header_block);
 
   void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     switch (frame.close_type) {
@@ -134,19 +146,36 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
   std::set<Feature> features_;
 };
 
-void QuicClientInteropRunner::AttemptResumption(QuicClient* client) {
+void QuicClientInteropRunner::AttemptResumption(QuicClient* client,
+                                                const std::string& authority) {
   client->Disconnect();
   if (!client->Initialize()) {
     QUIC_LOG(ERROR) << "Failed to reinitialize client";
     return;
   }
-  if (!client->Connect() || !client->session()->OneRttKeysAvailable()) {
+  if (!client->Connect()) {
     return;
   }
+
+  bool zero_rtt_attempt = !client->session()->OneRttKeysAvailable();
+
+  spdy::SpdyHeaderBlock header_block = ConstructHeaderBlock(authority);
+  SendRequest(client, header_block);
+
+  if (!client->session()->OneRttKeysAvailable()) {
+    return;
+  }
+
   if (static_cast<QuicCryptoClientStream*>(
           test::QuicSessionPeer::GetMutableCryptoStream(client->session()))
           ->IsResumption()) {
     InsertFeature(Feature::kResumption);
+  }
+  if (static_cast<QuicCryptoClientStream*>(
+          test::QuicSessionPeer::GetMutableCryptoStream(client->session()))
+          ->EarlyDataAccepted() &&
+      zero_rtt_attempt && client->latest_response_code() != -1) {
+    InsertFeature(Feature::kZeroRtt);
   }
 }
 
@@ -200,25 +229,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   }
   InsertFeature(Feature::kHandshake);
 
-  // Construct and send a request.
-  spdy::SpdyHeaderBlock header_block;
-  header_block[":method"] = "GET";
-  header_block[":scheme"] = "https";
-  header_block[":authority"] = authority;
-  header_block[":path"] = "/";
-  client->set_store_response(true);
-  client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
-
-  client_stats = connection->GetStats();
-  QuicSentPacketManager* sent_packet_manager =
-      test::QuicConnectionPeer::GetSentPacketManager(connection);
-  const bool received_forward_secure_ack =
-      sent_packet_manager != nullptr &&
-      sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
-          .IsInitialized();
-  if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
-    InsertFeature(Feature::kStreamData);
-  }
+  spdy::SpdyHeaderBlock header_block = ConstructHeaderBlock(authority);
+  SendRequest(client.get(), header_block);
 
   if (!client->connected()) {
     return;
@@ -259,7 +271,41 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     InsertFeature(Feature::kConnectionClose);
   }
 
-  AttemptResumption(client.get());
+  AttemptResumption(client.get(), authority);
+}
+
+spdy::SpdyHeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
+    const std::string& authority) {
+  // Construct and send a request.
+  spdy::SpdyHeaderBlock header_block;
+  header_block[":method"] = "GET";
+  header_block[":scheme"] = "https";
+  header_block[":authority"] = authority;
+  header_block[":path"] = "/";
+  return header_block;
+}
+
+void QuicClientInteropRunner::SendRequest(
+    QuicClient* client,
+    const spdy::SpdyHeaderBlock& header_block) {
+  client->set_store_response(true);
+  client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
+
+  QuicConnection* connection = client->session()->connection();
+  if (connection == nullptr) {
+    QUIC_LOG(ERROR) << "No QuicConnection object";
+    return;
+  }
+  QuicConnectionStats client_stats = connection->GetStats();
+  QuicSentPacketManager* sent_packet_manager =
+      test::QuicConnectionPeer::GetSentPacketManager(connection);
+  const bool received_forward_secure_ack =
+      sent_packet_manager != nullptr &&
+      sent_packet_manager->GetLargestAckedPacket(ENCRYPTION_FORWARD_SECURE)
+          .IsInitialized();
+  if (client_stats.stream_bytes_received > 0 && received_forward_secure_ack) {
+    InsertFeature(Feature::kStreamData);
+  }
 }
 
 std::set<Feature> ServerSupport(std::string dns_host,
