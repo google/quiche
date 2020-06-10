@@ -3018,8 +3018,9 @@ void QuicConnection::OnRetransmissionTimeout() {
   if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
     sent_packet_manager_.AdjustPendingTimerTransmissions();
   }
-  if (retransmission_mode != QuicSentPacketManager::LOSS_MODE) {
-    // When timer fires in TLP or RTO mode, ensure 1) at least one packet is
+  if (retransmission_mode != QuicSentPacketManager::LOSS_MODE &&
+      retransmission_mode != QuicSentPacketManager::HANDSHAKE_MODE) {
+    // When timer fires in TLP/RTO/PTO mode, ensure 1) at least one packet is
     // created, or there is data to send and available credit (such that
     // packets will be sent eventually).
     QUIC_BUG_IF(packet_creator_.packet_number() ==
