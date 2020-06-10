@@ -43,6 +43,7 @@ using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::AtMost;
 using ::testing::Invoke;
+using ::testing::StrictMock;
 using ::testing::Truly;
 
 namespace quic {
@@ -1232,6 +1233,119 @@ TEST_P(QuicSpdyClientSessionTest,
   crypto_test_utils::HandshakeWithFakeServer(
       &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
       connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+}
+
+TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdBeforeEncryptionEstablished) {
+  // 0-RTT is TLS-only, MAX_PUSH_ID frame is HTTP/3-only.
+  if (!session_->version().UsesTls() || !session_->version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  CreateConnection();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  // No MAX_PUSH_ID frame is sent before encryption is established.
+  session_->SetMaxPushId(5);
+
+  EXPECT_FALSE(session_->IsEncryptionEstablished());
+  EXPECT_FALSE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_INITIAL, session_->connection()->encryption_level());
+
+  // MAX_PUSH_ID frame is sent upon encryption establishment with the value set
+  // by the earlier SetMaxPushId() call.
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
+      .WillOnce(Invoke(
+          [](const MaxPushIdFrame& frame) { EXPECT_EQ(5u, frame.push_id); }));
+  session_->CryptoConnect();
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_FALSE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
+
+  // Another SetMaxPushId() call with the same value does not trigger sending
+  // another MAX_PUSH_ID frame.
+  session_->SetMaxPushId(5);
+
+  // Calling SetMaxPushId() with a different value results in sending another
+  // MAX_PUSH_ID frame.
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
+      .WillOnce(Invoke(
+          [](const MaxPushIdFrame& frame) { EXPECT_EQ(10u, frame.push_id); }));
+  session_->SetMaxPushId(10);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  QuicConfig config = DefaultQuicConfig();
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_TRUE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
+            session_->connection()->encryption_level());
+  EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
+}
+
+TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdAfterEncryptionEstablished) {
+  // 0-RTT is TLS-only, MAX_PUSH_ID frame is HTTP/3-only.
+  if (!session_->version().UsesTls() || !session_->version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  CreateConnection();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  EXPECT_FALSE(session_->IsEncryptionEstablished());
+  EXPECT_FALSE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_INITIAL, session_->connection()->encryption_level());
+
+  // No MAX_PUSH_ID frame is sent if SetMaxPushId() has not been called.
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  session_->CryptoConnect();
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_FALSE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, session_->connection()->encryption_level());
+
+  // Calling SetMaxPushId() for the first time after encryption is established
+  // results in sending a MAX_PUSH_ID frame.
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
+      .WillOnce(Invoke(
+          [](const MaxPushIdFrame& frame) { EXPECT_EQ(5u, frame.push_id); }));
+  session_->SetMaxPushId(5);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  // Another SetMaxPushId() call with the same value does not trigger sending
+  // another MAX_PUSH_ID frame.
+  session_->SetMaxPushId(5);
+
+  // Calling SetMaxPushId() with a different value results in sending another
+  // MAX_PUSH_ID frame.
+  EXPECT_CALL(debug_visitor, OnMaxPushIdFrameSent(_))
+      .WillOnce(Invoke(
+          [](const MaxPushIdFrame& frame) { EXPECT_EQ(10u, frame.push_id); }));
+  session_->SetMaxPushId(10);
+  testing::Mock::VerifyAndClearExpectations(&debug_visitor);
+
+  QuicConfig config = DefaultQuicConfig();
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  EXPECT_TRUE(session_->OneRttKeysAvailable());
+  EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
+            session_->connection()->encryption_level());
+  EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
 }
 
 }  // namespace

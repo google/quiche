@@ -739,7 +739,6 @@ void QuicSpdySession::SendInitialData() {
   if (perspective() == Perspective::IS_CLIENT && max_push_id_.has_value() &&
       !http3_max_push_id_sent_) {
     SendMaxPushId();
-    http3_max_push_id_sent_ = true;
   }
 }
 
@@ -1241,7 +1240,7 @@ void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
   }
   max_push_id_ = max_push_id;
 
-  if (OneRttKeysAvailable()) {
+  if (IsEncryptionEstablished()) {
     SendMaxPushId();
   }
 }
@@ -1284,6 +1283,7 @@ void QuicSpdySession::SendMaxPushId() {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective());
 
   send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
+  http3_max_push_id_sent_ = true;
 }
 
 void QuicSpdySession::EnableServerPush() {

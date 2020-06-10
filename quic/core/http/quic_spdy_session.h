@@ -466,8 +466,11 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
       quiche::QuicheStringPiece type);
 
-  // Sends any data which should be sent at the start of a connection,
-  // including the initial SETTINGS frame, etc.
+  // Sends any data which should be sent at the start of a connection, including
+  // the initial SETTINGS frame, and (when IETF QUIC is used) also a MAX_PUSH_ID
+  // frame if SetMaxPushId() had been called before encryption was established.
+  // When using 0-RTT, this method is called twice: once when encryption is
+  // established, and again when 1-RTT keys are available.
   void SendInitialData();
 
   // Send a MAX_PUSH_ID frame.  Used in IETF QUIC only.
@@ -534,12 +537,17 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Server push is enabled for a client by calling SetMaxPushId().
   bool ietf_server_push_enabled_;
 
-  // Used in IETF QUIC only.  Unset until a MAX_PUSH_ID frame is received/sent.
-  // For a server, the push ID in the most recently received MAX_PUSH_ID frame.
-  // For a client before 1-RTT keys are available, the push ID to be sent in the
-  // initial MAX_PUSH_ID frame.
-  // For a client after 1-RTT keys are available, the push ID in the most
-  // recently sent MAX_PUSH_ID frame.
+  // Used in IETF QUIC only.
+  // For a server:
+  //   the push ID in the most recently received MAX_PUSH_ID frame,
+  //   or unset if no MAX_PUSH_ID frame has been received.
+  // For a client:
+  //   unset until SetMaxPushId() is called;
+  //   before encryption is established, the push ID to be sent in the initial
+  //   MAX_PUSH_ID frame;
+  //   after encryption is established, the push ID in the most recently sent
+  //   MAX_PUSH_ID frame.
+  // Once set, never goes back to unset.
   quiche::QuicheOptional<PushId> max_push_id_;
 
   // An integer used for live check. The indicator is assigned a value in
@@ -555,9 +563,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // If the endpoint has sent HTTP/3 GOAWAY frame.
   bool http3_goaway_sent_;
 
-  // If SendMaxPushId() has been called from SendInitialData().  Note that a
-  // MAX_PUSH_ID frame is only sent if SetMaxPushId() had been called
-  // beforehand.
+  // Only used by a client, only with IETF QUIC.  True if a MAX_PUSH_ID frame
+  // has been sent, in which case |max_push_id_| has the value sent in the most
+  // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
   bool http3_max_push_id_sent_;
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
