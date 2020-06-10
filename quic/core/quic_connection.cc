@@ -2695,6 +2695,11 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
       IsRetransmittable(*packet));
+  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
+              blackhole_detector_.IsDetectionInProgress() &&
+              !sent_packet_manager_.HasInFlightPackets())
+      << ENDPOINT
+      << "Trying to start blackhole detection without no bytes in flight";
 
   if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
@@ -2984,6 +2989,13 @@ void QuicConnection::OnRetransmissionTimeout() {
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
     }
+  }
+  if (default_enable_5rto_blackhole_detection_ &&
+      !sent_packet_manager_.HasInFlightPackets() &&
+      blackhole_detector_.IsDetectionInProgress()) {
+    // Stop detection in quiescence.
+    DCHECK_EQ(QuicSentPacketManager::LOSS_MODE, retransmission_mode);
+    blackhole_detector_.StopDetection();
   }
   WriteIfNotBlocked();
 
@@ -4361,6 +4373,11 @@ void QuicConnection::OnForwardProgressMade() {
     // Stop detections in quiecense.
     blackhole_detector_.StopDetection();
   }
+  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
+              blackhole_detector_.IsDetectionInProgress() &&
+              !sent_packet_manager_.HasInFlightPackets())
+      << ENDPOINT
+      << "Trying to start blackhole detection without no bytes in flight";
 }
 
 QuicPacketNumber QuicConnection::GetLargestReceivedPacketWithAck() const {
@@ -4474,6 +4491,11 @@ void QuicConnection::OnPathDegradingDetected() {
 }
 
 void QuicConnection::OnBlackholeDetected() {
+  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
+              !sent_packet_manager_.HasInFlightPackets())
+      << ENDPOINT
+      << "Closing connection because of blackhole, but there is no bytes in "
+         "flight";
   CloseConnection(QUIC_TOO_MANY_RTOS, "Network blackhole detected.",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
