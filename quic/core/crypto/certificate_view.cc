@@ -177,7 +177,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
   }
   bool eof_reached = input->eof() && !pending_message;
   return PemReadResult{
-      .status = (eof_reached ? PemReadResult::kEof : PemReadResult::kError)};
+      (eof_reached ? PemReadResult::kEof : PemReadResult::kError), "", ""};
 }
 
 std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(

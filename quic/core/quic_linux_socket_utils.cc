@@ -186,7 +186,7 @@ bool QuicLinuxSocketUtils::EnableReleaseTime(int fd, clockid_t clockid) {
     uint32_t flags;    /* flags defined by enum txtime_flags */
   };
 
-  LinuxSockTxTime so_txtime_val = {.clockid = clockid};
+  LinuxSockTxTime so_txtime_val{clockid, 0};
 
   if (setsockopt(fd, SOL_SOCKET, SO_TXTIME, &so_txtime_val,
                  sizeof(so_txtime_val)) != 0) {

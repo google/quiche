@@ -55,9 +55,9 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
   }
 
   void AddTestCertificate() {
-    EXPECT_TRUE(verifier_->AddFingerprint(CertificateFingerprint{
-        .algorithm = CertificateFingerprint::kSha256,
-        .fingerprint = ComputeSha256Fingerprint(kTestCertificate)}));
+    EXPECT_TRUE(verifier_->AddFingerprint(
+        CertificateFingerprint{CertificateFingerprint::kSha256,
+                               ComputeSha256Fingerprint(kTestCertificate)}));
   }
 
   MockClock clock_;
@@ -137,9 +137,9 @@ TEST_F(WebTransportFingerprintProofVerifierTest, MaxValidity) {
 
 TEST_F(WebTransportFingerprintProofVerifierTest, InvalidCertificate) {
   constexpr quiche::QuicheStringPiece kInvalidCertificate = "Hello, world!";
-  ASSERT_TRUE(verifier_->AddFingerprint(CertificateFingerprint{
-      .algorithm = CertificateFingerprint::kSha256,
-      .fingerprint = ComputeSha256Fingerprint(kInvalidCertificate)}));
+  ASSERT_TRUE(verifier_->AddFingerprint(
+      {CertificateFingerprint::kSha256,
+       ComputeSha256Fingerprint(kInvalidCertificate)}));
 
   VerifyResult result = Verify(kInvalidCertificate);
   EXPECT_EQ(result.status, QUIC_FAILURE);
@@ -152,32 +152,30 @@ TEST_F(WebTransportFingerprintProofVerifierTest, AddCertificate) {
   // Accept all-uppercase fingerprints.
   verifier_ = std::make_unique<WebTransportFingerprintProofVerifier>(
       &clock_, /*max_validity_days=*/365);
-  EXPECT_TRUE(verifier_->AddFingerprint(CertificateFingerprint{
-      .algorithm = CertificateFingerprint::kSha256,
-      .fingerprint = "F2:E5:46:5E:2B:F7:EC:D6:F6:30:66:A5:A3:75:11:73:4A:A0:EB:"
-                     "7C:47:01:0E:86:D6:75:8E:D4:F4:FA:1B:0F"}));
+  EXPECT_TRUE(verifier_->AddFingerprint(
+      {CertificateFingerprint::kSha256,
+       "F2:E5:46:5E:2B:F7:EC:D6:F6:30:66:A5:A3:75:11:73:4A:A0:EB:"
+       "7C:47:01:0E:86:D6:75:8E:D4:F4:FA:1B:0F"}));
   EXPECT_EQ(Verify(kTestCertificate).detailed_status,
             WebTransportFingerprintProofVerifier::Status::kValidCertificate);
 
   // Reject unknown hash algorithms.
-  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
-      .algorithm = "sha-1",
-      .fingerprint =
-          "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(
+      {"sha-1",
+       "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"}));
   // Reject invalid length.
   EXPECT_FALSE(verifier_->AddFingerprint(
-      CertificateFingerprint{.algorithm = CertificateFingerprint::kSha256,
-                             .fingerprint = "00:00:00:00"}));
+      {CertificateFingerprint::kSha256, "00:00:00:00"}));
   // Reject missing colons.
-  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
-      .algorithm = CertificateFingerprint::kSha256,
-      .fingerprint = "00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00."
-                     "00.00.00.00.00.00.00.00.00.00.00.00.00"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(
+      {CertificateFingerprint::kSha256,
+       "00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00.00."
+       "00.00.00.00.00.00.00.00.00.00.00.00.00"}));
   // Reject non-hex symbols.
-  EXPECT_FALSE(verifier_->AddFingerprint(CertificateFingerprint{
-      .algorithm = CertificateFingerprint::kSha256,
-      .fingerprint = "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:"
-                     "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz"}));
+  EXPECT_FALSE(verifier_->AddFingerprint(
+      {CertificateFingerprint::kSha256,
+       "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:"
+       "zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz:zz"}));
 }
 
 }  // namespace

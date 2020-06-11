@@ -104,8 +104,8 @@ bool ProofSourceX509::AddCertificateChain(
   }
 
   certificates_.push_front(Certificate{
-      .chain = chain,
-      .key = std::move(key),
+      chain,
+      std::move(key),
   });
   Certificate* certificate = &certificates_.front();
 
