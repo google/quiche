@@ -216,7 +216,7 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
                << parsed_version.handshake_protocol;
       return 0;
   }
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync");
   switch (parsed_version.transport_version) {
     case QUIC_VERSION_43:
@@ -246,6 +246,12 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
         return MakeVersionLabel(0xff, 0x00, 0x00, 28);
       }
       QUIC_BUG << "QUIC_VERSION_IETF_DRAFT_28 requires TLS";
+      return 0;
+    case QUIC_VERSION_IETF_DRAFT_29:
+      if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
+        return MakeVersionLabel(0xff, 0x00, 0x00, 29);
+      }
+      QUIC_BUG << "QUIC_VERSION_IETF_DRAFT_29 requires TLS";
       return 0;
     case QUIC_VERSION_RESERVED_FOR_NEGOTIATION:
       return CreateRandomVersionLabelForNegotiation();
@@ -403,7 +409,12 @@ ParsedQuicVersionVector FilterSupportedVersions(
   ParsedQuicVersionVector filtered_versions;
   filtered_versions.reserve(versions.size());
   for (const ParsedQuicVersion& version : versions) {
-    if (version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
+    if (version.transport_version == QUIC_VERSION_IETF_DRAFT_29) {
+      QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3);
+      if (GetQuicReloadableFlag(quic_enable_version_draft_29)) {
+        filtered_versions.push_back(version);
+      }
+    } else if (version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
       QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3);
       if (GetQuicReloadableFlag(quic_enable_version_draft_28)) {
         filtered_versions.push_back(version);
@@ -534,7 +545,7 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(SupportedTransportVersions().size() == 8u,
+  static_assert(SupportedTransportVersions().size() == 9u,
                 "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
@@ -545,6 +556,7 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_25);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_27);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_28);
+    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_29);
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
@@ -647,7 +659,9 @@ ParsedQuicVersion QuicVersionReservedForNegotiation() {
 
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version.handshake_protocol == PROTOCOL_TLS1_3) {
-    if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
+    if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_29) {
+      return "h3-29";
+    } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
       return "h3-28";
     } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {
       return "h3-27";
@@ -665,9 +679,12 @@ void QuicVersionInitializeSupportForIetfDraft() {
 }
 
 void QuicEnableVersion(ParsedQuicVersion parsed_version) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync");
-  if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
+  if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_29) {
+    QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
+    SetQuicReloadableFlag(quic_enable_version_draft_29, true);
+  } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
     QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
     SetQuicReloadableFlag(quic_enable_version_draft_28, true);
   } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {

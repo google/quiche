@@ -122,6 +122,11 @@ const uint8_t kDraft25InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
                                        0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
                                        0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
 
+// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-29#section-5.2
+const uint8_t kDraft29InitialSalt[] = {0xaf, 0xbf, 0xec, 0x28, 0x99, 0x93, 0xd2,
+                                       0x4c, 0x9e, 0x97, 0x86, 0xf1, 0x9c, 0x61,
+                                       0x11, 0xe0, 0x43, 0x90, 0xa8, 0x99};
+
 // Salts used by deployed versions of QUIC. When introducing a new version,
 // generate a new salt by running `openssl rand -hex 20`.
 
@@ -136,7 +141,7 @@ const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync with initial encryption salts");
   switch (version.handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
@@ -171,6 +176,9 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
           // draft-28 uses the same salt as draft-25.
           *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
           return kDraft25InitialSalt;
+        case QUIC_VERSION_IETF_DRAFT_29:
+          *out_len = QUICHE_ARRAYSIZE(kDraft29InitialSalt);
+          return kDraft29InitialSalt;
         default:
           QUIC_BUG << "No initial obfuscation salt for version " << version;
       }
@@ -194,6 +202,14 @@ const uint8_t kDraft25RetryIntegrityKey[] = {0x4d, 0x32, 0xec, 0xdb, 0x2a, 0x21,
                                              0xf2, 0x7d, 0x44, 0x30};
 const uint8_t kDraft25RetryIntegrityNonce[] = {
     0x4d, 0x16, 0x11, 0xd0, 0x55, 0x13, 0xa5, 0x52, 0xc5, 0x87, 0xd5, 0x75};
+
+// https://tools.ietf.org/html/draft-ietf-quic-tls-29#section-5.8
+const uint8_t kDraft29RetryIntegrityKey[] = {0xcc, 0xce, 0x18, 0x7e, 0xd0, 0x9a,
+                                             0x09, 0xd0, 0x57, 0x28, 0x15, 0x5a,
+                                             0x6c, 0xb9, 0x6b, 0xe1};
+const uint8_t kDraft29RetryIntegrityNonce[] = {
+    0xe5, 0x49, 0x30, 0xf9, 0x7f, 0x21, 0x36, 0xf0, 0x53, 0x0a, 0x8c, 0x1c};
+
 // Keys used by Google versions of QUIC. When introducing a new version,
 // generate a new key by running `openssl rand -hex 16`.
 const uint8_t kT050RetryIntegrityKey[] = {0xc9, 0x2d, 0x32, 0x3d, 0x9c, 0xe3,
@@ -233,6 +249,15 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
     *nonce = quiche::QuicheStringPiece(
         reinterpret_cast<const char*>(kDraft25RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kDraft25RetryIntegrityNonce));
+    return true;
+  }
+  if (version == ParsedQuicVersion::Draft29()) {
+    *key = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kDraft29RetryIntegrityKey),
+        QUICHE_ARRAYSIZE(kDraft29RetryIntegrityKey));
+    *nonce = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kDraft29RetryIntegrityNonce),
+        QUICHE_ARRAYSIZE(kDraft29RetryIntegrityNonce));
     return true;
   }
   QUIC_BUG << "Attempted to get retry integrity keys for version " << version;

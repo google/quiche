@@ -15,7 +15,9 @@ namespace quic {
 
 QuicVersionManager::QuicVersionManager(
     ParsedQuicVersionVector supported_versions)
-    : enable_version_draft_28_(
+    : enable_version_draft_29_(
+          GetQuicReloadableFlag(quic_enable_version_draft_29)),
+      enable_version_draft_28_(
           GetQuicReloadableFlag(quic_enable_version_draft_28)),
       enable_version_draft_27_(
           GetQuicReloadableFlag(quic_enable_version_draft_27)),
@@ -28,7 +30,7 @@ QuicVersionManager::QuicVersionManager(
       disable_version_q046_(GetQuicReloadableFlag(quic_disable_version_q046)),
       disable_version_q043_(GetQuicReloadableFlag(quic_disable_version_q043)),
       allowed_supported_versions_(std::move(supported_versions)) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync");
   RefilterSupportedVersions();
 }
@@ -58,9 +60,11 @@ const std::vector<std::string>& QuicVersionManager::GetSupportedAlpns() {
 }
 
 void QuicVersionManager::MaybeRefilterSupportedVersions() {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync");
-  if (enable_version_draft_28_ !=
+  if (enable_version_draft_29_ !=
+          GetQuicReloadableFlag(quic_enable_version_draft_29) ||
+      enable_version_draft_28_ !=
           GetQuicReloadableFlag(quic_enable_version_draft_28) ||
       enable_version_draft_27_ !=
           GetQuicReloadableFlag(quic_enable_version_draft_27) ||
@@ -78,6 +82,8 @@ void QuicVersionManager::MaybeRefilterSupportedVersions() {
           GetQuicReloadableFlag(quic_disable_version_q046) ||
       disable_version_q043_ !=
           GetQuicReloadableFlag(quic_disable_version_q043)) {
+    enable_version_draft_29_ =
+        GetQuicReloadableFlag(quic_enable_version_draft_29);
     enable_version_draft_28_ =
         GetQuicReloadableFlag(quic_enable_version_draft_28);
     enable_version_draft_27_ =

@@ -18,8 +18,9 @@ namespace {
 class QuicVersionManagerTest : public QuicTest {};
 
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 10u,
                 "Supported versions out of sync");
+  SetQuicReloadableFlag(quic_enable_version_draft_29, false);
   SetQuicReloadableFlag(quic_enable_version_draft_28, false);
   SetQuicReloadableFlag(quic_enable_version_draft_27, false);
   SetQuicReloadableFlag(quic_enable_version_draft_25_v3, false);
@@ -55,10 +56,9 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
               ElementsAre("h3-T050", "h3-Q050", "h3-Q049", "h3-Q048", "h3-Q046",
                           "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_enable_version_draft_28, true);
-  expected_parsed_versions.insert(
-      expected_parsed_versions.begin(),
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28));
+  SetQuicReloadableFlag(quic_enable_version_draft_29, true);
+  expected_parsed_versions.insert(expected_parsed_versions.begin(),
+                                  ParsedQuicVersion::Draft29());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(expected_parsed_versions.size() - 2,
             manager.GetSupportedVersionsWithQuicCrypto().size());
@@ -67,13 +67,13 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-28", "h3-T050", "h3-Q050", "h3-Q049", "h3-Q048",
+              ElementsAre("h3-29", "h3-T050", "h3-Q050", "h3-Q049", "h3-Q048",
                           "h3-Q046", "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_enable_version_draft_27, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_28, true);
   expected_parsed_versions.insert(
       expected_parsed_versions.begin() + 1,
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(expected_parsed_versions.size() - 3,
             manager.GetSupportedVersionsWithQuicCrypto().size());
@@ -82,21 +82,37 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-28", "h3-27", "h3-T050", "h3-Q050", "h3-Q049",
+              ElementsAre("h3-29", "h3-28", "h3-T050", "h3-Q050", "h3-Q049",
                           "h3-Q048", "h3-Q046", "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
+  SetQuicReloadableFlag(quic_enable_version_draft_27, true);
   expected_parsed_versions.insert(
       expected_parsed_versions.begin() + 2,
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(expected_parsed_versions.size() - 4,
             manager.GetSupportedVersionsWithQuicCrypto().size());
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-28", "h3-27", "h3-25", "h3-T050", "h3-Q050",
+              ElementsAre("h3-29", "h3-28", "h3-27", "h3-T050", "h3-Q050",
                           "h3-Q049", "h3-Q048", "h3-Q046", "h3-Q043"));
+
+  SetQuicReloadableFlag(quic_enable_version_draft_25_v3, true);
+  expected_parsed_versions.insert(
+      expected_parsed_versions.begin() + 3,
+      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions.size() - 5,
+            manager.GetSupportedVersionsWithQuicCrypto().size());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(
+      manager.GetSupportedAlpns(),
+      ElementsAre("h3-29", "h3-28", "h3-27", "h3-25", "h3-T050", "h3-Q050",
+                  "h3-Q049", "h3-Q048", "h3-Q046", "h3-Q043"));
 }
 
 }  // namespace

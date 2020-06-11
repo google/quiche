@@ -10428,19 +10428,23 @@ void QuicConnectionTest::TestClientRetryHandling(
       0xff, 0xff, 0x00, 0x00, 0x1c, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
       0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0xf7, 0x1a, 0x5f, 0x12,
       0xaf, 0xe3, 0xec, 0xf8, 0x00, 0x1a, 0x92, 0x0e, 0x6f, 0xdf, 0x1d, 0x63};
+  char retry_packet29[] = {
+      0xff, 0xff, 0x00, 0x00, 0x1d, 0x00, 0x08, 0xf0, 0x67, 0xa5, 0x50, 0x2a,
+      0x42, 0x62, 0xb5, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0xd1, 0x69, 0x26, 0xd8,
+      0x1f, 0x6f, 0x9c, 0xa2, 0x95, 0x3a, 0x8a, 0xa4, 0x57, 0x5e, 0x1e, 0x49};
 
   char* retry_packet;
   size_t retry_packet_length;
-  if (version() ==
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28)) {
+  if (version() == ParsedQuicVersion::Draft29()) {
+    retry_packet = retry_packet29;
+    retry_packet_length = QUICHE_ARRAYSIZE(retry_packet29);
+  } else if (version() == ParsedQuicVersion::Draft28()) {
     retry_packet = retry_packet28;
     retry_packet_length = QUICHE_ARRAYSIZE(retry_packet28);
-  } else if (version() ==
-             ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27)) {
+  } else if (version() == ParsedQuicVersion::Draft27()) {
     retry_packet = retry_packet27;
     retry_packet_length = QUICHE_ARRAYSIZE(retry_packet27);
-  } else if (version() ==
-             ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25)) {
+  } else if (version() == ParsedQuicVersion::Draft25()) {
     retry_packet = retry_packet25;
     retry_packet_length = QUICHE_ARRAYSIZE(retry_packet25);
   } else {
