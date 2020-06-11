@@ -8204,6 +8204,7 @@ TEST_P(QuicConnectionTest, UnmarkPathDegradingOnForwardProgress) {
   // degrading. And will set a timer to detect new path degrading.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading()).Times(1);
   frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
   ProcessAckPacket(&frame);
   EXPECT_FALSE(connection_.IsPathDegrading());

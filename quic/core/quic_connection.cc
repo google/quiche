@@ -4359,7 +4359,10 @@ void QuicConnection::SetLargestReceivedPacketWithAck(
 }
 
 void QuicConnection::OnForwardProgressMade() {
-  is_path_degrading_ = false;
+  if (is_path_degrading_) {
+    visitor_->OnForwardProgressMadeAfterPathDegrading();
+    is_path_degrading_ = false;
+  }
   if (sent_packet_manager_.HasInFlightPackets()) {
     // Restart detections if forward progress has been made.
     blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),

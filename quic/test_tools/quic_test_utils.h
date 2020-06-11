@@ -509,6 +509,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (AddressChangeType type),
               (override));
   MOCK_METHOD(void, OnPathDegrading, (), (override));
+  MOCK_METHOD(void, OnForwardProgressMadeAfterPathDegrading, (), (override));
   MOCK_METHOD(bool, WillingAndAbleToWrite, (), (const, override));
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(void,

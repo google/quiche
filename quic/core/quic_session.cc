@@ -438,6 +438,8 @@ void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
 
 void QuicSession::OnPathDegrading() {}
 
+void QuicSession::OnForwardProgressMadeAfterPathDegrading() {}
+
 bool QuicSession::AllowSelfAddressChange() const {
   return false;
 }

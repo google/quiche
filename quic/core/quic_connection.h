@@ -146,6 +146,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when the peer seems unreachable over the current path.
   virtual void OnPathDegrading() = 0;
 
+  // Called when forward progress made after path degrading.
+  virtual void OnForwardProgressMadeAfterPathDegrading() = 0;
+
   // Called when the connection sends ack after
   // max_consecutive_num_packets_with_no_retransmittable_frames_ consecutive not
   // retransmittable packets sent. To instigate an ack from peer, a
