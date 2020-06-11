@@ -124,7 +124,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnPathDegrading() override;
   bool AllowSelfAddressChange() const override;
   HandshakeState GetHandshakeState() const override;
-  void OnForwardProgressConfirmed() override;
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override;
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   void OnStopSendingFrame(const QuicStopSendingFrame& frame) override;

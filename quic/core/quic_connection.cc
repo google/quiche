@@ -1198,11 +1198,6 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-
-  if (!GetLargestAckedPacket().IsInitialized() ||
-      largest_acked > GetLargestAckedPacket()) {
-    visitor_->OnForwardProgressConfirmed();
-  }
   processing_ack_frame_ = true;
   sent_packet_manager_.OnAckFrameStart(largest_acked, ack_delay_time,
                                        GetTimeOfLastReceivedPacket());

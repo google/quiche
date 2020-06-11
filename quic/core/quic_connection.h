@@ -174,10 +174,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called to get current handshake state.
   virtual HandshakeState GetHandshakeState() const = 0;
 
-  // Called when an ACK is received with a larger |largest_acked| than
-  // previously observed.
-  virtual void OnForwardProgressConfirmed() = 0;
-
   // Called when a STOP_SENDING frame has been received.
   virtual void OnStopSendingFrame(const QuicStopSendingFrame& frame) = 0;
 

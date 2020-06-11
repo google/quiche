@@ -1156,7 +1156,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .WillRepeatedly(Return(false));
     EXPECT_CALL(visitor_, OnCongestionWindowChange(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(AnyNumber());
-    EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
     EXPECT_CALL(visitor_, OnOneRttPacketAcknowledged())
         .Times(testing::AtMost(1));
@@ -9034,45 +9033,6 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
   EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
   EXPECT_EQ(initial_retransmittable_on_wire_timeout,
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
-}
-
-TEST_P(QuicConnectionTest, OnForwardProgressConfirmed) {
-  EXPECT_CALL(visitor_, OnForwardProgressConfirmed()).Times(Exactly(0));
-  EXPECT_TRUE(connection_.connected());
-
-  const char data[] = "data";
-  size_t data_size = strlen(data);
-  QuicStreamOffset offset = 0;
-
-  // Send two packets.
-  connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
-  offset += data_size;
-  connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
-  offset += data_size;
-
-  // Ack packet 1. This increases the largest_acked to 1, so
-  // OnForwardProgressConfirmed() should be called
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  EXPECT_CALL(visitor_, OnForwardProgressConfirmed());
-  QuicAckFrame frame =
-      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
-  ProcessAckPacket(&frame);
-
-  // Ack packet 1 again. largest_acked remains at 1, so
-  // OnForwardProgressConfirmed() should not be called.
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  frame = InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
-  ProcessAckPacket(&frame);
-
-  // Ack packet 2. This increases the largest_acked to 2, so
-  // OnForwardProgressConfirmed() should be called.
-  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
-  EXPECT_CALL(visitor_, OnForwardProgressConfirmed());
-  frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
-  ProcessAckPacket(&frame);
 }
 
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {

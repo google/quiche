@@ -525,7 +525,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, SendPing, (), (override));
   MOCK_METHOD(bool, AllowSelfAddressChange, (), (const, override));
   MOCK_METHOD(HandshakeState, GetHandshakeState, (), (const, override));
-  MOCK_METHOD(void, OnForwardProgressConfirmed, (), (override));
   MOCK_METHOD(bool,
               OnMaxStreamsFrame,
               (const QuicMaxStreamsFrame& frame),

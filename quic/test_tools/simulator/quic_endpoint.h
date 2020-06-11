@@ -80,7 +80,6 @@ class QuicEndpoint : public QuicEndpointBase,
   void SendPing() override {}
   bool AllowSelfAddressChange() const override;
   HandshakeState GetHandshakeState() const override;
-  void OnForwardProgressConfirmed() override {}
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) override {
     return true;
   }
