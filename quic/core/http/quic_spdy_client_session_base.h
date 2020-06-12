@@ -123,7 +123,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   }
 
   // Override to serialize the settings and pass it down to the handshaker.
-  void OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame) override;
 
  private:
   // For QuicSpdyClientStream to detect that a response corresponds to a

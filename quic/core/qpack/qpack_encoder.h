@@ -63,7 +63,10 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // measured in bytes.  Called when SETTINGS_QPACK_MAX_TABLE_CAPACITY is
   // received.  Encoder needs to know this value so that it can calculate
   // MaxEntries, used as a modulus to encode Required Insert Count.
-  void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
+  // Returns true if |maximum_dynamic_table_capacity| is set for the first time
+  // or if it doesn't change current value. The setting is not changed when
+  // returning false.
+  bool SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
   // Set dynamic table capacity to |dynamic_table_capacity|.
   // |dynamic_table_capacity| must not exceed maximum dynamic table capacity.
@@ -72,7 +75,9 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
 
   // Set maximum number of blocked streams.
   // Called when SETTINGS_QPACK_BLOCKED_STREAMS is received.
-  void SetMaximumBlockedStreams(uint64_t maximum_blocked_streams);
+  // Returns true if |maximum_blocked_streams| doesn't decrease current value.
+  // The setting is not changed when returning false.
+  bool SetMaximumBlockedStreams(uint64_t maximum_blocked_streams);
 
   // QpackDecoderStreamReceiver::Delegate implementation
   void OnInsertCountIncrement(uint64_t increment) override;

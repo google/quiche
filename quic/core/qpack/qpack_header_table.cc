@@ -186,16 +186,15 @@ bool QpackHeaderTable::SetDynamicTableCapacity(uint64_t capacity) {
   return true;
 }
 
-void QpackHeaderTable::SetMaximumDynamicTableCapacity(
+bool QpackHeaderTable::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
-  // This method can only be called once: in the decoding context, shortly after
-  // construction; in the encoding context, upon receiving the SETTINGS frame.
-  DCHECK_EQ(0u, dynamic_table_capacity_);
-  DCHECK_EQ(0u, maximum_dynamic_table_capacity_);
-  DCHECK_EQ(0u, max_entries_);
-
-  maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
-  max_entries_ = maximum_dynamic_table_capacity / 32;
+  if (maximum_dynamic_table_capacity_ == 0) {
+    maximum_dynamic_table_capacity_ = maximum_dynamic_table_capacity;
+    max_entries_ = maximum_dynamic_table_capacity / 32;
+    return true;
+  }
+  // If the value is already set, it should not be changed.
+  return maximum_dynamic_table_capacity == maximum_dynamic_table_capacity_;
 }
 
 void QpackHeaderTable::RegisterObserver(uint64_t required_insert_count,

@@ -97,7 +97,10 @@ class QUIC_EXPORT_PRIVATE QpackHeaderTable {
   // value can be set upon connection establishment, whereas in the encoding
   // context it can be set when the SETTINGS frame is received.
   // This method must only be called at most once.
-  void SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
+  // Returns true if |maximum_dynamic_table_capacity| is set for the first time
+  // or if it doesn't change current value. The setting is not changed when
+  // returning false.
+  bool SetMaximumDynamicTableCapacity(uint64_t maximum_dynamic_table_capacity);
 
   // Get |maximum_dynamic_table_capacity_|.
   uint64_t maximum_dynamic_table_capacity() const {

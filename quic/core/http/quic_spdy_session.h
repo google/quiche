@@ -247,10 +247,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool server_push_enabled() const;
 
   // Called when the control stream receives HTTP/3 SETTINGS.
-  virtual void OnSettingsFrame(const SettingsFrame& frame);
+  // Returns false in case of 0-RTT if received settings are incompatible with
+  // cached values, true otherwise.
+  virtual bool OnSettingsFrame(const SettingsFrame& frame);
 
-  // Called when a setting is parsed from an incoming SETTINGS frame.
-  void OnSetting(uint64_t id, uint64_t value);
+  // Called when a SETTINGS is parsed from an incoming SETTINGS frame.
+  // Returns false in case of 0-RTT if received SETTINGS is incompatible with
+  // cached value, true otherwise.
+  bool OnSetting(uint64_t id, uint64_t value);
 
   // Return true if this session wants to release headers stream's buffer
   // aggressively.

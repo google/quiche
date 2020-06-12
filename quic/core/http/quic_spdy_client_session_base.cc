@@ -233,8 +233,10 @@ bool QuicSpdyClientSessionBase::ShouldKeepConnectionAlive() const {
          num_outgoing_draining_streams() > 0;
 }
 
-void QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
-  QuicSpdySession::OnSettingsFrame(frame);
+bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
+  if (!QuicSpdySession::OnSettingsFrame(frame)) {
+    return false;
+  }
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeSettingsFrame(frame, &buffer);
@@ -242,6 +244,7 @@ void QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
       buffer.get(), buffer.get() + frame_length);
   GetMutableCryptoStream()->SetServerApplicationStateForResumption(
       std::move(serialized_data));
+  return true;
 }
 
 }  // namespace quic

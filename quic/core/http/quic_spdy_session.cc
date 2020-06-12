@@ -874,52 +874,85 @@ bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
   return true;
 }
 
-void QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
+bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSettingsFrameReceived(frame);
   }
   for (const auto& setting : frame.values) {
-    OnSetting(setting.first, setting.second);
+    if (!OnSetting(setting.first, setting.second)) {
+      return false;
+    }
   }
+  return true;
 }
 
-void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
+bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
+  // TODO(b/158614287): If cached SETTINGS has SETTINGS_QPACK_MAX_TABLE_CAPACITY
+  // and SETTINGS_MAX_HEADER_LIST_SIZE, and the server accepts 0-RTT connection,
+  // make sure the fresh SETTINGS contains the same values.
   if (VersionUsesHttp3(transport_version())) {
     // SETTINGS frame received on the control stream.
     switch (id) {
-      case SETTINGS_QPACK_MAX_TABLE_CAPACITY:
+      case SETTINGS_QPACK_MAX_TABLE_CAPACITY: {
         QUIC_DVLOG(1)
             << ENDPOINT
             << "SETTINGS_QPACK_MAX_TABLE_CAPACITY received with value "
             << value;
         // Communicate |value| to encoder, because it is used for encoding
         // Required Insert Count.
-        qpack_encoder_->SetMaximumDynamicTableCapacity(value);
+        bool success = qpack_encoder_->SetMaximumDynamicTableCapacity(value);
+        if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) && !success) {
+          // TODO(b/153726130): Use different error code for the case of 0-RTT
+          // rejection.
+          CloseConnectionWithDetails(
+              QUIC_INTERNAL_ERROR,
+              "Server sent an invalid SETTINGS_QPACK_MAX_TABLE_CAPACITY.");
+          return false;
+        }
         // However, limit the dynamic table capacity to
         // |qpack_maximum_dynamic_table_capacity_|.
         qpack_encoder_->SetDynamicTableCapacity(
             std::min(value, qpack_maximum_dynamic_table_capacity_));
         break;
+      }
       case SETTINGS_MAX_HEADER_LIST_SIZE:
         QUIC_DVLOG(1) << ENDPOINT
                       << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
                       << value;
+        if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
+            max_outbound_header_list_size_ < value) {
+          // TODO(b/153726130): Use different error code for the case of 0-RTT
+          // rejection.
+          CloseConnectionWithDetails(
+              QUIC_INTERNAL_ERROR,
+              "Server sent an invalid SETTINGS_MAX_HEADER_LIST_SIZE.");
+          return false;
+        }
         max_outbound_header_list_size_ = value;
         break;
-      case SETTINGS_QPACK_BLOCKED_STREAMS:
+      case SETTINGS_QPACK_BLOCKED_STREAMS: {
         QUIC_DVLOG(1) << ENDPOINT
                       << "SETTINGS_QPACK_BLOCKED_STREAMS received with value "
                       << value;
-        qpack_encoder_->SetMaximumBlockedStreams(value);
+        bool success = qpack_encoder_->SetMaximumBlockedStreams(value);
+        // TODO(b/153726130): Use different error code for the case of 0-RTT
+        // rejection.
+        if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) && !success) {
+          CloseConnectionWithDetails(
+              QUIC_INTERNAL_ERROR,
+              "Server sent an invalid SETTINGS_QPACK_BLOCKED_STREAMS.");
+          return false;
+        }
         break;
+      }
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
                       << " received with value " << value;
         // Ignore unknown settings.
         break;
     }
-    return;
+    return true;
   }
 
   // SETTINGS frame received on the headers stream.
@@ -942,7 +975,7 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                 quiche::QuicheStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ",
                                      value));
           }
-          return;
+          return true;
         }
         QUIC_DVLOG(1) << ENDPOINT << "SETTINGS_ENABLE_PUSH received with value "
                       << value;
@@ -977,6 +1010,7 @@ void QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                                  id));
       }
   }
+  return true;
 }
 
 bool QuicSpdySession::ShouldReleaseHeadersStreamSequencerBuffer() {

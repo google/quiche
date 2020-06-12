@@ -378,9 +378,10 @@ std::string QpackEncoder::EncodeHeaderList(
   return SecondPassEncode(std::move(instructions), required_insert_count);
 }
 
-void QpackEncoder::SetMaximumDynamicTableCapacity(
+bool QpackEncoder::SetMaximumDynamicTableCapacity(
     uint64_t maximum_dynamic_table_capacity) {
-  header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
+  return header_table_.SetMaximumDynamicTableCapacity(
+      maximum_dynamic_table_capacity);
 }
 
 void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
@@ -392,8 +393,12 @@ void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
   DCHECK(success);
 }
 
-void QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
+bool QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
+  if (maximum_blocked_streams < maximum_blocked_streams_) {
+    return false;
+  }
   maximum_blocked_streams_ = maximum_blocked_streams;
+  return true;
 }
 
 void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {

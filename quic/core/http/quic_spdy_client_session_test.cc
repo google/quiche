@@ -1061,6 +1061,17 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
     EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,
               id_manager->max_open_outgoing_streams());
   }
+
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  // Let the session receive a new SETTINGS frame to complete the second
+  // connection.
+  if (session_->version().UsesHttp3()) {
+    SettingsFrame settings;
+    settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+    settings.values[256] = 4;  // unknown setting
+    session_->OnSettingsFrame(settings);
+  }
 }
 
 TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
@@ -1346,6 +1357,27 @@ TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdAfterEncryptionEstablished) {
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE,
             session_->connection()->encryption_level());
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
+}
+
+TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRtt) {
+  if (!session_->version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  CreateConnection();
+  CompleteCryptoHandshake();
+
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection));
+  // Let the session receive a different SETTINGS frame.
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[256] = 4;  // unknown setting
+  session_->OnSettingsFrame(settings);
 }
 
 }  // namespace
