@@ -29,6 +29,8 @@ class FifoWriteScheduler : public WriteScheduler<StreamIdType> {
                       const StreamPrecedenceType& precedence) override;
   void UnregisterStream(StreamIdType stream_id) override;
   bool StreamRegistered(StreamIdType stream_id) const override;
+  // Stream precedence is available but note that it is not used for scheduling
+  // in this scheduler.
   StreamPrecedenceType GetStreamPrecedence(
       StreamIdType stream_id) const override;
   void UpdateStreamPrecedence(StreamIdType stream_id,
@@ -51,20 +53,26 @@ class FifoWriteScheduler : public WriteScheduler<StreamIdType> {
   std::string DebugString() const override;
 
  private:
+  struct StreamInfo {
+    SpdyPriority priority;
+    int64_t event_time;  // read/write event time (us since Unix epoch).
+  };
+
   std::set<StreamIdType> ready_streams_;
-  // This map maps stream ID to read/write event time (us since Unix epoch).
-  std::map<StreamIdType, int64_t> registered_streams_;
+  std::map<StreamIdType, StreamInfo> registered_streams_;
 };
 
 template <typename StreamIdType>
 void FifoWriteScheduler<StreamIdType>::RegisterStream(
     StreamIdType stream_id,
-    const StreamPrecedenceType& /*precedence*/) {
+    const StreamPrecedenceType& precedence) {
   if (StreamRegistered(stream_id)) {
     SPDY_BUG << "Stream " << stream_id << " already registered";
     return;
   }
-  registered_streams_.emplace_hint(registered_streams_.end(), stream_id, 0);
+  registered_streams_.emplace_hint(
+      registered_streams_.end(), stream_id,
+      StreamInfo{/*priority=*/precedence.spdy3_priority(), /*event_time=*/0});
 }
 
 template <typename StreamIdType>
@@ -88,14 +96,26 @@ bool FifoWriteScheduler<StreamIdType>::StreamRegistered(
 template <typename StreamIdType>
 typename FifoWriteScheduler<StreamIdType>::StreamPrecedenceType
 FifoWriteScheduler<StreamIdType>::GetStreamPrecedence(
-    StreamIdType /*stream_id*/) const {
-  return StreamPrecedenceType(kV3LowestPriority);
+    StreamIdType stream_id) const {
+  auto it = registered_streams_.find(stream_id);
+  if (it == registered_streams_.end()) {
+    SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+    return StreamPrecedenceType(kV3LowestPriority);
+  }
+  return StreamPrecedenceType(it->second.priority);
 }
 
 template <typename StreamIdType>
 void FifoWriteScheduler<StreamIdType>::UpdateStreamPrecedence(
-    StreamIdType /*stream_id*/,
-    const StreamPrecedenceType& /*precedence*/) {}
+    StreamIdType stream_id,
+    const StreamPrecedenceType& precedence) {
+  auto it = registered_streams_.find(stream_id);
+  if (it == registered_streams_.end()) {
+    SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+    return;
+  }
+  it->second.priority = precedence.spdy3_priority();
+}
 
 template <typename StreamIdType>
 std::vector<StreamIdType> FifoWriteScheduler<StreamIdType>::GetStreamChildren(
@@ -109,7 +129,7 @@ void FifoWriteScheduler<StreamIdType>::RecordStreamEventTime(
     int64_t now_in_usec) {
   auto it = registered_streams_.find(stream_id);
   if (it != registered_streams_.end()) {
-    it->second = now_in_usec;
+    it->second.event_time = now_in_usec;
   } else {
     SPDY_BUG << "Stream " << stream_id << " is not registered";
   }
@@ -128,7 +148,8 @@ int64_t FifoWriteScheduler<StreamIdType>::GetLatestEventWithPrecedence(
     if (stream_id <= it->first) {
       break;
     }
-    latest_event_time_us = std::max(latest_event_time_us, it->second);
+    latest_event_time_us =
+        std::max(latest_event_time_us, it->second.event_time);
   }
   return latest_event_time_us;
 }

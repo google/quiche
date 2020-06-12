@@ -80,6 +80,24 @@ TEST(FifoWriteSchedulerTest, GetLatestEventTest) {
   EXPECT_EQ(0, fifo.GetLatestEventWithPrecedence(1));
 }
 
+TEST(FifoWriteSchedulerTest, GetStreamPrecedence) {
+  FifoWriteScheduler<SpdyStreamId> fifo;
+  // Return lowest priority for unknown stream.
+  EXPECT_EQ(kV3LowestPriority, fifo.GetStreamPrecedence(1).spdy3_priority());
+
+  fifo.RegisterStream(1, SpdyStreamPrecedence(3));
+  EXPECT_TRUE(fifo.GetStreamPrecedence(1).is_spdy3_priority());
+  EXPECT_EQ(3, fifo.GetStreamPrecedence(1).spdy3_priority());
+
+  // Redundant registration shouldn't change stream priority.
+  EXPECT_SPDY_BUG(fifo.RegisterStream(1, SpdyStreamPrecedence(4)),
+                  "Stream 1 already registered");
+  EXPECT_EQ(3, fifo.GetStreamPrecedence(1).spdy3_priority());
+
+  fifo.UpdateStreamPrecedence(1, SpdyStreamPrecedence(5));
+  EXPECT_EQ(5, fifo.GetStreamPrecedence(1).spdy3_priority());
+}
+
 }  // namespace test
 
 }  // namespace spdy

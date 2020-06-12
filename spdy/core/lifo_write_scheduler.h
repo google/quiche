@@ -5,6 +5,7 @@
 #ifndef QUICHE_SPDY_CORE_LIFO_WRITE_SCHEDULER_H_
 #define QUICHE_SPDY_CORE_LIFO_WRITE_SCHEDULER_H_
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
@@ -40,15 +41,13 @@ class LifoWriteScheduler : public WriteScheduler<StreamIdType> {
     return registered_streams_.find(stream_id) != registered_streams_.end();
   }
 
-  // Stream precedence is not supported by this scheduler.
+  // Stream precedence is available but note that it is not used for scheduling
+  // in this scheduler.
   StreamPrecedenceType GetStreamPrecedence(
-      StreamIdType /*stream_id*/) const override {
-    return StreamPrecedenceType(kV3LowestPriority);
-  }
+      StreamIdType stream_id) const override;
 
-  void UpdateStreamPrecedence(
-      StreamIdType /*stream_id*/,
-      const StreamPrecedenceType& /*precedence*/) override {}
+  void UpdateStreamPrecedence(StreamIdType stream_id,
+                              const StreamPrecedenceType& precedence) override;
 
   std::vector<StreamIdType> GetStreamChildren(
       StreamIdType /*stream_id*/) const override {
@@ -85,19 +84,26 @@ class LifoWriteScheduler : public WriteScheduler<StreamIdType> {
  private:
   friend class test::LifoWriteSchedulerPeer<StreamIdType>;
 
+  struct StreamInfo {
+    SpdyPriority priority;
+    int64_t event_time;  // read/write event time (us since Unix epoch).
+  };
+
   std::set<StreamIdType> ready_streams_;
-  std::map<StreamIdType, int64_t> registered_streams_;
+  std::map<StreamIdType, StreamInfo> registered_streams_;
 };
 
 template <typename StreamIdType>
 void LifoWriteScheduler<StreamIdType>::RegisterStream(
     StreamIdType stream_id,
-    const StreamPrecedenceType& /*precedence*/) {
+    const StreamPrecedenceType& precedence) {
   if (StreamRegistered(stream_id)) {
     SPDY_BUG << "Stream " << stream_id << " already registered";
     return;
   }
-  registered_streams_.emplace_hint(registered_streams_.end(), stream_id, 0);
+  registered_streams_.emplace_hint(
+      registered_streams_.end(), stream_id,
+      StreamInfo{/*priority=*/precedence.spdy3_priority(), /*event_time=*/0});
 }
 
 template <typename StreamIdType>
@@ -112,12 +118,36 @@ void LifoWriteScheduler<StreamIdType>::UnregisterStream(
 }
 
 template <typename StreamIdType>
+typename LifoWriteScheduler<StreamIdType>::StreamPrecedenceType
+LifoWriteScheduler<StreamIdType>::GetStreamPrecedence(
+    StreamIdType stream_id) const {
+  auto it = registered_streams_.find(stream_id);
+  if (it == registered_streams_.end()) {
+    SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+    return StreamPrecedenceType(kV3LowestPriority);
+  }
+  return StreamPrecedenceType(it->second.priority);
+}
+
+template <typename StreamIdType>
+void LifoWriteScheduler<StreamIdType>::UpdateStreamPrecedence(
+    StreamIdType stream_id,
+    const StreamPrecedenceType& precedence) {
+  auto it = registered_streams_.find(stream_id);
+  if (it == registered_streams_.end()) {
+    SPDY_DVLOG(1) << "Stream " << stream_id << " not registered";
+    return;
+  }
+  it->second.priority = precedence.spdy3_priority();
+}
+
+template <typename StreamIdType>
 void LifoWriteScheduler<StreamIdType>::RecordStreamEventTime(
     StreamIdType stream_id,
     int64_t now_in_usec) {
   auto it = registered_streams_.find(stream_id);
   if (it != registered_streams_.end()) {
-    it->second = now_in_usec;
+    it->second.event_time = now_in_usec;
   } else {
     SPDY_BUG << "Stream " << stream_id << " is not registered";
   }
@@ -134,8 +164,8 @@ int64_t LifoWriteScheduler<StreamIdType>::GetLatestEventWithPrecedence(
   for (auto it = registered_streams_.rbegin(); it != registered_streams_.rend();
        ++it) {
     if (stream_id < it->first) {
-      if (it->second > latest_event_time_us) {
-        latest_event_time_us = it->second;
+      if (it->second.event_time > latest_event_time_us) {
+        latest_event_time_us = it->second.event_time;
       }
     } else {
       break;
