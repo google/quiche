@@ -466,8 +466,20 @@ enum QuicErrorCode {
   // Total compressed HPACK data size exceeds limit.
   QUIC_HPACK_COMPRESSED_HEADER_SIZE_EXCEEDS_LIMIT = 150,
 
+  // Stream/flow control limit from 1-RTT handshake is too low to retransmit
+  // 0-RTT data. This is our implentation error. We could in theory keep the
+  // connection alive but chose not to for simplicity.
+  QUIC_ZERO_RTT_UNRETRANSMITTABLE = 161,
+  // Stream/flow control limit from 0-RTT rejection reduces cached limit.
+  // This is our implentation error. We could in theory keep the connection
+  // alive but chose not to for simplicity.
+  QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED = 162,
+  // Stream/flow control limit from 0-RTT resumption reduces cached limit.
+  // This is the peer violating QUIC spec.
+  QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED = 163,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 161,
+  QUIC_LAST_ERROR = 164,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

@@ -929,16 +929,11 @@ bool QuicStream::ConfigSendWindowOffset(QuicStreamOffset new_offset) {
              << "ConfigSendWindowOffset called on stream without flow control";
     return false;
   }
-  if (perspective_ == Perspective::IS_CLIENT &&
-      session()->version().AllowsLowFlowControlLimits() &&
-      new_offset < flow_controller_->send_window_offset()) {
-    OnUnrecoverableError(
-        QUIC_FLOW_CONTROL_INVALID_WINDOW,
-        quiche::QuicheStrCat("New stream max data ", new_offset,
-                             " decreases current limit: ",
-                             flow_controller_->send_window_offset()));
-    return false;
-  }
+
+  QUIC_BUG_IF(session()->version().AllowsLowFlowControlLimits() &&
+              new_offset < flow_controller_->send_window_offset())
+      << ENDPOINT << "The new offset " << new_offset
+      << " decreases current offset " << flow_controller_->send_window_offset();
   if (flow_controller_->UpdateSendWindowOffset(new_offset)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);
@@ -1283,6 +1278,22 @@ void QuicStream::SendStopSending(uint16_t code) {
     return;
   }
   session_->SendStopSending(code, id_);
+}
+
+QuicFlowController* QuicStream::flow_controller() {
+  if (flow_controller_.has_value()) {
+    return &flow_controller_.value();
+  }
+  QUIC_BUG << "Trying to access non-existent flow controller.";
+  return nullptr;
+}
+
+const QuicFlowController* QuicStream::flow_controller() const {
+  if (flow_controller_.has_value()) {
+    return &flow_controller_.value();
+  }
+  QUIC_BUG << "Trying to access non-existent flow controller.";
+  return nullptr;
 }
 
 // static

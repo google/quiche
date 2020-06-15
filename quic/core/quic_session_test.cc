@@ -2070,8 +2070,12 @@ TEST_P(QuicSessionTestClient, InvalidSessionFlowControlWindowInHandshake) {
   const uint32_t kInvalidWindow = kMinimumFlowControlSendWindow - 1;
   QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(session_.config(),
                                                              kInvalidWindow);
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(connection_->version().AllowsLowFlowControlLimits()
+                          ? QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED
+                          : QUIC_FLOW_CONTROL_INVALID_WINDOW,
+                      _, _));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
@@ -2083,7 +2087,8 @@ TEST_P(QuicSessionTestClient, InvalidBidiStreamLimitInHandshake) {
   }
   QuicConfigPeer::SetReceivedMaxBidirectionalStreams(
       session_.config(), kDefaultMaxStreamsPerConnection - 1);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED, _, _));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
@@ -2095,7 +2100,8 @@ TEST_P(QuicSessionTestClient, InvalidUniStreamLimitInHandshake) {
   }
   QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
       session_.config(), kDefaultMaxStreamsPerConnection - 1);
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED, _, _));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }

@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -515,7 +516,8 @@ TEST_P(TlsClientHandshakerTest, BadTransportParams) {
   config.SetMaxBidirectionalStreamsToSend(
       config.GetMaxBidirectionalStreamsToSend() - 1);
 
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_MAX_STREAMS_ERROR, _, _))
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED, _, _))
       .WillOnce(testing::Invoke(connection_,
                                 &MockQuicConnection::ReallyCloseConnection));
   // Close connection will be called again in the handshaker, but this will be

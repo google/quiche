@@ -1142,7 +1142,7 @@ TEST_P(QuicSpdyClientSessionTest, ZeroRttRejectReducesStreamLimitTooMuch) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(
-            QUIC_INTERNAL_ERROR,
+            QUIC_ZERO_RTT_UNRETRANSMITTABLE,
             "Server rejected 0-RTT, aborting because new bidirectional initial "
             "stream limit 0 is less than current open streams: 1",
             _))
@@ -1190,14 +1190,15 @@ TEST_P(QuicSpdyClientSessionTest,
 
   if (session_->version().UsesHttp3()) {
     // Both control stream and the request stream will report errors.
-    EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_ZERO_RTT_UNRETRANSMITTABLE, _, _))
         .Times(2)
         .WillOnce(testing::Invoke(connection_,
                                   &MockQuicConnection::ReallyCloseConnection));
   } else {
     EXPECT_CALL(*connection_,
                 CloseConnection(
-                    QUIC_INTERNAL_ERROR,
+                    QUIC_ZERO_RTT_UNRETRANSMITTABLE,
                     "Server rejected 0-RTT, aborting because new stream max "
                     "data 1 for stream 3 is less than currently used: 5",
                     _))
@@ -1236,7 +1237,8 @@ TEST_P(QuicSpdyClientSessionTest,
   // Let the stream write some data.
   stream->WriteOrBufferData(data_to_send, true, nullptr);
 
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_ZERO_RTT_UNRETRANSMITTABLE, _, _))
       .WillOnce(testing::Invoke(connection_,
                                 &MockQuicConnection::ReallyCloseConnection));
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));

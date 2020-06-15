@@ -229,7 +229,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   int num_frames_received() const;
   int num_duplicate_frames_received() const;
 
-  QuicFlowController* flow_controller() { return &*flow_controller_; }
+  QuicFlowController* flow_controller();
+
+  const QuicFlowController* flow_controller() const;
 
   // Called when endpoint receives a frame which could increase the highest
   // offset.
