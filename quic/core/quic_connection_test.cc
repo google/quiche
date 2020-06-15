@@ -7901,32 +7901,8 @@ TEST_P(QuicConnectionTest, SetRetransmissionAlarmForCryptoPacket) {
   connection_.GetRetransmissionAlarm()->Fire();
 }
 
-TEST_P(QuicConnectionTest, PathDegradingAlarmForCryptoPacket) {
-  EXPECT_TRUE(connection_.connected());
-  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
-  EXPECT_FALSE(connection_.IsPathDegrading());
-
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  connection_.SendCryptoStreamData();
-
-  EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-  EXPECT_FALSE(connection_.IsPathDegrading());
-  QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
-                              ->GetPathDegradingDelay();
-  EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
-                       clock_.ApproximateNow());
-
-  // Fire the path degrading alarm, path degrading signal should be sent to
-  // the visitor.
-  EXPECT_CALL(visitor_, OnPathDegrading());
-  clock_.AdvanceTime(delay);
-  connection_.PathDegradingTimeout();
-  EXPECT_TRUE(connection_.IsPathDegrading());
-  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
-}
-
 // Includes regression test for b/69979024.
-TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
+TEST_P(QuicConnectionTest, PathDegradingDetectionForNonCryptoPackets) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -7937,21 +7913,21 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
 
   for (int i = 0; i < 2; ++i) {
     // Send a packet. Now there's a retransmittable packet on the wire, so the
-    // path degrading alarm should be set.
+    // path degrading detection should be set.
     connection_.SendStreamDataWithString(
         GetNthClientInitiatedStreamId(1, connection_.transport_version()), data,
         offset, NO_FIN);
     offset += data_size;
     EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-    // Check the deadline of the path degrading alarm.
+    // Check the deadline of the path degrading detection.
     QuicTime::Delta delay =
         QuicConnectionPeer::GetSentPacketManager(&connection_)
             ->GetPathDegradingDelay();
     EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
                          clock_.ApproximateNow());
 
-    // Send a second packet. The path degrading alarm's deadline should remain
-    // the same.
+    // Send a second packet. The path degrading detection's deadline should
+    // remain the same.
     // Regression test for b/69979024.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
     QuicTime prev_deadline =
@@ -7965,7 +7941,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
               connection_.GetBlackholeDetectorAlarm()->deadline());
 
     // Now receive an ACK of the first packet. This should advance the path
-    // degrading alarm's deadline since forward progress has been made.
+    // degrading detection's deadline since forward progress has been made.
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
     if (i == 0) {
       EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
@@ -7975,7 +7951,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
         {{QuicPacketNumber(1u + 2u * i), QuicPacketNumber(2u + 2u * i)}});
     ProcessAckPacket(&frame);
     EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-    // Check the deadline of the path degrading alarm.
+    // Check the deadline of the path degrading detection.
     delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                 ->GetPathDegradingDelay();
     EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
@@ -7984,7 +7960,7 @@ TEST_P(QuicConnectionTest, PathDegradingAlarmForNonCryptoPackets) {
     if (i == 0) {
       // Now receive an ACK of the second packet. Since there are no more
       // retransmittable packets on the wire, this should cancel the path
-      // degrading alarm.
+      // degrading detection.
       clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
       EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
       frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
@@ -8073,7 +8049,7 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
 // This test verifies that the connection marks path as degrading and does not
 // spin timer to detect path degrading when a new packet is sent on the
 // degraded path.
-TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
+TEST_P(QuicConnectionTest, NoPathDegradingDetectionIfPathIsDegrading) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
   EXPECT_FALSE(connection_.IsPathDegrading());
@@ -8087,13 +8063,13 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
   offset += data_size;
   EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
-  // Check the deadline of the path degrading alarm.
+  // Check the deadline of the path degrading detection.
   QuicTime::Delta delay = QuicConnectionPeer::GetSentPacketManager(&connection_)
                               ->GetPathDegradingDelay();
   EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
                        clock_.ApproximateNow());
 
-  // Send a second packet. The path degrading alarm's deadline should remain
+  // Send a second packet. The path degrading detection's deadline should remain
   // the same.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   QuicTime prev_deadline = connection_.GetBlackholeDetectorAlarm()->deadline();
@@ -8103,7 +8079,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   EXPECT_EQ(prev_deadline, connection_.GetBlackholeDetectorAlarm()->deadline());
 
   // Now receive an ACK of the first packet. This should advance the path
-  // degrading alarm's deadline since forward progress has been made.
+  // degrading detection's deadline since forward progress has been made.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
@@ -8117,8 +8093,8 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
   EXPECT_EQ(delay, connection_.GetBlackholeDetectorAlarm()->deadline() -
                        clock_.ApproximateNow());
 
-  // Advance time to the path degrading alarm's deadline and simulate
-  // firing the path degrading alarm. This path will be considered as
+  // Advance time to the path degrading detection's deadline and simulate
+  // firing the path degrading detection. This path will be considered as
   // degrading.
   clock_.AdvanceTime(delay);
   EXPECT_CALL(visitor_, OnPathDegrading()).Times(1);
@@ -8128,7 +8104,7 @@ TEST_P(QuicConnectionTest, NoPathDegradingAlarmIfPathIsDegrading) {
 
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
-  // Send a third packet. The path degrading alarm is no longer set but path
+  // Send a third packet. The path degrading detection is no longer set but path
   // should still be marked as degrading.
   connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
   offset += data_size;

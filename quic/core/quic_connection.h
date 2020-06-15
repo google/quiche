@@ -702,9 +702,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sets up a packet with an QuicAckFrame and sends it out.
   void SendAck();
 
-  // Called when the path degrading alarm fires.
-  void OnPathDegradingTimeout();
-
   // Called when an RTO fires.  Resets the retransmission alarm if there are
   // remaining unacked packets.
   void OnRetransmissionTimeout();

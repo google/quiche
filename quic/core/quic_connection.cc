@@ -107,20 +107,6 @@ class SendAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnection* connection_;
 };
 
-class PathDegradingAlarmDelegate : public QuicAlarm::Delegate {
- public:
-  explicit PathDegradingAlarmDelegate(QuicConnection* connection)
-      : connection_(connection) {}
-  PathDegradingAlarmDelegate(const PathDegradingAlarmDelegate&) = delete;
-  PathDegradingAlarmDelegate& operator=(const PathDegradingAlarmDelegate&) =
-      delete;
-
-  void OnAlarm() override { connection_->OnPathDegradingTimeout(); }
-
- private:
-  QuicConnection* connection_;
-};
-
 class TimeoutAlarmDelegate : public QuicAlarm::Delegate {
  public:
   explicit TimeoutAlarmDelegate(QuicConnection* connection)
@@ -2952,11 +2938,6 @@ void QuicConnection::SendAck() {
   }
 
   visitor_->OnAckNeedsRetransmittableFrame();
-}
-
-void QuicConnection::OnPathDegradingTimeout() {
-  is_path_degrading_ = true;
-  visitor_->OnPathDegrading();
 }
 
 void QuicConnection::OnRetransmissionTimeout() {
