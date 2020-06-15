@@ -4178,11 +4178,13 @@ void QuicConnection::SendAllPendingAcks() {
     if (!ack_timeout.IsInitialized()) {
       continue;
     }
+    if (GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_always_send_earliest_ack);
+    }
     if (ack_timeout > clock_->ApproximateNow()) {
       if (!GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
         continue;
       }
-      QUIC_RELOADABLE_FLAG_COUNT(quic_always_send_earliest_ack);
       if (ack_timeout > earliest_ack_timeout) {
         // Always send the earliest ACK to make forward progress in case alarm
         // fires early.
