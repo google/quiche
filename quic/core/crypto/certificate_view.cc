@@ -32,6 +32,10 @@
 
 namespace {
 
+using ::quiche::QuicheOptional;
+using ::quiche::QuicheStringPiece;
+using ::quiche::QuicheTextUtils;
+
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
 // above the literals are the contents in the der2ascii syntax.
 
@@ -100,9 +104,8 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
 
 namespace quic {
 
-quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
-    unsigned tag,
-    quiche::QuicheStringPiece payload) {
+QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
+                                                QuicheStringPiece payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
     QUIC_BUG << "Invalid tag supplied for a DER timestamp";
     return QUICHE_NULLOPT;
@@ -125,7 +128,7 @@ quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
     year += (year >= 50) ? 1900 : 2000;
   }
 
-  const quiche::QuicheOptional<int64_t> unix_time =
+  const QuicheOptional<int64_t> unix_time =
       quiche::QuicheUtcDateTimeToUnixSeconds(year, month, day, hour, minute,
                                              second);
   if (!unix_time.has_value() || *unix_time < 0) {
@@ -135,21 +138,20 @@ quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
 }
 
 PemReadResult ReadNextPemMessage(std::istream* input) {
-  constexpr quiche::QuicheStringPiece kPemBegin = "-----BEGIN ";
-  constexpr quiche::QuicheStringPiece kPemEnd = "-----END ";
-  constexpr quiche::QuicheStringPiece kPemDashes = "-----";
+  constexpr QuicheStringPiece kPemBegin = "-----BEGIN ";
+  constexpr QuicheStringPiece kPemEnd = "-----END ";
+  constexpr QuicheStringPiece kPemDashes = "-----";
 
   std::string line_buffer, encoded_message_contents, expected_end;
   bool pending_message = false;
   PemReadResult result;
   while (std::getline(*input, line_buffer)) {
-    quiche::QuicheStringPiece line(line_buffer);
-    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&line);
+    QuicheStringPiece line(line_buffer);
+    QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&line);
 
     // Handle BEGIN lines.
-    if (!pending_message &&
-        quiche::QuicheTextUtils::StartsWith(line, kPemBegin) &&
-        quiche::QuicheTextUtils::EndsWith(line, kPemDashes)) {
+    if (!pending_message && QuicheTextUtils::StartsWith(line, kPemBegin) &&
+        QuicheTextUtils::EndsWith(line, kPemDashes)) {
       result.type = std::string(
           line.substr(kPemBegin.size(),
                       line.size() - kPemDashes.size() - kPemBegin.size()));
@@ -160,8 +162,8 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
 
     // Handle END lines.
     if (pending_message && line == expected_end) {
-      quiche::QuicheOptional<std::string> data =
-          quiche::QuicheTextUtils::Base64Decode(encoded_message_contents);
+      QuicheOptional<std::string> data =
+          QuicheTextUtils::Base64Decode(encoded_message_contents);
       if (data.has_value()) {
         result.status = PemReadResult::kOk;
         result.contents = data.value();
@@ -181,7 +183,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
 }
 
 std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
-    quiche::QuicheStringPiece certificate) {
+    QuicheStringPiece certificate) {
   std::unique_ptr<CertificateView> result(new CertificateView());
   CBS top = StringPieceToCbs(certificate);
 
@@ -263,9 +265,9 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
     QUIC_DLOG(WARNING) << "Failed to extract the validity dates";
     return nullptr;
   }
-  quiche::QuicheOptional<QuicWallTime> not_before_parsed =
+  QuicheOptional<QuicWallTime> not_before_parsed =
       ParseDerTime(not_before_tag, CbsToStringPiece(not_before));
-  quiche::QuicheOptional<QuicWallTime> not_after_parsed =
+  QuicheOptional<QuicWallTime> not_after_parsed =
       ParseDerTime(not_after_tag, CbsToStringPiece(not_after));
   if (!not_before_parsed.has_value() || !not_after_parsed.has_value()) {
     QUIC_DLOG(WARNING) << "Failed to parse validity dates";
@@ -345,7 +347,7 @@ bool CertificateView::ParseExtensions(CBS extensions) {
           return false;
         }
 
-        quiche::QuicheStringPiece alt_name = CbsToStringPiece(alt_name_cbs);
+        QuicheStringPiece alt_name = CbsToStringPiece(alt_name_cbs);
         QuicIpAddress ip_address;
         // GeneralName ::= CHOICE {
         switch (alt_name_tag) {
@@ -414,8 +416,8 @@ bool CertificateView::ValidatePublicKeyParameters() {
   }
 }
 
-bool CertificateView::VerifySignature(quiche::QuicheStringPiece data,
-                                      quiche::QuicheStringPiece signature,
+bool CertificateView::VerifySignature(QuicheStringPiece data,
+                                      QuicheStringPiece signature,
                                       uint16_t signature_algorithm) const {
   if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
       PublicKeyTypeFromKey(public_key_.get())) {
@@ -445,7 +447,7 @@ bool CertificateView::VerifySignature(quiche::QuicheStringPiece data,
 }
 
 std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(
-    quiche::QuicheStringPiece private_key) {
+    QuicheStringPiece private_key) {
   std::unique_ptr<CertificatePrivateKey> result(new CertificatePrivateKey());
   CBS private_key_cbs = StringPieceToCbs(private_key);
   result->private_key_.reset(EVP_parse_private_key(&private_key_cbs));
@@ -482,7 +484,7 @@ std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadPemFromStream(
   return nullptr;
 }
 
-std::string CertificatePrivateKey::Sign(quiche::QuicheStringPiece input,
+std::string CertificatePrivateKey::Sign(QuicheStringPiece input,
                                         uint16_t signature_algorithm) {
   if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
       PublicKeyTypeFromKey(private_key_.get())) {
