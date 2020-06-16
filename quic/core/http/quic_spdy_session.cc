@@ -888,9 +888,6 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
 }
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
-  // TODO(b/158614287): If cached SETTINGS has SETTINGS_QPACK_MAX_TABLE_CAPACITY
-  // and SETTINGS_MAX_HEADER_LIST_SIZE, and the server accepts 0-RTT connection,
-  // make sure the fresh SETTINGS contains the same values.
   if (VersionUsesHttp3(transport_version())) {
     // SETTINGS frame received on the control stream.
     switch (id) {

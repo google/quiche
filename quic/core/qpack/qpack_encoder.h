@@ -99,6 +99,12 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
     return header_table_.dynamic_table_entry_referenced();
   }
 
+  uint64_t maximum_blocked_streams() const { return maximum_blocked_streams_; }
+
+  uint64_t MaximumDynamicTableCapacity() const {
+    return header_table_.maximum_dynamic_table_capacity();
+  }
+
  private:
   friend class test::QpackEncoderPeer;
 

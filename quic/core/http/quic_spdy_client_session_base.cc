@@ -234,6 +234,38 @@ bool QuicSpdyClientSessionBase::ShouldKeepConnectionAlive() const {
 }
 
 bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
+  if (!was_zero_rtt_rejected()) {
+    if (max_outbound_header_list_size() != std::numeric_limits<size_t>::max() &&
+        frame.values.find(SETTINGS_MAX_HEADER_LIST_SIZE) ==
+            frame.values.end()) {
+      CloseConnectionWithDetails(
+          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          "Server accepted 0-RTT but omitted non-default "
+          "SETTINGS_MAX_HEADER_LIST_SIZE");
+      return false;
+    }
+
+    if (qpack_encoder()->maximum_blocked_streams() != 0 &&
+        frame.values.find(SETTINGS_QPACK_BLOCKED_STREAMS) ==
+            frame.values.end()) {
+      CloseConnectionWithDetails(
+          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          "Server accepted 0-RTT but omitted non-default "
+          "SETTINGS_QPACK_BLOCKED_STREAMS");
+      return false;
+    }
+
+    if (qpack_encoder()->MaximumDynamicTableCapacity() != 0 &&
+        frame.values.find(SETTINGS_QPACK_MAX_TABLE_CAPACITY) ==
+            frame.values.end()) {
+      CloseConnectionWithDetails(
+          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          "Server accepted 0-RTT but omitted non-default "
+          "SETTINGS_QPACK_MAX_TABLE_CAPACITY");
+      return false;
+    }
+  }
+
   if (!QuicSpdySession::OnSettingsFrame(frame)) {
     return false;
   }

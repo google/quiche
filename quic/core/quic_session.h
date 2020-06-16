@@ -604,6 +604,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   size_t num_static_streams() const { return num_static_streams_; }
 
+  bool was_zero_rtt_rejected() const { return was_zero_rtt_rejected_; }
+
   size_t num_outgoing_draining_streams() const {
     return num_outgoing_draining_streams_;
   }

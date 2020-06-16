@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
@@ -1379,6 +1380,30 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRtt) {
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[256] = 4;  // unknown setting
+  session_->OnSettingsFrame(settings);
+}
+
+TEST_P(QuicSpdyClientSessionTest, ServerAcceptsZeroRttButOmitSetting) {
+  if (!session_->version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  CreateConnection();
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(session_->GetMutableCryptoStream()->EarlyDataAccepted());
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH, _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection));
+  // Let the session receive a different SETTINGS frame.
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
+  // Intentionally omit SETTINGS_MAX_HEADER_LIST_SIZE which was previously sent
+  // with a non-zero value.
   settings.values[256] = 4;  // unknown setting
   session_->OnSettingsFrame(settings);
 }
