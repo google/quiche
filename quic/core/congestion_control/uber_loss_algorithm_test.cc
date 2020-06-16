@@ -239,6 +239,8 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_SetFromConfigFirst) {
   const QuicPacketCount old_reordering_threshold =
       loss_algorithm_.GetPacketReorderingThreshold();
 
+  loss_algorithm_.OnUserAgentIdKnown();
+
   // Not owned.
   TestLossTuner* test_tuner = new TestLossTuner(
       /*forced_start_result=*/true,
@@ -275,6 +277,8 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_OnMinRttAvailableFirst) {
   const QuicPacketCount old_reordering_threshold =
       loss_algorithm_.GetPacketReorderingThreshold();
 
+  loss_algorithm_.OnUserAgentIdKnown();
+
   // Not owned.
   TestLossTuner* test_tuner = new TestLossTuner(
       /*forced_start_result=*/true,
@@ -308,6 +312,8 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_StartFailed) {
   const int old_reordering_shift = loss_algorithm_.GetPacketReorderingShift();
   const QuicPacketCount old_reordering_threshold =
       loss_algorithm_.GetPacketReorderingThreshold();
+
+  loss_algorithm_.OnUserAgentIdKnown();
 
   // Not owned.
   TestLossTuner* test_tuner = new TestLossTuner(

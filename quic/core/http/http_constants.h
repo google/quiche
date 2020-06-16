@@ -42,6 +42,7 @@ const QuicByteCount kDefaultQpackMaxDynamicTableCapacity = 64 * 1024;  // 64 KB
 // SETTINGS_QPACK_BLOCKED_STREAMS.
 const uint64_t kDefaultMaximumBlockedStreams = 100;
 
+const char kUserAgentHeaderName[] = "user-agent";
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_HTTP_HTTP_CONSTANTS_H_

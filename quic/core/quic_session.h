@@ -33,6 +33,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -473,6 +474,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return true;
   }
 
+  const quiche::QuicheOptional<std::string> user_agent_id() const {
+    return user_agent_id_;
+  }
+
+  void SetUserAgentId(std::string user_agent_id) {
+    user_agent_id_ = std::move(user_agent_id);
+    connection()->OnUserAgentIdKnown();
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 
@@ -790,6 +800,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Supported version list used by the crypto handshake only. Please note, this
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
+
+  quiche::QuicheOptional<std::string> user_agent_id_;
 
   // If true, write_blocked_streams_ uses HTTP2 (tree-style) priority write
   // scheduler.

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/sha.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
@@ -400,6 +401,17 @@ void QuicCryptoServerStream::ProcessClientHello(
                  nullptr);
     return;
   }
+
+  if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_save_user_agent_in_quic_session, 1, 3);
+    quiche::QuicheStringPiece user_agent_id;
+    message.GetStringPiece(quic::kUAID, &user_agent_id);
+    if (!session()->user_agent_id().has_value()) {
+      std::string uaid = user_agent_id.empty() ? "" : user_agent_id.data();
+      session()->SetUserAgentId(std::move(uaid));
+    }
+  }
+
   if (!result->info.server_nonce.empty()) {
     ++num_handshake_messages_with_server_nonces_;
   }

@@ -83,6 +83,7 @@ namespace {
 
 const char kFooResponseBody[] = "Artichoke hearts make me happy.";
 const char kBarResponseBody[] = "Palm hearts are pretty delicious, also.";
+const char kTestUserAgentId[] = "quic/core/http/end_to_end_test.cc";
 const float kSessionToStreamRatio = 1.5;
 
 // Run all tests with the cross products of all versions.
@@ -217,6 +218,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
                            client_supported_versions_,
                            crypto_test_utils::ProofVerifierForTesting(),
                            std::make_unique<SimpleSessionCache>());
+    client->SetUserAgentID(kTestUserAgentId);
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
       client->client()->SetPreSharedKey(pre_shared_key_client_);
@@ -454,6 +456,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       EXPECT_EQ(0u, server_stats.packets_lost);
     }
     EXPECT_EQ(0u, server_stats.packets_discarded);
+    if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
+      EXPECT_EQ(
+          GetServerSession()->user_agent_id().value_or("MissingUserAgent"),
+          kTestUserAgentId);
+    } else {
+      EXPECT_FALSE(GetServerSession()->user_agent_id().has_value());
+    }
     // TODO(ianswett): Restore the check for packets_dropped equals 0.
     // The expect for packets received is equal to packets processed fails
     // due to version negotiation packets.
@@ -4283,6 +4292,12 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
 
   server_thread_->Pause();
   QuicConfig server_config = *GetServerSession()->config();
+  if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
+    EXPECT_EQ(GetServerSession()->user_agent_id().value_or("MissingUserAgent"),
+              kTestUserAgentId);
+  } else {
+    EXPECT_FALSE(GetServerSession()->user_agent_id().has_value());
+  }
   server_thread_->Resume();
   ASSERT_NE(server_config.received_custom_transport_parameters().find(
                 kCustomParameter),

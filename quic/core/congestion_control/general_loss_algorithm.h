@@ -58,6 +58,11 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
         << "Unexpected call to GeneralLossAlgorithm::OnMinRttAvailable";
   }
 
+  void OnUserAgentIdKnown() override {
+    DCHECK(false)
+        << "Unexpected call to GeneralLossAlgorithm::OnUserAgentIdKnown";
+  }
+
   void OnConnectionClosed() override {
     DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnConnectionClosed";

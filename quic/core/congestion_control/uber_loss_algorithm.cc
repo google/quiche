@@ -98,7 +98,8 @@ void UberLossAlgorithm::SetLossDetectionTuner(
 }
 
 void UberLossAlgorithm::MaybeStartTuning() {
-  if (tuner_started_ || !tuning_enabled_ || !min_rtt_available_) {
+  if (tuner_started_ || !tuning_enabled_ || !min_rtt_available_ ||
+      !user_agent_known_) {
     return;
   }
 
@@ -124,6 +125,11 @@ void UberLossAlgorithm::OnConfigNegotiated() {}
 
 void UberLossAlgorithm::OnMinRttAvailable() {
   min_rtt_available_ = true;
+  MaybeStartTuning();
+}
+
+void UberLossAlgorithm::OnUserAgentIdKnown() {
+  user_agent_known_ = true;
   MaybeStartTuning();
 }
 

@@ -980,6 +980,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     return anti_amplification_factor_;
   }
 
+  void OnUserAgentIdKnown() { sent_packet_manager_.OnUserAgentIdKnown(); }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();

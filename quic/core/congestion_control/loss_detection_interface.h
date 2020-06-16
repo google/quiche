@@ -57,6 +57,8 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
 
   virtual void OnMinRttAvailable() = 0;
 
+  virtual void OnUserAgentIdKnown() = 0;
+
   virtual void OnConnectionClosed() = 0;
 };
 

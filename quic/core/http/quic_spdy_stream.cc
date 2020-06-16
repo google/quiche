@@ -529,6 +529,21 @@ void QuicSpdyStream::OnStreamHeadersPriority(
 void QuicSpdyStream::OnStreamHeaderList(bool fin,
                                         size_t frame_len,
                                         const QuicHeaderList& header_list) {
+  if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
+    if (!spdy_session()->user_agent_id().has_value()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_save_user_agent_in_quic_session, 3, 3);
+      std::string uaid;
+      for (const auto& kv : header_list) {
+        if (quiche::QuicheTextUtils::ToLower(kv.first) ==
+            kUserAgentHeaderName) {
+          uaid = kv.second;
+          break;
+        }
+      }
+      spdy_session()->SetUserAgentId(std::move(uaid));
+    }
+  }
+
   // TODO(b/134706391): remove |fin| argument.
   // When using Google QUIC, an empty header list indicates that the size limit
   // has been exceeded.

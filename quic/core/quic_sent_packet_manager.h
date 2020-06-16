@@ -408,6 +408,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   bool one_rtt_packet_acked() const { return one_rtt_packet_acked_; }
 
+  void OnUserAgentIdKnown() { loss_algorithm_->OnUserAgentIdKnown(); }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;

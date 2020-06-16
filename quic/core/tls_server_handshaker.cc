@@ -299,6 +299,20 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     return false;
   }
   ProcessAdditionalTransportParameters(client_params);
+  if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session) &&
+      !session()->user_agent_id().has_value()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_save_user_agent_in_quic_session, 2, 3);
+
+    if (client_params.user_agent_id.has_value()) {
+      session()->SetUserAgentId(client_params.user_agent_id.value());
+    } else if (client_params.google_quic_params) {
+      quiche::QuicheStringPiece user_agent_id;
+      client_params.google_quic_params->GetStringPiece(kUAID, &user_agent_id);
+      if (!user_agent_id.empty()) {
+        session()->SetUserAgentId(user_agent_id.data());
+      }
+    }
+  }
 
   return true;
 }
