@@ -227,6 +227,8 @@ enum QuicFrameType : uint8_t {
   STOP_WAITING_FRAME = 6,
   PING_FRAME = 7,
   CRYPTO_FRAME = 8,
+  // TODO(b/157935330): stop hard coding this when deprecate T050.
+  HANDSHAKE_DONE_FRAME = 9,
 
   // STREAM and ACK frames are special frames. They are encoded differently on
   // the wire and their values do not need to be stable.
@@ -248,7 +250,6 @@ enum QuicFrameType : uint8_t {
   MESSAGE_FRAME,
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
-  HANDSHAKE_DONE_FRAME,
 
   NUM_FRAME_TYPES
 };

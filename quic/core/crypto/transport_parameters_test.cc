@@ -44,6 +44,7 @@ const uint64_t kFakeInitialRoundTripTime = 53;
 const uint8_t kFakePreferredStatelessResetTokenData[16] = {
     0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
     0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F};
+const bool kFakeSupportHandshakeDone = true;
 
 const auto kCustomParameter1 =
     static_cast<TransportParameters::TransportParameterId>(0xffcd);
@@ -281,6 +282,7 @@ TEST_P(TransportParametersTest, CopyConstructor) {
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.user_agent_id = CreateFakeUserAgentId();
+  orig_params.support_handshake_done = kFakeSupportHandshakeDone;
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
@@ -313,6 +315,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.initial_round_trip_time_us.set_value(kFakeInitialRoundTripTime);
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.user_agent_id = CreateFakeUserAgentId();
+  orig_params.support_handshake_done = kFakeSupportHandshakeDone;
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
 
@@ -487,7 +490,7 @@ TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
 TEST_P(TransportParametersTest, ParseClientParams) {
   // clang-format off
   const uint8_t kClientParamsOld[] = {
-      0x00, 0x76,              // length of the parameters array that follows
+      0x00, 0x7A,              // length of the parameters array that follows
       // max_idle_timeout
       0x00, 0x01,  // parameter id
       0x00, 0x02,  // length
@@ -553,6 +556,9 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x31, 0x29,  // parameter id
       0x00, 0x08,  // length
       'F', 'a', 'k', 'e', 'U', 'A', 'I', 'D',  // value
+      // support_handshake_done
+      0x31, 0x2A,  // parameter id
+      0x00, 0x00,  // value
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x04,  // length
@@ -624,6 +630,9 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x71, 0x29,  // parameter id
       0x08,  // length
       'F', 'a', 'k', 'e', 'U', 'A', 'I', 'D',  // value
+      // support_handshake_done
+      0x71, 0x2A,  // parameter id
+      0x00,  // length
       // Google version extension
       0x80, 0x00, 0x47, 0x52,  // parameter id
       0x04,  // length
@@ -679,6 +688,7 @@ TEST_P(TransportParametersTest, ParseClientParams) {
             new_params.google_connection_options.value());
   ASSERT_TRUE(new_params.user_agent_id.has_value());
   EXPECT_EQ(CreateFakeUserAgentId(), new_params.user_agent_id.value());
+  EXPECT_TRUE(new_params.support_handshake_done);
 }
 
 TEST_P(TransportParametersTest,
@@ -846,7 +856,7 @@ TEST_P(TransportParametersTest, ParseClientParametersRepeated) {
 TEST_P(TransportParametersTest, ParseServerParams) {
   // clang-format off
   const uint8_t kServerParamsOld[] = {
-      0x00, 0xcf,  // length of parameters array that follows
+      0x00, 0xd3,  // length of parameters array that follows
       // original_destination_connection_id
       0x00, 0x00,  // parameter id
       0x00, 0x08,  // length
@@ -929,6 +939,9 @@ TEST_P(TransportParametersTest, ParseServerParams) {
       'A', 'L', 'P', 'N',  // value
       'E', 'F', 'G', 0x00,
       'H', 'I', 'J', 0xff,
+      // support_handshake_done
+      0x31, 0x2A,  // parameter id
+      0x00, 0x00,  // value
       // Google version extension
       0x47, 0x52,  // parameter id
       0x00, 0x0d,  // length
@@ -1020,6 +1033,9 @@ TEST_P(TransportParametersTest, ParseServerParams) {
       'A', 'L', 'P', 'N',  // value
       'E', 'F', 'G', 0x00,
       'H', 'I', 'J', 0xff,
+      // support_handshake_done
+      0x71, 0x2A,  // parameter id
+      0x00,  // length
       // Google version extension
       0x80, 0x00, 0x47, 0x52,  // parameter id
       0x0d,  // length
@@ -1090,6 +1106,7 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   EXPECT_EQ(CreateFakeGoogleConnectionOptions(),
             new_params.google_connection_options.value());
   EXPECT_FALSE(new_params.user_agent_id.has_value());
+  EXPECT_TRUE(new_params.support_handshake_done);
 }
 
 TEST_P(TransportParametersTest, ParseServerParametersRepeated) {

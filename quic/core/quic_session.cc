@@ -118,7 +118,11 @@ void QuicSession::Initialize() {
   connection_->SetSessionNotifier(this);
   connection_->SetDataProducer(this);
   connection_->SetFromConfig(config_);
-
+  if (GetQuicReloadableFlag(quic_support_handshake_done_in_t050) &&
+      version().UsesTls() && !version().HasHandshakeDone() &&
+      perspective_ == Perspective::IS_CLIENT) {
+    config_.SetSupportHandshakeDone();
+  }
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.
   if (perspective() == Perspective::IS_SERVER) {
@@ -1545,8 +1549,13 @@ void QuicSession::OnOneRttKeysAvailable() {
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";
   QUIC_BUG_IF(!config_.negotiated())
       << ENDPOINT << "Handshake completes without parameter negotiation.";
-  if (connection()->version().HasHandshakeDone() &&
+  if ((connection()->version().HasHandshakeDone() ||
+       (GetQuicReloadableFlag(quic_support_handshake_done_in_t050) &&
+        config_.PeerSupportsHandshakeDone())) &&
       perspective_ == Perspective::IS_SERVER) {
+    if (!connection()->version().HasHandshakeDone()) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_support_handshake_done_in_t050);
+    }
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
     control_frame_manager_.WriteOrBufferHandshakeDone();

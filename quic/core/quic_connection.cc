@@ -320,7 +320,8 @@ QuicConnection::QuicConnection(
       idle_network_detector_(this,
                              clock_->ApproximateNow(),
                              &arena_,
-                             alarm_factory_) {
+                             alarm_factory_),
+      support_handshake_done_(version().HasHandshakeDone()) {
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -538,6 +539,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());
+  }
+  if (config.HandshakeDoneSupported()) {
+    support_handshake_done_ = true;
   }
 
   sent_packet_manager_.SetFromConfig(config);
@@ -1586,7 +1590,13 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 }
 
 bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
-  DCHECK(connected_ && VersionHasIetfQuicFrames(transport_version()));
+  DCHECK(connected_);
+  if (!support_handshake_done_) {
+    CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
+                    "Handshake done frame is unsupported",
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
 
   if (perspective_ == Perspective::IS_SERVER) {
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,

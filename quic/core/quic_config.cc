@@ -447,6 +447,7 @@ QuicConfig::QuicConfig()
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
+      support_handshake_done_(0, PRESENCE_OPTIONAL),
       alternate_server_address_ipv6_(kASAD, PRESENCE_OPTIONAL),
       alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
@@ -832,6 +833,19 @@ bool QuicConfig::DisableConnectionMigration() const {
   return connection_migration_disabled_.HasReceivedValue();
 }
 
+void QuicConfig::SetSupportHandshakeDone() {
+  support_handshake_done_.SetSendValue(1);
+}
+
+bool QuicConfig::HandshakeDoneSupported() const {
+  return support_handshake_done_.HasSendValue() &&
+         support_handshake_done_.GetSendValue() > 0;
+}
+
+bool QuicConfig::PeerSupportsHandshakeDone() const {
+  return support_handshake_done_.HasReceivedValue();
+}
+
 void QuicConfig::SetIPv6AlternateServerAddressToSend(
     const QuicSocketAddress& alternate_server_address_ipv6) {
   if (!alternate_server_address_ipv6.host().IsIPv6()) {
@@ -1154,6 +1168,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;
+  params->support_handshake_done = HandshakeDoneSupported();
 
   if (alternate_server_address_ipv6_.HasSendValue() ||
       alternate_server_address_ipv4_.HasSendValue()) {
@@ -1303,6 +1318,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (params.disable_active_migration) {
     connection_migration_disabled_.SetReceivedValue(1u);
+  }
+  if (params.support_handshake_done) {
+    support_handshake_done_.SetReceivedValue(1u);
   }
 
   active_connection_id_limit_.SetReceivedValue(

@@ -202,6 +202,9 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Google-specific user agent identifier.
   quiche::QuicheOptional<std::string> user_agent_id;
 
+  // Google-specific handshake done support. This is only used for T050.
+  bool support_handshake_done;
+
   // Transport parameters used by Google QUIC but not IETF QUIC. This is
   // serialized into a TransportParameter struct with a TransportParameterId of
   // kGoogleQuicParamId.

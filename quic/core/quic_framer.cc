@@ -1013,6 +1013,9 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
           return 0;
         }
         break;
+      case HANDSHAKE_DONE_FRAME:
+        // HANDSHAKE_DONE has no payload.
+        break;
       default:
         RaiseError(QUIC_INVALID_FRAME_DATA);
         QUIC_BUG << "QUIC_INVALID_FRAME_DATA";
@@ -2981,6 +2984,19 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         QUIC_DVLOG(2) << ENDPOINT << "Processing crypto frame " << frame;
         if (!visitor_->OnCryptoFrame(frame)) {
           QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
+          // Returning true since there was no parsing error.
+          return true;
+        }
+        break;
+      }
+      case HANDSHAKE_DONE_FRAME: {
+        // HANDSHAKE_DONE has no payload.
+        QuicHandshakeDoneFrame handshake_done_frame;
+        QUIC_DVLOG(2) << ENDPOINT << "Processing handshake done frame "
+                      << handshake_done_frame;
+        if (!visitor_->OnHandshakeDoneFrame(handshake_done_frame)) {
+          QUIC_DVLOG(1) << ENDPOINT
+                        << "Visitor asked to stop further processing.";
           // Returning true since there was no parsing error.
           return true;
         }

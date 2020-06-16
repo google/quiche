@@ -1670,6 +1670,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool blackhole_detection_disabled_ = false;
 
+  // True if this connection supports handshake done frame.
+  bool support_handshake_done_;
+
   const bool use_idle_network_detector_ =
       GetQuicReloadableFlag(quic_use_idle_network_detector);
 

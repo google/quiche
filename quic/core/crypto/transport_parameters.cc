@@ -56,6 +56,7 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kInitialRoundTripTime = 0x3127,
   kGoogleConnectionOptions = 0x3128,
   kGoogleUserAgentId = 0x3129,
+  kGoogleSupportHandshakeDone = 0x312A,  // Only used in T050.
   kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
   kGoogleQuicVersion =
       18258,  // Used to transmit version and supported_versions.
@@ -120,6 +121,8 @@ std::string TransportParameterIdToString(
       return "google_connection_options";
     case TransportParameters::kGoogleUserAgentId:
       return "user_agent_id";
+    case TransportParameters::kGoogleSupportHandshakeDone:
+      return "support_handshake_done";
     case TransportParameters::kGoogleQuicParam:
       return "google";
     case TransportParameters::kGoogleQuicVersion:
@@ -152,6 +155,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleUserAgentId:
+    case TransportParameters::kGoogleSupportHandshakeDone:
     case TransportParameters::kGoogleQuicParam:
     case TransportParameters::kGoogleQuicVersion:
       return true;
@@ -465,6 +469,9 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kGoogleUserAgentId) + " \"" +
           user_agent_id.value() + "\"";
   }
+  if (support_handshake_done) {
+    rv += " " + TransportParameterIdToString(kGoogleSupportHandshakeDone);
+  }
   if (google_quic_params) {
     rv += " " + TransportParameterIdToString(kGoogleQuicParam);
   }
@@ -512,7 +519,8 @@ TransportParameters::TransportParameters()
                                  kMinActiveConnectionIdLimitTransportParam,
                                  kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize),
-      initial_round_trip_time_us(kInitialRoundTripTime)
+      initial_round_trip_time_us(kInitialRoundTripTime),
+      support_handshake_done(false)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
 // ParseTransportParameters, TransportParameters's custom copy constructor, the
@@ -546,6 +554,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_connection_options(other.google_connection_options),
       user_agent_id(other.user_agent_id),
+      support_handshake_done(other.support_handshake_done),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
     preferred_address = std::make_unique<TransportParameters::PreferredAddress>(
@@ -589,6 +598,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_round_trip_time_us.value() &&
         google_connection_options == rhs.google_connection_options &&
         user_agent_id == rhs.user_agent_id &&
+        support_handshake_done == rhs.support_handshake_done &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
   }
@@ -748,6 +758,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength +               // user_agent_id
+      kTypeAndValueLength +               // support_handshake_done
       kTypeAndValueLength +               // google
       kTypeAndValueLength +               // google-version
       kGreaseParameterLength;             // GREASE
@@ -965,6 +976,17 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
                                             version)) {
       QUIC_BUG << "Failed to write Google user agent ID \""
                << in.user_agent_id.value() << "\" for " << in;
+      return false;
+    }
+  }
+
+  // Google-specific support handshake done.
+  if (in.support_handshake_done) {
+    if (!WriteTransportParameterId(
+            &writer, TransportParameters::kGoogleSupportHandshakeDone,
+            version) ||
+        !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
+      QUIC_BUG << "Failed to write support_handshake_done for " << in;
       return false;
     }
   }
@@ -1329,6 +1351,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           return false;
         }
         out->user_agent_id = std::string(value_reader.ReadRemainingPayload());
+        break;
+      case TransportParameters::kGoogleSupportHandshakeDone:
+        if (out->support_handshake_done) {
+          *error_details = "Received a second support_handshake_done";
+          return false;
+        }
+        out->support_handshake_done = true;
         break;
       case TransportParameters::kGoogleQuicParam: {
         if (out->google_quic_params) {
