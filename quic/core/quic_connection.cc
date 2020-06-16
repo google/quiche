@@ -1950,10 +1950,6 @@ const QuicConnectionStats& QuicConnection::GetStats() {
   return stats_;
 }
 
-void QuicConnection::ResetHasNonAppLimitedSampleAfterHandshakeCompletion() {
-  stats_.has_non_app_limited_sample = false;
-}
-
 void QuicConnection::OnCoalescedPacket(const QuicEncryptedPacket& packet) {
   QueueCoalescedPacket(packet);
 }

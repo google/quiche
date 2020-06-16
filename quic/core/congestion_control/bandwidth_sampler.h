@@ -528,10 +528,6 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   // The most recently sent packet.
   QuicPacketNumber last_sent_packet_;
 
-  // Indicates whether the bandwidth sampler is started in app-limited phase.
-  const bool started_as_app_limited_ =
-      GetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value);
-
   // Indicates whether the bandwidth sampler is currently in an app-limited
   // phase.
   bool is_app_limited_;

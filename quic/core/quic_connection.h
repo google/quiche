@@ -469,11 +469,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns statistics tracked for this connection.
   const QuicConnectionStats& GetStats();
 
-  // Mark stats_.has_non_app_limited_sample as false.
-  // TODO(b/151166631) Remove this once the proper fix in b/151166631 is rolled
-  // out.
-  void ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
-
   // Processes an incoming UDP packet (consisting of a QuicEncryptedPacket) from
   // the peer.
   // In a client, the packet may be "stray" and have a different connection ID

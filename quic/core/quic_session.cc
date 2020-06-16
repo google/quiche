@@ -1533,9 +1533,6 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
-      if (!GetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value)) {
-        connection_->ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
-      }
       break;
     default:
       QUIC_BUG << "Unknown encryption level: " << level;
@@ -1553,9 +1550,6 @@ void QuicSession::OnOneRttKeysAvailable() {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
     control_frame_manager_.WriteOrBufferHandshakeDone();
-  }
-  if (!GetQuicReloadableFlag(quic_bw_sampler_app_limited_starting_value)) {
-    connection_->ResetHasNonAppLimitedSampleAfterHandshakeCompletion();
   }
 }
 
