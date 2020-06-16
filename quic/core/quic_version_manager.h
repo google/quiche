@@ -56,10 +56,10 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool enable_version_draft_29_;
   // quic_enable_version_draft_28 flag
   bool enable_version_draft_28_;
-  // quic_enable_version_draft_27 flag
-  bool enable_version_draft_27_;
-  // quic_enable_version_draft_25_v3 flag
-  bool enable_version_draft_25_;
+  // quic_disable_version_draft_27 flag
+  bool disable_version_draft_27_;
+  // quic_disable_version_draft_25 flag
+  bool disable_version_draft_25_;
   // quic_disable_version_q050 flag
   bool disable_version_q050_;
   // quic_disable_version_t050 flag
