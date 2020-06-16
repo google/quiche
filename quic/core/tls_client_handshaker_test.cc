@@ -347,15 +347,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_TRUE(stream()->IsResumption());
 }
 
-// TODO(b/152551499): This test is currently broken because the logic to reject
-// 0-RTT is overzealous. It currently requires a byte-for-byte match of the
-// Transport Parameters (between the ones that the server sent on the connection
-// where it issued a ticket, and the ones that the server is sending on the
-// connection where it is potentially accepting early data). This is broken
-// because the stateless reset token in the Transport Parameters necessarily
-// must be different between those two connections. Once that check is relaxed,
-// this test can be enabled.
-TEST_P(TlsClientHandshakerTest, DISABLED_ZeroRttResumption) {
+TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 

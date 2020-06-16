@@ -1370,6 +1370,7 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRtt) {
 
   CreateConnection();
   CompleteCryptoHandshake();
+  EXPECT_TRUE(session_->GetCryptoStream()->EarlyDataAccepted());
 
   EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
       .WillOnce(testing::Invoke(connection_,
