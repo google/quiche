@@ -90,6 +90,7 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
 
   int64_t min_rtt_us = 0;  // Minimum RTT in microseconds.
   int64_t srtt_us = 0;     // Smoothed RTT in microseconds.
+  int64_t cwnd_bootstrapping_rtt_us = 0;  // RTT used in cwnd_bootstrapping.
   QuicByteCount max_packet_size = 0;
   QuicByteCount max_received_packet_size = 0;
   QuicBandwidth estimated_bandwidth = QuicBandwidth::Zero();

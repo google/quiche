@@ -348,12 +348,16 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       // Ignore bad bandwidth samples.
       return;
     }
+
+    auto cwnd_bootstrapping_rtt = params.quic_bbr_donot_inject_bandwidth
+                                      ? GetMinRtt()
+                                      : rtt_stats_->SmoothedOrInitialRtt();
     const QuicByteCount new_cwnd = std::max(
         kMinInitialCongestionWindow * kDefaultTCPMSS,
         std::min(max_congestion_window_with_network_parameters_adjusted_,
-                 bandwidth * (params.quic_bbr_donot_inject_bandwidth
-                                  ? GetMinRtt()
-                                  : rtt_stats_->SmoothedOrInitialRtt())));
+                 bandwidth * cwnd_bootstrapping_rtt));
+
+    stats_->cwnd_bootstrapping_rtt_us = cwnd_bootstrapping_rtt.ToMicroseconds();
     if (!rtt_stats_->smoothed_rtt().IsZero()) {
       QUIC_CODE_COUNT(quic_smoothed_rtt_available);
     } else if (rtt_stats_->initial_rtt() !=
