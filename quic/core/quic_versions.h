@@ -665,8 +665,14 @@ QUIC_EXPORT_PRIVATE std::string AlpnForVersion(
 // correct flags.
 QUIC_EXPORT_PRIVATE void QuicVersionInitializeSupportForIetfDraft();
 
-// Enables the flags required to support this version of QUIC.
-QUIC_EXPORT_PRIVATE void QuicEnableVersion(ParsedQuicVersion parsed_version);
+// Configures the flags required to enable support for this version of QUIC.
+QUIC_EXPORT_PRIVATE void QuicEnableVersion(const ParsedQuicVersion& version);
+
+// Configures the flags required to disable support for this version of QUIC.
+QUIC_EXPORT_PRIVATE void QuicDisableVersion(const ParsedQuicVersion& version);
+
+// Returns whether support for this version of QUIC is currently enabled.
+QUIC_EXPORT_PRIVATE bool QuicVersionIsEnabled(const ParsedQuicVersion& version);
 
 }  // namespace quic
 

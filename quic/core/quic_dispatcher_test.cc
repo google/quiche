@@ -1014,17 +1014,11 @@ TEST_P(QuicDispatcherTestOneVersion, VersionsChangeInFlight) {
   VerifyVersionNotSupported(QuicVersionReservedForNegotiation());
   for (ParsedQuicVersion version : CurrentSupportedVersions()) {
     VerifyVersionSupported(version);
+    QuicDisableVersion(version);
+    VerifyVersionNotSupported(version);
+    QuicEnableVersion(version);
+    VerifyVersionSupported(version);
   }
-
-  // Turn off version Q050.
-  SetQuicReloadableFlag(quic_disable_version_q050, true);
-  VerifyVersionNotSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
-
-  // Turn on version Q050.
-  SetQuicReloadableFlag(quic_disable_version_q050, false);
-  VerifyVersionSupported(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
 }
 
 TEST_P(QuicDispatcherTestOneVersion,
@@ -2260,8 +2254,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
 // Regression test for b/117874922.
 TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
   // Ensure the preferred version is not supported by the server.
-  SetQuicReloadableFlag(quic_enable_version_draft_29, false);
-  ASSERT_EQ(AllSupportedVersions()[0], ParsedQuicVersion::Draft29());
+  QuicDisableVersion(AllSupportedVersions().front());
 
   uint64_t last_connection_id = kMaxNumSessionsToCreate + 5;
   ParsedQuicVersionVector supported_versions = CurrentSupportedVersions();

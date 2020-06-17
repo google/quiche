@@ -842,11 +842,9 @@ ParsedQuicVersion QuicVersionMin() {
 }
 
 void DisableQuicVersionsWithTls() {
-  SetQuicReloadableFlag(quic_enable_version_draft_29, false);
-  SetQuicReloadableFlag(quic_enable_version_draft_28, false);
-  SetQuicReloadableFlag(quic_disable_version_draft_27, true);
-  SetQuicReloadableFlag(quic_disable_version_draft_25, true);
-  SetQuicReloadableFlag(quic_disable_version_t050, true);
+  for (const ParsedQuicVersion& version : AllSupportedVersionsWithTls()) {
+    QuicDisableVersion(version);
+  }
 }
 
 QuicEncryptedPacket* ConstructEncryptedPacket(

@@ -39,6 +39,37 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
   return result;
 }
 
+void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
+  static_assert(SupportedVersions().size() == 10u,
+                "Supported versions out of sync");
+  const bool enable = should_enable;
+  const bool disable = !should_enable;
+  if (version == ParsedQuicVersion::Draft29()) {
+    SetQuicReloadableFlag(quic_enable_version_draft_29, enable);
+  } else if (version == ParsedQuicVersion::Draft28()) {
+    SetQuicReloadableFlag(quic_enable_version_draft_28, enable);
+  } else if (version == ParsedQuicVersion::Draft27()) {
+    SetQuicReloadableFlag(quic_disable_version_draft_27, disable);
+  } else if (version == ParsedQuicVersion::Draft25()) {
+    SetQuicReloadableFlag(quic_disable_version_draft_25, disable);
+  } else if (version == ParsedQuicVersion::T050()) {
+    SetQuicReloadableFlag(quic_disable_version_t050, disable);
+  } else if (version == ParsedQuicVersion::Q050()) {
+    SetQuicReloadableFlag(quic_disable_version_q050, disable);
+  } else if (version == ParsedQuicVersion::Q049()) {
+    SetQuicReloadableFlag(quic_disable_version_q049, disable);
+  } else if (version == ParsedQuicVersion::Q048()) {
+    SetQuicReloadableFlag(quic_disable_version_q048, disable);
+  } else if (version == ParsedQuicVersion::Q046()) {
+    SetQuicReloadableFlag(quic_disable_version_q046, disable);
+  } else if (version == ParsedQuicVersion::Q043()) {
+    SetQuicReloadableFlag(quic_disable_version_q043, disable);
+  } else {
+    QUIC_BUG << "Cannot " << (should_enable ? "en" : "dis") << "able version "
+             << version;
+  }
+}
+
 }  // namespace
 
 bool ParsedQuicVersion::IsKnown() const {
@@ -678,36 +709,17 @@ void QuicVersionInitializeSupportForIetfDraft() {
   SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
 }
 
-void QuicEnableVersion(ParsedQuicVersion parsed_version) {
-  static_assert(SupportedVersions().size() == 10u,
-                "Supported versions out of sync");
-  if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_29) {
-    QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_enable_version_draft_29, true);
-  } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_28) {
-    QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_enable_version_draft_28, true);
-  } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {
-    QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_disable_version_draft_27, false);
-  } else if (parsed_version.transport_version == QUIC_VERSION_IETF_DRAFT_25) {
-    QUIC_BUG_IF(parsed_version.handshake_protocol != PROTOCOL_TLS1_3);
-    SetQuicReloadableFlag(quic_disable_version_draft_25, false);
-  } else if (parsed_version.transport_version == QUIC_VERSION_50) {
-    if (parsed_version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
-      SetQuicReloadableFlag(quic_disable_version_q050, false);
-    } else {
-      SetQuicReloadableFlag(quic_disable_version_t050, false);
-    }
-  } else if (parsed_version.transport_version == QUIC_VERSION_49) {
-    SetQuicReloadableFlag(quic_disable_version_q049, false);
-  } else if (parsed_version.transport_version == QUIC_VERSION_48) {
-    SetQuicReloadableFlag(quic_disable_version_q048, false);
-  } else if (parsed_version.transport_version == QUIC_VERSION_46) {
-    SetQuicReloadableFlag(quic_disable_version_q046, false);
-  } else if (parsed_version.transport_version == QUIC_VERSION_43) {
-    SetQuicReloadableFlag(quic_disable_version_q043, false);
-  }
+void QuicEnableVersion(const ParsedQuicVersion& version) {
+  SetVersionFlag(version, /*should_enable=*/true);
+}
+
+void QuicDisableVersion(const ParsedQuicVersion& version) {
+  SetVersionFlag(version, /*should_enable=*/false);
+}
+
+bool QuicVersionIsEnabled(const ParsedQuicVersion& version) {
+  ParsedQuicVersionVector current = CurrentSupportedVersions();
+  return std::find(current.begin(), current.end(), version) != current.end();
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
