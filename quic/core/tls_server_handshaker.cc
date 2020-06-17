@@ -244,8 +244,8 @@ void TlsServerHandshaker::AdvanceHandshake() {
       should_close = true;
   }
   if (should_close && state_ != STATE_CONNECTION_CLOSED) {
-    QUIC_LOG(WARNING) << "SSL_do_handshake failed; SSL_get_error returns "
-                      << ssl_error << ", state_ = " << state_;
+    QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
+                 << ssl_error << ", state_ = " << state_;
     ERR_print_errors_fp(stderr);
     CloseConnection(QUIC_HANDSHAKE_FAILED,
                     "Server observed TLS handshake failure");
