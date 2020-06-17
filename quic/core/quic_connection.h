@@ -965,6 +965,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Called when version is considered negotiated.
   void OnSuccessfulVersionNegotiation();
 
+  // Called when self migration succeeds after probing.
+  void OnSuccessfulMigrationAfterProbing();
+
   // Called for QUIC+TLS versions when we send transport parameters.
   void OnTransportParametersSent(
       const TransportParameters& transport_parameters) const;

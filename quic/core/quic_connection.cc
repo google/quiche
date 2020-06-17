@@ -976,6 +976,17 @@ void QuicConnection::OnSuccessfulVersionNegotiation() {
   }
 }
 
+void QuicConnection::OnSuccessfulMigrationAfterProbing() {
+  DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  if (IsPathDegrading()) {
+    // If path was previously degrading, and migration is successful after
+    // probing, restart the path degrading and blackhole detection.
+    OnForwardProgressMade();
+  }
+  // TODO(b/159074035): notify SentPacketManger with RTT sample from probing and
+  // reset cwnd if this is a successful network migration.
+}
+
 void QuicConnection::OnTransportParametersSent(
     const TransportParameters& transport_parameters) const {
   if (debug_visitor_ != nullptr) {

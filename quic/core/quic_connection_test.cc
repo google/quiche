@@ -50,7 +50,6 @@ using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
 using testing::DoAll;
-using testing::Exactly;
 using testing::Ge;
 using testing::IgnoreResult;
 using testing::InSequence;
@@ -9229,6 +9228,103 @@ TEST_P(QuicConnectionTest, PathChallengeResponse) {
   EXPECT_EQ(0, memcmp(&challenge_data,
                       &(writer_->path_response_frames().front().data_buffer),
                       sizeof(challenge_data)));
+}
+
+TEST_P(QuicConnectionTest,
+       RestartPathDegradingDetectionAfterMigrationWithProbe) {
+  // TODO(b/150095484): add test coverage for IETF to verify that client takes
+  // PATH RESPONSE with peer address change as correct validation on the new
+  // path.
+  if (GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  set_perspective(Perspective::IS_CLIENT);
+  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+
+  // Clear direct_peer_address and effective_peer_address.
+  QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
+  QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
+                                              QuicSocketAddress());
+  EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
+  EXPECT_FALSE(connection_.IsPathDegrading());
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  } else {
+    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  }
+  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
+                                  kPeerAddress);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+
+  // Send data and verify the path degrading detection is set.
+  const char data[] = "data";
+  size_t data_size = strlen(data);
+  QuicStreamOffset offset = 0;
+  connection_.SendStreamDataWithString(1, data, offset, NO_FIN);
+  offset += data_size;
+
+  // Verify the path degrading detection is in progress.
+  EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
+  EXPECT_FALSE(connection_.IsPathDegrading());
+  QuicTime ddl = connection_.GetBlackholeDetectorAlarm()->deadline();
+
+  // Simulate the firing of path degrading.
+  clock_.AdvanceTime(ddl - clock_.ApproximateNow());
+  EXPECT_CALL(visitor_, OnPathDegrading()).Times(1);
+  connection_.PathDegradingTimeout();
+  EXPECT_TRUE(connection_.IsPathDegrading());
+  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
+
+  // Simulate path degrading handling by sending a probe on an alternet path.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  TestPacketWriter probing_writer(version(), &clock_);
+  connection_.SendConnectivityProbingPacket(&probing_writer,
+                                            connection_.peer_address());
+  // Verify that path degrading detection is not reset.
+  EXPECT_FALSE(connection_.PathDegradingDetectionInProgress());
+
+  // Simulate successful path degrading handling by receiving probe response.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
+
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    EXPECT_CALL(visitor_,
+                OnPacketReceived(_, _, /*is_connectivity_probe=*/true))
+        .Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
+  }
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
+  std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  uint64_t num_probing_received =
+      connection_.GetStats().num_connectivity_probing_received;
+  ProcessReceivedPacket(kNewSelfAddress, kPeerAddress, *received);
+
+  EXPECT_EQ(num_probing_received + 1,
+            connection_.GetStats().num_connectivity_probing_received);
+  EXPECT_EQ(kPeerAddress, connection_.peer_address());
+  EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  EXPECT_TRUE(connection_.IsPathDegrading());
+
+  // Verify new path degrading detection is activated.
+  EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading()).Times(1);
+  connection_.OnSuccessfulMigrationAfterProbing();
+  EXPECT_FALSE(connection_.IsPathDegrading());
+  EXPECT_TRUE(connection_.PathDegradingDetectionInProgress());
 }
 
 // Regression test for b/110259444
