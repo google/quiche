@@ -4237,13 +4237,39 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   return ENCRYPTION_INITIAL;
 }
 
+void QuicConnection::MaybeBundleCryptoDataWithInitialAck() {
+  DCHECK(SupportsMultiplePacketNumberSpaces());
+  const QuicTime initial_ack_timeout =
+      uber_received_packet_manager_.GetAckTimeout(INITIAL_DATA);
+  if (!initial_ack_timeout.IsInitialized() ||
+      (initial_ack_timeout > clock_->ApproximateNow() &&
+       initial_ack_timeout >
+           uber_received_packet_manager_.GetEarliestAckTimeout())) {
+    // Not going to send initial ACK.
+    return;
+  }
+  // Initial ACK will be padded to full anyway, so try to bundle INITIAL crypto
+  // data.
+  sent_packet_manager_.RetransmitInitialDataIfAny();
+}
+
 void QuicConnection::SendAllPendingAcks() {
   DCHECK(SupportsMultiplePacketNumberSpaces());
   QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
   ack_alarm_->Cancel();
-  const QuicTime earliest_ack_timeout =
+  QuicTime earliest_ack_timeout =
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(!earliest_ack_timeout.IsInitialized());
+  if (GetQuicReloadableFlag(quic_bundle_crypto_data_with_initial_ack) &&
+      perspective() == Perspective::IS_SERVER) {
+    MaybeBundleCryptoDataWithInitialAck();
+    earliest_ack_timeout =
+        uber_received_packet_manager_.GetEarliestAckTimeout();
+    if (!earliest_ack_timeout.IsInitialized()) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_bundle_crypto_data_with_initial_ack);
+      return;
+    }
+  }
   // Latches current encryption level.
   const EncryptionLevel current_encryption_level = encryption_level_;
   for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
@@ -4342,13 +4368,15 @@ bool QuicConnection::FlushCoalescedPacket() {
   if (coalesced_packet_.length() == 0) {
     return true;
   }
-  QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet";
+
   char buffer[kMaxOutgoingPacketSize];
   const size_t length = packet_creator_.SerializeCoalescedPacket(
       coalesced_packet_, buffer, coalesced_packet_.max_packet_length());
   if (length == 0) {
     return false;
   }
+  QUIC_DVLOG(1) << ENDPOINT << "Sending coalesced packet "
+                << coalesced_packet_.ToString(length);
 
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     QUIC_DVLOG(1) << ENDPOINT

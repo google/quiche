@@ -4044,6 +4044,58 @@ TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
                   "retransmissions");
 }
 
+TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+
+  // Send packet 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  QuicTime packet1_sent_time = clock_.Now();
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  // Send packets 2 and 3.
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  QuicTime packet2_sent_time = clock_.Now();
+  SendDataPacket(3, ENCRYPTION_HANDSHAKE);
+  // Verify PTO is correctly set based on packet 1.
+  int pto_rttvar_multiplier =
+      GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
+  QuicTime::Delta expected_pto_delay =
+      srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  EXPECT_EQ(packet1_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Assume connection is going to send INITIAL ACK.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(4, type, ENCRYPTION_INITIAL);
+      })));
+  manager_.RetransmitInitialDataIfAny();
+  // Verify PTO is re-armed based on packet 2.
+  EXPECT_EQ(packet2_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+
+  // Connection is going to send another INITIAL ACK.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(5, type, ENCRYPTION_INITIAL);
+      })));
+  manager_.RetransmitInitialDataIfAny();
+  // Verify PTO does not change.
+  EXPECT_EQ(packet2_sent_time + expected_pto_delay,
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

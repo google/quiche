@@ -11259,6 +11259,57 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
   EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
 }
 
+TEST_P(QuicConnectionTest, BundleInitialDataWithInitialAck) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+  QuicTime expected_pto_time =
+      connection_.sent_packet_manager().GetRetransmissionTime();
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+  // Verify PTO time does not change.
+  EXPECT_EQ(expected_pto_time,
+            connection_.sent_packet_manager().GetRetransmissionTime());
+
+  // Receives packet 1001 in initial data.
+  ProcessCryptoPacketAtLevel(1001, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+  // Receives packet 1002 in initial data.
+  ProcessCryptoPacketAtLevel(1002, ENCRYPTION_INITIAL);
+  EXPECT_FALSE(writer_->ack_frames().empty());
+  if (GetQuicReloadableFlag(quic_bundle_crypto_data_with_initial_ack)) {
+    // Verify CRYPTO frame is bundled with INITIAL ACK.
+    EXPECT_FALSE(writer_->crypto_frames().empty());
+    // Verify PTO time changes.
+    EXPECT_NE(expected_pto_time,
+              connection_.sent_packet_manager().GetRetransmissionTime());
+  } else {
+    EXPECT_TRUE(writer_->crypto_frames().empty());
+    // Verify PTO time does not change.
+    EXPECT_EQ(expected_pto_time,
+              connection_.sent_packet_manager().GetRetransmissionTime());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
