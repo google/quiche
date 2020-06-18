@@ -630,16 +630,9 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckDelayChange) {
   EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    EXPECT_EQ(kClientMaxAckDelay, GetSentPacketManagerFromFirstServerSession()
-                                      ->peer_max_ack_delay()
-                                      .ToMilliseconds());
-  } else {
-    EXPECT_EQ(kDefaultDelayedAckTimeMs,
-              GetSentPacketManagerFromFirstServerSession()
-                  ->peer_max_ack_delay()
-                  .ToMilliseconds());
-  }
+  EXPECT_EQ(kClientMaxAckDelay, GetSentPacketManagerFromFirstServerSession()
+                                    ->peer_max_ack_delay()
+                                    .ToMilliseconds());
 }
 
 // Simple transaction, but set a non-default ack exponent at the client

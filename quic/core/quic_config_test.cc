@@ -180,12 +180,8 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
             2 * kInitialStreamFlowControlWindowForTest);
   EXPECT_EQ(config_.ReceivedInitialSessionFlowControlWindowBytes(),
             2 * kInitialSessionFlowControlWindowForTest);
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
-    EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
-  } else {
-    EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
-  }
+  EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
+  EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
 
   // IETF QUIC stream limits should not be received in QUIC crypto messages.
   EXPECT_FALSE(
@@ -238,12 +234,8 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
   EXPECT_FALSE(config_.HasReceivedIPv6AlternateServerAddress());
   EXPECT_TRUE(config_.HasReceivedStatelessResetToken());
   EXPECT_EQ(kTestResetToken, config_.ReceivedStatelessResetToken());
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
-    EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
-  } else {
-    EXPECT_FALSE(config_.HasReceivedMaxAckDelayMs());
-  }
+  EXPECT_TRUE(config_.HasReceivedMaxAckDelayMs());
+  EXPECT_EQ(kTestMaxAckDelayMs, config_.ReceivedMaxAckDelayMs());
 
   // IETF QUIC stream limits should not be received in QUIC crypto messages.
   EXPECT_FALSE(
@@ -507,7 +499,6 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
-  SetQuicReloadableFlag(quic_negotiate_ack_delay_time, true);
   TransportParameters params;
 
   params.initial_max_stream_data_bidi_local.set_value(

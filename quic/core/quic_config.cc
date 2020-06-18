@@ -1006,10 +1006,7 @@ void QuicConfig::ToHandshakeMessage(
     max_unidirectional_streams_.ToHandshakeMessage(out);
     ack_delay_exponent_.ToHandshakeMessage(out);
   }
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 1, 4);
-    max_ack_delay_ms_.ToHandshakeMessage(out);
-  }
+  max_ack_delay_ms_.ToHandshakeMessage(out);
   bytes_for_connection_id_.ToHandshakeMessage(out);
   initial_round_trip_time_us_.ToHandshakeMessage(out);
   initial_stream_flow_control_window_bytes_.ToHandshakeMessage(out);
@@ -1107,9 +1104,7 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
                                                     error_details);
   }
 
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time) &&
-      error == QUIC_NO_ERROR) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 2, 4);
+  if (error == QUIC_NO_ERROR) {
     error = max_ack_delay_ms_.ProcessPeerHello(peer_hello, hello_type,
                                                error_details);
   }
@@ -1160,10 +1155,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       GetMaxBidirectionalStreamsToSend());
   params->initial_max_streams_uni.set_value(
       GetMaxUnidirectionalStreamsToSend());
-  if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 3, 4);
-    params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
-  }
+  params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
@@ -1297,10 +1289,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       params.initial_max_stream_data_uni.value());
 
   if (!is_resumption) {
-    if (GetQuicReloadableFlag(quic_negotiate_ack_delay_time)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_negotiate_ack_delay_time, 4, 4);
-      max_ack_delay_ms_.SetReceivedValue(params.max_ack_delay.value());
-    }
+    max_ack_delay_ms_.SetReceivedValue(params.max_ack_delay.value());
     if (params.ack_delay_exponent.IsValid()) {
       ack_delay_exponent_.SetReceivedValue(params.ack_delay_exponent.value());
     }
