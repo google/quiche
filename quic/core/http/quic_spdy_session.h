@@ -447,6 +447,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
     return receive_control_stream_;
   }
 
+  const SettingsFrame& settings() const { return settings_; }
+
   // Initializes HTTP/3 unidirectional streams if not yet initialzed.
   virtual void MaybeInitializeHttp3UnidirectionalStreams();
 
@@ -480,6 +482,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Send a MAX_PUSH_ID frame.  Used in IETF QUIC only.
   void SendMaxPushId();
 
+  void FillSettingsFrame();
+
   std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
 
@@ -496,6 +500,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   QpackReceiveStream* qpack_decoder_receive_stream_;
   QpackSendStream* qpack_encoder_send_stream_;
   QpackSendStream* qpack_decoder_send_stream_;
+
+  SettingsFrame settings_;
 
   // Maximum dynamic table capacity as defined at
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#maximum-dynamic-table-capacity

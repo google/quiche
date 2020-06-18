@@ -18,18 +18,12 @@
 
 namespace quic {
 
-QuicSendControlStream::QuicSendControlStream(
-    QuicStreamId id,
-    QuicSpdySession* spdy_session,
-    uint64_t qpack_maximum_dynamic_table_capacity,
-    uint64_t qpack_maximum_blocked_streams,
-    uint64_t max_inbound_header_list_size)
+QuicSendControlStream::QuicSendControlStream(QuicStreamId id,
+                                             QuicSpdySession* spdy_session,
+                                             const SettingsFrame& settings)
     : QuicStream(id, spdy_session, /*is_static = */ true, WRITE_UNIDIRECTIONAL),
       settings_sent_(false),
-      qpack_maximum_dynamic_table_capacity_(
-          qpack_maximum_dynamic_table_capacity),
-      qpack_maximum_blocked_streams_(qpack_maximum_blocked_streams),
-      max_inbound_header_list_size_(max_inbound_header_list_size),
+      settings_(settings),
       spdy_session_(spdy_session) {}
 
 void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
@@ -56,13 +50,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
                     false, nullptr);
 
-  SettingsFrame settings;
-  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
-      qpack_maximum_dynamic_table_capacity_;
-  settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] =
-      qpack_maximum_blocked_streams_;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
-      max_inbound_header_list_size_;
+  SettingsFrame settings = settings_;
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.4.1
   // specifies that setting identifiers of 0x1f * N + 0x21 are reserved and
   // greasing should be attempted.

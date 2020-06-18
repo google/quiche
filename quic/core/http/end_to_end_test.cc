@@ -204,6 +204,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     SetQuicReloadableFlag(quic_fix_server_pto_timeout, true);
 
     SetQuicReloadableFlag(quic_support_handshake_done_in_t050, true);
+    SetQuicReloadableFlag(quic_enable_tls_resumption, true);
+    SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
   }
 
   ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
@@ -1358,10 +1360,6 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
 
   client_->Disconnect();
-  if (version_.UsesTls()) {
-    // TODO(b/152551499): remove this when TLS supports 0-RTT.
-    return;
-  }
 
   // The 0-RTT handshake should succeed.
   client_->Connect();
@@ -1376,6 +1374,11 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   client_->Disconnect();
 
   // Restart the server so that the 0-RTT handshake will take 1 RTT.
+  if (version_.UsesTls()) {
+    // TODO(b/159168475): 0-RTT rejection in TLS currently doesn't work - stream
+    // data attempts to get retransmitted under ENCRYPTION_HANDSHAKE keys.
+    return;
+  }
   StopServer();
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();

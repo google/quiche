@@ -99,6 +99,11 @@ class QUIC_EXPORT_PRIVATE QuicServerSessionBase : public QuicSpdySession {
   friend class test::QuicServerSessionBasePeer;
   friend class test::QuicSimpleServerSessionPeer;
 
+  // Informs the QuicCryptoStream of the SETTINGS that will be used on this
+  // connection, so that the server crypto stream knows whether to accept 0-RTT
+  // data.
+  void SendSettingsToCryptoStream();
+
   const QuicCryptoServerConfig* crypto_config_;
 
   // The cache which contains most recently compressed certs.

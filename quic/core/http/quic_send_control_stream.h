@@ -23,9 +23,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // only be accessed through the session.
   QuicSendControlStream(QuicStreamId id,
                         QuicSpdySession* session,
-                        uint64_t qpack_maximum_dynamic_table_capacity,
-                        uint64_t qpack_maximum_blocked_streams,
-                        uint64_t max_inbound_header_list_size);
+                        const SettingsFrame& settings);
   QuicSendControlStream(const QuicSendControlStream&) = delete;
   QuicSendControlStream& operator=(const QuicSendControlStream&) = delete;
   ~QuicSendControlStream() override = default;
@@ -59,12 +57,8 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
   // Track if a settings frame is already sent.
   bool settings_sent_;
 
-  // SETTINGS_QPACK_MAX_TABLE_CAPACITY value to send.
-  const uint64_t qpack_maximum_dynamic_table_capacity_;
-  // SETTINGS_QPACK_BLOCKED_STREAMS value to send.
-  const uint64_t qpack_maximum_blocked_streams_;
-  // SETTINGS_MAX_HEADER_LIST_SIZE value to send.
-  const uint64_t max_inbound_header_list_size_;
+  // SETTINGS values to send.
+  const SettingsFrame settings_;
 
   QuicSpdySession* const spdy_session_;
 };

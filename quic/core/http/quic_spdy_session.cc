@@ -434,6 +434,7 @@ QuicSpdySession::~QuicSpdySession() {
 void QuicSpdySession::Initialize() {
   QuicSession::Initialize();
 
+  FillSettingsFrame();
   if (!VersionUsesHttp3(transport_version())) {
     if (perspective() == Perspective::IS_SERVER) {
       set_largest_peer_created_stream_id(
@@ -462,6 +463,15 @@ void QuicSpdySession::Initialize() {
   // Limit HPACK buffering to 2x header list size limit.
   h2_deframer_.GetHpackDecoder()->set_max_decode_buffer_size_bytes(
       2 * max_inbound_header_list_size_);
+}
+
+void QuicSpdySession::FillSettingsFrame() {
+  settings_.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] =
+      qpack_maximum_dynamic_table_capacity_;
+  settings_.values[SETTINGS_QPACK_BLOCKED_STREAMS] =
+      qpack_maximum_blocked_streams_;
+  settings_.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
+      max_inbound_header_list_size_;
 }
 
 void QuicSpdySession::OnDecoderStreamError(
@@ -1204,9 +1214,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   DCHECK(VersionUsesHttp3(transport_version()));
   if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
     auto send_control = std::make_unique<QuicSendControlStream>(
-        GetNextOutgoingUnidirectionalStreamId(), this,
-        qpack_maximum_dynamic_table_capacity_, qpack_maximum_blocked_streams_,
-        max_inbound_header_list_size_);
+        GetNextOutgoingUnidirectionalStreamId(), this, settings_);
     send_control_stream_ = send_control.get();
     ActivateStream(std::move(send_control));
     if (debug_visitor_) {

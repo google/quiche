@@ -39,6 +39,9 @@ void QuicServerSessionBase::Initialize() {
   crypto_stream_ =
       CreateQuicCryptoServerStream(crypto_config_, compressed_certs_cache_);
   QuicSpdySession::Initialize();
+  if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
+    SendSettingsToCryptoStream();
+  }
 }
 
 void QuicServerSessionBase::OnConfigNegotiated() {
@@ -258,6 +261,21 @@ int32_t QuicServerSessionBase::BandwidthToCachedParameterBytesPerSecond(
     const QuicBandwidth& bandwidth) {
   return static_cast<int32_t>(std::min<int64_t>(
       bandwidth.ToBytesPerSecond(), std::numeric_limits<uint32_t>::max()));
+}
+
+void QuicServerSessionBase::SendSettingsToCryptoStream() {
+  if (!version().UsesTls()) {
+    return;
+  }
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount buffer_size =
+      HttpEncoder::SerializeSettingsFrame(settings(), &buffer);
+
+  std::unique_ptr<ApplicationState> serialized_settings =
+      std::make_unique<ApplicationState>(buffer.get(),
+                                         buffer.get() + buffer_size);
+  GetMutableCryptoStream()->SetServerApplicationStateForResumption(
+      std::move(serialized_settings));
 }
 
 }  // namespace quic
