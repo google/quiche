@@ -53,24 +53,41 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
   if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &response_headers_)) {
     QUIC_DLOG(ERROR) << "Failed to parse header list: "
-                     << header_list.DebugString();
+                     << header_list.DebugString() << " on stream " << id();
     Reset(QUIC_BAD_APPLICATION_PAYLOAD);
     return;
   }
 
   if (!ParseHeaderStatusCode(response_headers_, &response_code_)) {
     QUIC_DLOG(ERROR) << "Received invalid response code: "
-                     << response_headers_[":status"].as_string();
+                     << response_headers_[":status"].as_string()
+                     << " on stream " << id();
     Reset(QUIC_BAD_APPLICATION_PAYLOAD);
     return;
   }
 
-  if (response_code_ == 100 && !has_preliminary_headers_) {
-    // These are preliminary 100 Continue headers, not the actual response
-    // headers.
+  if (response_code_ == 101) {
+    // 101 "Switching Protocols" is forbidden in HTTP/3 as per the
+    // "HTTP Upgrade" section of draft-ietf-quic-http.
+    QUIC_DLOG(ERROR) << "Received forbidden 101 response code"
+                     << " on stream " << id();
+    Reset(QUIC_BAD_APPLICATION_PAYLOAD);
+    return;
+  }
+
+  if (response_code_ >= 100 && response_code_ < 200) {
+    // These are Informational 1xx headers, not the actual response headers.
+    QUIC_DLOG(INFO) << "Received informational response code: "
+                    << response_headers_[":status"].as_string() << " on stream "
+                    << id();
     set_headers_decompressed(false);
-    has_preliminary_headers_ = true;
-    preliminary_headers_ = std::move(response_headers_);
+    if (response_code_ == 100 && !has_preliminary_headers_) {
+      // This is 100 Continue, save it to enable "Expect: 100-continue".
+      has_preliminary_headers_ = true;
+      preliminary_headers_ = std::move(response_headers_);
+    } else {
+      response_headers_.clear();
+    }
   }
 
   ConsumeHeaderList();

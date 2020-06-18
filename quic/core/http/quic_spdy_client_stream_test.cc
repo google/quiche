@@ -133,17 +133,77 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
   EXPECT_EQ(body_, stream_->data());
 }
 
-TEST_P(QuicSpdyClientStreamTest, TestFraming100Continue) {
+TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
+  // First send 100 Continue.
   headers_[":status"] = "100";
   auto headers = AsHeaderList(headers_);
   stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
                               headers);
-  stream_->OnStreamFrame(
-      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, body_));
   EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
   EXPECT_EQ(0u, stream_->response_headers().size());
   EXPECT_EQ(100, stream_->response_code());
   EXPECT_EQ("", stream_->data());
+  // Then send 200 OK.
+  headers_[":status"] = "200";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data =
+      connection_->version().UsesHttp3() ? header + body_ : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+  // Make sure the 200 response got parsed correctly.
+  EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
+  EXPECT_EQ(200, stream_->response_code());
+  EXPECT_EQ(body_, stream_->data());
+  // Make sure the 100 response is still available.
+  EXPECT_EQ("100", stream_->preliminary_headers().find(":status")->second);
+}
+
+TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
+  // First send 199, an unknown Informational (1XX).
+  headers_[":status"] = "199";
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_EQ(0u, stream_->response_headers().size());
+  EXPECT_EQ(199, stream_->response_code());
+  EXPECT_EQ("", stream_->data());
+  // Then send 200 OK.
+  headers_[":status"] = "200";
+  headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data =
+      connection_->version().UsesHttp3() ? header + body_ : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+  // Make sure the 200 response got parsed correctly.
+  EXPECT_EQ("200", stream_->response_headers().find(":status")->second);
+  EXPECT_EQ(200, stream_->response_code());
+  EXPECT_EQ(body_, stream_->data());
+}
+
+TEST_P(QuicSpdyClientStreamTest, TestReceiving101) {
+  // 101 "Switching Protocols" is forbidden in HTTP/3 as per the
+  // "HTTP Upgrade" section of draft-ietf-quic-http.
+  headers_[":status"] = "101";
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
+  auto headers = AsHeaderList(headers_);
+  stream_->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                              headers);
+  EXPECT_THAT(stream_->stream_error(),
+              IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
