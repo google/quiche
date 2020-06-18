@@ -2026,6 +2026,18 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
   return true;
 }
 
+std::string QuicConnection::UndecryptablePacketsInfo() const {
+  std::string info = quiche::QuicheStrCat(
+      "num_undecryptable_packets: ", undecryptable_packets_.size(), " {");
+  for (const auto& packet : undecryptable_packets_) {
+    info = quiche::QuicheStrCat(
+        info, "[", EncryptionLevelToString(packet.encryption_level), ", ",
+        packet.packet->length(), ", ", packet.processed, "]");
+  }
+  info = quiche::QuicheStrCat(info, "}");
+  return info;
+}
+
 void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
                                       const QuicSocketAddress& peer_address,
                                       const QuicReceivedPacket& packet) {
@@ -4567,10 +4579,14 @@ void QuicConnection::OnHandshakeTimeout() {
   DCHECK(use_idle_network_detector_);
   const QuicTime::Delta duration =
       clock_->ApproximateNow() - stats_.connection_creation_time;
-  const std::string error_details = quiche::QuicheStrCat(
+  std::string error_details = quiche::QuicheStrCat(
       "Handshake timeout expired after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.handshake_timeout().ToDebuggingValue());
+  if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
+    error_details =
+        quiche::QuicheStrCat(error_details, UndecryptablePacketsInfo());
+  }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
   CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

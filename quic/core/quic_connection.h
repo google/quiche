@@ -1323,6 +1323,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ShouldEnqueueUnDecryptablePacket(EncryptionLevel decryption_level,
                                         bool has_decryption_key) const;
 
+  // Returns string which contains undecryptable packets information.
+  std::string UndecryptablePacketsInfo() const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
