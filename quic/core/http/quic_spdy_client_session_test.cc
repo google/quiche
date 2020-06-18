@@ -1179,13 +1179,15 @@ TEST_P(QuicSpdyClientSessionTest,
     return;
   }
 
+  SetQuicReloadableFlag(quic_fix_gquic_stream_type, true);
+
   CompleteFirstConnection();
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
   QuicConfig config = DefaultQuicConfig();
   // Server doesn't allow any outgoing streams.
-  config.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(1);
+  config.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(2);
   config.SetInitialMaxStreamDataBytesUnidirectionalToSend(1);
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   session_->CryptoConnect();
@@ -1207,7 +1209,7 @@ TEST_P(QuicSpdyClientSessionTest,
                 CloseConnection(
                     QUIC_ZERO_RTT_UNRETRANSMITTABLE,
                     "Server rejected 0-RTT, aborting because new stream max "
-                    "data 1 for stream 3 is less than currently used: 5",
+                    "data 2 for stream 3 is less than currently used: 5",
                     _))
         .Times(1)
         .WillOnce(testing::Invoke(connection_,
