@@ -202,6 +202,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     SetQuicReloadableFlag(quic_donot_change_queued_ack, true);
     SetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time, true);
     SetQuicReloadableFlag(quic_fix_server_pto_timeout, true);
+    SetQuicReloadableFlag(quic_do_not_retransmit_immediately_on_zero_rtt_reject,
+                          true);
 
     SetQuicReloadableFlag(quic_support_handshake_done_in_t050, true);
     SetQuicReloadableFlag(quic_enable_tls_resumption, true);
@@ -1238,11 +1240,6 @@ TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
 }
 
 TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
-  if (version_.UsesTls()) {
-    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
-    Initialize();
-    return;
-  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1294,11 +1291,6 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 }
 
 TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
-  if (version_.UsesTls()) {
-    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
-    Initialize();
-    return;
-  }
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1374,11 +1366,6 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   client_->Disconnect();
 
   // Restart the server so that the 0-RTT handshake will take 1 RTT.
-  if (version_.UsesTls()) {
-    // TODO(b/159168475): 0-RTT rejection in TLS currently doesn't work - stream
-    // data attempts to get retransmitted under ENCRYPTION_HANDSHAKE keys.
-    return;
-  }
   StopServer();
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
@@ -3940,11 +3927,6 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
 }
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
-  if (version_.UsesTls()) {
-    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
-    Initialize();
-    return;
-  }
   ASSERT_TRUE(Initialize());
   // Finish one request to make sure handshake established.
   client_->SendSynchronousRequest("/foo");
