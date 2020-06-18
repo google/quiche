@@ -299,7 +299,6 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdateWithCert) {
   // Recreate connection with the new config and verify a 0-RTT attempt.
   CreateConnection();
 
-  EXPECT_CALL(*connection_, OnCanWrite());
   EXPECT_CALL(*session_, OnProofValid(testing::_));
   EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_))
       .Times(testing::AnyNumber());

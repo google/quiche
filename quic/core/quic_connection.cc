@@ -2338,7 +2338,10 @@ void QuicConnection::SendProbingRetransmissions() {
 void QuicConnection::RetransmitZeroRttPackets() {
   sent_packet_manager_.RetransmitZeroRttPackets();
 
-  WriteIfNotBlocked();
+  if (!GetQuicReloadableFlag(
+          quic_do_not_retransmit_immediately_on_zero_rtt_reject)) {
+    WriteIfNotBlocked();
+  }
 }
 
 void QuicConnection::NeuterUnencryptedPackets() {

@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -237,8 +238,6 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
     // This test relies on resumption and is QUIC crypto specific, so it is
     // disabled for TLS.
-    // TODO(nharper): Add support for resumption to the TLS handshake, and fix
-    // this test to not rely on QUIC crypto.
     return;
   }
   // Complete a handshake in order to prime the crypto config for 0-RTT.
@@ -247,7 +246,6 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   // Now create a second session using the same crypto config.
   Initialize();
 
-  EXPECT_CALL(*connection_, OnCanWrite());
   // Starting the handshake should move immediately to encryption
   // established and will allow streams to be created.
   session_->CryptoConnect();
@@ -1075,7 +1073,10 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   }
 }
 
+// Regression test for b/159168475
 TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
+  SetQuicReloadableFlag(quic_do_not_retransmit_immediately_on_zero_rtt_reject,
+                        true);
   // This feature is TLS-only.
   if (session_->version().UsesQuicCrypto()) {
     return;
@@ -1085,6 +1086,11 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
 
   // Create a second connection, but disable 0-RTT on the server.
   CreateConnection();
+  ON_CALL(*connection_, OnCanWrite())
+      .WillByDefault(
+          testing::Invoke(connection_, &MockQuicConnection::ReallyOnCanWrite));
+  EXPECT_CALL(*connection_, OnCanWrite()).Times(0);
+
   QuicConfig config = DefaultQuicConfig();
   config.SetMaxUnidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);
   config.SetMaxBidirectionalStreamsToSend(kDefaultMaxStreamsPerConnection);

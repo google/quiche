@@ -676,6 +676,8 @@ class MockQuicConnection : public QuicConnection {
     QuicConnection::OnError(framer);
   }
 
+  void ReallyOnCanWrite() { QuicConnection::OnCanWrite(); }
+
   void ReallyCloseConnection(
       QuicErrorCode error,
       const std::string& details,

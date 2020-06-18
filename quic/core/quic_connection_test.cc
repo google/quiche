@@ -4543,6 +4543,8 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
+  SetQuicReloadableFlag(quic_do_not_retransmit_immediately_on_zero_rtt_reject,
+                        true);
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x01));
@@ -4555,9 +4557,9 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   SendStreamDataToPeer(2, "bar", 0, NO_FIN, nullptr);
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-
+  EXPECT_FALSE(notifier_.HasLostStreamData());
   connection_.RetransmitZeroRttPackets();
+  EXPECT_TRUE(notifier_.HasLostStreamData());
 }
 
 TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
