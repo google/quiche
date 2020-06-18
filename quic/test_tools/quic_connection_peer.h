@@ -147,6 +147,8 @@ class QuicConnectionPeer {
   static void SetServerConnectionId(
       QuicConnection* connection,
       const QuicConnectionId& server_connection_id);
+
+  static size_t NumUndecryptablePackets(QuicConnection* connection);
 };
 
 }  // namespace test

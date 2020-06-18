@@ -377,5 +377,10 @@ void QuicConnectionPeer::SetServerConnectionId(
   connection->InstallInitialCrypters(server_connection_id);
 }
 
+// static
+size_t QuicConnectionPeer::NumUndecryptablePackets(QuicConnection* connection) {
+  return connection->undecryptable_packets_.size();
+}
+
 }  // namespace test
 }  // namespace quic

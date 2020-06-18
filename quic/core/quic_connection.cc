@@ -1989,24 +1989,8 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
     ++stats_.undecryptable_packets_received_before_handshake_complete;
   }
 
-  bool should_enqueue = true;
-  if (encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
-    // We do not expect to install any further keys.
-    should_enqueue = false;
-  } else if (undecryptable_packets_.size() >= max_undecryptable_packets_) {
-    // We do not queue more than max_undecryptable_packets_ packets.
-    should_enqueue = false;
-  } else if (has_decryption_key) {
-    // We already have the key for this decryption level, therefore no
-    // future keys will allow it be decrypted.
-    should_enqueue = false;
-  } else if (version().KnowsWhichDecrypterToUse() &&
-             decryption_level <= encryption_level_) {
-    // On versions that know which decrypter to use, we install keys in order
-    // so we will not get newer keys for lower encryption levels.
-    should_enqueue = false;
-  }
-
+  const bool should_enqueue =
+      ShouldEnqueueUnDecryptablePacket(decryption_level, has_decryption_key);
   if (should_enqueue) {
     QueueUndecryptablePacket(packet, decryption_level);
   }
@@ -2015,6 +1999,31 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
     debug_visitor_->OnUndecryptablePacket(decryption_level,
                                           /*dropped=*/!should_enqueue);
   }
+}
+
+bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
+    EncryptionLevel decryption_level,
+    bool has_decryption_key) const {
+  if (encryption_level_ == ENCRYPTION_FORWARD_SECURE) {
+    // We do not expect to install any further keys.
+    return false;
+  }
+  if (undecryptable_packets_.size() >= max_undecryptable_packets_) {
+    // We do not queue more than max_undecryptable_packets_ packets.
+    return false;
+  }
+  if (has_decryption_key) {
+    // We already have the key for this decryption level, therefore no
+    // future keys will allow it be decrypted.
+    return false;
+  }
+  if (version().KnowsWhichDecrypterToUse() &&
+      decryption_level <= encryption_level_) {
+    // On versions that know which decrypter to use, we install keys in order
+    // so we will not get newer keys for lower encryption levels.
+    return false;
+  }
+  return true;
 }
 
 void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
@@ -3142,27 +3151,79 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
     return;
   }
 
-  while (connected_ && !undecryptable_packets_.empty()) {
-    // Making sure there is no pending frames when processing next undecrypted
-    // packet because the queued ack frame may change.
-    packet_creator_.FlushCurrentPacket();
-    if (!connected_) {
-      return;
+  if (GetQuicReloadableFlag(quic_fix_undecryptable_packets)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_undecryptable_packets);
+    auto iter = undecryptable_packets_.begin();
+    while (connected_ && iter != undecryptable_packets_.end()) {
+      // Making sure there is no pending frames when processing next undecrypted
+      // packet because the queued ack frame may change.
+      packet_creator_.FlushCurrentPacket();
+      if (!connected_) {
+        return;
+      }
+      UndecryptablePacket* undecryptable_packet = &*iter;
+      ++iter;
+      if (undecryptable_packet->processed) {
+        continue;
+      }
+      QUIC_DVLOG(1) << ENDPOINT << "Attempting to process undecryptable packet";
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
+            undecryptable_packet->encryption_level);
+      }
+      if (framer_.ProcessPacket(*undecryptable_packet->packet)) {
+        QUIC_DVLOG(1) << ENDPOINT << "Processed undecryptable packet!";
+        undecryptable_packet->processed = true;
+        ++stats_.packets_processed;
+        continue;
+      }
+      const bool has_decryption_key =
+          version().KnowsWhichDecrypterToUse() &&
+          framer_.HasDecrypterOfEncryptionLevel(
+              undecryptable_packet->encryption_level);
+      if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
+          ShouldEnqueueUnDecryptablePacket(
+              undecryptable_packet->encryption_level, has_decryption_key)) {
+        QUIC_DVLOG(1)
+            << ENDPOINT
+            << "Need to attempt to process this undecryptable packet later";
+        continue;
+      }
+      undecryptable_packet->processed = true;
     }
-    QUIC_DVLOG(1) << ENDPOINT << "Attempting to process undecryptable packet";
-    const auto& undecryptable_packet = undecryptable_packets_.front();
-    if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
-          undecryptable_packet.encryption_level);
+    // Remove processed packets. We cannot remove elements in the while loop
+    // above because currently QuicCircularDeque does not support removing
+    // mid elements.
+    while (!undecryptable_packets_.empty()) {
+      if (!undecryptable_packets_.front().processed) {
+        break;
+      }
+      undecryptable_packets_.pop_front();
     }
-    if (!framer_.ProcessPacket(*undecryptable_packet.packet) &&
-        framer_.error() == QUIC_DECRYPTION_FAILURE) {
-      QUIC_DVLOG(1) << ENDPOINT << "Unable to process undecryptable packet...";
-      break;
+  } else {
+    while (connected_ && !undecryptable_packets_.empty()) {
+      // Making sure there is no pending frames when processing next undecrypted
+      // packet because the queued ack frame may change.
+      packet_creator_.FlushCurrentPacket();
+      if (!connected_) {
+        return;
+      }
+      QUIC_DVLOG(1) << ENDPOINT << "Attempting to process undecryptable packet";
+      const auto& undecryptable_packet = undecryptable_packets_.front();
+      if (debug_visitor_ != nullptr) {
+        debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
+            undecryptable_packet.encryption_level);
+      }
+      if (!framer_.ProcessPacket(*undecryptable_packet.packet) &&
+          framer_.error() == QUIC_DECRYPTION_FAILURE) {
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "Unable to process undecryptable packet...";
+        break;
+      }
+      QUIC_DVLOG(1) << ENDPOINT << "Processed undecryptable packet!";
+      ++stats_.packets_processed;
+      undecryptable_packets_.pop_front();
     }
-    QUIC_DVLOG(1) << ENDPOINT << "Processed undecryptable packet!";
-    ++stats_.packets_processed;
-    undecryptable_packets_.pop_front();
   }
 
   // Once forward secure encryption is in use, there will be no

@@ -2007,6 +2007,10 @@ bool QuicFramer::HasEncrypterOfEncryptionLevel(EncryptionLevel level) const {
   return encrypter_[level] != nullptr;
 }
 
+bool QuicFramer::HasDecrypterOfEncryptionLevel(EncryptionLevel level) const {
+  return decrypter_[level] != nullptr;
+}
+
 bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
                                     QuicDataWriter* writer,
                                     size_t* length_field_offset) {
