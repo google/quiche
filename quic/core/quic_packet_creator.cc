@@ -550,6 +550,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
     TransmissionType transmission_type,
     size_t* num_bytes_consumed) {
   DCHECK(queued_frames_.empty());
+  DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
   // Write out the packet header
   QuicPacketHeader header;
   FillPacketHeader(&header);
@@ -638,6 +639,9 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   packet_.transmission_type = transmission_type;
 
+  DCHECK(packet_.encryption_level == ENCRYPTION_FORWARD_SECURE ||
+         packet_.encryption_level == ENCRYPTION_ZERO_RTT)
+      << packet_.encryption_level;
   size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header),
@@ -838,6 +842,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
       header, buffer.get(), max_plaintext_size_, packet_.encryption_level);
   DCHECK(length);
 
+  DCHECK_EQ(packet_.encryption_level, ENCRYPTION_FORWARD_SECURE);
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,
@@ -877,6 +882,7 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
       packet_.encryption_level);
   DCHECK(length);
 
+  DCHECK_EQ(packet_.encryption_level, ENCRYPTION_FORWARD_SECURE);
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,
@@ -918,6 +924,7 @@ QuicPacketCreator::SerializePathResponseConnectivityProbingPacket(
                               payloads, is_padded, packet_.encryption_level);
   DCHECK(length);
 
+  DCHECK_EQ(packet_.encryption_level, ENCRYPTION_FORWARD_SECURE);
   const size_t encrypted_length = framer_->EncryptInPlace(
       packet_.encryption_level, packet_.packet_number,
       GetStartOfEncryptedData(framer_->transport_version(), header), length,

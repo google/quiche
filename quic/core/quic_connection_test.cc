@@ -1771,6 +1771,16 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     EXPECT_TRUE(connection_.connected());
   }
 
+  void PathProbeTestInit(Perspective perspective) {
+    set_perspective(perspective);
+    EXPECT_EQ(connection_.perspective(), perspective);
+    if (perspective == Perspective::IS_SERVER) {
+      QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+    }
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  }
+
   void TestClientRetryHandling(bool invalid_retry_tag,
                                bool missing_original_id_in_config,
                                bool wrong_original_id_in_config,
@@ -2086,9 +2096,7 @@ TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceivePathProbeWithNoAddressChangeAtServer) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2199,9 +2207,7 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
 // in IETF version: receive a packet contains PATH CHALLENGE with peer address
 // change.
 TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2339,9 +2345,7 @@ TEST_P(QuicConnectionTest, ReceivePaddedPingWithPortChangeAtServer) {
 }
 
 TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2397,9 +2401,7 @@ TEST_P(QuicConnectionTest, ReceiveReorderedPathProbingAtServer) {
 }
 
 TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2454,8 +2456,7 @@ TEST_P(QuicConnectionTest, MigrateAfterProbingAtServer) {
 
 TEST_P(QuicConnectionTest, ReceivePaddedPingAtClient) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  set_perspective(Perspective::IS_CLIENT);
-  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_CLIENT);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -2503,8 +2504,7 @@ TEST_P(QuicConnectionTest, ReceiveConnectivityProbingResponseAtClient) {
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  set_perspective(Perspective::IS_CLIENT);
-  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_CLIENT);
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -7325,7 +7325,7 @@ TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
 }
 
 TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
-  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_CLIENT);
   TestPacketWriter probing_writer(version(), &clock_);
   // Block next write so that sending connectivity probe will encounter a
   // blocked write when send a connectivity probe to the peer.
@@ -7341,8 +7341,7 @@ TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   // Block next write so that sending connectivity probe will encounter a
   // blocked write when send a connectivity probe to the peer.
@@ -7358,7 +7357,7 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
-  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_CLIENT);
   TestPacketWriter probing_writer(version(), &clock_);
   probing_writer.SetShouldWriteFail();
 
@@ -7373,8 +7372,7 @@ TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
 }
 
 TEST_P(QuicConnectionTest, WriterErrorWhenServerSendsConnectivityProbe) {
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  PathProbeTestInit(Perspective::IS_SERVER);
 
   writer_->SetShouldWriteFail();
   // Connection should not be closed if a connectivity probe is failed to be
@@ -7695,6 +7693,7 @@ TEST_P(QuicConnectionTest, ConnectionCloseWhenWriteBlocked) {
 }
 
 TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
+  PathProbeTestInit(Perspective::IS_CLIENT);
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
@@ -9241,8 +9240,7 @@ TEST_P(QuicConnectionTest,
     return;
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  set_perspective(Perspective::IS_CLIENT);
-  EXPECT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+  PathProbeTestInit(Perspective::IS_CLIENT);
 
   // Clear direct_peer_address and effective_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());

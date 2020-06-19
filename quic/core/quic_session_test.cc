@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
@@ -570,6 +571,11 @@ class QuicSessionTestServer : public QuicSessionTestBase {
                        kQuicDefaultConnectionIdLength) {
     client_framer_.set_visitor(&framer_visitor_);
     client_framer_.SetInitialObfuscators(TestConnectionId());
+    if (client_framer_.version().KnowsWhichDecrypterToUse()) {
+      client_framer_.InstallDecrypter(
+          ENCRYPTION_FORWARD_SECURE,
+          std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
+    }
   }
 
   QuicPathFrameBuffer path_frame_buffer1_;
@@ -1448,6 +1454,7 @@ TEST_P(QuicSessionTestServer, InvalidGoAway) {
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   QuicSocketAddress old_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
   EXPECT_EQ(old_peer_address, session_.peer_address());
@@ -1481,6 +1488,7 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   QuicSocketAddress old_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
   EXPECT_EQ(old_peer_address, session_.peer_address());
