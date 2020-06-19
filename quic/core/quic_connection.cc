@@ -4248,6 +4248,11 @@ void QuicConnection::MaybeBundleCryptoDataWithInitialAck() {
     // Not going to send initial ACK.
     return;
   }
+  if (coalesced_packet_.length() > 0) {
+    // Do not bundle CRYPTO data if the ACK could be coalesced with other
+    // packets.
+    return;
+  }
   // Initial ACK will be padded to full anyway, so try to bundle INITIAL crypto
   // data.
   sent_packet_manager_.RetransmitInitialDataIfAny();
