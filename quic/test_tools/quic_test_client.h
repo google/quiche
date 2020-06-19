@@ -202,16 +202,12 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
   void WaitForInitialResponse() { WaitForInitialResponseForMs(-1); }
 
   // Returns once at least one complete response or a connection close has been
-  // received from the server, or once the timeout expires. Also waits for
-  // pending ACKs to be flushed.
+  // received from the server, or once the timeout expires.
   // Passing in a timeout value of -1 disables the timeout. If multiple
   // responses are received while the client is waiting, subsequent calls to
   // this function will return immediately.
   void WaitForResponseForMs(int timeout_ms) {
-    WaitUntil(timeout_ms, [this]() {
-      return !closed_stream_states_.empty() &&
-             !client()->client_session()->connection()->HasPendingAcks();
-    });
+    WaitUntil(timeout_ms, [this]() { return !closed_stream_states_.empty(); });
     if (response_complete()) {
       QUIC_VLOG(1) << "Client received response:"
                    << response_headers()->DebugString() << response_body();
