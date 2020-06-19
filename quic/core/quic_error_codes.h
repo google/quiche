@@ -431,8 +431,12 @@ enum QuicErrorCode {
   QUIC_HTTP_INVALID_MAX_PUSH_ID = 159,
   // Received unidirectional stream limit is lower than required by HTTP/3.
   QUIC_HTTP_STREAM_LIMIT_TOO_LOW = 160,
-  // Received mismatched SETTINGS frame from HTTP/3 0-RTT connection.
-  QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH = 164,
+  // Received mismatched SETTINGS frame from HTTP/3 connection where early data
+  // is accepted. Server violated the HTTP/3 spec.
+  QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH = 164,
+  // Received mismatched SETTINGS frame from HTTP/3 connection where early data
+  // is rejected. Our implementation currently doesn't support it.
+  QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH = 165,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -481,7 +485,7 @@ enum QuicErrorCode {
   QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED = 163,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 165,
+  QUIC_LAST_ERROR = 166,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

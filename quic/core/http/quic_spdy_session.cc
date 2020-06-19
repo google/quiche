@@ -910,11 +910,17 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         // Required Insert Count.
         bool success = qpack_encoder_->SetMaximumDynamicTableCapacity(value);
         if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) && !success) {
-          // TODO(b/153726130): Use different error code for the case of 0-RTT
-          // rejection.
           CloseConnectionWithDetails(
-              QUIC_INTERNAL_ERROR,
-              "Server sent an invalid SETTINGS_QPACK_MAX_TABLE_CAPACITY.");
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              quiche::QuicheStrCat(
+                  was_zero_rtt_rejected()
+                      ? "Server rejected 0-RTT, aborting because "
+                      : "",
+                  "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: ", value,
+                  "while current value is: ",
+                  qpack_encoder_->MaximumDynamicTableCapacity()));
           return false;
         }
         // However, limit the dynamic table capacity to
@@ -928,12 +934,20 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                       << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
                       << value;
         if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) &&
-            max_outbound_header_list_size_ < value) {
-          // TODO(b/153726130): Use different error code for the case of 0-RTT
-          // rejection.
+            max_outbound_header_list_size_ !=
+                std::numeric_limits<size_t>::max() &&
+            max_outbound_header_list_size_ > value) {
           CloseConnectionWithDetails(
-              QUIC_INTERNAL_ERROR,
-              "Server sent an invalid SETTINGS_MAX_HEADER_LIST_SIZE.");
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              quiche::QuicheStrCat(
+                  was_zero_rtt_rejected()
+                      ? "Server rejected 0-RTT, aborting because "
+                      : "",
+                  "Server sent an SETTINGS_MAX_HEADER_LIST_SIZE: ", value,
+                  "which reduces current value: ",
+                  max_outbound_header_list_size_));
           return false;
         }
         max_outbound_header_list_size_ = value;
@@ -943,12 +957,18 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                       << "SETTINGS_QPACK_BLOCKED_STREAMS received with value "
                       << value;
         bool success = qpack_encoder_->SetMaximumBlockedStreams(value);
-        // TODO(b/153726130): Use different error code for the case of 0-RTT
-        // rejection.
         if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls) && !success) {
           CloseConnectionWithDetails(
-              QUIC_INTERNAL_ERROR,
-              "Server sent an invalid SETTINGS_QPACK_BLOCKED_STREAMS.");
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              quiche::QuicheStrCat(
+                  was_zero_rtt_rejected()
+                      ? "Server rejected 0-RTT, aborting because "
+                      : "",
+                  "Server sent an SETTINGS_QPACK_BLOCKED_STREAMS: ", value,
+                  "which reduces current value: ",
+                  qpack_encoder_->maximum_blocked_streams()));
           return false;
         }
         break;

@@ -1369,7 +1369,7 @@ TEST_P(QuicSpdyClientSessionTest, SetMaxPushIdAfterEncryptionEstablished) {
   EXPECT_TRUE(session_->GetCryptoStream()->IsResumption());
 }
 
-TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRtt) {
+TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttResumption) {
   if (!session_->version().UsesHttp3()) {
     return;
   }
@@ -1380,13 +1380,46 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRtt) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(session_->GetCryptoStream()->EarlyDataAccepted());
 
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_INTERNAL_ERROR, _, _))
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH, _, _))
       .WillOnce(testing::Invoke(connection_,
                                 &MockQuicConnection::ReallyCloseConnection));
   // Let the session receive a different SETTINGS frame.
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
   settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[256] = 4;  // unknown setting
+  session_->OnSettingsFrame(settings);
+}
+
+TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttRejection) {
+  if (!session_->version().UsesHttp3()) {
+    return;
+  }
+
+  CompleteFirstConnection();
+
+  CreateConnection();
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  session_->CryptoConnect();
+  EXPECT_TRUE(session_->IsEncryptionEstablished());
+  QuicConfig config = DefaultQuicConfig();
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &helper_, &alarm_factory_,
+      connection_, crypto_stream_, AlpnForVersion(connection_->version()));
+  EXPECT_FALSE(session_->GetCryptoStream()->EarlyDataAccepted());
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH, _, _))
+      .WillOnce(testing::Invoke(connection_,
+                                &MockQuicConnection::ReallyCloseConnection));
+  // Let the session receive a different SETTINGS frame.
+  SettingsFrame settings;
+  settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
+  // setting on SETTINGS_MAX_HEADER_LIST_SIZE is reduced.
+  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 4;
   settings.values[256] = 4;  // unknown setting
   session_->OnSettingsFrame(settings);
 }
@@ -1402,8 +1435,9 @@ TEST_P(QuicSpdyClientSessionTest, ServerAcceptsZeroRttButOmitSetting) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(session_->GetMutableCryptoStream()->EarlyDataAccepted());
 
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH, _, _))
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH, _, _))
       .WillOnce(testing::Invoke(connection_,
                                 &MockQuicConnection::ReallyCloseConnection));
   // Let the session receive a different SETTINGS frame.

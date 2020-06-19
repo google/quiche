@@ -239,7 +239,7 @@ bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
         frame.values.find(SETTINGS_MAX_HEADER_LIST_SIZE) ==
             frame.values.end()) {
       CloseConnectionWithDetails(
-          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
           "Server accepted 0-RTT but omitted non-default "
           "SETTINGS_MAX_HEADER_LIST_SIZE");
       return false;
@@ -249,7 +249,7 @@ bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
         frame.values.find(SETTINGS_QPACK_BLOCKED_STREAMS) ==
             frame.values.end()) {
       CloseConnectionWithDetails(
-          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
           "Server accepted 0-RTT but omitted non-default "
           "SETTINGS_QPACK_BLOCKED_STREAMS");
       return false;
@@ -259,7 +259,7 @@ bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
         frame.values.find(SETTINGS_QPACK_MAX_TABLE_CAPACITY) ==
             frame.values.end()) {
       CloseConnectionWithDetails(
-          QUIC_HTTP_ZERO_RTT_SETTINGS_MISMATCH,
+          QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
           "Server accepted 0-RTT but omitted non-default "
           "SETTINGS_QPACK_MAX_TABLE_CAPACITY");
       return false;
