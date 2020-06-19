@@ -658,6 +658,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // If true, use standard deviation (instead of mean deviation) when
   // calculating PTO timeout.
   bool use_standard_deviation_for_pto_;
+
+  // The multiplier for caculating PTO timeout before any RTT sample is
+  // available.
+  float pto_multiplier_without_rtt_samples_;
 };
 
 }  // namespace quic

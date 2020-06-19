@@ -4096,6 +4096,30 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest,
+       AggressivePtoBeforeAnyRttSamplesAreAvailable) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+
+  QuicConfig config;
+  QuicTagVector options;
+  options.push_back(kAPTO);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  // Send INITIAL 1.
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  // Verify retransmission timeout is expected.
+  EXPECT_EQ(clock_.Now() + 1.5 * rtt_stats->initial_rtt(),
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

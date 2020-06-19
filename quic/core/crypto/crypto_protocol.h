@@ -233,6 +233,8 @@ const QuicTag kPLE2 = TAG('P', 'L', 'E', '2');   // Arm the 1st PTO with
                                                  // earliest in flight sent time
                                                  // and at least 1.5*srtt from
                                                  // last sent packet.
+const QuicTag kAPTO = TAG('A', 'P', 'T', 'O');   // Use 1.5 * initial RTT before
+                                                 // any RTT sample is available.
 
 const QuicTag kELDT = TAG('E', 'L', 'D', 'T');   // Enable Loss Detection Tuning
 

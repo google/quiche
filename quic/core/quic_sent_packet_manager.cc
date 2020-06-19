@@ -107,7 +107,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       one_rtt_packet_acked_(false),
       one_rtt_packet_sent_(false),
       first_pto_srtt_multiplier_(0),
-      use_standard_deviation_for_pto_(false) {
+      use_standard_deviation_for_pto_(false),
+      pto_multiplier_without_rtt_samples_(3) {
   SetSendAlgorithm(congestion_control_type);
   if (pto_enabled_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
@@ -196,6 +197,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       first_pto_srtt_multiplier_ = 0.5;
     } else if (config.HasClientSentConnectionOption(kPLE2, perspective)) {
       first_pto_srtt_multiplier_ = 1.5;
+    }
+    if (config.HasClientSentConnectionOption(kAPTO, perspective)) {
+      pto_multiplier_without_rtt_samples_ = 1.5;
     }
     if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
       use_standard_deviation_for_pto_ = true;
@@ -1230,8 +1234,9 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     // Respect kMinHandshakeTimeoutMs to avoid a potential amplification attack.
     QUIC_BUG_IF(rtt_stats_.initial_rtt().IsZero());
-    return std::max(3 * rtt_stats_.initial_rtt(),
-                    QuicTime::Delta::FromMilliseconds(kMinHandshakeTimeoutMs)) *
+    return std::max(
+               pto_multiplier_without_rtt_samples_ * rtt_stats_.initial_rtt(),
+               QuicTime::Delta::FromMilliseconds(kMinHandshakeTimeoutMs)) *
            (1 << consecutive_pto_count_);
   }
   const QuicTime::Delta rtt_var = use_standard_deviation_for_pto_
