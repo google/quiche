@@ -251,9 +251,8 @@ class TestSession : public QuicSpdySession {
     } else {
       TestStream* stream = new TestStream(
           id, this,
-          DetermineStreamType(id, connection()->transport_version(),
-                              perspective(), /*is_incoming=*/true,
-                              BIDIRECTIONAL));
+          DetermineStreamType(id, connection()->version(), perspective(),
+                              /*is_incoming=*/true, BIDIRECTIONAL));
       ActivateStream(QuicWrapUnique(stream));
       return stream;
     }
@@ -261,11 +260,10 @@ class TestSession : public QuicSpdySession {
 
   TestStream* CreateIncomingStream(PendingStream* pending) override {
     QuicStreamId id = pending->id();
-    TestStream* stream =
-        new TestStream(pending, this,
-                       DetermineStreamType(
-                           id, connection()->transport_version(), perspective(),
-                           /*is_incoming=*/true, BIDIRECTIONAL));
+    TestStream* stream = new TestStream(
+        pending, this,
+        DetermineStreamType(id, connection()->version(), perspective(),
+                            /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     return stream;
   }

@@ -1620,7 +1620,7 @@ QuicStreamId GetNthClientInitiatedUnidirectionalStreamId(
     int n);
 
 StreamType DetermineStreamType(QuicStreamId id,
-                               QuicTransportVersion version,
+                               ParsedQuicVersion version,
                                Perspective perspective,
                                bool is_incoming,
                                StreamType default_type);

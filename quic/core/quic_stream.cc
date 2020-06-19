@@ -46,7 +46,7 @@ QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
 
   // Unidirectional streams (v99 only).
   if (VersionHasIetfQuicFrames(version.transport_version) &&
-      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
+      !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
     return session->config()
         ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
   }
@@ -74,7 +74,7 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 
   // Unidirectional streams (v99 only).
   if (VersionHasIetfQuicFrames(version.transport_version) &&
-      !QuicUtils::IsBidirectionalStreamId(stream_id)) {
+      !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
     if (session->config()
             ->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
       return session->config()
@@ -359,7 +359,8 @@ QuicStream::QuicStream(QuicStreamId id,
                     type != CRYPTO
                 ? QuicUtils::GetStreamType(id_,
                                            session->perspective(),
-                                           session->IsIncomingStream(id_))
+                                           session->IsIncomingStream(id_),
+                                           session->version())
                 : type),
       perspective_(session->perspective()) {
   if (type_ == WRITE_UNIDIRECTIONAL) {

@@ -152,7 +152,7 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
   }
 
   if (VersionHasIetfQuicFrames(transport_version()) &&
-      QuicUtils::IsBidirectionalStreamId(id)) {
+      QuicUtils::IsBidirectionalStreamId(id, version())) {
     connection()->CloseConnection(
         QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM,
         "Server created bidirectional stream.",

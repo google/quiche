@@ -184,8 +184,8 @@ void QuicSession::OnStreamFrame(const QuicStreamFrame& frame) {
 
   if (UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id)) ==
-          READ_UNIDIRECTIONAL &&
+                               IsIncomingStream(stream_id),
+                               version()) == READ_UNIDIRECTIONAL &&
       stream_map_.find(stream_id) == stream_map_.end()) {
     PendingStreamOnStreamFrame(frame);
     return;
@@ -232,8 +232,8 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   // If stream_id is READ_UNIDIRECTIONAL, close the connection.
   if (QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id)) ==
-      READ_UNIDIRECTIONAL) {
+                               IsIncomingStream(stream_id),
+                               version()) == READ_UNIDIRECTIONAL) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Received STOP_SENDING for a read-only stream_id: "
                   << stream_id << ".";
@@ -298,7 +298,7 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
   // Pending stream is currently read only. We can safely close the stream.
   DCHECK_EQ(READ_UNIDIRECTIONAL,
             QuicUtils::GetStreamType(pending->id(), perspective(),
-                                     /*peer_initiated = */ true));
+                                     /*peer_initiated = */ true, version()));
   ClosePendingStream(stream_id);
 }
 
@@ -313,8 +313,8 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
 
   if (VersionHasIetfQuicFrames(transport_version()) &&
       QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id)) ==
-          WRITE_UNIDIRECTIONAL) {
+                               IsIncomingStream(stream_id),
+                               version()) == WRITE_UNIDIRECTIONAL) {
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID, "Received RESET_STREAM for a write-only stream",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -327,8 +327,8 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
 
   if (UsesPendingStreams() &&
       QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id)) ==
-          READ_UNIDIRECTIONAL &&
+                               IsIncomingStream(stream_id),
+                               version()) == READ_UNIDIRECTIONAL &&
       stream_map_.find(stream_id) == stream_map_.end()) {
     PendingStreamOnRstStream(frame);
     return;
@@ -467,8 +467,8 @@ void QuicSession::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
   if (VersionHasIetfQuicFrames(transport_version()) &&
       QuicUtils::GetStreamType(stream_id, perspective(),
-                               IsIncomingStream(stream_id)) ==
-          READ_UNIDIRECTIONAL) {
+                               IsIncomingStream(stream_id),
+                               version()) == READ_UNIDIRECTIONAL) {
     connection()->CloseConnection(
         QUIC_WINDOW_UPDATE_RECEIVED_ON_READ_UNIDIRECTIONAL_STREAM,
         "WindowUpdateFrame received on READ_UNIDIRECTIONAL stream.",
@@ -782,8 +782,8 @@ void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
                                           QuicStreamOffset bytes_written) {
   DCHECK(connection()->connected());
   if (!VersionHasIetfQuicFrames(transport_version()) ||
-      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
-          READ_UNIDIRECTIONAL) {
+      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
+                               version()) != READ_UNIDIRECTIONAL) {
     control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
   }
 }
@@ -792,8 +792,8 @@ void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
                                             QuicRstStreamErrorCode error) {
   DCHECK(connection()->connected());
   if (VersionHasIetfQuicFrames(transport_version()) &&
-      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id)) !=
-          WRITE_UNIDIRECTIONAL) {
+      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
+                               version()) != WRITE_UNIDIRECTIONAL) {
     control_frame_manager_.WriteOrBufferStopSending(error, id);
   }
 }
@@ -1332,7 +1332,7 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
         continue;
       }
     } else {
-      if (QuicUtils::IsBidirectionalStreamId(id)) {
+      if (QuicUtils::IsBidirectionalStreamId(id, version())) {
         continue;
       }
     }
@@ -1366,7 +1366,7 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
         continue;
       }
     } else {
-      if (!QuicUtils::IsBidirectionalStreamId(id)) {
+      if (!QuicUtils::IsBidirectionalStreamId(id, version())) {
         continue;
       }
     }
@@ -1400,7 +1400,7 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
         continue;
       }
     } else {
-      if (!QuicUtils::IsBidirectionalStreamId(id)) {
+      if (!QuicUtils::IsBidirectionalStreamId(id, version())) {
         continue;
       }
     }

@@ -98,6 +98,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     client_session_cache_ = client_cache.get();
     SetQuicReloadableFlag(quic_enable_tls_resumption, true);
     SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
+    SetQuicReloadableFlag(quic_fix_gquic_stream_type, true);
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(), std::move(client_cache));
     server_crypto_config_ = crypto_test_utils::CryptoServerConfigForTesting();
@@ -1178,8 +1179,6 @@ TEST_P(QuicSpdyClientSessionTest,
   if (session_->version().UsesQuicCrypto()) {
     return;
   }
-
-  SetQuicReloadableFlag(quic_fix_gquic_stream_type, true);
 
   CompleteFirstConnection();
 

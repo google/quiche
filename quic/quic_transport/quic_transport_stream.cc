@@ -23,7 +23,8 @@ QuicTransportStream::QuicTransportStream(
                  /*is_static=*/false,
                  QuicUtils::GetStreamType(id,
                                           session->connection()->perspective(),
-                                          session->IsIncomingStream(id))),
+                                          session->IsIncomingStream(id),
+                                          session->version())),
       session_interface_(session_interface) {}
 
 size_t QuicTransportStream::Read(char* buffer, size_t buffer_size) {

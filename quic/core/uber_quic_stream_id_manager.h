@@ -94,6 +94,7 @@ class QUIC_EXPORT_PRIVATE UberQuicStreamIdManager {
   friend class test::QuicSessionPeer;
   friend class test::UberQuicStreamIdManagerPeer;
 
+  ParsedQuicVersion version_;
   // Manages stream IDs of bidirectional streams.
   QuicStreamIdManager bidirectional_stream_id_manager_;
 

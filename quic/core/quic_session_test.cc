@@ -243,11 +243,10 @@ class TestSession : public QuicSession {
       return nullptr;
     }
 
-    TestStream* stream =
-        new TestStream(id, this,
-                       DetermineStreamType(
-                           id, connection()->transport_version(), perspective(),
-                           /*is_incoming=*/true, BIDIRECTIONAL));
+    TestStream* stream = new TestStream(
+        id, this,
+        DetermineStreamType(id, connection()->version(), perspective(),
+                            /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
@@ -256,8 +255,7 @@ class TestSession : public QuicSession {
   TestStream* CreateIncomingStream(PendingStream* pending) override {
     QuicStreamId id = pending->id();
     TestStream* stream = new TestStream(
-        pending, DetermineStreamType(id, connection()->transport_version(),
-                                     perspective(),
+        pending, DetermineStreamType(id, connection()->version(), perspective(),
                                      /*is_incoming=*/true, BIDIRECTIONAL));
     ActivateStream(QuicWrapUnique(stream));
     ++num_incoming_streams_created_;
@@ -438,15 +436,15 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void CloseStream(QuicStreamId id) {
     if (VersionHasIetfQuicFrames(transport_version())) {
-      if (QuicUtils::GetStreamType(id, session_.perspective(),
-                                   session_.IsIncomingStream(id)) ==
-          READ_UNIDIRECTIONAL) {
+      if (QuicUtils::GetStreamType(
+              id, session_.perspective(), session_.IsIncomingStream(id),
+              connection_->version()) == READ_UNIDIRECTIONAL) {
         // Verify reset is not sent for READ_UNIDIRECTIONAL streams.
         EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
         EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
-      } else if (QuicUtils::GetStreamType(id, session_.perspective(),
-                                          session_.IsIncomingStream(id)) ==
-                 WRITE_UNIDIRECTIONAL) {
+      } else if (QuicUtils::GetStreamType(
+                     id, session_.perspective(), session_.IsIncomingStream(id),
+                     connection_->version()) == WRITE_UNIDIRECTIONAL) {
         // Verify RESET_STREAM but not STOP_SENDING is sent for write-only
         // stream.
         EXPECT_CALL(*connection_, SendControlFrame(_))

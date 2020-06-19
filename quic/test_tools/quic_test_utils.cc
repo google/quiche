@@ -1256,12 +1256,12 @@ QuicStreamId GetNthClientInitiatedUnidirectionalStreamId(
 }
 
 StreamType DetermineStreamType(QuicStreamId id,
-                               QuicTransportVersion version,
+                               ParsedQuicVersion version,
                                Perspective perspective,
                                bool is_incoming,
                                StreamType default_type) {
-  return VersionHasIetfQuicFrames(version)
-             ? QuicUtils::GetStreamType(id, perspective, is_incoming)
+  return version.HasIetfQuicFrames()
+             ? QuicUtils::GetStreamType(id, perspective, is_incoming, version)
              : default_type;
 }
 

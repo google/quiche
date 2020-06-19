@@ -146,14 +146,16 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
 
   // Returns true if |id| is considered as bidirectional stream ID. Only used in
   // v99.
-  static bool IsBidirectionalStreamId(QuicStreamId id);
+  static bool IsBidirectionalStreamId(QuicStreamId id,
+                                      ParsedQuicVersion version);
 
   // Returns stream type.  Either |perspective| or |peer_initiated| would be
   // enough together with |id|.  This method enforces that the three parameters
   // are consistent.  Only used in v99.
   static StreamType GetStreamType(QuicStreamId id,
                                   Perspective perspective,
-                                  bool peer_initiated);
+                                  bool peer_initiated,
+                                  ParsedQuicVersion version);
 
   // Returns the delta between consecutive stream IDs of the same type.
   static QuicStreamId StreamIdDelta(QuicTransportVersion version);

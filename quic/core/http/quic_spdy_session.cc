@@ -558,7 +558,7 @@ void QuicSpdySession::OnPriorityFrame(
 bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
                                                        int urgency) {
   if (perspective() == Perspective::IS_CLIENT ||
-      !QuicUtils::IsBidirectionalStreamId(stream_id) ||
+      !QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       !QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
     return true;
   }
@@ -657,7 +657,7 @@ void QuicSpdySession::WriteHttp3PriorityUpdate(
 
 void QuicSpdySession::OnHttp3GoAway(QuicStreamId stream_id) {
   DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
-  if (!QuicUtils::IsBidirectionalStreamId(stream_id) ||
+  if (!QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       IsIncomingStream(stream_id)) {
     CloseConnectionWithDetails(
         QUIC_INVALID_STREAM_ID,

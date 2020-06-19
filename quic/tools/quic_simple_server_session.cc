@@ -158,7 +158,7 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
     // index for it in promised_streams_ can be calculated.
     QuicStreamId next_stream_id = next_outgoing_unidirectional_stream_id();
     if (VersionHasIetfQuicFrames(transport_version())) {
-      DCHECK(!QuicUtils::IsBidirectionalStreamId(frame.stream_id));
+      DCHECK(!QuicUtils::IsBidirectionalStreamId(frame.stream_id, version()));
     }
     DCHECK_GE(frame.stream_id, next_stream_id);
     size_t index = (frame.stream_id - next_stream_id) /
