@@ -1211,10 +1211,14 @@ void QuicCryptoServerConfig::EvaluateClientHello(
   const CryptoHandshakeMessage& client_hello = client_hello_state->client_hello;
   ClientHelloInfo* info = &(client_hello_state->info);
 
-  if (validate_chlo_size_ && client_hello.size() < kClientHelloMinimumSize) {
-    helper.ValidationComplete(QUIC_CRYPTO_INVALID_VALUE_LENGTH,
-                              "Client hello too small", nullptr);
-    return;
+  if (GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_dont_pad_chlo, 1, 2);
+  } else {
+    if (validate_chlo_size_ && client_hello.size() < kClientHelloMinimumSize) {
+      helper.ValidationComplete(QUIC_CRYPTO_INVALID_VALUE_LENGTH,
+                                "Client hello too small", nullptr);
+      return;
+    }
   }
 
   if (client_hello.GetStringPiece(kSNI, &info->sni) &&

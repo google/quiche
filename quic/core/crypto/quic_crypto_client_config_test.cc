@@ -200,7 +200,11 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
   EXPECT_TRUE(msg.GetStringPiece(kALPN, &alpn));
   EXPECT_EQ("hq", alpn);
 
-  EXPECT_EQ(msg.minimum_size(), 1024u);
+  if (GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+    EXPECT_EQ(msg.minimum_size(), 1u);
+  } else {
+    EXPECT_EQ(msg.minimum_size(), 1024u);
+  }
 }
 
 TEST_F(QuicCryptoClientConfigTest, InchoateChloIsNotPadded) {

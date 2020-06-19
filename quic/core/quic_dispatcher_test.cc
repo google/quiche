@@ -1287,8 +1287,12 @@ TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTest) {
 }
 
 TEST_P(QuicDispatcherTestAllVersions, DoNotProcessSmallPacket) {
-  if (!version_.HasIetfInvariantHeader()) {
-    // We only drop small packets when using IETF_QUIC_LONG_HEADER_PACKET.
+  if (!version_.HasIetfInvariantHeader() &&
+      !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+    // When quic_dont_pad_chlo is false, we only drop small packets when using
+    // IETF_QUIC_LONG_HEADER_PACKET. When quic_dont_pad_chlo is true, we drop
+    // small packets for all versions.
+    // TODO(dschinazi) remove this early return when we deprecate the flag.
     return;
   }
   CreateTimeWaitListManager();

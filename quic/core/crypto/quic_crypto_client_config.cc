@@ -449,7 +449,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
     CryptoHandshakeMessage* out) const {
   out->set_tag(kCHLO);
   // TODO(rch): Remove this when we remove quic_use_chlo_packet_size flag.
-  if (pad_inchoate_hello_) {
+  if (pad_inchoate_hello_ && !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
     out->set_minimum_size(kClientHelloMinimumSize);
   } else {
     out->set_minimum_size(1);
@@ -538,7 +538,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   FillInchoateClientHello(server_id, preferred_version, cached, rand,
                           /* demand_x509_proof= */ true, out_params, out);
 
-  if (pad_full_hello_) {
+  if (pad_full_hello_ && !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
     out->set_minimum_size(kClientHelloMinimumSize);
   } else {
     out->set_minimum_size(1);
