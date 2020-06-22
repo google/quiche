@@ -617,17 +617,10 @@ TEST_F(BbrSenderTest, Drain) {
   EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * (1 / 2.885f),
                    sender_->PacingRate(0), 0.01f);
 
-  if (!GetQuicReloadableFlag(quic_bbr_default_exit_startup_on_loss)) {
-    // BBR uses CWND gain of 2.88 during STARTUP, hence it will fill the buffer
-    // with approximately 1.88 BDPs.  Here, we use 1.5 to give some margin for
-    // error.
-    EXPECT_GE(queue->bytes_queued(), 1.5 * kTestBdp);
-  } else {
-    // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer
-    // with approximately 1 BDP.  Here, we use 0.8 to give some margin for
-    // error.
-    EXPECT_GE(queue->bytes_queued(), 0.8 * kTestBdp);
-  }
+  // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer
+  // with approximately 1 BDP.  Here, we use 0.8 to give some margin for
+  // error.
+  EXPECT_GE(queue->bytes_queued(), 0.8 * kTestBdp);
 
   // Observe increased RTT due to bufferbloat.
   const QuicTime::Delta queueing_delay =
@@ -885,9 +878,6 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTStartup) {
 TEST_F(BbrSenderTest, SimpleTransferExitStartupOnLoss) {
   CreateDefaultSetup();
 
-  if (!GetQuicReloadableFlag(quic_bbr_default_exit_startup_on_loss)) {
-    SetConnectionOption(kLRTT);
-  }
   EXPECT_EQ(3u, sender_->num_startup_rtts());
 
   // Run until the full bandwidth is reached and check how many rounds it was.
@@ -915,9 +905,6 @@ TEST_F(BbrSenderTest, SimpleTransferExitStartupOnLoss) {
 TEST_F(BbrSenderTest, SimpleTransferExitStartupOnLossSmallBuffer) {
   CreateSmallBufferSetup();
 
-  if (!GetQuicReloadableFlag(quic_bbr_default_exit_startup_on_loss)) {
-    SetConnectionOption(kLRTT);
-  }
   EXPECT_EQ(3u, sender_->num_startup_rtts());
 
   // Run until the full bandwidth is reached and check how many rounds it was.
@@ -971,9 +958,6 @@ TEST_F(BbrSenderTest, DerivedPacingGainStartup) {
 TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
   CreateSmallBufferSetup();
 
-  if (!GetQuicReloadableFlag(quic_bbr_default_exit_startup_on_loss)) {
-    SetConnectionOption(kBBQ2);
-  }
   EXPECT_EQ(3u, sender_->num_startup_rtts());
   // Verify that Sender is in slow start.
   EXPECT_TRUE(sender_->InSlowStart());

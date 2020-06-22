@@ -326,13 +326,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // The number of RTTs to stay in STARTUP mode.  Defaults to 3.
   QuicRoundTripCount num_startup_rtts_;
 
-  // Latched value of --quic_bbr_default_exit_startup_on_loss.
-  // If true, exit startup if all of the following conditions are met:
-  // - 1RTT has passed with no bandwidth increase,
-  // - Some number of congestion events happened with loss, in the last round.
-  // - Some amount of inflight bytes (at the start of the last round) are lost.
-  bool exit_startup_on_loss_;
-
   // Number of round-trips in PROBE_BW mode, used for determining the current
   // pacing gain cycle.
   int cycle_current_offset_;

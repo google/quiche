@@ -32,10 +32,6 @@ const float kDefaultHighGain = 2.885f;
 const float kDerivedHighGain = 2.773f;
 // The newly derived CWND gain for STARTUP, 2.
 const float kDerivedHighCWNDGain = 2.0f;
-// The gain used in STARTUP after loss has been detected.
-// 1.5 is enough to allow for 25% exogenous loss and still observe a 25% growth
-// in measured bandwidth.
-const float kStartupAfterLossGain = 1.5f;
 // The cycle of gains used during the PROBE_BW stage.
 const float kPacingGain[] = {1.25, 0.75, 1, 1, 1, 1, 1, 1};
 
@@ -106,8 +102,6 @@ BbrSender::BbrSender(QuicTime now,
       congestion_window_gain_constant_(
           static_cast<float>(GetQuicFlag(FLAGS_quic_bbr_cwnd_gain))),
       num_startup_rtts_(kRoundTripsWithoutGrowthBeforeExitingStartup),
-      exit_startup_on_loss_(
-          GetQuicReloadableFlag(quic_bbr_default_exit_startup_on_loss)),
       cycle_current_offset_(0),
       last_cycle_start_(QuicTime::Zero()),
       is_at_full_bandwidth_(false),
@@ -138,10 +132,7 @@ BbrSender::BbrSender(QuicTime now,
     stats_->slowstart_duration = QuicTimeAccumulator();
   }
   EnterStartupMode(now);
-  if (exit_startup_on_loss_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_default_exit_startup_on_loss);
-    set_high_cwnd_gain(kDerivedHighCWNDGain);
-  }
+  set_high_cwnd_gain(kDerivedHighCWNDGain);
 }
 
 BbrSender::~BbrSender() {}
@@ -203,14 +194,8 @@ QuicByteCount BbrSender::GetCongestionWindow() const {
     return ProbeRttCongestionWindow();
   }
 
-  if (exit_startup_on_loss_) {
-    if (InRecovery()) {
-      return std::min(congestion_window_, recovery_window_);
-    }
-  } else {
-    if (InRecovery() && !(rate_based_startup_ && mode_ == STARTUP)) {
-      return std::min(congestion_window_, recovery_window_);
-    }
+  if (InRecovery()) {
+    return std::min(congestion_window_, recovery_window_);
   }
 
   return congestion_window_;
@@ -265,16 +250,8 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(k2RTT, perspective)) {
     num_startup_rtts_ = 2;
   }
-  if (!exit_startup_on_loss_ &&
-      config.HasClientRequestedIndependentOption(kBBRS, perspective)) {
-    slower_startup_ = true;
-  }
   if (config.HasClientRequestedIndependentOption(kBBR3, perspective)) {
     drain_to_target_ = true;
-  }
-  if (!exit_startup_on_loss_ &&
-      config.HasClientRequestedIndependentOption(kBBS1, perspective)) {
-    rate_based_startup_ = true;
   }
   if (GetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample)) {
     if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
@@ -321,14 +298,7 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
 }
 
 void BbrSender::ApplyConnectionOptions(
-    const QuicTagVector& connection_options) {
-  if (ContainsQuicTag(connection_options, kLRTT)) {
-    exit_startup_on_loss_ = true;
-  }
-  if (ContainsQuicTag(connection_options, kBBQ2)) {
-    set_high_cwnd_gain(kDerivedHighCWNDGain);
-  }
-}
+    const QuicTagVector& /*connection_options*/) {}
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   const QuicBandwidth& bandwidth = params.bandwidth;
@@ -672,10 +642,6 @@ void BbrSender::OnExitStartup(QuicTime now) {
 
 bool BbrSender::ShouldExitStartupDueToLoss(
     const SendTimeState& last_packet_send_state) const {
-  if (!exit_startup_on_loss_) {
-    return false;
-  }
-
   if (num_loss_events_in_round_ <
           GetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count) ||
       !last_packet_send_state.is_valid) {
@@ -746,7 +712,7 @@ void BbrSender::UpdateRecoveryState(QuicPacketNumber last_acked_packet,
                                     bool has_losses,
                                     bool is_round_start) {
   // Disable recovery in startup, if loss-based exit is enabled.
-  if (exit_startup_on_loss_ && !is_at_full_bandwidth_) {
+  if (!is_at_full_bandwidth_) {
     return;
   }
 
@@ -840,16 +806,6 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
     }
   }
 
-  if (!exit_startup_on_loss_) {
-    // Slow the pacing rate in STARTUP once loss has ever been detected.
-    const bool has_ever_detected_loss = end_recovery_at_.IsInitialized();
-    if (slower_startup_ && has_ever_detected_loss &&
-        has_non_app_limited_sample_) {
-      pacing_rate_ = kStartupAfterLossGain * BandwidthEstimate();
-      return;
-    }
-  }
-
   // Do not decrease the pacing rate during startup.
   pacing_rate_ = std::max(pacing_rate_, target_rate);
 }
@@ -895,10 +851,6 @@ void BbrSender::CalculateCongestionWindow(QuicByteCount bytes_acked,
 
 void BbrSender::CalculateRecoveryWindow(QuicByteCount bytes_acked,
                                         QuicByteCount bytes_lost) {
-  if (!exit_startup_on_loss_ && rate_based_startup_ && mode_ == STARTUP) {
-    return;
-  }
-
   if (recovery_state_ == NOT_IN_RECOVERY) {
     return;
   }
