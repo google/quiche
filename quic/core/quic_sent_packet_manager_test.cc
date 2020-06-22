@@ -4079,7 +4079,7 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
         RetransmitDataPacket(4, type, ENCRYPTION_INITIAL);
       })));
-  manager_.RetransmitInitialDataIfAny();
+  manager_.RetransmitDataOfSpaceIfAny(INITIAL_DATA);
   // Verify PTO is re-armed based on packet 2.
   EXPECT_EQ(packet2_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
@@ -4090,7 +4090,7 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
       .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
         RetransmitDataPacket(5, type, ENCRYPTION_INITIAL);
       })));
-  manager_.RetransmitInitialDataIfAny();
+  manager_.RetransmitDataOfSpaceIfAny(INITIAL_DATA);
   // Verify PTO does not change.
   EXPECT_EQ(packet2_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());

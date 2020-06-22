@@ -394,8 +394,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void StartExponentialBackoffAfterNthPto(
       size_t exponential_backoff_start_point);
 
-  // Called to retransmit in flight INITIAL packet if any.
-  void RetransmitInitialDataIfAny();
+  // Called to retransmit in flight packet of |space| if any.
+  void RetransmitDataOfSpaceIfAny(PacketNumberSpace space);
 
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();

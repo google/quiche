@@ -916,11 +916,11 @@ void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(
   pto_exponential_backoff_start_point_ = exponential_backoff_start_point;
 }
 
-void QuicSentPacketManager::RetransmitInitialDataIfAny() {
+void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
+    PacketNumberSpace space) {
   DCHECK(supports_multiple_packet_number_spaces());
-  if (!unacked_packets_.GetLastInFlightPacketSentTime(INITIAL_DATA)
-           .IsInitialized()) {
-    // No in flight initial data.
+  if (!unacked_packets_.GetLastInFlightPacketSentTime(space).IsInitialized()) {
+    // No in flight data of space.
     return;
   }
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
@@ -928,8 +928,7 @@ void QuicSentPacketManager::RetransmitInitialDataIfAny() {
        it != unacked_packets_.end(); ++it, ++packet_number) {
     if (it->state == OUTSTANDING &&
         unacked_packets_.HasRetransmittableFrames(*it) &&
-        unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
-            INITIAL_DATA) {
+        unacked_packets_.GetPacketNumberSpace(it->encryption_level) == space) {
       DCHECK(it->in_flight);
       MarkForRetransmission(packet_number, PTO_RETRANSMISSION);
       return;
