@@ -198,6 +198,8 @@ void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
   }
   if (framer_->GetMaxPlaintextSize(length) <
       PacketHeaderSize() + MinPlaintextPacketSize(framer_->version())) {
+    // Please note: this would not guarantee to fit next packet if the size of
+    // packet header increases (e.g., encryption level changes).
     QUIC_DLOG(INFO) << length << " is too small to fit packet header";
     return;
   }
@@ -423,8 +425,17 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
                                           QuicFrame* frame) {
   size_t min_frame_size =
       QuicFramer::GetMinCryptoFrameSize(write_length, offset);
-  if (BytesFree() <= min_frame_size &&
-      (!RemoveSoftMaxPacketLength() || BytesFree() <= min_frame_size)) {
+  size_t min_plaintext_bytes = min_frame_size;
+  if (fix_min_crypto_frame_size_ && queued_frames_.empty()) {
+    // TODO(fayang): to make this more general, we need to move the checking
+    // when trying to add a frame when GetSerializedFrameLength. Remove soft
+    // limit if current packet needs extra padding and the space is too small.
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_min_crypto_frame_size);
+    min_plaintext_bytes =
+        std::max(min_frame_size, MinPlaintextPacketSize(framer_->version()));
+  }
+  if (BytesFree() <= min_plaintext_bytes &&
+      (!RemoveSoftMaxPacketLength() || BytesFree() <= min_plaintext_bytes)) {
     return false;
   }
   size_t max_write_length = BytesFree() - min_frame_size;

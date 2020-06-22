@@ -601,6 +601,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool avoid_leak_writer_buffer_ =
       GetQuicReloadableFlag(quic_avoid_leak_writer_buffer);
+
+  const bool fix_min_crypto_frame_size_ =
+      GetQuicReloadableFlag(quic_fix_min_crypto_frame_size);
 };
 
 }  // namespace quic
