@@ -22,6 +22,7 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     std::string host_for_lookup,
     uint16_t port,
     ParsedQuicVersionVector versions,
+    const QuicConfig& config,
     std::unique_ptr<ProofVerifier> verifier) {
   QuicSocketAddress addr =
       tools::LookupAddress(host_for_lookup, quiche::QuicheStrCat(port));
@@ -30,8 +31,9 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     return nullptr;
   }
   QuicServerId server_id(host_for_handshake, port, false);
-  return std::make_unique<QuicClient>(addr, server_id, versions, &epoll_server_,
-                                      std::move(verifier));
+  return std::make_unique<QuicClient>(addr, server_id, versions, config,
+                                      &epoll_server_, std::move(verifier),
+                                      nullptr);
 }
 
 }  // namespace quic

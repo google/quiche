@@ -74,4 +74,32 @@ bool ContainsQuicTag(const QuicTagVector& tag_vector, QuicTag tag) {
          tag_vector.end();
 }
 
+QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string) {
+  quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tag_string);
+  std::string tag_bytes;
+  if (tag_string.length() == 8) {
+    tag_bytes = quiche::QuicheTextUtils::HexDecode(tag_string);
+    tag_string = tag_bytes;
+  }
+  QuicTag tag = 0;
+  // Iterate over every character from right to left.
+  for (auto it = tag_string.crbegin(); it != tag_string.crend(); ++it) {
+    // The cast here is required on platforms where char is signed.
+    unsigned char token_char = static_cast<unsigned char>(*it);
+    tag <<= 8;
+    tag |= token_char;
+  }
+  return tag;
+}
+
+QuicTagVector ParseQuicTagVector(quiche::QuicheStringPiece tags_string) {
+  QuicTagVector tag_vector;
+  std::vector<quiche::QuicheStringPiece> tag_strings =
+      quiche::QuicheTextUtils::Split(tags_string, ',');
+  for (quiche::QuicheStringPiece tag_string : tag_strings) {
+    tag_vector.push_back(ParseQuicTag(tag_string));
+  }
+  return tag_vector;
+}
+
 }  // namespace quic

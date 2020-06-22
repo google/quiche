@@ -33,6 +33,35 @@ TEST_F(QuicTagTest, MakeQuicTag) {
   EXPECT_EQ('D', bytes[3]);
 }
 
+TEST_F(QuicTagTest, ParseQuicTag) {
+  QuicTag tag_abcd = MakeQuicTag('A', 'B', 'C', 'D');
+  EXPECT_EQ(ParseQuicTag("ABCD"), tag_abcd);
+  QuicTag tag_efgh = MakeQuicTag('E', 'F', 'G', 'H');
+  EXPECT_EQ(ParseQuicTag("EFGH"), tag_efgh);
+  QuicTag tag_ijk = MakeQuicTag('I', 'J', 'K', 0);
+  EXPECT_EQ(ParseQuicTag("IJK"), tag_ijk);
+  QuicTag tag_l = MakeQuicTag('L', 0, 0, 0);
+  EXPECT_EQ(ParseQuicTag("L"), tag_l);
+  QuicTag tag_hex = MakeQuicTag('M', 'N', 'O', 255);
+  EXPECT_EQ(ParseQuicTag("4d4e4fff"), tag_hex);
+  EXPECT_EQ(ParseQuicTag("4D4E4FFF"), tag_hex);
+  QuicTag tag_zero = 0;
+  EXPECT_EQ(ParseQuicTag(""), tag_zero);
+  QuicTagVector tag_vector;
+  tag_vector.push_back(tag_abcd);
+  EXPECT_EQ(ParseQuicTagVector("ABCD"), tag_vector);
+  tag_vector.push_back(tag_efgh);
+  EXPECT_EQ(ParseQuicTagVector("ABCD,EFGH"), tag_vector);
+  tag_vector.push_back(tag_ijk);
+  EXPECT_EQ(ParseQuicTagVector("ABCD,EFGH,IJK"), tag_vector);
+  tag_vector.push_back(tag_l);
+  EXPECT_EQ(ParseQuicTagVector("ABCD,EFGH,IJK,L"), tag_vector);
+  tag_vector.push_back(tag_hex);
+  EXPECT_EQ(ParseQuicTagVector("ABCD,EFGH,IJK,L,4d4e4fff"), tag_vector);
+  tag_vector.push_back(tag_zero);
+  EXPECT_EQ(ParseQuicTagVector("ABCD,EFGH,IJK,L,4d4e4fff,"), tag_vector);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

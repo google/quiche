@@ -26,6 +26,7 @@ class QuicToyClient {
         std::string host_for_lookup,
         uint16_t port,
         ParsedQuicVersionVector versions,
+        const QuicConfig& config,
         std::unique_ptr<ProofVerifier> verifier) = 0;
   };
 

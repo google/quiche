@@ -18,6 +18,7 @@ class QuicEpollClientFactory : public QuicToyClient::ClientFactory {
       std::string host_for_lookup,
       uint16_t port,
       ParsedQuicVersionVector versions,
+      const QuicConfig& config,
       std::unique_ptr<ProofVerifier> verifier) override;
 
  private:

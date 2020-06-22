@@ -109,6 +109,20 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "versions are offered in the handshake. Also supports wire versions "
     "such as Q043 or T099.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    connection_options,
+    "",
+    "Connection options as ASCII tags separated by commas, "
+    "e.g. \"ABCD,EFGH\"");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    client_connection_options,
+    "",
+    "Client connection options as ASCII tags separated by commas, "
+    "e.g. \"ABCD,EFGH\"");
+
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
                               quic_ietf_draft,
                               false,
@@ -232,9 +246,22 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     proof_verifier = quic::CreateDefaultProofVerifier(url.host());
   }
 
+  QuicConfig config;
+  std::string connection_options_string = GetQuicFlag(FLAGS_connection_options);
+  if (!connection_options_string.empty()) {
+    config.SetConnectionOptionsToSend(
+        ParseQuicTagVector(connection_options_string));
+  }
+  std::string client_connection_options_string =
+      GetQuicFlag(FLAGS_client_connection_options);
+  if (!client_connection_options_string.empty()) {
+    config.SetClientConnectionOptions(
+        ParseQuicTagVector(client_connection_options_string));
+  }
+
   // Build the client, and try to connect.
   std::unique_ptr<QuicSpdyClientBase> client = client_factory_->CreateClient(
-      url.host(), host, port, versions, std::move(proof_verifier));
+      url.host(), host, port, versions, config, std::move(proof_verifier));
 
   if (client == nullptr) {
     std::cerr << "Failed to create client." << std::endl;
