@@ -978,14 +978,13 @@ void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
   stats_->sent_packets_num_borderline_time_reorderings +=
       detection_stats.sent_packets_num_borderline_time_reorderings;
 
+  stats_->total_loss_detection_response_time +=
+      detection_stats.total_loss_detection_response_time;
+
   for (const LostPacket& packet : packets_lost_) {
     QuicTransmissionInfo* info =
         unacked_packets_.GetMutableTransmissionInfo(packet.packet_number);
     ++stats_->packets_lost;
-    if (time > info->sent_time) {
-      stats_->total_loss_detection_time =
-          stats_->total_loss_detection_time + (time - info->sent_time);
-    }
     if (debug_delegate_ != nullptr) {
       debug_delegate_->OnPacketLoss(packet.packet_number,
                                     info->encryption_level, LOSS_RETRANSMISSION,

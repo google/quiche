@@ -47,9 +47,21 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   QuicPacketCount packets_lost = 0;
   QuicPacketCount packet_spuriously_detected_lost = 0;
 
-  // The sum of the detection time of all lost packets. The detection time of a
-  // lost packet is defined as: T(detection) - T(send).
-  QuicTime::Delta total_loss_detection_time = QuicTime::Delta::Zero();
+  // The sum of loss detection response times of all lost packets, in number of
+  // round trips.
+  // Given a packet detected as lost:
+  //   T(S)                            T(1Rtt)    T(D)
+  //     |_________________________________|_______|
+  // Where
+  //   T(S) is the time when the packet is sent.
+  //   T(1Rtt) is one rtt after T(S), using the rtt at the time of detection.
+  //   T(D) is the time of detection, i.e. when the packet is declared as lost.
+  // The loss detection response time is defined as
+  //     (T(D) - T(S)) / (T(1Rtt) - T(S))
+  //
+  // The average loss detection response time is this number divided by
+  // |packets_lost|. Smaller result means detection is faster.
+  float total_loss_detection_response_time = 0.0;
 
   // Number of times this connection went through the slow start phase.
   uint32_t slowstart_count = 0;

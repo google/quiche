@@ -30,6 +30,9 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
     // Maximum sequence reordering observed in newly acked packets.
     QuicPacketCount sent_packets_max_sequence_reordering = 0;
     QuicPacketCount sent_packets_num_borderline_time_reorderings = 0;
+    // Total detection response time for lost packets from this detection.
+    // See QuicConnectionStats for the definition of detection response time.
+    float total_loss_detection_response_time = 0.0;
   };
 
   // Called when a new ack arrives or the loss alarm fires.

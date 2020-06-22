@@ -56,6 +56,8 @@ LossDetectionInterface::DetectionStats UberLossAlgorithm::DetectLosses(
                  stats.sent_packets_max_sequence_reordering);
     overall_stats.sent_packets_num_borderline_time_reorderings +=
         stats.sent_packets_num_borderline_time_reorderings;
+    overall_stats.total_loss_detection_response_time +=
+        stats.total_loss_detection_response_time;
   }
 
   return overall_stats;

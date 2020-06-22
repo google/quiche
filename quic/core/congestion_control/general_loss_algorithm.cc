@@ -12,6 +12,20 @@
 
 namespace quic {
 
+namespace {
+float DetectionResponseTime(QuicTime::Delta rtt,
+                            QuicTime send_time,
+                            QuicTime detection_time) {
+  if (detection_time <= send_time || rtt.IsZero()) {
+    // Time skewed, assume a very fast detection where |detection_time| is
+    // |send_time| + |rtt|.
+    return 1.0;
+  }
+  float send_to_detection_us = (detection_time - send_time).ToMicroseconds();
+  return send_to_detection_us / rtt.ToMicroseconds();
+}
+}  // namespace
+
 GeneralLossAlgorithm::GeneralLossAlgorithm()
     : loss_detection_timeout_(QuicTime::Zero()),
       reordering_shift_(kDefaultLossDelayShift),
@@ -100,6 +114,8 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
     if (!skip_packet_threshold_detection &&
         largest_newly_acked - packet_number >= reordering_threshold_) {
       packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
+      detection_stats.total_loss_detection_response_time +=
+          DetectionResponseTime(max_rtt, it->sent_time, time);
       continue;
     }
 
@@ -118,6 +134,8 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
       break;
     }
     packets_lost->push_back(LostPacket(packet_number, it->bytes_sent));
+    detection_stats.total_loss_detection_response_time +=
+        DetectionResponseTime(max_rtt, it->sent_time, time);
   }
   if (!least_in_flight_.IsInitialized()) {
     // There is no in flight packet.
