@@ -985,7 +985,13 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
   std::unique_ptr<QuicSession> session =
       CreateQuicSession(packet_info->destination_connection_id,
                         packet_info->peer_address, alpn, packet_info->version);
-  DCHECK(session);
+  if (QUIC_PREDICT_FALSE(session == nullptr)) {
+    QUIC_BUG << "CreateQuicSession returned nullptr for "
+             << packet_info->destination_connection_id << " from "
+             << packet_info->peer_address << " ALPN \"" << alpn << "\" version "
+             << packet_info->version;
+    return;
+  }
   if (original_connection_id != packet_info->destination_connection_id) {
     session->connection()->SetOriginalDestinationConnectionId(
         original_connection_id);
