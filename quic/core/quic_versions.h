@@ -119,7 +119,7 @@ enum QuicTransportVersion {
   QUIC_VERSION_50 = 50,  // Header protection and initial obfuscators.
   QUIC_VERSION_IETF_DRAFT_25 = 70,  // draft-ietf-quic-transport-25.
   QUIC_VERSION_IETF_DRAFT_27 = 71,  // draft-ietf-quic-transport-27.
-  QUIC_VERSION_IETF_DRAFT_28 = 72,  // draft-ietf-quic-transport-28.
+  // Number 72 used to represent draft-ietf-quic-transport-28.
   QUIC_VERSION_IETF_DRAFT_29 = 73,  // draft-ietf-quic-transport-29.
   // Version 99 was a dumping ground for IETF QUIC changes which were not yet
   // yet ready for production between 2018-02 and 2020-02.
@@ -135,9 +135,8 @@ enum QuicTransportVersion {
 
 // This array contains QUIC transport versions which we currently support.
 // DEPRECATED. Use SupportedVersions() instead.
-constexpr std::array<QuicTransportVersion, 9> SupportedTransportVersions() {
+constexpr std::array<QuicTransportVersion, 8> SupportedTransportVersions() {
   return {QUIC_VERSION_IETF_DRAFT_29,
-          QUIC_VERSION_IETF_DRAFT_28,
           QUIC_VERSION_IETF_DRAFT_27,
           QUIC_VERSION_IETF_DRAFT_25,
           QUIC_VERSION_50,
@@ -201,7 +200,6 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_IETF_DRAFT_25 &&
              transport_version != QUIC_VERSION_IETF_DRAFT_27 &&
-             transport_version != QUIC_VERSION_IETF_DRAFT_28 &&
              transport_version != QUIC_VERSION_IETF_DRAFT_29;
     case PROTOCOL_TLS1_3:
       // The TLS handshake is only deployable if CRYPTO frames are also used.
@@ -255,10 +253,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
 
   static constexpr ParsedQuicVersion Draft29() {
     return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_29);
-  }
-
-  static constexpr ParsedQuicVersion Draft28() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28);
   }
 
   static constexpr ParsedQuicVersion Draft27() {
@@ -429,13 +423,13 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
   return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
 }
 
-constexpr std::array<ParsedQuicVersion, 10> SupportedVersions() {
+constexpr std::array<ParsedQuicVersion, 9> SupportedVersions() {
   return {
-      ParsedQuicVersion::Draft29(), ParsedQuicVersion::Draft28(),
-      ParsedQuicVersion::Draft27(), ParsedQuicVersion::Draft25(),
-      ParsedQuicVersion::T050(),    ParsedQuicVersion::Q050(),
-      ParsedQuicVersion::Q049(),    ParsedQuicVersion::Q048(),
-      ParsedQuicVersion::Q046(),    ParsedQuicVersion::Q043(),
+      ParsedQuicVersion::Draft29(), ParsedQuicVersion::Draft27(),
+      ParsedQuicVersion::Draft25(), ParsedQuicVersion::T050(),
+      ParsedQuicVersion::Q050(),    ParsedQuicVersion::Q049(),
+      ParsedQuicVersion::Q048(),    ParsedQuicVersion::Q046(),
+      ParsedQuicVersion::Q043(),
   };
 }
 

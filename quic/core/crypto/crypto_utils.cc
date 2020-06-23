@@ -141,7 +141,7 @@ const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 10u,
+  static_assert(SupportedVersions().size() == 9u,
                 "Supported versions out of sync with initial encryption salts");
   switch (version.handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
@@ -170,10 +170,6 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
           return kDraft25InitialSalt;
         case QUIC_VERSION_IETF_DRAFT_27:
           // draft-27 uses the same salt as draft-25.
-          *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
-          return kDraft25InitialSalt;
-        case QUIC_VERSION_IETF_DRAFT_28:
-          // draft-28 uses the same salt as draft-25.
           *out_len = QUICHE_ARRAYSIZE(kDraft25InitialSalt);
           return kDraft25InitialSalt;
         case QUIC_VERSION_IETF_DRAFT_29:
@@ -240,9 +236,7 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
   if (version ==
           ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25) ||
       version ==
-          ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27) ||
-      version ==
-          ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_28)) {
+          ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27)) {
     *key = quiche::QuicheStringPiece(
         reinterpret_cast<const char*>(kDraft25RetryIntegrityKey),
         QUICHE_ARRAYSIZE(kDraft25RetryIntegrityKey));

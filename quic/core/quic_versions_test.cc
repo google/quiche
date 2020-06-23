@@ -239,8 +239,6 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion::T050(), ParseQuicVersionString("h3-T050"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("ff00001d"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("h3-29"));
-  EXPECT_EQ(ParsedQuicVersion::Draft28(), ParseQuicVersionString("ff00001c"));
-  EXPECT_EQ(ParsedQuicVersion::Draft28(), ParseQuicVersionString("h3-28"));
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("ff00001b"));
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("h3-27"));
   EXPECT_EQ(ParsedQuicVersion::Draft25(), ParseQuicVersionString("ff000019"));
@@ -255,8 +253,6 @@ TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
                                      QUIC_VERSION_IETF_DRAFT_25);
   ParsedQuicVersion version_draft_27(PROTOCOL_TLS1_3,
                                      QUIC_VERSION_IETF_DRAFT_27);
-  ParsedQuicVersion version_draft_28(PROTOCOL_TLS1_3,
-                                     QUIC_VERSION_IETF_DRAFT_28);
   ParsedQuicVersion version_draft_29 = ParsedQuicVersion::Draft29();
 
   EXPECT_THAT(ParseQuicVersionVectorString(""), IsEmpty());
@@ -278,8 +274,6 @@ TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
               ElementsAre(version_draft_25, version_draft_27));
   EXPECT_THAT(ParseQuicVersionVectorString("h3-27,h3-25"),
               ElementsAre(version_draft_27, version_draft_25));
-  EXPECT_THAT(ParseQuicVersionVectorString("h3-28,h3-27"),
-              ElementsAre(version_draft_28, version_draft_27));
   EXPECT_THAT(ParseQuicVersionVectorString("h3-29,h3-27"),
               ElementsAre(version_draft_29, version_draft_27));
 
@@ -499,7 +493,7 @@ TEST_F(QuicVersionsTest, ParsedVersionsToTransportVersions) {
 // yet a typo was made in doing the #defines and it was caught
 // only in some test far removed from here... Better safe than sorry.
 TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
-  static_assert(SupportedTransportVersions().size() == 9u,
+  static_assert(SupportedTransportVersions().size() == 8u,
                 "Supported versions out of sync");
   EXPECT_EQ(QUIC_VERSION_43, 43);
   EXPECT_EQ(QUIC_VERSION_46, 46);
@@ -508,12 +502,11 @@ TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
   EXPECT_EQ(QUIC_VERSION_50, 50);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_25, 70);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_27, 71);
-  EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_28, 72);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_29, 73);
 }
 
 TEST_F(QuicVersionsTest, AlpnForVersion) {
-  static_assert(SupportedVersions().size() == 10u,
+  static_assert(SupportedVersions().size() == 9u,
                 "Supported versions out of sync");
   ParsedQuicVersion parsed_version_q048 = ParsedQuicVersion::Q048();
   ParsedQuicVersion parsed_version_q049 = ParsedQuicVersion::Q049();
@@ -521,7 +514,6 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   ParsedQuicVersion parsed_version_t050 = ParsedQuicVersion::T050();
   ParsedQuicVersion parsed_version_draft_25 = ParsedQuicVersion::Draft25();
   ParsedQuicVersion parsed_version_draft_27 = ParsedQuicVersion::Draft27();
-  ParsedQuicVersion parsed_version_draft_28 = ParsedQuicVersion::Draft28();
 
   EXPECT_EQ("h3-Q048", AlpnForVersion(parsed_version_q048));
   EXPECT_EQ("h3-Q049", AlpnForVersion(parsed_version_q049));
@@ -529,7 +521,6 @@ TEST_F(QuicVersionsTest, AlpnForVersion) {
   EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
   EXPECT_EQ("h3-25", AlpnForVersion(parsed_version_draft_25));
   EXPECT_EQ("h3-27", AlpnForVersion(parsed_version_draft_27));
-  EXPECT_EQ("h3-28", AlpnForVersion(parsed_version_draft_28));
   EXPECT_EQ("h3-29", AlpnForVersion(ParsedQuicVersion::Draft29()));
 }
 
