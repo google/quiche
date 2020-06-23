@@ -481,9 +481,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool AppendTypeByte(const QuicFrame& frame,
                       bool last_frame_in_packet,
                       QuicDataWriter* writer);
-  bool AppendIetfTypeByte(const QuicFrame& frame,
-                          bool last_frame_in_packet,
-                          QuicDataWriter* writer);
+  bool AppendIetfFrameType(const QuicFrame& frame,
+                           bool last_frame_in_packet,
+                           QuicDataWriter* writer);
   size_t AppendIetfFrames(const QuicFrames& frames, QuicDataWriter* writer);
   bool AppendStreamFrame(const QuicStreamFrame& frame,
                          bool last_frame_in_packet,

@@ -1037,8 +1037,8 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
   for (const QuicFrame& frame : frames) {
     // Determine if we should write stream frame length in header.
     const bool last_frame_in_packet = i == frames.size() - 1;
-    if (!AppendIetfTypeByte(frame, last_frame_in_packet, writer)) {
-      QUIC_BUG << "AppendIetfTypeByte failed: " << detailed_error();
+    if (!AppendIetfFrameType(frame, last_frame_in_packet, writer)) {
+      QUIC_BUG << "AppendIetfFrameType failed: " << detailed_error();
       return 0;
     }
 
@@ -4751,7 +4751,7 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
                                 bool last_frame_in_packet,
                                 QuicDataWriter* writer) {
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
-    return AppendIetfTypeByte(frame, last_frame_in_packet, writer);
+    return AppendIetfFrameType(frame, last_frame_in_packet, writer);
   }
   uint8_t type_byte = 0;
   switch (frame.type) {
@@ -4807,9 +4807,9 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
   return writer->WriteUInt8(type_byte);
 }
 
-bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
-                                    bool last_frame_in_packet,
-                                    QuicDataWriter* writer) {
+bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
+                                     bool last_frame_in_packet,
+                                     QuicDataWriter* writer) {
   uint8_t type_byte = 0;
   switch (frame.type) {
     case PADDING_FRAME:
@@ -4919,7 +4919,7 @@ bool QuicFramer::AppendIetfTypeByte(const QuicFrame& frame,
                << frame.type;
       return false;
   }
-  return writer->WriteUInt8(type_byte);
+  return writer->WriteVarInt62(type_byte);
 }
 
 // static
@@ -5389,7 +5389,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                 QuicDataWriter::GetVarInt62Len(frame.ecn_ce_count));
   }
 
-  if (!writer->WriteUInt8(type)) {
+  if (!writer->WriteVarInt62(type)) {
     set_detailed_error("No room for frame-type");
     return false;
   }
