@@ -11356,7 +11356,7 @@ TEST_P(QuicConnectionTest, CoalescePacketOfLowerEncryptionLevel) {
     connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                              std::make_unique<TaggingEncrypter>(0x02));
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    SendStreamDataToPeer(2, string(1286, 'a'), 0, NO_FIN, nullptr);
+    SendStreamDataToPeer(2, std::string(1286, 'a'), 0, NO_FIN, nullptr);
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
     // Try to coalesce a HANDSHAKE packet after 1-RTT packet.
     if (GetQuicReloadableFlag(quic_fix_min_crypto_frame_size)) {

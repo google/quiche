@@ -42,7 +42,7 @@ TEST_F(QuicTagTest, ParseQuicTag) {
   EXPECT_EQ(ParseQuicTag("IJK"), tag_ijk);
   QuicTag tag_l = MakeQuicTag('L', 0, 0, 0);
   EXPECT_EQ(ParseQuicTag("L"), tag_l);
-  QuicTag tag_hex = MakeQuicTag('M', 'N', 'O', 255);
+  QuicTag tag_hex = MakeQuicTag('M', 'N', 'O', static_cast<char>(255));
   EXPECT_EQ(ParseQuicTag("4d4e4fff"), tag_hex);
   EXPECT_EQ(ParseQuicTag("4D4E4FFF"), tag_hex);
   QuicTag tag_zero = 0;

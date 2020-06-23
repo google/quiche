@@ -83,7 +83,7 @@ QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string) {
   }
   QuicTag tag = 0;
   // Iterate over every character from right to left.
-  for (auto it = tag_string.crbegin(); it != tag_string.crend(); ++it) {
+  for (auto it = tag_string.rbegin(); it != tag_string.rend(); ++it) {
     // The cast here is required on platforms where char is signed.
     unsigned char token_char = static_cast<unsigned char>(*it);
     tag <<= 8;
