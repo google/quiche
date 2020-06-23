@@ -64,6 +64,7 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
       case BLOCKED_FRAME:
       case PING_FRAME:
       case HANDSHAKE_DONE_FRAME:
+      case ACK_FREQUENCY_FRAME:
         PopulateFrameInfo(frame, event->add_frames());
         break;
 
@@ -218,6 +219,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
     case MESSAGE_FRAME:
     case CRYPTO_FRAME:
     case NEW_TOKEN_FRAME:
+    case ACK_FREQUENCY_FRAME:
       break;
 
     case NUM_FRAME_TYPES:

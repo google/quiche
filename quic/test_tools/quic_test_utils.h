@@ -396,6 +396,10 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               OnHandshakeDoneFrame,
               (const QuicHandshakeDoneFrame& frame),
               (override));
+  MOCK_METHOD(bool,
+              OnAckFrequencyFrame,
+              (const QuicAckFrequencyFrame& frame),
+              (override));
   MOCK_METHOD(void, OnPacketComplete, (), (override));
   MOCK_METHOD(bool,
               IsValidStatelessResetToken,
@@ -460,6 +464,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(

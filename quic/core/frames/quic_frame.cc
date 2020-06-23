@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
@@ -75,6 +76,9 @@ QuicFrame::QuicFrame(QuicMessageFrame* frame)
 QuicFrame::QuicFrame(QuicNewTokenFrame* frame)
     : type(NEW_TOKEN_FRAME), new_token_frame(frame) {}
 
+QuicFrame::QuicFrame(QuicAckFrequencyFrame* frame)
+    : type(ACK_FREQUENCY_FRAME), ack_frequency_frame(frame) {}
+
 void DeleteFrames(QuicFrames* frames) {
   for (QuicFrame& frame : *frames) {
     DeleteFrame(&frame);
@@ -136,7 +140,9 @@ void DeleteFrame(QuicFrame* frame) {
     case NEW_TOKEN_FRAME:
       delete frame->new_token_frame;
       break;
-
+    case ACK_FREQUENCY_FRAME:
+      delete frame->ack_frequency_frame;
+      break;
     case NUM_FRAME_TYPES:
       DCHECK(false) << "Cannot delete type: " << frame->type;
   }
@@ -164,6 +170,7 @@ bool IsControlFrame(QuicFrameType type) {
     case PING_FRAME:
     case STOP_SENDING_FRAME:
     case HANDSHAKE_DONE_FRAME:
+    case ACK_FREQUENCY_FRAME:
       return true;
     default:
       return false;
@@ -190,6 +197,8 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
       return frame.stop_sending_frame->control_frame_id;
     case HANDSHAKE_DONE_FRAME:
       return frame.handshake_done_frame.control_frame_id;
+    case ACK_FREQUENCY_FRAME:
+      return frame.ack_frequency_frame->control_frame_id;
     default:
       return kInvalidControlFrameId;
   }
@@ -223,6 +232,9 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
       return;
     case HANDSHAKE_DONE_FRAME:
       frame->handshake_done_frame.control_frame_id = control_frame_id;
+      return;
+    case ACK_FREQUENCY_FRAME:
+      frame->ack_frequency_frame->control_frame_id = control_frame_id;
       return;
     default:
       QUIC_BUG
@@ -260,6 +272,9 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
     case HANDSHAKE_DONE_FRAME:
       copy = QuicFrame(
           QuicHandshakeDoneFrame(frame.handshake_done_frame.control_frame_id));
+      break;
+    case ACK_FREQUENCY_FRAME:
+      copy = QuicFrame(new QuicAckFrequencyFrame(*frame.ack_frequency_frame));
       break;
     default:
       QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;
@@ -351,6 +366,9 @@ QuicFrame CopyQuicFrame(QuicBufferAllocator* allocator,
     case HANDSHAKE_DONE_FRAME:
       copy = QuicFrame(
           QuicHandshakeDoneFrame(frame.handshake_done_frame.control_frame_id));
+      break;
+    case ACK_FREQUENCY_FRAME:
+      copy = QuicFrame(new QuicAckFrequencyFrame(*frame.ack_frequency_frame));
       break;
     default:
       QUIC_BUG << "Cannot copy frame: " << frame;
@@ -450,6 +468,9 @@ std::ostream& operator<<(std::ostream& os, const QuicFrame& frame) {
       break;
     case HANDSHAKE_DONE_FRAME:
       os << "type { HANDSHAKE_DONE_FRAME } " << frame.handshake_done_frame;
+      break;
+    case ACK_FREQUENCY_FRAME:
+      os << "type { ACK_FREQUENCY_FRAME } " << *(frame.ack_frequency_frame);
       break;
     default: {
       QUIC_LOG(ERROR) << "Unknown frame type: " << frame.type;

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_blocked_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_crypto_frame.h"
@@ -62,6 +63,7 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   explicit QuicFrame(QuicStopSendingFrame* frame);
   explicit QuicFrame(QuicMessageFrame* message_frame);
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
+  explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
 
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(std::ostream& os,
                                                       const QuicFrame& frame);
@@ -102,6 +104,7 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
         QuicStopSendingFrame* stop_sending_frame;
         QuicMessageFrame* message_frame;
         QuicCryptoFrame* crypto_frame;
+        QuicAckFrequencyFrame* ack_frequency_frame;
         QuicNewTokenFrame* new_token_frame;
       };
     };

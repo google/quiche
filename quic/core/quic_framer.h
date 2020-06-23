@@ -218,6 +218,9 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a handshake done frame has been parsed.
   virtual bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) = 0;
 
+  // Called when an AckFrequencyFrame has been parsed.
+  virtual bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) = 0;
+
   // Called when a packet has been completely processed.
   virtual void OnPacketComplete() = 0;
 
@@ -321,6 +324,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Size in bytes of all reset stream frame fields.
   static size_t GetRstStreamFrameSize(QuicTransportVersion version,
                                       const QuicRstStreamFrame& frame);
+  // Size in bytes of all ack frenquency frame fields.
+  static size_t GetAckFrequencyFrameSize(const QuicAckFrequencyFrame& frame);
   // Size in bytes of all connection close frame fields, including the error
   // details.
   static size_t GetConnectionCloseFrameSize(
@@ -489,6 +494,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                          bool last_frame_in_packet,
                          QuicDataWriter* writer);
   bool AppendCryptoFrame(const QuicCryptoFrame& frame, QuicDataWriter* writer);
+  bool AppendAckFrequencyFrame(const QuicAckFrequencyFrame& frame,
+                               QuicDataWriter* writer);
 
   // SetDecrypter sets the primary decrypter, replacing any that already exists.
   // If an alternative decrypter is in place then the function DCHECKs. This is
@@ -917,7 +924,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   bool ProcessCryptoFrame(QuicDataReader* reader,
                           EncryptionLevel encryption_level,
                           QuicCryptoFrame* frame);
-
+  bool ProcessAckFrequencyFrame(QuicDataReader* reader,
+                                QuicAckFrequencyFrame* frame);
   // IETF frame appending methods.  All methods append the type byte as well.
   bool AppendIetfStreamFrame(const QuicStreamFrame& frame,
                              bool last_frame_in_packet,

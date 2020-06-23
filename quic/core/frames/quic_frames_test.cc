@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -240,6 +241,25 @@ TEST_F(QuicFramesTest, HandshakeDoneFrameToString) {
   std::ostringstream stream;
   stream << frame.handshake_done_frame;
   EXPECT_EQ("{ control_frame_id: 6 }\n", stream.str());
+  EXPECT_TRUE(IsControlFrame(frame.type));
+}
+
+TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.sequence_number = 1;
+  ack_frequency_frame.packet_tolerance = 2;
+  ack_frequency_frame.max_ack_delay = QuicTime::Delta::FromMilliseconds(25);
+  ack_frequency_frame.ignore_order = false;
+  QuicFrame frame(&ack_frequency_frame);
+  ASSERT_EQ(ACK_FREQUENCY_FRAME, frame.type);
+  SetControlFrameId(6, &frame);
+  EXPECT_EQ(6u, GetControlFrameId(frame));
+  std::ostringstream stream;
+  stream << *frame.ack_frequency_frame;
+  EXPECT_EQ(
+      "{ control_frame_id: 6, sequence_number: 1, packet_tolerance: 2, "
+      "max_ack_delay_ms: 25, ignore_order: 0 }\n",
+      stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
@@ -557,6 +577,9 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
         break;
       case HANDSHAKE_DONE_FRAME:
         frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
+        break;
+      case ACK_FREQUENCY_FRAME:
+        frames.push_back(QuicFrame(new QuicAckFrequencyFrame()));
         break;
       default:
         ASSERT_TRUE(false)

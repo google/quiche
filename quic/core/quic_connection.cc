@@ -1657,6 +1657,12 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
   return connected_;
 }
 
+bool QuicConnection::OnAckFrequencyFrame(
+    const QuicAckFrequencyFrame& /*frame*/) {
+  // TODO(b/148614353): implement this fully.
+  QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
+  return false;
+}
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
   DCHECK(connected_);
 

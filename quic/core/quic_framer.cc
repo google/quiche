@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
@@ -28,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_socket_address_coder.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
@@ -622,6 +625,17 @@ size_t QuicFramer::GetStopSendingFrameSize(const QuicStopSendingFrame& frame) {
 }
 
 // static
+size_t QuicFramer::GetAckFrequencyFrameSize(
+    const QuicAckFrequencyFrame& frame) {
+  return QuicDataWriter::GetVarInt62Len(IETF_ACK_FREQUENCY) +
+         QuicDataWriter::GetVarInt62Len(frame.sequence_number) +
+         QuicDataWriter::GetVarInt62Len(frame.packet_tolerance) +
+         QuicDataWriter::GetVarInt62Len(frame.max_ack_delay.ToMicroseconds()) +
+         // One byte for encoding boolean
+         1;
+}
+
+// static
 size_t QuicFramer::GetPathChallengeFrameSize(
     const QuicPathChallengeFrame& frame) {
   return kQuicFrameTypeSize + sizeof(frame.data_buffer);
@@ -675,7 +689,8 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
     case HANDSHAKE_DONE_FRAME:
       // HANDSHAKE_DONE has no payload.
       return kQuicFrameTypeSize;
-
+    case ACK_FREQUENCY_FRAME:
+      return GetAckFrequencyFrameSize(*frame.ack_frequency_frame);
     case STREAM_FRAME:
     case ACK_FRAME:
     case STOP_WAITING_FRAME:
@@ -1184,6 +1199,12 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         break;
       case HANDSHAKE_DONE_FRAME:
         // HANDSHAKE_DONE has no payload.
+        break;
+      case ACK_FREQUENCY_FRAME:
+        if (!AppendAckFrequencyFrame(*frame.ack_frequency_frame, writer)) {
+          QUIC_BUG << "AppendAckFrequencyFrame failed: " << detailed_error();
+          return 0;
+        }
         break;
       default:
         set_detailed_error("Tried to append unknown frame type.");
@@ -3349,7 +3370,20 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
                         << handshake_done_frame;
           break;
         }
-
+        case IETF_ACK_FREQUENCY: {
+          QuicAckFrequencyFrame frame;
+          if (!ProcessAckFrequencyFrame(reader, &frame)) {
+            return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF ack frequency frame "
+                        << frame;
+          if (!visitor_->OnAckFrequencyFrame(frame)) {
+            QUIC_DVLOG(1) << "Visitor asked to stop further processing.";
+            // Returning true since there was no parsing error.
+            return true;
+          }
+          break;
+        }
         default:
           set_detailed_error("Illegal frame type.");
           QUIC_DLOG(WARNING)
@@ -3526,6 +3560,47 @@ bool QuicFramer::ProcessCryptoFrame(QuicDataReader* reader,
     return false;
   }
   frame->data_buffer = data.data();
+  return true;
+}
+
+bool QuicFramer::ProcessAckFrequencyFrame(QuicDataReader* reader,
+                                          QuicAckFrequencyFrame* frame) {
+  if (!reader->ReadVarInt62(&frame->sequence_number)) {
+    set_detailed_error("Unable to read sequence number.");
+    return false;
+  }
+
+  if (!reader->ReadVarInt62(&frame->packet_tolerance)) {
+    set_detailed_error("Unable to read packet tolerance.");
+    return false;
+  }
+  if (frame->packet_tolerance == 0) {
+    set_detailed_error("Invalid packet tolerance.");
+    return false;
+  }
+  uint64_t max_ack_delay_us;
+  if (!reader->ReadVarInt62(&max_ack_delay_us)) {
+    set_detailed_error("Unable to read max_ack_delay_us.");
+    return false;
+  }
+  constexpr uint64_t kMaxAckDelayUsBound = 1u << 24;
+  if (max_ack_delay_us > kMaxAckDelayUsBound) {
+    set_detailed_error("Invalid max_ack_delay_us.");
+    return false;
+  }
+  frame->max_ack_delay = QuicTime::Delta::FromMicroseconds(max_ack_delay_us);
+
+  uint8_t ignore_order;
+  if (!reader->ReadUInt8(&ignore_order)) {
+    set_detailed_error("Unable to read ignore_order.");
+    return false;
+  }
+  if (ignore_order > 1) {
+    set_detailed_error("Invalid ignore_order.");
+    return false;
+  }
+  frame->ignore_order = ignore_order;
+
   return true;
 }
 
@@ -4914,6 +4989,9 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
     case HANDSHAKE_DONE_FRAME:
       type_byte = IETF_HANDSHAKE_DONE;
       break;
+    case ACK_FREQUENCY_FRAME:
+      type_byte = IETF_ACK_FREQUENCY;
+      break;
     default:
       QUIC_BUG << "Attempt to generate a frame type for an unsupported value: "
                << frame.type;
@@ -5128,6 +5206,29 @@ bool QuicFramer::AppendCryptoFrame(const QuicCryptoFrame& frame,
       return false;
     }
   }
+  return true;
+}
+
+bool QuicFramer::AppendAckFrequencyFrame(const QuicAckFrequencyFrame& frame,
+                                         QuicDataWriter* writer) {
+  if (!writer->WriteVarInt62(frame.sequence_number)) {
+    set_detailed_error("Writing sequence number failed.");
+    return false;
+  }
+  if (!writer->WriteVarInt62(frame.packet_tolerance)) {
+    set_detailed_error("Writing packet tolerance failed.");
+    return false;
+  }
+  if (!writer->WriteVarInt62(
+          static_cast<uint64_t>(frame.max_ack_delay.ToMicroseconds()))) {
+    set_detailed_error("Writing max_ack_delay_us failed.");
+    return false;
+  }
+  if (!writer->WriteUInt8(static_cast<uint8_t>(frame.ignore_order))) {
+    set_detailed_error("Writing ignore_order failed.");
+    return false;
+  }
+
   return true;
 }
 

@@ -207,6 +207,10 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnHandshakeDoneFrame: " << frame;
     return true;
   }
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override {
+    std::cerr << "OnAckFrequencyFrame: " << frame;
+    return true;
+  }
   void OnPacketComplete() override { std::cerr << "OnPacketComplete\n"; }
   bool IsValidStatelessResetToken(QuicUint128 /*token*/) const override {
     std::cerr << "IsValidStatelessResetToken\n";

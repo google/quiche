@@ -250,6 +250,7 @@ enum QuicFrameType : uint8_t {
   MESSAGE_FRAME,
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
+  ACK_FREQUENCY_FRAME,
 
   NUM_FRAME_TYPES
 };
@@ -309,6 +310,9 @@ enum QuicIetfFrameType : uint8_t {
   IETF_EXTENSION_MESSAGE = 0x21,
   IETF_EXTENSION_MESSAGE_NO_LENGTH_V99 = 0x30,
   IETF_EXTENSION_MESSAGE_V99 = 0x31,
+
+  // An QUIC extension frame for sender control of acknowledgement delays
+  IETF_ACK_FREQUENCY = 0xaf
 };
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                              const QuicIetfFrameType& c);

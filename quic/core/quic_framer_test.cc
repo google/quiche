@@ -406,6 +406,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override {
+    ++frame_count_;
+    ack_frequency_frames_.emplace_back(
+        std::make_unique<QuicAckFrequencyFrame>(frame));
+    DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_EQ(IETF_ACK_FREQUENCY, framer_->current_received_frame_type());
+    return true;
+  }
+
   void OnPacketComplete() override { ++complete_packets_; }
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
@@ -574,6 +583,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicPingFrame>> ping_frames_;
   std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
   std::vector<std::unique_ptr<QuicHandshakeDoneFrame>> handshake_done_frames_;
+  std::vector<std::unique_ptr<QuicAckFrequencyFrame>> ack_frequency_frames_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> coalesced_packets_;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> undecryptable_packets_;
   std::vector<EncryptionLevel> undecryptable_decryption_levels_;
@@ -5159,6 +5169,52 @@ TEST_P(QuicFramerTest, HandshakeDoneFrame) {
   EXPECT_EQ(1u, visitor_.handshake_done_frames_.size());
 }
 
+TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  unsigned char packet[] = {
+     // type (short header, 4 byte packet number)
+     0x43,
+     // connection_id
+     0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+     // packet number
+     0x12, 0x34, 0x56, 0x78,
+
+     // ack frequency frame type (which needs two bytes as it is > 0x3F)
+     0x40, 0xAF,
+     // sequence_number
+     0x11,
+     // packet_tolerance
+     0x02,
+     // max_ack_delay_us = 2'5000 us
+     0x80, 0x00, 0x61, 0xA8,
+     // ignore_order
+     0x01
+  };
+  // clang-format on
+
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  QuicEncryptedPacket encrypted(AsChars(packet), QUICHE_ARRAYSIZE(packet),
+                                false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_TRUE(CheckDecryption(
+      encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
+      PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
+
+  ASSERT_EQ(1u, visitor_.ack_frequency_frames_.size());
+  const auto& frame = visitor_.ack_frequency_frames_.front();
+  EXPECT_EQ(17u, frame->sequence_number);
+  EXPECT_EQ(2u, frame->packet_tolerance);
+  EXPECT_EQ(2'5000u, frame->max_ack_delay.ToMicroseconds());
+  EXPECT_EQ(true, frame->ignore_order);
+}
+
 TEST_P(QuicFramerTest, MessageFrame) {
   if (!VersionSupportsMessageFrames(framer_.transport_version())) {
     return;
@@ -8593,6 +8649,53 @@ TEST_P(QuicFramerTest, BuildHandshakeDonePacket) {
 
     // frame type (Handshake done frame)
     0x1e,
+  };
+  // clang-format on
+  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+    return;
+  }
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet),
+      QUICHE_ARRAYSIZE(packet));
+}
+
+TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.sequence_number = 3;
+  ack_frequency_frame.packet_tolerance = 5;
+  ack_frequency_frame.max_ack_delay = QuicTime::Delta::FromMicroseconds(0x3fff);
+  ack_frequency_frame.ignore_order = false;
+  QuicFrames frames = {QuicFrame(&ack_frequency_frame)};
+
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 4 byte packet number)
+    0x43,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x12, 0x34, 0x56, 0x78,
+
+    // frame type (Ack Frequency frame)
+    0x40, 0xaf,
+    // sequence number
+    0x03,
+    // packet tolerance
+    0x05,
+    // max_ack_delay_us
+    0x7f, 0xff,
+    // ignore_oder
+    0x00
   };
   // clang-format on
   if (!VersionHasIetfQuicFrames(framer_.transport_version())) {

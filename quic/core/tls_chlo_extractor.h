@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
@@ -149,6 +150,9 @@ class QUIC_NO_EXPORT TlsChloExtractor
     return true;
   }
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& /*frame*/) override {
     return true;
   }
   void OnPacketComplete() override {}

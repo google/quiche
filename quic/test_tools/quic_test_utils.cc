@@ -419,6 +419,11 @@ bool NoOpFramerVisitor::OnHandshakeDoneFrame(
   return true;
 }
 
+bool NoOpFramerVisitor::OnAckFrequencyFrame(
+    const QuicAckFrequencyFrame& /*frame*/) {
+  return true;
+}
+
 bool NoOpFramerVisitor::IsValidStatelessResetToken(
     QuicUint128 /*token*/) const {
   return false;

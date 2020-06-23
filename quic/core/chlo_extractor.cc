@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -77,6 +78,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& farme) override;
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
@@ -286,6 +288,11 @@ bool ChloFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
 
 bool ChloFramerVisitor::OnHandshakeDoneFrame(
     const QuicHandshakeDoneFrame& /*frame*/) {
+  return true;
+}
+
+bool ChloFramerVisitor::OnAckFrequencyFrame(
+    const QuicAckFrequencyFrame& /*frame*/) {
   return true;
 }
 

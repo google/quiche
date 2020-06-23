@@ -584,6 +584,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override;
   bool OnMessageFrame(const QuicMessageFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
+  bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   void OnPacketComplete() override;
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
