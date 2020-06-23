@@ -94,10 +94,13 @@ QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string) {
 
 QuicTagVector ParseQuicTagVector(quiche::QuicheStringPiece tags_string) {
   QuicTagVector tag_vector;
-  std::vector<quiche::QuicheStringPiece> tag_strings =
-      quiche::QuicheTextUtils::Split(tags_string, ',');
-  for (quiche::QuicheStringPiece tag_string : tag_strings) {
-    tag_vector.push_back(ParseQuicTag(tag_string));
+  quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tags_string);
+  if (!tags_string.empty()) {
+    std::vector<quiche::QuicheStringPiece> tag_strings =
+        quiche::QuicheTextUtils::Split(tags_string, ',');
+    for (quiche::QuicheStringPiece tag_string : tag_strings) {
+      tag_vector.push_back(ParseQuicTag(tag_string));
+    }
   }
   return tag_vector;
 }
