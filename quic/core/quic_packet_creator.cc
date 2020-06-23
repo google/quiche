@@ -165,6 +165,8 @@ void QuicPacketCreator::SetMaxPacketLength(QuicByteCount length) {
   if (length == max_packet_length_) {
     return;
   }
+  QUIC_DVLOG(1) << "Updating packet creator max packet length from "
+                << max_packet_length_ << " to " << length;
 
   max_packet_length_ = length;
   max_plaintext_size_ = framer_->GetMaxPlaintextSize(max_packet_length_);
@@ -283,6 +285,10 @@ bool QuicPacketCreator::ConsumeCryptoDataToFillCurrentPacket(
     bool needs_full_padding,
     TransmissionType transmission_type,
     QuicFrame* frame) {
+  QUIC_DVLOG(2) << "ConsumeCryptoDataToFillCurrentPacket " << level
+                << " write_length " << write_length << " offset " << offset
+                << (needs_full_padding ? " needs_full_padding" : "") << " "
+                << transmission_type;
   if (!CreateCryptoFrame(level, write_length, offset, frame)) {
     return false;
   }
@@ -1339,6 +1345,8 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
 size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
                                             size_t write_length,
                                             QuicStreamOffset offset) {
+  QUIC_DVLOG(2) << "ConsumeCryptoData " << level << " write_length "
+                << write_length << " offset " << offset;
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to write crypto data.";
   MaybeBundleAckOpportunistically();
@@ -1595,7 +1603,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
         /* last_frame_in_packet= */ true, GetPacketNumberLength());
   }
   if (frame_len == 0) {
-    // Current open packet is full.
+    QUIC_DVLOG(1) << "Flushing because current open packet is full when adding "
+                  << frame;
     FlushCurrentPacket();
     return false;
   }
@@ -1716,6 +1725,10 @@ void QuicPacketCreator::MaybeAddPadding() {
       // Do not add full padding if connection tries to coalesce packet.
       needs_full_padding_ = false;
     }
+  }
+
+  if (disable_padding_override_) {
+    needs_full_padding_ = false;
   }
 
   // Header protection requires a minimum plaintext packet size.

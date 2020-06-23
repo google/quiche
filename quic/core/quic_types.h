@@ -694,10 +694,15 @@ enum SerializedPacketFate : uint8_t {
   SEND_TO_WRITER,                    // Send packet to writer.
   FAILED_TO_WRITE_COALESCED_PACKET,  // Packet cannot be coalesced, error occurs
                                      // when sending existing coalesced packet.
+  LEGACY_VERSION_ENCAPSULATE,  // Perform Legacy Version Encapsulation on this
+                               // packet.
 };
 
 QUIC_EXPORT_PRIVATE std::string SerializedPacketFateToString(
     SerializedPacketFate fate);
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             const SerializedPacketFate fate);
 
 // There are three different forms of CONNECTION_CLOSE.
 enum QuicConnectionCloseType {

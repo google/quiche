@@ -985,6 +985,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void OnUserAgentIdKnown() { sent_packet_manager_.OnUserAgentIdKnown(); }
 
+  // Enables Legacy Version Encapsulation using |server_name| as SNI.
+  // Can only be set if this is a client connection.
+  void EnableLegacyVersionEncapsulation(const std::string& server_name);
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1329,6 +1333,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Returns string which contains undecryptable packets information.
   std::string UndecryptablePacketsInfo() const;
+
+  // Sets the max packet length on the packet creator if needed.
+  void MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
+
+  // Sets internal state to enable or disable Legacy Version Encapsulation.
+  void MaybeActivateLegacyVersionEncapsulation();
+  void MaybeDisactivateLegacyVersionEncapsulation();
 
   QuicFramer framer_;
 
@@ -1721,6 +1732,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool default_enable_5rto_blackhole_detection_ =
       GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);
+
+  // Whether the Legacy Version Encapsulation feature is enabled.
+  bool legacy_version_encapsulation_enabled_ = false;
+  // Whether we are in the middle of sending a packet using Legacy Version
+  // Encapsulation.
+  bool legacy_version_encapsulation_in_progress_ = false;
+  // SNI to send when using Legacy Version Encapsulation.
+  std::string legacy_version_encapsulation_sni_;
 };
 
 }  // namespace quic

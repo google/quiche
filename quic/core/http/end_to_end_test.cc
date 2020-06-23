@@ -4285,6 +4285,95 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
       "test");
 }
 
+TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
+  if (!version_.HasLongHeaderLengths()) {
+    // Decapsulating Legacy Version Encapsulation packets from these versions
+    // is not currently supported in QuicDispatcher.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
+  SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_GT(GetClientConnection()
+                ->GetStats()
+                .sent_legacy_version_encapsulated_packets,
+            0u);
+}
+
+TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
+  if (!version_.HasLongHeaderLengths()) {
+    // Decapsulating Legacy Version Encapsulation packets from these versions
+    // is not currently supported in QuicDispatcher.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  if (!version_.UsesTls()) {
+    // This test uses custom transport parameters to increase the size of the
+    // CHLO, and those are only supported with TLS.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
+  SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
+  constexpr auto kCustomParameter =
+      static_cast<TransportParameters::TransportParameterId>(0xff34);
+  client_config_.custom_transport_parameters_to_send()[kCustomParameter] =
+      std::string(2000, '?');
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_GT(GetClientConnection()
+                ->GetStats()
+                .sent_legacy_version_encapsulated_packets,
+            0u);
+}
+
+TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
+  if (!version_.HasLongHeaderLengths()) {
+    // Decapsulating Legacy Version Encapsulation packets from these versions
+    // is not currently supported in QuicDispatcher.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_supported_versions_.insert(client_supported_versions_.begin(),
+                                    QuicVersionReservedForNegotiation());
+  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
+  SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_GT(GetClientConnection()
+                ->GetStats()
+                .sent_legacy_version_encapsulated_packets,
+            0u);
+}
+
+TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
+  if (!version_.HasLongHeaderLengths()) {
+    // Decapsulating Legacy Version Encapsulation packets from these versions
+    // is not currently supported in QuicDispatcher.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetPacketLossPercentage(30);
+  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
+  SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
+  ASSERT_TRUE(Initialize());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  EXPECT_EQ("200", client_->response_headers()->find(":status")->second);
+  EXPECT_GT(GetClientConnection()
+                ->GetStats()
+                .sent_legacy_version_encapsulated_packets,
+            0u);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

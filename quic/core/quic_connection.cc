@@ -25,6 +25,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_legacy_version_encapsulator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -33,6 +34,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
@@ -616,8 +618,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
-    packet_creator_.SetMaxPacketLength(
-        GetLimitedMaxPacketSize(packet_creator_.max_packet_length()));
+    MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
   }
   if (config.HasReceivedMaxDatagramFrameSize()) {
     packet_creator_.SetMaxDatagramFrameSize(
@@ -631,6 +632,29 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (supports_release_time_) {
     UpdateReleaseTimeIntoFuture();
   }
+}
+
+void QuicConnection::EnableLegacyVersionEncapsulation(
+    const std::string& server_name) {
+  if (perspective_ != Perspective::IS_CLIENT) {
+    QUIC_BUG << "Cannot enable Legacy Version Encapsulation on the server";
+    return;
+  }
+  if (legacy_version_encapsulation_enabled_) {
+    QUIC_BUG << "Do not call EnableLegacyVersionEncapsulation twice";
+    return;
+  }
+  if (!QuicHostnameUtils::IsValidSNI(server_name)) {
+    // Legacy Version Encapsulation is only used when SNI is transmitted.
+    QUIC_DLOG(INFO)
+        << "Refusing to use Legacy Version Encapsulation with invalid SNI \""
+        << server_name << "\"";
+    return;
+  }
+  QUIC_DLOG(INFO) << "Enabling Legacy Version Encapsulation with SNI \""
+                  << server_name << "\"";
+  legacy_version_encapsulation_enabled_ = true;
+  legacy_version_encapsulation_sni_ = server_name;
 }
 
 void QuicConnection::ApplyConnectionOptions(
@@ -1869,6 +1893,29 @@ void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic,
   pending_version_negotiation_packet_ = false;
 }
 
+void QuicConnection::MaybeActivateLegacyVersionEncapsulation() {
+  if (!legacy_version_encapsulation_enabled_) {
+    return;
+  }
+  DCHECK(!legacy_version_encapsulation_in_progress_);
+  QUIC_BUG_IF(!packet_creator_.CanSetMaxPacketLength())
+      << "Cannot activate Legacy Version Encapsulation mid-packet";
+  QUIC_BUG_IF(coalesced_packet_.length() != 0u)
+      << "Cannot activate Legacy Version Encapsulation mid-coalesced-packet";
+  legacy_version_encapsulation_in_progress_ = true;
+  MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
+}
+void QuicConnection::MaybeDisactivateLegacyVersionEncapsulation() {
+  if (!legacy_version_encapsulation_in_progress_) {
+    return;
+  }
+  // Flush any remaining packet before disactivating encapsulation.
+  packet_creator_.FlushCurrentPacket();
+  DCHECK(legacy_version_encapsulation_enabled_);
+  legacy_version_encapsulation_in_progress_ = false;
+  MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
+}
+
 size_t QuicConnection::SendCryptoData(EncryptionLevel level,
                                       size_t write_length,
                                       QuicStreamOffset offset) {
@@ -1880,8 +1927,17 @@ size_t QuicConnection::SendCryptoData(EncryptionLevel level,
       !ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
     return 0;
   }
-  ScopedPacketFlusher flusher(this);
-  return packet_creator_.ConsumeCryptoData(level, write_length, offset);
+  if (level == ENCRYPTION_INITIAL) {
+    MaybeActivateLegacyVersionEncapsulation();
+  }
+  size_t consumed_length;
+  {
+    ScopedPacketFlusher flusher(this);
+    consumed_length =
+        packet_creator_.ConsumeCryptoData(level, write_length, offset);
+  }  // Added scope ensures packets are flushed before continuing.
+  MaybeDisactivateLegacyVersionEncapsulation();
+  return consumed_length;
 }
 
 QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
@@ -1893,13 +1949,24 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
     return QuicConsumedData(0, false);
   }
 
-  // Opportunistically bundle an ack with every outgoing packet.
-  // Particularly, we want to bundle with handshake packets since we don't know
-  // which decrypter will be used on an ack packet following a handshake
-  // packet (a handshake packet from client to server could result in a REJ or a
-  // SHLO from the server, leading to two different decrypters at the server.)
-  ScopedPacketFlusher flusher(this);
-  return packet_creator_.ConsumeData(id, write_length, offset, state);
+  if (packet_creator_.encryption_level() == ENCRYPTION_INITIAL &&
+      QuicUtils::IsCryptoStreamId(transport_version(), id)) {
+    MaybeActivateLegacyVersionEncapsulation();
+  }
+  QuicConsumedData consumed_data(0, false);
+  {
+    // Opportunistically bundle an ack with every outgoing packet.
+    // Particularly, we want to bundle with handshake packets since we don't
+    // know which decrypter will be used on an ack packet following a handshake
+    // packet (a handshake packet from client to server could result in a REJ or
+    // a SHLO from the server, leading to two different decrypters at the
+    // server.)
+    ScopedPacketFlusher flusher(this);
+    consumed_data =
+        packet_creator_.ConsumeData(id, write_length, offset, state);
+  }  // Added scope ensures packets are flushed before continuing.
+  MaybeDisactivateLegacyVersionEncapsulation();
+  return consumed_data;
 }
 
 bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
@@ -2036,6 +2103,31 @@ std::string QuicConnection::UndecryptablePacketsInfo() const {
   }
   info = quiche::QuicheStrCat(info, "}");
   return info;
+}
+
+void QuicConnection::MaybeUpdatePacketCreatorMaxPacketLengthAndPadding() {
+  QuicByteCount max_packet_length = GetLimitedMaxPacketSize(long_term_mtu_);
+  if (legacy_version_encapsulation_in_progress_) {
+    DCHECK(legacy_version_encapsulation_enabled_);
+    const QuicByteCount minimum_overhead =
+        QuicLegacyVersionEncapsulator::GetMinimumOverhead(
+            legacy_version_encapsulation_sni_);
+    if (max_packet_length < minimum_overhead) {
+      QUIC_BUG << "Cannot apply Legacy Version Encapsulation overhead because "
+               << "max_packet_length " << max_packet_length
+               << " < minimum_overhead " << minimum_overhead;
+      legacy_version_encapsulation_in_progress_ = false;
+      legacy_version_encapsulation_enabled_ = false;
+      MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
+      return;
+    }
+    max_packet_length -= minimum_overhead;
+  }
+  packet_creator_.SetMaxPacketLength(max_packet_length);
+  if (legacy_version_encapsulation_enabled_) {
+    packet_creator_.set_disable_padding_override(
+        legacy_version_encapsulation_in_progress_);
+  }
 }
 
 void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
@@ -2516,7 +2608,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   QuicPacketNumber packet_number = packet->packet_number;
-  const QuicPacketLength encrypted_length = packet->encrypted_length;
+  QuicPacketLength encrypted_length = packet->encrypted_length;
   // Termination packets are eventually owned by TimeWaitListManager.
   // Others are deleted at the end of this call.
   if (is_termination_packet) {
@@ -2531,17 +2623,21 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
-  if (!is_mtu_discovery) {
-    DCHECK_LE(encrypted_length, packet_creator_.max_packet_length());
-  }
+  DCHECK(is_mtu_discovery ||
+         encrypted_length <= packet_creator_.max_packet_length())
+      << " encrypted_length=" << encrypted_length
+      << " > packet_creator max_packet_length="
+      << packet_creator_.max_packet_length();
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
                         : " ack only ")
                 << ", encryption level: " << packet->encryption_level
                 << ", encrypted length:" << encrypted_length
-                << ", fate: " << SerializedPacketFateToString(fate);
-  QUIC_DVLOG(2) << ENDPOINT << "packet(" << packet_number << "): " << std::endl
+                << ", fate: " << fate;
+  QUIC_DVLOG(2) << ENDPOINT << packet->encryption_level << " packet number "
+                << packet_number << " of length " << encrypted_length << ": "
+                << std::endl
                 << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
                        packet->encrypted_buffer, encrypted_length));
 
@@ -2614,6 +2710,48 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // write error has been handled.
       QUIC_BUG_IF(!version().CanSendCoalescedPackets());
       return false;
+    case LEGACY_VERSION_ENCAPSULATE: {
+      DCHECK(!is_mtu_discovery);
+      DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+      DCHECK_EQ(packet->encryption_level, ENCRYPTION_INITIAL);
+      DCHECK(legacy_version_encapsulation_enabled_);
+      DCHECK(legacy_version_encapsulation_in_progress_);
+      QuicPacketLength encapsulated_length =
+          QuicLegacyVersionEncapsulator::Encapsulate(
+              legacy_version_encapsulation_sni_,
+              quiche::QuicheStringPiece(packet->encrypted_buffer,
+                                        packet->encrypted_length),
+              server_connection_id_, framer_.creation_time(),
+              GetLimitedMaxPacketSize(long_term_mtu_),
+              const_cast<char*>(packet->encrypted_buffer));
+      if (encapsulated_length != 0) {
+        stats_.sent_legacy_version_encapsulated_packets++;
+        packet->encrypted_length = encapsulated_length;
+        encrypted_length = encapsulated_length;
+        QUIC_DVLOG(2)
+            << ENDPOINT
+            << "Successfully performed Legacy Version Encapsulation on "
+            << packet->encryption_level << " packet number " << packet_number
+            << " of length " << encrypted_length << ": " << std::endl
+            << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                   packet->encrypted_buffer, encrypted_length));
+      } else {
+        QUIC_BUG << ENDPOINT
+                 << "Failed to perform Legacy Version Encapsulation on "
+                 << packet->encryption_level << " packet number "
+                 << packet_number << " of length " << encrypted_length;
+      }
+      if (!buffered_packets_.empty() || HandleWriteBlocked()) {
+        // Buffer the packet.
+        buffered_packets_.emplace_back(*packet, self_address(), peer_address());
+      } else {  // Send the packet to the writer.
+        // writer_->WritePacket transfers buffer ownership back to the writer.
+        packet->release_encrypted_buffer = nullptr;
+        result = writer_->WritePacket(packet->encrypted_buffer,
+                                      encrypted_length, self_address().host(),
+                                      peer_address(), per_packet_options_);
+      }
+    } break;
     default:
       DCHECK(false);
       break;
@@ -3438,7 +3576,7 @@ QuicByteCount QuicConnection::max_packet_length() const {
 
 void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
   long_term_mtu_ = length;
-  packet_creator_.SetMaxPacketLength(GetLimitedMaxPacketSize(length));
+  MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();
 }
 
 bool QuicConnection::HasQueuedData() const {
@@ -4526,15 +4664,22 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
 
 SerializedPacketFate QuicConnection::DeterminePacketFate(
     bool is_mtu_discovery) {
-  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed() &&
-      !is_mtu_discovery) {
-    // Before receiving ACK for any 1-RTT packets, always try to coalesce
-    // packet (except MTU discovery packet).
-    return COALESCE;
+  if (legacy_version_encapsulation_in_progress_) {
+    DCHECK(!is_mtu_discovery);
+    return LEGACY_VERSION_ENCAPSULATE;
   }
-  // Packet cannot be coalesced, flush existing coalesced packet.
-  if (version().CanSendCoalescedPackets() && !FlushCoalescedPacket()) {
-    return FAILED_TO_WRITE_COALESCED_PACKET;
+  if (version().CanSendCoalescedPackets()) {
+    // Disable coalescing when Legacy Version Encapsulation is in use to avoid
+    // having to reframe encapsulated packets.
+    if (!IsHandshakeConfirmed() && !is_mtu_discovery) {
+      // Before receiving ACK for any 1-RTT packets, always try to coalesce
+      // packet (except MTU discovery packet).
+      return COALESCE;
+    }
+    // Packet cannot be coalesced, flush existing coalesced packet.
+    if (!FlushCoalescedPacket()) {
+      return FAILED_TO_WRITE_COALESCED_PACKET;
+    }
   }
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     return BUFFER;

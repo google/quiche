@@ -255,6 +255,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void set_encryption_level(EncryptionLevel level) {
     packet_.encryption_level = level;
   }
+  EncryptionLevel encryption_level() { return packet_.encryption_level; }
 
   // packet number of the last created packet, or 0 if no packets have been
   // created.
@@ -428,6 +429,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   size_t SerializeCoalescedPacket(const QuicCoalescedPacket& coalesced,
                                   char* buffer,
                                   size_t buffer_len);
+
+  void set_disable_padding_override(bool should_disable_padding) {
+    disable_padding_override_ = should_disable_padding;
+  }
 
  private:
   friend class test::QuicPacketCreatorPeer;
@@ -604,6 +609,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool fix_min_crypto_frame_size_ =
       GetQuicReloadableFlag(quic_fix_min_crypto_frame_size);
+
+  // When true, this will override the padding generation code to disable it.
+  bool disable_padding_override_ = false;
 };
 
 }  // namespace quic

@@ -69,7 +69,8 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
       session_cache_(std::move(session_cache)),
       enable_zero_rtt_for_tls_(
           GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)),
-      ssl_ctx_(TlsClientConnection::CreateSslCtx(enable_zero_rtt_for_tls_)) {
+      ssl_ctx_(TlsClientConnection::CreateSslCtx(enable_zero_rtt_for_tls_)),
+      disable_chlo_padding_(GetQuicReloadableFlag(quic_dont_pad_chlo)) {
   DCHECK(proof_verifier_.get());
   SetDefaults();
 }
@@ -420,7 +421,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
     CryptoHandshakeMessage* out) const {
   out->set_tag(kCHLO);
   // TODO(rch): Remove this when we remove quic_use_chlo_packet_size flag.
-  if (pad_inchoate_hello_ && !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+  if (pad_inchoate_hello_ && !disable_chlo_padding_) {
     out->set_minimum_size(kClientHelloMinimumSize);
   } else {
     out->set_minimum_size(1);
@@ -509,7 +510,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   FillInchoateClientHello(server_id, preferred_version, cached, rand,
                           /* demand_x509_proof= */ true, out_params, out);
 
-  if (pad_full_hello_ && !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+  if (pad_full_hello_ && !disable_chlo_padding_) {
     out->set_minimum_size(kClientHelloMinimumSize);
   } else {
     out->set_minimum_size(1);
