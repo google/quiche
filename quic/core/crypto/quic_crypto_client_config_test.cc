@@ -81,46 +81,6 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_SetProofVerifyDetails) {
   EXPECT_EQ(details, state.proof_verify_details());
 }
 
-TEST_F(QuicCryptoClientConfigTest, CachedState_ServerDesignatedConnectionId) {
-  QuicCryptoClientConfig::CachedState state;
-  EXPECT_FALSE(state.has_server_designated_connection_id());
-
-  uint64_t conn_id = 1234;
-  QuicConnectionId connection_id = TestConnectionId(conn_id);
-  state.add_server_designated_connection_id(connection_id);
-  EXPECT_TRUE(state.has_server_designated_connection_id());
-  EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
-  EXPECT_FALSE(state.has_server_designated_connection_id());
-
-  // Allow the ID to be set multiple times.  It's unusual that this would
-  // happen, but not impossible.
-  connection_id = TestConnectionId(++conn_id);
-  state.add_server_designated_connection_id(connection_id);
-  EXPECT_TRUE(state.has_server_designated_connection_id());
-  EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
-  connection_id = TestConnectionId(++conn_id);
-  state.add_server_designated_connection_id(connection_id);
-  EXPECT_EQ(connection_id, state.GetNextServerDesignatedConnectionId());
-  EXPECT_FALSE(state.has_server_designated_connection_id());
-
-  // Test FIFO behavior.
-  const QuicConnectionId first_cid = TestConnectionId(0xdeadbeef);
-  const QuicConnectionId second_cid = TestConnectionId(0xfeedbead);
-  state.add_server_designated_connection_id(first_cid);
-  state.add_server_designated_connection_id(second_cid);
-  EXPECT_TRUE(state.has_server_designated_connection_id());
-  EXPECT_EQ(first_cid, state.GetNextServerDesignatedConnectionId());
-  EXPECT_EQ(second_cid, state.GetNextServerDesignatedConnectionId());
-}
-
-TEST_F(QuicCryptoClientConfigTest, CachedState_ServerIdConsumedBeforeSet) {
-  QuicCryptoClientConfig::CachedState state;
-  EXPECT_FALSE(state.has_server_designated_connection_id());
-  EXPECT_QUIC_BUG(state.GetNextServerDesignatedConnectionId(),
-                  "Attempting to consume a connection id "
-                  "that was never designated.");
-}
-
 TEST_F(QuicCryptoClientConfigTest, CachedState_ServerNonce) {
   QuicCryptoClientConfig::CachedState state;
   EXPECT_FALSE(state.has_server_nonce());
@@ -170,7 +130,6 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {
   EXPECT_EQ(state.source_address_token(), other.source_address_token());
   EXPECT_EQ(state.certs(), other.certs());
   EXPECT_EQ(1u, other.generation_counter());
-  EXPECT_FALSE(state.has_server_designated_connection_id());
   EXPECT_FALSE(state.has_server_nonce());
 }
 
@@ -536,7 +495,6 @@ TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
                                       AllSupportedTransportVersions().front(),
                                       "", &cached, out_params, &error),
               IsQuicNoError());
-  EXPECT_FALSE(cached.has_server_designated_connection_id());
   EXPECT_FALSE(cached.has_server_nonce());
 }
 

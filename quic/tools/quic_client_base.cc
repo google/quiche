@@ -303,21 +303,7 @@ QuicErrorCode QuicClientBase::connection_error() const {
 }
 
 QuicConnectionId QuicClientBase::GetNextConnectionId() {
-  QuicConnectionId server_designated_id = GetNextServerDesignatedConnectionId();
-  return !server_designated_id.IsEmpty() ? server_designated_id
-                                         : GenerateNewConnectionId();
-}
-
-QuicConnectionId QuicClientBase::GetNextServerDesignatedConnectionId() {
-  QuicCryptoClientConfig::CachedState* cached =
-      crypto_config_.LookupOrCreate(server_id_);
-  // If the cached state indicates that we should use a server-designated
-  // connection ID, then return that connection ID.
-  CHECK(cached != nullptr) << "QuicClientCryptoConfig::LookupOrCreate returned "
-                           << "unexpected nullptr.";
-  return cached->has_server_designated_connection_id()
-             ? cached->GetNextServerDesignatedConnectionId()
-             : EmptyQuicConnectionId();
+  return GenerateNewConnectionId();
 }
 
 QuicConnectionId QuicClientBase::GenerateNewConnectionId() {

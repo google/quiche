@@ -175,20 +175,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
 
     void set_cert_sct(quiche::QuicheStringPiece cert_sct);
 
-    // Adds the connection ID to the queue of server-designated connection-ids.
-    void add_server_designated_connection_id(QuicConnectionId connection_id);
-
-    // If true, the crypto config contains at least one connection ID specified
-    // by the server, and the client should use one of these IDs when initiating
-    // the next connection.
-    bool has_server_designated_connection_id() const;
-
-    // This function should only be called when
-    // has_server_designated_connection_id is true.  Returns the next
-    // connection_id specified by the server and removes it from the
-    // queue of ids.
-    QuicConnectionId GetNextServerDesignatedConnectionId();
-
     // Adds the servernonce to the queue of server nonces.
     void add_server_nonce(const std::string& server_nonce);
 
@@ -242,10 +228,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
     // scfg contains the cached, parsed value of |server_config|.
     mutable std::unique_ptr<CryptoHandshakeMessage> scfg_;
 
-    // TODO(jokulik): Consider using a hash-set as extra book-keeping to ensure
-    // that no connection-id is added twice.  Also, consider keeping the server
-    // nonces and connection_ids together in one queue.
-    QuicQueue<QuicConnectionId> server_designated_connection_ids_;
     QuicQueue<std::string> server_nonces_;
   };
 

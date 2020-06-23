@@ -276,10 +276,6 @@ class QuicClientBase {
   // returned.  Otherwise, the next random ID will be returned.
   QuicConnectionId GetNextConnectionId();
 
-  // Returns the next server-designated ConnectionId from the cached config for
-  // |server_id_|, if it exists.  Otherwise, returns 0.
-  QuicConnectionId GetNextServerDesignatedConnectionId();
-
   // Generates a new, random connection ID (as opposed to a server-designated
   // connection ID).
   virtual QuicConnectionId GenerateNewConnectionId();
