@@ -10976,15 +10976,9 @@ TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
   }));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1);
-  if (GetQuicReloadableFlag(quic_advance_ack_timeout_update)) {
-    // Verify ACK is bundled with WINDOW_UPDATE.
-    EXPECT_FALSE(writer_->ack_frames().empty());
-    EXPECT_FALSE(connection_.HasPendingAcks());
-  } else {
-    // ACK is pending.
-    EXPECT_TRUE(writer_->ack_frames().empty());
-    EXPECT_TRUE(connection_.HasPendingAcks());
-  }
+  // Verify ACK is bundled with WINDOW_UPDATE.
+  EXPECT_FALSE(writer_->ack_frames().empty());
+  EXPECT_FALSE(connection_.HasPendingAcks());
 }
 
 TEST_P(QuicConnectionTest, AckAlarmFiresEarly) {

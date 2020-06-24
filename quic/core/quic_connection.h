@@ -1712,9 +1712,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool extend_idle_time_on_decryptable_packets_ =
       GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets);
 
-  const bool advance_ack_timeout_update_ =
-      GetQuicReloadableFlag(quic_advance_ack_timeout_update);
-
   const bool update_ack_alarm_in_send_all_pending_acks_ =
       GetQuicReloadableFlag(quic_update_ack_alarm_in_send_all_pending_acks);
 

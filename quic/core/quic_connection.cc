@@ -333,9 +333,6 @@ QuicConnection::QuicConnection(
       << "QuicConnection: attempted to use server connection ID "
       << server_connection_id << " which is invalid with version "
       << QuicVersionToString(transport_version());
-  if (advance_ack_timeout_update_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_advance_ack_timeout_update);
-  }
   framer_.set_visitor(this);
   stats_.connection_creation_time = clock_->ApproximateNow();
   // TODO(ianswett): Supply the NetworkChangeVisitor as a constructor argument
@@ -1153,14 +1150,9 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnStreamFrame(frame);
   stats_.stream_bytes_received += frame.data_length;
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   consecutive_retransmittable_on_wire_ping_count_ = 0;
   return connected_;
 }
@@ -1175,13 +1167,8 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnCryptoFrame(frame);
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnCryptoFrame(frame);
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1363,11 +1350,7 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPingFrame(frame);
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  } else {
-    should_last_packet_instigate_acks_ = true;
-  }
+  MaybeUpdateAckTimeout();
   return true;
 }
 
@@ -1409,13 +1392,8 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
                   << "RST_STREAM_FRAME received for stream: " << frame.stream_id
                   << " with error: "
                   << QuicRstStreamErrorCodeToString(frame.error_code);
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnRstStream(frame);
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1446,11 +1424,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
   // response.
   received_path_challenge_payloads_.push_back(frame.data_buffer);
 
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  } else {
-    should_last_packet_instigate_acks_ = true;
-  }
+  MaybeUpdateAckTimeout();
   return true;
 }
 
@@ -1458,11 +1432,7 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathResponseFrame(frame);
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  } else {
-    should_last_packet_instigate_acks_ = true;
-  }
+  MaybeUpdateAckTimeout();
   if (!transmitted_connectivity_probe_payload_ ||
       *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
     // Is not for the probe we sent, ignore it.
@@ -1549,13 +1519,8 @@ bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
                   << frame.last_good_stream_id
                   << " and error: " << QuicErrorCodeToString(frame.error_code)
                   << " and reason: " << frame.reason_phrase;
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnGoAway(frame);
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1570,13 +1535,8 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
     debug_visitor_->OnWindowUpdateFrame(frame, GetTimeOfLastReceivedPacket());
   }
   QUIC_DVLOG(1) << ENDPOINT << "WINDOW_UPDATE_FRAME received " << frame;
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnWindowUpdateFrame(frame);
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1613,14 +1573,9 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMessageFrame(frame);
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnMessageReceived(
       quiche::QuicheStringPiece(frame.data, frame.message_length));
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1647,13 +1602,8 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnHandshakeDoneFrame(frame);
   }
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnHandshakeDoneReceived();
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1675,14 +1625,9 @@ bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
   }
   QUIC_DLOG(INFO) << ENDPOINT
                   << "BLOCKED_FRAME received for stream: " << frame.stream_id;
-  if (advance_ack_timeout_update_) {
-    MaybeUpdateAckTimeout();
-  }
+  MaybeUpdateAckTimeout();
   visitor_->OnBlockedFrame(frame);
   stats_.blocked_frames_received++;
-  if (!advance_ack_timeout_update_) {
-    should_last_packet_instigate_acks_ = true;
-  }
   return connected_;
 }
 
@@ -1754,7 +1699,7 @@ void QuicConnection::OnPacketComplete() {
   // For IETF QUIC, it is guaranteed that TLS will give connection the
   // corresponding write key before read key. In other words, connection should
   // never process a packet while an ACK for it cannot be encrypted.
-  if (!advance_ack_timeout_update_ || !should_last_packet_instigate_acks_) {
+  if (!should_last_packet_instigate_acks_) {
     uber_received_packet_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
         last_header_.packet_number, GetTimeOfLastReceivedPacket(),
@@ -4804,7 +4749,6 @@ void QuicConnection::OnIdleNetworkDetected() {
 }
 
 void QuicConnection::MaybeUpdateAckTimeout() {
-  DCHECK(advance_ack_timeout_update_);
   if (should_last_packet_instigate_acks_) {
     return;
   }
