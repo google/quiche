@@ -162,6 +162,25 @@ TEST_F(QuicCryptoClientStreamTest, ExpiredServerConfig) {
   EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
 }
 
+TEST_F(QuicCryptoClientStreamTest, ClientTurnedOffZeroRtt) {
+  // Seed the config with a cached server config.
+  CompleteCryptoHandshake();
+
+  // Recreate connection with the new config.
+  CreateConnection();
+
+  // Set connection option.
+  QuicTagVector options;
+  options.push_back(kQNZR);
+  session_->config()->SetClientConnectionOptions(options);
+
+  EXPECT_CALL(*session_, OnProofValid(testing::_));
+  stream()->CryptoConnect();
+  // Check that a client hello was sent.
+  ASSERT_EQ(1u, connection_->encrypted_packets_.size());
+  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+}
+
 TEST_F(QuicCryptoClientStreamTest, ClockSkew) {
   // Test that if the client's clock is skewed with respect to the server,
   // the handshake succeeds. In the past, the client would get the server

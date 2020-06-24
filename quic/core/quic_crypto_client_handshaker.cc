@@ -290,7 +290,9 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   // inchoate or subsequent hello.
   session()->config()->ToHandshakeMessage(&out, session()->transport_version());
 
-  if (!cached->IsComplete(session()->connection()->clock()->WallNow())) {
+  if (!cached->IsComplete(session()->connection()->clock()->WallNow()) ||
+      session()->config()->HasClientRequestedIndependentOption(
+          kQNZR, session()->perspective())) {
     crypto_config_->FillInchoateClientHello(
         server_id_, session()->supported_versions().front(), cached,
         session()->connection()->random_generator(),
