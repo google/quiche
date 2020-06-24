@@ -25,8 +25,7 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
                        TransmissionType transmission_type,
                        QuicTime sent_time,
                        QuicPacketLength bytes_sent,
-                       bool has_crypto_handshake,
-                       int num_padding_bytes);
+                       bool has_crypto_handshake);
 
   QuicTransmissionInfo(const QuicTransmissionInfo& other);
 
@@ -44,8 +43,6 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   SentPacketState state;
   // True if the packet contains stream data from the crypto stream.
   bool has_crypto_handshake;
-  // Non-zero if the packet needs padding if it's retransmitted.
-  int16_t num_padding_bytes;
   // Stores the packet number of the next retransmission of this packet.
   // Zero if the packet has not been retransmitted.
   // TODO(fayang): rename this to first_sent_after_loss_ when deprecating

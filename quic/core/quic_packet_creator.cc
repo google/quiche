@@ -495,7 +495,6 @@ void QuicPacketCreator::ClearPacket() {
   packet_.has_ack = false;
   packet_.has_stop_waiting = false;
   packet_.has_crypto_handshake = NOT_HANDSHAKE;
-  packet_.num_padding_bytes = 0;
   packet_.transmission_type = NOT_RETRANSMISSION;
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
@@ -785,7 +784,6 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
     QUIC_BUG << "Failed to serialize " << QuicFramesToString(queued_frames_)
              << " at encryption_level: " << packet_.encryption_level
              << ", needs_full_padding_: " << needs_full_padding_
-             << ", packet_.num_padding_bytes: " << packet_.num_padding_bytes
              << ", pending_padding_bytes_: " << pending_padding_bytes_
              << ", latched_hard_max_packet_length_: "
              << latched_hard_max_packet_length_
@@ -1055,7 +1053,6 @@ size_t QuicPacketCreator::SerializeCoalescedPacket(
     const QuicCoalescedPacket& coalesced,
     char* buffer,
     size_t buffer_len) {
-  QUIC_BUG_IF(packet_.num_padding_bytes != 0);
   if (HasPendingFrames()) {
     QUIC_BUG << "Try to serialize coalesced packet with pending frames";
     return 0;
@@ -1705,7 +1702,6 @@ bool QuicPacketCreator::RemoveSoftMaxPacketLength() {
 void QuicPacketCreator::MaybeAddPadding() {
   // The current packet should have no padding bytes because padding is only
   // added when this method is called just before the packet is serialized.
-  DCHECK_EQ(0, packet_.num_padding_bytes);
   if (BytesFree() == 0) {
     // Don't pad full packets.
     return;
@@ -1758,15 +1754,10 @@ void QuicPacketCreator::MaybeAddPadding() {
   }
 
   int padding_bytes = -1;
-  if (needs_full_padding_) {
-    // Full padding does not consume pending padding bytes.
-    packet_.num_padding_bytes = -1;
-  } else {
-    packet_.num_padding_bytes =
-        std::min<int16_t>(pending_padding_bytes_, BytesFree());
-    pending_padding_bytes_ -= packet_.num_padding_bytes;
-    padding_bytes =
-        std::max<int16_t>(packet_.num_padding_bytes, extra_padding_bytes);
+  if (!needs_full_padding_) {
+    padding_bytes = std::min<int16_t>(pending_padding_bytes_, BytesFree());
+    pending_padding_bytes_ -= padding_bytes;
+    padding_bytes = std::max<int16_t>(padding_bytes, extra_padding_bytes);
   }
 
   bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)),

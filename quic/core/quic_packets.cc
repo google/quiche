@@ -456,7 +456,6 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
     : encrypted_buffer(encrypted_buffer),
       encrypted_length(encrypted_length),
       has_crypto_handshake(NOT_HANDSHAKE),
-      num_padding_bytes(0),
       packet_number(packet_number),
       packet_number_length(packet_number_length),
       encryption_level(ENCRYPTION_INITIAL),
@@ -467,7 +466,6 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
 
 SerializedPacket::SerializedPacket(SerializedPacket&& other)
     : has_crypto_handshake(other.has_crypto_handshake),
-      num_padding_bytes(other.num_padding_bytes),
       packet_number(other.packet_number),
       packet_number_length(other.packet_number_length),
       encryption_level(other.encryption_level),
@@ -515,7 +513,6 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
       serialized.encrypted_buffer, serialized.encrypted_length,
       serialized.has_ack, serialized.has_stop_waiting);
   copy->has_crypto_handshake = serialized.has_crypto_handshake;
-  copy->num_padding_bytes = serialized.num_padding_bytes;
   copy->encryption_level = serialized.encryption_level;
   copy->transmission_type = serialized.transmission_type;
   copy->largest_acked = serialized.largest_acked;

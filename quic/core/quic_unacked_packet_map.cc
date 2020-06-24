@@ -63,8 +63,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* packet,
   const bool has_crypto_handshake =
       packet->has_crypto_handshake == IS_HANDSHAKE;
   QuicTransmissionInfo info(packet->encryption_level, transmission_type,
-                            sent_time, bytes_sent, has_crypto_handshake,
-                            packet->num_padding_bytes);
+                            sent_time, bytes_sent, has_crypto_handshake);
   info.largest_acked = packet->largest_acked;
   largest_sent_largest_acked_.UpdateMax(packet->largest_acked);
 
