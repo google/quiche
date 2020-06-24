@@ -732,6 +732,9 @@ size_t QuicPacketCreator::BytesFree() {
 }
 
 size_t QuicPacketCreator::PacketSize() {
+  if (update_packet_size_) {
+    return queued_frames_.empty() ? PacketHeaderSize() : packet_size_;
+  }
   if (!queued_frames_.empty()) {
     return packet_size_;
   }
@@ -1607,6 +1610,10 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
                   << frame;
     FlushCurrentPacket();
     return false;
+  }
+  if (update_packet_size_ && queued_frames_.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_update_packet_size);
+    packet_size_ = PacketHeaderSize();
   }
   DCHECK_LT(0u, packet_size_);
 

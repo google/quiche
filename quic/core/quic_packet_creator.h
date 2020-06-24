@@ -142,12 +142,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset| and data length |data_size|, false otherwise.
+  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
   bool HasRoomForStreamFrame(QuicStreamId id,
                              QuicStreamOffset offset,
                              size_t data_size);
 
   // Returns true if current open packet can accommodate a message frame of
   // |length|.
+  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
   bool HasRoomForMessageFrame(QuicByteCount length);
 
   // Serializes all added frames into a single packet and invokes the delegate_
@@ -179,6 +181,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // frames in the packet.  Since stream frames are slightly smaller when they
   // are the last frame in a packet, this method will return a different
   // value than max_packet_size - PacketSize(), in this case.
+  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
   size_t BytesFree();
 
   // Returns the number of bytes that the packet will expand by if a new frame
@@ -191,6 +194,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // if serialized with the current frames.  Adding a frame to the packet
   // may change the serialized length of existing frames, as per the comment
   // in BytesFree.
+  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
   size_t PacketSize();
 
   // Tries to add |frame| to the packet creator's list of frames to be
@@ -557,7 +561,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Frames to be added to the next SerializedPacket
   QuicFrames queued_frames_;
 
-  // packet_size should never be read directly, use PacketSize() instead.
+  // Serialization size of header + frames. If there is no queued frames,
+  // packet_size_ is 0.
   // TODO(ianswett): Move packet_size_ into SerializedPacket once
   // QuicEncryptedPacket has been flattened into SerializedPacket.
   size_t packet_size_;
@@ -612,6 +617,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // When true, this will override the padding generation code to disable it.
   bool disable_padding_override_ = false;
+
+  bool update_packet_size_ = GetQuicReloadableFlag(quic_update_packet_size);
 };
 
 }  // namespace quic
