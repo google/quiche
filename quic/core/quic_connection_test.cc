@@ -10943,28 +10943,14 @@ TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<TaggingEncrypter>(tag));
   ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
-    // Verify deadline does not get extended.
-    EXPECT_EQ(initial_deadline, connection_.GetTimeoutAlarm()->deadline());
-  }
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
-  }
+  // Verify deadline does not get extended.
+  EXPECT_EQ(initial_deadline, connection_.GetTimeoutAlarm()->deadline());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
   QuicTime::Delta delay = initial_deadline - clock_.ApproximateNow();
   clock_.AdvanceTime(delay);
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
-  if (GetQuicReloadableFlag(quic_extend_idle_time_on_decryptable_packets)) {
-    // Verify connection gets closed.
-    EXPECT_FALSE(connection_.connected());
-  } else {
-    // Verify the timeout alarm deadline is updated.
-    EXPECT_TRUE(connection_.connected());
-    EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
-  }
+  connection_.GetTimeoutAlarm()->Fire();
+  // Verify connection gets closed.
+  EXPECT_FALSE(connection_.connected());
 }
 
 TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {

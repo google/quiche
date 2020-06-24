@@ -1034,13 +1034,10 @@ void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
     // Address is validated by successfully processing a HANDSHAKE packet.
     address_validated_ = true;
   }
-  if (extend_idle_time_on_decryptable_packets_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_extend_idle_time_on_decryptable_packets);
-    if (use_idle_network_detector_) {
-      idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
-    } else {
-      time_of_last_decryptable_packet_ = time_of_last_received_packet_;
-    }
+  if (use_idle_network_detector_) {
+    idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
+  } else {
+    time_of_last_decryptable_packet_ = time_of_last_received_packet_;
   }
 
   visitor_->OnPacketDecrypted(level);
@@ -2135,14 +2132,9 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
              << " too far from current time:"
              << clock_->ApproximateNow().ToDebuggingValue();
   }
-  if (!extend_idle_time_on_decryptable_packets_ && use_idle_network_detector_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_idle_network_detector, 1, 6);
-    idle_network_detector_.OnPacketReceived(packet.receipt_time());
-  } else {
-    time_of_last_received_packet_ = packet.receipt_time();
-    QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
-                  << packet.receipt_time().ToDebuggingValue();
-  }
+  time_of_last_received_packet_ = packet.receipt_time();
+  QUIC_DVLOG(1) << ENDPOINT << "time of last received packet: "
+                << packet.receipt_time().ToDebuggingValue();
 
   ScopedPacketFlusher flusher(this);
   if (!framer_.ProcessPacket(packet)) {
@@ -4816,12 +4808,9 @@ QuicTime QuicConnection::GetTimeOfLastReceivedPacket() const {
   if (use_idle_network_detector_) {
     return idle_network_detector_.time_of_last_received_packet();
   }
-  if (extend_idle_time_on_decryptable_packets_) {
-    DCHECK(time_of_last_decryptable_packet_ == time_of_last_received_packet_ ||
-           !last_packet_decrypted_);
-    return time_of_last_decryptable_packet_;
-  }
-  return time_of_last_received_packet_;
+  DCHECK(time_of_last_decryptable_packet_ == time_of_last_received_packet_ ||
+         !last_packet_decrypted_);
+  return time_of_last_decryptable_packet_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds
