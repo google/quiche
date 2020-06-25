@@ -349,9 +349,6 @@ QuicConnection::QuicConnection(
                          ? kDefaultServerMaxPacketSize
                          : kDefaultMaxPacketSize);
   uber_received_packet_manager_.set_max_ack_ranges(255);
-  if (version().SupportsAntiAmplificationLimit()) {
-    sent_packet_manager_.EnableIetfPtoAndLossDetection();
-  }
   MaybeEnableMultiplePacketNumberSpacesSupport();
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
          supported_versions.size() == 1);
