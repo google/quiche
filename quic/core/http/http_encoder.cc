@@ -99,10 +99,13 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
     const SettingsFrame& settings,
     std::unique_ptr<char[]>* output) {
   QuicByteCount payload_length = 0;
+  std::vector<std::pair<uint64_t, uint64_t>> ordered_settings{
+      settings.values.begin(), settings.values.end()};
+  std::sort(ordered_settings.begin(), ordered_settings.end());
   // Calculate the payload length.
-  for (auto it = settings.values.begin(); it != settings.values.end(); ++it) {
-    payload_length += QuicDataWriter::GetVarInt62Len(it->first);
-    payload_length += QuicDataWriter::GetVarInt62Len(it->second);
+  for (const auto& p : ordered_settings) {
+    payload_length += QuicDataWriter::GetVarInt62Len(p.first);
+    payload_length += QuicDataWriter::GetVarInt62Len(p.second);
   }
 
   QuicByteCount total_length =
@@ -117,8 +120,8 @@ QuicByteCount HttpEncoder::SerializeSettingsFrame(
     return 0;
   }
 
-  for (auto it = settings.values.begin(); it != settings.values.end(); ++it) {
-    if (!writer.WriteVarInt62(it->first) || !writer.WriteVarInt62(it->second)) {
+  for (const auto& p : ordered_settings) {
+    if (!writer.WriteVarInt62(p.first) || !writer.WriteVarInt62(p.second)) {
       QUIC_DLOG(ERROR) << "Http encoder failed when attempting to serialize "
                           "settings frame payload.";
       return 0;
