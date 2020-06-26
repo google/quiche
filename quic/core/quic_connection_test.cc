@@ -11366,7 +11366,8 @@ TEST_P(QuicConnectionTest, CoalescePacketOfLowerEncryptionLevel) {
   if (!connection_.version().CanSendCoalescedPackets()) {
     return;
   }
-  if (GetQuicReloadableFlag(quic_fix_min_crypto_frame_size)) {
+  if (GetQuicReloadableFlag(quic_fix_extra_padding_bytes) ||
+      GetQuicReloadableFlag(quic_fix_min_crypto_frame_size)) {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   } else {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(0);
@@ -11382,7 +11383,8 @@ TEST_P(QuicConnectionTest, CoalescePacketOfLowerEncryptionLevel) {
     SendStreamDataToPeer(2, std::string(1286, 'a'), 0, NO_FIN, nullptr);
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
     // Try to coalesce a HANDSHAKE packet after 1-RTT packet.
-    if (GetQuicReloadableFlag(quic_fix_min_crypto_frame_size)) {
+    if (GetQuicReloadableFlag(quic_fix_extra_padding_bytes) ||
+        GetQuicReloadableFlag(quic_fix_min_crypto_frame_size)) {
       // Verify soft max packet length gets resumed and handshake packet gets
       // successfully sent.
       connection_.SendCryptoDataWithString("a", 0, ENCRYPTION_HANDSHAKE);

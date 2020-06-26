@@ -3793,6 +3793,31 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {
   EXPECT_EQ(TestConnectionId(0x33), creator_.GetSourceConnectionId());
 }
 
+// Regresstion test for b/159812345.
+TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
+  if (!framer_.version().HasHeaderProtection()) {
+    return;
+  }
+  delegate_.SetCanWriteAnything();
+
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(
+          Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
+  MakeIOVector("a", &iov_);
+  creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
+                           framer_.transport_version(), Perspective::IS_CLIENT),
+                       &iov_, 1u, iov_.iov_len, 0, FIN);
+  creator_.Flush();
+  ASSERT_FALSE(packets_[0].nonretransmittable_frames.empty());
+  QuicFrame padding = packets_[0].nonretransmittable_frames[0];
+  if (GetQuicReloadableFlag(quic_fix_extra_padding_bytes)) {
+    // Verify stream frame expansion is excluded.
+    padding.padding_frame.num_padding_bytes = 3;
+  } else {
+    padding.padding_frame.num_padding_bytes = 4;
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

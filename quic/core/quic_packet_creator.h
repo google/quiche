@@ -542,6 +542,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true if packet under construction has IETF long header.
   bool HasIetfLongHeader() const;
 
+  // Get serialized frame length. Returns 0 if the frame does not fit into
+  // current packet.
+  size_t GetSerializedFrameLength(const QuicFrame& frame);
+
+  // Add extra padding to pending_padding_bytes_ to meet minimum plaintext
+  // packet size required for header protection.
+  void MaybeAddExtraPaddingForHeaderProtection();
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;
@@ -622,7 +630,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // When true, this will override the padding generation code to disable it.
   bool disable_padding_override_ = false;
 
-  bool update_packet_size_ = GetQuicReloadableFlag(quic_update_packet_size);
+  const bool update_packet_size_ =
+      GetQuicReloadableFlag(quic_update_packet_size);
+
+  const bool fix_extra_padding_bytes_ =
+      GetQuicReloadableFlag(quic_fix_extra_padding_bytes);
 };
 
 }  // namespace quic
