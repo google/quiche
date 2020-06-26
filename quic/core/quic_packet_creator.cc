@@ -704,22 +704,23 @@ bool QuicPacketCreator::HasPendingStreamFramesOfStream(QuicStreamId id) const {
 size_t QuicPacketCreator::ExpansionOnNewFrame() const {
   // If the last frame in the packet is a message frame, then it will expand to
   // include the varint message length when a new frame is added.
-  const bool has_trailing_message_frame =
-      !queued_frames_.empty() && queued_frames_.back().type == MESSAGE_FRAME;
-  if (has_trailing_message_frame) {
-    return QuicDataWriter::GetVarInt62Len(
-        queued_frames_.back().message_frame->message_length);
+  if (queued_frames_.empty()) {
+    return 0;
   }
-  // If the last frame in the packet is a stream frame, then it will expand to
-  // include the stream_length field when a new frame is added.
-  const bool has_trailing_stream_frame =
-      !queued_frames_.empty() && queued_frames_.back().type == STREAM_FRAME;
-  if (!has_trailing_stream_frame) {
+  return ExpansionOnNewFrameWithLastFrame(queued_frames_.back());
+}
+
+size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
+    const QuicFrame& last_frame) const {
+  if (last_frame.type == MESSAGE_FRAME) {
+    return QuicDataWriter::GetVarInt62Len(
+        last_frame.message_frame->message_length);
+  }
+  if (last_frame.type != STREAM_FRAME) {
     return 0;
   }
   if (VersionHasIetfQuicFrames(framer_->transport_version())) {
-    return QuicDataWriter::GetVarInt62Len(
-        queued_frames_.back().stream_frame.data_length);
+    return QuicDataWriter::GetVarInt62Len(last_frame.stream_frame.data_length);
   }
   return kQuicStreamPayloadLengthSize;
 }
