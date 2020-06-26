@@ -493,8 +493,15 @@ void QuicSentPacketManager::NeuterHandshakePackets() {
   }
 }
 
-bool QuicSentPacketManager::ShouldAddMaxAckDelay() const {
+bool QuicSentPacketManager::ShouldAddMaxAckDelay(
+    PacketNumberSpace space) const {
   DCHECK(pto_enabled_);
+  if (fix_pto_timeout_ && supports_multiple_packet_number_spaces() &&
+      space != APPLICATION_DATA) {
+    // When the PTO is armed for Initial or Handshake packet number spaces,
+    // the max_ack_delay is 0.
+    return false;
+  }
   if (always_include_max_ack_delay_for_pto_timeout_) {
     return true;
   }
@@ -1109,7 +1116,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
               clock_->ApproximateNow(),
               std::max(unacked_packets_.GetFirstInFlightTransmissionInfo()
                                ->sent_time +
-                           GetProbeTimeoutDelay(),
+                           GetProbeTimeoutDelay(NUM_PACKET_NUMBER_SPACES),
                        unacked_packets_.GetLastInFlightPacketSentTime() +
                            first_pto_srtt_multiplier_ *
                                rtt_stats_.SmoothedOrInitialRtt()));
@@ -1117,7 +1124,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
         // Ensure PTO never gets set to a time in the past.
         return std::max(clock_->ApproximateNow(),
                         unacked_packets_.GetLastInFlightPacketSentTime() +
-                            GetProbeTimeoutDelay());
+                            GetProbeTimeoutDelay(NUM_PACKET_NUMBER_SPACES));
       }
 
       PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
@@ -1142,13 +1149,15 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
           return std::max(
               clock_->ApproximateNow(),
               std::max(
-                  first_application_info->sent_time + GetProbeTimeoutDelay(),
+                  first_application_info->sent_time +
+                      GetProbeTimeoutDelay(packet_number_space),
                   earliest_right_edge + first_pto_srtt_multiplier_ *
                                             rtt_stats_.SmoothedOrInitialRtt()));
         }
       }
-      return std::max(clock_->ApproximateNow(),
-                      earliest_right_edge + GetProbeTimeoutDelay());
+      return std::max(
+          clock_->ApproximateNow(),
+          earliest_right_edge + GetProbeTimeoutDelay(packet_number_space));
     }
   }
   DCHECK(false);
@@ -1227,7 +1236,8 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay() const {
   return retransmission_delay;
 }
 
-const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
+const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay(
+    PacketNumberSpace space) const {
   DCHECK(pto_enabled_);
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     // Respect kMinHandshakeTimeoutMs to avoid a potential amplification attack.
@@ -1243,7 +1253,8 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay() const {
   QuicTime::Delta pto_delay =
       rtt_stats_.smoothed_rtt() +
       std::max(pto_rttvar_multiplier_ * rtt_var, kAlarmGranularity) +
-      (ShouldAddMaxAckDelay() ? peer_max_ack_delay_ : QuicTime::Delta::Zero());
+      (ShouldAddMaxAckDelay(space) ? peer_max_ack_delay_
+                                   : QuicTime::Delta::Zero());
   pto_delay =
       pto_delay * (1 << (consecutive_pto_count_ -
                          std::min(consecutive_pto_count_,

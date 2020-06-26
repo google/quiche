@@ -439,7 +439,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   const QuicTime::Delta GetRetransmissionDelay() const;
 
   // Returns the probe timeout.
-  const QuicTime::Delta GetProbeTimeoutDelay() const;
+  const QuicTime::Delta GetProbeTimeoutDelay(PacketNumberSpace space) const;
 
   // Update the RTT if the ack is for the largest acked packet number.
   // Returns true if the rtt was updated.
@@ -505,7 +505,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Indicates whether including peer_max_ack_delay_ when calculating PTO
   // timeout.
-  bool ShouldAddMaxAckDelay() const;
+  bool ShouldAddMaxAckDelay(PacketNumberSpace space) const;
 
   // Gets the earliest in flight packet sent time to calculate PTO. Also
   // updates |packet_number_space| if a PTO timer should be armed.
@@ -662,6 +662,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The multiplier for caculating PTO timeout before any RTT sample is
   // available.
   float pto_multiplier_without_rtt_samples_;
+
+  const bool fix_pto_timeout_ = GetQuicReloadableFlag(quic_fix_pto_timeout);
 };
 
 }  // namespace quic
