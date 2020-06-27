@@ -120,7 +120,7 @@ QuicStream* QuicSessionPeer::GetOrCreateStream(QuicSession* session,
 }
 
 // static
-std::map<QuicStreamId, QuicStreamOffset>&
+QuicHashMap<QuicStreamId, QuicStreamOffset>&
 QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(QuicSession* session) {
   return session->locally_closed_streams_highest_offset_;
 }

@@ -714,7 +714,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
-  std::map<QuicStreamId, QuicStreamOffset>
+  QuicHashMap<QuicStreamId, QuicStreamOffset>
       locally_closed_streams_highest_offset_;
 
   QuicConnection* connection_;

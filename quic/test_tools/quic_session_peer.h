@@ -54,7 +54,7 @@ class QuicSessionPeer {
   static QuicWriteBlockedList* GetWriteBlockedStreams(QuicSession* session);
   static QuicStream* GetOrCreateStream(QuicSession* session,
                                        QuicStreamId stream_id);
-  static std::map<QuicStreamId, QuicStreamOffset>&
+  static QuicHashMap<QuicStreamId, QuicStreamOffset>&
   GetLocallyClosedStreamsHighestOffset(QuicSession* session);
   static QuicSession::StreamMap& stream_map(QuicSession* session);
   static const QuicSession::ClosedStreams& closed_streams(QuicSession* session);
