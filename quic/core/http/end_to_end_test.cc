@@ -1150,6 +1150,8 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
   // Connect with lower fake packet loss than we'd like to test.
   // Until b/10126687 is fixed, losing handshake packets is pretty
   // brutal.
+  // Disable blackhole detection as this test is testing loss recovery.
+  client_extra_copts_.push_back(kNBHD);
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
@@ -1170,6 +1172,8 @@ TEST_P(EndToEndTest, LargePostWithPacketLoss) {
 
 // Regression test for b/80090281.
 TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
+  // Disable blackhole detection as this test is testing loss recovery.
+  client_extra_copts_.push_back(kNBHD);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   server_thread_->WaitForCryptoHandshakeConfirmed();
@@ -1200,6 +1204,8 @@ TEST_P(EndToEndTest, LargePostWithPacketLossAndAlwaysBundleWindowUpdates) {
 TEST_P(EndToEndTest, LargePostWithPacketLossAndBlockedSocket) {
   // Connect with lower fake packet loss than we'd like to test.  Until
   // b/10126687 is fixed, losing handshake packets is pretty brutal.
+  // Disable blackhole detection as this test is testing loss recovery.
+  client_extra_copts_.push_back(kNBHD);
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
@@ -2391,6 +2397,8 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // socket,  an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
   // demonstrates that retransmissions do not break this functionality.
+  // Disable blackhole detection as this test is testing loss recovery.
+  client_extra_copts_.push_back(kNBHD);
   SetPacketLossPercentage(5);
   ASSERT_TRUE(Initialize());
   // Wait for the server SHLO before upping the packet loss.

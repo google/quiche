@@ -169,6 +169,7 @@ const QuicTag k5RTO = TAG('5', 'R', 'T', 'O');   // Close connection on 5 RTOs
 const QuicTag k6RTO = TAG('6', 'R', 'T', 'O');   // Close connection on 6 RTOs
 const QuicTag kCBHD = TAG('C', 'B', 'H', 'D');   // Client only blackhole
                                                  // detection.
+const QuicTag kNBHD = TAG('N', 'B', 'H', 'D');   // No blackhole detection.
 const QuicTag kCONH = TAG('C', 'O', 'N', 'H');   // Conservative Handshake
                                                  // Retransmissions.
 const QuicTag kLFAK = TAG('L', 'F', 'A', 'K');   // Don't invoke FACK on the

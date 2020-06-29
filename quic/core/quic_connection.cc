@@ -539,6 +539,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       QUIC_CODE_COUNT(quic_client_only_blackhole_detection);
       blackhole_detection_disabled_ = true;
     }
+    if (config.HasClientSentConnectionOption(kNBHD, perspective_)) {
+      blackhole_detection_disabled_ = true;
+    }
     if (config.HasClientSentConnectionOption(k2RTO, perspective_)) {
       QUIC_CODE_COUNT(quic_2rto_blackhole_detection);
       num_rtos_for_blackhole_detection_ = 2;
