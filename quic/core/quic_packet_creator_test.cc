@@ -2659,31 +2659,14 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
        ConsumeCryptoDataCheckShouldGeneratePacket) {
   delegate_.SetCanNotWrite();
 
-  if (GetQuicReloadableFlag(quic_fix_checking_should_generate_packet)) {
-    EXPECT_CALL(delegate_, OnSerializedPacket(_)).Times(0);
-  } else {
-    EXPECT_CALL(delegate_, OnSerializedPacket(_))
-        .WillOnce(
-            Invoke(this, &QuicPacketCreatorMultiplePacketsTest::SavePacket));
-  }
+  EXPECT_CALL(delegate_, OnSerializedPacket(_)).Times(0);
   std::string data = "crypto data";
   size_t consumed_bytes =
       creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data, 0);
   creator_.Flush();
-  if (GetQuicReloadableFlag(quic_fix_checking_should_generate_packet)) {
-    EXPECT_EQ(0u, consumed_bytes);
-  } else {
-    EXPECT_EQ(data.length(), consumed_bytes);
-  }
+  EXPECT_EQ(0u, consumed_bytes);
   EXPECT_FALSE(creator_.HasPendingFrames());
   EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
-  if (GetQuicReloadableFlag(quic_fix_checking_should_generate_packet)) {
-    return;
-  }
-  PacketContents contents;
-  contents.num_crypto_frames = 1;
-  contents.num_padding_frames = 1;
-  CheckPacketContains(contents, 0);
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConsumeData_NotWritable) {

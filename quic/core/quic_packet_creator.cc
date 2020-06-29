@@ -1360,13 +1360,9 @@ size_t QuicPacketCreator::ConsumeCryptoData(EncryptionLevel level,
 
   size_t total_bytes_consumed = 0;
 
-  while (total_bytes_consumed < write_length &&
-         (!GetQuicReloadableFlag(quic_fix_checking_should_generate_packet) ||
-          delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
-                                          IS_HANDSHAKE))) {
-    if (GetQuicReloadableFlag(quic_fix_checking_should_generate_packet)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_checking_should_generate_packet);
-    }
+  while (
+      total_bytes_consumed < write_length &&
+      delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA, IS_HANDSHAKE)) {
     QuicFrame frame;
     if (!ConsumeCryptoDataToFillCurrentPacket(
             level, write_length - total_bytes_consumed,
