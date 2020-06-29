@@ -3957,7 +3957,6 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
 
   // Send INITIAL 1.
   SendDataPacket(1, ENCRYPTION_INITIAL);
-  const QuicTime packet1_sent_time = clock_.Now();
   // Send HANDSHAKE 2.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
   SendDataPacket(2, ENCRYPTION_HANDSHAKE);
@@ -3987,34 +3986,12 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
       (GetQuicReloadableFlag(quic_fix_pto_timeout)
            ? QuicTime::Delta::Zero()
            : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
-  if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
-    // Verify PTO is armed based on handshake data.
-    EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
-  } else {
-    // Problematic: PTO is still armed based on initial data.
-    EXPECT_EQ(packet1_sent_time + pto_delay, manager_.GetRetransmissionTime());
-    clock_.AdvanceTime(pto_delay);
-    manager_.OnRetransmissionTimeout();
-    // Nothing to retransmit in INITIAL space.
-    EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(0);
-    manager_.MaybeSendProbePackets();
-    // PING packet gets sent.
-    SendPingPacket(6, ENCRYPTION_INITIAL);
-    manager_.AdjustPendingTimerTransmissions();
-
-    // Verify PTO is armed based on packet 2.
-    EXPECT_EQ(packet2_sent_time + pto_delay * 2,
-              manager_.GetRetransmissionTime());
-    clock_.AdvanceTime(pto_delay * 2);
-    manager_.OnRetransmissionTimeout();
-    EXPECT_CALL(notifier_, RetransmitFrames(_, _)).Times(testing::AtLeast(1));
-    manager_.MaybeSendProbePackets();
-  }
+  // Verify PTO is armed based on handshake data.
+  EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
 }
 
 // Regression test for b/157895910.
 TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
-  SetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time, true);
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
       .WillRepeatedly(Return(QuicBandwidth::Zero()));

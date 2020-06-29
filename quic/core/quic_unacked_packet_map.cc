@@ -211,9 +211,7 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
       bytes_in_flight_per_packet_number_space_[packet_number_space] -=
           info->bytes_sent;
     }
-    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time) &&
-        bytes_in_flight_per_packet_number_space_[packet_number_space] == 0) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_last_inflight_packets_sent_time);
+    if (bytes_in_flight_per_packet_number_space_[packet_number_space] == 0) {
       last_inflight_packets_sent_time_[packet_number_space] = QuicTime::Zero();
     }
 
@@ -251,14 +249,8 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       DCHECK(!HasRetransmittableFrames(*it));
     }
   }
-  if (supports_multiple_packet_number_spaces_) {
-    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
-      DCHECK_EQ(QuicTime::Zero(),
-                last_inflight_packets_sent_time_[INITIAL_DATA]);
-    } else {
-      last_inflight_packets_sent_time_[INITIAL_DATA] = QuicTime::Zero();
-    }
-  }
+  DCHECK(!supports_multiple_packet_number_spaces_ ||
+         last_inflight_packets_sent_time_[INITIAL_DATA] == QuicTime::Zero());
   return neutered_packets;
 }
 
@@ -280,14 +272,8 @@ QuicUnackedPacketMap::NeuterHandshakePackets() {
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
     }
   }
-  if (supports_multiple_packet_number_spaces()) {
-    if (GetQuicReloadableFlag(quic_fix_last_inflight_packets_sent_time)) {
-      DCHECK_EQ(QuicTime::Zero(),
-                last_inflight_packets_sent_time_[HANDSHAKE_DATA]);
-    } else {
-      last_inflight_packets_sent_time_[HANDSHAKE_DATA] = QuicTime::Zero();
-    }
-  }
+  DCHECK(!supports_multiple_packet_number_spaces() ||
+         last_inflight_packets_sent_time_[HANDSHAKE_DATA] == QuicTime::Zero());
   return neutered_packets;
 }
 
