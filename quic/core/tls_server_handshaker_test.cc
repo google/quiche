@@ -366,7 +366,6 @@ TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {
 }
 
 TEST_F(TlsServerHandshakerTest, RejectInvalidSNI) {
-  SetQuicReloadableFlag(quic_tls_enforce_valid_sni, true);
   server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
   InitializeFakeClient();
   static_cast<TlsClientHandshaker*>(
