@@ -24,7 +24,6 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
               (QuicConnectionId connection_id,
                bool ietf_quic,
                QuicTimeWaitListManager::TimeWaitAction action,
-               EncryptionLevel encryption_level,
                std::vector<std::unique_ptr<QuicEncryptedPacket>>*),
               (override));
 
@@ -32,11 +31,9 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
       QuicConnectionId connection_id,
       bool ietf_quic,
       QuicTimeWaitListManager::TimeWaitAction action,
-      EncryptionLevel encryption_level,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets) {
-    QuicTimeWaitListManager::AddConnectionIdToTimeWait(connection_id, ietf_quic,
-                                                       action, encryption_level,
-                                                       termination_packets);
+    QuicTimeWaitListManager::AddConnectionIdToTimeWait(
+        connection_id, ietf_quic, action, termination_packets);
   }
 
   MOCK_METHOD(void,

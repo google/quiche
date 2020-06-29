@@ -151,7 +151,7 @@ class StatelessConnectionTerminator {
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         server_connection_id_, ietf_quic,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        quic::ENCRYPTION_INITIAL, collector_.packets());
+        collector_.packets());
   }
 
  private:
@@ -746,12 +746,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       QuicTimeWaitListManager::SEND_STATELESS_RESET;
   if (connection->termination_packets() != nullptr &&
       !connection->termination_packets()->empty()) {
-    if (GetQuicRestartFlag(quic_replace_time_wait_list_encryption_level)) {
-      QUIC_RESTART_FLAG_COUNT(quic_replace_time_wait_list_encryption_level);
-      action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
-    } else {
-      action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
-    }
+    action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
   } else {
     if (!connection->IsHandshakeComplete()) {
       if (!VersionHasIetfInvariantHeader(connection->transport_version())) {
@@ -782,8 +777,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   }
   time_wait_list_manager_->AddConnectionIdToTimeWait(
       it->first, VersionHasIetfInvariantHeader(connection->transport_version()),
-      action, connection->encryption_level(),
-      connection->termination_packets());
+      action, connection->termination_packets());
   session_map_.erase(it);
 }
 
@@ -932,8 +926,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_code:" << error_code
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id, format != GOOGLE_QUIC_PACKET, action,
-        ENCRYPTION_INITIAL, nullptr);
+        server_connection_id, format != GOOGLE_QUIC_PACKET, action, nullptr);
     return;
   }
 
@@ -968,8 +961,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
-      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, ENCRYPTION_INITIAL,
-      &termination_packets);
+      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, &termination_packets);
 }
 
 bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(

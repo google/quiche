@@ -82,7 +82,6 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
       QuicConnectionId connection_id,
       bool ietf_quic,
       TimeWaitAction action,
-      EncryptionLevel encryption_level,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
 
   // Returns true if the connection_id is in time wait state, false otherwise.
@@ -247,9 +246,6 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     int num_packets;
     bool ietf_quic;
     QuicTime time_added;
-    // TODO(b/153096082) Remove this field.
-    // Encryption level of termination_packets.
-    EncryptionLevel encryption_level;
     // These packets may contain CONNECTION_CLOSE frames, or SREJ messages.
     std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
     TimeWaitAction action;
