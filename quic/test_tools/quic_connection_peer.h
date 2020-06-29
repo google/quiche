@@ -79,7 +79,6 @@ class QuicConnectionPeer {
   static QuicAlarm* GetPingAlarm(QuicConnection* connection);
   static QuicAlarm* GetRetransmissionAlarm(QuicConnection* connection);
   static QuicAlarm* GetSendAlarm(QuicConnection* connection);
-  static QuicAlarm* GetTimeoutAlarm(QuicConnection* connection);
   static QuicAlarm* GetMtuDiscoveryAlarm(QuicConnection* connection);
   static QuicAlarm* GetProcessUndecryptablePacketsAlarm(
       QuicConnection* connection);

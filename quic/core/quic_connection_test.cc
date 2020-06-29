@@ -903,12 +903,8 @@ class TestConnection : public QuicConnection {
   }
 
   TestAlarmFactory::TestAlarm* GetTimeoutAlarm() {
-    if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-      return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-          QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
-    }
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
-        QuicConnectionPeer::GetTimeoutAlarm(this));
+        QuicConnectionPeer::GetIdleNetworkDetectorAlarm(this));
   }
 
   TestAlarmFactory::TestAlarm* GetMtuDiscoveryAlarm() {
@@ -4807,9 +4803,6 @@ TEST_P(QuicConnectionTest, IdleTimeoutAfterFirstSentPacket) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
   QuicTime::Delta delay = initial_ddl - clock_.ApproximateNow();
   clock_.AdvanceTime(delay);
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   // Verify the timeout alarm deadline is updated.
   EXPECT_TRUE(connection_.connected());
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
@@ -4898,10 +4891,6 @@ TEST_P(QuicConnectionTest, HandshakeTimeout) {
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   ProcessAckPacket(&frame);
 
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    // Fire early to verify it wouldn't timeout yet.
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_TRUE(connection_.connected());
 
@@ -5643,12 +5632,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // Now send more data. This will not move the timeout because
   // no data has been received since the previous write.
@@ -5656,20 +5641,13 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendDuringHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       3, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // The original alarm will fire.  We should not time out because we had a
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_TRUE(connection_.connected());
   EXPECT_EQ(default_timeout + five_ms,
@@ -5717,12 +5695,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // Move forward 5 ms and receive a packet, which will move the timeout
   // forward 5 ms more (but will not reschedule the alarm).
@@ -5751,9 +5725,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterRetransmission) {
   ASSERT_EQ(default_timeout.ToDebuggingValue(),
             clock_.Now().ToDebuggingValue());
   EXPECT_EQ(default_timeout, clock_.Now());
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_TRUE(connection_.connected());
   ASSERT_EQ(final_timeout.ToDebuggingValue(),
@@ -5813,12 +5784,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // Now send more data. This will not move the timeout because
   // no data has been received since the previous write.
@@ -5826,20 +5793,13 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       3, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // The original alarm will fire.  We should not time out because we had a
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(default_idle_timeout - five_ms - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_TRUE(connection_.connected());
   EXPECT_EQ(default_timeout + five_ms,
@@ -5899,12 +5859,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseAndTLP) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // Retransmit the packet via tail loss probe.
   clock_.AdvanceTime(connection_.GetRetransmissionAlarm()->deadline() -
@@ -5965,12 +5921,8 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   SendStreamDataToPeer(
       GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
       0, FIN, nullptr);
-  if (GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    EXPECT_EQ(default_timeout + five_ms,
-              connection_.GetTimeoutAlarm()->deadline());
-  } else {
-    EXPECT_EQ(default_timeout, connection_.GetTimeoutAlarm()->deadline());
-  }
+  EXPECT_EQ(default_timeout + five_ms,
+            connection_.GetTimeoutAlarm()->deadline());
 
   // Indicate streams are still open.
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
@@ -6020,9 +5972,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceive) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_EQ(default_timeout + five_ms,
@@ -6078,9 +6027,6 @@ TEST_P(QuicConnectionTest, TimeoutAfterReceiveNotSendWhenUnacked) {
   // network event at t=5ms.  The alarm will reregister.
   clock_.AdvanceTime(initial_idle_timeout - five_ms);
   EXPECT_EQ(default_timeout, clock_.ApproximateNow());
-  if (!GetQuicReloadableFlag(quic_use_idle_network_detector)) {
-    connection_.GetTimeoutAlarm()->Fire();
-  }
   EXPECT_TRUE(connection_.connected());
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
   EXPECT_EQ(default_timeout + five_ms,

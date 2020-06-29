@@ -687,10 +687,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
                           QuicTime::Delta idle_timeout);
 
-  // If the connection has timed out, this will close the connection.
-  // Otherwise, it will reschedule the timeout alarm.
-  void CheckForTimeout();
-
   // Called when the ping alarm fires. Causes a ping frame to be sent only
   // if the retransmission alarm is not running.
   void OnPingTimeout();
@@ -1172,9 +1168,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // sent if there are no outstanding packets.
   QuicPacketNumber GetLeastUnacked() const;
 
-  // Sets the timeout alarm to the appropriate value, if any.
-  void SetTimeoutAlarm();
-
   // Sets the ping alarm to the appropriate value, if any.
   void SetPingAlarm();
 
@@ -1313,10 +1306,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Returns true if network blackhole should be detected.
   bool ShouldDetectBlackhole() const;
-
-  // Remove these two when deprecating quic_use_idle_network_detector.
-  QuicTime::Delta GetHandshakeTimeout() const;
-  QuicTime GetTimeOfLastReceivedPacket() const;
 
   // Validate connection IDs used during the handshake. Closes the connection
   // on validation failure.
@@ -1488,11 +1477,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that is scheduled when the SentPacketManager requires a delay
   // before sending packets and fires when the packet may be sent.
   QuicArenaScopedPtr<QuicAlarm> send_alarm_;
-  // An alarm that is scheduled when the connection can still write and there
-  // may be more data to send.
-  // An alarm that fires when the connection may have timed out.
-  // TODO(fayang): Remove this when deprecating quic_use_idle_network_detector.
-  QuicArenaScopedPtr<QuicAlarm> timeout_alarm_;
   // An alarm that fires when a ping should be sent.
   QuicArenaScopedPtr<QuicAlarm> ping_alarm_;
   // An alarm that fires when an MTU probe should be sent.
@@ -1506,33 +1490,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicPacketCreator packet_creator_;
 
-  // TODO(fayang): Remove these two when deprecating
-  // quic_use_idle_network_detector.
-  // Network idle time before this connection is closed.
-  QuicTime::Delta idle_network_timeout_;
-  // The connection will wait this long for the handshake to complete.
-  QuicTime::Delta handshake_timeout_;
-
   // Statistics for this session.
   QuicConnectionStats stats_;
 
-  // Timestamps used for timeouts.
-  // The time of the first retransmittable packet that was sent after the most
-  // recently received packet.
-  // TODO(fayang): Remove time_of_first_packet_sent_after_receiving_ when
-  // deprecating quic_use_idle_network_detector.
-  QuicTime time_of_first_packet_sent_after_receiving_;
   // The time that a packet is received for this connection. Initialized to
   // connection creation time.
   // This does not indicate the packet was processed.
   QuicTime time_of_last_received_packet_;
-  // This gets set to time_of_last_received_packet_ when a packet gets
-  // decrypted. Please note, this is not necessarily the original receive time
-  // of this decrypt packet because connection can decryptable packet out of
-  // order.
-  // TODO(fayang): Remove time_of_last_decryptable_packet_ when
-  // deprecating quic_use_idle_network_detector.
-  QuicTime time_of_last_decryptable_packet_;
 
   // Sent packet manager which tracks the status of packets sent by this
   // connection and contains the send and receive algorithms to determine when
@@ -1705,9 +1669,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // True if this connection supports handshake done frame.
   bool support_handshake_done_;
-
-  const bool use_idle_network_detector_ =
-      GetQuicReloadableFlag(quic_use_idle_network_detector);
 
   const bool update_ack_alarm_in_send_all_pending_acks_ =
       GetQuicReloadableFlag(quic_update_ack_alarm_in_send_all_pending_acks);

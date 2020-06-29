@@ -51,10 +51,7 @@ QuicSentPacketManager* QuicConnectionPeer::GetSentPacketManager(
 // static
 QuicTime::Delta QuicConnectionPeer::GetNetworkTimeout(
     QuicConnection* connection) {
-  if (connection->use_idle_network_detector_) {
-    return connection->idle_network_detector_.idle_network_timeout_;
-  }
-  return connection->idle_network_timeout_;
+  return connection->idle_network_detector_.idle_network_timeout_;
 }
 
 // static
@@ -140,11 +137,6 @@ QuicAlarm* QuicConnectionPeer::GetRetransmissionAlarm(
 // static
 QuicAlarm* QuicConnectionPeer::GetSendAlarm(QuicConnection* connection) {
   return connection->send_alarm_.get();
-}
-
-// static
-QuicAlarm* QuicConnectionPeer::GetTimeoutAlarm(QuicConnection* connection) {
-  return connection->timeout_alarm_.get();
 }
 
 // static
