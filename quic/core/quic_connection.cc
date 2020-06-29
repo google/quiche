@@ -4191,18 +4191,13 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
 
 void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
                                               bool acked_new_packet) {
-  if (no_stop_waiting_frames_) {
-    if (GetQuicReloadableFlag(quic_donot_change_queued_ack) &&
-        packet_creator_.has_ack()) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_donot_change_queued_ack);
-    } else {
-      uber_received_packet_manager_.DontWaitForPacketsBefore(
-          last_decrypted_packet_level_,
-          SupportsMultiplePacketNumberSpaces()
-              ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
-                    last_decrypted_packet_level_)
-              : sent_packet_manager_.largest_packet_peer_knows_is_acked());
-    }
+  if (no_stop_waiting_frames_ && !packet_creator_.has_ack()) {
+    uber_received_packet_manager_.DontWaitForPacketsBefore(
+        last_decrypted_packet_level_,
+        SupportsMultiplePacketNumberSpaces()
+            ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
+                  last_decrypted_packet_level_)
+            : sent_packet_manager_.largest_packet_peer_knows_is_acked());
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.

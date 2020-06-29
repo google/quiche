@@ -10918,13 +10918,7 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
                     .ack_frame->packets.Contains(QuicPacketNumber(2)));
   }));
   ProcessFramesPacketAtLevel(9, frames, ENCRYPTION_FORWARD_SECURE);
-  if (GetQuicReloadableFlag(quic_donot_change_queued_ack)) {
-    EXPECT_TRUE(writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
-  } else {
-    // ACK frame changes mid packet serialiation!
-    EXPECT_FALSE(
-        writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
-  }
+  EXPECT_TRUE(writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
 }
 
 TEST_P(QuicConnectionTest, DonotExtendIdleTimeOnUndecryptablePackets) {
