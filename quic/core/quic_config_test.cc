@@ -22,23 +22,6 @@ namespace quic {
 namespace test {
 namespace {
 
-constexpr uint32_t kMaxPacketSizeForTest = 1234;
-constexpr uint32_t kMaxDatagramFrameSizeForTest = 1333;
-constexpr uint8_t kFakeStatelessResetTokenData[16] = {
-    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
-    0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F};
-constexpr uint64_t kFakeAckDelayExponent = 10;
-constexpr uint64_t kFakeMaxAckDelay = 51;
-constexpr uint64_t kFakeActiveConnectionIdLimit = 52;
-
-// TODO(b/153726130): Consider merging this with methods in
-// transport_parameters_test.cc.
-std::vector<uint8_t> CreateFakeStatelessResetToken() {
-  return std::vector<uint8_t>(
-      kFakeStatelessResetTokenData,
-      kFakeStatelessResetTokenData + sizeof(kFakeStatelessResetTokenData));
-}
-
 class QuicConfigTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   QuicConfigTest() : version_(GetParam()) {}
@@ -458,7 +441,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
       4 * kMinimumFlowControlSendWindow);
   config_.SetMaxPacketSizeToSend(kMaxPacketSizeForTest);
   config_.SetMaxDatagramFrameSizeToSend(kMaxDatagramFrameSizeForTest);
-  config_.SetActiveConnectionIdLimitToSend(kFakeActiveConnectionIdLimit);
+  config_.SetActiveConnectionIdLimitToSend(kActiveConnectionIdLimitForTest);
 
   config_.SetOriginalConnectionIdToSend(TestConnectionId(0x1111));
   config_.SetInitialSourceConnectionIdToSend(TestConnectionId(0x2222));
@@ -480,7 +463,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(kMaxPacketSizeForTest, params.max_udp_payload_size.value());
   EXPECT_EQ(kMaxDatagramFrameSizeForTest,
             params.max_datagram_frame_size.value());
-  EXPECT_EQ(kFakeActiveConnectionIdLimit,
+  EXPECT_EQ(kActiveConnectionIdLimitForTest,
             params.active_connection_id_limit.value());
 
   ASSERT_TRUE(params.original_destination_connection_id.has_value());
@@ -510,10 +493,10 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
   params.max_datagram_frame_size.set_value(kMaxDatagramFrameSizeForTest);
   params.initial_max_streams_bidi.set_value(kDefaultMaxStreamsPerConnection);
-  params.stateless_reset_token = CreateFakeStatelessResetToken();
-  params.max_ack_delay.set_value(kFakeMaxAckDelay);
-  params.ack_delay_exponent.set_value(kFakeAckDelayExponent);
-  params.active_connection_id_limit.set_value(kFakeActiveConnectionIdLimit);
+  params.stateless_reset_token = CreateStatelessResetTokenForTest();
+  params.max_ack_delay.set_value(kMaxAckDelayForTest);
+  params.ack_delay_exponent.set_value(kAckDelayExponentForTest);
+  params.active_connection_id_limit.set_value(kActiveConnectionIdLimitForTest);
   params.original_destination_connection_id = TestConnectionId(0x1111);
   params.initial_source_connection_id = TestConnectionId(0x2222);
   params.retry_source_connection_id = TestConnectionId(0x3333);
@@ -615,14 +598,14 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   ASSERT_TRUE(config_.HasReceivedStatelessResetToken());
   ASSERT_TRUE(config_.HasReceivedMaxAckDelayMs());
-  EXPECT_EQ(config_.ReceivedMaxAckDelayMs(), kFakeMaxAckDelay);
+  EXPECT_EQ(config_.ReceivedMaxAckDelayMs(), kMaxAckDelayForTest);
 
   ASSERT_TRUE(config_.HasReceivedAckDelayExponent());
-  EXPECT_EQ(config_.ReceivedAckDelayExponent(), kFakeAckDelayExponent);
+  EXPECT_EQ(config_.ReceivedAckDelayExponent(), kAckDelayExponentForTest);
 
   ASSERT_TRUE(config_.HasReceivedActiveConnectionIdLimit());
   EXPECT_EQ(config_.ReceivedActiveConnectionIdLimit(),
-            kFakeActiveConnectionIdLimit);
+            kActiveConnectionIdLimitForTest);
 
   ASSERT_TRUE(config_.HasReceivedOriginalConnectionId());
   EXPECT_EQ(config_.ReceivedOriginalConnectionId(), TestConnectionId(0x1111));

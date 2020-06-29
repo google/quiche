@@ -77,6 +77,15 @@ uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
   return quiche::QuicheEndian::NetToHost64(connection_id64_net);
 }
 
+std::vector<uint8_t> CreateStatelessResetTokenForTest() {
+  static constexpr uint8_t kStatelessResetTokenDataForTest[16] = {
+      0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+      0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F};
+  return std::vector<uint8_t>(kStatelessResetTokenDataForTest,
+                              kStatelessResetTokenDataForTest +
+                                  sizeof(kStatelessResetTokenDataForTest));
+}
+
 std::string TestHostname() {
   return "test.example.org";
 }

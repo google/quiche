@@ -55,9 +55,20 @@ uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id);
 
 enum : uint16_t { kTestPort = 12345 };
 enum : uint32_t {
+  kMaxDatagramFrameSizeForTest = 1333,
+  kMaxPacketSizeForTest = 9001,
   kInitialStreamFlowControlWindowForTest = 1024 * 1024,   // 1 MB
   kInitialSessionFlowControlWindowForTest = 1536 * 1024,  // 1.5 MB
 };
+
+enum : uint64_t {
+  kAckDelayExponentForTest = 10,
+  kMaxAckDelayForTest = 51,
+  kActiveConnectionIdLimitForTest = 52,
+};
+
+// Create an arbitrary stateless reset token, same across multiple calls.
+std::vector<uint8_t> CreateStatelessResetTokenForTest();
 
 // A hostname useful for testing, returns "test.example.org".
 std::string TestHostname();
