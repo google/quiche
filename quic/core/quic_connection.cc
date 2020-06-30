@@ -4572,7 +4572,11 @@ void QuicConnection::OnBlackholeDetected() {
       << ENDPOINT
       << "Closing connection because of blackhole, but there is no bytes in "
          "flight";
-  CloseConnection(QUIC_TOO_MANY_RTOS, "Network blackhole detected.",
+  const std::string error_detail = quiche::QuicheStrCat(
+      "Network blackhole detected", sent_packet_manager_.HasInFlightPackets()
+                                        ? "."
+                                        : " with no packets in flight.");
+  CloseConnection(QUIC_TOO_MANY_RTOS, error_detail,
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
