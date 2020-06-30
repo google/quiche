@@ -406,7 +406,12 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
           .WillRepeatedly(Invoke(&ClearControlFrame));
     }
     EXPECT_CALL(*connection_, OnStreamReset(id, _));
-    session_.CloseStream(id);
+
+    // QPACK streams might write data upon stream reset. Let the test session
+    // handle the data.
+    session_.set_writev_consumes_all_data(true);
+
+    session_.ResetStream(id, QUIC_STREAM_CANCELLED, 0);
     closed_streams_.insert(id);
   }
 
@@ -1721,21 +1726,7 @@ TEST_P(QuicSpdySessionTestServer,
   for (QuicStreamId i = kFirstStreamId; i < kFinalStreamId; i += kNextId) {
     QuicStreamFrame data1(i, false, 0, quiche::QuicheStringPiece("HT"));
     session_.OnStreamFrame(data1);
-    // EXPECT_EQ(1u, session_.GetNumOpenStreams());
-    if (!VersionHasIetfQuicFrames(transport_version())) {
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
-    } else {
-      // V99 has two frames, RST_STREAM and STOP_SENDING
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .Times(2)
-          .WillRepeatedly(Invoke(&ClearControlFrame));
-    }
-    // Close the stream only if not version 99. If we are version 99
-    // then closing the stream opens up the available stream id space,
-    // so we never bump into the limit.
-    EXPECT_CALL(*connection_, OnStreamReset(i, _));
-    session_.CloseStream(i);
+    CloseStream(i);
   }
   // Try and open a stream that exceeds the limit.
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -2082,9 +2073,7 @@ TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
-  session_.CloseStream(stream2->id());
+  CloseStream(stream2->id());
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());

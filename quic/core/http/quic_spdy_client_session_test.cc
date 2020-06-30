@@ -288,7 +288,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
 
   // Close the stream, but without having received a FIN or a RST_STREAM
   // or MAX_STREAMS (V99) and check that a new one can not be created.
-  session_->CloseStream(stream->id());
+  session_->ResetStream(stream->id(), QUIC_STREAM_CANCELLED, 0);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
   stream = session_->CreateOutgoingBidirectionalStream();
@@ -304,7 +304,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   EXPECT_EQ(nullptr, session_->CreateOutgoingBidirectionalStream());
 
   // Close the stream and receive an RST frame to remove the unfinished stream
-  session_->CloseStream(stream->id());
+  session_->ResetStream(stream->id(), QUIC_STREAM_CANCELLED, 0);
   session_->OnRstStream(QuicRstStreamFrame(kInvalidControlFrameId, stream->id(),
                                            QUIC_RST_ACKNOWLEDGEMENT, 0));
   // Check that a new one can be created.

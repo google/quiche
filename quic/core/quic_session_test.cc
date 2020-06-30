@@ -439,9 +439,12 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       if (QuicUtils::GetStreamType(
               id, session_.perspective(), session_.IsIncomingStream(id),
               connection_->version()) == READ_UNIDIRECTIONAL) {
-        // Verify reset is not sent for READ_UNIDIRECTIONAL streams.
-        EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
-        EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(0);
+        // Verify STOP_SENDING but no RESET_STREAM is sent for
+        // READ_UNIDIRECTIONAL streams.
+        EXPECT_CALL(*connection_, SendControlFrame(_))
+            .Times(1)
+            .WillOnce(Invoke(&ClearControlFrame));
+        EXPECT_CALL(*connection_, OnStreamReset(id, _)).Times(1);
       } else if (QuicUtils::GetStreamType(
                      id, session_.perspective(), session_.IsIncomingStream(id),
                      connection_->version()) == WRITE_UNIDIRECTIONAL) {
@@ -464,7 +467,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
           .WillOnce(Invoke(&ClearControlFrame));
       EXPECT_CALL(*connection_, OnStreamReset(id, _));
     }
-    session_.CloseStream(id);
+    session_.ResetStream(id, QUIC_STREAM_CANCELLED, 0);
     closed_streams_.insert(id);
   }
 
@@ -1861,21 +1864,7 @@ TEST_P(QuicSessionTestServer, TooManyUnfinishedStreamsCauseServerRejectStream) {
        i += QuicUtils::StreamIdDelta(connection_->transport_version())) {
     QuicStreamFrame data1(i, false, 0, quiche::QuicheStringPiece("HT"));
     session_.OnStreamFrame(data1);
-    // EXPECT_EQ(1u, session_.GetNumOpenStreams());
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      // Expect two control frames, RST STREAM and STOP SENDING
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .Times(2)
-          .WillRepeatedly(Invoke(&ClearControlFrame));
-    } else {
-      // Expect one control frame, just RST STREAM
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
-    }
-    // Close stream. Should not make new streams available since
-    // the stream is not finished.
-    EXPECT_CALL(*connection_, OnStreamReset(i, _));
-    session_.CloseStream(i);
+    CloseStream(i);
   }
 
   if (VersionHasIetfQuicFrames(transport_version())) {
@@ -2218,9 +2207,7 @@ TEST_P(QuicSessionTestServer, ZombieStreams) {
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
-  session_.CloseStream(stream2->id());
+  CloseStream(stream2->id());
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
@@ -2471,7 +2458,7 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   // Retransmit stream data causes connection close. Stream has not sent fin
   // yet, so an RST is sent.
   EXPECT_CALL(*stream, OnCanWrite()).WillOnce(Invoke([this, stream]() {
-    session_.CloseStream(stream->id());
+    session_.ResetStream(stream->id(), QUIC_STREAM_CANCELLED, 0);
   }));
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Once for the RST_STREAM, once for the STOP_SENDING
@@ -2578,9 +2565,7 @@ TEST_P(QuicSessionTestServer, CleanUpClosedStreamsAlarm) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_FALSE(stream2->IsWaitingForAcks());
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
-  session_.CloseStream(stream2->id());
+  CloseStream(stream2->id());
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   EXPECT_EQ(1u, session_.closed_streams()->size());
   EXPECT_TRUE(
@@ -2847,10 +2832,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingClosedStream) {
 
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
-  // Expect these as side effect of closing the stream.
-  EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(*connection_, OnStreamReset(_, _));
-  session_.CloseStream(stream_id);
+  CloseStream(stream_id);
   QuicStopSendingFrame frame(1, stream_id, 123);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
