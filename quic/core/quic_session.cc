@@ -397,10 +397,15 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
   for (const auto& it : non_static_streams) {
     QuicStreamId id = it.first;
     it.second->OnConnectionClosed(frame.quic_error_code, source);
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_do_not_close_stream_again_on_connection_close);
     if (stream_map_.find(id) != stream_map_.end()) {
       QUIC_BUG << ENDPOINT << "Stream " << id
                << " failed to close under OnConnectionClosed";
-      CloseStream(id);
+      if (!GetQuicReloadableFlag(
+              quic_do_not_close_stream_again_on_connection_close)) {
+        CloseStream(id);
+      }
     }
   }
 

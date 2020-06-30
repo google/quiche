@@ -229,7 +229,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Close stream |stream_id|. Whether sending RST_STREAM (and STOP_SENDING)
   // depends on the sending and receiving states.
-  // TODO(fayang): Deprecate CloseStream, instead always use ResetStream to
+  // TODO(b/136274541): Deprecate CloseStream, instead always use ResetStream to
   // close a stream from session.
   virtual void CloseStream(QuicStreamId stream_id);
 
