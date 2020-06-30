@@ -84,7 +84,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
                   << ", peer_address: " << first.peer_address.ToString()
                   << ", num_segments: " << buffered_writes().size()
                   << ", total_bytes: " << total_bytes
-                  << ", gso_size: " << gso_size;
+                  << ", gso_size: " << gso_size
+                  << ", release_time: " << first.release_time;
 
     // All segments in a GSO packet share the same fate - if the write failed,
     // none of them are sent, and it's not needed to call PopBufferedWrite().

@@ -2728,6 +2728,14 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     return false;
   }
 
+  if (result.status == WRITE_STATUS_OK) {
+    // packet_send_time is the ideal send time, if allow_burst is true, writer
+    // may have sent it earlier than that.
+    DCHECK((per_packet_options_ && per_packet_options_->allow_burst) ||
+           result.send_time_offset.IsZero());
+    packet_send_time = packet_send_time + result.send_time_offset;
+  }
+
   if (debug_visitor_ != nullptr) {
     // Pass the write result to the visitor.
     debug_visitor_->OnPacketSent(*packet, packet->transmission_type,

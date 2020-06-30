@@ -42,6 +42,7 @@ class QUIC_EXPORT_PRIVATE TestQuicGsoBatchWriter : public QuicGsoBatchWriter {
   using QuicGsoBatchWriter::GetReleaseTime;
   using QuicGsoBatchWriter::MaxSegments;
   using QuicGsoBatchWriter::QuicGsoBatchWriter;
+  using QuicGsoBatchWriter::ReleaseTime;
 
   static std::unique_ptr<TestQuicGsoBatchWriter>
   NewInstanceWithReleaseTimeSupport() {
@@ -391,7 +392,7 @@ TEST_F(QuicGsoBatchWriterTest, FlushError) {
 
 TEST_F(QuicGsoBatchWriterTest, ReleaseTimeNullOptions) {
   auto writer = TestQuicGsoBatchWriter::NewInstanceWithReleaseTimeSupport();
-  EXPECT_EQ(0, writer->GetReleaseTime(nullptr));
+  EXPECT_EQ(0, writer->GetReleaseTime(nullptr).actual_release_time);
 }
 
 TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
@@ -402,17 +403,22 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
   TestPerPacketOptions options;
   EXPECT_TRUE(options.release_time_delay.IsZero());
   EXPECT_FALSE(options.allow_burst);
-  EXPECT_EQ(MillisToNanos(1), writer->GetReleaseTime(&options));
+  EXPECT_EQ(MillisToNanos(1),
+            writer->GetReleaseTime(&options).actual_release_time);
 
   // The 1st packet has no delay.
-  ASSERT_EQ(write_buffered, WritePacketWithOptions(writer.get(), &options));
+  WriteResult result = WritePacketWithOptions(writer.get(), &options);
+  ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 
   // The 2nd packet has some delay, but allows burst.
   options.release_time_delay = QuicTime::Delta::FromMilliseconds(3);
   options.allow_burst = true;
-  ASSERT_EQ(write_buffered, WritePacketWithOptions(writer.get(), &options));
+  result = WritePacketWithOptions(writer.get(), &options);
+  ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(1), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::FromMilliseconds(-3));
 
   // The 3rd packet has more delay and does not allow burst.
   // The first 2 packets are flushed due to different release time.
@@ -424,14 +430,17 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
       }));
   options.release_time_delay = QuicTime::Delta::FromMilliseconds(5);
   options.allow_burst = false;
-  ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 2700),
-            WritePacketWithOptions(writer.get(), &options));
+  result = WritePacketWithOptions(writer.get(), &options);
+  ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 2700), result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 
   // The 4th packet has same delay, but allows burst.
   options.allow_burst = true;
-  ASSERT_EQ(write_buffered, WritePacketWithOptions(writer.get(), &options));
+  result = WritePacketWithOptions(writer.get(), &options);
+  ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 
   // The 5th packet has same delay, allows burst, but is shorter.
   // Packets 3,4 and 5 are flushed.
@@ -442,7 +451,8 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
         return 0;
       }));
   options.allow_burst = true;
-  EXPECT_EQ(MillisToNanos(6), writer->GetReleaseTime(&options));
+  EXPECT_EQ(MillisToNanos(6),
+            writer->GetReleaseTime(&options).actual_release_time);
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 3000),
             writer->WritePacket(&packet_buffer_[0], 300, self_address_,
                                 peer_address_, &options));
@@ -452,8 +462,10 @@ TEST_F(QuicGsoBatchWriterTest, ReleaseTime) {
   // words, the release time should still be the same as packets 3-5.
   writer->ForceReleaseTimeMs(2);
   options.release_time_delay = QuicTime::Delta::FromMilliseconds(4);
-  ASSERT_EQ(write_buffered, WritePacketWithOptions(writer.get(), &options));
+  result = WritePacketWithOptions(writer.get(), &options);
+  ASSERT_EQ(write_buffered, result);
   EXPECT_EQ(MillisToNanos(6), writer->buffered_writes().back().release_time);
+  EXPECT_EQ(result.send_time_offset, QuicTime::Delta::Zero());
 }
 
 }  // namespace

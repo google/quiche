@@ -73,7 +73,14 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
 
   // Given the release delay in |options| and the state of |batch_buffer_|, get
   // the absolute release time.
-  uint64_t GetReleaseTime(const PerPacketOptions* options) const;
+  struct QUIC_NO_EXPORT ReleaseTime {
+    // The actual (absolute) release time.
+    uint64_t actual_release_time = 0;
+    // The difference between |actual_release_time| and ideal release time,
+    // which is (now + |options->release_time_delay|).
+    QuicTime::Delta release_time_offset = QuicTime::Delta::Zero();
+  };
+  ReleaseTime GetReleaseTime(const PerPacketOptions* options) const;
 
   struct QUIC_EXPORT_PRIVATE CanBatchResult {
     CanBatchResult(bool can_batch, bool must_flush)

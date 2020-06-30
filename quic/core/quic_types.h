@@ -151,6 +151,11 @@ struct QUIC_EXPORT_PRIVATE WriteResult {
   // Number of packets dropped as a result of this write.
   // Only used by batch writers. Otherwise always 0.
   uint16_t dropped_packets = 0;
+  // The delta between a packet's ideal and actual send time:
+  //     actual_send_time = ideal_send_time + send_time_offset
+  //                      = (now + release_time_delay) + send_time_offset
+  // Only valid if |status| is WRITE_STATUS_OK.
+  QuicTime::Delta send_time_offset = QuicTime::Delta::Zero();
   // TODO(wub): In some cases, WRITE_STATUS_ERROR may set an error_code and
   // WRITE_STATUS_BLOCKED_DATA_BUFFERED may set bytes_written. This may need
   // some cleaning up so that perhaps both values can be set and valid.
