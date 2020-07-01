@@ -462,7 +462,8 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       has_ack(has_ack),
       has_stop_waiting(has_stop_waiting),
       transmission_type(NOT_RETRANSMISSION),
-      has_ack_frame_copy(false) {}
+      has_ack_frame_copy(false),
+      fate(SEND_TO_WRITER) {}
 
 SerializedPacket::SerializedPacket(SerializedPacket&& other)
     : has_crypto_handshake(other.has_crypto_handshake),
@@ -473,7 +474,8 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       has_stop_waiting(other.has_stop_waiting),
       transmission_type(other.transmission_type),
       largest_acked(other.largest_acked),
-      has_ack_frame_copy(other.has_ack_frame_copy) {
+      has_ack_frame_copy(other.has_ack_frame_copy),
+      fate(other.fate) {
   if (this != &other) {
     if (release_encrypted_buffer && encrypted_buffer != nullptr) {
       release_encrypted_buffer(encrypted_buffer);
@@ -516,6 +518,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->encryption_level = serialized.encryption_level;
   copy->transmission_type = serialized.transmission_type;
   copy->largest_acked = serialized.largest_acked;
+  copy->fate = serialized.fate;
 
   if (copy_buffer) {
     copy->encrypted_buffer = CopyBuffer(serialized);

@@ -3534,6 +3534,8 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
 
 TEST_P(QuicConnectionTest, LargeSendWithPendingAck) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   // Set the ack alarm by processing a ping frame.
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
@@ -7232,6 +7234,11 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
                               ConnectionCloseBehavior::SILENT_CLOSE);
   EXPECT_FALSE(connection_.connected());
   EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
+  if (GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early)) {
+    EXPECT_EQ(DISCARD, connection_.GetSerializedPacketFate(
+                           /*is_mtu_discovery=*/false, ENCRYPTION_INITIAL));
+    return;
+  }
   std::unique_ptr<QuicPacket> packet =
       ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
@@ -8339,7 +8346,7 @@ TEST_P(QuicConnectionTest, SendDataWhenApplicationLimited) {
   ASSERT_EQ(0u, connection_.GetStats().packets_sent);
   connection_.set_fill_up_link_during_probing(true);
   EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
   connection_.SendStreamData3();
 

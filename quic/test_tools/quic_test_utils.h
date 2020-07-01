@@ -1493,6 +1493,10 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
               MaybeBundleAckOpportunistically,
               (),
               (override));
+  MOCK_METHOD(SerializedPacketFate,
+              GetSerializedPacketFate,
+              (bool, EncryptionLevel),
+              (override));
 };
 
 class MockSessionNotifier : public SessionNotifierInterface {

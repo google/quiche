@@ -77,6 +77,12 @@ QuicLegacyVersionEncapsulator::MaybeBundleAckOpportunistically() {
   return QuicFrames();
 }
 
+SerializedPacketFate QuicLegacyVersionEncapsulator::GetSerializedPacketFate(
+    bool /*is_mtu_discovery*/,
+    EncryptionLevel /*encryption_level*/) {
+  return SEND_TO_WRITER;
+}
+
 // static
 QuicPacketLength QuicLegacyVersionEncapsulator::Encapsulate(
     quiche::QuicheStringPiece sni,

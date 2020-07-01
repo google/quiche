@@ -47,6 +47,9 @@ class QUIC_EXPORT_PRIVATE QuicLegacyVersionEncapsulator
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
                             IsHandshake handshake) override;
   const QuicFrames MaybeBundleAckOpportunistically() override;
+  SerializedPacketFate GetSerializedPacketFate(
+      bool is_mtu_discovery,
+      EncryptionLevel encryption_level) override;
 
   ~QuicLegacyVersionEncapsulator() override;
 

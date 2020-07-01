@@ -2506,7 +2506,8 @@ QuicTime QuicConnection::CalculatePacketSentTime() {
 }
 
 bool QuicConnection::WritePacket(SerializedPacket* packet) {
-  if (ShouldDiscardPacket(*packet)) {
+  if (!packet_creator_.determine_serialized_packet_fate_early() &&
+      ShouldDiscardPacket(packet->encryption_level)) {
     ++stats_.packets_discarded;
     return true;
   }
@@ -2518,11 +2519,12 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return true;
   }
-
   const bool is_mtu_discovery = QuicUtils::ContainsFrameType(
       packet->nonretransmittable_frames, MTU_DISCOVERY_FRAME);
-
-  SerializedPacketFate fate = DeterminePacketFate(is_mtu_discovery);
+  const SerializedPacketFate fate =
+      packet_creator_.determine_serialized_packet_fate_early()
+          ? packet->fate
+          : GetSerializedPacketFate(is_mtu_discovery, packet->encryption_level);
   // Termination packets are encrypted and saved, so don't exit early.
   const bool is_termination_packet = IsTerminationPacket(*packet);
   QuicPacketNumber packet_number = packet->packet_number;
@@ -2565,6 +2567,10 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QuicTime packet_send_time = CalculatePacketSentTime();
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   switch (fate) {
+    case DISCARD:
+      DCHECK(packet_creator_.determine_serialized_packet_fate_early());
+      ++stats_.packets_discarded;
+      return true;
     case COALESCE:
       QUIC_BUG_IF(!version().CanSendCoalescedPackets());
       if (!coalesced_packet_.MaybeCoalescePacket(
@@ -2835,21 +2841,20 @@ bool QuicConnection::IsMsgTooBig(const WriteResult& result) {
          (IsWriteError(result.status) && result.error_code == QUIC_EMSGSIZE);
 }
 
-bool QuicConnection::ShouldDiscardPacket(const SerializedPacket& packet) {
+bool QuicConnection::ShouldDiscardPacket(EncryptionLevel encryption_level) {
   if (!connected_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Not sending packet as connection is disconnected.";
     return true;
   }
 
-  QuicPacketNumber packet_number = packet.packet_number;
   if (encryption_level_ == ENCRYPTION_FORWARD_SECURE &&
-      packet.encryption_level == ENCRYPTION_INITIAL) {
+      encryption_level == ENCRYPTION_INITIAL) {
     // Drop packets that are NULL encrypted since the peer won't accept them
     // anymore.
     QUIC_DLOG(INFO) << ENDPOINT
-                    << "Dropping NULL encrypted packet: " << packet_number
-                    << " since the connection is forward secure.";
+                    << "Dropping NULL encrypted packet since the connection is "
+                       "forward secure.";
     return true;
   }
 
@@ -4490,8 +4495,14 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
                  bytes_received_before_address_validation_;
 }
 
-SerializedPacketFate QuicConnection::DeterminePacketFate(
-    bool is_mtu_discovery) {
+SerializedPacketFate QuicConnection::GetSerializedPacketFate(
+    bool is_mtu_discovery,
+    EncryptionLevel encryption_level) {
+  if (packet_creator_.determine_serialized_packet_fate_early()) {
+    if (ShouldDiscardPacket(encryption_level)) {
+      return DISCARD;
+    }
+  }
   if (legacy_version_encapsulation_in_progress_) {
     DCHECK(!is_mtu_discovery);
     return LEGACY_VERSION_ENCAPSULATE;
@@ -4505,7 +4516,8 @@ SerializedPacketFate QuicConnection::DeterminePacketFate(
       return COALESCE;
     }
     // Packet cannot be coalesced, flush existing coalesced packet.
-    if (!FlushCoalescedPacket()) {
+    if (!packet_creator_.determine_serialized_packet_fate_early() &&
+        !FlushCoalescedPacket()) {
       return FAILED_TO_WRITE_COALESCED_PACKET;
     }
   }

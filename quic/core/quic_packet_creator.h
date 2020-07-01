@@ -58,6 +58,13 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     // Called when there is data to be sent. Retrieves updated ACK frame from
     // the delegate.
     virtual const QuicFrames MaybeBundleAckOpportunistically() = 0;
+
+    // Returns the packet fate for serialized packets which will be handed over
+    // to delegate via OnSerializedPacket(). Called when a packet is about to be
+    // serialized.
+    virtual SerializedPacketFate GetSerializedPacketFate(
+        bool is_mtu_discovery,
+        EncryptionLevel encryption_level) = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting
@@ -442,6 +449,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     disable_padding_override_ = should_disable_padding;
   }
 
+  bool determine_serialized_packet_fate_early() const {
+    return determine_serialized_packet_fate_early_;
+  }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -628,6 +639,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       GetQuicReloadableFlag(quic_fix_min_crypto_frame_size);
 
   // When true, this will override the padding generation code to disable it.
+  // TODO(fayang): remove this when deprecating
+  // quic_determine_serialized_packet_fate_early.
   bool disable_padding_override_ = false;
 
   const bool update_packet_size_ =
@@ -635,6 +648,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool fix_extra_padding_bytes_ =
       GetQuicReloadableFlag(quic_fix_extra_padding_bytes);
+
+  const bool determine_serialized_packet_fate_early_ =
+      GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early);
 };
 
 }  // namespace quic

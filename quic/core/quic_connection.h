@@ -598,6 +598,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnSerializedPacket(SerializedPacket packet) override;
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& error_details) override;
+  SerializedPacketFate GetSerializedPacketFate(
+      bool is_mtu_discovery,
+      EncryptionLevel encryption_level) override;
 
   // QuicSentPacketManager::NetworkChangeVisitor
   void OnCongestionChange() override;
@@ -1039,7 +1042,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                                          const std::string& details);
 
   // Returns true if the packet should be discarded and not sent.
-  virtual bool ShouldDiscardPacket(const SerializedPacket& packet);
+  virtual bool ShouldDiscardPacket(EncryptionLevel encryption_level);
 
   // Retransmits packets continuously until blocked by the congestion control.
   // If there are no packets to retransmit, does not do anything.
@@ -1243,9 +1246,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called to update ACK timeout when an retransmittable frame has been parsed.
   void MaybeUpdateAckTimeout();
-
-  // Returns packet fate when trying to write a packet via WritePacket().
-  SerializedPacketFate DeterminePacketFate(bool is_mtu_discovery);
 
   // Serialize and send coalesced_packet. Returns false if serialization fails
   // or the write causes errors, otherwise, returns true.

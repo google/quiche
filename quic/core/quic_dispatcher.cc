@@ -87,6 +87,12 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
     return {};
   }
 
+  SerializedPacketFate GetSerializedPacketFate(
+      bool /*is_mtu_discovery*/,
+      EncryptionLevel /*encryption_level*/) override {
+    return SEND_TO_WRITER;
+  }
+
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
                                         QuicStreamOffset offset,

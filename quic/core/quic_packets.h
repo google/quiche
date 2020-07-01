@@ -403,6 +403,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   // Indicates whether this packet has a copy of ack frame in
   // nonretransmittable_frames.
   bool has_ack_frame_copy;
+  SerializedPacketFate fate;
 };
 
 // Make a copy of |serialized| (including the underlying frames). |copy_buffer|
