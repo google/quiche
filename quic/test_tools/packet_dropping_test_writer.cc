@@ -10,7 +10,11 @@
 namespace quic {
 namespace test {
 
-const int32_t kMaxConsecutivePacketLoss = 3;
+// Every dropped packet must be followed by this number of succesfully written
+// packets. This is to avoid flaky test failures and timeouts, for example, in
+// case both the client and the server drop every other packet (which is
+// statistically possible even if drop percentage is less than 50%).
+const int32_t kMinSuccesfulWritesAfterPacketLoss = 2;
 
 // An alarm that is scheduled if a blocked socket is simulated to indicate
 // it's writable again.
@@ -49,14 +53,16 @@ PacketDroppingTestWriter::PacketDroppingTestWriter()
     : clock_(nullptr),
       cur_buffer_size_(0),
       num_calls_to_write_(0),
+      // Do not require any number of successful writes before the first dropped
+      // packet.
+      num_consecutive_succesful_writes_(kMinSuccesfulWritesAfterPacketLoss),
       fake_packet_loss_percentage_(0),
       fake_drop_first_n_packets_(0),
       fake_blocked_socket_percentage_(0),
       fake_packet_reorder_percentage_(0),
       fake_packet_delay_(QuicTime::Delta::Zero()),
       fake_bandwidth_(QuicBandwidth::Zero()),
-      buffer_size_(0),
-      num_consecutive_packet_lost_(0) {
+      buffer_size_(0) {
   uint64_t seed = QuicRandom::GetInstance()->RandUint64();
   QUIC_LOG(INFO) << "Seeding packet loss with " << seed;
   simple_random_.set_seed(seed);
@@ -90,34 +96,39 @@ WriteResult PacketDroppingTestWriter::WritePacket(
           static_cast<uint64_t>(fake_drop_first_n_packets_)) {
     QUIC_DVLOG(1) << "Dropping first " << fake_drop_first_n_packets_
                   << " packets (packet number " << num_calls_to_write_ << ")";
+    num_consecutive_succesful_writes_ = 0;
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }
-  const int32_t kMaxPacketLossPercentage =
-      kMaxConsecutivePacketLoss * 100.0 / (kMaxConsecutivePacketLoss + 1);
-  if (fake_packet_loss_percentage_ > 0 &&
-      // Do not allow too many consecutive packet drops to avoid test flakiness.
-      (num_consecutive_packet_lost_ <= kMaxConsecutivePacketLoss ||
-       // Allow as many consecutive packet drops as possbile if
-       // |fake_packet_lost_percentage_| is large enough. Without this exception
-       // it is hard to simulate high loss rate, like 100%.
-       fake_packet_loss_percentage_ > kMaxPacketLossPercentage) &&
-      (simple_random_.RandUint64() % 100 <
-       static_cast<uint64_t>(fake_packet_loss_percentage_))) {
-    QUIC_DVLOG(1) << "Dropping packet.";
-    ++num_consecutive_packet_lost_;
+
+  // Drop every packet at 100%, otherwise always succeed for at least
+  // kMinSuccesfulWritesAfterPacketLoss packets between two dropped ones.
+  if (fake_packet_loss_percentage_ == 100 ||
+      (fake_packet_loss_percentage_ > 0 &&
+       num_consecutive_succesful_writes_ >=
+           kMinSuccesfulWritesAfterPacketLoss &&
+       (simple_random_.RandUint64() % 100 <
+        static_cast<uint64_t>(fake_packet_loss_percentage_)))) {
+    QUIC_DVLOG(1) << "Dropping packet " << num_calls_to_write_;
+    num_consecutive_succesful_writes_ = 0;
     return WriteResult(WRITE_STATUS_OK, buf_len);
   } else {
-    num_consecutive_packet_lost_ = 0;
+    ++num_consecutive_succesful_writes_;
   }
+
   if (fake_blocked_socket_percentage_ > 0 &&
       simple_random_.RandUint64() % 100 <
           static_cast<uint64_t>(fake_blocked_socket_percentage_)) {
     CHECK(on_can_write_ != nullptr);
-    QUIC_DVLOG(1) << "Blocking socket.";
+    QUIC_DVLOG(1) << "Blocking socket for packet " << num_calls_to_write_;
     if (!write_unblocked_alarm_->IsSet()) {
       // Set the alarm to fire immediately.
       write_unblocked_alarm_->Set(clock_->ApproximateNow());
     }
+
+    // Dropping this packet on retry could result in PTO timeout,
+    // make sure to avoid this.
+    num_consecutive_succesful_writes_ = 0;
+
     return WriteResult(WRITE_STATUS_BLOCKED, EAGAIN);
   }
 
@@ -223,13 +234,6 @@ void PacketDroppingTestWriter::SetDelayAlarm(QuicTime new_deadline) {
 
 void PacketDroppingTestWriter::OnCanWrite() {
   on_can_write_->OnCanWrite();
-}
-
-void PacketDroppingTestWriter::set_fake_packet_loss_percentage(
-    int32_t fake_packet_loss_percentage) {
-  QuicWriterMutexLock lock(&config_mutex_);
-  fake_packet_loss_percentage_ = fake_packet_loss_percentage;
-  num_consecutive_packet_lost_ = 0;
 }
 
 PacketDroppingTestWriter::DelayedWrite::DelayedWrite(

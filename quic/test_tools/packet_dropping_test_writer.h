@@ -73,7 +73,14 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   void OnCanWrite();
 
   // The percent of time a packet is simulated as being lost.
-  void set_fake_packet_loss_percentage(int32_t fake_packet_loss_percentage);
+  // If |fake_packet_loss_percentage| is 100, then all packages are lost.
+  // Otherwise actual percentage will be lower than
+  // |fake_packet_loss_percentage|, because every dropped package is followed by
+  // a minimum number of successfully written packets.
+  void set_fake_packet_loss_percentage(int32_t fake_packet_loss_percentage) {
+    QuicWriterMutexLock lock(&config_mutex_);
+    fake_packet_loss_percentage_ = fake_packet_loss_percentage;
+  }
 
   // Simulate dropping the first n packets unconditionally.
   // Subsequent packets will be lost at fake_packet_loss_percentage_ if set.
@@ -159,6 +166,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   DelayedPacketList delayed_packets_;
   QuicByteCount cur_buffer_size_;
   uint64_t num_calls_to_write_;
+  int32_t num_consecutive_succesful_writes_;
 
   QuicMutex config_mutex_;
   int32_t fake_packet_loss_percentage_ QUIC_GUARDED_BY(config_mutex_);
@@ -168,7 +176,6 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   QuicTime::Delta fake_packet_delay_ QUIC_GUARDED_BY(config_mutex_);
   QuicBandwidth fake_bandwidth_ QUIC_GUARDED_BY(config_mutex_);
   QuicByteCount buffer_size_ QUIC_GUARDED_BY(config_mutex_);
-  int32_t num_consecutive_packet_lost_ QUIC_GUARDED_BY(config_mutex_);
 };
 
 }  // namespace test
