@@ -66,18 +66,23 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
   // [2] It won't cause this batch to exceed kMaxGsoPacketSize.
   // [3] Already buffered writes all have the same length.
   // [4] Length of already buffered writes must >= length of the new write.
-  // [5] The new packet has the same release time as buffered writes.
+  // [5] The new packet can be released without delay, or it has the same
+  //     release time as buffered writes.
   const BufferedWrite& first = buffered_writes().front();
   const BufferedWrite& last = buffered_writes().back();
+  // Whether this packet can be sent without delay, regardless of release time.
+  const bool can_burst = !SupportsReleaseTime() || !options ||
+                         options->release_time_delay.IsZero() ||
+                         options->allow_burst;
   size_t max_segments = MaxSegments(first.buf_len);
   bool can_batch =
-      buffered_writes().size() < max_segments &&                       // [0]
-      last.self_address == self_address &&                             // [1]
-      last.peer_address == peer_address &&                             // [1]
-      batch_buffer().SizeInUse() + buf_len <= kMaxGsoPacketSize &&     // [2]
-      first.buf_len == last.buf_len &&                                 // [3]
-      first.buf_len >= buf_len &&                                      // [4]
-      (!SupportsReleaseTime() || first.release_time == release_time);  // [5]
+      buffered_writes().size() < max_segments &&                    // [0]
+      last.self_address == self_address &&                          // [1]
+      last.peer_address == peer_address &&                          // [1]
+      batch_buffer().SizeInUse() + buf_len <= kMaxGsoPacketSize &&  // [2]
+      first.buf_len == last.buf_len &&                              // [3]
+      first.buf_len >= buf_len &&                                   // [4]
+      (can_burst || first.release_time == release_time);            // [5]
 
   // A flush is required if any of the following is true:
   // [a] The new write can't be batched.

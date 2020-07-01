@@ -249,25 +249,27 @@ TEST_F(QuicGsoBatchWriterTest, BatchCriteria) {
     for (size_t j = 0; j < test_data_table.size(); ++j) {
       const BatchCriteriaTestData& test_data = test_data_table[j];
       SCOPED_TRACE(testing::Message() << "i=" << i << ", j=" << j);
+      TestPerPacketOptions options;
+      options.release_time_delay = QuicTime::Delta::FromMicroseconds(
+          test_data.buffered_write.release_time);
       TestQuicGsoBatchWriter::CanBatchResult result = writer->CanBatch(
           test_data.buffered_write.buffer, test_data.buffered_write.buf_len,
           test_data.buffered_write.self_address,
-          test_data.buffered_write.peer_address,
-          /*options=*/nullptr, test_data.buffered_write.release_time);
+          test_data.buffered_write.peer_address, &options,
+          test_data.buffered_write.release_time);
 
       ASSERT_EQ(test_data.can_batch, result.can_batch);
       ASSERT_EQ(test_data.must_flush, result.must_flush);
 
       if (result.can_batch) {
-        ASSERT_TRUE(
-            writer->batch_buffer()
-                .PushBufferedWrite(test_data.buffered_write.buffer,
-                                   test_data.buffered_write.buf_len,
-                                   test_data.buffered_write.self_address,
-                                   test_data.buffered_write.peer_address,
-                                   /*options=*/nullptr,
-                                   test_data.buffered_write.release_time)
-                .succeeded);
+        ASSERT_TRUE(writer->batch_buffer()
+                        .PushBufferedWrite(
+                            test_data.buffered_write.buffer,
+                            test_data.buffered_write.buf_len,
+                            test_data.buffered_write.self_address,
+                            test_data.buffered_write.peer_address, &options,
+                            test_data.buffered_write.release_time)
+                        .succeeded);
       }
     }
   }

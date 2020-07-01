@@ -66,9 +66,9 @@ QuicBatchWriterBase::ReleaseTime QuicBatchWriterBase::GetReleaseTime(
     ReleaseTime result{actual_release_time,
                        QuicTime::Delta::FromMicroseconds(offset_ns / 1000)};
 
-    QUIC_DLOG(INFO) << "ideal_release_time:" << ideal_release_time
-                    << ", actual_release_time:" << actual_release_time
-                    << ", offset:" << result.release_time_offset;
+    QUIC_DVLOG(1) << "ideal_release_time:" << ideal_release_time
+                  << ", actual_release_time:" << actual_release_time
+                  << ", offset:" << result.release_time_offset;
     return result;
   }
 
