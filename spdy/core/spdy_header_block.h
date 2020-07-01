@@ -27,6 +27,14 @@ class SpdyHeaderBlockPeer;
 class ValueProxyPeer;
 }  // namespace test
 
+#ifndef SPDY_HEADER_DEBUG
+#if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#define SPDY_HEADER_DEBUG 1
+#else  // !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#define SPDY_HEADER_DEBUG 0
+#endif  // !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#endif  // SPDY_HEADER_DEBUG
+
 // This class provides a key-value map that can be used to store SPDY header
 // names and values. This data structure preserves insertion order.
 //
@@ -120,7 +128,12 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
 
     // This will result in memory allocation if the value consists of multiple
     // fragments.
-    const_reference operator*() const { return it_->second.as_pair(); }
+    const_reference operator*() const {
+#if SPDY_HEADER_DEBUG
+      CHECK(!dereference_forbidden_);
+#endif  // SPDY_HEADER_DEBUG
+      return it_->second.as_pair();
+    }
 
     const_pointer operator->() const { return &(this->operator*()); }
     bool operator==(const iterator& it) const { return it_ == it.it_; }
@@ -137,8 +150,15 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
       return ret;
     }
 
+#if SPDY_HEADER_DEBUG
+    void forbid_dereference() { dereference_forbidden_ = true; }
+#endif  // SPDY_HEADER_DEBUG
+
    private:
     MapType::const_iterator it_;
+#if SPDY_HEADER_DEBUG
+    bool dereference_forbidden_ = false;
+#endif  // SPDY_HEADER_DEBUG
   };
   typedef iterator const_iterator;
 
@@ -158,17 +178,17 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   // keys and values.
   std::string DebugString() const;
 
-  iterator begin() { return iterator(map_.begin()); }
-  iterator end() { return iterator(map_.end()); }
-  const_iterator begin() const { return const_iterator(map_.begin()); }
-  const_iterator end() const { return const_iterator(map_.end()); }
+  iterator begin() { return wrap_iterator(map_.begin()); }
+  iterator end() { return wrap_iterator(map_.end()); }
+  const_iterator begin() const { return wrap_const_iterator(map_.begin()); }
+  const_iterator end() const { return wrap_const_iterator(map_.end()); }
   bool empty() const { return map_.empty(); }
   size_t size() const { return map_.size(); }
   iterator find(quiche::QuicheStringPiece key) {
-    return iterator(map_.find(key));
+    return wrap_iterator(map_.find(key));
   }
   const_iterator find(quiche::QuicheStringPiece key) const {
-    return const_iterator(map_.find(key));
+    return wrap_const_iterator(map_.find(key));
   }
   void erase(quiche::QuicheStringPiece key);
 
@@ -239,6 +259,31 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
 
  private:
   friend class test::SpdyHeaderBlockPeer;
+
+  inline iterator wrap_iterator(MapType::const_iterator inner_iterator) const {
+#if SPDY_HEADER_DEBUG
+    iterator outer_iterator(inner_iterator);
+    if (inner_iterator == map_.end()) {
+      outer_iterator.forbid_dereference();
+    }
+    return outer_iterator;
+#else  // SPDY_HEADER_DEBUG
+    return iterator(inner_iterator);
+#endif  // SPDY_HEADER_DEBUG
+  }
+
+  inline const_iterator wrap_const_iterator(
+      MapType::const_iterator inner_iterator) const {
+#if SPDY_HEADER_DEBUG
+    const_iterator outer_iterator(inner_iterator);
+    if (inner_iterator == map_.end()) {
+      outer_iterator.forbid_dereference();
+    }
+    return outer_iterator;
+#else  // SPDY_HEADER_DEBUG
+    return iterator(inner_iterator);
+#endif  // SPDY_HEADER_DEBUG
+  }
 
   void AppendHeader(const quiche::QuicheStringPiece key,
                     const quiche::QuicheStringPiece value);
