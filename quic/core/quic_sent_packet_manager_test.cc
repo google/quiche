@@ -4121,6 +4121,34 @@ TEST_F(QuicSentPacketManagerTest,
             manager_.GetRetransmissionTime());
 }
 
+TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPRServer) {
+  QuicConfig config;
+  QuicTagVector options;
+
+  options.push_back(kTLPR);
+  config.SetClientConnectionOptions(options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  // No change if the server receives client options.
+  EXPECT_FALSE(
+      QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
+}
+
+TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPR) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  QuicConfig config;
+  QuicTagVector options;
+
+  options.push_back(kTLPR);
+  config.SetClientConnectionOptions(options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

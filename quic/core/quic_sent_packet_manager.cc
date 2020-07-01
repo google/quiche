@@ -264,6 +264,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kTLPR, perspective)) {
     enable_half_rtt_tail_loss_probe_ = true;
   }
+  if (config.HasClientRequestedIndependentOption(kTLPR, perspective)) {
+    enable_half_rtt_tail_loss_probe_ = true;
+  }
   if (config.HasClientSentConnectionOption(kNRTO, perspective)) {
     use_new_rto_ = true;
   }
