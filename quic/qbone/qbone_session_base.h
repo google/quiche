@@ -31,9 +31,6 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // Overrides from QuicSession.
   // This will ensure that the crypto session is created.
   void Initialize() override;
-  // This will ensure that we keep track of stream ids that can be
-  // write blocked.
-  void CloseStream(QuicStreamId stream_id) override;
   // This will check if the packet is wholly contained.
   void OnStreamFrame(const QuicStreamFrame& frame) override;
   // Called whenever a MESSAGE frame is received.

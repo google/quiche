@@ -75,15 +75,6 @@ QuicStream* QboneSessionBase::CreateOutgoingStream() {
       CreateDataStream(GetNextOutgoingUnidirectionalStreamId()));
 }
 
-void QboneSessionBase::CloseStream(QuicStreamId stream_id) {
-  if (IsClosedStream(stream_id)) {
-    // When CloseStream has been called recursively (via
-    // QuicStream::OnClose), the stream is already closed so return.
-    return;
-  }
-  QuicSession::CloseStream(stream_id);
-}
-
 void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
   if (frame.offset == 0 && frame.fin && frame.data_length > 0) {
     ++num_ephemeral_packets_;
@@ -93,7 +84,7 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
     // TODO(b/147817422): Add a counter for how many streams were actually
     // closed here.
     if (GetQuicFlag(FLAGS_qbone_close_ephemeral_frames)) {
-      CloseStream(frame.stream_id);
+      ResetStream(frame.stream_id, QUIC_STREAM_CANCELLED);
     }
     return;
   }
