@@ -1239,7 +1239,7 @@ TEST_P(EndToEndTest, MultipleStreams) {
 
   while (kNumRequests > client_->num_responses()) {
     client_->ClearPerRequestState();
-    WaitForFooResponseAndCheckIt();
+    ASSERT_TRUE(WaitForFooResponseAndCheckIt());
   }
 }
 
@@ -2171,7 +2171,8 @@ TEST_P(EndToEndTest, MaxStreamsUberTest) {
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
   // requests.
-  while (client_->client()->WaitForEvents() == true) {
+  while (client_->client()->WaitForEvents()) {
+    ASSERT_TRUE(client_->connected());
   }
 }
 
@@ -2196,7 +2197,8 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
   // requests.
-  while (client_->client()->WaitForEvents() == true) {
+  while (client_->client()->WaitForEvents()) {
+    ASSERT_TRUE(client_->connected());
   }
   // It should be completely fine to RST a stream before any data has been
   // received for that stream.
@@ -2509,6 +2511,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
     // is sent in the first packet on the control stream.
     while (!QuicSpdySessionPeer::GetReceiveControlStream(client_session)) {
       client_->client()->WaitForEvents();
+      ASSERT_TRUE(client_->connected());
     }
   }
 
@@ -2516,6 +2519,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   // (and the ack received by the client).
   while (client_session->HasUnackedStreamData()) {
     client_->client()->WaitForEvents();
+    ASSERT_TRUE(client_->connected());
   }
 
   server_thread_->Pause();
@@ -2675,21 +2679,22 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
     while (true) {
       // Waits for up to 50 ms.
       client_->client()->WaitForEvents();
+      ASSERT_TRUE(client_->connected());
       QuicSpdyClientSession* client_session = GetClientSession();
       if (client_session == nullptr) {
         ADD_FAILURE() << "Missing client session";
-        break;
+        return;
       }
       QpackEncoder* qpack_encoder = client_session->qpack_encoder();
       if (qpack_encoder == nullptr) {
         ADD_FAILURE() << "Missing QPACK encoder";
-        break;
+        return;
       }
       QpackHeaderTable* header_table =
           QpackEncoderPeer::header_table(qpack_encoder);
       if (header_table == nullptr) {
         ADD_FAILURE() << "Missing header table";
-        break;
+        return;
       }
       if (QpackHeaderTablePeer::dynamic_table_capacity(header_table) > 0) {
         break;
@@ -2749,6 +2754,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   while (ack_listener->total_bytes_acked() < expected_bytes_acked) {
     // Waits for up to 50 ms.
     client_->client()->WaitForEvents();
+    ASSERT_TRUE(client_->connected());
   }
   EXPECT_EQ(ack_listener->total_bytes_acked(), expected_bytes_acked)
       << " header_size " << header_size << " request length "
@@ -3584,6 +3590,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
     // Because of priority, the first response arrived should be to original
     // request.
     client_->WaitForResponse();
+    ASSERT_TRUE(client_->connected());
   }
 
   // Check server session to see if it has max number of outgoing streams opened

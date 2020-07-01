@@ -332,7 +332,9 @@ class QuicTestClient : public QuicSpdyStream::Visitor,
  protected:
   QuicTestClient();
   QuicTestClient(const QuicTestClient&) = delete;
+  QuicTestClient(const QuicTestClient&&) = delete;
   QuicTestClient& operator=(const QuicTestClient&) = delete;
+  QuicTestClient& operator=(const QuicTestClient&&) = delete;
 
  private:
   class TestClientDataToResend : public QuicClient::QuicDataToResend {

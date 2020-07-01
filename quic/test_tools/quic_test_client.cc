@@ -636,7 +636,10 @@ bool QuicTestClient::connected() const {
 }
 
 void QuicTestClient::Connect() {
-  DCHECK(!connected());
+  if (connected()) {
+    QUIC_BUG << "Cannot connect already-connected client";
+    return;
+  }
   if (!connect_attempted_) {
     client_->Initialize();
   }
