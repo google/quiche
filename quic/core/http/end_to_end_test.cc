@@ -1944,7 +1944,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
   // Transmit the cancel, and ensure the connection is torn down properly.
   SetPacketLossPercentage(0);
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
-  session->ResetStream(stream_id, QUIC_STREAM_CANCELLED, 0);
+  session->ResetStream(stream_id, QUIC_STREAM_CANCELLED);
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
   // requests.

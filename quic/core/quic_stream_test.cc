@@ -130,7 +130,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
       StreamSendingState /*state*/,
       TransmissionType /*type*/,
       quiche::QuicheOptional<EncryptionLevel> /*level*/) {
-    session_->ResetStream(id, QUIC_STREAM_CANCELLED, 0);
+    session_->ResetStream(id, QUIC_STREAM_CANCELLED);
     return QuicConsumedData(1, false);
   }
 

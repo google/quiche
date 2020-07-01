@@ -211,9 +211,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called to send RST_STREAM (and STOP_SENDING) and close stream. If stream
   // |id| does not exist, just send RST_STREAM (and STOP_SENDING).
-  virtual void ResetStream(QuicStreamId id,
-                           QuicRstStreamErrorCode error,
-                           QuicStreamOffset bytes_written);
+  virtual void ResetStream(QuicStreamId id, QuicRstStreamErrorCode error);
 
   // Called when the session wants to go away and not accept any new streams.
   virtual void SendGoAway(QuicErrorCode error_code, const std::string& reason);

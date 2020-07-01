@@ -467,7 +467,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
           .WillOnce(Invoke(&ClearControlFrame));
       EXPECT_CALL(*connection_, OnStreamReset(id, _));
     }
-    session_.ResetStream(id, QUIC_STREAM_CANCELLED, 0);
+    session_.ResetStream(id, QUIC_STREAM_CANCELLED);
     closed_streams_.insert(id);
   }
 
@@ -2458,7 +2458,7 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   // Retransmit stream data causes connection close. Stream has not sent fin
   // yet, so an RST is sent.
   EXPECT_CALL(*stream, OnCanWrite()).WillOnce(Invoke([this, stream]() {
-    session_.ResetStream(stream->id(), QUIC_STREAM_CANCELLED, 0);
+    session_.ResetStream(stream->id(), QUIC_STREAM_CANCELLED);
   }));
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Once for the RST_STREAM, once for the STOP_SENDING

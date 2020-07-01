@@ -411,7 +411,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     // handle the data.
     session_.set_writev_consumes_all_data(true);
 
-    session_.ResetStream(id, QUIC_STREAM_CANCELLED, 0);
+    session_.ResetStream(id, QUIC_STREAM_CANCELLED);
     closed_streams_.insert(id);
   }
 

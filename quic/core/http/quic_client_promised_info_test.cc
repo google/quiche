@@ -328,7 +328,7 @@ TEST_F(QuicClientPromisedInfoTest, PushPromiseDataClosed) {
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_,
               OnStreamReset(promise_id_, QUIC_STREAM_PEER_GOING_AWAY));
-  session_.ResetStream(promise_id_, QUIC_STREAM_PEER_GOING_AWAY, 0);
+  session_.ResetStream(promise_id_, QUIC_STREAM_PEER_GOING_AWAY);
 
   // Now initiate rendezvous.
   TestPushPromiseDelegate delegate(/*match=*/true);

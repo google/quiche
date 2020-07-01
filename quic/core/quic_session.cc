@@ -763,9 +763,7 @@ void QuicSession::SendRstStream(QuicStreamId id,
   }
 }
 
-void QuicSession::ResetStream(QuicStreamId id,
-                              QuicRstStreamErrorCode error,
-                              QuicStreamOffset bytes_written) {
+void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
   QuicStream* stream = GetStream(id);
   if (stream != nullptr && stream->is_static()) {
     connection()->CloseConnection(
@@ -779,7 +777,7 @@ void QuicSession::ResetStream(QuicStreamId id,
     return;
   }
 
-  SendRstStream(id, error, bytes_written);
+  SendRstStream(id, error, 0);
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
@@ -1795,7 +1793,7 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
   if (!VersionHasIetfQuicFrames(transport_version()) &&
       !stream_id_manager_.CanOpenIncomingStream()) {
     // Refuse to open the stream.
-    ResetStream(stream_id, QUIC_REFUSED_STREAM, 0);
+    ResetStream(stream_id, QUIC_REFUSED_STREAM);
     return nullptr;
   }
 
