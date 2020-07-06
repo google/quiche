@@ -3003,11 +3003,7 @@ TEST_P(QuicSpdySessionTestServer,
       QuicSpdySessionPeer::GetSendControlStream(&session_);
   // Mark send_control stream write blocked.
   session_.MarkConnectionLevelWriteBlocked(send_control_stream->id());
-  if (GetQuicReloadableFlag(quic_fix_willing_and_able_to_write)) {
-    EXPECT_FALSE(session_.WillingAndAbleToWrite());
-  } else {
-    EXPECT_TRUE(session_.WillingAndAbleToWrite());
-  }
+  EXPECT_FALSE(session_.WillingAndAbleToWrite());
 }
 
 TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {

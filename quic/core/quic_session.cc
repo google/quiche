@@ -656,12 +656,6 @@ bool QuicSession::WillingAndAbleToWrite() const {
       !streams_with_pending_retransmission_.empty()) {
     return true;
   }
-  if (!GetQuicReloadableFlag(quic_fix_willing_and_able_to_write)) {
-    return write_blocked_streams_.HasWriteBlockedSpecialStream() ||
-           (!flow_controller_.IsBlocked() &&
-            write_blocked_streams_.HasWriteBlockedDataStreams());
-  }
-  QUIC_RELOADABLE_FLAG_COUNT(quic_fix_willing_and_able_to_write);
   if (flow_controller_.IsBlocked()) {
     if (VersionUsesHttp3(transport_version())) {
       return false;
