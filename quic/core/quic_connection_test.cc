@@ -4540,8 +4540,6 @@ TEST_P(QuicConnectionTest,
 }
 
 TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
-  SetQuicReloadableFlag(quic_do_not_retransmit_immediately_on_zero_rtt_reject,
-                        true);
   use_tagging_decrypter();
   connection_.SetEncrypter(ENCRYPTION_INITIAL,
                            std::make_unique<TaggingEncrypter>(0x01));

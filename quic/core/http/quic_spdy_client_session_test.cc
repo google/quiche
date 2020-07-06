@@ -1076,8 +1076,6 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
 
 // Regression test for b/159168475
 TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
-  SetQuicReloadableFlag(quic_do_not_retransmit_immediately_on_zero_rtt_reject,
-                        true);
   // This feature is TLS-only.
   if (session_->version().UsesQuicCrypto()) {
     return;
