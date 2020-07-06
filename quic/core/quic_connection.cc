@@ -2393,17 +2393,6 @@ bool QuicConnection::ShouldGeneratePacket(
          QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
-  // We should serialize handshake packets immediately to ensure that they
-  // end up sent at the right encryption level.
-  if (!move_amplification_limit_ && handshake == IS_HANDSHAKE) {
-    if (LimitedByAmplificationFactor()) {
-      // Server is constrained by the amplification restriction.
-      QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
-      return false;
-    }
-    return true;
-  }
-
   return CanWrite(retransmittable);
 }
 
@@ -2440,9 +2429,8 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  if (move_amplification_limit_ && LimitedByAmplificationFactor()) {
+  if (LimitedByAmplificationFactor()) {
     // Server is constrained by the amplification restriction.
-    QUIC_RELOADABLE_FLAG_COUNT(quic_move_amplification_limit);
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
     QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
     return false;
@@ -4277,9 +4265,7 @@ void QuicConnection::SendAllPendingAcks() {
     const bool flushed = packet_creator_.FlushAckFrame(frames);
     if (!flushed) {
       // Connection is write blocked.
-      QUIC_BUG_IF(
-          !writer_->IsWriteBlocked() &&
-          (!move_amplification_limit_ || !LimitedByAmplificationFactor()))
+      QUIC_BUG_IF(!writer_->IsWriteBlocked() && !LimitedByAmplificationFactor())
           << "Writer not blocked and not throttled by amplification factor, "
              "but ACK not flushed for packet space:"
           << i;
@@ -4479,7 +4465,7 @@ bool QuicConnection::EnforceAntiAmplificationLimit() const {
 bool QuicConnection::LimitedByAmplificationFactor() const {
   return EnforceAntiAmplificationLimit() &&
          bytes_sent_before_address_validation_ >=
-             anti_amplification_factor_ *
+             GetQuicFlag(FLAGS_quic_anti_amplification_factor) *
                  bytes_received_before_address_validation_;
 }
 

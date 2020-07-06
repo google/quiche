@@ -979,10 +979,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if ack_alarm_ is set.
   bool HasPendingAcks() const;
 
-  size_t anti_amplification_factor() const {
-    return anti_amplification_factor_;
-  }
-
   void OnUserAgentIdKnown() { sent_packet_manager_.OnUserAgentIdKnown(); }
 
   // Enables Legacy Version Encapsulation using |server_name| as SNI.
@@ -1669,19 +1665,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // True if this connection supports handshake done frame.
   bool support_handshake_done_;
-
-  const bool move_amplification_limit_ =
-      GetQuicReloadableFlag(quic_move_amplification_limit);
-
-  // TODO(fayang): Change the default value of quic_anti_amplification_factor to
-  // 5 when deprecating quic_move_amplification_limit.
-  // TODO(b/153892665): Change the default value of
-  // quic_anti_amplification_factor back to 3 when cert compression is
-  // supported.
-  const size_t anti_amplification_factor_ =
-      move_amplification_limit_
-          ? 5
-          : GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 
   const bool default_enable_5rto_blackhole_detection_ =
       GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);

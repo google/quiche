@@ -7053,8 +7053,7 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
   ProcessPacket(1);
   BlockOnNextWrite();
   writer_->set_is_write_blocked_data_buffered(true);
-  if (GetQuicReloadableFlag(quic_move_amplification_limit) &&
-      QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   } else {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
@@ -7064,8 +7063,7 @@ TEST_P(QuicConnectionTest, BlockAndBufferOnFirstCHLOPacketOfTwo) {
   EXPECT_FALSE(connection_.HasQueuedData());
   connection_.SendCryptoDataWithString("bar", 3);
   EXPECT_TRUE(writer_->IsWriteBlocked());
-  if (GetQuicReloadableFlag(quic_move_amplification_limit) &&
-      QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
     // CRYPTO frames are not flushed when writer is blocked.
     EXPECT_FALSE(connection_.HasQueuedData());
   } else {
@@ -10099,17 +10097,15 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
   // Verify no data can be sent at the beginning because bytes received is 0.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.SendCryptoDataWithString("foo", 0);
-  if (GetQuicReloadableFlag(quic_move_amplification_limit)) {
-    EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
-    EXPECT_FALSE(connection_.CanWrite(NO_RETRANSMITTABLE_DATA));
-  }
+  EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
+  EXPECT_FALSE(connection_.CanWrite(NO_RETRANSMITTABLE_DATA));
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Receives packet 1.
   ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
 
   const size_t anti_amplification_factor =
-      connection_.anti_amplification_factor();
+      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
   // Verify now packets can be sent.
   for (size_t i = 0; i < anti_amplification_factor; ++i) {
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
@@ -10145,8 +10141,7 @@ TEST_P(QuicConnectionTest, AntiAmplificationLimit) {
 }
 
 TEST_P(QuicConnectionTest, AckPendingWithAmplificationLimited) {
-  if (!connection_.version().SupportsAntiAmplificationLimit() ||
-      !GetQuicReloadableFlag(quic_move_amplification_limit)) {
+  if (!connection_.version().SupportsAntiAmplificationLimit()) {
     return;
   }
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
