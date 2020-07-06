@@ -1670,9 +1670,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True if this connection supports handshake done frame.
   bool support_handshake_done_;
 
-  const bool update_ack_alarm_in_send_all_pending_acks_ =
-      GetQuicReloadableFlag(quic_update_ack_alarm_in_send_all_pending_acks);
-
   const bool move_amplification_limit_ =
       GetQuicReloadableFlag(quic_move_amplification_limit);
 
