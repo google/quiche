@@ -11256,18 +11256,11 @@ TEST_P(QuicConnectionTest, ServerBundlesInitialDataWithInitialAck) {
   // Receives packet 1002 in initial data.
   ProcessCryptoPacketAtLevel(1002, ENCRYPTION_INITIAL);
   EXPECT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_bundle_crypto_data_with_initial_ack)) {
-    // Verify CRYPTO frame is bundled with INITIAL ACK.
-    EXPECT_FALSE(writer_->crypto_frames().empty());
-    // Verify PTO time changes.
-    EXPECT_NE(expected_pto_time,
-              connection_.sent_packet_manager().GetRetransmissionTime());
-  } else {
-    EXPECT_TRUE(writer_->crypto_frames().empty());
-    // Verify PTO time does not change.
-    EXPECT_EQ(expected_pto_time,
-              connection_.sent_packet_manager().GetRetransmissionTime());
-  }
+  // Verify CRYPTO frame is bundled with INITIAL ACK.
+  EXPECT_FALSE(writer_->crypto_frames().empty());
+  // Verify PTO time changes.
+  EXPECT_NE(expected_pto_time,
+            connection_.sent_packet_manager().GetRetransmissionTime());
 }
 
 TEST_P(QuicConnectionTest, ClientBundlesHandshakeDataWithHandshakeAck) {
@@ -11300,12 +11293,8 @@ TEST_P(QuicConnectionTest, ClientBundlesHandshakeDataWithHandshakeAck) {
   // Receives packet 1002 in handshake data.
   ProcessCryptoPacketAtLevel(1002, ENCRYPTION_HANDSHAKE);
   EXPECT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_bundle_crypto_data_with_initial_ack)) {
-    // Verify CRYPTO frame is bundled with HANDSHAKE ACK.
-    EXPECT_FALSE(writer_->crypto_frames().empty());
-  } else {
-    EXPECT_TRUE(writer_->crypto_frames().empty());
-  }
+  // Verify CRYPTO frame is bundled with HANDSHAKE ACK.
+  EXPECT_FALSE(writer_->crypto_frames().empty());
 }
 
 // Regresstion test for b/156232673.
