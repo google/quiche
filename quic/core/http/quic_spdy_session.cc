@@ -1368,6 +1368,14 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
       quiche::QuicheStrCat(type, " stream is received twice."));
 }
 
+void QuicSpdySession::RecordServerResponseTime(QuicTime::Delta response_time) {
+  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  QuicConnectionStats& stats = connection()->mutable_stats();
+
+  ++stats.num_responses;
+  stats.total_response_time = stats.total_response_time + response_time;
+}
+
 // static
 void QuicSpdySession::LogHeaderCompressionRatioHistogram(
     bool using_qpack,

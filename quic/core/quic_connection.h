@@ -466,6 +466,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const std::string& details,
       ConnectionCloseBehavior connection_close_behavior);
 
+  QuicConnectionStats& mutable_stats() { return stats_; }
+
   // Returns statistics tracked for this connection.
   const QuicConnectionStats& GetStats();
 
@@ -850,6 +852,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ack_frame_updated() const;
 
   QuicConnectionHelperInterface* helper() { return helper_; }
+  const QuicConnectionHelperInterface* helper() const { return helper_; }
   QuicAlarmFactory* alarm_factory() { return alarm_factory_; }
 
   quiche::QuicheStringPiece GetCurrentPacket();

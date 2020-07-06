@@ -3449,8 +3449,11 @@ void QuicConnection::TearDownLocalConnectionState(
   FlushPackets();
   connected_ = false;
   DCHECK(visitor_ != nullptr);
-  sent_packet_manager_.OnConnectionClosed();
   visitor_->OnConnectionClosed(frame, source);
+  // LossDetectionTunerInterface::Finish() may be called from
+  // sent_packet_manager_.OnConnectionClosed. Which may require the session to
+  // finish its business first.
+  sent_packet_manager_.OnConnectionClosed();
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionClosed(frame, source);
   }

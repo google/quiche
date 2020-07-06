@@ -481,6 +481,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
     connection()->OnUserAgentIdKnown();
   }
 
+  const QuicClock* GetClock() const {
+    return connection()->helper()->GetClock();
+  }
+
  protected:
   using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
 

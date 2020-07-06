@@ -91,7 +91,11 @@ bool QuicHeadersStream::OnStreamFrameAcked(QuicStreamOffset offset,
         return false;
       }
       if (header.ack_listener != nullptr && header_length > 0) {
-        header.ack_listener->OnPacketAcked(header_length, ack_delay_time);
+        QuicTime::Delta response_time =
+            header.ack_listener->OnPacketAcked(header_length, ack_delay_time);
+        if (!response_time.IsZero()) {
+          spdy_session_->RecordServerResponseTime(response_time);
+        }
       }
       header.unacked_length -= header_length;
       acked_offset += header_length;
