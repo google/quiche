@@ -29,7 +29,6 @@ RttStats::RttStats()
       mean_deviation_(QuicTime::Delta::Zero()),
       calculate_standard_deviation_(false),
       initial_rtt_(QuicTime::Delta::FromMilliseconds(kInitialRttMs)),
-      max_ack_delay_(QuicTime::Delta::Zero()),
       last_update_time_(QuicTime::Zero()),
       ignore_max_ack_delay_(false) {}
 
@@ -73,7 +72,6 @@ void RttStats::UpdateRtt(QuicTime::Delta send_delta,
   // send_delta.
   if (rtt_sample > ack_delay) {
     if (rtt_sample - min_rtt_ >= ack_delay) {
-      max_ack_delay_ = std::max(max_ack_delay_, ack_delay);
       rtt_sample = rtt_sample - ack_delay;
     }
   }
@@ -102,7 +100,6 @@ void RttStats::OnConnectionMigration() {
   smoothed_rtt_ = QuicTime::Delta::Zero();
   mean_deviation_ = QuicTime::Delta::Zero();
   initial_rtt_ = QuicTime::Delta::FromMilliseconds(kInitialRttMs);
-  max_ack_delay_ = QuicTime::Delta::Zero();
 }
 
 QuicTime::Delta RttStats::GetStandardOrMeanDeviation() const {

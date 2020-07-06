@@ -107,10 +107,6 @@ class QUIC_EXPORT_PRIVATE RttStats {
     ignore_max_ack_delay_ = ignore_max_ack_delay;
   }
 
-  void set_initial_max_ack_delay(QuicTime::Delta initial_max_ack_delay) {
-    max_ack_delay_ = std::max(max_ack_delay_, initial_max_ack_delay);
-  }
-
   void EnableStandardDeviationCalculation() {
     calculate_standard_deviation_ = true;
   }
@@ -131,10 +127,6 @@ class QUIC_EXPORT_PRIVATE RttStats {
   StandardDeviationCaculator standard_deviation_calculator_;
   bool calculate_standard_deviation_;
   QuicTime::Delta initial_rtt_;
-  // The maximum ack delay observed over the connection after excluding ack
-  // delays that were too large to be included in an RTT measurement.
-  // TODO(ianswett): Remove when deprecating quic_sent_packet_manager_cleanup.
-  QuicTime::Delta max_ack_delay_;
   QuicTime last_update_time_;
   // Whether to ignore the peer's max ack delay.
   bool ignore_max_ack_delay_;
