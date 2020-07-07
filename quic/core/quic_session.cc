@@ -1539,7 +1539,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
       if (perspective() == Perspective::IS_CLIENT) {
         // Retransmit old 0-RTT data (if any) with the new 0-RTT keys, since
         // they can't be decrypted by the server.
-        connection_->RetransmitZeroRttPackets();
+        connection_->MarkZeroRttPacketsForRetransmission();
         // Given any streams blocked by encryption a chance to write.
         OnCanWrite();
       }
@@ -1610,7 +1610,7 @@ void QuicSession::NeuterHandshakeData() {
 
 void QuicSession::OnZeroRttRejected() {
   was_zero_rtt_rejected_ = true;
-  connection_->RetransmitZeroRttPackets();
+  connection_->MarkZeroRttPacketsForRetransmission();
   if (connection_->encryption_level() == ENCRYPTION_FORWARD_SECURE) {
     QUIC_BUG << "1-RTT keys already available when 0-RTT is rejected.";
     connection_->CloseConnection(

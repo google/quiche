@@ -2357,8 +2357,8 @@ void QuicConnection::SendProbingRetransmissions() {
   }
 }
 
-void QuicConnection::RetransmitZeroRttPackets() {
-  sent_packet_manager_.RetransmitZeroRttPackets();
+void QuicConnection::MarkZeroRttPacketsForRetransmission() {
+  sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
 }
 
 void QuicConnection::NeuterUnencryptedPackets() {

@@ -703,9 +703,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // remaining unacked packets.
   void OnRetransmissionTimeout();
 
-  // Retransmits all sent 0-RTT encrypted packets. Called when new 0-RTT or
-  // 1-RTT key is available.
-  void RetransmitZeroRttPackets();
+  // Mark all sent 0-RTT encrypted packets for retransmission. Called when new
+  // 0-RTT or 1-RTT key is available in gQUIC, or when 0-RTT is rejected in IETF
+  // QUIC.
+  void MarkZeroRttPacketsForRetransmission();
 
   // Calls |sent_packet_manager_|'s NeuterUnencryptedPackets. Used when the
   // connection becomes forward secure and hasn't received acks for all packets.

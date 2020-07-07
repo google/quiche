@@ -454,7 +454,7 @@ void QuicSentPacketManager::MaybeInvokeCongestionEvent(
   }
 }
 
-void QuicSentPacketManager::RetransmitZeroRttPackets() {
+void QuicSentPacketManager::MarkZeroRttPacketsForRetransmission() {
   QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
   for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
        it != unacked_packets_.end(); ++it, ++packet_number) {

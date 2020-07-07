@@ -141,10 +141,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   void SetHandshakeConfirmed();
 
   // Requests retransmission of all unacked 0-RTT packets.
-  // Only initially encrypted packets will be retransmitted. This can happen,
+  // Only 0-RTT encrypted packets will be retransmitted. This can happen,
   // for example, when a CHLO has been rejected and the previously encrypted
   // data needs to be encrypted with a new key.
-  void RetransmitZeroRttPackets();
+  void MarkZeroRttPacketsForRetransmission();
 
   // Notify the sent packet manager of an external network measurement or
   // prediction for either |bandwidth| or |rtt|; either can be empty.
