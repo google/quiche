@@ -226,6 +226,10 @@ QuicSession* QuicClientBase::session() {
   return session_.get();
 }
 
+const QuicSession* QuicClientBase::session() const {
+  return session_.get();
+}
+
 QuicClientBase::NetworkHelper* QuicClientBase::network_helper() {
   return network_helper_.get();
 }

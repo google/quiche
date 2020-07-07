@@ -125,6 +125,7 @@ class QuicClientBase {
   bool ChangeEphemeralPort();
 
   QuicSession* session();
+  const QuicSession* session() const;
 
   bool connected() const;
   bool goaway_received() const;

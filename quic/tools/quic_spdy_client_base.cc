@@ -62,6 +62,10 @@ QuicSpdyClientSession* QuicSpdyClientBase::client_session() {
   return static_cast<QuicSpdyClientSession*>(QuicClientBase::session());
 }
 
+const QuicSpdyClientSession* QuicSpdyClientBase::client_session() const {
+  return static_cast<const QuicSpdyClientSession*>(QuicClientBase::session());
+}
+
 void QuicSpdyClientBase::InitializeSession() {
   client_session()->Initialize();
   client_session()->CryptoConnect();

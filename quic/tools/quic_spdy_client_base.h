@@ -104,6 +104,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   // Returns a the session used for this client downcasted to a
   // QuicSpdyClientSession.
   QuicSpdyClientSession* client_session();
+  const QuicSpdyClientSession* client_session() const;
 
   QuicClientPushPromiseIndex* push_promise_index() {
     return &push_promise_index_;
