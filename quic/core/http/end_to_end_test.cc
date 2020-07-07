@@ -200,6 +200,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     AddToCache("/bar", 200, kBarResponseBody);
     // Enable fixes for bugs found in tests and prod.
     SetQuicReloadableFlag(quic_fix_server_pto_timeout, true);
+    SetQuicReloadableFlag(quic_fix_undecryptable_packets, true);
+    SetQuicReloadableFlag(quic_fix_packet_number_length, true);
 
     SetQuicReloadableFlag(quic_support_handshake_done_in_t050, true);
     SetQuicReloadableFlag(quic_enable_tls_resumption_v2, true);
