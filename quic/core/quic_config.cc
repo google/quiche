@@ -1203,16 +1203,13 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
         retry_source_connection_id_to_send_.value();
   }
 
-  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_send_new, 1, 3);
-    if (initial_round_trip_time_us_.HasSendValue()) {
-      params->initial_round_trip_time_us.set_value(
-          initial_round_trip_time_us_.GetSendValue());
-    }
-    if (connection_options_.HasSendValues() &&
-        !connection_options_.GetSendValues().empty()) {
-      params->google_connection_options = connection_options_.GetSendValues();
-    }
+  if (initial_round_trip_time_us_.HasSendValue()) {
+    params->initial_round_trip_time_us.set_value(
+        initial_round_trip_time_us_.GetSendValue());
+  }
+  if (connection_options_.HasSendValues() &&
+      !connection_options_.GetSendValues().empty()) {
+    params->google_connection_options = connection_options_.GetSendValues();
   }
 
   if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
@@ -1337,18 +1334,15 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   }
 
   bool google_params_already_parsed = false;
-  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_send_new, 2, 3);
-    if (params.initial_round_trip_time_us.value() > 0) {
-      google_params_already_parsed = true;
-      initial_round_trip_time_us_.SetReceivedValue(
-          params.initial_round_trip_time_us.value());
-    }
-    if (params.google_connection_options.has_value()) {
-      google_params_already_parsed = true;
-      connection_options_.SetReceivedValues(
-          params.google_connection_options.value());
-    }
+  if (params.initial_round_trip_time_us.value() > 0) {
+    google_params_already_parsed = true;
+    initial_round_trip_time_us_.SetReceivedValue(
+        params.initial_round_trip_time_us.value());
+  }
+  if (params.google_connection_options.has_value()) {
+    google_params_already_parsed = true;
+    connection_options_.SetReceivedValues(
+        params.google_connection_options.value());
   }
 
   if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {

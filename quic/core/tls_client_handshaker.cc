@@ -208,10 +208,8 @@ bool TlsClientHandshaker::SetTransportParameters() {
   if (!handshaker_delegate()->FillTransportParameters(&params)) {
     return false;
   }
-  if (GetQuicRestartFlag(quic_google_transport_param_send_new)) {
-    if (!user_agent_id_.empty()) {
-      params.user_agent_id = user_agent_id_;
-    }
+  if (!user_agent_id_.empty()) {
+    params.user_agent_id = user_agent_id_;
   }
   if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
     params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
