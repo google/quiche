@@ -1493,6 +1493,31 @@ QuicPacketNumber QuicSentPacketManager::GetLargestAckedPacket(
       QuicUtils::GetPacketNumberSpace(decrypted_packet_level));
 }
 
+QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
+    EncryptionLevel encryption_level) const {
+  if (!fix_packet_number_length_) {
+    return GetLeastUnacked();
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_packet_number_length, 1, 2);
+  QuicPacketNumber largest_acked;
+  if (supports_multiple_packet_number_spaces()) {
+    largest_acked = GetLargestAckedPacket(encryption_level);
+  } else {
+    largest_acked = GetLargestObserved();
+  }
+  if (!largest_acked.IsInitialized()) {
+    // If no packets have been acked, return the first sent packet to ensure
+    // we use a large enough packet number length.
+    return FirstSendingPacketNumber();
+  }
+  QuicPacketNumber least_awaited = largest_acked + 1;
+  QuicPacketNumber least_unacked = GetLeastUnacked();
+  if (least_unacked.IsInitialized() && least_unacked < least_awaited) {
+    least_awaited = least_unacked;
+  }
+  return least_awaited;
+}
+
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
   DCHECK(supports_multiple_packet_number_spaces());

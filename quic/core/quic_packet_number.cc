@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 
@@ -93,12 +94,15 @@ QuicPacketNumber& QuicPacketNumber::operator-=(uint64_t delta) {
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& os, const QuicPacketNumber& p) {
-  if (p.IsInitialized()) {
-    os << p.packet_number_;
-  } else {
-    os << "uninitialized";
+std::string QuicPacketNumber::ToString() const {
+  if (!IsInitialized()) {
+    return "uninitialized";
   }
+  return quiche::QuicheTextUtils::Uint64ToString(ToUint64());
+}
+
+std::ostream& operator<<(std::ostream& os, const QuicPacketNumber& p) {
+  os << p.ToString();
   return os;
 }
 

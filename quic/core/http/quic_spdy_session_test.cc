@@ -54,12 +54,13 @@ using spdy::SpdyHeaderBlock;
 using spdy::SpdyPriority;
 using spdy::SpdyPriorityIR;
 using spdy::SpdySerializedFrame;
-using testing::_;
-using testing::AtLeast;
-using testing::InSequence;
-using testing::Invoke;
-using testing::Return;
-using testing::StrictMock;
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::AtLeast;
+using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::Return;
+using ::testing::StrictMock;
 
 namespace quic {
 namespace test {
@@ -865,6 +866,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
   EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
     session_.SendStreamData(stream2);
   }));
+  EXPECT_CALL(*send_algorithm, GetCongestionWindow()).Times(AnyNumber());
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
   EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
     session_.SendStreamData(stream6);

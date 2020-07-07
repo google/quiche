@@ -311,6 +311,12 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.largest_sent_packet();
   }
 
+  // Returns the lowest of the largest acknowledged packet and the least
+  // unacked packet. This is designed to be used when computing the packet
+  // number length to send.
+  QuicPacketNumber GetLeastPacketAwaitedByPeer(
+      EncryptionLevel encryption_level) const;
+
   QuicPacketNumber GetLargestPacketPeerKnowsIsAcked(
       EncryptionLevel decrypted_packet_level) const;
 
@@ -412,6 +418,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   bool one_rtt_packet_acked() const { return one_rtt_packet_acked_; }
 
   void OnUserAgentIdKnown() { loss_algorithm_->OnUserAgentIdKnown(); }
+
+  bool fix_packet_number_length() const { return fix_packet_number_length_; }
 
  private:
   friend class test::QuicConnectionPeer;
@@ -664,6 +672,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   float pto_multiplier_without_rtt_samples_;
 
   const bool fix_pto_timeout_ = GetQuicReloadableFlag(quic_fix_pto_timeout);
+  const bool fix_packet_number_length_ =
+      GetQuicReloadableFlag(quic_fix_packet_number_length);
 };
 
 }  // namespace quic

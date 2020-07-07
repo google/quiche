@@ -1582,7 +1582,7 @@ void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
 }
 
 void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
-  QUIC_DVLOG(1) << ENDPOINT << "Discard keys of " << level;
+  QUIC_DLOG(INFO) << ENDPOINT << "Discarding " << level << " keys";
   if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
     connection()->RemoveEncrypter(level);
   }
@@ -1596,10 +1596,11 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
     case ENCRYPTION_ZERO_RTT:
       break;
     case ENCRYPTION_FORWARD_SECURE:
-      QUIC_BUG << "Tries to drop 1-RTT keys";
+      QUIC_BUG << ENDPOINT << "Discarding 1-RTT keys is not allowed";
       break;
     default:
-      QUIC_BUG << "Unknown encryption level: " << level;
+      QUIC_BUG << ENDPOINT
+               << "Cannot discard keys for unknown encryption level: " << level;
   }
 }
 

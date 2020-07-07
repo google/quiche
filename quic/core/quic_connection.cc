@@ -2771,7 +2771,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   // The packet number length must be updated after OnPacketSent, because it
   // may change the packet number length in packet.
   packet_creator_.UpdatePacketNumberLength(
-      sent_packet_manager_.GetLeastUnacked(),
+      sent_packet_manager_.GetLeastPacketAwaitedByPeer(encryption_level_),
       sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
 
   stats_.bytes_sent += result.bytes_written;
@@ -3039,7 +3039,8 @@ void QuicConnection::OnRetransmissionTimeout() {
     // immediate ACK.
     const QuicPacketCount num_packet_numbers_to_skip = 1;
     packet_creator_.SkipNPacketNumbers(
-        num_packet_numbers_to_skip, sent_packet_manager_.GetLeastUnacked(),
+        num_packet_numbers_to_skip,
+        sent_packet_manager_.GetLeastPacketAwaitedByPeer(encryption_level_),
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
     previous_created_packet_number += num_packet_numbers_to_skip;
     if (debug_visitor_ != nullptr) {
@@ -3130,13 +3131,28 @@ void QuicConnection::SetDiversificationNonce(
 void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   QUIC_DVLOG(1) << ENDPOINT << "Setting default encryption level from "
                 << encryption_level_ << " to " << level;
-  if (level != encryption_level_ && packet_creator_.HasPendingFrames()) {
+  const bool changing_level = level != encryption_level_;
+  if (changing_level && packet_creator_.HasPendingFrames()) {
     // Flush all queued frames when encryption level changes.
     ScopedPacketFlusher flusher(this);
     packet_creator_.FlushCurrentPacket();
   }
   encryption_level_ = level;
   packet_creator_.set_encryption_level(level);
+
+  if (!sent_packet_manager_.fix_packet_number_length()) {
+    return;
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_packet_number_length, 2, 2);
+
+  if (!changing_level) {
+    return;
+  }
+  // The least packet awaited by the peer depends on the encryption level so
+  // we recalculate it here.
+  packet_creator_.UpdatePacketNumberLength(
+      sent_packet_manager_.GetLeastPacketAwaitedByPeer(encryption_level_),
+      sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
 }
 
 void QuicConnection::SetDecrypter(EncryptionLevel level,

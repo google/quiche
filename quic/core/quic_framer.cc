@@ -1712,6 +1712,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   quiche::QuicheStringPiece associated_data;
   std::vector<char> ad_storage;
+  QuicPacketNumber base_packet_number;
   if (header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
       header->long_packet_type != VERSION_NEGOTIATION) {
     DCHECK(header->form == IETF_QUIC_SHORT_HEADER_PACKET ||
@@ -1719,7 +1720,6 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
            header->long_packet_type == HANDSHAKE ||
            header->long_packet_type == ZERO_RTT_PROTECTED);
     // Process packet number.
-    QuicPacketNumber base_packet_number;
     if (supports_multiple_packet_number_spaces_) {
       PacketNumberSpace pn_space = GetPacketNumberSpace(*header);
       if (pn_space == NUM_PACKET_NUMBER_SPACES) {
@@ -1832,7 +1832,9 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         has_decryption_key);
     set_detailed_error(quiche::QuicheStrCat(
         "Unable to decrypt ", EncryptionLevelToString(decryption_level),
-        " payload",
+        " payload with reconstructed packet number ",
+        header->packet_number.ToString(), " (largest decrypted was ",
+        base_packet_number.ToString(), ")",
         has_decryption_key || !version_.KnowsWhichDecrypterToUse()
             ? ""
             : " (missing key)",

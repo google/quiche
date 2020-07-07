@@ -67,6 +67,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketNumber {
   // REQUIRES: IsInitialized() == true && ToUint64() >= |delta|.
   QuicPacketNumber& operator-=(uint64_t delta);
 
+  // Human-readable representation suitable for logging.
+  std::string ToString() const;
+
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
       std::ostream& os,
       const QuicPacketNumber& p);

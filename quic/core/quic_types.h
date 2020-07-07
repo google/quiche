@@ -260,6 +260,11 @@ enum QuicFrameType : uint8_t {
   NUM_FRAME_TYPES
 };
 
+// Human-readable string suitable for logging.
+QUIC_EXPORT_PRIVATE std::string QuicFrameTypeToString(QuicFrameType t);
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             const QuicFrameType& t);
+
 // Ietf frame types. These are defined in the IETF QUIC Specification.
 // Explicit values are given in the enum so that we can be sure that
 // the symbol will map to the correct stream type.

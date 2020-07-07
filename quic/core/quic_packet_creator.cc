@@ -243,12 +243,24 @@ void QuicPacketCreator::UpdatePacketNumberLength(
     return;
   }
 
-  DCHECK_LE(least_packet_awaited_by_peer, packet_.packet_number + 1);
+  const QuicPacketNumber next_packet_number = NextSendingPacketNumber();
+  DCHECK_LE(least_packet_awaited_by_peer, next_packet_number);
   const uint64_t current_delta =
-      packet_.packet_number + 1 - least_packet_awaited_by_peer;
+      next_packet_number - least_packet_awaited_by_peer;
   const uint64_t delta = std::max(current_delta, max_packets_in_flight);
-  packet_.packet_number_length =
+  const QuicPacketNumberLength packet_number_length =
       QuicFramer::GetMinPacketNumberLength(QuicPacketNumber(delta * 4));
+  if (packet_.packet_number_length == packet_number_length) {
+    return;
+  }
+  QUIC_DLOG(INFO) << ENDPOINT << "Updating packet number length from "
+                  << static_cast<int>(packet_.packet_number_length) << " to "
+                  << static_cast<int>(packet_number_length)
+                  << ", least_packet_awaited_by_peer: "
+                  << least_packet_awaited_by_peer
+                  << " max_packets_in_flight: " << max_packets_in_flight
+                  << " next_packet_number: " << next_packet_number;
+  packet_.packet_number_length = packet_number_length;
 }
 
 void QuicPacketCreator::SkipNPacketNumbers(
