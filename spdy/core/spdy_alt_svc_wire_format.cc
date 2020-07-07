@@ -197,7 +197,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
         // ... will be stored in |versions| as 0x51303338.
         uint32_t quic_version;
         if (!SpdyHexDecodeToUInt32(
-                quiche::QuicheStringPiece(parameter_value_begin,
+                quiche::QuicheStringPiece(&*parameter_value_begin,
                                           c - parameter_value_begin),
                 &quic_version) ||
             quic_version == 0) {
