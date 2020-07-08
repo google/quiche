@@ -161,6 +161,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
 
   MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
 
+  void OnConnectionClosed(QuicErrorCode /*error*/,
+                          ConnectionCloseSource /*source*/) override {}
+
  private:
   using QuicCryptoStream::session;
 

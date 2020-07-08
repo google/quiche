@@ -867,17 +867,17 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
   QUIC_DVLOG(1) << ENDPOINT << "Closing stream: " << stream_id;
   StreamMap::iterator it = stream_map_.find(stream_id);
   if (it == stream_map_.end()) {
-    QUIC_DVLOG(1) << ENDPOINT << "Stream is already closed: " << stream_id;
+    QUIC_BUG << ENDPOINT << "Stream is already closed: " << stream_id;
     return;
   }
   QuicStream* stream = it->second.get();
   StreamType type = stream->type();
 
   if (stream->IsWaitingForAcks()) {
-    zombie_streams_[stream->id()] = std::move(it->second);
+    zombie_streams_[stream_id] = std::move(it->second);
   } else {
     // Clean up the stream since it is no longer waiting for acks.
-    streams_waiting_for_acks_.erase(stream->id());
+    streams_waiting_for_acks_.erase(stream_id);
     closed_streams_.push_back(std::move(it->second));
     // Do not retransmit data of a closed stream.
     streams_with_pending_retransmission_.erase(stream_id);
