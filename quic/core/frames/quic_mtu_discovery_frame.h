@@ -16,6 +16,8 @@ namespace quic {
 struct QUIC_EXPORT_PRIVATE QuicMtuDiscoveryFrame
     : public QuicInlinedFrame<QuicMtuDiscoveryFrame> {
   QuicMtuDiscoveryFrame() : QuicInlinedFrame(MTU_DISCOVERY_FRAME) {}
+
+  QuicFrameType type;
 };
 
 }  // namespace quic

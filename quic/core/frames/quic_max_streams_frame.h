@@ -28,6 +28,8 @@ struct QUIC_EXPORT_PRIVATE QuicMaxStreamsFrame
       std::ostream& os,
       const QuicMaxStreamsFrame& frame);
 
+  QuicFrameType type;
+
   // A unique identifier of this control frame. 0 when this frame is received,
   // and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;

@@ -21,6 +21,8 @@ struct QUIC_EXPORT_PRIVATE QuicStopWaitingFrame
       std::ostream& os,
       const QuicStopWaitingFrame& s);
 
+  QuicFrameType type;
+
   // The lowest packet we've sent which is unacked, and we expect an ack for.
   QuicPacketNumber least_unacked;
 };

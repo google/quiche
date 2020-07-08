@@ -35,6 +35,7 @@ struct QUIC_EXPORT_PRIVATE QuicStreamFrame
 
   bool operator!=(const QuicStreamFrame& rhs) const;
 
+  QuicFrameType type;
   bool fin = false;
   QuicPacketLength data_length = 0;
   // TODO(wub): Change to a QuicUtils::GetInvalidStreamId when it is not version

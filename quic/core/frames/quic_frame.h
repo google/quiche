@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_FRAMES_QUIC_FRAME_H_
 
 #include <ostream>
+#include <type_traits>
 #include <vector>
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frame.h"
@@ -111,6 +112,8 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
   };
 };
 
+static_assert(std::is_standard_layout<QuicFrame>::value,
+              "QuicFrame must have a standard layout");
 static_assert(sizeof(QuicFrame) <= 24,
               "Frames larger than 24 bytes should be referenced by pointer.");
 static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),

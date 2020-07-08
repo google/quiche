@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_FRAMES_QUIC_INLINED_FRAME_H_
 #define QUICHE_QUIC_CORE_FRAMES_QUIC_INLINED_FRAME_H_
 
+#include <type_traits>
+
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -16,13 +18,15 @@ namespace quic {
 // inline and out-of-line frame types.
 template <typename DerivedT>
 struct QUIC_EXPORT_PRIVATE QuicInlinedFrame {
-  QuicInlinedFrame(QuicFrameType type) : type(type) {
+  QuicInlinedFrame(QuicFrameType type) {
+    static_cast<DerivedT*>(this)->type = type;
+    static_assert(std::is_standard_layout<DerivedT>::value,
+                  "Inlined frame must have a standard layout");
     static_assert(offsetof(DerivedT, type) == 0,
                   "type must be the first field.");
     static_assert(sizeof(DerivedT) <= 24,
                   "Frames larger than 24 bytes should not be inlined.");
   }
-  QuicFrameType type;
 };
 
 }  // namespace quic

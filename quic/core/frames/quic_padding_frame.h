@@ -25,6 +25,8 @@ struct QUIC_EXPORT_PRIVATE QuicPaddingFrame
       std::ostream& os,
       const QuicPaddingFrame& padding_frame);
 
+  QuicFrameType type;
+
   // -1: full padding to the end of a max-sized packet
   // otherwise: only pad up to num_padding_bytes bytes
   int num_padding_bytes = -1;
