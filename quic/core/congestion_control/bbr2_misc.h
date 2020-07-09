@@ -172,8 +172,7 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   bool flexible_app_limited = false;
 
   // Can be disabled by connection option 'B2NA'.
-  bool add_ack_height_to_queueing_threshold =
-      GetQuicReloadableFlag(quic_bbr2_add_ack_height_to_queueing_threshold);
+  bool add_ack_height_to_queueing_threshold = true;
 
   // Can be disabled by connection option 'B2RP'.
   bool avoid_unnecessary_probe_rtt = true;
