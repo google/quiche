@@ -850,6 +850,7 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   packet_.encrypted_length = encrypted_length;
   if (avoid_leak_writer_buffer_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_avoid_leak_writer_buffer, 1, 3);
+    encrypted_buffer.buffer = nullptr;
     packet_.release_encrypted_buffer =
         std::move(encrypted_buffer).release_buffer;
   } else {
