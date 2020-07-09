@@ -343,7 +343,8 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   virtual void OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {}
 
   // Called when |count| packet numbers have been skipped.
-  virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/) {}
+  virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/,
+                                       QuicTime /*now*/) {}
 
   // Called for QUIC+TLS versions when we send transport parameters.
   virtual void OnTransportParametersSent(

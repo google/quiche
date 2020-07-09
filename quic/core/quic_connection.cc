@@ -3044,7 +3044,8 @@ void QuicConnection::OnRetransmissionTimeout() {
         sent_packet_manager_.EstimateMaxPacketsInFlight(max_packet_length()));
     previous_created_packet_number += num_packet_numbers_to_skip;
     if (debug_visitor_ != nullptr) {
-      debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip);
+      debug_visitor_->OnNPacketNumbersSkipped(num_packet_numbers_to_skip,
+                                              clock_->Now());
     }
   }
   if (default_enable_5rto_blackhole_detection_ &&
