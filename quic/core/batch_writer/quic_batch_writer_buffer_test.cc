@@ -207,10 +207,11 @@ TEST_F(QuicBatchWriterBufferTest, PopAll) {
                                         release_time_)
                     .succeeded);
   }
-  EXPECT_EQ(kNumBufferedWrites, batch_buffer_->buffered_writes().size());
+  EXPECT_EQ(kNumBufferedWrites,
+            static_cast<int>(batch_buffer_->buffered_writes().size()));
 
   auto pop_result = batch_buffer_->PopBufferedWrite(kNumBufferedWrites);
-  EXPECT_EQ(0, batch_buffer_->buffered_writes().size());
+  EXPECT_EQ(0u, batch_buffer_->buffered_writes().size());
   EXPECT_EQ(kNumBufferedWrites, pop_result.num_buffers_popped);
   EXPECT_FALSE(pop_result.moved_remaining_buffers);
 }
@@ -225,7 +226,7 @@ TEST_F(QuicBatchWriterBufferTest, PopPartial) {
                     .succeeded);
   }
 
-  for (int i = 0;
+  for (size_t i = 0;
        i < kNumBufferedWrites && !batch_buffer_->buffered_writes().empty();
        ++i) {
     const size_t size_before_pop = batch_buffer_->buffered_writes().size();
@@ -237,7 +238,7 @@ TEST_F(QuicBatchWriterBufferTest, PopPartial) {
         'A' + kNumBufferedWrites - expect_size_after_pop;
     const size_t first_write_len =
         kDefaultMaxPacketSize - kNumBufferedWrites + expect_size_after_pop;
-    for (int j = 0; j < expect_size_after_pop; ++j) {
+    for (size_t j = 0; j < expect_size_after_pop; ++j) {
       CheckBufferedWriteContent(j, first_write_content + j, first_write_len - j,
                                 self_addr_, peer_addr_, nullptr);
     }

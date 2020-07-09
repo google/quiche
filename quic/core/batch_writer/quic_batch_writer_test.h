@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <cstddef>
 #include <iostream>
 #include <utility>
 
@@ -76,7 +77,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTestDelegate {
  public:
   virtual ~QuicUdpBatchWriterIOTestDelegate() {}
 
-  virtual bool ShouldSkip(const QuicUdpBatchWriterIOTestParams& params) {
+  virtual bool ShouldSkip(const QuicUdpBatchWriterIOTestParams& /*params*/) {
     return false;
   }
 
@@ -184,10 +185,10 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
     char this_packet_content = '\0';
     int this_packet_size;
     int num_writes = 0;
-    int bytes_flushed = 0;
+    size_t bytes_flushed = 0;
     WriteResult result;
 
-    for (int bytes_sent = 0; bytes_sent < data_size_;
+    for (size_t bytes_sent = 0; bytes_sent < data_size_;
          bytes_sent += this_packet_size, ++this_packet_content) {
       this_packet_size = std::min(packet_size_, data_size_ - bytes_sent);
       memset(&packet_buffer_[0], this_packet_content, this_packet_size);
@@ -220,7 +221,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
     char this_packet_content = '\0';
     int this_packet_size;
     int packets_received = 0;
-    for (int bytes_received = 0; bytes_received < data_size_;
+    for (size_t bytes_received = 0; bytes_received < data_size_;
          bytes_received += this_packet_size, ++this_packet_content) {
       this_packet_size = std::min(packet_size_, data_size_ - bytes_received);
       SCOPED_TRACE(testing::Message()
@@ -261,8 +262,8 @@ class QUIC_EXPORT_PRIVATE QuicUdpBatchWriterIOTest
   char packet_buffer_[1500];
   char control_buffer_[kDefaultUdpPacketControlBufferSize];
   int address_family_;
-  const int data_size_;
-  const int packet_size_;
+  const size_t data_size_;
+  const size_t packet_size_;
   int self_socket_;
   int peer_socket_;
 };

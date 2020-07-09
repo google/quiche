@@ -39,17 +39,17 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   void SetWritable() final { write_blocked_ = false; }
 
   QuicByteCount GetMaxPacketSize(
-      const QuicSocketAddress& peer_address) const final {
+      const QuicSocketAddress& /*peer_address*/) const final {
     return kMaxOutgoingPacketSize;
   }
 
-  bool SupportsReleaseTime() const { return false; }
+  bool SupportsReleaseTime() const override { return false; }
 
   bool IsBatchMode() const final { return true; }
 
   QuicPacketBuffer GetNextWriteLocation(
-      const QuicIpAddress& self_address,
-      const QuicSocketAddress& peer_address) final {
+      const QuicIpAddress& /*self_address*/,
+      const QuicSocketAddress& /*peer_address*/) final {
     // No need to explicitly delete QuicBatchWriterBuffer.
     return {batch_buffer_->GetNextWriteLocation(), nullptr};
   }

@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBuffer {
  protected:
   // Whether the invariants of the buffer are upheld. For debug & test only.
   bool Invariants() const;
-  const char* const buffer_end() const { return buffer_ + sizeof(buffer_); }
+  const char* buffer_end() const { return buffer_ + sizeof(buffer_); }
   QUIC_CACHELINE_ALIGNED char buffer_[kBufferSize];
   QuicCircularDeque<BufferedWrite> buffered_writes_;
 };
