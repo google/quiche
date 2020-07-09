@@ -1312,9 +1312,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool ValidateConfigConnectionIds(const QuicConfig& config);
   bool ValidateConfigConnectionIdsOld(const QuicConfig& config);
 
-  // Called when ACK alarm goes off. Try to bundle crypto data with the ACK of
-  // |space|.
-  void MaybeBundleCryptoDataWithAckOfSpace(PacketNumberSpace space);
+  // Called when ACK alarm goes off. Try to bundle crypto data with ACKs.
+  void MaybeBundleCryptoDataWithAcks();
 
   // Returns true if an undecryptable packet of |decryption_level| should be
   // buffered (such that connection can try to decrypt it later).

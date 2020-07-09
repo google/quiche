@@ -1297,28 +1297,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   size_t ProcessFramesPacketAtLevel(uint64_t number,
                                     const QuicFrames& frames,
                                     EncryptionLevel level) {
-    QuicPacketHeader header;
-    header.destination_connection_id = connection_id_;
-    header.packet_number_length = packet_number_length_;
-    header.destination_connection_id_included = connection_id_included_;
-    if (peer_framer_.perspective() == Perspective::IS_SERVER) {
-      header.destination_connection_id_included = CONNECTION_ID_ABSENT;
-    }
-    if (level == ENCRYPTION_INITIAL &&
-        peer_framer_.version().KnowsWhichDecrypterToUse()) {
-      header.version_flag = true;
-      if (QuicVersionHasLongHeaderLengths(peer_framer_.transport_version())) {
-        header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
-        header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
-      }
-    }
-    if (header.version_flag &&
-        peer_framer_.perspective() == Perspective::IS_SERVER) {
-      header.source_connection_id = connection_id_;
-      header.source_connection_id_included = CONNECTION_ID_PRESENT;
-    }
-    header.packet_number = QuicPacketNumber(number);
-    std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+    QuicPacketHeader header = ConstructPacketHeader(number, level);
     // Set the correct encryption level and encrypter on peer_creator and
     // peer_framer, respectively.
     peer_creator_.set_encryption_level(level);
@@ -1339,6 +1318,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
             std::make_unique<StrictTaggingDecrypter>(0x01));
       }
     }
+    std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
 
     char buffer[kMaxOutgoingPacketSize];
     size_t encrypted_length =
@@ -11327,6 +11307,69 @@ TEST_P(QuicConnectionTest, CoalescePacketOfLowerEncryptionLevel) {
           connection_.SendCryptoDataWithString("a", 0, ENCRYPTION_HANDSHAKE),
           "AppendPaddingFrame of 3 failed");
     }
+  }
+}
+
+// Regression test for b/160790422.
+TEST_P(QuicConnectionTest, ServerRetransmitsHandshakeDataEarly) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send INITIAL 1.
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+  QuicTime expected_pto_time =
+      connection_.sent_packet_manager().GetRetransmissionTime();
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(3);
+  // Send HANDSHAKE 2 and 3.
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+  connection_.SendCryptoDataWithString("bar", 3, ENCRYPTION_HANDSHAKE);
+  // Verify PTO time does not change.
+  EXPECT_EQ(expected_pto_time,
+            connection_.sent_packet_manager().GetRetransmissionTime());
+
+  // Receives ACK for HANDSHAKE 2.
+  QuicFrames frames;
+  auto ack_frame = InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
+  frames.push_back(QuicFrame(&ack_frame));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessFramesPacketAtLevel(30, frames, ENCRYPTION_HANDSHAKE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  // Receives PING from peer.
+  frames.clear();
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(3)));
+  ProcessFramesPacketAtLevel(31, frames, ENCRYPTION_HANDSHAKE);
+  EXPECT_EQ(clock_.Now() + kAlarmGranularity,
+            connection_.GetAckAlarm()->deadline());
+  // Fire ACK alarm.
+  clock_.AdvanceTime(kAlarmGranularity);
+  connection_.GetAckAlarm()->Fire();
+  EXPECT_FALSE(writer_->ack_frames().empty());
+  if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early)) {
+    // Verify handshake data gets retransmitted early.
+    EXPECT_FALSE(writer_->crypto_frames().empty());
+  } else {
+    EXPECT_TRUE(writer_->crypto_frames().empty());
   }
 }
 

@@ -4208,10 +4208,26 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   return ENCRYPTION_INITIAL;
 }
 
-void QuicConnection::MaybeBundleCryptoDataWithAckOfSpace(
-    PacketNumberSpace space) {
+void QuicConnection::MaybeBundleCryptoDataWithAcks() {
   DCHECK(SupportsMultiplePacketNumberSpaces());
-  QUIC_BUG_IF(space == APPLICATION_DATA);
+  if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early) &&
+      IsHandshakeConfirmed()) {
+    return;
+  }
+  PacketNumberSpace space = HANDSHAKE_DATA;
+  if (perspective() == Perspective::IS_SERVER) {
+    // On the server side, sends INITIAL data with INITIAL ACK. On the client
+    // side, sends HANDSHAKE data (containing client Finished) with HANDSHAKE
+    // ACK.
+    space = INITIAL_DATA;
+    if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_retransmit_handshake_data_early);
+      if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+        // Retransmit HANDSHAKE data early.
+        space = HANDSHAKE_DATA;
+      }
+    }
+  }
   const QuicTime ack_timeout =
       uber_received_packet_manager_.GetAckTimeout(space);
   if (!ack_timeout.IsInitialized() ||
@@ -4236,12 +4252,7 @@ void QuicConnection::SendAllPendingAcks() {
   QuicTime earliest_ack_timeout =
       uber_received_packet_manager_.GetEarliestAckTimeout();
   QUIC_BUG_IF(!earliest_ack_timeout.IsInitialized());
-  // On the server side, sends INITIAL data with INITIAL ACK. On the client
-  // side, sends HANDSHAKE data (containing client Finished) with HANDSHAKE
-  // ACK.
-  PacketNumberSpace space =
-      perspective() == Perspective::IS_SERVER ? INITIAL_DATA : HANDSHAKE_DATA;
-  MaybeBundleCryptoDataWithAckOfSpace(space);
+  MaybeBundleCryptoDataWithAcks();
   earliest_ack_timeout = uber_received_packet_manager_.GetEarliestAckTimeout();
   if (!earliest_ack_timeout.IsInitialized()) {
     return;
