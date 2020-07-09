@@ -431,8 +431,6 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     const QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
     QuicByteCount queuing_threshold_extra_bytes = 2 * kDefaultTCPMSS;
     if (Params().add_ack_height_to_queueing_threshold) {
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_bbr2_add_ack_height_to_queueing_threshold);
       queuing_threshold_extra_bytes += model_->MaxAckHeight();
     }
     QuicByteCount queuing_threshold =
