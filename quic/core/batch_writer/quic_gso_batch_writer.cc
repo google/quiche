@@ -38,7 +38,7 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(
     std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
     int fd,
     clockid_t clockid_for_release_time,
-    ReleaseTimeForceEnabler enabler)
+    ReleaseTimeForceEnabler /*enabler*/)
     : QuicUdpBatchWriter(std::move(batch_buffer), fd),
       clockid_for_release_time_(clockid_for_release_time),
       supports_release_time_(true) {
@@ -46,7 +46,7 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(
 }
 
 QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
-    const char* buffer,
+    const char* /*buffer*/,
     size_t buf_len,
     const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address,

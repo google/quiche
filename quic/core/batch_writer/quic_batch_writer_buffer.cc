@@ -39,7 +39,7 @@ bool QuicBatchWriterBuffer::Invariants() const {
     next_buffer += iter->buf_len;
   }
 
-  return (next_buffer - buffer_) == SizeInUse();
+  return static_cast<size_t>(next_buffer - buffer_) == SizeInUse();
 }
 
 char* QuicBatchWriterBuffer::GetNextWriteLocation() const {
@@ -47,7 +47,7 @@ char* QuicBatchWriterBuffer::GetNextWriteLocation() const {
       buffered_writes_.empty()
           ? buffer_
           : buffered_writes_.back().buffer + buffered_writes_.back().buf_len;
-  if (buffer_end() - next_loc < kMaxOutgoingPacketSize) {
+  if (static_cast<size_t>(buffer_end() - next_loc) < kMaxOutgoingPacketSize) {
     return nullptr;
   }
   return const_cast<char*>(next_loc);
@@ -107,7 +107,7 @@ QuicBatchWriterBuffer::PopResult QuicBatchWriterBuffer::PopBufferedWrite(
     int32_t num_buffered_writes) {
   DCHECK(Invariants());
   DCHECK_GE(num_buffered_writes, 0);
-  DCHECK_LE(num_buffered_writes, buffered_writes_.size());
+  DCHECK_LE(static_cast<size_t>(num_buffered_writes), buffered_writes_.size());
 
   PopResult result = {/*num_buffers_popped=*/0,
                       /*moved_remaining_buffers=*/false};
