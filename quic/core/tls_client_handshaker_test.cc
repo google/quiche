@@ -202,13 +202,18 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CompleteCryptoHandshake() {
+    CompleteCryptoHandshakeWithServerALPN(
+        AlpnForVersion(connection_->version()));
+  }
+
+  void CompleteCryptoHandshakeWithServerALPN(const std::string& alpn) {
     EXPECT_CALL(*connection_, SendCryptoData(_, _, _))
         .Times(testing::AnyNumber());
     stream()->CryptoConnect();
     QuicConfig config;
     crypto_test_utils::HandshakeWithFakeServer(
         &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
-        connection_, stream(), AlpnForVersion(connection_->version()));
+        connection_, stream(), alpn);
   }
 
   QuicCryptoClientStream* stream() {
@@ -358,6 +363,10 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
 
   // Create a second connection
   CreateConnection();
+  // OnConfigNegotiated should be called twice - once when processing saved
+  // 0-RTT transport parameters, and then again when receiving transport
+  // parameters from the server.
+  EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
   CompleteCryptoHandshake();
 
   // TODO(b/152551499): Add a test that checks we have keys after calling
@@ -382,6 +391,11 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // Create a second connection, but disable 0-RTT on the server.
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   CreateConnection();
+
+  // OnConfigNegotiated should be called twice - once when processing saved
+  // 0-RTT transport parameters, and then again when receiving transport
+  // parameters from the server.
+  EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
 
   // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
   // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
@@ -468,6 +482,32 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
   EXPECT_TRUE(server_stream()->encryption_established());
+}
+
+TEST_P(TlsClientHandshakerTest, ZeroRTTNotAttemptedOnALPNChange) {
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection
+  CreateConnection();
+  // Override the ALPN to send on the second connection.
+  const std::string kTestAlpn = "Test ALPN";
+  EXPECT_CALL(*session_, GetAlpnsToOffer())
+      .WillRepeatedly(testing::Return(std::vector<std::string>({kTestAlpn})));
+  // OnConfigNegotiated should only be called once: when transport parameters
+  // are received from the server.
+  EXPECT_CALL(*session_, OnConfigNegotiated()).Times(1);
+
+  CompleteCryptoHandshakeWithServerALPN(kTestAlpn);
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->EarlyDataAccepted());
 }
 
 TEST_P(TlsClientHandshakerTest, InvalidSNI) {

@@ -176,7 +176,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   bool allow_invalid_sni_for_tests_ = false;
 
   const bool has_application_state_;
-  bool attempting_zero_rtt_;
+  // Contains the state for performing a resumption, if one is attempted. This
+  // will always be non-null if a 0-RTT resumption is attempted.
+  std::unique_ptr<QuicResumptionState> cached_state_;
 
   TlsClientConnection tls_connection_;
 

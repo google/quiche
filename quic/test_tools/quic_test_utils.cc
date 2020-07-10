@@ -776,6 +776,9 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
       server_id, this, crypto_test_utils::ProofVerifyContextForTesting(),
       crypto_config, this, /*has_application_state = */ false);
   Initialize();
+  ON_CALL(*this, OnConfigNegotiated())
+      .WillByDefault(
+          Invoke(this, &TestQuicSpdyClientSession::RealOnConfigNegotiated));
 }
 
 TestQuicSpdyClientSession::~TestQuicSpdyClientSession() {}
@@ -791,6 +794,10 @@ QuicCryptoClientStream* TestQuicSpdyClientSession::GetMutableCryptoStream() {
 const QuicCryptoClientStream* TestQuicSpdyClientSession::GetCryptoStream()
     const {
   return crypto_stream_.get();
+}
+
+void TestQuicSpdyClientSession::RealOnConfigNegotiated() {
+  QuicSpdyClientSessionBase::OnConfigNegotiated();
 }
 
 TestPushPromiseDelegate::TestPushPromiseDelegate(bool match)
