@@ -4414,7 +4414,8 @@ TEST_P(EndToEndTest, SimpleStopSendingRstStreamTest) {
 
 class BadShloPacketWriter : public QuicPacketWriterWrapper {
  public:
-  BadShloPacketWriter() : error_returned_(false) {}
+  BadShloPacketWriter(ParsedQuicVersion version)
+      : error_returned_(false), version_(version) {}
   ~BadShloPacketWriter() override {}
 
   WriteResult WritePacket(const char* buffer,
@@ -4426,28 +4427,37 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
         buffer, buf_len, self_address, peer_address, options);
     const uint8_t type_byte = buffer[0];
     if (!error_returned_ && (type_byte & FLAGS_LONG_HEADER) &&
-        (((type_byte & 0x30) >> 4) == 1 || (type_byte & 0x7F) == 0x7C)) {
-      QUIC_DVLOG(1) << "Return write error for ZERO_RTT_PACKET";
+        TypeByteIsServerHello(type_byte)) {
+      QUIC_DVLOG(1) << "Return write error for packet containing ServerHello";
       error_returned_ = true;
       return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
     }
     return result;
   }
 
+  bool TypeByteIsServerHello(uint8_t type_byte) {
+    if (version_.UsesQuicCrypto()) {
+      // ENCRYPTION_ZERO_RTT packet.
+      return ((type_byte & 0x30) >> 4) == 1;
+    }
+    // ENCRYPTION_HANDSHAKE packet.
+    return ((type_byte & 0x30) >> 4) == 2;
+  }
+
  private:
   bool error_returned_;
+  ParsedQuicVersion version_;
 };
 
-TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
-  if (version_.UsesTls() || !version_.HasIetfInvariantHeader()) {
-    // TODO(b/152551499): Re-enable this test when TLS supports 0-RTT.
+TEST_P(EndToEndTest, ConnectionCloseBeforeHandshakeComplete) {
+  if (!version_.HasIetfInvariantHeader()) {
     // Only runs for IETF QUIC header.
     Initialize();
     return;
   }
   // This test ensures ZERO_RTT_PROTECTED connection close could close a client
   // which has switched to forward secure.
-  connect_to_server_on_initialize_ = !version_.HasIetfInvariantHeader();
+  connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
   server_thread_->Pause();
   QuicDispatcher* dispatcher =
@@ -4470,7 +4480,7 @@ TEST_P(EndToEndTest, ZeroRttProtectedConnectionClose) {
       // SHLO) to be sent, but WRITE_ERROR is returned. Such that a
       // ZERO_RTT_PROTECTED connection close would be sent to a client with
       // encryption level FORWARD_SECURE.
-      new BadShloPacketWriter());
+      new BadShloPacketWriter(version_));
   server_thread_->Resume();
 
   client_.reset(CreateQuicClient(client_writer_));
