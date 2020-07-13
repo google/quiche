@@ -226,10 +226,18 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   test::SimpleSessionCache* client_session_cache_;
 };
 
+std::string ParamNameFormatter(
+    const testing::TestParamInfo<QuicSpdyClientSessionTest::ParamType>& info) {
+  const ParsedQuicVersion& version = info.param;
+  return quiche::QuicheStrCat(
+      QuicVersionToString(version.transport_version), "_",
+      HandshakeProtocolToString(version.handshake_protocol));
+}
+
 INSTANTIATE_TEST_SUITE_P(Tests,
                          QuicSpdyClientSessionTest,
                          ::testing::ValuesIn(AllSupportedVersions()),
-                         ::testing::PrintToStringParamName());
+                         ParamNameFormatter);
 
 TEST_P(QuicSpdyClientSessionTest, CryptoConnect) {
   CompleteCryptoHandshake();
@@ -1196,11 +1204,15 @@ TEST_P(QuicSpdyClientSessionTest,
 
   if (session_->version().UsesHttp3()) {
     // Both control stream and the request stream will report errors.
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_ZERO_RTT_UNRETRANSMITTABLE, _, _))
-        .Times(2)
+    // Open question: should both streams be closed with the same error code?
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _))
         .WillOnce(testing::Invoke(connection_,
                                   &MockQuicConnection::ReallyCloseConnection));
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_ZERO_RTT_UNRETRANSMITTABLE, _, _))
+        .WillOnce(testing::Invoke(connection_,
+                                  &MockQuicConnection::ReallyCloseConnection))
+        .RetiresOnSaturation();
   } else {
     EXPECT_CALL(*connection_,
                 CloseConnection(

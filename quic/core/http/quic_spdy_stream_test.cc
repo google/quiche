@@ -2142,25 +2142,27 @@ TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
   Initialize(kShouldProcessData);
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
 
-  testing::InSequence s;
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
-                      MatchesRegex("Error decoding headers on stream \\d+: "
-                                   "Invalid relative index."),
-                      _))
-      .WillOnce(
-          (Invoke([this](QuicErrorCode error, const std::string& error_details,
-                         ConnectionCloseBehavior connection_close_behavior) {
-            connection_->ReallyCloseConnection(error, error_details,
-                                               connection_close_behavior);
-          })));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
-  EXPECT_CALL(*session_, OnConnectionClosed(_, _))
-      .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
-                              ConnectionCloseSource source) {
-        session_->ReallyOnConnectionClosed(frame, source);
-      }));
+  {
+    testing::InSequence s;
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_QPACK_DECOMPRESSION_FAILED,
+                        MatchesRegex("Error decoding headers on stream \\d+: "
+                                     "Invalid relative index."),
+                        _))
+        .WillOnce((
+            Invoke([this](QuicErrorCode error, const std::string& error_details,
+                          ConnectionCloseBehavior connection_close_behavior) {
+              connection_->ReallyCloseConnection(error, error_details,
+                                                 connection_close_behavior);
+            })));
+    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+    EXPECT_CALL(*session_, OnConnectionClosed(_, _))
+        .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
+                                ConnectionCloseSource source) {
+          session_->ReallyOnConnectionClosed(frame, source);
+        }));
+  }
   EXPECT_CALL(*session_, SendRstStream(stream_->id(), _, _));
   EXPECT_CALL(*session_, SendRstStream(stream2_->id(), _, _));
 

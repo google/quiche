@@ -486,15 +486,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
   }
 
  protected:
-  using StreamMap = QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
+  using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
   using PendingStreamMap =
-      QuicSmallMap<QuicStreamId, std::unique_ptr<PendingStream>, 10>;
+      QuicHashMap<QuicStreamId, std::unique_ptr<PendingStream>>;
 
   using ClosedStreams = std::vector<std::unique_ptr<QuicStream>>;
 
   using ZombieStreamMap =
-      QuicSmallMap<QuicStreamId, std::unique_ptr<QuicStream>, 10>;
+      QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
