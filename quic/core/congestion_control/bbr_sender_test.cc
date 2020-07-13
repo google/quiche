@@ -115,7 +115,6 @@ class BbrSenderTest : public QuicTest {
   }
 
   void SetUp() override {
-    SetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth, true);
     if (GetQuicFlag(FLAGS_quic_bbr_test_regression_mode) == "regress") {
       SendAlgorithmTestResult expected;
       ASSERT_TRUE(LoadSendAlgorithmTestResult(&expected));
@@ -1048,10 +1047,6 @@ TEST_F(BbrSenderTest, ResumeConnectionState) {
   bbr_sender_.connection()->AdjustNetworkParameters(
       SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth, kTestRtt,
                                             false));
-  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
-    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
-  }
   EXPECT_EQ(kTestLinkBandwidth * kTestRtt,
             sender_->ExportDebugState().congestion_window);
 
@@ -1132,10 +1127,6 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange1RTT) {
   bbr_sender_.connection()->AdjustNetworkParameters(
       SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth,
                                             QuicTime::Delta::Zero(), false));
-  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
-    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
-  }
   EXPECT_LT(previous_cwnd, sender_->ExportDebugState().congestion_window);
 
   // Verify pacing rate is re-calculated based on the new cwnd and min_rtt.
@@ -1154,10 +1145,6 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
   bbr_sender_.connection()->AdjustNetworkParameters(
       SendAlgorithmInterface::NetworkParams(kTestLinkBandwidth,
                                             QuicTime::Delta::Zero(), false));
-  if (!GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {
-    EXPECT_EQ(kTestLinkBandwidth, sender_->ExportDebugState().max_bandwidth);
-    EXPECT_EQ(kTestLinkBandwidth, sender_->BandwidthEstimate());
-  }
   EXPECT_LT(kInitialCongestionWindowPackets * kDefaultTCPMSS,
             sender_->ExportDebugState().congestion_window);
   // No Rtt sample is available.

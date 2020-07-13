@@ -41,9 +41,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
                   bool allow_cwnd_to_decrease)
         : bandwidth(bandwidth),
           rtt(rtt),
-          allow_cwnd_to_decrease(allow_cwnd_to_decrease),
-          quic_bbr_donot_inject_bandwidth(
-              GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {}
+          allow_cwnd_to_decrease(allow_cwnd_to_decrease) {}
 
     bool operator==(const NetworkParams& other) const {
       return bandwidth == other.bandwidth && rtt == other.rtt &&
@@ -64,7 +62,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
     // TODO(b/143540157): Remove after impact of fix is measured.
     bool quic_bbr_fix_pacing_rate = true;
     // TODO(b/72089315, b/143891040): Remove after impact of fix is measured.
-    bool quic_bbr_donot_inject_bandwidth;
+    bool quic_bbr_donot_inject_bandwidth = true;
   };
 
   static SendAlgorithmInterface* Create(

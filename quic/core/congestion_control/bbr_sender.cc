@@ -304,9 +304,7 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   const QuicBandwidth& bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 
-  if (params.quic_bbr_donot_inject_bandwidth) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_donot_inject_bandwidth);
-  } else if (!bandwidth.IsZero()) {
+  if (!params.quic_bbr_donot_inject_bandwidth && !bandwidth.IsZero()) {
     max_bandwidth_.Update(bandwidth, round_trip_count_);
   }
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
