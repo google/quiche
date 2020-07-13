@@ -116,7 +116,6 @@ class BbrSenderTest : public QuicTest {
 
   void SetUp() override {
     SetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption, true);
-    SetQuicReloadableFlag(quic_bbr_fix_pacing_rate, true);
     SetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth, true);
     if (GetQuicFlag(FLAGS_quic_bbr_test_regression_mode) == "regress") {
       SendAlgorithmTestResult expected;
@@ -1056,9 +1055,9 @@ TEST_F(BbrSenderTest, ResumeConnectionState) {
   }
   EXPECT_EQ(kTestLinkBandwidth * kTestRtt,
             sender_->ExportDebugState().congestion_window);
-  if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
-    EXPECT_EQ(kTestLinkBandwidth, sender_->PacingRate(/*bytes_in_flight=*/0));
-  }
+
+  EXPECT_EQ(kTestLinkBandwidth, sender_->PacingRate(/*bytes_in_flight=*/0));
+
   EXPECT_APPROX_EQ(kTestRtt, sender_->ExportDebugState().min_rtt, 0.01f);
 
   DriveOutOfStartup();
@@ -1140,19 +1139,11 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange1RTT) {
   }
   EXPECT_LT(previous_cwnd, sender_->ExportDebugState().congestion_window);
 
-  if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
-    // Verify pacing rate is re-calculated based on the new cwnd and min_rtt.
-    EXPECT_APPROX_EQ(QuicBandwidth::FromBytesAndTimeDelta(
-                         sender_->ExportDebugState().congestion_window,
-                         sender_->ExportDebugState().min_rtt),
-                     sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
-  } else {
-    // Pacing rate is still based on initial cwnd.
-    EXPECT_APPROX_EQ(QuicBandwidth::FromBytesAndTimeDelta(
-                         kInitialCongestionWindowPackets * kDefaultTCPMSS,
-                         sender_->ExportDebugState().min_rtt),
-                     sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
-  }
+  // Verify pacing rate is re-calculated based on the new cwnd and min_rtt.
+  EXPECT_APPROX_EQ(QuicBandwidth::FromBytesAndTimeDelta(
+                       sender_->ExportDebugState().congestion_window,
+                       sender_->ExportDebugState().min_rtt),
+                   sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
 }
 
 TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
@@ -1173,21 +1164,12 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
   // No Rtt sample is available.
   EXPECT_TRUE(sender_->ExportDebugState().min_rtt.IsZero());
 
-  if (GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)) {
-    // Verify pacing rate is re-calculated based on the new cwnd and initial
-    // RTT.
-    EXPECT_APPROX_EQ(QuicBandwidth::FromBytesAndTimeDelta(
-                         sender_->ExportDebugState().congestion_window,
-                         rtt_stats_->initial_rtt()),
-                     sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
-  } else {
-    // Pacing rate is still based on initial cwnd.
-    EXPECT_APPROX_EQ(
-        2.885f * QuicBandwidth::FromBytesAndTimeDelta(
-                     kInitialCongestionWindowPackets * kDefaultTCPMSS,
-                     rtt_stats_->initial_rtt()),
-        sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
-  }
+  // Verify pacing rate is re-calculated based on the new cwnd and initial
+  // RTT.
+  EXPECT_APPROX_EQ(QuicBandwidth::FromBytesAndTimeDelta(
+                       sender_->ExportDebugState().congestion_window,
+                       rtt_stats_->initial_rtt()),
+                   sender_->PacingRate(/*bytes_in_flight=*/0), 0.01f);
 }
 
 TEST_F(BbrSenderTest, MitigateCwndBootstrappingOvershoot) {

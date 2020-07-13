@@ -44,8 +44,6 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
           allow_cwnd_to_decrease(allow_cwnd_to_decrease),
           quic_fix_bbr_cwnd_in_bandwidth_resumption(
               GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption)),
-          quic_bbr_fix_pacing_rate(
-              GetQuicReloadableFlag(quic_bbr_fix_pacing_rate)),
           quic_bbr_donot_inject_bandwidth(
               GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {}
 
@@ -66,7 +64,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
     // TODO(b/131899599): Remove after impact of fix is measured.
     bool quic_fix_bbr_cwnd_in_bandwidth_resumption;
     // TODO(b/143540157): Remove after impact of fix is measured.
-    bool quic_bbr_fix_pacing_rate;
+    bool quic_bbr_fix_pacing_rate = true;
     // TODO(b/72089315, b/143891040): Remove after impact of fix is measured.
     bool quic_bbr_donot_inject_bandwidth;
   };
