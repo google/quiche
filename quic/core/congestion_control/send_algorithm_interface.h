@@ -42,8 +42,6 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
         : bandwidth(bandwidth),
           rtt(rtt),
           allow_cwnd_to_decrease(allow_cwnd_to_decrease),
-          quic_fix_bbr_cwnd_in_bandwidth_resumption(
-              GetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption)),
           quic_bbr_donot_inject_bandwidth(
               GetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth)) {}
 
@@ -62,7 +60,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
     bool allow_cwnd_to_decrease;
     // Code changes that are controlled by flags.
     // TODO(b/131899599): Remove after impact of fix is measured.
-    bool quic_fix_bbr_cwnd_in_bandwidth_resumption;
+    bool quic_fix_bbr_cwnd_in_bandwidth_resumption = true;
     // TODO(b/143540157): Remove after impact of fix is measured.
     bool quic_bbr_fix_pacing_rate = true;
     // TODO(b/72089315, b/143891040): Remove after impact of fix is measured.

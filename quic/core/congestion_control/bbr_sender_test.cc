@@ -115,7 +115,6 @@ class BbrSenderTest : public QuicTest {
   }
 
   void SetUp() override {
-    SetQuicReloadableFlag(quic_fix_bbr_cwnd_in_bandwidth_resumption, true);
     SetQuicReloadableFlag(quic_bbr_donot_inject_bandwidth, true);
     if (GetQuicFlag(FLAGS_quic_bbr_test_regression_mode) == "regress") {
       SendAlgorithmTestResult expected;
