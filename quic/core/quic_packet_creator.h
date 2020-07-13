@@ -635,9 +635,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   const bool avoid_leak_writer_buffer_ =
       GetQuicReloadableFlag(quic_avoid_leak_writer_buffer);
 
-  const bool fix_min_crypto_frame_size_ =
-      GetQuicReloadableFlag(quic_fix_min_crypto_frame_size);
-
   // When true, this will override the padding generation code to disable it.
   // TODO(fayang): remove this when deprecating
   // quic_determine_serialized_packet_fate_early.

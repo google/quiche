@@ -444,9 +444,7 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
   size_t min_frame_size =
       QuicFramer::GetMinCryptoFrameSize(write_length, offset);
   size_t min_plaintext_bytes = min_frame_size;
-  if (!fix_extra_padding_bytes_ && fix_min_crypto_frame_size_ &&
-      queued_frames_.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_min_crypto_frame_size);
+  if (!fix_extra_padding_bytes_ && queued_frames_.empty()) {
     min_plaintext_bytes =
         std::max(min_frame_size, MinPlaintextPacketSize(framer_->version()));
   }
