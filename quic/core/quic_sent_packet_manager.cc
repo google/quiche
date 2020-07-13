@@ -241,8 +241,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       send_algorithm_->SetInitialCongestionWindowInPackets(50);
     }
   }
-  if (GetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample) &&
-      config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
+  if (config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
     initial_congestion_window_ = 10;
     send_algorithm_->SetInitialCongestionWindowInPackets(10);
   }

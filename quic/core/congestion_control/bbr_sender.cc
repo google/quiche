@@ -253,13 +253,11 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kBBR3, perspective)) {
     drain_to_target_ = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample)) {
-    if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
-      bytes_lost_multiplier_with_network_parameters_adjusted_ = 3;
-    }
-    if (config.HasClientRequestedIndependentOption(kBWM4, perspective)) {
-      bytes_lost_multiplier_with_network_parameters_adjusted_ = 4;
-    }
+  if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
+    bytes_lost_multiplier_with_network_parameters_adjusted_ = 3;
+  }
+  if (config.HasClientRequestedIndependentOption(kBWM4, perspective)) {
+    bytes_lost_multiplier_with_network_parameters_adjusted_ = 4;
   }
   if (config.HasClientRequestedIndependentOption(kBBR4, perspective)) {
     sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
@@ -351,12 +349,7 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       QuicBandwidth new_pacing_rate =
           QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
       pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
-      if (GetQuicReloadableFlag(
-              quic_bbr_mitigate_overly_large_bandwidth_sample)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(
-            quic_bbr_mitigate_overly_large_bandwidth_sample, 1, 4);
-        network_parameters_adjusted_ = true;
-      }
+      network_parameters_adjusted_ = true;
     }
   }
 }
@@ -774,8 +767,6 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
     // > target_rate and loss has been detected.
     if (pacing_rate_ > target_rate &&
         bytes_lost_with_network_parameters_adjusted_ > 0) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_bbr_mitigate_overly_large_bandwidth_sample, 2, 4);
       if (has_non_app_limited_sample_ ||
           bytes_lost_with_network_parameters_adjusted_ *
                   bytes_lost_multiplier_with_network_parameters_adjusted_ >
@@ -783,13 +774,6 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
         // We are fairly sure overshoot happens if 1) there is at least one
         // non app-limited bw sample or 2) half of IW gets lost. Slow pacing
         // rate.
-        if (has_non_app_limited_sample_) {
-          QUIC_RELOADABLE_FLAG_COUNT_N(
-              quic_bbr_mitigate_overly_large_bandwidth_sample, 3, 4);
-        } else {
-          QUIC_RELOADABLE_FLAG_COUNT_N(
-              quic_bbr_mitigate_overly_large_bandwidth_sample, 4, 4);
-        }
         // Do not let the pacing rate drop below the connection's initial pacing
         // rate.
         pacing_rate_ =

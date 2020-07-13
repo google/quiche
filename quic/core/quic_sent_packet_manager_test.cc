@@ -3223,7 +3223,6 @@ TEST_F(QuicSentPacketManagerTest, Aggressive2Ptos) {
 }
 
 TEST_F(QuicSentPacketManagerTest, IW10ForUpAndDown) {
-  SetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample, true);
   QuicConfig config;
   QuicTagVector options;
   options.push_back(kBWS5);

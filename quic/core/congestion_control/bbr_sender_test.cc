@@ -1159,7 +1159,6 @@ TEST_F(BbrSenderTest, RecalculatePacingRateOnCwndChange0RTT) {
 }
 
 TEST_F(BbrSenderTest, MitigateCwndBootstrappingOvershoot) {
-  SetQuicReloadableFlag(quic_bbr_mitigate_overly_large_bandwidth_sample, true);
   CreateDefaultSetup();
   bbr_sender_.AddBytesToTransfer(1 * 1024 * 1024);
 
