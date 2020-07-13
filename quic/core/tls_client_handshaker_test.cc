@@ -334,6 +334,8 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithAsyncProofVerifier) {
 }
 
 TEST_P(TlsClientHandshakerTest, Resumption) {
+  // Disable 0-RTT on the server so that we're only testing 1-RTT resumption:
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
@@ -350,6 +352,30 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
+}
+
+TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
+  // Disable 0-RTT on the server before the first connection so the client
+  // doesn't attempt a 0-RTT resumption, only a 1-RTT resumption.
+  SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection, but disable resumption on the server.
+  SSL_CTX_set_options(server_crypto_config_->ssl_ctx(), SSL_OP_NO_TICKET);
+  CreateConnection();
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+  EXPECT_FALSE(stream()->EarlyDataAccepted());
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
@@ -367,10 +393,18 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   // 0-RTT transport parameters, and then again when receiving transport
   // parameters from the server.
   EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
-  CompleteCryptoHandshake();
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _))
+      .Times(testing::AnyNumber());
+  // Start the second handshake and confirm we have keys before receiving any
+  // messages from the server.
+  stream()->CryptoConnect();
+  EXPECT_TRUE(stream()->encryption_established());
+  // Finish the handshake with the server.
+  QuicConfig config;
+  crypto_test_utils::HandshakeWithFakeServer(
+      &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
+      connection_, stream(), AlpnForVersion(connection_->version()));
 
-  // TODO(b/152551499): Add a test that checks we have keys after calling
-  // stream()->CryptoConnect().
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
@@ -378,7 +412,6 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   EXPECT_TRUE(stream()->EarlyDataAccepted());
 }
 
-// TODO(b/152551499): Also test resumption getting rejected.
 TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
@@ -424,6 +457,54 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
+  EXPECT_FALSE(stream()->EarlyDataAccepted());
+}
+
+TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
+  // Finish establishing the first connection:
+  CompleteCryptoHandshake();
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
+
+  // Create a second connection, but disable resumption on the server.
+  SSL_CTX_set_options(server_crypto_config_->ssl_ctx(), SSL_OP_NO_TICKET);
+  CreateConnection();
+
+  // OnConfigNegotiated should be called twice - once when processing saved
+  // 0-RTT transport parameters, and then again when receiving transport
+  // parameters from the server.
+  EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
+
+  // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
+  // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
+  // packet retransmission.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+  if (VersionUsesHttp3(session_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
+  }
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION));
+  if (VersionUsesHttp3(session_->transport_version())) {
+    // TODO(b/158027651): change transmission type to
+    // ALL_ZERO_RTT_RETRANSMISSION.
+    EXPECT_CALL(*connection_,
+                OnPacketSent(ENCRYPTION_FORWARD_SECURE, LOSS_RETRANSMISSION));
+  }
+
+  CompleteCryptoHandshake();
+
+  QuicFramer* framer = QuicConnectionPeer::GetFramer(connection_);
+  EXPECT_EQ(nullptr, QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_ZERO_RTT));
+
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
 }
 
