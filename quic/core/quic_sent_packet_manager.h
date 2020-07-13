@@ -671,7 +671,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // available.
   float pto_multiplier_without_rtt_samples_;
 
-  const bool fix_pto_timeout_ = GetQuicReloadableFlag(quic_fix_pto_timeout);
   const bool fix_packet_number_length_ =
       GetQuicReloadableFlag(quic_fix_packet_number_length);
 };

@@ -3256,9 +3256,7 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
       GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
   QuicTime::Delta expected_pto_delay =
       srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   EXPECT_EQ(clock_.Now() + expected_pto_delay,
             manager_.GetRetransmissionTime());
 
@@ -3353,9 +3351,7 @@ TEST_F(QuicSentPacketManagerTest, ServerMultiplePacketNumberSpacePtoTimeout) {
       GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
   QuicTime::Delta expected_pto_delay =
       srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   EXPECT_EQ(packet1_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 
@@ -3628,9 +3624,7 @@ TEST_F(QuicSentPacketManagerTest,
       GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
   QuicTime::Delta expected_pto_delay =
       srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   EXPECT_EQ(packet1_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 
@@ -3710,9 +3704,7 @@ TEST_F(QuicSentPacketManagerTest,
       GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
   QuicTime::Delta expected_pto_delay =
       srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   EXPECT_EQ(packet1_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 
@@ -3983,9 +3975,7 @@ TEST_F(QuicSentPacketManagerTest, ClearLastInflightPacketsSentTime) {
   const QuicTime::Delta pto_delay =
       rtt_stats->smoothed_rtt() +
       pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   // Verify PTO is armed based on handshake data.
   EXPECT_EQ(packet2_sent_time + pto_delay, manager_.GetRetransmissionTime());
 }
@@ -4068,9 +4058,7 @@ TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
       GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
   QuicTime::Delta expected_pto_delay =
       srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      (GetQuicReloadableFlag(quic_fix_pto_timeout)
-           ? QuicTime::Delta::Zero()
-           : QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+      QuicTime::Delta::Zero();
   EXPECT_EQ(packet1_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 

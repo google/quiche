@@ -496,8 +496,7 @@ void QuicSentPacketManager::NeuterHandshakePackets() {
 bool QuicSentPacketManager::ShouldAddMaxAckDelay(
     PacketNumberSpace space) const {
   DCHECK(pto_enabled_);
-  if (fix_pto_timeout_ && supports_multiple_packet_number_spaces() &&
-      space != APPLICATION_DATA) {
+  if (supports_multiple_packet_number_spaces() && space != APPLICATION_DATA) {
     // When the PTO is armed for Initial or Handshake packet number spaces,
     // the max_ack_delay is 0.
     return false;
