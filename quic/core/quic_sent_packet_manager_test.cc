@@ -4020,17 +4020,8 @@ TEST_F(QuicSentPacketManagerTest, EarliestSentTimeNotInitializedWhenPtoFires) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
                                    ENCRYPTION_HANDSHAKE));
-  if (GetQuicReloadableFlag(quic_fix_server_pto_timeout)) {
-    // Verify PTO will not be armed.
-    EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
-    return;
-  }
-  // PTO fires but there is nothing to send.
-  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
-  manager_.OnRetransmissionTimeout();
-  EXPECT_QUIC_BUG(manager_.MaybeSendProbePackets(),
-                  "earlist_sent_time not initialized when trying to send PTO "
-                  "retransmissions");
+  // Verify PTO will not be armed.
+  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
 TEST_F(QuicSentPacketManagerTest, MaybeRetransmitInitialData) {
