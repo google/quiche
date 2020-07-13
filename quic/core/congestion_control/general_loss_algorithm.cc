@@ -24,17 +24,13 @@ float DetectionResponseTime(QuicTime::Delta rtt,
   float send_to_detection_us = (detection_time - send_time).ToMicroseconds();
   return send_to_detection_us / rtt.ToMicroseconds();
 }
-}  // namespace
 
-GeneralLossAlgorithm::GeneralLossAlgorithm()
-    : loss_detection_timeout_(QuicTime::Zero()),
-      reordering_shift_(kDefaultLossDelayShift),
-      reordering_threshold_(kDefaultPacketReorderingThreshold),
-      use_adaptive_reordering_threshold_(true),
-      use_adaptive_time_threshold_(false),
-      use_packet_threshold_for_runt_packets_(true),
-      least_in_flight_(1),
-      packet_number_space_(NUM_PACKET_NUMBER_SPACES) {}
+QuicTime::Delta GetMaxRtt(const RttStats& rtt_stats) {
+  return std::max(kAlarmGranularity,
+                  std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt()));
+}
+
+}  // namespace
 
 // Uses nack counts to decide when packets are lost.
 LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
@@ -67,10 +63,8 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
     }
   }
 
-  QuicTime::Delta max_rtt =
-      std::max(rtt_stats.previous_srtt(), rtt_stats.latest_rtt());
-  max_rtt = std::max(kAlarmGranularity, max_rtt);
-  const QuicTime::Delta loss_delay = max_rtt + (max_rtt >> reordering_shift_);
+  const QuicTime::Delta max_rtt = GetMaxRtt(rtt_stats);
+
   QuicPacketNumber packet_number = unacked_packets.GetLeastUnacked();
   auto it = unacked_packets.begin();
   if (least_in_flight_.IsInitialized() && least_in_flight_ >= packet_number) {
@@ -99,6 +93,10 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
       continue;
     }
 
+    if (parent_ != nullptr && largest_newly_acked != packet_number) {
+      parent_->OnReorderingDetected();
+    }
+
     if (largest_newly_acked - packet_number >
         detection_stats.sent_packets_max_sequence_reordering) {
       detection_stats.sent_packets_max_sequence_reordering =
@@ -120,6 +118,7 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
     }
 
     // Time threshold loss detection.
+    const QuicTime::Delta loss_delay = max_rtt + (max_rtt >> reordering_shift_);
     QuicTime when_lost = it->sent_time + loss_delay;
     if (time < when_lost) {
       if (time >=
@@ -178,8 +177,9 @@ void GeneralLossAlgorithm::SpuriousLossDetected(
   }
 }
 
-void GeneralLossAlgorithm::SetPacketNumberSpace(
-    PacketNumberSpace packet_number_space) {
+void GeneralLossAlgorithm::Initialize(PacketNumberSpace packet_number_space,
+                                      LossDetectionInterface* parent) {
+  parent_ = parent;
   if (packet_number_space_ < NUM_PACKET_NUMBER_SPACES) {
     QUIC_BUG << "Cannot switch packet_number_space";
     return;

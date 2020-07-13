@@ -75,6 +75,7 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   void OnMinRttAvailable() override;
   void OnUserAgentIdKnown() override;
   void OnConnectionClosed() override;
+  void OnReorderingDetected() override;
 
   // Sets reordering_shift for all packet number spaces.
   void SetReorderingShift(int reordering_shift);
@@ -132,6 +133,7 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   bool user_agent_known_ =
       !GetQuicReloadableFlag(quic_save_user_agent_in_quic_session);
   bool tuning_enabled_ = false;  // Whether tuning is enabled by config.
+  bool reorder_happened_ = false;  // Whether any reordered packet is observed.
 };
 
 }  // namespace quic

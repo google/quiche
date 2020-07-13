@@ -1317,6 +1317,7 @@ class MockLossAlgorithm : public LossDetectionInterface {
   MOCK_METHOD(void, OnMinRttAvailable, (), (override));
   MOCK_METHOD(void, OnUserAgentIdKnown, (), (override));
   MOCK_METHOD(void, OnConnectionClosed, (), (override));
+  MOCK_METHOD(void, OnReorderingDetected, (), (override));
 };
 
 class MockAckListener : public QuicAckListenerInterface {

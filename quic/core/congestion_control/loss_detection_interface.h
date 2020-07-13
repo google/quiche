@@ -63,6 +63,11 @@ class QUIC_EXPORT_PRIVATE LossDetectionInterface {
   virtual void OnUserAgentIdKnown() = 0;
 
   virtual void OnConnectionClosed() = 0;
+
+  // Called when a reordering is detected by the loss algorithm, but _before_
+  // the reordering_shift and reordering_threshold are consulted to see whether
+  // it is a loss.
+  virtual void OnReorderingDetected() = 0;
 };
 
 }  // namespace quic

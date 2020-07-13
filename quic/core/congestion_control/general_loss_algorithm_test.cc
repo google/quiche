@@ -27,7 +27,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
     rtt_stats_.UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
                          QuicTime::Delta::Zero(), clock_.Now());
     EXPECT_LT(0, rtt_stats_.smoothed_rtt().ToMicroseconds());
-    loss_algorithm_.SetPacketNumberSpace(HANDSHAKE_DATA);
+    loss_algorithm_.Initialize(HANDSHAKE_DATA, nullptr);
   }
 
   ~GeneralLossAlgorithmTest() override {}

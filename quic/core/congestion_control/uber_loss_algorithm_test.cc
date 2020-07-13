@@ -262,8 +262,12 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_SetFromConfigFirst) {
   EXPECT_EQ(old_reordering_threshold,
             loss_algorithm_.GetPacketReorderingThreshold());
 
-  // Tuning should start when MinRtt becomes available.
+  // MinRtt available. Tuner should not start yet because no reordering yet.
   loss_algorithm_.OnMinRttAvailable();
+  EXPECT_FALSE(test_tuner->start_called());
+
+  // Reordering happened. Tuner should start now.
+  loss_algorithm_.OnReorderingDetected();
   EXPECT_TRUE(test_tuner->start_called());
   EXPECT_NE(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
   EXPECT_NE(old_reordering_threshold,
@@ -293,6 +297,10 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_OnMinRttAvailableFirst) {
   EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
   EXPECT_EQ(old_reordering_threshold,
             loss_algorithm_.GetPacketReorderingThreshold());
+
+  // Pretend a reodering has happened.
+  loss_algorithm_.OnReorderingDetected();
+  EXPECT_FALSE(test_tuner->start_called());
 
   QuicConfig config;
   QuicTagVector connection_options;
@@ -335,6 +343,10 @@ TEST_F(UberLossAlgorithmTest, LossDetectionTuning_StartFailed) {
   EXPECT_EQ(old_reordering_shift, loss_algorithm_.GetPacketReorderingShift());
   EXPECT_EQ(old_reordering_threshold,
             loss_algorithm_.GetPacketReorderingThreshold());
+
+  // Pretend a reodering has happened.
+  loss_algorithm_.OnReorderingDetected();
+  EXPECT_FALSE(test_tuner->start_called());
 
   // Parameters should not change since test_tuner->Start() returns false.
   loss_algorithm_.OnMinRttAvailable();
