@@ -693,6 +693,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   packet_.encrypted_length = encrypted_length;
   if (avoid_leak_writer_buffer_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_avoid_leak_writer_buffer, 3, 3);
+    packet_buffer.buffer = nullptr;
     packet_.release_encrypted_buffer = std::move(packet_buffer).release_buffer;
   } else {
     // If flag --quic_avoid_leak_writer_buffer is false, the release function
