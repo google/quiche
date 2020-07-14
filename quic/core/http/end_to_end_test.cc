@@ -629,6 +629,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool CheckResponse(QuicTestClient* client,
                      const std::string& received_response,
                      const std::string& expected_response) {
+    EXPECT_THAT(client_->stream_error(), IsQuicStreamNoError());
+    EXPECT_THAT(client_->connection_error(), IsQuicNoError());
+
     if (received_response.empty() && !expected_response.empty()) {
       ADD_FAILURE() << "Failed to get any response for request";
       return false;
@@ -2662,7 +2665,7 @@ class TestResponseListener : public QuicSpdyClientBase::ResponseListener {
 
 TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Verify that even in the presence of packet loss and occasionally blocked
-  // socket,  an AckNotifierDelegate will get informed that the data it is
+  // socket, an AckNotifierDelegate will get informed that the data it is
   // interested in has been ACKed. This tests end-to-end ACK notification, and
   // demonstrates that retransmissions do not break this functionality.
   // Disable blackhole detection as this test is testing loss recovery.
@@ -2716,7 +2719,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // the header stream.
   size_t header_size = 0;
   if (version_.UsesHttp3()) {
-    // Determine size of headers after QPACK compression in both scenarios.
+    // Determine size of headers after QPACK compression.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder qpack_encoder(&decoder_stream_error_delegate);
@@ -2749,7 +2752,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   WaitForFooResponseAndCheckIt();
 
   // Send another request to flush out any pending ACKs on the server.
-  client_->SendSynchronousRequest("/bar");
+  SendSynchronousBarRequestAndCheckResponse();
 
   // Make sure the delegate does get the notification it expects.
   while (ack_listener->total_bytes_acked() < expected_bytes_acked) {
