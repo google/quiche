@@ -394,15 +394,15 @@ QuicSpdySession::QuicSpdySession(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       promised_stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
-      fin_(false),
       frame_len_(0),
+      fin_(false),
       spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
+      debug_visitor_(nullptr),
+      destruction_indicator_(123456789),
       server_push_enabled_(true),
       ietf_server_push_enabled_(
           GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
-      destruction_indicator_(123456789),
-      debug_visitor_(nullptr),
       http3_goaway_received_(false),
       http3_goaway_sent_(false),
       http3_max_push_id_sent_(false) {

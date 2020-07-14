@@ -535,21 +535,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Data about the stream whose headers are being processed.
   QuicStreamId stream_id_;
   QuicStreamId promised_stream_id_;
-  bool fin_;
   size_t frame_len_;
+  bool fin_;
 
   spdy::SpdyFramer spdy_framer_;
   http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
-
-  // Used in Google QUIC only.  Set every time SETTINGS_ENABLE_PUSH is received.
-  // Defaults to true.
-  bool server_push_enabled_;
-
-  // Used in IETF QUIC only.  Defaults to false.
-  // Server push is enabled for a server by calling EnableServerPush().
-  // Server push is enabled for a client by calling SetMaxPushId().
-  bool ietf_server_push_enabled_;
 
   // Used in IETF QUIC only.
   // For a server:
@@ -564,13 +555,26 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Once set, never goes back to unset.
   quiche::QuicheOptional<PushId> max_push_id_;
 
+  // Not owned by the session.
+  Http3DebugVisitor* debug_visitor_;
+
+  // Priority values received in PRIORITY_UPDATE frames for streams that are not
+  // open yet.
+  QuicHashMap<QuicStreamId, int> buffered_stream_priorities_;
+
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate
   // an use-after-free.
   int32_t destruction_indicator_;
 
-  // Not owned by the session.
-  Http3DebugVisitor* debug_visitor_;
+  // Used in Google QUIC only.  Set every time SETTINGS_ENABLE_PUSH is received.
+  // Defaults to true.
+  bool server_push_enabled_;
+
+  // Used in IETF QUIC only.  Defaults to false.
+  // Server push is enabled for a server by calling EnableServerPush().
+  // Server push is enabled for a client by calling SetMaxPushId().
+  bool ietf_server_push_enabled_;
 
   // If the endpoint has received HTTP/3 GOAWAY frame.
   bool http3_goaway_received_;
@@ -581,10 +585,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // has been sent, in which case |max_push_id_| has the value sent in the most
   // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
   bool http3_max_push_id_sent_;
-
-  // Priority values received in PRIORITY_UPDATE frames for streams that are not
-  // open yet.
-  QuicHashMap<QuicStreamId, int> buffered_stream_priorities_;
 };
 
 }  // namespace quic
