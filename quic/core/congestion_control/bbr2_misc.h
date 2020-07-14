@@ -446,6 +446,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   float pacing_gain() const { return pacing_gain_; }
   void set_pacing_gain(float pacing_gain) { pacing_gain_ = pacing_gain; }
 
+  bool improve_adjust_network_parameters() const {
+    return improve_adjust_network_parameters_;
+  }
+
  private:
   const Bbr2Params& Params() const { return *params_; }
   const Bbr2Params* const params_;
@@ -477,6 +481,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float cwnd_gain_;
   float pacing_gain_;
+
+  const bool improve_adjust_network_parameters_ =
+      GetQuicReloadableFlag(quic_bbr2_improve_adjust_network_parameters);
 };
 
 enum class Bbr2Mode : uint8_t {

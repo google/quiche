@@ -213,7 +213,8 @@ void Bbr2NetworkModel::OnCongestionEventFinish(
 
 void Bbr2NetworkModel::UpdateNetworkParameters(QuicBandwidth bandwidth,
                                                QuicTime::Delta rtt) {
-  if (!bandwidth.IsInfinite() && bandwidth > MaxBandwidth()) {
+  if (!improve_adjust_network_parameters_ && !bandwidth.IsInfinite() &&
+      bandwidth > MaxBandwidth()) {
     max_bandwidth_filter_.Update(bandwidth);
   }
 

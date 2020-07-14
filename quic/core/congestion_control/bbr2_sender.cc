@@ -167,13 +167,27 @@ void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
   if (mode_ == Bbr2Mode::STARTUP) {
     const QuicByteCount prior_cwnd = cwnd_;
 
-    // Normally UpdateCongestionWindow updates |cwnd_| towards the target by a
-    // small step per congestion event, by changing |cwnd_| to the bdp at here
-    // we are reducing the number of updates needed to arrive at the target.
-    cwnd_ = model_.BDP(model_.BandwidthEstimate());
-    UpdateCongestionWindow(0);
+    if (model_.improve_adjust_network_parameters()) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_improve_adjust_network_parameters);
+      QuicBandwidth effective_bandwidth =
+          std::max(params.bandwidth, model_.BandwidthEstimate());
+      cwnd_ = cwnd_limits().ApplyLimits(model_.BDP(effective_bandwidth));
+    } else {
+      // Normally UpdateCongestionWindow updates |cwnd_| towards the target by a
+      // small step per congestion event, by changing |cwnd_| to the bdp at here
+      // we are reducing the number of updates needed to arrive at the target.
+      cwnd_ = model_.BDP(model_.BandwidthEstimate());
+      UpdateCongestionWindow(0);
+    }
+
     if (!params.allow_cwnd_to_decrease) {
       cwnd_ = std::max(cwnd_, prior_cwnd);
+    }
+
+    if (model_.improve_adjust_network_parameters()) {
+      pacing_rate_ = std::max(
+          pacing_rate_,
+          QuicBandwidth::FromBytesAndTimeDelta(cwnd_, model_.MinRtt()));
     }
   }
 }

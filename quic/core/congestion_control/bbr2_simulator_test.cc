@@ -331,6 +331,10 @@ class Bbr2DefaultTopologyTest : public Bbr2SimulatorTest {
 
   QuicConnection* sender_connection() { return sender_endpoint_.connection(); }
 
+  Bbr2Sender::DebugState sender_debug_state() const {
+    return sender_->ExportDebugState();
+  }
+
   const QuicConnectionStats& sender_connection_stats() {
     return sender_connection()->GetStats();
   }
@@ -990,14 +994,46 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
   EXPECT_FALSE(sender_->BandwidthEstimate().IsZero());
 }
 
+TEST_F(Bbr2DefaultTopologyTest, AdjustNetworkParameters) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  QUIC_LOG(INFO) << "Initial cwnd: " << sender_debug_state().congestion_window
+                 << "\nInitial pacing rate: " << sender_->PacingRate(0)
+                 << "\nInitial bandwidth estimate: "
+                 << sender_->BandwidthEstimate()
+                 << "\nInitial rtt: " << sender_debug_state().min_rtt;
+
+  sender_connection()->AdjustNetworkParameters(
+      SendAlgorithmInterface::NetworkParams(params.BottleneckBandwidth(),
+                                            params.RTT(),
+                                            /*allow_cwnd_to_decrease=*/false));
+
+  EXPECT_EQ(params.BDP(), sender_->ExportDebugState().congestion_window);
+
+  if (GetQuicReloadableFlag(quic_bbr2_improve_adjust_network_parameters)) {
+    EXPECT_EQ(params.BottleneckBandwidth(),
+              sender_->PacingRate(/*bytes_in_flight=*/0));
+    EXPECT_NE(params.BottleneckBandwidth(), sender_->BandwidthEstimate());
+  } else {
+    EXPECT_EQ(params.BottleneckBandwidth(), sender_->BandwidthEstimate());
+  }
+
+  EXPECT_APPROX_EQ(params.RTT(), sender_->ExportDebugState().min_rtt, 0.01f);
+
+  DriveOutOfStartup(params);
+}
+
 // All Bbr2MultiSenderTests uses the following network topology:
 //
 //   Sender 0  (A Bbr2Sender)
 //       |
 //       | <-- local_links[0]
 //       |
-//       |  Sender N (1 <= N < kNumLocalLinks) (May or may not be a
-//       Bbr2Sender) |      | |      | <-- local_links[N] |      |
+//       |  Sender N (1 <= N < kNumLocalLinks) (May or may not be a Bbr2Sender)
+//       |      |
+//       |      | <-- local_links[N]
+//       |      |
 //    Network switch
 //           *  <-- the bottleneck queue in the direction
 //           |          of the receiver
