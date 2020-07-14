@@ -3797,7 +3797,7 @@ TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
                 IsError(QUIC_QPACK_DECOMPRESSION_FAILED));
   } else {
     EXPECT_THAT(client_->connection_error(),
-                IsError(QUIC_HPACK_INDEX_VARINT_ERROR));
+                IsError(QUIC_HPACK_VALUE_TOO_LONG));
   }
 }
 

@@ -139,21 +139,21 @@ class QuicSpdySession::SpdyFramerVisitor
     QuicErrorCode code;
     switch (error) {
       case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INDEX_VARINT_ERROR:
-        code = QUIC_HPACK_NAME_LENGTH_VARINT_ERROR;
+        code = QUIC_HPACK_INDEX_VARINT_ERROR;
         break;
       case Http2DecoderAdapter::SpdyFramerError::
           SPDY_HPACK_NAME_LENGTH_VARINT_ERROR:
-        code = QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR;
+        code = QUIC_HPACK_NAME_LENGTH_VARINT_ERROR;
         break;
       case Http2DecoderAdapter::SpdyFramerError::
           SPDY_HPACK_VALUE_LENGTH_VARINT_ERROR:
-        code = QUIC_HPACK_NAME_TOO_LONG;
+        code = QUIC_HPACK_VALUE_LENGTH_VARINT_ERROR;
         break;
       case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_NAME_TOO_LONG:
-        code = QUIC_HPACK_VALUE_TOO_LONG;
+        code = QUIC_HPACK_NAME_TOO_LONG;
         break;
       case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_VALUE_TOO_LONG:
-        code = QUIC_HPACK_INDEX_VARINT_ERROR;
+        code = QUIC_HPACK_VALUE_TOO_LONG;
         break;
       case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_NAME_HUFFMAN_ERROR:
         code = QUIC_HPACK_NAME_HUFFMAN_ERROR;
