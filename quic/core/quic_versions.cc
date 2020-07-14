@@ -40,7 +40,7 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 }
 
 void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync");
   const bool enable = should_enable;
   const bool disable = !should_enable;
@@ -54,10 +54,6 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
     SetQuicReloadableFlag(quic_disable_version_t050, disable);
   } else if (version == ParsedQuicVersion::Q050()) {
     SetQuicReloadableFlag(quic_disable_version_q050, disable);
-  } else if (version == ParsedQuicVersion::Q049()) {
-    SetQuicReloadableFlag(quic_disable_version_q049, disable);
-  } else if (version == ParsedQuicVersion::Q048()) {
-    SetQuicReloadableFlag(quic_disable_version_q048, disable);
   } else if (version == ParsedQuicVersion::Q046()) {
     SetQuicReloadableFlag(quic_disable_version_q046, disable);
   } else if (version == ParsedQuicVersion::Q043()) {
@@ -79,29 +75,30 @@ bool ParsedQuicVersion::IsKnown() const {
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
   DCHECK(IsKnown());
-  return transport_version > QUIC_VERSION_46 ||
-         handshake_protocol == PROTOCOL_TLS1_3;
+  return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::UsesInitialObfuscators() const {
   DCHECK(IsKnown());
-  return transport_version > QUIC_VERSION_49 ||
-         handshake_protocol == PROTOCOL_TLS1_3;
+  // Initial obfuscators were added in version 50.
+  return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
   DCHECK(IsKnown());
-  return transport_version >= QUIC_VERSION_IETF_DRAFT_25 &&
-         handshake_protocol == PROTOCOL_TLS1_3;
+  // Low flow-control limits are used for all IETF versions.
+  return UsesHttp3();
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
   DCHECK(IsKnown());
-  return transport_version > QUIC_VERSION_49;
+  // Header protection was added in version 50.
+  return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
   DCHECK(IsKnown());
+  // Retry was added in version 47.
   return transport_version > QUIC_VERSION_46;
 }
 
@@ -122,7 +119,8 @@ bool ParsedQuicVersion::AllowsVariableLengthConnectionIds() const {
 
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
   DCHECK(IsKnown());
-  return transport_version > QUIC_VERSION_48;
+  // Client connection IDs were added in version 49.
+  return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
@@ -132,8 +130,8 @@ bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
 
 bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
   DCHECK(IsKnown());
-  return transport_version >= QUIC_VERSION_IETF_DRAFT_25 &&
-         handshake_protocol == PROTOCOL_TLS1_3;
+  // The anti-amplification limit is used for all IETF versions.
+  return UsesHttp3();
 }
 
 bool ParsedQuicVersion::CanSendCoalescedPackets() const {
@@ -184,11 +182,13 @@ bool ParsedQuicVersion::HasHandshakeDone() const {
 
 bool ParsedQuicVersion::HasVarIntTransportParams() const {
   DCHECK(IsKnown());
-  return transport_version >= QUIC_VERSION_IETF_DRAFT_27;
+  // Variable-length integer transport parameters were added in draft-27.
+  return transport_version > QUIC_VERSION_IETF_DRAFT_25;
 }
 
 bool ParsedQuicVersion::AuthenticatesHandshakeConnectionIds() const {
   DCHECK(IsKnown());
+  // Authentication of handshake connection IDs was added in draft-28.
   return transport_version > QUIC_VERSION_IETF_DRAFT_27;
 }
 
@@ -205,7 +205,8 @@ bool ParsedQuicVersion::UsesQuicCrypto() const {
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
   DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
-  return transport_version > QUIC_VERSION_48;
+  // Length-prefixed connection IDs were added in version 49.
+  return transport_version > QUIC_VERSION_46;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {
@@ -245,17 +246,13 @@ QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
                << parsed_version.handshake_protocol;
       return 0;
   }
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync");
   switch (parsed_version.transport_version) {
     case QUIC_VERSION_43:
       return MakeVersionLabel(proto, '0', '4', '3');
     case QUIC_VERSION_46:
       return MakeVersionLabel(proto, '0', '4', '6');
-    case QUIC_VERSION_48:
-      return MakeVersionLabel(proto, '0', '4', '8');
-    case QUIC_VERSION_49:
-      return MakeVersionLabel(proto, '0', '4', '9');
     case QUIC_VERSION_50:
       return MakeVersionLabel(proto, '0', '5', '0');
     case QUIC_VERSION_IETF_DRAFT_25:
@@ -457,14 +454,6 @@ ParsedQuicVersionVector FilterSupportedVersions(
           filtered_versions.push_back(version);
         }
       }
-    } else if (version.transport_version == QUIC_VERSION_49) {
-      if (!GetQuicReloadableFlag(quic_disable_version_q049)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version.transport_version == QUIC_VERSION_48) {
-      if (!GetQuicReloadableFlag(quic_disable_version_q048)) {
-        filtered_versions.push_back(version);
-      }
     } else if (version.transport_version == QUIC_VERSION_46) {
       QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_QUIC_CRYPTO);
       if (!GetQuicReloadableFlag(quic_disable_version_q046)) {
@@ -563,13 +552,11 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(SupportedTransportVersions().size() == 8u,
+  static_assert(SupportedTransportVersions().size() == 6u,
                 "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);
-    RETURN_STRING_LITERAL(QUIC_VERSION_48);
-    RETURN_STRING_LITERAL(QUIC_VERSION_49);
     RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_25);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_27);

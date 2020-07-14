@@ -60,7 +60,6 @@ ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   const QuicTransportVersion transport_versions[] = {
       quic::QUIC_VERSION_43,
       quic::QUIC_VERSION_46,
-      quic::QUIC_VERSION_48,
   };
 
   return ParsedQuicVersion(

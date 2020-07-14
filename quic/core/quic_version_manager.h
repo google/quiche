@@ -62,10 +62,6 @@ class QUIC_EXPORT_PRIVATE QuicVersionManager {
   bool disable_version_q050_;
   // quic_disable_version_t050 flag
   bool disable_version_t050_;
-  // quic_disable_version_q049 flag
-  bool disable_version_q049_;
-  // quic_disable_version_q048 flag
-  bool disable_version_q048_;
   // quic_disable_version_q046 flag
   bool disable_version_q046_;
   // quic_disable_version_q043 flag

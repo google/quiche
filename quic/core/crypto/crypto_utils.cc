@@ -141,7 +141,7 @@ const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 9u,
+  static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync with initial encryption salts");
   switch (version.handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
