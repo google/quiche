@@ -14,6 +14,8 @@ namespace quic {
 
 class QuicStream;
 
+// Pure virtual class to get notified when particular QuicStream events
+// occurred.
 class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
  public:
   virtual ~StreamDelegateInterface() {}

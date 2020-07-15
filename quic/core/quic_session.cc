@@ -739,8 +739,17 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
   return bytes_consumed;
 }
 
+void QuicSession::OnControlFrameManagerError(QuicErrorCode error_code,
+                                             std::string error_details) {
+  connection_->CloseConnection(
+      error_code, error_details,
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
 bool QuicSession::WriteControlFrame(const QuicFrame& frame,
                                     TransmissionType type) {
+  DCHECK(connection()->connected())
+      << ENDPOINT << "Try to write control frames when connection is closed.";
   SetTransmissionType(type);
   return connection_->SendControlFrame(frame);
 }

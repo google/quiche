@@ -53,7 +53,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
       public QuicStreamFrameDataProducer,
       public QuicStreamIdManager::DelegateInterface,
       public HandshakerDelegateInterface,
-      public StreamDelegateInterface {
+      public StreamDelegateInterface,
+      public QuicControlFrameManager::DelegateInterface {
  public:
   // An interface from the session to the entity owning the session.
   // This lets the session notify its owner (the Dispatcher) when the connection
@@ -199,10 +200,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Called when message with |message_id| is considered as lost.
   virtual void OnMessageLost(QuicMessageId message_id);
 
+  // QuicControlFrameManager::DelegateInterface
+  // Close the connection on error.
+  void OnControlFrameManagerError(QuicErrorCode error_code,
+                                  std::string error_details) override;
   // Called by control frame manager when it wants to write control frames to
   // the peer. Returns true if |frame| is consumed, false otherwise. The frame
   // will be sent in specified transmission |type|.
-  bool WriteControlFrame(const QuicFrame& frame, TransmissionType type);
+  bool WriteControlFrame(const QuicFrame& frame,
+                         TransmissionType type) override;
 
   // Called by stream to send RST_STREAM (and STOP_SENDING).
   virtual void SendRstStream(QuicStreamId id,

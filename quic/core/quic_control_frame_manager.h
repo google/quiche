@@ -30,6 +30,18 @@ class QuicControlFrameManagerPeer;
 // which need to be retransmitted.
 class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
  public:
+  class QUIC_EXPORT_PRIVATE DelegateInterface {
+   public:
+    virtual ~DelegateInterface() = default;
+
+    // Notifies the delegate of errors.
+    virtual void OnControlFrameManagerError(QuicErrorCode error_code,
+                                            std::string error_details) = 0;
+
+    virtual bool WriteControlFrame(const QuicFrame& frame,
+                                   TransmissionType type) = 0;
+  };
+
   explicit QuicControlFrameManager(QuicSession* session);
   QuicControlFrameManager(const QuicControlFrameManager& other) = delete;
   QuicControlFrameManager(QuicControlFrameManager&& other) = delete;
@@ -146,8 +158,7 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // Lost control frames waiting to be retransmitted.
   QuicLinkedHashMap<QuicControlFrameId, bool> pending_retransmissions_;
 
-  // Pointer to the owning QuicSession object.
-  QuicSession* session_;
+  DelegateInterface* delegate_;
 
   // Last sent window update frame for each stream.
   QuicSmallMap<QuicStreamId, QuicControlFrameId, 10> window_update_frames_;
