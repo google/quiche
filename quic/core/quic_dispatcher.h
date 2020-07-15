@@ -138,6 +138,7 @@ class QUIC_NO_EXPORT QuicDispatcher
  protected:
   virtual std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId server_connection_id,
+      const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       quiche::QuicheStringPiece alpn,
       const ParsedQuicVersion& version) = 0;

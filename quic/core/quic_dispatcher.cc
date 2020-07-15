@@ -1007,9 +1007,9 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
     server_connection_id = MaybeReplaceServerConnectionId(server_connection_id,
                                                           packet_list.version);
     std::string alpn = SelectAlpn(packet_list.alpns);
-    std::unique_ptr<QuicSession> session =
-        CreateQuicSession(server_connection_id, packets.front().peer_address,
-                          alpn, packet_list.version);
+    std::unique_ptr<QuicSession> session = CreateQuicSession(
+        server_connection_id, packets.front().self_address,
+        packets.front().peer_address, alpn, packet_list.version);
     if (original_connection_id != server_connection_id) {
       session->connection()->SetOriginalDestinationConnectionId(
           original_connection_id);
@@ -1100,14 +1100,14 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
       original_connection_id, packet_info->version);
   // Creates a new session and process all buffered packets for this connection.
   std::string alpn = SelectAlpn(alpns);
-  std::unique_ptr<QuicSession> session =
-      CreateQuicSession(packet_info->destination_connection_id,
-                        packet_info->peer_address, alpn, packet_info->version);
+  std::unique_ptr<QuicSession> session = CreateQuicSession(
+      packet_info->destination_connection_id, packet_info->self_address,
+      packet_info->peer_address, alpn, packet_info->version);
   if (QUIC_PREDICT_FALSE(session == nullptr)) {
     QUIC_BUG << "CreateQuicSession returned nullptr for "
              << packet_info->destination_connection_id << " from "
-             << packet_info->peer_address << " ALPN \"" << alpn << "\" version "
-             << packet_info->version;
+             << packet_info->peer_address << " to " << packet_info->self_address
+             << " ALPN \"" << alpn << "\" version " << packet_info->version;
     return;
   }
   if (original_connection_id != packet_info->destination_connection_id) {

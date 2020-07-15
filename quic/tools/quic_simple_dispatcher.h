@@ -33,7 +33,8 @@ class QuicSimpleDispatcher : public QuicDispatcher {
  protected:
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id,
-      const QuicSocketAddress& client_address,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address,
       quiche::QuicheStringPiece alpn,
       const ParsedQuicVersion& version) override;
 
