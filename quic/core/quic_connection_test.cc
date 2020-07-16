@@ -11398,7 +11398,8 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
                            std::make_unique<TaggingEncrypter>(0x01));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   // Send INITIAL 1.
-  connection_.SendCryptoDataWithString(std::string(512, 'a'), 0,
+  std::string initial_crypto_data(512, 'a');
+  connection_.SendCryptoDataWithString(initial_crypto_data, 0,
                                        ENCRYPTION_INITIAL);
   ASSERT_TRUE(connection_.sent_packet_manager()
                   .GetRetransmissionTime()
@@ -11415,7 +11416,8 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   } else {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   }
-  connection_.SendCryptoDataWithString(std::string(1024, 'a'), 0,
+  std::string handshake_crypto_data(1024, 'a');
+  connection_.SendCryptoDataWithString(handshake_crypto_data, 0,
                                        ENCRYPTION_HANDSHAKE);
 
   // INITIAL 1 gets lost and PTO fires.
