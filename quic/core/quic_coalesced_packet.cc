@@ -69,6 +69,7 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
     QUIC_CODE_COUNT(QUIC_SUCCESSFULLY_COALESCED_MULTIPLE_PACKETS);
   }
   length_ += packet.encrypted_length;
+  transmission_types_[packet.encryption_level] = packet.transmission_type;
   if (packet.encryption_level == ENCRYPTION_INITIAL) {
     // Save a copy of ENCRYPTION_INITIAL packet (excluding encrypted buffer, as
     // the packet will be re-serialized later).
@@ -89,6 +90,9 @@ void QuicCoalescedPacket::Clear() {
   max_packet_length_ = 0;
   for (auto& packet : encrypted_buffers_) {
     packet.clear();
+  }
+  for (size_t i = ENCRYPTION_INITIAL; i < NUM_ENCRYPTION_LEVELS; ++i) {
+    transmission_types_[i] = NOT_RETRANSMISSION;
   }
   initial_packet_ = nullptr;
 }
@@ -116,6 +120,16 @@ bool QuicCoalescedPacket::ContainsPacketOfEncryptionLevel(
     EncryptionLevel level) const {
   return !encrypted_buffers_[level].empty() ||
          (level == ENCRYPTION_INITIAL && initial_packet_ != nullptr);
+}
+
+TransmissionType QuicCoalescedPacket::TransmissionTypeOfPacket(
+    EncryptionLevel level) const {
+  if (!ContainsPacketOfEncryptionLevel(level)) {
+    QUIC_BUG << "Coalesced packet does not contain packet of encryption level: "
+             << EncryptionLevelToString(level);
+    return NOT_RETRANSMISSION;
+  }
+  return transmission_types_[level];
 }
 
 std::string QuicCoalescedPacket::ToString(size_t serialized_length) const {

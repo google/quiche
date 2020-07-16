@@ -39,6 +39,10 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // Returns true if this coalesced packet contains packet of |level|.
   bool ContainsPacketOfEncryptionLevel(EncryptionLevel level) const;
 
+  // Returns transmission type of packet of |level|. This should only be called
+  // when this coalesced packet contains packet of |level|.
+  TransmissionType TransmissionTypeOfPacket(EncryptionLevel level) const;
+
   const SerializedPacket* initial_packet() const {
     return initial_packet_.get();
   }
@@ -64,6 +68,8 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // Copies of packets' encrypted buffers according to different encryption
   // levels.
   std::string encrypted_buffers_[NUM_ENCRYPTION_LEVELS];
+  // Recorded transmission type according to different encryption levels.
+  TransmissionType transmission_types_[NUM_ENCRYPTION_LEVELS];
 
   // A copy of ENCRYPTION_INITIAL packet if this coalesced packet contains one.
   // Null otherwise. Please note, the encrypted_buffer field is not copied. The

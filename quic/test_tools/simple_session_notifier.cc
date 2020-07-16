@@ -312,8 +312,9 @@ void SimpleSessionNotifier::RetransmitFrames(const QuicFrames& frames,
         connection_->SetDefaultEncryptionLevel(frame.crypto_frame->level);
         size_t consumed = connection_->SendCryptoData(frame.crypto_frame->level,
                                                       length, offset);
-        // CRYPTO frames should never be write blocked.
-        DCHECK_EQ(consumed, length);
+        if (consumed < length) {
+          break;
+        }
       }
       connection_->SetDefaultEncryptionLevel(current_encryption_level);
     }

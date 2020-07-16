@@ -1248,6 +1248,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Called to update ACK timeout when an retransmittable frame has been parsed.
   void MaybeUpdateAckTimeout();
 
+  // Tries to fill coalesced packet with data of higher packet space.
+  void MaybeCoalescePacketOfHigherSpace();
+
   // Serialize and send coalesced_packet. Returns false if serialization fails
   // or the write causes errors, otherwise, returns true.
   bool FlushCoalescedPacket();
@@ -1680,6 +1683,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool legacy_version_encapsulation_in_progress_ = false;
   // SNI to send when using Legacy Version Encapsulation.
   std::string legacy_version_encapsulation_sni_;
+  // True if next packet is intended to consume remaining space in the
+  // coalescer.
+  bool fill_coalesced_packet_ = false;
 };
 
 }  // namespace quic

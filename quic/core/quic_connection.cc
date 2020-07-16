@@ -2431,6 +2431,12 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
+  if (fill_coalesced_packet_) {
+    // Try to coalesce packet, only allow to write when creator is on soft max
+    // packet length.
+    return packet_creator_.HasSoftMaxPacketLength();
+  }
+
   if (sent_packet_manager_.pending_timer_transmission_count() > 0) {
     // Force sending the retransmissions for HANDSHAKE, TLP, RTO, PROBING cases.
     return true;
@@ -3647,6 +3653,10 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     }
     connection_->packet_creator_.Flush();
     if (connection_->version().CanSendCoalescedPackets()) {
+      if (connection_->packet_creator().coalesced_packet_of_higher_space()) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_coalesced_packet_of_higher_space);
+        connection_->MaybeCoalescePacketOfHigherSpace();
+      }
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
@@ -4339,7 +4349,37 @@ bool QuicConnection::ShouldBundleRetransmittableFrameWithAck() const {
   return false;
 }
 
+void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
+  if (!packet_creator_.HasSoftMaxPacketLength()) {
+    return;
+  }
+  // INITIAL or HANDSHAKE retransmission could cause peer to derive new
+  // keys, such that the buffered undecryptable packets may be processed.
+  // This endpoint would derive an inflated RTT sample (which includes the PTO
+  // timeout) when receiving ACKs of those undecryptable packets. To mitigate
+  // this, tries to coalesce a packet of higher encryption level.
+  for (EncryptionLevel retransmission_level :
+       {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE}) {
+    // Coalesce HANDSHAKE with INITIAL retransmission, and coalesce 1-RTT with
+    // HANDSHAKE retransmission.
+    const EncryptionLevel coalesced_level =
+        retransmission_level == ENCRYPTION_INITIAL ? ENCRYPTION_HANDSHAKE
+                                                   : ENCRYPTION_FORWARD_SECURE;
+    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(
+            retransmission_level) &&
+        coalesced_packet_.TransmissionTypeOfPacket(retransmission_level) !=
+            NOT_RETRANSMISSION &&
+        framer_.HasEncrypterOfEncryptionLevel(coalesced_level) &&
+        !coalesced_packet_.ContainsPacketOfEncryptionLevel(coalesced_level)) {
+      fill_coalesced_packet_ = true;
+      sent_packet_manager_.RetransmitDataOfSpaceIfAny(
+          QuicUtils::GetPacketNumberSpace(coalesced_level));
+    }
+  }
+}
+
 bool QuicConnection::FlushCoalescedPacket() {
+  fill_coalesced_packet_ = false;
   ScopedCoalescedPacketClearer clearer(&coalesced_packet_);
   if (!version().CanSendCoalescedPackets()) {
     QUIC_BUG_IF(coalesced_packet_.length() > 0);

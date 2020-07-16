@@ -445,12 +445,19 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
                                   char* buffer,
                                   size_t buffer_len);
 
+  // Returns true if max_packet_length_ is currently a soft value.
+  bool HasSoftMaxPacketLength() const;
+
   void set_disable_padding_override(bool should_disable_padding) {
     disable_padding_override_ = should_disable_padding;
   }
 
   bool determine_serialized_packet_fate_early() const {
     return determine_serialized_packet_fate_early_;
+  }
+
+  bool coalesced_packet_of_higher_space() const {
+    return coalesced_packet_of_higher_space_;
   }
 
  private:
@@ -648,6 +655,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool determine_serialized_packet_fate_early_ =
       GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early);
+
+  const bool coalesced_packet_of_higher_space_ =
+      GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space);
 };
 
 }  // namespace quic

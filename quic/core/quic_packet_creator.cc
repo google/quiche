@@ -203,6 +203,9 @@ void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
     // Please note: this would not guarantee to fit next packet if the size of
     // packet header increases (e.g., encryption level changes).
     QUIC_DLOG(INFO) << length << " is too small to fit packet header";
+    if (coalesced_packet_of_higher_space_) {
+      RemoveSoftMaxPacketLength();
+    }
     return;
   }
   QUIC_DVLOG(1) << "Setting soft max packet length to: " << length;
@@ -2016,6 +2019,10 @@ QuicPacketNumber QuicPacketCreator::NextSendingPacketNumber() const {
 
 bool QuicPacketCreator::PacketFlusherAttached() const {
   return flusher_attached_;
+}
+
+bool QuicPacketCreator::HasSoftMaxPacketLength() const {
+  return latched_hard_max_packet_length_ != 0;
 }
 
 #undef ENDPOINT  // undef for jumbo builds
