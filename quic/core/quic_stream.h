@@ -218,8 +218,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   size_t busy_counter() const { return busy_counter_; }
   void set_busy_counter(size_t busy_counter) { busy_counter_ = busy_counter; }
 
-  void set_rst_sent(bool rst_sent) { rst_sent_ = rst_sent; }
-
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
   void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
 

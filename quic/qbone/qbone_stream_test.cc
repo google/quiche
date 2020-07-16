@@ -64,7 +64,7 @@ class MockQuicSession : public QboneSessionBase {
   // Called by QuicStream when they want to close stream.
   MOCK_METHOD(void,
               SendRstStream,
-              (QuicStreamId, QuicRstStreamErrorCode, QuicStreamOffset),
+              (QuicStreamId, QuicRstStreamErrorCode, QuicStreamOffset, bool),
               (override));
 
   // Sets whether data is written to buffer, or else if this is write blocked.
@@ -244,7 +244,7 @@ TEST_F(QboneReadOnlyStreamTest, ReadBufferedTooLarge) {
   std::string packet = "0123456789";
   int iterations = (QboneConstants::kMaxQbonePacketBytes / packet.size()) + 2;
   EXPECT_CALL(*session_,
-              SendRstStream(kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _));
+              SendRstStream(kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _, _));
   for (int i = 0; i < iterations; ++i) {
     QuicStreamFrame frame(kStreamId, i == (iterations - 1), i * packet.size(),
                           packet);

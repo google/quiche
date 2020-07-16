@@ -256,22 +256,7 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  if (!stream->OnStopSending(frame.application_error_code)) {
-    return;
-  }
-
-  // TODO(renjietang): Consider moving those code into the stream.
-  if (connection()->connected()) {
-    MaybeSendRstStreamFrame(
-        stream->id(),
-        static_cast<quic::QuicRstStreamErrorCode>(frame.application_error_code),
-        stream->stream_bytes_written());
-    connection_->OnStreamReset(stream->id(),
-                               static_cast<quic::QuicRstStreamErrorCode>(
-                                   frame.application_error_code));
-  }
-  stream->set_rst_sent(true);
-  stream->CloseWriteSide();
+  stream->OnStopSending(frame.application_error_code);
 }
 
 void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
@@ -759,11 +744,14 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
 
 void QuicSession::SendRstStream(QuicStreamId id,
                                 QuicRstStreamErrorCode error,
-                                QuicStreamOffset bytes_written) {
+                                QuicStreamOffset bytes_written,
+                                bool send_rst_only) {
   if (connection()->connected()) {
     QuicConnection::ScopedPacketFlusher flusher(connection());
     MaybeSendRstStreamFrame(id, error, bytes_written);
-    MaybeSendStopSendingFrame(id, error);
+    if (!send_rst_only) {
+      MaybeSendStopSendingFrame(id, error);
+    }
 
     connection_->OnStreamReset(id, error);
   }
@@ -783,7 +771,7 @@ void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
     return;
   }
 
-  SendRstStream(id, error, 0);
+  SendRstStream(id, error, 0, /*send_rst_only = */ false);
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,

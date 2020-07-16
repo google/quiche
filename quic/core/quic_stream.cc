@@ -494,6 +494,12 @@ bool QuicStream::OnStopSending(uint16_t code) {
   }
 
   stream_error_ = static_cast<QuicRstStreamErrorCode>(code);
+
+  session()->SendRstStream(id(),
+                           static_cast<quic::QuicRstStreamErrorCode>(code),
+                           stream_bytes_written(), /*send_rst_only = */ true);
+  rst_sent_ = true;
+  CloseWriteSide();
   return true;
 }
 
@@ -579,7 +585,8 @@ void QuicStream::SetFinSent() {
 
 void QuicStream::Reset(QuicRstStreamErrorCode error) {
   stream_error_ = error;
-  session()->SendRstStream(id(), error, stream_bytes_written());
+  session()->SendRstStream(id(), error, stream_bytes_written(),
+                           /*send_rst_only = */ false);
   rst_sent_ = true;
   if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
     session()->OnStreamDoneWaitingForAcks(id_);
@@ -824,7 +831,7 @@ void QuicStream::OnClose() {
     // RST_STREAM frame.
     QUIC_DLOG(INFO) << ENDPOINT << "Sending RST_STREAM in OnClose: " << id();
     session_->SendRstStream(id(), QUIC_RST_ACKNOWLEDGEMENT,
-                            stream_bytes_written());
+                            stream_bytes_written(), /*send_rst_only = */ false);
     session_->OnStreamDoneWaitingForAcks(id_);
     rst_sent_ = true;
   }

@@ -155,7 +155,8 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
               SendRstStream,
               (QuicStreamId stream_id,
                QuicRstStreamErrorCode error,
-               QuicStreamOffset bytes_written),
+               QuicStreamOffset bytes_written,
+               bool send_rst_only),
               (override));
   // Matchers cannot be used on non-copyable types like SpdyHeaderBlock.
   void PromisePushResources(
@@ -341,7 +342,7 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(1);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(1);
   stream_->StopReading();
 }
 
@@ -357,7 +358,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   }
   EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _, _));
 
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
 
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
   std::unique_ptr<char[]> buffer;
@@ -469,8 +470,8 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
                                     std::move(response_headers_), body);
 
   InSequence s;
-  EXPECT_CALL(session_,
-              SendRstStream(promised_stream->id(), QUIC_STREAM_CANCELLED, 0));
+  EXPECT_CALL(session_, SendRstStream(promised_stream->id(),
+                                      QUIC_STREAM_CANCELLED, 0, _));
 
   promised_stream->DoSendResponse();
 }
@@ -606,7 +607,7 @@ TEST_P(QuicSimpleServerStreamTest, PushResponseOnServerInitiatedStream) {
 }
 
 TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
 
   QuicStreamPeer::SetFinReceived(stream_);
 
@@ -624,7 +625,7 @@ TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
 }
 
 TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
 
   spdy::SpdyHeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
@@ -643,7 +644,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
 }
 
 TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
 
   spdy::SpdyHeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
@@ -680,7 +681,7 @@ TEST_P(QuicSimpleServerStreamTest,
   InSequence s;
   EXPECT_FALSE(stream_->reading_stopped());
 
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
   if (VersionUsesHttp3(connection_->transport_version())) {
     // Unidirectional stream type and then a Stream Cancellation instruction is
     // sent on the QPACK decoder stream.  Ignore these writes without any
@@ -690,7 +691,8 @@ TEST_P(QuicSimpleServerStreamTest,
     EXPECT_CALL(session_, WritevData(qpack_decoder_stream->id(), _, _, _, _, _))
         .Times(AnyNumber());
   }
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _)).Times(1);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _, _))
+      .Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);

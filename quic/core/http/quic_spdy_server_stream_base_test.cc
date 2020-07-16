@@ -50,7 +50,7 @@ class QuicSpdyServerStreamBaseTest : public QuicTest {
 TEST_F(QuicSpdyServerStreamBaseTest,
        SendQuicRstStreamNoErrorWithEarlyResponse) {
   stream_->StopReading();
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(1);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(1);
   QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 }
@@ -59,22 +59,16 @@ TEST_F(QuicSpdyServerStreamBaseTest,
        DoNotSendQuicRstStreamNoErrorWithRstReceived) {
   EXPECT_FALSE(stream_->reading_stopped());
 
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _)).Times(0);
+  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
 
-  if (!VersionHasIetfQuicFrames(session_.transport_version())) {
-    EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _))
-        .Times(1);
-  } else {
-    // Intercept & check that the call to the QuicConnection's OnStreamReast
-    // has correct stream ID and error code -- for V99/IETF Quic, it should
-    // have the STREAM_CANCELLED error code, not RST_ACK... Capture
-    // OnStreamReset (rather than SendRstStream) because the V99 path bypasses
-    // SendRstStream, calling SendRstStreamInner directly. Mocking
-    // SendRstStreamInner is problematic since the test relies on it to perform
-    // the closing operations and getting the stream in the correct state.
-    EXPECT_CALL(*(static_cast<MockQuicConnection*>(session_.connection())),
-                OnStreamReset(stream_->id(), QUIC_STREAM_CANCELLED));
-  }
+  EXPECT_CALL(
+      session_,
+      SendRstStream(_,
+                    VersionHasIetfQuicFrames(session_.transport_version())
+                        ? QUIC_STREAM_CANCELLED
+                        : QUIC_RST_ACKNOWLEDGEMENT,
+                    _, _))
+      .Times(1);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);

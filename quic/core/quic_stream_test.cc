@@ -109,7 +109,7 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     // session_ now owns stream_.
     session_->ActivateStream(QuicWrapUnique(stream_));
     // Ignore resetting when session_ is terminated.
-    EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _))
+    EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _, _))
         .Times(AnyNumber());
     write_blocked_list_ =
         QuicSessionPeer::GetWriteBlockedStreams(session_.get());
@@ -456,7 +456,7 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
   EXPECT_FALSE(rst_sent());
 
   // Now close the stream, and expect that we send a RST.
-  EXPECT_CALL(*session_, SendRstStream(_, _, _));
+  EXPECT_CALL(*session_, SendRstStream(_, _, _, _));
   stream_->CloseReadSide();
   stream_->CloseWriteSide();
   EXPECT_FALSE(session_->HasUnackedStreamData());
@@ -503,7 +503,7 @@ TEST_P(QuicStreamTest, OnlySendOneRst) {
 
   // Reset the stream.
   const int expected_resets = 1;
-  EXPECT_CALL(*session_, SendRstStream(_, _, _)).Times(expected_resets);
+  EXPECT_CALL(*session_, SendRstStream(_, _, _, _)).Times(expected_resets);
   stream_->Reset(QUIC_STREAM_CANCELLED);
   EXPECT_FALSE(fin_sent());
   EXPECT_TRUE(rst_sent());
@@ -932,10 +932,11 @@ TEST_P(QuicStreamTest, CancelStream) {
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*session_, SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9))
+  EXPECT_CALL(*session_,
+              SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9, _))
       .WillOnce(InvokeWithoutArgs([this]() {
         session_->ReallySendRstStream(stream_->id(), QUIC_STREAM_CANCELLED,
-                                      stream_->stream_bytes_written());
+                                      stream_->stream_bytes_written(), false);
       }));
 
   stream_->Reset(QUIC_STREAM_CANCELLED);
@@ -968,7 +969,7 @@ TEST_P(QuicStreamTest, RstFrameReceivedStreamNotFinishSending) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 9);
   EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9));
+              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
   stream_->OnStreamReset(rst_frame);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Stream stops waiting for acks as it does not finish sending and rst is
@@ -990,7 +991,7 @@ TEST_P(QuicStreamTest, RstFrameReceivedStreamFinishSending) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
 
   // RST_STREAM received.
-  EXPECT_CALL(*session_, SendRstStream(_, _, _)).Times(0);
+  EXPECT_CALL(*session_, SendRstStream(_, _, _, _)).Times(0);
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
@@ -1012,7 +1013,7 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
   EXPECT_TRUE(stream_->IsWaitingForAcks());
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9));
+              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
   stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
                               ConnectionCloseSource::FROM_SELF);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1536,7 +1537,8 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresRetransmitLostData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _)).Times(1);
+  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
+      .Times(1);
   stream_->OnCanWrite();
 }
 
@@ -1554,7 +1556,8 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _)).Times(1);
+  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
+      .Times(1);
   stream_->RetransmitStreamData(0, 100, false, PTO_RETRANSMISSION);
 }
 

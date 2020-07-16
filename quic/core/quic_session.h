@@ -210,10 +210,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool WriteControlFrame(const QuicFrame& frame,
                          TransmissionType type) override;
 
-  // Called by stream to send RST_STREAM (and STOP_SENDING).
+  // Called by stream to send RST_STREAM (and STOP_SENDING in IETF QUIC).
+  // if |send_rst_only|, STOP_SENDING will not be sent for IETF QUIC.
   virtual void SendRstStream(QuicStreamId id,
                              QuicRstStreamErrorCode error,
-                             QuicStreamOffset bytes_written);
+                             QuicStreamOffset bytes_written,
+                             bool send_rst_only);
 
   // Called to send RST_STREAM (and STOP_SENDING) and close stream. If stream
   // |id| does not exist, just send RST_STREAM (and STOP_SENDING).

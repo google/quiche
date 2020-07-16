@@ -806,7 +806,8 @@ class MockQuicSession : public QuicSession {
               SendRstStream,
               (QuicStreamId stream_id,
                QuicRstStreamErrorCode error,
-               QuicStreamOffset bytes_written),
+               QuicStreamOffset bytes_written,
+               bool send_rst_only),
               (override));
 
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
@@ -834,8 +835,9 @@ class MockQuicSession : public QuicSession {
 
   void ReallySendRstStream(QuicStreamId id,
                            QuicRstStreamErrorCode error,
-                           QuicStreamOffset bytes_written) {
-    QuicSession::SendRstStream(id, error, bytes_written);
+                           QuicStreamOffset bytes_written,
+                           bool send_rst_only) {
+    QuicSession::SendRstStream(id, error, bytes_written, send_rst_only);
   }
 
  private:
@@ -924,7 +926,8 @@ class MockQuicSpdySession : public QuicSpdySession {
               SendRstStream,
               (QuicStreamId stream_id,
                QuicRstStreamErrorCode error,
-               QuicStreamOffset bytes_written),
+               QuicStreamOffset bytes_written,
+               bool send_rst_only),
               (override));
   MOCK_METHOD(void,
               SendWindowUpdate,
