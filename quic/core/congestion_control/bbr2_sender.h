@@ -107,6 +107,10 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   // Returns the min of BDP and congestion window.
   QuicByteCount GetTargetBytesInflight() const;
 
+  bool IsBandwidthOverestimateAvoidanceEnabled() const {
+    return model_.IsBandwidthOverestimateAvoidanceEnabled();
+  }
+
   struct QUIC_EXPORT_PRIVATE DebugState {
     Bbr2Mode mode;
 

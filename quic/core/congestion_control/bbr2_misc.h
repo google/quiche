@@ -369,6 +369,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
     bandwidth_sampler_.EnableOverestimateAvoidance();
   }
 
+  bool IsBandwidthOverestimateAvoidanceEnabled() const {
+    return bandwidth_sampler_.IsOverestimateAvoidanceEnabled();
+  }
+
   void OnPacketNeutered(QuicPacketNumber packet_number) {
     bandwidth_sampler_.OnPacketNeutered(packet_number);
   }

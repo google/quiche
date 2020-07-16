@@ -95,9 +95,6 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
     params_.flexible_app_limited = true;
   }
-  if (config.HasClientRequestedIndependentOption(kBSAO, perspective)) {
-    model_.EnableOverestimateAvoidance();
-  }
   if (config.HasClientRequestedIndependentOption(kB2NA, perspective)) {
     params_.add_ack_height_to_queueing_threshold = false;
   }
@@ -138,6 +135,9 @@ void Bbr2Sender::ApplyConnectionOptions(
     // 2 is the lower, derived gain for CWND.
     params_.startup_cwnd_gain = 2;
     params_.drain_cwnd_gain = 2;
+  }
+  if (ContainsQuicTag(connection_options, kBSAO)) {
+    model_.EnableOverestimateAvoidance();
   }
 }
 

@@ -288,15 +288,16 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     max_congestion_window_with_network_parameters_adjusted_ =
         100 * kDefaultTCPMSS;
   }
-  if (config.HasClientRequestedIndependentOption(kBSAO, perspective)) {
-    sampler_.EnableOverestimateAvoidance();
-  }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
 }
 
 void BbrSender::ApplyConnectionOptions(
-    const QuicTagVector& /*connection_options*/) {}
+    const QuicTagVector& connection_options) {
+  if (ContainsQuicTag(connection_options, kBSAO)) {
+    sampler_.EnableOverestimateAvoidance();
+  }
+}
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   const QuicBandwidth& bandwidth = params.bandwidth;
