@@ -63,8 +63,9 @@ enum : uint32_t {
 
 enum : uint64_t {
   kAckDelayExponentForTest = 10,
-  kMaxAckDelayForTest = 51,
+  kMaxAckDelayForTest = 51,  // ms
   kActiveConnectionIdLimitForTest = 52,
+  kMinAckDelayUsForTest = 1000
 };
 
 // Create an arbitrary stateless reset token, same across multiple calls.

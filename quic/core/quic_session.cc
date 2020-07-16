@@ -120,11 +120,14 @@ void QuicSession::Initialize() {
   connection_->SetSessionNotifier(this);
   connection_->SetDataProducer(this);
   connection_->SetFromConfig(config_);
-  if (GetQuicReloadableFlag(quic_support_handshake_done_in_t050) &&
-      version().UsesTls() && !version().HasHandshakeDone() &&
-      perspective_ == Perspective::IS_CLIENT) {
-    config_.SetSupportHandshakeDone();
+  if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
+    config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
+    if (GetQuicReloadableFlag(quic_support_handshake_done_in_t050) &&
+        !version().HasHandshakeDone()) {
+      config_.SetSupportHandshakeDone();
+    }
   }
+
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.
   if (perspective() == Perspective::IS_SERVER) {

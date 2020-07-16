@@ -170,6 +170,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // delay sending acknowledgments.
   IntegerParameter max_ack_delay;
 
+  // Minimum amount of time in microseconds by which the endpoint will
+  // delay sending acknowledgments. Used to enable sender control of ack delay.
+  IntegerParameter min_ack_delay_us;
+
   // Indicates lack of support for connection migration.
   bool disable_active_migration;
 

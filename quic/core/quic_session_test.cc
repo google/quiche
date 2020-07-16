@@ -2207,6 +2207,14 @@ TEST_P(QuicSessionTestClient, IncomingStreamWithClientInitiatedStreamId) {
   session_.OnStreamFrame(frame);
 }
 
+TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  ASSERT_EQ(session_.config()->GetMinAckDelayToSendMs(),
+            kDefaultMinAckDelayTimeMs);
+}
+
 TEST_P(QuicSessionTestServer, ZombieStreams) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);

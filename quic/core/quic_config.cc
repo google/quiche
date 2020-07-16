@@ -452,6 +452,7 @@ QuicConfig::QuicConfig()
       alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
+      min_ack_delay_ms_(0, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_udp_payload_size_(0, PRESENCE_OPTIONAL),
       max_datagram_frame_size_(0, PRESENCE_OPTIONAL),
@@ -590,7 +591,7 @@ uint32_t QuicConfig::ReceivedMaxUnidirectionalStreams() const {
 }
 
 void QuicConfig::SetMaxAckDelayToSendMs(uint32_t max_ack_delay_ms) {
-  return max_ack_delay_ms_.SetSendValue(max_ack_delay_ms);
+  max_ack_delay_ms_.SetSendValue(max_ack_delay_ms);
 }
 
 uint32_t QuicConfig::GetMaxAckDelayToSendMs() const {
@@ -603,6 +604,22 @@ bool QuicConfig::HasReceivedMaxAckDelayMs() const {
 
 uint32_t QuicConfig::ReceivedMaxAckDelayMs() const {
   return max_ack_delay_ms_.GetReceivedValue();
+}
+
+void QuicConfig::SetMinAckDelayMs(uint32_t min_ack_delay_ms) {
+  min_ack_delay_ms_.SetSendValue(min_ack_delay_ms);
+}
+
+uint32_t QuicConfig::GetMinAckDelayToSendMs() const {
+  return min_ack_delay_ms_.GetSendValue();
+}
+
+bool QuicConfig::HasReceivedMinAckDelayMs() const {
+  return min_ack_delay_ms_.HasReceivedValue();
+}
+
+uint32_t QuicConfig::ReceivedMinAckDelayMs() const {
+  return min_ack_delay_ms_.GetReceivedValue();
 }
 
 void QuicConfig::SetAckDelayExponentToSend(uint32_t exponent) {
@@ -1166,6 +1183,10 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_streams_uni.set_value(
       GetMaxUnidirectionalStreamsToSend());
   params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
+  if (min_ack_delay_ms_.HasSendValue()) {
+    params->min_ack_delay_us.set_value(min_ack_delay_ms_.GetSendValue() *
+                                       kNumMicrosPerMilli);
+  }
   params->ack_delay_exponent.set_value(GetAckDelayExponentToSend());
   params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
@@ -1308,6 +1329,17 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       if (params.preferred_address->ipv4_socket_address.port() != 0) {
         alternate_server_address_ipv4_.SetReceivedValue(
             params.preferred_address->ipv4_socket_address);
+      }
+    }
+    if (GetQuicReloadableFlag(quic_record_received_min_ack_delay)) {
+      if (params.min_ack_delay_us.value() != 0) {
+        if (params.min_ack_delay_us.value() >
+            params.max_ack_delay.value() * kNumMicrosPerMilli) {
+          *error_details = "MinAckDelay is greater than MaxAckDelay.";
+          return IETF_QUIC_PROTOCOL_VIOLATION;
+        }
+        min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
+                                           kNumMicrosPerMilli);
       }
     }
   }

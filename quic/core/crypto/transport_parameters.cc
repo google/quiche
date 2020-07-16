@@ -60,6 +60,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleQuicParam = 18257,  // Used for non-standard Google-specific params.
   kGoogleQuicVersion =
       18258,  // Used to transmit version and supported_versions.
+
+  kMinAckDelay = 0xde1a  // An IETF QUIC extension.
 };
 
 namespace {
@@ -127,6 +129,8 @@ std::string TransportParameterIdToString(
       return "google";
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
+    case TransportParameters::kMinAckDelay:
+      return "min_ack_delay_us";
   }
   return "Unknown(" + quiche::QuicheTextUtils::Uint64ToString(param_id) + ")";
 }
@@ -158,6 +162,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleSupportHandshakeDone:
     case TransportParameters::kGoogleQuicParam:
     case TransportParameters::kGoogleQuicVersion:
+    case TransportParameters::kMinAckDelay:
       return true;
   }
   return false;
@@ -435,6 +440,7 @@ std::string TransportParameters::ToString() const {
   rv += initial_max_streams_uni.ToString(/*for_use_in_list=*/true);
   rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
   rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
+  rv += min_ack_delay_us.ToString(/*for_use_in_list=*/true);
   if (disable_active_migration) {
     rv += " " + TransportParameterIdToString(kDisableActiveMigration);
   }
@@ -513,6 +519,10 @@ TransportParameters::TransportParameters()
                     kDefaultMaxAckDelayTransportParam,
                     0,
                     kMaxMaxAckDelayTransportParam),
+      min_ack_delay_us(kMinAckDelay,
+                       0,
+                       0,
+                       kMaxMaxAckDelayTransportParam * kNumMicrosPerMilli),
       disable_active_migration(false),
       active_connection_id_limit(kActiveConnectionIdLimit,
                                  kDefaultActiveConnectionIdLimitTransportParam,
@@ -546,6 +556,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_max_streams_uni(other.initial_max_streams_uni),
       ack_delay_exponent(other.ack_delay_exponent),
       max_ack_delay(other.max_ack_delay),
+      min_ack_delay_us(other.min_ack_delay_us),
       disable_active_migration(other.disable_active_migration),
       active_connection_id_limit(other.active_connection_id_limit),
       initial_source_connection_id(other.initial_source_connection_id),
@@ -587,6 +598,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_max_streams_uni.value() &&
         ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
         max_ack_delay.value() == rhs.max_ack_delay.value() &&
+        min_ack_delay_us.value() == rhs.min_ack_delay_us.value() &&
         disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
             rhs.active_connection_id_limit.value() &&
@@ -691,7 +703,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
       initial_max_stream_data_uni.IsValid() &&
       initial_max_streams_bidi.IsValid() && initial_max_streams_uni.IsValid() &&
       ack_delay_exponent.IsValid() && max_ack_delay.IsValid() &&
-      active_connection_id_limit.IsValid() &&
+      min_ack_delay_us.IsValid() && active_connection_id_limit.IsValid() &&
       max_datagram_frame_size.IsValid() && initial_round_trip_time_us.IsValid();
   if (!ok) {
     *error_details = "Invalid transport parameters " + this->ToString();
@@ -749,6 +761,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       kIntegerParameterLength +           // initial_max_streams_uni
       kIntegerParameterLength +           // ack_delay_exponent
       kIntegerParameterLength +           // max_ack_delay
+      kIntegerParameterLength +           // min_ack_delay_us
       kTypeAndValueLength +               // disable_active_migration
       kPreferredAddressParameterLength +  // preferred_address
       kIntegerParameterLength +           // active_connection_id_limit
@@ -854,6 +867,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       !in.initial_max_streams_uni.Write(&writer, version) ||
       !in.ack_delay_exponent.Write(&writer, version) ||
       !in.max_ack_delay.Write(&writer, version) ||
+      !in.min_ack_delay_us.Write(&writer, version) ||
       !in.active_connection_id_limit.Write(&writer, version) ||
       !in.max_datagram_frame_size.Write(&writer, version) ||
       !in.initial_round_trip_time_us.Write(&writer, version)) {
@@ -1389,6 +1403,10 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           }
         }
       } break;
+      case TransportParameters::kMinAckDelay:
+        parse_success =
+            out->min_ack_delay_us.Read(&value_reader, error_details);
+        break;
       default:
         if (out->custom_parameters.find(param_id) !=
             out->custom_parameters.end()) {
