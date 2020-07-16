@@ -235,11 +235,25 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion::T050(), ParseQuicVersionString("T050"));
   EXPECT_EQ(ParsedQuicVersion::T050(), ParseQuicVersionString("h3-T050"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("ff00001d"));
+  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
+    EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("draft29"));
+  }
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("h3-29"));
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("ff00001b"));
+  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
+    EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("draft27"));
+  }
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("h3-27"));
   EXPECT_EQ(ParsedQuicVersion::Draft25(), ParseQuicVersionString("ff000019"));
+  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
+    EXPECT_EQ(ParsedQuicVersion::Draft25(), ParseQuicVersionString("draft25"));
+  }
   EXPECT_EQ(ParsedQuicVersion::Draft25(), ParseQuicVersionString("h3-25"));
+
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    EXPECT_EQ(version,
+              ParseQuicVersionString(ParsedQuicVersionToString(version)));
+  }
 }
 
 TEST_F(QuicVersionsTest, ParseQuicVersionVectorString) {
@@ -396,15 +410,32 @@ TEST_F(QuicVersionsTest, QuicVersionToString) {
 }
 
 TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
-  ParsedQuicVersion unsupported = UnsupportedQuicVersion();
-  ParsedQuicVersion version43(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43);
-  EXPECT_EQ("Q043", ParsedQuicVersionToString(version43));
-  EXPECT_EQ("0", ParsedQuicVersionToString(unsupported));
+  EXPECT_EQ("0", ParsedQuicVersionToString(ParsedQuicVersion::Unsupported()));
+  EXPECT_EQ("Q043", ParsedQuicVersionToString(ParsedQuicVersion::Q043()));
+  EXPECT_EQ("Q046", ParsedQuicVersionToString(ParsedQuicVersion::Q046()));
+  EXPECT_EQ("Q050", ParsedQuicVersionToString(ParsedQuicVersion::Q050()));
+  EXPECT_EQ("T050", ParsedQuicVersionToString(ParsedQuicVersion::T050()));
+  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
+    EXPECT_EQ("draft25",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft25()));
+    EXPECT_EQ("draft27",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft27()));
+    EXPECT_EQ("draft29",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
+  } else {
+    EXPECT_EQ("ff000019",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft25()));
+    EXPECT_EQ("ff00001b",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft27()));
+    EXPECT_EQ("ff00001d",
+              ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
+  }
 
-  ParsedQuicVersionVector versions_vector = {version43};
+  ParsedQuicVersionVector versions_vector = {ParsedQuicVersion::Q043()};
   EXPECT_EQ("Q043", ParsedQuicVersionVectorToString(versions_vector));
 
-  versions_vector = {unsupported, version43};
+  versions_vector = {ParsedQuicVersion::Unsupported(),
+                     ParsedQuicVersion::Q043()};
   EXPECT_EQ("0,Q043", ParsedQuicVersionVectorToString(versions_vector));
   EXPECT_EQ("0:Q043", ParsedQuicVersionVectorToString(versions_vector, ":",
                                                       versions_vector.size()));
