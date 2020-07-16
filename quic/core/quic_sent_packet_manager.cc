@@ -104,6 +104,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_exponential_backoff_start_point_(0),
       pto_rttvar_multiplier_(4),
       num_tlp_timeout_ptos_(0),
+      handshake_packet_acked_(false),
       one_rtt_packet_acked_(false),
       one_rtt_packet_sent_(false),
       first_pto_srtt_multiplier_(0),
@@ -1053,12 +1054,7 @@ QuicTime::Delta QuicSentPacketManager::TimeUntilSend(QuicTime now) const {
 
 const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
   if (!unacked_packets_.HasInFlightPackets() &&
-      (!handshake_mode_disabled_ || handshake_finished_ ||
-       unacked_packets_.perspective() == Perspective::IS_SERVER)) {
-    // Do not set the timer if there is nothing in flight. However, to avoid
-    // handshake deadlock due to anti-amplification limit, client needs to set
-    // PTO timer when the handshake is not confirmed even there is nothing in
-    // flight.
+      PeerCompletedAddressValidation()) {
     return QuicTime::Zero();
   }
   if (pending_timer_transmission_count_ > 0) {
@@ -1417,6 +1413,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
       return PACKETS_ACKED_IN_WRONG_PACKET_NUMBER_SPACE;
     }
     last_ack_frame_.packets.Add(acked_packet.packet_number);
+    if (info->encryption_level == ENCRYPTION_HANDSHAKE) {
+      handshake_packet_acked_ = true;
+    }
     if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
       one_rtt_packet_acked_ = true;
     }
@@ -1553,6 +1552,17 @@ QuicSentPacketManager::GetNConsecutiveRetransmissionTimeoutDelay(
           : std::max(srtt + 4 * rtt_stats_.mean_deviation(), min_rto_timeout_);
   total_delay = total_delay + ((1 << num_timeouts) - 1) * retransmission_delay;
   return total_delay;
+}
+
+bool QuicSentPacketManager::PeerCompletedAddressValidation() const {
+  if (unacked_packets_.perspective() == Perspective::IS_SERVER ||
+      !handshake_mode_disabled_) {
+    return true;
+  }
+
+  // To avoid handshake deadlock due to anti-amplification limit, client needs
+  // to set PTO timer until server successfully processed any HANDSHAKE packet.
+  return handshake_finished_ || handshake_packet_acked_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

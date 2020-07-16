@@ -2765,6 +2765,19 @@ TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeClient) {
   // Fire PTO.
   EXPECT_EQ(QuicSentPacketManager::PTO_MODE,
             manager_.OnRetransmissionTimeout());
+  // Send handshake packet.
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  // Ack packet 2.
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_HANDSHAKE));
+  // Verify retransmission timeout is zero because server has successfully
+  // processed HANDSHAKE packet.
+  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
 }
 
 TEST_F(QuicSentPacketManagerTest, DisableHandshakeModeServer) {

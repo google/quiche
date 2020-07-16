@@ -529,6 +529,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicTime::Delta GetNConsecutiveRetransmissionTimeoutDelay(
       int num_timeouts) const;
 
+  // Returns true if peer has finished address validation, such that
+  // retransmission timer is not armed if there is no packets in flight.
+  bool PeerCompletedAddressValidation() const;
+
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
   // retransmitted, this map will contain entries for both the old and the new
@@ -652,6 +656,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Number of PTOs similar to TLPs.
   size_t num_tlp_timeout_ptos_;
+
+  // True if any ENCRYPTION_HANDSHAKE packet gets acknowledged.
+  bool handshake_packet_acked_;
 
   // True if any 1-RTT packet gets acknowledged.
   bool one_rtt_packet_acked_;
