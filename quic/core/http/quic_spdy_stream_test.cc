@@ -41,6 +41,7 @@ using spdy::SpdyPriority;
 using testing::_;
 using testing::AnyNumber;
 using testing::AtLeast;
+using testing::DoAll;
 using testing::ElementsAre;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
