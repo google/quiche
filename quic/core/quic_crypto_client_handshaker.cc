@@ -492,7 +492,6 @@ void QuicCryptoClientHandshaker::DoVerifyProofComplete(
     if (!one_rtt_keys_available()) {
       next_state_ = STATE_SEND_CHLO;
     } else {
-      // TODO: Enable Expect-Staple. https://crbug.com/631101
       next_state_ = STATE_NONE;
     }
   }
