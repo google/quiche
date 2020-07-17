@@ -319,6 +319,10 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
     auto cwnd_bootstrapping_rtt = params.quic_bbr_donot_inject_bandwidth
                                       ? GetMinRtt()
                                       : rtt_stats_->SmoothedOrInitialRtt();
+    if (params.max_initial_congestion_window > 0) {
+      max_congestion_window_with_network_parameters_adjusted_ =
+          params.max_initial_congestion_window * kDefaultTCPMSS;
+    }
     const QuicByteCount new_cwnd = std::max(
         kMinInitialCongestionWindow * kDefaultTCPMSS,
         std::min(max_congestion_window_with_network_parameters_adjusted_,

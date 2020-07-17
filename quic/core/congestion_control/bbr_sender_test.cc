@@ -1212,6 +1212,28 @@ TEST_F(BbrSenderTest, 200InitialCongestionWindowWithNetworkParameterAdjusted) {
   EXPECT_GT(1024 * kTestLinkBandwidth, sender_->PacingRate(0));
 }
 
+TEST_F(BbrSenderTest, 100InitialCongestionWindowFromNetworkParameter) {
+  CreateDefaultSetup();
+
+  bbr_sender_.AddBytesToTransfer(1 * 1024 * 1024);
+  // Wait until an ACK comes back.
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return !sender_->ExportDebugState().min_rtt.IsZero(); },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Bootstrap cwnd by a overly large bandwidth sample.
+  SendAlgorithmInterface::NetworkParams network_params(
+      1024 * kTestLinkBandwidth, QuicTime::Delta::Zero(), false);
+  network_params.max_initial_congestion_window = 100;
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  // Verify cwnd is capped at 100.
+  EXPECT_EQ(100 * kDefaultTCPMSS,
+            sender_->ExportDebugState().congestion_window);
+  EXPECT_GT(1024 * kTestLinkBandwidth, sender_->PacingRate(0));
+}
+
 TEST_F(BbrSenderTest, 100InitialCongestionWindowWithNetworkParameterAdjusted) {
   SetConnectionOption(kICW1);
   CreateDefaultSetup();

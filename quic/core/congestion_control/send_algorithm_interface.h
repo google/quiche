@@ -45,6 +45,8 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
 
     bool operator==(const NetworkParams& other) const {
       return bandwidth == other.bandwidth && rtt == other.rtt &&
+             max_initial_congestion_window ==
+                 other.max_initial_congestion_window &&
              allow_cwnd_to_decrease == other.allow_cwnd_to_decrease &&
              quic_fix_bbr_cwnd_in_bandwidth_resumption ==
                  other.quic_fix_bbr_cwnd_in_bandwidth_resumption &&
@@ -55,6 +57,7 @@ class QUIC_EXPORT_PRIVATE SendAlgorithmInterface {
 
     QuicBandwidth bandwidth;
     QuicTime::Delta rtt;
+    int max_initial_congestion_window = 0;
     bool allow_cwnd_to_decrease;
     // Code changes that are controlled by flags.
     // TODO(b/131899599): Remove after impact of fix is measured.
