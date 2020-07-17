@@ -349,7 +349,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // a stream is reset because of an error).
   void OnStreamDoneWaitingForAcks(QuicStreamId id);
 
-  // Called when stream |id| is newly waiting for acks.
+  // TODO(b/136274541): Remove this once quic_remove_streams_waiting_for_acks is
+  // deprecated. Called when stream |id| is newly waiting for acks.
   void OnStreamWaitingForAcks(QuicStreamId id);
 
   // Returns true if there is pending handshake data in the crypto stream.
@@ -755,7 +756,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // which are waiting for the first byte of payload to arrive.
   PendingStreamMap pending_stream_map_;
 
-  // Set of stream ids that are waiting for acks excluding crypto stream id.
+  // TODO(b/136274541): Remove this once quic_remove_streams_waiting_for_acks is
+  // deprecated. Set of stream ids that are waiting for acks excluding crypto
+  // stream id.
   QuicHashSet<QuicStreamId> streams_waiting_for_acks_;
 
   // TODO(fayang): Consider moving LegacyQuicStreamIdManager into
@@ -831,6 +834,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Latched value of flag quic_fix_gquic_stream_type.
   const bool fix_gquic_stream_type_;
+
+  // Latched value of flag quic_remove_streams_waiting_for_acks.
+  const bool remove_streams_waiting_for_acks_;
 };
 
 }  // namespace quic

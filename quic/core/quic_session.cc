@@ -99,8 +99,9 @@ QuicSession::QuicSession(
       is_configured_(false),
       enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
-      fix_gquic_stream_type_(
-          GetQuicReloadableFlag(quic_fix_gquic_stream_type)) {
+      fix_gquic_stream_type_(GetQuicReloadableFlag(quic_fix_gquic_stream_type)),
+      remove_streams_waiting_for_acks_(
+          GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -877,7 +878,11 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     zombie_streams_[stream_id] = std::move(it->second);
   } else {
     // Clean up the stream since it is no longer waiting for acks.
-    streams_waiting_for_acks_.erase(stream_id);
+    if (remove_streams_waiting_for_acks_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 1, 4);
+    } else {
+      streams_waiting_for_acks_.erase(stream_id);
+    }
     closed_streams_.push_back(std::move(it->second));
     // Do not retransmit data of a closed stream.
     streams_with_pending_retransmission_.erase(stream_id);
@@ -2003,7 +2008,11 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
 }
 
 void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
-  streams_waiting_for_acks_.erase(id);
+  if (remove_streams_waiting_for_acks_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 2, 4);
+  } else {
+    streams_waiting_for_acks_.erase(id);
+  }
 
   auto it = zombie_streams_.find(id);
   if (it == zombie_streams_.end()) {
@@ -2020,6 +2029,10 @@ void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
 }
 
 void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
+  if (remove_streams_waiting_for_acks_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 3, 4);
+    return;
+  }
   // Exclude crypto stream's status since it is counted in HasUnackedCryptoData.
   if (GetCryptoStream() != nullptr && id == GetCryptoStream()->id()) {
     return;
@@ -2181,7 +2194,19 @@ bool QuicSession::HasUnackedCryptoData() const {
 }
 
 bool QuicSession::HasUnackedStreamData() const {
-  return !streams_waiting_for_acks_.empty();
+  if (!remove_streams_waiting_for_acks_) {
+    return !streams_waiting_for_acks_.empty();
+  }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 4, 4);
+  if (!zombie_streams().empty()) {
+    return true;
+  }
+  for (const auto& it : stream_map_) {
+    if (it.second->IsWaitingForAcks()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 HandshakeState QuicSession::GetHandshakeState() const {

@@ -218,9 +218,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   size_t busy_counter() const { return busy_counter_; }
   void set_busy_counter(size_t busy_counter) { busy_counter_ = busy_counter; }
 
-  void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
-  void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
-
   // Adjust the flow control window according to new offset in |frame|.
   virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame);
 
@@ -407,6 +404,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called to set fin_sent_. This is only used by Google QUIC while body is
   // empty.
   void SetFinSent();
+
+  void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
+  void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
 
   StreamDelegateInterface* stream_delegate() { return stream_delegate_; }
 
