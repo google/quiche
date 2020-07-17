@@ -427,7 +427,6 @@ void TlsClientHandshaker::AdvanceHandshake() {
     return;
   }
   switch (state_) {
-    // TODO(b/153726130): handle the case where the server rejects early data.
     case STATE_HANDSHAKE_RUNNING:
       should_close = ssl_error != SSL_ERROR_WANT_READ;
       break;
