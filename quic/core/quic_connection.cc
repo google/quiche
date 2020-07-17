@@ -2428,6 +2428,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     // Server is constrained by the amplification restriction.
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
     QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
+    ++stats_.num_amplification_throttling;
     return false;
   }
 

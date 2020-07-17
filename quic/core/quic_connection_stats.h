@@ -171,6 +171,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // the time between stream creation to the time its last ack is received,
   // minus the peer ack delay in the last ack.
   QuicTime::Delta total_response_time = QuicTime::Delta::Zero();
+
+  // Number of times when the connection tries to send data but gets throttled
+  // by amplification factor.
+  size_t num_amplification_throttling = 0;
 };
 
 }  // namespace quic
