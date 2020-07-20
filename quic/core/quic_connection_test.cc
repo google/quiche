@@ -473,12 +473,8 @@ class TestPacketWriter : public QuicPacketWriter {
   QuicPacketBuffer GetNextWriteLocation(
       const QuicIpAddress& /*self_address*/,
       const QuicSocketAddress& /*peer_address*/) override {
-    if (GetQuicReloadableFlag(quic_avoid_leak_writer_buffer)) {
-      return {AllocPacketBuffer(),
-              [this](const char* p) { FreePacketBuffer(p); }};
-    }
-    // Do not use writer buffer for serializing packets.
-    return {nullptr, nullptr};
+    return {AllocPacketBuffer(),
+            [this](const char* p) { FreePacketBuffer(p); }};
   }
 
   WriteResult Flush() override {

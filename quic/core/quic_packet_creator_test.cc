@@ -1723,9 +1723,6 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
         EXPECT_EQ(external_buffer.buffer, serialized_packet.encrypted_buffer);
       }));
   creator_.FlushCurrentPacket();
-  if (!GetQuicReloadableFlag(quic_avoid_leak_writer_buffer)) {
-    delete[] buffer;
-  }
 }
 
 // Test for error found in

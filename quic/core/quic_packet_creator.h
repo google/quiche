@@ -639,9 +639,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
 
-  const bool avoid_leak_writer_buffer_ =
-      GetQuicReloadableFlag(quic_avoid_leak_writer_buffer);
-
   // When true, this will override the padding generation code to disable it.
   // TODO(fayang): remove this when deprecating
   // quic_determine_serialized_packet_fate_early.

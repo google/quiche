@@ -469,14 +469,6 @@ void QuicPacketCreator::FlushCurrentPacket() {
   QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   QuicOwnedPacketBuffer external_buffer(delegate_->GetPacketBuffer());
 
-  if (!avoid_leak_writer_buffer_ && external_buffer.release_buffer != nullptr) {
-    // This is not a flag count because it is incremented when flag is false.
-    QUIC_CODE_COUNT(quic_avoid_leak_writer_buffer_flag_false_noop_1);
-
-    // Setting it to nullptr to keep the behavior unchanged when flag is false.
-    external_buffer.release_buffer = nullptr;
-  }
-
   if (external_buffer.buffer == nullptr) {
     external_buffer.buffer = stack_buffer;
     external_buffer.release_buffer = nullptr;
@@ -510,12 +502,9 @@ void QuicPacketCreator::ClearPacket() {
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
   packet_.fate = SEND_TO_WRITER;
-  if (avoid_leak_writer_buffer_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_avoid_leak_writer_buffer, 2, 3);
-    QUIC_BUG_IF(packet_.release_encrypted_buffer != nullptr)
-        << "packet_.release_encrypted_buffer should be empty";
-    packet_.release_encrypted_buffer = nullptr;
-  }
+  QUIC_BUG_IF(packet_.release_encrypted_buffer != nullptr)
+      << "packet_.release_encrypted_buffer should be empty";
+  packet_.release_encrypted_buffer = nullptr;
   DCHECK(packet_.retransmittable_frames.empty());
   DCHECK(packet_.nonretransmittable_frames.empty());
   packet_.largest_acked.Clear();
@@ -593,14 +582,6 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
 
   QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   QuicOwnedPacketBuffer packet_buffer(delegate_->GetPacketBuffer());
-
-  if (!avoid_leak_writer_buffer_ && packet_buffer.release_buffer != nullptr) {
-    // This is not a flag count because it is incremented when flag is false.
-    QUIC_CODE_COUNT(quic_avoid_leak_writer_buffer_flag_false_noop_2);
-
-    // Setting it to nullptr to keep the behavior unchanged when flag is false.
-    packet_buffer.release_buffer = nullptr;
-  }
 
   if (packet_buffer.buffer == nullptr) {
     packet_buffer.buffer = stack_buffer;
@@ -692,15 +673,10 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   packet_size_ = 0;
   packet_.encrypted_buffer = encrypted_buffer;
   packet_.encrypted_length = encrypted_length;
-  if (avoid_leak_writer_buffer_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_avoid_leak_writer_buffer, 3, 3);
-    packet_buffer.buffer = nullptr;
-    packet_.release_encrypted_buffer = std::move(packet_buffer).release_buffer;
-  } else {
-    // If flag --quic_avoid_leak_writer_buffer is false, the release function
-    // should be empty.
-    DCHECK(packet_buffer.release_buffer == nullptr);
-  }
+
+  packet_buffer.buffer = nullptr;
+  packet_.release_encrypted_buffer = std::move(packet_buffer).release_buffer;
+
   packet_.retransmittable_frames.push_back(QuicFrame(frame));
   OnSerializedPacket();
 }
@@ -850,16 +826,9 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   queued_frames_.clear();
   packet_.encrypted_buffer = encrypted_buffer.buffer;
   packet_.encrypted_length = encrypted_length;
-  if (avoid_leak_writer_buffer_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_avoid_leak_writer_buffer, 1, 3);
-    encrypted_buffer.buffer = nullptr;
-    packet_.release_encrypted_buffer =
-        std::move(encrypted_buffer).release_buffer;
-  } else {
-    // If flag --quic_avoid_leak_writer_buffer is false, the release function
-    // should be empty.
-    DCHECK(encrypted_buffer.release_buffer == nullptr);
-  }
+
+  encrypted_buffer.buffer = nullptr;
+  packet_.release_encrypted_buffer = std::move(encrypted_buffer).release_buffer;
 }
 
 std::unique_ptr<QuicEncryptedPacket>
