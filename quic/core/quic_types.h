@@ -802,6 +802,16 @@ struct QUIC_NO_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
   }
 };
 
+// Stats for a single HTTP response.
+struct QUIC_NO_EXPORT ResponseStats {
+  QuicByteCount response_size = 0;
+  QuicTime::Delta response_time = QuicTime::Delta::Zero();
+
+  bool IsEmpty() const {
+    return response_size == 0 || response_time <= QuicTime::Delta::Zero();
+  }
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

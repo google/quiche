@@ -844,7 +844,7 @@ MockLossAlgorithm::~MockLossAlgorithm() {}
 
 MockAckListener::MockAckListener() {
   ON_CALL(*this, OnPacketAcked(_, _))
-      .WillByDefault(testing::Return(QuicTime::Delta::Zero()));
+      .WillByDefault(testing::Return(ResponseStats()));
 }
 
 MockAckListener::~MockAckListener() {}

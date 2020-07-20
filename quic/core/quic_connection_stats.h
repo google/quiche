@@ -167,6 +167,10 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Number of success streams. i.e. streams in which all data are acked and
   // have no stream error.
   uint64_t num_responses = 0;
+
+  // Total number of HTTP response bytes.
+  QuicByteCount total_response_size = 0;
+
   // Sum of response times for all success streams. A stream's response time is
   // the time between stream creation to the time its last ack is received,
   // minus the peer ack delay in the last ack.

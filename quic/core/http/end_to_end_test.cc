@@ -2633,11 +2633,11 @@ class TestAckListener : public QuicAckListenerInterface {
  public:
   TestAckListener() {}
 
-  QuicTime::Delta OnPacketAcked(
+  ResponseStats OnPacketAcked(
       int acked_bytes,
       QuicTime::Delta /*delta_largest_observed*/) override {
     total_bytes_acked_ += acked_bytes;
-    return QuicTime::Delta::Zero();
+    return ResponseStats();
   }
 
   void OnPacketRetransmitted(int /*retransmitted_bytes*/) override {}

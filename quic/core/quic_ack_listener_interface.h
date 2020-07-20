@@ -20,10 +20,10 @@ class QUIC_EXPORT_PRIVATE QuicAckListenerInterface
 
   // Called when a packet is acked.  Called once per packet.
   // |acked_bytes| is the number of data bytes acked.
-  // Return the http response time if this is the last ack of a server stream.
-  // Otherwise return QuicTime::Delta::Zero().
-  virtual QuicTime::Delta OnPacketAcked(int acked_bytes,
-                                        QuicTime::Delta ack_delay_time) = 0;
+  // Return the http response stats if this is the last ack of a server stream.
+  // Otherwise return an empty ResponseStats object.
+  virtual ResponseStats OnPacketAcked(int acked_bytes,
+                                      QuicTime::Delta ack_delay_time) = 0;
 
   // Called when a packet is retransmitted.  Called once per packet.
   // |retransmitted_bytes| is the number of data bytes retransmitted.

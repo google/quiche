@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_send_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
@@ -386,7 +387,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   bool ResumeApplicationState(ApplicationState* cached_state) override;
 
   // (Server only) Records the response time of a completed request.
-  void RecordServerResponseTime(QuicTime::Delta response_time);
+  void RecordServerResponse(ResponseStats response_stats);
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
