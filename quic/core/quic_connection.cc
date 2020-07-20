@@ -341,6 +341,11 @@ QuicConnection::QuicConnection(
   }
   if (default_enable_5rto_blackhole_detection_) {
     num_rtos_for_blackhole_detection_ = 5;
+    if (GetQuicReloadableFlag(quic_disable_server_blackhole_detection) &&
+        perspective_ == Perspective::IS_SERVER) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_disable_server_blackhole_detection);
+      blackhole_detection_disabled_ = true;
+    }
   }
 }
 
