@@ -132,7 +132,8 @@ class QUIC_EXPORT_PRIVATE UberLossAlgorithm : public LossDetectionInterface {
   // will start once SetFromConfig is called and min rtt is available.
   bool user_agent_known_ =
       !GetQuicReloadableFlag(quic_save_user_agent_in_quic_session);
-  bool tuning_enabled_ = false;  // Whether tuning is enabled by config.
+  // Whether tuning is configured in QuicConfig.
+  bool tuning_configured_ = false;
   bool reorder_happened_ = false;  // Whether any reordered packet is observed.
 };
 

@@ -22,7 +22,7 @@ void UberLossAlgorithm::SetFromConfig(const QuicConfig& config,
                                       Perspective perspective) {
   if (config.HasClientRequestedIndependentOption(kELDT, perspective) &&
       tuner_ != nullptr) {
-    tuning_enabled_ = true;
+    tuning_configured_ = true;
     MaybeStartTuning();
   }
 }
@@ -100,7 +100,7 @@ void UberLossAlgorithm::SetLossDetectionTuner(
 }
 
 void UberLossAlgorithm::MaybeStartTuning() {
-  if (tuner_started_ || !tuning_enabled_ || !min_rtt_available_ ||
+  if (tuner_started_ || !tuning_configured_ || !min_rtt_available_ ||
       !user_agent_known_ || !reorder_happened_) {
     return;
   }
