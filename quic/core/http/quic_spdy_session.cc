@@ -655,8 +655,14 @@ void QuicSpdySession::WriteHttp3PriorityUpdate(
   send_control_stream_->WritePriorityUpdate(priority_update);
 }
 
-void QuicSpdySession::OnHttp3GoAway(QuicStreamId stream_id) {
+void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
   DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
+
+  // QuicStreamId is uint32_t.  Casting to this narrower type is well-defined
+  // and preserves the lower 32 bits.  Both IsBidirectionalStreamId() and
+  // IsIncomingStream() give correct results, because their return value is
+  // determined by the least significant two bits.
+  QuicStreamId stream_id = static_cast<QuicStreamId>(id);
   if (!QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       IsIncomingStream(stream_id)) {
     CloseConnectionWithDetails(

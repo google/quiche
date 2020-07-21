@@ -408,20 +408,14 @@ bool HttpDecoder::FinishParsing() {
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
       QuicDataReader reader(buffer_.data(), current_frame_length_);
       GoAwayFrame frame;
-      static_assert(!std::is_same<decltype(frame.stream_id), uint64_t>::value,
-                    "Please remove local |stream_id| variable and pass "
-                    "&frame.stream_id directly to ReadVarInt62() when changing "
-                    "QuicStreamId from uint32_t to uint64_t.");
-      uint64_t stream_id;
-      if (!reader.ReadVarInt62(&stream_id)) {
-        RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY stream_id.");
+      if (!reader.ReadVarInt62(&frame.id)) {
+        RaiseError(QUIC_HTTP_FRAME_ERROR, "Unable to read GOAWAY ID.");
         return false;
       }
       if (!reader.IsDoneReading()) {
         RaiseError(QUIC_HTTP_FRAME_ERROR, "Superfluous data in GOAWAY frame.");
         return false;
       }
-      frame.stream_id = static_cast<QuicStreamId>(stream_id);
       continue_processing = visitor_->OnGoAwayFrame(frame);
       break;
     }

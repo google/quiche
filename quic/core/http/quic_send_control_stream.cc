@@ -121,20 +121,19 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
                     /*fin = */ false, nullptr);
 }
 
-void QuicSendControlStream::SendGoAway(QuicStreamId stream_id) {
+void QuicSendControlStream::SendGoAway(QuicStreamId id) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();
 
   GoAwayFrame frame;
-  // If the peer hasn't created any stream yet. Use stream id 0 to indicate no
+  // If the peer has not created any stream yet, use stream ID 0 to indicate no
   // request is accepted.
-  if (stream_id ==
-      QuicUtils::GetInvalidStreamId(session()->transport_version())) {
-    stream_id = 0;
+  if (id == QuicUtils::GetInvalidStreamId(session()->transport_version())) {
+    id = 0;
   }
-  frame.stream_id = stream_id;
+  frame.id = id;
   if (spdy_session_->debug_visitor()) {
-    spdy_session_->debug_visitor()->OnGoAwayFrameSent(stream_id);
+    spdy_session_->debug_visitor()->OnGoAwayFrameSent(id);
   }
 
   std::unique_ptr<char[]> buffer;

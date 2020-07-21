@@ -597,7 +597,7 @@ TEST_F(HttpDecoderTest, GoAway) {
   std::string input = quiche::QuicheTextUtils::HexDecode(
       "07"    // type (GOAWAY)
       "01"    // length
-      "01");  // StreamId
+      "01");  // ID
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnGoAwayFrame(GoAwayFrame({1})))
@@ -851,7 +851,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
                    {"\x07"   // type (GOAWAY)
                     "\x01"   // length
                     "\x40",  // first byte of two-byte varint stream id
-                    "Unable to read GOAWAY stream_id."},
+                    "Unable to read GOAWAY ID."},
                    {"\x07"  // type (GOAWAY)
                     "\x04"  // length
                     "\x05"  // valid stream id
@@ -928,7 +928,7 @@ TEST_F(HttpDecoderTest, EmptyGoAwayFrame) {
   EXPECT_CALL(visitor_, OnError(&decoder_));
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_ERROR));
-  EXPECT_EQ("Unable to read GOAWAY stream_id.", decoder_.error_detail());
+  EXPECT_EQ("Unable to read GOAWAY ID.", decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
@@ -944,7 +944,7 @@ TEST_F(HttpDecoderTest, EmptyMaxPushIdFrame) {
 
 TEST_F(HttpDecoderTest, LargeStreamIdInGoAway) {
   GoAwayFrame frame;
-  frame.stream_id = 1 << 30;
+  frame.id = 1ull << 60;
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
   EXPECT_CALL(visitor_, OnGoAwayFrame(frame));

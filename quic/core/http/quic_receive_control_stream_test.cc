@@ -282,7 +282,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
                       settings_frame));
   offset += settings_frame.length();
 
-  GoAwayFrame goaway{/* stream_id = */ 0};
+  GoAwayFrame goaway{/* id = */ 0};
 
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =

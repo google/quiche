@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicSendControlStream : public QuicStream {
 
   // Send a GOAWAY frame on this stream, and a SETTINGS frame beforehand if one
   // has not been already sent.
-  void SendGoAway(QuicStreamId stream_id);
+  void SendGoAway(QuicStreamId id);
 
   // The send control stream is write unidirectional, so this method should
   // never be called.

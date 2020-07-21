@@ -102,12 +102,12 @@ TEST(HttpEncoderTest, SerializePushPromiseFrameWithOnlyPushId) {
 
 TEST(HttpEncoderTest, SerializeGoAwayFrame) {
   GoAwayFrame goaway;
-  goaway.stream_id = 0x1;
+  goaway.id = 0x1;
   char output[] = {// type (GOAWAY)
                    0x07,
                    // length
                    0x1,
-                   // StreamId
+                   // ID
                    0x01};
   std::unique_ptr<char[]> buffer;
   uint64_t length = HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);

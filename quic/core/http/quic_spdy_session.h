@@ -216,9 +216,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Writes an HTTP/3 PRIORITY_UPDATE frame to the peer.
   void WriteHttp3PriorityUpdate(const PriorityUpdateFrame& priority_update);
 
-  // Process received HTTP/3 GOAWAY frame. This method should only be called on
-  // the client side.
-  virtual void OnHttp3GoAway(QuicStreamId stream_id);
+  // Process received HTTP/3 GOAWAY frame.  When sent from server to client,
+  // |id| is a stream ID.  When sent from client to server, |id| is a push ID.
+  virtual void OnHttp3GoAway(uint64_t id);
 
   // Send GOAWAY if the peer is blocked on the implementation max.
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;

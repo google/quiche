@@ -631,7 +631,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
   testing::InSequence s;
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   GoAwayFrame goaway;
-  goaway.stream_id = 0x1;
+  goaway.id = 0x1;
   std::unique_ptr<char[]> buffer;
   QuicByteCount header_length =
       HttpEncoder::SerializeGoAwayFrame(goaway, &buffer);

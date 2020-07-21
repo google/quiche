@@ -110,7 +110,7 @@ bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {
     return false;
   }
 
-  spdy_session()->OnHttp3GoAway(frame.stream_id);
+  spdy_session()->OnHttp3GoAway(frame.id);
   return true;
 }
 

@@ -107,14 +107,15 @@ struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
 
 // 7.2.6.  GOAWAY
 //
-//   The GOAWAY frame (type=0x7) is used to initiate graceful shutdown of
-//   a connection by a server.
+//   The GOAWAY frame (type=0x7) is used to initiate shutdown of a connection by
+//   either endpoint.
 struct QUIC_EXPORT_PRIVATE GoAwayFrame {
-  QuicStreamId stream_id;
+  // When sent from server to client, |id| is a stream ID that should refer to
+  // a client-initiated bidirectional stream.
+  // When sent from client to server, |id| is a push ID.
+  uint64_t id;
 
-  bool operator==(const GoAwayFrame& rhs) const {
-    return stream_id == rhs.stream_id;
-  }
+  bool operator==(const GoAwayFrame& rhs) const { return id == rhs.id; }
 };
 
 // 7.2.7.  MAX_PUSH_ID

@@ -161,8 +161,7 @@ QuicByteCount HttpEncoder::SerializePushPromiseFrameWithOnlyPushId(
 QuicByteCount HttpEncoder::SerializeGoAwayFrame(
     const GoAwayFrame& goaway,
     std::unique_ptr<char[]>* output) {
-  QuicByteCount payload_length =
-      QuicDataWriter::GetVarInt62Len(goaway.stream_id);
+  QuicByteCount payload_length = QuicDataWriter::GetVarInt62Len(goaway.id);
   QuicByteCount total_length =
       GetTotalLength(payload_length, HttpFrameType::GOAWAY);
 
@@ -170,7 +169,7 @@ QuicByteCount HttpEncoder::SerializeGoAwayFrame(
   QuicDataWriter writer(total_length, output->get());
 
   if (WriteFrameHeader(payload_length, HttpFrameType::GOAWAY, &writer) &&
-      writer.WriteVarInt62(goaway.stream_id)) {
+      writer.WriteVarInt62(goaway.id)) {
     return total_length;
   }
   QUIC_DLOG(ERROR)
