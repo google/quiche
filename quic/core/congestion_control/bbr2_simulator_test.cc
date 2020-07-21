@@ -121,11 +121,7 @@ class DefaultTopologyParams {
 
 class Bbr2SimulatorTest : public QuicTest {
  protected:
-  Bbr2SimulatorTest() : simulator_(&random_) {
-    // Disable Ack Decimation by default, because it can significantly increase
-    // srtt. Individual test can enable it via QuicConnectionPeer::SetAckMode().
-    SetQuicReloadableFlag(quic_enable_ack_decimation, false);
-  }
+  Bbr2SimulatorTest() : simulator_(&random_) {}
 
   void SetUp() override {
     if (GetQuicFlag(FLAGS_quic_bbr2_test_regression_mode) == "regress") {
@@ -425,7 +421,7 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
   DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(30));
   EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+                   sender_->ExportDebugState().bandwidth_hi, 0.02f);
   EXPECT_GE(sender_connection_stats().packets_lost, 0u);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 }
@@ -664,7 +660,7 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
     EXPECT_EQ(Bbr2Mode::PROBE_BW, sender_->ExportDebugState().mode);
     EXPECT_EQ(CyclePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
     EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                     sender_->ExportDebugState().bandwidth_hi, 0.01f);
+                     sender_->ExportDebugState().bandwidth_hi, 0.02f);
   }
 
   // Now that in-flight is almost zero and the pacing gain is still above 1,

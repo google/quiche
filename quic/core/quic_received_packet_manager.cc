@@ -41,9 +41,7 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       time_largest_observed_(QuicTime::Zero()),
       save_timestamps_(false),
       stats_(stats),
-      ack_mode_(GetQuicReloadableFlag(quic_enable_ack_decimation)
-                    ? ACK_DECIMATION
-                    : TCP_ACKING),
+      ack_mode_(ACK_DECIMATION),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
       ack_frequency_before_ack_decimation_(
@@ -56,18 +54,13 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
-      was_last_packet_missing_(false) {
-  if (ack_mode_ == ACK_DECIMATION) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_ack_decimation);
-  }
-}
+      was_last_packet_missing_(false) {}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
 void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
                                               Perspective perspective) {
-  if (GetQuicReloadableFlag(quic_enable_ack_decimation) &&
-      config.HasClientSentConnectionOption(kACD0, perspective)) {
+  if (config.HasClientSentConnectionOption(kACD0, perspective)) {
     ack_mode_ = TCP_ACKING;
   }
   if (config.HasClientSentConnectionOption(kACKD, perspective)) {
