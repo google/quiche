@@ -2069,6 +2069,14 @@ QuicStream* QuicSession::GetStream(QuicStreamId id) const {
   return nullptr;
 }
 
+QuicStream* QuicSession::GetActiveStream(QuicStreamId id) const {
+  auto stream = stream_map_.find(id);
+  if (stream != stream_map_.end() && !stream->second->is_static()) {
+    return stream->second.get();
+  }
+  return nullptr;
+}
+
 bool QuicSession::OnFrameAcked(const QuicFrame& frame,
                                QuicTime::Delta ack_delay_time,
                                QuicTime receive_timestamp) {

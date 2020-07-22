@@ -645,6 +645,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
     connection()->SetLossDetectionTuner(std::move(tuner));
   }
 
+  // Find stream with |id|, returns nullptr if the stream does not exist or
+  // closed. static streams and zombie streams are not considered active
+  // streams.
+  QuicStream* GetActiveStream(QuicStreamId id) const;
+
  private:
   friend class test::QuicSessionPeer;
 
