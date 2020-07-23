@@ -101,7 +101,9 @@ QuicSession::QuicSession(
       was_zero_rtt_rejected_(false),
       fix_gquic_stream_type_(GetQuicReloadableFlag(quic_fix_gquic_stream_type)),
       remove_streams_waiting_for_acks_(
-          GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)) {
+          GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)),
+      do_not_use_stream_map_(
+          GetQuicReloadableFlag(quic_do_not_use_stream_map)) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -376,26 +378,46 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   GetMutableCryptoStream()->OnConnectionClosed(frame.quic_error_code, source);
 
-  // Copy all non static streams in a new map for the ease of deleting.
-  QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
-  for (const auto& it : stream_map_) {
-    if (!it.second->is_static()) {
-      non_static_streams[it.first] = it.second.get();
-    }
-  }
-  for (const auto& it : non_static_streams) {
-    QuicStreamId id = it.first;
-    it.second->OnConnectionClosed(frame.quic_error_code, source);
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_do_not_close_stream_again_on_connection_close);
-    if (stream_map_.find(id) != stream_map_.end()) {
-      QUIC_BUG << ENDPOINT << "Stream " << id
-               << " failed to close under OnConnectionClosed";
-      if (!GetQuicReloadableFlag(
-              quic_do_not_close_stream_again_on_connection_close)) {
-        CloseStream(id);
+  if (!do_not_use_stream_map_) {
+    // Copy all non static streams in a new map for the ease of deleting.
+    QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
+    for (const auto& it : stream_map_) {
+      if (!it.second->is_static()) {
+        non_static_streams[it.first] = it.second.get();
       }
     }
+
+    for (const auto& it : non_static_streams) {
+      QuicStreamId id = it.first;
+      it.second->OnConnectionClosed(frame.quic_error_code, source);
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_do_not_close_stream_again_on_connection_close);
+      if (stream_map_.find(id) != stream_map_.end()) {
+        QUIC_BUG << ENDPOINT << "Stream " << id
+                 << " failed to close under OnConnectionClosed";
+        if (!GetQuicReloadableFlag(
+                quic_do_not_close_stream_again_on_connection_close)) {
+          CloseStream(id);
+        }
+      }
+    }
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_do_not_use_stream_map, 1, 2);
+    PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
+      QuicStreamId id = stream->id();
+      stream->OnConnectionClosed(frame.quic_error_code, source);
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_do_not_close_stream_again_on_connection_close);
+      if (stream_map_.find(id) != stream_map_.end()) {
+        QUIC_BUG << ENDPOINT << "Stream " << id
+                 << " failed to close under OnConnectionClosed";
+        if (!GetQuicReloadableFlag(
+                quic_do_not_close_stream_again_on_connection_close)) {
+          CloseStream(id);
+        }
+      }
+      return true;
+    });
   }
 
   // Cleanup zombie stream map on connection close.
@@ -2449,6 +2471,31 @@ void QuicSession::OnAlpnSelected(quiche::QuicheStringPiece alpn) {
 
 void QuicSession::NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level) {
   GetMutableCryptoStream()->NeuterStreamDataOfEncryptionLevel(level);
+}
+
+void QuicSession::PerformActionOnActiveStreams(
+    std::function<bool(QuicStream*)> action) {
+  QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
+  for (const auto& it : stream_map_) {
+    if (!it.second->is_static()) {
+      non_static_streams[it.first] = it.second.get();
+    }
+  }
+
+  for (const auto& it : non_static_streams) {
+    if (!action(it.second)) {
+      return;
+    }
+  }
+}
+
+void QuicSession::PerformActionOnActiveStreams(
+    std::function<bool(QuicStream*)> action) const {
+  for (const auto& it : stream_map_) {
+    if (!it.second->is_static() && !action(it.second.get())) {
+      return;
+    }
+  }
 }
 
 #undef ENDPOINT  // undef for jumbo builds

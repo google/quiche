@@ -617,6 +617,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool was_zero_rtt_rejected() const { return was_zero_rtt_rejected_; }
 
+  bool do_not_use_stream_map() const { return do_not_use_stream_map_; }
+
   size_t num_outgoing_draining_streams() const {
     return num_outgoing_draining_streams_;
   }
@@ -627,6 +629,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual bool ProcessPendingStream(PendingStream* /*pending*/) {
     return false;
   }
+
+  // Called by applications to perform |action| on active streams.
+  // Stream iteration will be stopped if action returns false.
+  void PerformActionOnActiveStreams(std::function<bool(QuicStream*)> action);
+  void PerformActionOnActiveStreams(
+      std::function<bool(QuicStream*)> action) const;
 
   // Return the largest peer created stream id depending on directionality
   // indicated by |unidirectional|.
@@ -842,6 +850,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Latched value of flag quic_remove_streams_waiting_for_acks.
   const bool remove_streams_waiting_for_acks_;
+
+  // Latched value of flag quic_do_not_use_stream_map.
+  const bool do_not_use_stream_map_;
 };
 
 }  // namespace quic
