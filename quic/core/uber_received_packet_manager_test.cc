@@ -349,6 +349,9 @@ TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, SendDelayedAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetFastAckAfterQuiescence(manager_.get(),
                                                            true);
@@ -429,6 +432,9 @@ TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimation) {
 
 TEST_F(UberReceivedPacketManagerTest,
        SendDelayedAckAckDecimationAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckMode(manager_.get(), ACK_DECIMATION);
   UberReceivedPacketManagerPeer::SetFastAckAfterQuiescence(manager_.get(),
@@ -570,6 +576,9 @@ TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationWithReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckMode(manager_.get(),
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -613,6 +622,9 @@ TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationWithReordering) {
 
 TEST_F(UberReceivedPacketManagerTest,
        SendDelayedAckDecimationWithLargeReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckMode(manager_.get(),
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -658,6 +670,9 @@ TEST_F(UberReceivedPacketManagerTest,
 
 TEST_F(UberReceivedPacketManagerTest,
        SendDelayedAckDecimationWithReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckMode(manager_.get(),
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -698,6 +713,9 @@ TEST_F(UberReceivedPacketManagerTest,
 
 TEST_F(UberReceivedPacketManagerTest,
        SendDelayedAckDecimationWithLargeReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckMode(manager_.get(),
                                             ACK_DECIMATION_WITH_REORDERING);

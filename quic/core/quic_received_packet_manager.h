@@ -177,6 +177,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   bool unlimited_ack_decimation_;
   // When true, use a 1ms delayed ack timer if it's been an SRTT since a packet
   // was received.
+  // TODO(haoyuewang) Remove fast_ack_after_quiescence_ when
+  // quic_remove_unused_ack_options flag is deprecated.
   bool fast_ack_after_quiescence_;
   // When true, only send 1 immediate ACK when reordering is detected.
   bool one_immediate_ack_;
@@ -192,6 +194,11 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   QuicTime time_of_previous_received_packet_;
   // Whether the most recent packet was missing before it was received.
   bool was_last_packet_missing_;
+
+  // TODO(haoyuewang) Remove TCP_ACKING when
+  // fast_ack_after_quiescence_ when this flag is deprecated.
+  const bool remove_unused_ack_options_ =
+      GetQuicReloadableFlag(quic_remove_unused_ack_options);
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;

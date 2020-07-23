@@ -60,28 +60,39 @@ QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
 void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
                                               Perspective perspective) {
-  if (config.HasClientSentConnectionOption(kACD0, perspective)) {
-    ack_mode_ = TCP_ACKING;
+  if (remove_unused_ack_options_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_remove_unused_ack_options);
   }
-  if (config.HasClientSentConnectionOption(kACKD, perspective)) {
-    ack_mode_ = ACK_DECIMATION;
-  }
-  if (config.HasClientSentConnectionOption(kAKD2, perspective)) {
-    ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
+  if (!remove_unused_ack_options_) {
+    if (config.HasClientSentConnectionOption(kACD0, perspective)) {
+      ack_mode_ = TCP_ACKING;
+    }
+    if (config.HasClientSentConnectionOption(kACKD, perspective)) {
+      ack_mode_ = ACK_DECIMATION;
+    }
+    if (config.HasClientSentConnectionOption(kAKD2, perspective)) {
+      ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
+    }
   }
   if (config.HasClientSentConnectionOption(kAKD3, perspective)) {
-    ack_mode_ = ACK_DECIMATION;
+    if (!remove_unused_ack_options_) {
+      ack_mode_ = ACK_DECIMATION;
+    }
     ack_decimation_delay_ = kShortAckDecimationDelay;
   }
-  if (config.HasClientSentConnectionOption(kAKD4, perspective)) {
-    ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
-    ack_decimation_delay_ = kShortAckDecimationDelay;
+  if (!remove_unused_ack_options_) {
+    if (config.HasClientSentConnectionOption(kAKD4, perspective)) {
+      ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
+      ack_decimation_delay_ = kShortAckDecimationDelay;
+    }
   }
   if (config.HasClientSentConnectionOption(kAKDU, perspective)) {
     unlimited_ack_decimation_ = true;
   }
-  if (config.HasClientSentConnectionOption(kACKQ, perspective)) {
-    fast_ack_after_quiescence_ = true;
+  if (!remove_unused_ack_options_) {
+    if (config.HasClientSentConnectionOption(kACKQ, perspective)) {
+      fast_ack_after_quiescence_ = true;
+    }
   }
   if (config.HasClientSentConnectionOption(k1ACK, perspective)) {
     one_immediate_ack_ = true;
@@ -274,7 +285,10 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   // If there are new missing packets to report, send an ack immediately.
   if (HasNewMissingPackets()) {
+    // TODO(haoyuewang) Remove ACK_DECIMATION_WITH_REORDERING after
+    // quic_remove_unused_ack_options is deprecated.
     if (ack_mode_ == ACK_DECIMATION_WITH_REORDERING) {
+      DCHECK(!remove_unused_ack_options_);
       // Wait the minimum of an eighth min_rtt and the existing ack time.
       QuicTime ack_time = now + kShortAckDecimationDelay * rtt_stats->min_rtt();
       MaybeUpdateAckTimeoutTo(ack_time);

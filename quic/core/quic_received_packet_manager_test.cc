@@ -402,6 +402,9 @@ TEST_P(QuicReceivedPacketManagerTest, AckDecimationReducesAcks) {
 }
 
 TEST_P(QuicReceivedPacketManagerTest, SendDelayedAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetFastAckAfterQuiescence(&received_manager_,
                                                            true);
@@ -505,6 +508,9 @@ TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
 
 TEST_P(QuicReceivedPacketManagerTest,
        SendDelayedAckAckDecimationAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_, ACK_DECIMATION);
   QuicReceivedPacketManagerPeer::SetFastAckAfterQuiescence(&received_manager_,
@@ -647,6 +653,9 @@ TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
 }
 
 TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationWithReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_,
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -690,6 +699,9 @@ TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationWithReordering) {
 
 TEST_P(QuicReceivedPacketManagerTest,
        SendDelayedAckDecimationWithLargeReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_,
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -735,6 +747,9 @@ TEST_P(QuicReceivedPacketManagerTest,
 
 TEST_P(QuicReceivedPacketManagerTest,
        SendDelayedAckDecimationWithReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_,
                                             ACK_DECIMATION_WITH_REORDERING);
@@ -776,6 +791,9 @@ TEST_P(QuicReceivedPacketManagerTest,
 
 TEST_P(QuicReceivedPacketManagerTest,
        SendDelayedAckDecimationWithLargeReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckMode(&received_manager_,
                                             ACK_DECIMATION_WITH_REORDERING);

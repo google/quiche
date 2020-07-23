@@ -6220,6 +6220,9 @@ TEST_P(QuicConnectionTest, SendDelayedAck) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   QuicConnectionPeer::SetFastAckAfterQuiescence(&connection_, true);
 
   // The beginning of the connection counts as quiescence.
@@ -6352,6 +6355,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimation) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckAckDecimationAfterQuiescence) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION);
   QuicConnectionPeer::SetFastAckAfterQuiescence(&connection_, true);
@@ -6603,6 +6609,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationEighthRtt) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
 
@@ -6668,6 +6677,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReordering) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
 
@@ -6751,6 +6763,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithLargeReordering) {
 }
 
 TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
@@ -6820,6 +6835,9 @@ TEST_P(QuicConnectionTest, SendDelayedAckDecimationWithReorderingEighthRtt) {
 
 TEST_P(QuicConnectionTest,
        SendDelayedAckDecimationWithLargeReorderingEighthRtt) {
+  if (GetQuicReloadableFlag(quic_remove_unused_ack_options)) {
+    return;
+  }
   EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).Times(AnyNumber());
   QuicConnectionPeer::SetAckMode(&connection_, ACK_DECIMATION_WITH_REORDERING);
   QuicConnectionPeer::SetAckDecimationDelay(&connection_, 0.125);
