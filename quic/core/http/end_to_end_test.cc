@@ -534,7 +534,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       if (server_connection != nullptr) {
         QuicConnectionStats server_stats = server_connection->GetStats();
         if (!had_packet_loss) {
-          EXPECT_EQ(0u, server_stats.packets_lost);
+          EXPECT_EQ(0u, server_stats.packets_lost -
+                            server_stats.packet_spuriously_detected_lost);
         }
         EXPECT_EQ(0u, server_stats.packets_discarded);
         if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
