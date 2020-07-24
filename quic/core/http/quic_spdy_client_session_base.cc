@@ -65,7 +65,10 @@ void QuicSpdyClientSessionBase::OnPromiseHeaderList(
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  if (promised_stream_id !=
+  // In HTTP3, push promises are received on individual streams, so they could
+  // be arrive out of order.
+  if (!VersionUsesHttp3(transport_version()) &&
+      promised_stream_id !=
           QuicUtils::GetInvalidStreamId(transport_version()) &&
       largest_promised_stream_id_ !=
           QuicUtils::GetInvalidStreamId(transport_version()) &&

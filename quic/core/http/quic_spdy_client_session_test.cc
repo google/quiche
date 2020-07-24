@@ -677,11 +677,13 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseOutOfOrder) {
                                 QuicHeaderList());
   associated_stream_id_ +=
       QuicUtils::StreamIdDelta(connection_->transport_version());
-  EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_INVALID_STREAM_ID,
-                              "Received push stream id lesser or equal to the"
-                              " last accepted before",
-                              _));
+  if (!VersionUsesHttp3(session_->transport_version())) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_INVALID_STREAM_ID,
+                                "Received push stream id lesser or equal to the"
+                                " last accepted before",
+                                _));
+  }
   session_->OnPromiseHeaderList(associated_stream_id_, promised_stream_id_, 0,
                                 QuicHeaderList());
 }
