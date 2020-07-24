@@ -28,10 +28,12 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
       proof_source->GetTicketCrypter()) {
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
+    QUIC_CODE_COUNT_N(quic_tls_resumption_ticket_method, 1, 2);
     if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
       SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
     }
   } else {
+    QUIC_CODE_COUNT_N(quic_tls_resumption_ticket_method, 2, 2);
     SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_TICKET);
   }
   return ssl_ctx;
