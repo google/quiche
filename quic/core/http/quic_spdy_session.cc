@@ -135,7 +135,8 @@ class QuicSpdySession::SpdyFramerVisitor
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
 
-  void OnError(Http2DecoderAdapter::SpdyFramerError error) override {
+  void OnError(Http2DecoderAdapter::SpdyFramerError error,
+               std::string detailed_error) override {
     QuicErrorCode code;
     switch (error) {
       case Http2DecoderAdapter::SpdyFramerError::SPDY_HPACK_INDEX_VARINT_ERROR:
@@ -200,7 +201,7 @@ class QuicSpdySession::SpdyFramerVisitor
         code = QUIC_INVALID_HEADERS_STREAM_DATA;
     }
     CloseConnection(quiche::QuicheStrCat(
-                        "SPDY framing error: ",
+                        "SPDY framing error: ", detailed_error,
                         Http2DecoderAdapter::SpdyFramerErrorToString(error)),
                     code);
   }

@@ -88,6 +88,8 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
   // Error code if an error has occurred, Error::kOk otherwise.
   http2::HpackDecodingError error() const { return error_; }
 
+  std::string detailed_error() const { return detailed_error_; }
+
  private:
   class QUICHE_EXPORT_PRIVATE ListenerAdapter
       : public http2::HpackDecoderListener,
@@ -164,6 +166,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderAdapter {
 
   // Error code if an error has occurred, Error::kOk otherwise.
   http2::HpackDecodingError error_;
+  std::string detailed_error_;
 };
 
 }  // namespace spdy

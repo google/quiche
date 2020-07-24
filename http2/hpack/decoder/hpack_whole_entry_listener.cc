@@ -21,7 +21,8 @@ void HpackWholeEntryNoOpListener::OnLiteralNameAndValue(
     HpackDecoderStringBuffer* /*value_buffer*/) {}
 void HpackWholeEntryNoOpListener::OnDynamicTableSizeUpdate(size_t /*size*/) {}
 void HpackWholeEntryNoOpListener::OnHpackDecodeError(
-    HpackDecodingError /*error*/) {}
+    HpackDecodingError /*error*/,
+    std::string /*detailed_error*/) {}
 
 // static
 HpackWholeEntryNoOpListener* HpackWholeEntryNoOpListener::NoOpListener() {

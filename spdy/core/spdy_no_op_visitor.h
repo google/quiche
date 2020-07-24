@@ -26,8 +26,8 @@ class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
   ~SpdyNoOpVisitor() override;
 
   // SpdyFramerVisitorInterface methods:
-  void OnError(http2::Http2DecoderAdapter::SpdyFramerError /*error*/) override {
-  }
+  void OnError(http2::Http2DecoderAdapter::SpdyFramerError /*error*/,
+               std::string /*detailed_error*/) override {}
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
       SpdyStreamId stream_id) override;
   void OnHeaderFrameEnd(SpdyStreamId /*stream_id*/) override {}

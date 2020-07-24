@@ -148,7 +148,8 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   void OnDataFrameHeader(SpdyStreamId stream_id,
                          size_t length,
                          bool fin) override;
-  void OnError(http2::Http2DecoderAdapter::SpdyFramerError error) override;
+  void OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
+               std::string detailed_error) override;
   void OnGoAway(SpdyStreamId last_accepted_stream_id,
                 SpdyErrorCode error_code) override;
   bool OnGoAwayFrameData(const char* goaway_data, size_t len) override;
@@ -461,7 +462,8 @@ void SpdyTestDeframerImpl::OnDataFrameHeader(SpdyStreamId stream_id,
 
 // The SpdyFramer will not process any more data at this point.
 void SpdyTestDeframerImpl::OnError(
-    http2::Http2DecoderAdapter::SpdyFramerError error) {
+    http2::Http2DecoderAdapter::SpdyFramerError error,
+    std::string /*detailed_error*/) {
   SPDY_DVLOG(1) << "SpdyFramer detected an error in the stream: "
                 << http2::Http2DecoderAdapter::SpdyFramerErrorToString(error)
                 << "     frame_type_: " << Http2FrameTypeToString(frame_type_);

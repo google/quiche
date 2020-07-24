@@ -87,7 +87,8 @@ class MockVisitor : public SpdyFramerVisitorInterface {
  public:
   MOCK_METHOD(void,
               OnError,
-              (http2::Http2DecoderAdapter::SpdyFramerError error),
+              (http2::Http2DecoderAdapter::SpdyFramerError error,
+               std::string detailed_error),
               (override));
   MOCK_METHOD(void,
               OnDataFrameHeader,

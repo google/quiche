@@ -11,6 +11,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::InSequence;
 using ::testing::Property;
@@ -26,17 +27,24 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
  public:
   ~MockHpackWholeEntryListener() override = default;
 
-  MOCK_METHOD1(OnIndexedHeader, void(size_t index));
-  MOCK_METHOD3(OnNameIndexAndLiteralValue,
-               void(HpackEntryType entry_type,
-                    size_t name_index,
-                    HpackDecoderStringBuffer* value_buffer));
-  MOCK_METHOD3(OnLiteralNameAndValue,
-               void(HpackEntryType entry_type,
-                    HpackDecoderStringBuffer* name_buffer,
-                    HpackDecoderStringBuffer* value_buffer));
-  MOCK_METHOD1(OnDynamicTableSizeUpdate, void(size_t size));
-  MOCK_METHOD1(OnHpackDecodeError, void(HpackDecodingError error));
+  MOCK_METHOD(void, OnIndexedHeader, (size_t index), (override));
+  MOCK_METHOD(void,
+              OnNameIndexAndLiteralValue,
+              (HpackEntryType entry_type,
+               size_t name_index,
+               HpackDecoderStringBuffer* value_buffer),
+              (override));
+  MOCK_METHOD(void,
+              OnLiteralNameAndValue,
+              (HpackEntryType entry_type,
+               HpackDecoderStringBuffer* name_buffer,
+               HpackDecoderStringBuffer* value_buffer),
+              (override));
+  MOCK_METHOD(void, OnDynamicTableSizeUpdate, (size_t size), (override));
+  MOCK_METHOD(void,
+              OnHpackDecodeError,
+              (HpackDecodingError error, std::string detailed_error),
+              (override));
 };
 
 class HpackWholeEntryBufferTest : public ::testing::Test {
@@ -154,14 +162,21 @@ TEST_F(HpackWholeEntryBufferTest, OnLiteralNameAndValue) {
 // Verify that a name longer than the allowed size generates an error.
 TEST_F(HpackWholeEntryBufferTest, NameTooLong) {
   entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 0);
-  EXPECT_CALL(listener_, OnHpackDecodeError(HpackDecodingError::kNameTooLong));
+  EXPECT_CALL(listener_,
+              OnHpackDecodeError(HpackDecodingError::kNameTooLong, _));
   entry_buffer_.OnNameStart(false, kMaxStringSize + 1);
 }
 
-// Verify that a name longer than the allowed size generates an error.
+// Verify that a value longer than the allowed size generates an error.
 TEST_F(HpackWholeEntryBufferTest, ValueTooLong) {
-  entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 1);
-  EXPECT_CALL(listener_, OnHpackDecodeError(HpackDecodingError::kValueTooLong));
+  entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 0);
+  EXPECT_CALL(listener_,
+              OnHpackDecodeError(
+                  HpackDecodingError::kValueTooLong,
+                  "Value length (21) of [path] is longer than permitted (20)"));
+  entry_buffer_.OnNameStart(false, 4);
+  entry_buffer_.OnNameData("path", 4);
+  entry_buffer_.OnNameEnd();
   entry_buffer_.OnValueStart(false, kMaxStringSize + 1);
 }
 
@@ -175,7 +190,7 @@ TEST_F(HpackWholeEntryBufferTest, NameHuffmanError) {
   entry_buffer_.OnNameData(data, 3);
 
   EXPECT_CALL(listener_,
-              OnHpackDecodeError(HpackDecodingError::kNameHuffmanError));
+              OnHpackDecodeError(HpackDecodingError::kNameHuffmanError, _));
 
   entry_buffer_.OnNameData(data, 1);
 
@@ -194,7 +209,7 @@ TEST_F(HpackWholeEntryBufferTest, ValueHuffmanError) {
   entry_buffer_.OnValueData(data, 3);
 
   EXPECT_CALL(listener_,
-              OnHpackDecodeError(HpackDecodingError::kValueHuffmanError));
+              OnHpackDecodeError(HpackDecodingError::kValueHuffmanError, _));
 
   entry_buffer_.OnValueEnd();
 

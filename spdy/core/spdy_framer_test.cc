@@ -266,7 +266,8 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
         header_control_type_(SpdyFrameType::DATA),
         header_buffer_valid_(false) {}
 
-  void OnError(Http2DecoderAdapter::SpdyFramerError error) override {
+  void OnError(Http2DecoderAdapter::SpdyFramerError error,
+               std::string /*detailed_error*/) override {
     SPDY_VLOG(1) << "SpdyFramer Error: "
                  << Http2DecoderAdapter::SpdyFramerErrorToString(error);
     ++error_count_;
@@ -727,7 +728,7 @@ TEST_P(SpdyFramerTest, ExceedMaxFrameSizeSetting) {
   SpdySerializedFrame frame(reinterpret_cast<char*>(kH2FrameData),
                             sizeof(kH2FrameData), false);
 
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_OVERSIZED_PAYLOAD));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_OVERSIZED_PAYLOAD, _));
   deframer_.ProcessInput(frame.data(), frame.size());
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_OVERSIZED_PAYLOAD,
@@ -762,7 +763,7 @@ TEST_P(SpdyFramerTest, OversizedDataPaddingError) {
     testing::InSequence seq;
     EXPECT_CALL(visitor, OnDataFrameHeader(1, 5, 1));
     EXPECT_CALL(visitor, OnStreamPadding(1, 1));
-    EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_PADDING));
+    EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_PADDING, _));
   }
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
@@ -795,7 +796,7 @@ TEST_P(SpdyFramerTest, CorrectlySizedDataPaddingNoError) {
     testing::InSequence seq;
     EXPECT_CALL(visitor, OnDataFrameHeader(1, 5, false));
     EXPECT_CALL(visitor, OnStreamPadLength(1, 4));
-    EXPECT_CALL(visitor, OnError(_)).Times(0);
+    EXPECT_CALL(visitor, OnError(_, _)).Times(0);
     // Note that OnStreamFrameData(1, _, 1)) is never called
     // since there is no data, only padding
     EXPECT_CALL(visitor, OnStreamPadding(1, 4));
@@ -833,7 +834,7 @@ TEST_P(SpdyFramerTest, OversizedHeadersPaddingError) {
 
   EXPECT_CALL(visitor, OnHeaders(1, false, 0, 0, false, false, false));
   EXPECT_CALL(visitor, OnHeaderFrameStart(1)).Times(1);
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_PADDING));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_PADDING, _));
   EXPECT_EQ(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_PADDING,
@@ -883,7 +884,7 @@ TEST_P(SpdyFramerTest, DataWithStreamIdZero) {
   SpdySerializedFrame frame(framer_.SerializeData(data_ir));
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -905,7 +906,7 @@ TEST_P(SpdyFramerTest, HeadersWithStreamIdZero) {
       SpdyFramerPeer::SerializeHeaders(&framer_, headers, &output_));
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -932,7 +933,7 @@ TEST_P(SpdyFramerTest, PriorityWithStreamIdZero) {
   }
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -956,7 +957,7 @@ TEST_P(SpdyFramerTest, RstStreamWithStreamIdZero) {
   }
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -985,7 +986,7 @@ TEST_P(SpdyFramerTest, SettingsWithStreamIdNotZero) {
   SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -1015,7 +1016,7 @@ TEST_P(SpdyFramerTest, GoawayWithStreamIdNotZero) {
   SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -1043,7 +1044,7 @@ TEST_P(SpdyFramerTest, ContinuationWithStreamIdZero) {
   }
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -1066,7 +1067,7 @@ TEST_P(SpdyFramerTest, PushPromiseWithStreamIdZero) {
       &framer_, push_promise, use_output_ ? &output_ : nullptr));
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID,
@@ -1089,7 +1090,7 @@ TEST_P(SpdyFramerTest, PushPromiseWithPromisedStreamIdZero) {
       &framer_, push_promise, use_output_ ? &output_ : nullptr));
 
   EXPECT_CALL(visitor,
-              OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME));
+              OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME, _));
   deframer_.ProcessInput(frame.data(), frame.size());
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME,
@@ -2357,7 +2358,7 @@ TEST_P(SpdyFramerTest, SendUnexpectedContinuation) {
   SpdySerializedFrame frame(kH2FrameData, sizeof(kH2FrameData), false);
 
   // We shouldn't have to read the whole frame before we signal an error.
-  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_UNEXPECTED_FRAME));
+  EXPECT_CALL(visitor, OnError(Http2DecoderAdapter::SPDY_UNEXPECTED_FRAME, _));
   EXPECT_GT(frame.size(), deframer_.ProcessInput(frame.data(), frame.size()));
   EXPECT_TRUE(deframer_.HasError());
   EXPECT_EQ(Http2DecoderAdapter::SPDY_UNEXPECTED_FRAME,
@@ -3832,7 +3833,7 @@ TEST_P(SpdyFramerTest, DataFrameFlagsV4) {
     SetFrameFlags(&frame, flags);
 
     if (flags & ~valid_data_flags) {
-      EXPECT_CALL(visitor, OnError(_));
+      EXPECT_CALL(visitor, OnError(_, _));
     } else {
       EXPECT_CALL(visitor, OnDataFrameHeader(1, 5, flags & DATA_FLAG_FIN));
       if (flags & DATA_FLAG_PADDED) {
@@ -3840,7 +3841,7 @@ TEST_P(SpdyFramerTest, DataFrameFlagsV4) {
         // (0x68) is too large a padding length for a 5 byte payload.
         EXPECT_CALL(visitor, OnStreamPadding(_, 1));
         // Expect Error since the frame ends prematurely.
-        EXPECT_CALL(visitor, OnError(_));
+        EXPECT_CALL(visitor, OnError(_, _));
       } else {
         EXPECT_CALL(visitor, OnStreamFrameData(_, _, 5));
         if (flags & DATA_FLAG_FIN) {
@@ -3922,7 +3923,7 @@ TEST_P(SpdyFramerTest, SettingsFrameFlags) {
     SetFrameFlags(&frame, flags);
 
     if (flags & SETTINGS_FLAG_ACK) {
-      EXPECT_CALL(visitor, OnError(_));
+      EXPECT_CALL(visitor, OnError(_, _));
     } else {
       EXPECT_CALL(visitor, OnSettings());
       EXPECT_CALL(visitor, OnSetting(SETTINGS_INITIAL_WINDOW_SIZE, 16));
@@ -4356,7 +4357,7 @@ TEST_P(SpdyFramerTest, OnAltSvcEmptyProtocolId) {
   deframer_.set_visitor(&visitor);
 
   EXPECT_CALL(visitor,
-              OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME));
+              OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME, _));
 
   SpdyAltSvcIR altsvc_ir(kStreamId);
   altsvc_ir.set_origin("o1");

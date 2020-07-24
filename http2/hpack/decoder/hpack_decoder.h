@@ -103,11 +103,13 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
 
+  std::string detailed_error() const { return detailed_error_; }
+
  private:
   friend class test::HpackDecoderPeer;
 
   // Reports an error to the listener IF this is the first error detected.
-  void ReportError(HpackDecodingError error);
+  void ReportError(HpackDecodingError error, std::string detailed_error);
 
   // The decompressor state, as defined by HPACK (i.e. the static and dynamic
   // tables).
@@ -121,6 +123,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoder {
 
   // Error code if an error has occurred, HpackDecodingError::kOk otherwise.
   HpackDecodingError error_;
+  std::string detailed_error_;
 };
 
 }  // namespace http2

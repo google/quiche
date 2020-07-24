@@ -227,7 +227,7 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   void set_spdy_state(SpdyState v);
 
-  void SetSpdyErrorAndNotify(SpdyFramerError error);
+  void SetSpdyErrorAndNotify(SpdyFramerError error, std::string detailed_error);
 
   const Http2FrameHeader& frame_header() const;
 
@@ -369,7 +369,8 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   virtual ~SpdyFramerVisitorInterface() {}
 
   // Called if an error is detected in the SpdyFrame protocol.
-  virtual void OnError(http2::Http2DecoderAdapter::SpdyFramerError error) = 0;
+  virtual void OnError(http2::Http2DecoderAdapter::SpdyFramerError error,
+                       std::string detailed_error) = 0;
 
   // Called when the common header for a frame is received. Validating the
   // common header occurs in later processing.
