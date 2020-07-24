@@ -502,7 +502,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   memcpy(out, decrypted_session_ticket_.data(),
          decrypted_session_ticket_.size());
   *out_len = decrypted_session_ticket_.size();
-  QUIC_RELOADABLE_FLAG_COUNT(quic_enable_tls_resumption_v2);
+  QUIC_RESTART_FLAG_COUNT(quic_enable_tls_resumption_v3);
 
   return ssl_ticket_aead_success;
 }

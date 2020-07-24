@@ -203,7 +203,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     SetQuicReloadableFlag(quic_fix_packet_number_length, true);
 
     SetQuicReloadableFlag(quic_support_handshake_done_in_t050, true);
-    SetQuicReloadableFlag(quic_enable_tls_resumption_v2, true);
+    SetQuicRestartFlag(quic_enable_tls_resumption_v3, true);
     SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
   }
 

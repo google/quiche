@@ -96,7 +96,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
             QuicUtils::GetInvalidStreamId(GetParam().transport_version)) {
     auto client_cache = std::make_unique<test::SimpleSessionCache>();
     client_session_cache_ = client_cache.get();
-    SetQuicReloadableFlag(quic_enable_tls_resumption_v2, true);
+    SetQuicRestartFlag(quic_enable_tls_resumption_v3, true);
     SetQuicReloadableFlag(quic_enable_zero_rtt_for_tls, true);
     SetQuicReloadableFlag(quic_fix_gquic_stream_type, true);
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
