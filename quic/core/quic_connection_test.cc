@@ -10945,22 +10945,12 @@ TEST_P(QuicConnectionTest, AckAlarmFiresEarly) {
             connection_.GetAckAlarm()->deadline());
 
   // Ack alarm fires early.
-  if (GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
-    // Verify the earliest ACK is flushed.
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  }
+  // Verify the earliest ACK is flushed.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   connection_.GetAckAlarm()->Fire();
   EXPECT_TRUE(connection_.HasPendingAcks());
-  if (GetQuicReloadableFlag(quic_always_send_earliest_ack)) {
-    EXPECT_EQ(clock_.ApproximateNow() + DefaultDelayedAckTime(),
-              connection_.GetAckAlarm()->deadline());
-  } else {
-    // No forward progress has been made.
-    EXPECT_EQ(clock_.ApproximateNow() + kAlarmGranularity,
-              connection_.GetAckAlarm()->deadline());
-  }
+  EXPECT_EQ(clock_.ApproximateNow() + DefaultDelayedAckTime(),
+            connection_.GetAckAlarm()->deadline());
 }
 
 TEST_P(QuicConnectionTest, ClientOnlyBlackholeDetectionClient) {
