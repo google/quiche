@@ -141,6 +141,9 @@ class QuicConnectionPeer {
 
   static QuicTime GetBlackholeDetectionDeadline(QuicConnection* connection);
 
+  static QuicTime GetPathMtuReductionDetectionDeadline(
+      QuicConnection* connection);
+
   static QuicAlarm* GetIdleNetworkDetectorAlarm(QuicConnection* connection);
 
   static void SetServerConnectionId(

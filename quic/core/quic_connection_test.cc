@@ -932,6 +932,11 @@ class TestConnection : public QuicConnection {
         .IsInitialized();
   }
 
+  bool PathMtuReductionDetectionInProgress() {
+    return QuicConnectionPeer::GetPathMtuReductionDetectionDeadline(this)
+        .IsInitialized();
+  }
+
   void SetMaxTailLossProbes(size_t max_tail_loss_probes) {
     QuicSentPacketManagerPeer::SetMaxTailLossProbes(
         QuicConnectionPeer::GetSentPacketManager(this), max_tail_loss_probes);
@@ -5434,6 +5439,32 @@ TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
       ConstructAckFrame(creator_->packet_number(), second_probe_packet_number);
   ProcessAckPacket(&third_ack);
   EXPECT_EQ(third_probe_size, connection_.max_packet_length());
+
+  SendStreamDataToPeer(3, "$", stream_offset++, NO_FIN, nullptr);
+  if (!GetQuicReloadableFlag(quic_revert_mtu_after_two_ptos)) {
+    EXPECT_FALSE(connection_.PathMtuReductionDetectionInProgress());
+    return;
+  }
+
+  EXPECT_TRUE(connection_.PathMtuReductionDetectionInProgress());
+
+  if (connection_.PathDegradingDetectionInProgress() &&
+      QuicConnectionPeer::GetPathDegradingDeadline(&connection_) <
+          QuicConnectionPeer::GetPathMtuReductionDetectionDeadline(
+              &connection_)) {
+    // Fire path degrading alarm first.
+    connection_.PathDegradingTimeout();
+  }
+
+  // Verify the max packet size has not reduced.
+  EXPECT_EQ(third_probe_size, connection_.max_packet_length());
+
+  // Fire alarm to get path mtu reduction callback called.
+  EXPECT_TRUE(connection_.PathMtuReductionDetectionInProgress());
+  connection_.GetBlackholeDetectorAlarm()->Fire();
+
+  // Verify the max packet size has reduced to the previous value.
+  EXPECT_EQ(probe_size, connection_.max_packet_length());
 }
 
 // Tests whether MTU discovery works when the writer has a limit on how large a

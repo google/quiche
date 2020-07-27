@@ -1167,6 +1167,11 @@ const QuicTime::Delta QuicSentPacketManager::GetNetworkBlackholeDelay(
       max_tail_loss_probes_ + num_rtos_for_blackhole_detection);
 }
 
+QuicTime::Delta QuicSentPacketManager::GetMtuReductionDelay(
+    int8_t num_rtos_for_blackhole_detection) const {
+  return GetNetworkBlackholeDelay(num_rtos_for_blackhole_detection / 2);
+}
+
 const QuicTime::Delta QuicSentPacketManager::GetCryptoRetransmissionDelay()
     const {
   // This is equivalent to the TailLossProbeDelay, but slightly more aggressive

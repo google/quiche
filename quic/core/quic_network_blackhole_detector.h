@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -34,6 +35,9 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
 
     // Called when the path blackhole alarm fires.
     virtual void OnBlackholeDetected() = 0;
+
+    // Called when the path mtu reduction alarm fires.
+    virtual void OnPathMtuReductionDetected() = 0;
   };
 
   QuicNetworkBlackholeDetector(Delegate* delegate,
@@ -43,11 +47,12 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   // Called to stop all detections.
   void StopDetection();
 
-  // Called to restart path degrading or/and blackhole detections. Please note,
-  // if both deadlines are set, |blackhole_deadline| must be later than
-  // |path_degrading_deadline|.
+  // Called to restart path degrading, path mtu reduction and blackhole
+  // detections. Please note, if |blackhole_deadline| is set, it must be the
+  // furthest in the future of all deadlines.
   void RestartDetection(QuicTime path_degrading_deadline,
-                        QuicTime blackhole_deadline);
+                        QuicTime blackhole_deadline,
+                        QuicTime path_mtu_reduction_deadline);
 
   // Called when |alarm_| fires.
   void OnAlarm();
@@ -55,18 +60,32 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   // Returns true if |alarm_| is set.
   bool IsDetectionInProgress() const;
 
+  bool revert_mtu_after_two_ptos() const { return revert_mtu_after_two_ptos_; }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicNetworkBlackholeDetectorPeer;
 
+  QuicTime GetEarliestDeadline() const;
+  QuicTime GetLastDeadline() const;
+
+  // Update alarm to the next deadline.
+  void UpdateAlarm() const;
+
   Delegate* delegate_;  // Not owned.
+
+  const bool revert_mtu_after_two_ptos_ =
+      GetQuicReloadableFlag(quic_revert_mtu_after_two_ptos);
 
   // Time that Delegate::OnPathDegrading will be called. 0 means no path
   // degrading detection is in progress.
-  QuicTime path_degrading_deadline_;
+  QuicTime path_degrading_deadline_ = QuicTime::Zero();
   // Time that Delegate::OnBlackholeDetected will be called. 0 means no
   // blackhole detection is in progress.
-  QuicTime blackhole_deadline_;
+  QuicTime blackhole_deadline_ = QuicTime::Zero();
+  // Time that Delegate::OnPathMtuReductionDetected will be called. 0 means no
+  // path mtu reduction detection is in progress.
+  QuicTime path_mtu_reduction_deadline_ = QuicTime::Zero();
 
   QuicArenaScopedPtr<QuicAlarm> alarm_;
 };

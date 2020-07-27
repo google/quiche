@@ -356,6 +356,12 @@ QuicTime QuicConnectionPeer::GetBlackholeDetectionDeadline(
 }
 
 // static
+QuicTime QuicConnectionPeer::GetPathMtuReductionDetectionDeadline(
+    QuicConnection* connection) {
+  return connection->blackhole_detector_.path_mtu_reduction_deadline_;
+}
+
+// static
 QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
     QuicConnection* connection) {
   return connection->idle_network_detector_.alarm_.get();

@@ -612,6 +612,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // QuicNetworkBlackholeDetector::Delegate
   void OnPathDegradingDetected() override;
   void OnBlackholeDetected() override;
+  void OnPathMtuReductionDetected() override;
 
   // QuicIdleNetworkDetector::Delegate
   void OnHandshakeTimeout() override;
@@ -1292,10 +1293,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |supports_release_time_| is false.
   QuicTime CalculatePacketSentTime();
 
-  // We've got a packet write error, should we ignore it?
-  // NOTE: This is not a const function - if return true, the max packet size is
-  // reverted to a previous(smaller) value to avoid write errors in the future.
-  bool ShouldIgnoreWriteError();
+  // If we have a previously validate MTU value, e.g. due to a write error,
+  // revert to it and disable MTU discovery.
+  // Return true iff we reverted to a previously validate MTU.
+  bool MaybeRevertToPreviousMtu();
+
+  QuicTime GetPathMtuReductionDeadline() const;
 
   // Returns path degrading deadline. QuicTime::Zero() means no path degrading
   // detection is needed.

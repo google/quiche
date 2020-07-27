@@ -2721,7 +2721,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         << ", previous_validated_mtu_:" << previous_validated_mtu_
         << ", max_packet_length():" << max_packet_length()
         << ", is_mtu_discovery:" << is_mtu_discovery;
-    if (ShouldIgnoreWriteError()) {
+    if (MaybeRevertToPreviousMtu()) {
       return true;
     }
 
@@ -2752,7 +2752,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       // because either both detections are inactive when sending last packet
       // or this connection just gets out of quiescence.
       blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
-                                           GetNetworkBlackholeDeadline());
+                                           GetNetworkBlackholeDeadline(),
+                                           GetPathMtuReductionDeadline());
     }
     idle_network_detector_.OnPacketSent(packet_send_time);
   }
@@ -2824,7 +2825,7 @@ void QuicConnection::FlushPackets() {
     return;
   }
 
-  if (IsWriteError(result.status) && !ShouldIgnoreWriteError()) {
+  if (IsWriteError(result.status) && !MaybeRevertToPreviousMtu()) {
     OnWriteError(result.error_code);
   }
 }
@@ -2854,7 +2855,22 @@ bool QuicConnection::ShouldDiscardPacket(EncryptionLevel encryption_level) {
   return false;
 }
 
-bool QuicConnection::ShouldIgnoreWriteError() {
+QuicTime QuicConnection::GetPathMtuReductionDeadline() const {
+  if (!blackhole_detector_.revert_mtu_after_two_ptos()) {
+    return QuicTime::Zero();
+  }
+  if (previous_validated_mtu_ == 0) {
+    return QuicTime::Zero();
+  }
+  QuicTime::Delta delay = sent_packet_manager_.GetMtuReductionDelay(
+      num_rtos_for_blackhole_detection_);
+  if (delay.IsZero()) {
+    return QuicTime::Zero();
+  }
+  return clock_->ApproximateNow() + delay;
+}
+
+bool QuicConnection::MaybeRevertToPreviousMtu() {
   if (previous_validated_mtu_ == 0) {
     return false;
   }
@@ -4489,7 +4505,8 @@ void QuicConnection::OnForwardProgressMade() {
   if (sent_packet_manager_.HasInFlightPackets()) {
     // Restart detections if forward progress has been made.
     blackhole_detector_.RestartDetection(GetPathDegradingDeadline(),
-                                         GetNetworkBlackholeDeadline());
+                                         GetNetworkBlackholeDeadline(),
+                                         GetPathMtuReductionDeadline());
   } else {
     // Stop detections in quiecense.
     blackhole_detector_.StopDetection();
@@ -4637,6 +4654,15 @@ void QuicConnection::OnBlackholeDetected() {
                                         : " with no packets in flight.");
   CloseConnection(QUIC_TOO_MANY_RTOS, error_detail,
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
+void QuicConnection::OnPathMtuReductionDetected() {
+  DCHECK(blackhole_detector_.revert_mtu_after_two_ptos());
+  if (MaybeRevertToPreviousMtu()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_revert_mtu_after_two_ptos, 1, 2);
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_revert_mtu_after_two_ptos, 2, 2);
+  }
 }
 
 void QuicConnection::OnHandshakeTimeout() {

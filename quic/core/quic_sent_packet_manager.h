@@ -215,6 +215,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   const QuicTime::Delta GetNetworkBlackholeDelay(
       int8_t num_rtos_for_blackhole_detection) const;
 
+  // Returns the delay before reducing max packet size. This delay is guranteed
+  // to be smaller than the network blackhole delay.
+  QuicTime::Delta GetMtuReductionDelay(
+      int8_t num_rtos_for_blackhole_detection) const;
+
   const RttStats* GetRttStats() const { return &rtt_stats_; }
 
   // Returns the estimated bandwidth calculated by the congestion algorithm.
