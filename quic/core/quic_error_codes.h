@@ -437,6 +437,11 @@ enum QuicErrorCode {
   // Received mismatched SETTINGS frame from HTTP/3 connection where early data
   // is rejected. Our implementation currently doesn't support it.
   QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH = 165,
+  // Client received GOAWAY frame with stream ID that is not for a
+  // client-initiated bidirectional stream.
+  QUIC_HTTP_GOAWAY_INVALID_STREAM_ID = 166,
+  // Received GOAWAY frame with ID that is greater than previously received ID.
+  QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS = 167,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -485,7 +490,7 @@ enum QuicErrorCode {
   QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED = 163,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 166,
+  QUIC_LAST_ERROR = 168,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

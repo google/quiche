@@ -1114,6 +1114,29 @@ TEST_P(QuicSpdySessionTestServer, InvalidGoAway) {
   session_.OnGoAway(go_away);
 }
 
+TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  if (!GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
+    return;
+  }
+
+  EXPECT_FALSE(session_.http3_goaway_received());
+  PushId push_id1 = 0;
+  session_.OnHttp3GoAway(push_id1);
+  EXPECT_TRUE(session_.http3_goaway_received());
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
+          "GOAWAY received with ID 1 greater than previously received ID 0",
+          _));
+  PushId push_id2 = 1;
+  session_.OnHttp3GoAway(push_id2);
+}
+
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
@@ -2831,14 +2854,45 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(
-          QUIC_INVALID_STREAM_ID,
-          "GOAWAY's last stream id has to point to a request stream", _));
+  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
+                                "GOAWAY with invalid stream ID", _));
+  } else {
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(
+            QUIC_INVALID_STREAM_ID,
+            "GOAWAY's last stream id has to point to a request stream", _));
+  }
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   session_.OnHttp3GoAway(stream_id);
+}
+
+TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  if (!GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
+    return;
+  }
+
+  EXPECT_FALSE(session_.http3_goaway_received());
+  QuicStreamId stream_id1 =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  session_.OnHttp3GoAway(stream_id1);
+  EXPECT_TRUE(session_.http3_goaway_received());
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
+          "GOAWAY received with ID 4 greater than previously received ID 0",
+          _));
+  QuicStreamId stream_id2 =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 1);
+  session_.OnHttp3GoAway(stream_id2);
 }
 
 // Test that receipt of CANCEL_PUSH frame does not result in closing the

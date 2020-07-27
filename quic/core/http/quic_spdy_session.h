@@ -351,7 +351,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   Http3DebugVisitor* debug_visitor() { return debug_visitor_; }
 
-  bool http3_goaway_received() const { return http3_goaway_received_; }
+  bool http3_goaway_received() const {
+    return last_received_http3_goaway_id_.has_value();
+  }
 
   bool http3_goaway_sent() const { return http3_goaway_sent_; }
 
@@ -577,8 +579,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Server push is enabled for a client by calling SetMaxPushId().
   bool ietf_server_push_enabled_;
 
-  // If the endpoint has received HTTP/3 GOAWAY frame.
-  bool http3_goaway_received_;
+  // The identifier in the most recently received GOAWAY frame.  Unset if no
+  // GOAWAY frame has been received yet.
+  quiche::QuicheOptional<uint64_t> last_received_http3_goaway_id_;
   // If the endpoint has sent HTTP/3 GOAWAY frame.
   bool http3_goaway_sent_;
 

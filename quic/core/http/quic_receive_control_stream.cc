@@ -10,6 +10,8 @@
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -105,7 +107,9 @@ bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {
     return false;
   }
 
-  if (spdy_session()->perspective() == Perspective::IS_SERVER) {
+  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_http3_goaway_new_behavior);
+  } else if (spdy_session()->perspective() == Perspective::IS_SERVER) {
     OnWrongFrame("Go Away");
     return false;
   }
