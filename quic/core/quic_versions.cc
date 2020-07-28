@@ -45,7 +45,7 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
   const bool enable = should_enable;
   const bool disable = !should_enable;
   if (version == ParsedQuicVersion::Draft29()) {
-    SetQuicReloadableFlag(quic_enable_version_draft_29, enable);
+    SetQuicReloadableFlag(quic_disable_version_draft_29, disable);
   } else if (version == ParsedQuicVersion::Draft27()) {
     SetQuicReloadableFlag(quic_disable_version_draft_27, disable);
   } else if (version == ParsedQuicVersion::Draft25()) {
@@ -59,7 +59,7 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
   } else if (version == ParsedQuicVersion::Q043()) {
     SetQuicReloadableFlag(quic_disable_version_q043, disable);
   } else {
-    QUIC_BUG << "Cannot " << (should_enable ? "en" : "dis") << "able version "
+    QUIC_BUG << "Cannot " << (enable ? "en" : "dis") << "able version "
              << version;
   }
 }
@@ -440,7 +440,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
   for (const ParsedQuicVersion& version : versions) {
     if (version.transport_version == QUIC_VERSION_IETF_DRAFT_29) {
       QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3);
-      if (GetQuicReloadableFlag(quic_enable_version_draft_29)) {
+      if (!GetQuicReloadableFlag(quic_disable_version_draft_29)) {
         filtered_versions.push_back(version);
       }
     } else if (version.transport_version == QUIC_VERSION_IETF_DRAFT_27) {

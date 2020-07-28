@@ -20,13 +20,12 @@ class QuicVersionManagerTest : public QuicTest {};
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync");
-  SetQuicReloadableFlag(quic_enable_version_draft_29, false);
-  SetQuicReloadableFlag(quic_disable_version_draft_27, true);
-  SetQuicReloadableFlag(quic_disable_version_draft_25, true);
-  SetQuicReloadableFlag(quic_disable_version_t050, false);
-  SetQuicReloadableFlag(quic_disable_version_q050, false);
-  SetQuicReloadableFlag(quic_disable_version_q046, false);
-  SetQuicReloadableFlag(quic_disable_version_q043, false);
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    QuicEnableVersion(version);
+  }
+  QuicDisableVersion(ParsedQuicVersion::Draft29());
+  QuicDisableVersion(ParsedQuicVersion::Draft27());
+  QuicDisableVersion(ParsedQuicVersion::Draft25());
   QuicVersionManager manager(AllSupportedVersions());
 
   ParsedQuicVersionVector expected_parsed_versions;
@@ -48,7 +47,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_enable_version_draft_29, true);
+  QuicEnableVersion(ParsedQuicVersion::Draft29());
   expected_parsed_versions.insert(expected_parsed_versions.begin(),
                                   ParsedQuicVersion::Draft29());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
@@ -61,7 +60,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   EXPECT_THAT(manager.GetSupportedAlpns(),
               ElementsAre("h3-29", "h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_disable_version_draft_27, false);
+  QuicEnableVersion(ParsedQuicVersion::Draft27());
   expected_parsed_versions.insert(
       expected_parsed_versions.begin() + 1,
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
@@ -76,7 +75,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
               ElementsAre("h3-29", "h3-27", "h3-T050", "h3-Q050", "h3-Q046",
                           "h3-Q043"));
 
-  SetQuicReloadableFlag(quic_disable_version_draft_25, false);
+  QuicEnableVersion(ParsedQuicVersion::Draft25());
   expected_parsed_versions.insert(
       expected_parsed_versions.begin() + 2,
       ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
