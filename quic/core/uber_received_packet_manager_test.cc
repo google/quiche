@@ -299,7 +299,7 @@ TEST_F(UberReceivedPacketManagerTest, AckReceiptCausesAckSend) {
 
 TEST_F(UberReceivedPacketManagerTest, AckSentEveryNthPacket) {
   EXPECT_FALSE(HasPendingAck());
-  manager_->set_ack_frequency_before_ack_decimation(3);
+  manager_->set_ack_frequency(3);
 
   // Receives packets 1 - 39.
   for (size_t i = 1; i <= 39; ++i) {

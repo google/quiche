@@ -78,8 +78,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   size_t min_received_before_ack_decimation() const;
   void set_min_received_before_ack_decimation(size_t new_value);
 
-  size_t ack_frequency_before_ack_decimation() const;
-  void set_ack_frequency_before_ack_decimation(size_t new_value);
+  void set_ack_frequency(size_t new_value);
 
   bool supports_multiple_packet_number_spaces() const {
     return supports_multiple_packet_number_spaces_;
@@ -91,8 +90,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
 
   void set_max_ack_ranges(size_t max_ack_ranges);
 
-  // Get and set the max ack delay to use for application data.
-  QuicTime::Delta max_ack_delay();
+  // Set the max ack delay to use for application data.
   void set_max_ack_delay(QuicTime::Delta max_ack_delay);
 
   void set_save_timestamps(bool save_timestamps);

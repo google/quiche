@@ -352,7 +352,7 @@ TEST_P(QuicReceivedPacketManagerTest, AckReceiptCausesAckSend) {
 
 TEST_P(QuicReceivedPacketManagerTest, AckSentEveryNthPacket) {
   EXPECT_FALSE(HasPendingAck());
-  received_manager_.set_ack_frequency_before_ack_decimation(3);
+  received_manager_.set_ack_frequency(3);
 
   // Receives packets 1 - 39.
   for (size_t i = 1; i <= 39; ++i) {

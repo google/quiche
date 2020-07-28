@@ -113,15 +113,11 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
     min_received_before_ack_decimation_ = new_value;
   }
 
-  size_t ack_frequency_before_ack_decimation() const {
-    return ack_frequency_before_ack_decimation_;
-  }
-  void set_ack_frequency_before_ack_decimation(size_t new_value) {
+  void set_ack_frequency(size_t new_value) {
     DCHECK_GT(new_value, 0u);
-    ack_frequency_before_ack_decimation_ = new_value;
+    ack_frequency_ = new_value;
   }
 
-  QuicTime::Delta local_max_ack_delay() const { return local_max_ack_delay_; }
   void set_local_max_ack_delay(QuicTime::Delta local_max_ack_delay) {
     local_max_ack_delay_ = local_max_ack_delay;
   }
@@ -135,6 +131,12 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   // Sets ack_timeout_ to |time| if ack_timeout_ is not initialized or > time.
   void MaybeUpdateAckTimeoutTo(QuicTime time);
+
+  // Maybe update ack_frequency_ when condition meets.
+  void MaybeUpdateAckFrequency(QuicPacketNumber last_received_packet_number);
+
+  QuicTime::Delta GetMaxAckDelay(QuicPacketNumber last_received_packet_number,
+                                 const RttStats& rtt_stats) const;
 
   // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
@@ -168,8 +170,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   QuicPacketCount num_retransmittable_packets_received_since_last_ack_sent_;
   // Ack decimation will start happening after this many packets are received.
   size_t min_received_before_ack_decimation_;
-  // Before ack decimation starts (if enabled), we ack every n-th packet.
-  size_t ack_frequency_before_ack_decimation_;
+  // Ack every n-th packet.
+  size_t ack_frequency_;
   // The max delay in fraction of min_rtt to use when sending decimated acks.
   float ack_decimation_delay_;
   // When true, removes ack decimation's max number of packets(10) before
@@ -199,6 +201,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // fast_ack_after_quiescence_ when this flag is deprecated.
   const bool remove_unused_ack_options_ =
       GetQuicReloadableFlag(quic_remove_unused_ack_options);
+
+  const bool simplify_received_packet_manager_ack_ =
+      remove_unused_ack_options_ &&
+      GetQuicReloadableFlag(quic_simplify_received_packet_manager_ack);
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;

@@ -4601,14 +4601,9 @@ void QuicConnection::set_min_received_before_ack_decimation(size_t new_value) {
       new_value);
 }
 
-size_t QuicConnection::ack_frequency_before_ack_decimation() const {
-  return uber_received_packet_manager_.ack_frequency_before_ack_decimation();
-}
-
-void QuicConnection::set_ack_frequency_before_ack_decimation(size_t new_value) {
+void QuicConnection::set_ack_frequency(size_t new_value) {
   DCHECK_GT(new_value, 0u);
-  uber_received_packet_manager_.set_ack_frequency_before_ack_decimation(
-      new_value);
+  uber_received_packet_manager_.set_ack_frequency(new_value);
 }
 
 const QuicAckFrame& QuicConnection::ack_frame() const {

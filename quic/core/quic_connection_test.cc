@@ -2936,7 +2936,7 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
 }
 
 TEST_P(QuicConnectionTest, AckSentEveryNthPacket) {
-  connection_.set_ack_frequency_before_ack_decimation(3);
+  connection_.set_ack_frequency(3);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(39);
