@@ -654,6 +654,7 @@ TEST_F(BbrSenderTest, Drain) {
 // TODO(wub): Re-enable this test once default drain_gain changed to 0.75.
 // Verify that the DRAIN phase works correctly.
 TEST_F(BbrSenderTest, DISABLED_ShallowDrain) {
+  // TODO(haoyuewang) Remove this when TCP_ACKING is deprecated.
   // Disable Ack Decimation on the receiver, because it can increase srtt.
   QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
 
@@ -767,7 +768,7 @@ TEST_F(BbrSenderTest, InFlightAwareGainCycling) {
     EXPECT_EQ(BbrSender::PROBE_BW, sender_->ExportDebugState().mode);
     EXPECT_EQ(0, sender_->ExportDebugState().gain_cycle_index);
     EXPECT_APPROX_EQ(kTestLinkBandwidth,
-                     sender_->ExportDebugState().max_bandwidth, 0.01f);
+                     sender_->ExportDebugState().max_bandwidth, 0.02f);
   }
 
   // Now that in-flight is almost zero and the pacing gain is still above 1,
