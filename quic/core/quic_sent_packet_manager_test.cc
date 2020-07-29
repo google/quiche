@@ -4140,6 +4140,56 @@ TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPR) {
       QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
 }
 
+TEST_F(QuicSentPacketManagerTest, PtoWithTlpr) {
+  SetQuicReloadableFlag(quic_use_half_rtt_as_first_pto, true);
+  QuicConfig config;
+  QuicTagVector options;
+
+  options.push_back(kTLPR);
+  options.push_back(k1PTO);
+  options.push_back(kPTOS);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillOnce(Return(10 * kDefaultTCPMSS));
+  manager_.SetFromConfig(config);
+  EXPECT_TRUE(
+      QuicSentPacketManagerPeer::GetEnableHalfRttTailLossProbe(&manager_));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+  QuicTime::Delta srtt = rtt_stats->smoothed_rtt();
+  manager_.SetHandshakeConfirmed();
+
+  SendDataPacket(1, ENCRYPTION_FORWARD_SECURE);
+  // Verify PTO is correctly set.
+  QuicTime::Delta expected_pto_delay = 0.5 * srtt;
+  QuicTime deadline = clock_.Now() + expected_pto_delay;
+  EXPECT_EQ(deadline, manager_.GetRetransmissionTime());
+
+  // Invoke PTO.
+  clock_.AdvanceTime(deadline - clock_.Now());
+  manager_.OnRetransmissionTimeout();
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
+      .WillOnce(WithArgs<1>(Invoke([this](TransmissionType type) {
+        RetransmitDataPacket(3, type, ENCRYPTION_FORWARD_SECURE);
+      })));
+  manager_.MaybeSendProbePackets();
+
+  // Verify PTO period gets set correctly.
+  int pto_rttvar_multiplier =
+      GetQuicReloadableFlag(quic_default_on_pto) ? 2 : 4;
+  expected_pto_delay =
+      srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+  QuicTime sent_time = clock_.Now();
+  EXPECT_EQ(sent_time + expected_pto_delay * 2,
+            manager_.GetRetransmissionTime());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
