@@ -199,7 +199,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns the number of bytes that the packet will expand by when a new frame
   // is going to be added. |last_frame| is the last frame of the packet.
-  size_t ExpansionOnNewFrameWithLastFrame(const QuicFrame& last_frame) const;
+  static size_t ExpansionOnNewFrameWithLastFrame(const QuicFrame& last_frame,
+                                                 QuicTransportVersion version);
 
   // Returns the number of bytes in the current packet, including the header,
   // if serialized with the current frames.  Adding a frame to the packet

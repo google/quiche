@@ -704,11 +704,14 @@ size_t QuicPacketCreator::ExpansionOnNewFrame() const {
   if (queued_frames_.empty()) {
     return 0;
   }
-  return ExpansionOnNewFrameWithLastFrame(queued_frames_.back());
+  return ExpansionOnNewFrameWithLastFrame(queued_frames_.back(),
+                                          framer_->transport_version());
 }
 
+// static
 size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
-    const QuicFrame& last_frame) const {
+    const QuicFrame& last_frame,
+    QuicTransportVersion version) {
   if (last_frame.type == MESSAGE_FRAME) {
     return QuicDataWriter::GetVarInt62Len(
         last_frame.message_frame->message_length);
@@ -716,7 +719,7 @@ size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
   if (last_frame.type != STREAM_FRAME) {
     return 0;
   }
-  if (VersionHasIetfQuicFrames(framer_->transport_version())) {
+  if (VersionHasIetfQuicFrames(version)) {
     return QuicDataWriter::GetVarInt62Len(last_frame.stream_frame.data_length);
   }
   return kQuicStreamPayloadLengthSize;
@@ -1592,9 +1595,9 @@ size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
   size_t bytes_free = BytesFree() - serialized_frame_length;
   // Extra bytes needed (this is NOT padding needed) should be at least 1
   // padding + expansion.
-  const size_t extra_bytes_needed =
-      std::max(1 + ExpansionOnNewFrameWithLastFrame(frame),
-               MinPlaintextPacketSize(framer_->version()) - frame_bytes);
+  const size_t extra_bytes_needed = std::max(
+      1 + ExpansionOnNewFrameWithLastFrame(frame, framer_->transport_version()),
+      MinPlaintextPacketSize(framer_->version()) - frame_bytes);
   if (bytes_free < extra_bytes_needed) {
     // This frame does not fit.
     return 0;
