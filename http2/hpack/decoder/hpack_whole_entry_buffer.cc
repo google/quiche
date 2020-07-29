@@ -93,7 +93,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
   if (!error_detected_) {
     if (len > max_string_size_bytes_) {
       std::string detailed_error = quiche::QuicheStrCat(
-          "Value length (", len, ") of [", name_.str(),
+          "Value length (", len, ") of [", name_.GetStringIfComplete(),
           "] is longer than permitted (", max_string_size_bytes_, ")");
       HTTP2_DVLOG(1) << detailed_error;
       ReportError(HpackDecodingError::kValueTooLong, detailed_error);

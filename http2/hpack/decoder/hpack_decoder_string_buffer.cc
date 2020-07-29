@@ -194,6 +194,14 @@ quiche::QuicheStringPiece HpackDecoderStringBuffer::str() const {
   return value_;
 }
 
+quiche::QuicheStringPiece HpackDecoderStringBuffer::GetStringIfComplete()
+    const {
+  if (state_ != State::COMPLETE) {
+    return {};
+  }
+  return str();
+}
+
 std::string HpackDecoderStringBuffer::ReleaseString() {
   HTTP2_DVLOG(3) << "HpackDecoderStringBuffer::ReleaseString";
   DCHECK_EQ(state_, State::COMPLETE);

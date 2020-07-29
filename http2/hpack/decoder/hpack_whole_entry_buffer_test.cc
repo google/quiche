@@ -180,6 +180,16 @@ TEST_F(HpackWholeEntryBufferTest, ValueTooLong) {
   entry_buffer_.OnValueStart(false, kMaxStringSize + 1);
 }
 
+// Regression test for b/162141899.
+TEST_F(HpackWholeEntryBufferTest, ValueTooLongWithoutName) {
+  entry_buffer_.OnStartLiteralHeader(HpackEntryType::kIndexedLiteralHeader, 1);
+  EXPECT_CALL(listener_,
+              OnHpackDecodeError(
+                  HpackDecodingError::kValueTooLong,
+                  "Value length (21) of [] is longer than permitted (20)"));
+  entry_buffer_.OnValueStart(false, kMaxStringSize + 1);
+}
+
 // Verify that a Huffman encoded name with an explicit EOS generates an error
 // for an explicit EOS.
 TEST_F(HpackWholeEntryBufferTest, NameHuffmanError) {

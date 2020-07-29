@@ -53,6 +53,9 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
   // transport buffers).
   quiche::QuicheStringPiece str() const;
 
+  // Same as str() if state_ is COMPLETE. Otherwise, returns empty string piece.
+  quiche::QuicheStringPiece GetStringIfComplete() const;
+
   // Returns the completely collected string by value, using std::move in an
   // effort to avoid unnecessary copies. ReleaseString() must not be called
   // unless the string has been buffered (to avoid forcing a potentially
