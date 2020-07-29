@@ -384,15 +384,17 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // or it's time for high gain mode.
   bool drain_to_target_;
 
-  // True if network parameters are adjusted, and this will be reset if
-  // overshooting is detected and pacing rate gets slowed.
-  bool network_parameters_adjusted_;
-  // Bytes lost after network parameters gets adjusted.
-  QuicByteCount bytes_lost_with_network_parameters_adjusted_;
-  // Decrease pacing rate after parameters adjusted if
-  // bytes_lost_with_network_parameters_adjusted_ *
-  // bytes_lost_multiplier_with_network_parameters_adjusted_ > IW.
-  uint8_t bytes_lost_multiplier_with_network_parameters_adjusted_;
+  // If true, slow down pacing rate in STARTUP when overshooting is detected.
+  bool detect_overshooting_;
+  // Bytes lost while detect_overshooting_ is true.
+  QuicByteCount bytes_lost_while_detecting_overshooting_;
+  // Slow down pacing rate if
+  // bytes_lost_while_detecting_overshooting_ *
+  // bytes_lost_multiplier_while_detecting_overshooting_ > IW.
+  uint8_t bytes_lost_multiplier_while_detecting_overshooting_;
+  // When overshooting is detected, do not drop pacing_rate_ below this value /
+  // min_rtt.
+  QuicByteCount cwnd_to_calculate_min_pacing_rate_;
 
   // Max congestion window when adjusting network parameters.
   QuicByteCount max_congestion_window_with_network_parameters_adjusted_;

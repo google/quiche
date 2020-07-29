@@ -120,9 +120,10 @@ BbrSender::BbrSender(QuicTime now,
       enable_ack_aggregation_during_startup_(false),
       expire_ack_aggregation_in_startup_(false),
       drain_to_target_(false),
-      network_parameters_adjusted_(false),
-      bytes_lost_with_network_parameters_adjusted_(0),
-      bytes_lost_multiplier_with_network_parameters_adjusted_(2),
+      detect_overshooting_(false),
+      bytes_lost_while_detecting_overshooting_(0),
+      bytes_lost_multiplier_while_detecting_overshooting_(2),
+      cwnd_to_calculate_min_pacing_rate_(initial_congestion_window_),
       max_congestion_window_with_network_parameters_adjusted_(
           kMaxInitialCongestionWindow * kDefaultTCPMSS) {
   if (stats_) {
@@ -142,6 +143,8 @@ void BbrSender::SetInitialCongestionWindowInPackets(
   if (mode_ == STARTUP) {
     initial_congestion_window_ = congestion_window * kDefaultTCPMSS;
     congestion_window_ = congestion_window * kDefaultTCPMSS;
+    cwnd_to_calculate_min_pacing_rate_ = std::min(
+        initial_congestion_window_, cwnd_to_calculate_min_pacing_rate_);
   }
 }
 
@@ -254,10 +257,10 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     drain_to_target_ = true;
   }
   if (config.HasClientRequestedIndependentOption(kBWM3, perspective)) {
-    bytes_lost_multiplier_with_network_parameters_adjusted_ = 3;
+    bytes_lost_multiplier_while_detecting_overshooting_ = 3;
   }
   if (config.HasClientRequestedIndependentOption(kBWM4, perspective)) {
-    bytes_lost_multiplier_with_network_parameters_adjusted_ = 4;
+    bytes_lost_multiplier_while_detecting_overshooting_ = 4;
   }
   if (config.HasClientRequestedIndependentOption(kBBR4, perspective)) {
     sampler_.SetMaxAckHeightTrackerWindowLength(2 * kBandwidthWindowSize);
@@ -287,6 +290,15 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kICW1, perspective)) {
     max_congestion_window_with_network_parameters_adjusted_ =
         100 * kDefaultTCPMSS;
+  }
+  if (GetQuicReloadableFlag(quic_enable_overshooting_detection) &&
+      config.HasClientRequestedIndependentOption(kDTOS, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_overshooting_detection);
+    detect_overshooting_ = true;
+    // DTOS would allow pacing rate drop to IW 10 / min_rtt if overshooting is
+    // detected.
+    cwnd_to_calculate_min_pacing_rate_ =
+        std::min(initial_congestion_window_, 10 * kDefaultTCPMSS);
   }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
@@ -354,7 +366,7 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       QuicBandwidth new_pacing_rate =
           QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
       pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
-      network_parameters_adjusted_ = true;
+      detect_overshooting_ = true;
     }
   }
 }
@@ -766,29 +778,27 @@ void BbrSender::CalculatePacingRate(QuicByteCount bytes_lost) {
     return;
   }
 
-  if (network_parameters_adjusted_) {
-    bytes_lost_with_network_parameters_adjusted_ += bytes_lost;
+  if (detect_overshooting_) {
+    bytes_lost_while_detecting_overshooting_ += bytes_lost;
     // Check for overshooting with network parameters adjusted when pacing rate
     // > target_rate and loss has been detected.
     if (pacing_rate_ > target_rate &&
-        bytes_lost_with_network_parameters_adjusted_ > 0) {
+        bytes_lost_while_detecting_overshooting_ > 0) {
       if (has_non_app_limited_sample_ ||
-          bytes_lost_with_network_parameters_adjusted_ *
-                  bytes_lost_multiplier_with_network_parameters_adjusted_ >
+          bytes_lost_while_detecting_overshooting_ *
+                  bytes_lost_multiplier_while_detecting_overshooting_ >
               initial_congestion_window_) {
         // We are fairly sure overshoot happens if 1) there is at least one
         // non app-limited bw sample or 2) half of IW gets lost. Slow pacing
         // rate.
-        // Do not let the pacing rate drop below the connection's initial pacing
-        // rate.
-        pacing_rate_ =
-            std::max(target_rate, QuicBandwidth::FromBytesAndTimeDelta(
-                                      initial_congestion_window_, GetMinRtt()));
+        pacing_rate_ = std::max(
+            target_rate, QuicBandwidth::FromBytesAndTimeDelta(
+                             cwnd_to_calculate_min_pacing_rate_, GetMinRtt()));
         if (stats_) {
           stats_->overshooting_detected_with_network_parameters_adjusted = true;
         }
-        bytes_lost_with_network_parameters_adjusted_ = 0;
-        network_parameters_adjusted_ = false;
+        bytes_lost_while_detecting_overshooting_ = 0;
+        detect_overshooting_ = false;
       }
     }
   }

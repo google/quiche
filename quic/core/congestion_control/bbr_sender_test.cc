@@ -1298,5 +1298,21 @@ TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
   EXPECT_EQ(prior_bandwidth_estimate, sender_->BandwidthEstimate());
 }
 
+TEST_F(BbrSenderTest, EnableOvershootingDetection) {
+  if (!GetQuicReloadableFlag(quic_enable_overshooting_detection)) {
+    return;
+  }
+  SetConnectionOption(kDTOS);
+  CreateSmallBufferSetup();
+  // Set a overly large initial cwnd.
+  sender_->SetInitialCongestionWindowInPackets(200);
+  const QuicConnectionStats& stats = bbr_sender_.connection()->GetStats();
+  EXPECT_FALSE(stats.overshooting_detected_with_network_parameters_adjusted);
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(30));
+
+  // Verify overshooting is detected.
+  EXPECT_TRUE(stats.overshooting_detected_with_network_parameters_adjusted);
+}
+
 }  // namespace test
 }  // namespace quic
