@@ -13,6 +13,7 @@
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
+#include "third_party/boringssl/src/include/openssl/ec_key.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/nid.h"
 #include "third_party/boringssl/src/include/openssl/rsa.h"
@@ -459,6 +460,7 @@ std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(
 
 std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadPemFromStream(
     std::istream* input) {
+skip:
   PemReadResult result = ReadNextPemMessage(input);
   if (result.status != PemReadResult::kOk) {
     return nullptr;
@@ -478,6 +480,26 @@ std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadPemFromStream(
     std::unique_ptr<CertificatePrivateKey> key(new CertificatePrivateKey());
     key->private_key_.reset(EVP_PKEY_new());
     EVP_PKEY_assign_RSA(key->private_key_.get(), rsa.release());
+    return key;
+  }
+  // EC keys are sometimes generated with "openssl ecparam -genkey". If the user
+  // forgets -noout, OpenSSL will output a redundant copy of the EC parameters.
+  // Skip those.
+  if (result.type == "EC PARAMETERS") {
+    goto skip;
+  }
+  // Legacy OpenSSL format: RFC 5915 ECPrivateKey message.
+  if (result.type == "EC PRIVATE KEY") {
+    CBS private_key_cbs = StringPieceToCbs(result.contents);
+    bssl::UniquePtr<EC_KEY> ec_key(
+        EC_KEY_parse_private_key(&private_key_cbs, /*group=*/nullptr));
+    if (ec_key == nullptr || CBS_len(&private_key_cbs) != 0) {
+      return nullptr;
+    }
+
+    std::unique_ptr<CertificatePrivateKey> key(new CertificatePrivateKey());
+    key->private_key_.reset(EVP_PKEY_new());
+    EVP_PKEY_assign_EC_KEY(key->private_key_.get(), ec_key.release());
     return key;
   }
   // Unknown format.

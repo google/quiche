@@ -720,5 +720,15 @@ QUIC_CONST_INIT const quiche::QuicheStringPiece kWildcardCertificatePrivateKey(
     kWildcardCertificatePrivateKeyRaw,
     sizeof(kWildcardCertificatePrivateKeyRaw));
 
+QUIC_CONST_INIT const char kTestEcPrivateKeyLegacyPem[] =
+    R"(-----BEGIN EC PARAMETERS-----
+BggqhkjOPQMBBw==
+-----END EC PARAMETERS-----
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIMdjXX0hg399DlccZuYFXPKq+dMGduXWmQYClDYJNDGroAoGCCqGSM49
+AwEHoUQDQgAENCuPQTywFI8hbsGo68AeN1KVWmd09buzlu/2CAtsJcNoECUmpVXH
+4dwvWMv6zWn9RJ5EzI72R/5FVcO485s5MQ==
+-----END EC PRIVATE KEY-----)";
+
 }  // namespace test
 }  // namespace quic

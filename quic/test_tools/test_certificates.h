@@ -43,6 +43,9 @@ QUIC_CONST_INIT extern const quiche::QuicheStringPiece kWildcardCertificate;
 QUIC_CONST_INIT extern const quiche::QuicheStringPiece
     kWildcardCertificatePrivateKey;
 
+// PEM-encoded P-256 private key using legacy OpenSSL encoding.
+QUIC_CONST_INIT extern const char kTestEcPrivateKeyLegacyPem[];
+
 }  // namespace test
 }  // namespace quic
 
