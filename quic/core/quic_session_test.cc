@@ -2215,6 +2215,28 @@ TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
             kDefaultMinAckDelayTimeMs);
 }
 
+TEST_P(QuicSessionTestClient, FailedToCreateStreamIfTooCloseToIdleTimeout) {
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());
+  QuicTime deadline = QuicConnectionPeer::GetIdleNetworkDeadline(connection_);
+  ASSERT_TRUE(deadline.IsInitialized());
+  QuicTime::Delta timeout = deadline - helper_.GetClock()->ApproximateNow();
+  // Advance time to very close idle timeout.
+  connection_->AdvanceTime(timeout - QuicTime::Delta::FromMilliseconds(1));
+  // Verify creation of new stream gets pushed back and connectivity probing
+  // packet gets sent.
+  EXPECT_CALL(*connection_, SendConnectivityProbingPacket(_, _)).Times(1);
+  EXPECT_FALSE(session_.CanOpenNextOutgoingBidirectionalStream());
+
+  // New packet gets received, idle deadline gets extended.
+  EXPECT_CALL(session_, OnCanCreateNewOutgoingStream(false));
+  QuicConnectionPeer::GetIdleNetworkDetector(connection_)
+      .OnPacketReceived(helper_.GetClock()->ApproximateNow());
+  session_.OnPacketDecrypted(ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());
+}
+
 TEST_P(QuicSessionTestServer, ZombieStreams) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   QuicStreamPeer::SetStreamBytesWritten(3, stream2);

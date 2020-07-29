@@ -1576,5 +1576,12 @@ bool QuicSentPacketManager::PeerCompletedAddressValidation() const {
   return handshake_finished_ || handshake_packet_acked_;
 }
 
+bool QuicSentPacketManager::IsLessThanThreePTOs(QuicTime::Delta timeout) const {
+  const QuicTime::Delta retransmission_delay =
+      pto_enabled_ ? GetProbeTimeoutDelay(APPLICATION_DATA)
+                   : GetRetransmissionDelay();
+  return timeout < 3 * retransmission_delay;
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

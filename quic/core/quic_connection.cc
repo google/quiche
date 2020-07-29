@@ -639,6 +639,28 @@ void QuicConnection::EnableLegacyVersionEncapsulation(
   legacy_version_encapsulation_sni_ = server_name;
 }
 
+bool QuicConnection::MaybeTestLiveness() {
+  if (encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
+    return false;
+  }
+  const QuicTime idle_network_deadline =
+      idle_network_detector_.GetIdleNetworkDeadline();
+  if (!idle_network_deadline.IsInitialized()) {
+    return false;
+  }
+  const QuicTime now = clock_->ApproximateNow();
+  if (now > idle_network_deadline) {
+    QUIC_BUG << "Idle network deadline has passed";
+    return false;
+  }
+  const QuicTime::Delta timeout = idle_network_deadline - now;
+  if (!sent_packet_manager_.IsLessThanThreePTOs(timeout)) {
+    return false;
+  }
+  SendConnectivityProbingPacket(writer_, peer_address_);
+  return true;
+}
+
 void QuicConnection::ApplyConnectionOptions(
     const QuicTagVector& connection_options) {
   sent_packet_manager_.ApplyConnectionOptions(connection_options);

@@ -408,6 +408,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Called to retransmit in flight packet of |space| if any.
   void RetransmitDataOfSpaceIfAny(PacketNumberSpace space);
 
+  // Returns true if |timeout| is less than 3 * RTO/PTO delay.
+  bool IsLessThanThreePTOs(QuicTime::Delta timeout) const;
+
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }

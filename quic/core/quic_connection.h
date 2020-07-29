@@ -990,6 +990,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Can only be set if this is a client connection.
   void EnableLegacyVersionEncapsulation(const std::string& server_name);
 
+  // If now is close to idle timeout, returns true and sends a connectivity
+  // probing packet to test the connection for liveness. Otherwise, returns
+  // false.
+  bool MaybeTestLiveness();
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();

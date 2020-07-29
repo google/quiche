@@ -845,6 +845,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Whether the session has received a 0-RTT rejection (QUIC+TLS only).
   bool was_zero_rtt_rejected_;
 
+  // This indicates a liveness testing is in progress, and push back the
+  // creation of new outgoing bidirectional streams.
+  bool liveness_testing_in_progress_;
+
   // Latched value of flag quic_fix_gquic_stream_type.
   const bool fix_gquic_stream_type_;
 

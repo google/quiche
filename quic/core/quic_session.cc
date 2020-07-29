@@ -99,6 +99,7 @@ QuicSession::QuicSession(
       is_configured_(false),
       enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
+      liveness_testing_in_progress_(false),
       fix_gquic_stream_type_(GetQuicReloadableFlag(quic_fix_gquic_stream_type)),
       remove_streams_waiting_for_acks_(
           GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)),
@@ -264,6 +265,10 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
 void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
   GetMutableCryptoStream()->OnPacketDecrypted(level);
+  if (liveness_testing_in_progress_) {
+    liveness_testing_in_progress_ = false;
+    OnCanCreateNewOutgoingStream(/*unidirectional=*/false);
+  }
 }
 
 void QuicSession::OnOneRttPacketAcknowledged() {
@@ -1746,19 +1751,33 @@ QuicStreamId QuicSession::GetNextOutgoingUnidirectionalStreamId() {
 }
 
 bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
+  if (liveness_testing_in_progress_) {
+    DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+    return false;
+  }
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    return stream_id_manager_.CanOpenNextOutgoingStream();
+    if (!stream_id_manager_.CanOpenNextOutgoingStream()) {
+      return false;
+    }
+  } else {
+    if (!v99_streamid_manager_.CanOpenNextOutgoingBidirectionalStream()) {
+      if (is_configured_) {
+        // Send STREAM_BLOCKED after config negotiated.
+        control_frame_manager_.WriteOrBufferStreamsBlocked(
+            v99_streamid_manager_.max_outgoing_bidirectional_streams(),
+            /*unidirectional=*/false);
+      }
+      return false;
+    }
   }
-  if (v99_streamid_manager_.CanOpenNextOutgoingBidirectionalStream()) {
-    return true;
+  if (perspective() == Perspective::IS_CLIENT &&
+      connection_->MaybeTestLiveness()) {
+    // Now is relatively close to the idle timeout having the risk that requests
+    // could be discarded at the server.
+    liveness_testing_in_progress_ = true;
+    return false;
   }
-  if (is_configured_) {
-    // Send STREAM_BLOCKED after config negotiated.
-    control_frame_manager_.WriteOrBufferStreamsBlocked(
-        v99_streamid_manager_.max_outgoing_bidirectional_streams(),
-        /*unidirectional=*/false);
-  }
-  return false;
+  return true;
 }
 
 bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {

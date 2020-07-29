@@ -67,6 +67,8 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
 
   QuicTime::Delta idle_network_timeout() const { return idle_network_timeout_; }
 
+  QuicTime GetIdleNetworkDeadline() const;
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicIdleNetworkDetectorTestPeer;

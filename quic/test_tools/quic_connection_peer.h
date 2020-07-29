@@ -146,6 +146,11 @@ class QuicConnectionPeer {
 
   static QuicAlarm* GetIdleNetworkDetectorAlarm(QuicConnection* connection);
 
+  static QuicTime GetIdleNetworkDeadline(QuicConnection* connection);
+
+  static QuicIdleNetworkDetector& GetIdleNetworkDetector(
+      QuicConnection* connection);
+
   static void SetServerConnectionId(
       QuicConnection* connection,
       const QuicConnectionId& server_connection_id);

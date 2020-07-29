@@ -362,9 +362,21 @@ QuicTime QuicConnectionPeer::GetPathMtuReductionDetectionDeadline(
 }
 
 // static
+QuicTime QuicConnectionPeer::GetIdleNetworkDeadline(
+    QuicConnection* connection) {
+  return connection->idle_network_detector_.GetIdleNetworkDeadline();
+}
+
+// static
 QuicAlarm* QuicConnectionPeer::GetIdleNetworkDetectorAlarm(
     QuicConnection* connection) {
   return connection->idle_network_detector_.alarm_.get();
+}
+
+// static
+QuicIdleNetworkDetector& QuicConnectionPeer::GetIdleNetworkDetector(
+    QuicConnection* connection) {
+  return connection->idle_network_detector_;
 }
 
 // static

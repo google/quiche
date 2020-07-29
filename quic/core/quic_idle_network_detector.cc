@@ -95,8 +95,7 @@ void QuicIdleNetworkDetector::SetAlarm() {
     new_deadline = start_time_ + handshake_timeout_;
   }
   if (!idle_network_timeout_.IsInfinite()) {
-    const QuicTime idle_network_deadline =
-        last_network_activity_time() + idle_network_timeout_;
+    const QuicTime idle_network_deadline = GetIdleNetworkDeadline();
     if (new_deadline.IsInitialized()) {
       new_deadline = std::min(new_deadline, idle_network_deadline);
     } else {
@@ -104,6 +103,13 @@ void QuicIdleNetworkDetector::SetAlarm() {
     }
   }
   alarm_->Update(new_deadline, kAlarmGranularity);
+}
+
+QuicTime QuicIdleNetworkDetector::GetIdleNetworkDeadline() const {
+  if (idle_network_timeout_.IsInfinite()) {
+    return QuicTime::Zero();
+  }
+  return last_network_activity_time() + idle_network_timeout_;
 }
 
 }  // namespace quic
