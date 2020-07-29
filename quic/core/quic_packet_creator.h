@@ -655,7 +655,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early);
 
   const bool coalesced_packet_of_higher_space_ =
-      GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space);
+      GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);
 };
 
 }  // namespace quic

@@ -10444,7 +10444,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
                            _, _));
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     // Verify 1-RTT packet gets coalesced with handshake retransmission.
     EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
   } else {
@@ -10463,7 +10463,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   QuicPacketNumber handshake_retransmission =
       GetQuicReloadableFlag(quic_default_on_pto) ? QuicPacketNumber(5)
                                                  : QuicPacketNumber(7);
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     handshake_retransmission += 1;
     EXPECT_CALL(*send_algorithm_,
                 OnPacketSent(_, _, handshake_retransmission + 1, _, _));
@@ -10472,7 +10472,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
               OnPacketSent(_, _, handshake_retransmission, _, _));
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     // Verify 1-RTT packet gets coalesced with handshake retransmission.
     EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
   } else {
@@ -10489,7 +10489,7 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
   QuicPacketNumber application_retransmission =
       GetQuicReloadableFlag(quic_default_on_pto) ? QuicPacketNumber(6)
                                                  : QuicPacketNumber(9);
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     application_retransmission += 2;
   }
   EXPECT_CALL(*send_algorithm_,
@@ -11268,7 +11268,7 @@ TEST_P(QuicConnectionTest, ServerBundlesInitialDataWithInitialAck) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
   } else {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
@@ -11445,7 +11445,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     // Verify HANDSHAKE packet is coalesced with INITIAL retransmission.
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
   } else {
@@ -11475,7 +11475,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   // Because retransmitted INITIAL gets received so HANDSHAKE 2 gets processed.
   frames.clear();
   QuicAckFrame ack_frame2;
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     // HANDSHAKE 5 is also processed.
     ack_frame2 = InitAckFrame(
         {{QuicPacketNumber(2), QuicPacketNumber(3)},
@@ -11486,7 +11486,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   ack_frame2.ack_delay_time = QuicTime::Delta::Zero();
   frames.push_back(QuicFrame(&ack_frame2));
   ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space)) {
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
     // Verify RTT inflation gets mitigated.
     EXPECT_EQ(rtt_stats->latest_rtt(), kTestRTT);
   } else {
@@ -11494,6 +11494,57 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
     // the actual RTT.
     EXPECT_GE(rtt_stats->latest_rtt(), pto_timeout + kTestRTT);
   }
+}
+
+// Regression test for b/161228202
+TEST_P(QuicConnectionTest, CoalscingPacketCausesInfiniteLoop) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  use_tagging_decrypter();
+  // Receives packet 1000 in initial data.
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+
+  // Set anti amplification factor to 2, such that RetransmitDataOfSpaceIfAny
+  // makes no forward progress and causes infinite loop.
+  SetQuicFlag(FLAGS_quic_anti_amplification_factor, 2);
+
+  ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send INITIAL 1.
+  std::string initial_crypto_data(512, 'a');
+  connection_.SendCryptoDataWithString(initial_crypto_data, 0,
+                                       ENCRYPTION_INITIAL);
+  ASSERT_TRUE(connection_.sent_packet_manager()
+                  .GetRetransmissionTime()
+                  .IsInitialized());
+  QuicTime::Delta pto_timeout =
+      connection_.sent_packet_manager().GetRetransmissionTime() - clock_.Now();
+  // Send Handshake 2.
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  if (GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
+    // Verify HANDSHAKE packet is coalesced with INITIAL retransmission.
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
+  } else {
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  }
+  std::string handshake_crypto_data(1024, 'a');
+  connection_.SendCryptoDataWithString(handshake_crypto_data, 0,
+                                       ENCRYPTION_HANDSHAKE);
+
+  // INITIAL 1 gets lost and PTO fires.
+  clock_.AdvanceTime(pto_timeout);
+  connection_.GetRetransmissionAlarm()->Fire();
 }
 
 }  // namespace
