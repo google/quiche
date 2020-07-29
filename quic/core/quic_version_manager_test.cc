@@ -29,14 +29,10 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   QuicVersionManager manager(AllSupportedVersions());
 
   ParsedQuicVersionVector expected_parsed_versions;
-  expected_parsed_versions.push_back(
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_50));
-  expected_parsed_versions.push_back(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
-  expected_parsed_versions.push_back(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46));
-  expected_parsed_versions.push_back(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
+  expected_parsed_versions.push_back(ParsedQuicVersion::T050());
+  expected_parsed_versions.push_back(ParsedQuicVersion::Q050());
+  expected_parsed_versions.push_back(ParsedQuicVersion::Q046());
+  expected_parsed_versions.push_back(ParsedQuicVersion::Q043());
 
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
 
@@ -61,9 +57,8 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
               ElementsAre("h3-29", "h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
 
   QuicEnableVersion(ParsedQuicVersion::Draft27());
-  expected_parsed_versions.insert(
-      expected_parsed_versions.begin() + 1,
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_27));
+  expected_parsed_versions.insert(expected_parsed_versions.begin() + 1,
+                                  ParsedQuicVersion::Draft27());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(expected_parsed_versions.size() - 3,
             manager.GetSupportedVersionsWithQuicCrypto().size());
@@ -76,9 +71,8 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
                           "h3-Q043"));
 
   QuicEnableVersion(ParsedQuicVersion::Draft25());
-  expected_parsed_versions.insert(
-      expected_parsed_versions.begin() + 2,
-      ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_25));
+  expected_parsed_versions.insert(expected_parsed_versions.begin() + 2,
+                                  ParsedQuicVersion::Draft25());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
   EXPECT_EQ(expected_parsed_versions.size() - 4,
             manager.GetSupportedVersionsWithQuicCrypto().size());

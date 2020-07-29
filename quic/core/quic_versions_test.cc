@@ -52,8 +52,9 @@ TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabel) {
 }
 
 TEST_F(QuicVersionsTest, QuicVersionToQuicVersionLabelUnsupported) {
-  EXPECT_QUIC_BUG(CreateQuicVersionLabel(UnsupportedQuicVersion()),
-                  "Invalid HandshakeProtocol: 0");
+  EXPECT_QUIC_BUG(
+      CreateQuicVersionLabel(UnsupportedQuicVersion()),
+      "Unsupported version QUIC_VERSION_UNSUPPORTED PROTOCOL_UNSUPPORTED");
 }
 
 TEST_F(QuicVersionsTest, KnownAndValid) {

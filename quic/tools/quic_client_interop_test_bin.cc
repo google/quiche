@@ -350,7 +350,7 @@ std::set<Feature> ServerSupport(std::string dns_host,
       break;
     }
   }
-  CHECK_NE(version.transport_version, QUIC_VERSION_UNSUPPORTED);
+  CHECK(version.IsKnown());
   QuicEnableVersion(version);
 
   // Build the client, and try to connect.

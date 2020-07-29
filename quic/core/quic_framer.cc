@@ -402,7 +402,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       error_(QUIC_NO_ERROR),
       last_serialized_server_connection_id_(EmptyQuicConnectionId()),
       last_serialized_client_connection_id_(EmptyQuicConnectionId()),
-      version_(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+      version_(ParsedQuicVersion::Unsupported()),
       supported_versions_(supported_versions),
       decrypter_level_(ENCRYPTION_INITIAL),
       alternative_decrypter_level_(NUM_ENCRYPTION_LEVELS),
@@ -2528,7 +2528,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
       header->long_packet_type = VERSION_NEGOTIATION;
     } else {
       header->version = ParseQuicVersionLabel(version_label);
-      if (header->version.transport_version != QUIC_VERSION_UNSUPPORTED) {
+      if (header->version.IsKnown()) {
         if (!(type & FLAGS_FIXED_BIT)) {
           set_detailed_error("Fixed bit is 0 in long header.");
           return false;
@@ -2818,9 +2818,9 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       set_detailed_error("Unable to read frame type.");
       return RaiseError(QUIC_INVALID_FRAME_DATA);
     }
-    const uint8_t special_mask = transport_version() <= QUIC_VERSION_43
-                                     ? kQuicFrameTypeBrokenMask
-                                     : kQuicFrameTypeSpecialMask;
+    const uint8_t special_mask = version_.HasIetfInvariantHeader()
+                                     ? kQuicFrameTypeSpecialMask
+                                     : kQuicFrameTypeBrokenMask;
     if (frame_type & special_mask) {
       // Stream Frame
       if (frame_type & kQuicFrameTypeStreamMask) {
@@ -2949,7 +2949,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
 
       case STOP_WAITING_FRAME: {
         if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-            version_.transport_version > QUIC_VERSION_43) {
+            version_.HasIetfInvariantHeader()) {
           QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_accept_stop_waiting);
           set_detailed_error("STOP WAITING not supported in version 44+.");
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);
@@ -6324,7 +6324,7 @@ inline bool PacketHasLengthPrefixedConnectionIds(
     ParsedQuicVersion parsed_version,
     QuicVersionLabel version_label,
     uint8_t first_byte) {
-  if (parsed_version.transport_version != QUIC_VERSION_UNSUPPORTED) {
+  if (parsed_version.IsKnown()) {
     return parsed_version.HasLengthPrefixedConnectionIds();
   }
 
@@ -6493,7 +6493,7 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
     return QUIC_INVALID_PACKET_HEADER;
   }
 
-  if (parsed_version->transport_version == QUIC_VERSION_UNSUPPORTED) {
+  if (!parsed_version->IsKnown()) {
     // Skip parsing of long packet type and retry token for unknown versions.
     return QUIC_NO_ERROR;
   }

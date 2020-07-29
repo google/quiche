@@ -57,7 +57,7 @@ BufferedPacket::~BufferedPacket() {}
 BufferedPacketList::BufferedPacketList()
     : creation_time(QuicTime::Zero()),
       ietf_quic(false),
-      version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED) {}
+      version(ParsedQuicVersion::Unsupported()) {}
 
 BufferedPacketList::BufferedPacketList(BufferedPacketList&& other) = default;
 
@@ -94,7 +94,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
       << "Shouldn't buffer duplicated CHLO on connection " << connection_id;
   QUIC_BUG_IF(!is_chlo && !alpns.empty())
       << "Shouldn't have an ALPN defined for a non-CHLO packet.";
-  QUIC_BUG_IF(is_chlo && version.transport_version == QUIC_VERSION_UNSUPPORTED)
+  QUIC_BUG_IF(is_chlo && !version.IsKnown())
       << "Should have version for CHLO packet.";
 
   const bool is_first_packet =

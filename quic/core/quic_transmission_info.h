@@ -45,8 +45,7 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   bool has_crypto_handshake;
   // Stores the packet number of the next retransmission of this packet.
   // Zero if the packet has not been retransmitted.
-  // TODO(fayang): rename this to first_sent_after_loss_ when deprecating
-  // QUIC_VERSION_41.
+  // TODO(fayang): rename this to first_sent_after_loss_.
   QuicPacketNumber retransmission;
   // The largest_acked in the ack frame, if the packet contains an ack.
   QuicPacketNumber largest_acked;

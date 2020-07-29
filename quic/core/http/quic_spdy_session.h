@@ -206,8 +206,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Writes an HTTP/2 PRIORITY frame the to peer. Returns the size in bytes of
-  // the resulting PRIORITY frame for QUIC_VERSION_43 and above. Otherwise, does
-  // nothing and returns 0.
+  // the resulting PRIORITY frame.
   size_t WritePriority(QuicStreamId id,
                        QuicStreamId parent_stream_id,
                        int weight,

@@ -394,6 +394,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   QuicByteCount pending_padding_bytes() const { return pending_padding_bytes_; }
 
+  ParsedQuicVersion version() const { return framer_->version(); }
+
   QuicTransportVersion transport_version() const {
     return framer_->transport_version();
   }

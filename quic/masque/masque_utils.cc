@@ -11,13 +11,12 @@ ParsedQuicVersionVector MasqueSupportedVersions() {
   ParsedQuicVersion version = UnsupportedQuicVersion();
   for (const ParsedQuicVersion& vers : AllSupportedVersions()) {
     // Find the first version that supports IETF QUIC.
-    if (vers.HasIetfQuicFrames() &&
-        vers.handshake_protocol == quic::PROTOCOL_TLS1_3) {
+    if (vers.HasIetfQuicFrames() && vers.UsesTls()) {
       version = vers;
       break;
     }
   }
-  CHECK_NE(version.transport_version, QUIC_VERSION_UNSUPPORTED);
+  CHECK(version.IsKnown());
   QuicEnableVersion(version);
   return {version};
 }

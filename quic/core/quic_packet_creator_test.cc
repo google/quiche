@@ -715,10 +715,10 @@ TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
 
   unsigned char* p = packet;
   size_t packet_size = QUICHE_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(creator_.transport_version())) {
+  if (creator_.version().HasIetfQuicFrames()) {
     p = packet99;
     packet_size = QUICHE_ARRAYSIZE(packet99);
-  } else if (creator_.transport_version() >= QUIC_VERSION_46) {
+  } else if (creator_.version().HasIetfInvariantHeader()) {
     p = packet46;
     packet_size = QUICHE_ARRAYSIZE(packet46);
   }

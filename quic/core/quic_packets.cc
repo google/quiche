@@ -559,7 +559,7 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
       version_flag(false),
       use_length_prefix(false),
       version_label(0),
-      version(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED),
+      version(ParsedQuicVersion::Unsupported()),
       destination_connection_id(EmptyQuicConnectionId()),
       source_connection_id(EmptyQuicConnectionId()) {}
 

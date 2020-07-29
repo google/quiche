@@ -1457,7 +1457,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicates how many consecutive times an ack has arrived which indicates
   // the peer needs to stop waiting for some packets.
-  // TODO(fayang): remove this when deprecating QUIC_VERSION_43.
+  // TODO(fayang): remove this when deprecating Q043.
   int stop_waiting_count_;
 
   // Indicates the retransmission alarm needs to be set.

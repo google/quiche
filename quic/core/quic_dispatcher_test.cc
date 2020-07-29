@@ -1515,7 +1515,7 @@ TEST_P(QuicDispatcherTestOneVersion, SelectAlpn) {
   EXPECT_EQ(QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {""}), "");
   EXPECT_EQ(QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"hq"}), "hq");
   // Q033 is no longer supported but Q050 is.
-  QuicEnableVersion(ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_50));
+  QuicEnableVersion(ParsedQuicVersion::Q050());
   EXPECT_EQ(
       QuicDispatcherPeer::SelectAlpn(dispatcher_.get(), {"h3-Q033", "h3-Q050"}),
       "h3-Q050");

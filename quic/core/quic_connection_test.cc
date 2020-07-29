@@ -9355,10 +9355,10 @@ TEST_P(QuicConnectionTest, OrphanPathResponse) {
 
 // Regression test for b/120791670
 TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
-  // This test mimics a problematic scenario where an IETF QUIC connection
-  // receives a Google QUIC packet and continue processing it using Google QUIC
-  // wire format.
-  if (!VersionHasIetfInvariantHeader(version().transport_version)) {
+  // This test mimics a problematic scenario where a QUIC connection using a
+  // modern version received a Q043 packet and processed it incorrectly.
+  // We can remove this test once Q043 is deprecated.
+  if (!version().HasIetfInvariantHeader()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -9371,8 +9371,7 @@ TEST_P(QuicConnectionTest, StopProcessingGQuicPacketInIetfQuicConnection) {
                                   kPeerAddress);
 
   // Let connection process a Google QUIC packet.
-  peer_framer_.set_version_for_tests(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_43));
+  peer_framer_.set_version_for_tests(ParsedQuicVersion::Q043());
   std::unique_ptr<QuicPacket> packet(
       ConstructDataPacket(2, !kHasStopWaiting, ENCRYPTION_INITIAL));
   char buffer[kMaxOutgoingPacketSize];

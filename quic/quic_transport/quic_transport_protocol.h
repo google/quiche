@@ -43,8 +43,7 @@ QUIC_EXPORT_PRIVATE constexpr bool IsVersionValidForQuicTransport(
 
 // Returns default QUIC version used for QuicTransport.
 QUIC_EXPORT_PRIVATE inline ParsedQuicVersion DefaultVersionForQuicTransport() {
-  constexpr ParsedQuicVersion version(PROTOCOL_TLS1_3,
-                                      QUIC_VERSION_IETF_DRAFT_25);
+  constexpr ParsedQuicVersion version = ParsedQuicVersion::Draft29();
   static_assert(IsVersionValidForQuicTransport(version),
                 "Default QUIC version used by QuicTransport is invalid");
   return version;
