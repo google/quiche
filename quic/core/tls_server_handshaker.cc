@@ -381,7 +381,7 @@ void TlsServerHandshaker::FinishHandshake() {
     // FinishHandshake, we don't have any confirmation that the client is live,
     // so all end of handshake processing is deferred until the handshake is
     // actually complete.
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_zero_rtt_for_tls);
+    QUIC_RESTART_FLAG_COUNT(quic_enable_zero_rtt_for_tls_v2);
     return;
   }
   if (!valid_alpn_received_) {

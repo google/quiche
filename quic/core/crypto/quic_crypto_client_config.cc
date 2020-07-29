@@ -68,7 +68,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
-          GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls))),
+          GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2))),
       disable_chlo_padding_(GetQuicReloadableFlag(quic_dont_pad_chlo)) {
   DCHECK(proof_verifier_.get());
   SetDefaults();

@@ -29,7 +29,7 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
     QUIC_CODE_COUNT_N(quic_tls_resumption_ticket_method, 1, 2);
-    if (GetQuicReloadableFlag(quic_enable_zero_rtt_for_tls)) {
+    if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2)) {
       SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
     }
   } else {
