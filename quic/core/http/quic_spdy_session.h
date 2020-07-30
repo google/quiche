@@ -387,9 +387,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Decode SETTINGS from |cached_state| and apply it to the session.
   bool ResumeApplicationState(ApplicationState* cached_state) override;
 
-  // (Server only) Records the response time of a completed request.
-  void RecordServerResponse(ResponseStats response_stats);
-
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
   // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to

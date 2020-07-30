@@ -919,11 +919,8 @@ bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
   DCHECK_LE(newly_acked_header_length, *newly_acked_length);
   unacked_frame_headers_offsets_.Difference(offset, offset + data_length);
   if (ack_listener_ != nullptr && new_data_acked) {
-    auto response_stats = ack_listener_->OnPacketAcked(
+    ack_listener_->OnPacketAcked(
         *newly_acked_length - newly_acked_header_length, ack_delay_time);
-    if (!response_stats.IsEmpty()) {
-      spdy_session_->RecordServerResponse(response_stats);
-    }
   }
   return new_data_acked;
 }

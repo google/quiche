@@ -1330,7 +1330,7 @@ class MockAckListener : public QuicAckListenerInterface {
   MockAckListener(const MockAckListener&) = delete;
   MockAckListener& operator=(const MockAckListener&) = delete;
 
-  MOCK_METHOD(ResponseStats,
+  MOCK_METHOD(void,
               OnPacketAcked,
               (int acked_bytes, QuicTime::Delta ack_delay_time),
               (override));
