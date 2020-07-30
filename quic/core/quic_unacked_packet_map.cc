@@ -126,7 +126,7 @@ bool QuicUnackedPacketMap::HasRetransmittableFrames(
 void QuicUnackedPacketMap::RemoveRetransmittability(
     QuicTransmissionInfo* info) {
   DeleteFrames(&info->retransmittable_frames);
-  info->retransmission.Clear();
+  info->first_sent_after_loss.Clear();
 }
 
 void QuicUnackedPacketMap::RemoveRetransmittability(
@@ -168,9 +168,9 @@ bool QuicUnackedPacketMap::IsPacketUsefulForCongestionControl(
 bool QuicUnackedPacketMap::IsPacketUsefulForRetransmittableData(
     const QuicTransmissionInfo& info) const {
   // Wait for 1 RTT before giving up on the lost packet.
-  return info.retransmission.IsInitialized() &&
+  return info.first_sent_after_loss.IsInitialized() &&
          (!largest_acked_.IsInitialized() ||
-          info.retransmission > largest_acked_);
+          info.first_sent_after_loss > largest_acked_);
 }
 
 bool QuicUnackedPacketMap::IsPacketUseless(

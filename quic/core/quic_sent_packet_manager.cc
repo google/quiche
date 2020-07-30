@@ -616,12 +616,12 @@ void QuicSentPacketManager::HandleRetransmission(
   if (transmission_type == LOSS_RETRANSMISSION) {
     // Record the first packet sent after loss, which allows to wait 1
     // more RTT before giving up on this lost packet.
-    transmission_info->retransmission =
+    transmission_info->first_sent_after_loss =
         unacked_packets_.largest_sent_packet() + 1;
   } else {
     // Clear the recorded first packet sent after loss when version or
     // encryption changes.
-    transmission_info->retransmission.Clear();
+    transmission_info->first_sent_after_loss.Clear();
   }
 }
 

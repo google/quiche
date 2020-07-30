@@ -43,10 +43,10 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   SentPacketState state;
   // True if the packet contains stream data from the crypto stream.
   bool has_crypto_handshake;
-  // Stores the packet number of the next retransmission of this packet.
-  // Zero if the packet has not been retransmitted.
-  // TODO(fayang): rename this to first_sent_after_loss_.
-  QuicPacketNumber retransmission;
+  // Records the first sent packet after this packet was detected lost. Zero if
+  // this packet has not been detected lost. This is used to keep lost packet
+  // for another RTT (for potential spurious loss detection)
+  QuicPacketNumber first_sent_after_loss;
   // The largest_acked in the ack frame, if the packet contains an ack.
   QuicPacketNumber largest_acked;
 };
