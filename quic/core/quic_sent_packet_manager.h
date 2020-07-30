@@ -76,6 +76,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                                            QuicTime::Delta /*rtt*/,
                                            QuicByteCount /*old_cwnd*/,
                                            QuicByteCount /*new_cwnd*/) {}
+
+    virtual void OnOvershootingDetected() {}
   };
 
   // Interface which gets callbacks from the QuicSentPacketManager when

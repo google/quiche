@@ -440,12 +440,18 @@ void QuicSentPacketManager::MaybeInvokeCongestionEvent(
   if (!rtt_updated && packets_acked_.empty() && packets_lost_.empty()) {
     return;
   }
+  const bool overshooting_detected =
+      stats_->overshooting_detected_with_network_parameters_adjusted;
   if (using_pacing_) {
     pacing_sender_.OnCongestionEvent(rtt_updated, prior_in_flight, event_time,
                                      packets_acked_, packets_lost_);
   } else {
     send_algorithm_->OnCongestionEvent(rtt_updated, prior_in_flight, event_time,
                                        packets_acked_, packets_lost_);
+  }
+  if (debug_delegate_ != nullptr && !overshooting_detected &&
+      stats_->overshooting_detected_with_network_parameters_adjusted) {
+    debug_delegate_->OnOvershootingDetected();
   }
   packets_acked_.clear();
   packets_lost_.clear();
