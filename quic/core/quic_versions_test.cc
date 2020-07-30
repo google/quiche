@@ -520,28 +520,27 @@ TEST_F(QuicVersionsTest, ParsedVersionsToTransportVersions) {
 // yet a typo was made in doing the #defines and it was caught
 // only in some test far removed from here... Better safe than sorry.
 TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
-  static_assert(SupportedTransportVersions().size() == 6u,
+  static_assert(SupportedTransportVersions().size() == 7u,
                 "Supported versions out of sync");
   EXPECT_EQ(QUIC_VERSION_43, 43);
   EXPECT_EQ(QUIC_VERSION_46, 46);
   EXPECT_EQ(QUIC_VERSION_50, 50);
+  EXPECT_EQ(QUIC_VERSION_51, 51);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_25, 70);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_27, 71);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_29, 73);
 }
 
 TEST_F(QuicVersionsTest, AlpnForVersion) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
-  ParsedQuicVersion parsed_version_q050 = ParsedQuicVersion::Q050();
-  ParsedQuicVersion parsed_version_t050 = ParsedQuicVersion::T050();
-  ParsedQuicVersion parsed_version_draft_25 = ParsedQuicVersion::Draft25();
-  ParsedQuicVersion parsed_version_draft_27 = ParsedQuicVersion::Draft27();
-
-  EXPECT_EQ("h3-Q050", AlpnForVersion(parsed_version_q050));
-  EXPECT_EQ("h3-T050", AlpnForVersion(parsed_version_t050));
-  EXPECT_EQ("h3-25", AlpnForVersion(parsed_version_draft_25));
-  EXPECT_EQ("h3-27", AlpnForVersion(parsed_version_draft_27));
+  EXPECT_EQ("h3-Q043", AlpnForVersion(ParsedQuicVersion::Q043()));
+  EXPECT_EQ("h3-Q046", AlpnForVersion(ParsedQuicVersion::Q046()));
+  EXPECT_EQ("h3-Q050", AlpnForVersion(ParsedQuicVersion::Q050()));
+  EXPECT_EQ("h3-T050", AlpnForVersion(ParsedQuicVersion::T050()));
+  EXPECT_EQ("h3-T051", AlpnForVersion(ParsedQuicVersion::T051()));
+  EXPECT_EQ("h3-25", AlpnForVersion(ParsedQuicVersion::Draft25()));
+  EXPECT_EQ("h3-27", AlpnForVersion(ParsedQuicVersion::Draft27()));
   EXPECT_EQ("h3-29", AlpnForVersion(ParsedQuicVersion::Draft29()));
 }
 

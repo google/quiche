@@ -1086,7 +1086,7 @@ TEST_P(QuicDispatcherTestOneVersion, VersionsChangeInFlight) {
 
 TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionsWithVersionNegotiation) {
-  static_assert(quic::SupportedVersions().size() == 7u,
+  static_assert(quic::SupportedVersions().size() == 8u,
                 "Please add deprecated versions to this test");
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();

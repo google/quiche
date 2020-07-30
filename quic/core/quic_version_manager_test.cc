@@ -18,7 +18,7 @@ namespace {
 class QuicVersionManagerTest : public QuicTest {};
 
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 8u,
                 "Supported versions out of sync");
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
@@ -29,6 +29,7 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
   QuicVersionManager manager(AllSupportedVersions());
 
   ParsedQuicVersionVector expected_parsed_versions;
+  expected_parsed_versions.push_back(ParsedQuicVersion::T051());
   expected_parsed_versions.push_back(ParsedQuicVersion::T050());
   expected_parsed_versions.push_back(ParsedQuicVersion::Q050());
   expected_parsed_versions.push_back(ParsedQuicVersion::Q046());
@@ -40,47 +41,52 @@ TEST_F(QuicVersionManagerTest, QuicVersionManager) {
             manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
-  EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
+  EXPECT_THAT(
+      manager.GetSupportedAlpns(),
+      ElementsAre("h3-T051", "h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
 
+  int offset = 0;
   QuicEnableVersion(ParsedQuicVersion::Draft29());
-  expected_parsed_versions.insert(expected_parsed_versions.begin(),
+  expected_parsed_versions.insert(expected_parsed_versions.begin() + offset,
                                   ParsedQuicVersion::Draft29());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
-  EXPECT_EQ(expected_parsed_versions.size() - 2,
+  EXPECT_EQ(expected_parsed_versions.size() - 3 - offset,
             manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
             manager.GetSupportedVersions());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-29", "h3-T050", "h3-Q050", "h3-Q046", "h3-Q043"));
-
-  QuicEnableVersion(ParsedQuicVersion::Draft27());
-  expected_parsed_versions.insert(expected_parsed_versions.begin() + 1,
-                                  ParsedQuicVersion::Draft27());
-  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
-  EXPECT_EQ(expected_parsed_versions.size() - 3,
-            manager.GetSupportedVersionsWithQuicCrypto().size());
-  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
-            manager.GetSupportedVersions());
-  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
-            manager.GetSupportedVersionsWithQuicCrypto());
-  EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-29", "h3-27", "h3-T050", "h3-Q050", "h3-Q046",
+              ElementsAre("h3-29", "h3-T051", "h3-T050", "h3-Q050", "h3-Q046",
                           "h3-Q043"));
 
+  offset++;
+  QuicEnableVersion(ParsedQuicVersion::Draft27());
+  expected_parsed_versions.insert(expected_parsed_versions.begin() + offset,
+                                  ParsedQuicVersion::Draft27());
+  EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
+  EXPECT_EQ(expected_parsed_versions.size() - 3 - offset,
+            manager.GetSupportedVersionsWithQuicCrypto().size());
+  EXPECT_EQ(FilterSupportedVersions(AllSupportedVersions()),
+            manager.GetSupportedVersions());
+  EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
+            manager.GetSupportedVersionsWithQuicCrypto());
+  EXPECT_THAT(manager.GetSupportedAlpns(),
+              ElementsAre("h3-29", "h3-27", "h3-T051", "h3-T050", "h3-Q050",
+                          "h3-Q046", "h3-Q043"));
+
+  offset++;
   QuicEnableVersion(ParsedQuicVersion::Draft25());
-  expected_parsed_versions.insert(expected_parsed_versions.begin() + 2,
+  expected_parsed_versions.insert(expected_parsed_versions.begin() + offset,
                                   ParsedQuicVersion::Draft25());
   EXPECT_EQ(expected_parsed_versions, manager.GetSupportedVersions());
-  EXPECT_EQ(expected_parsed_versions.size() - 4,
+  EXPECT_EQ(expected_parsed_versions.size() - 3 - offset,
             manager.GetSupportedVersionsWithQuicCrypto().size());
   EXPECT_EQ(CurrentSupportedVersionsWithQuicCrypto(),
             manager.GetSupportedVersionsWithQuicCrypto());
   EXPECT_THAT(manager.GetSupportedAlpns(),
-              ElementsAre("h3-29", "h3-27", "h3-25", "h3-T050", "h3-Q050",
-                          "h3-Q046", "h3-Q043"));
+              ElementsAre("h3-29", "h3-27", "h3-25", "h3-T051", "h3-T050",
+                          "h3-Q050", "h3-Q046", "h3-Q043"));
 }
 
 }  // namespace
