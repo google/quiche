@@ -136,6 +136,7 @@ TEST(CertificateViewTest, PrivateKeyEcdsaPem) {
   std::unique_ptr<CertificatePrivateKey> key =
       CertificatePrivateKey::LoadPemFromStream(&pem_stream);
   ASSERT_TRUE(key != nullptr);
+  EXPECT_TRUE(key->ValidForSignatureAlgorithm(SSL_SIGN_ECDSA_SECP256R1_SHA256));
 }
 
 TEST(CertificateViewTest, DerTime) {

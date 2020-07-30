@@ -91,7 +91,7 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
     case SSL_SIGN_RSA_PSS_RSAE_SHA256:
       return PublicKeyType::kRsa;
     case SSL_SIGN_ECDSA_SECP256R1_SHA256:
-      return PublicKeyType::kP384;
+      return PublicKeyType::kP256;
     case SSL_SIGN_ECDSA_SECP384R1_SHA384:
       return PublicKeyType::kP384;
     case SSL_SIGN_ED25519:
@@ -508,8 +508,7 @@ skip:
 
 std::string CertificatePrivateKey::Sign(QuicheStringPiece input,
                                         uint16_t signature_algorithm) {
-  if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
-      PublicKeyTypeFromKey(private_key_.get())) {
+  if (!ValidForSignatureAlgorithm(signature_algorithm)) {
     QUIC_BUG << "Mismatch between the requested signature algorithm and the "
                 "type of the private key.";
     return "";
@@ -549,6 +548,12 @@ std::string CertificatePrivateKey::Sign(QuicheStringPiece input,
 
 bool CertificatePrivateKey::MatchesPublicKey(const CertificateView& view) {
   return EVP_PKEY_cmp(view.public_key(), private_key_.get()) == 1;
+}
+
+bool CertificatePrivateKey::ValidForSignatureAlgorithm(
+    uint16_t signature_algorithm) {
+  return PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) ==
+         PublicKeyTypeFromKey(private_key_.get());
 }
 
 }  // namespace quic

@@ -105,6 +105,10 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
   // certificate |view|.
   bool MatchesPublicKey(const CertificateView& view);
 
+  // Verifies that the private key can be used with the specified TLS signature
+  // algorithm.
+  bool ValidForSignatureAlgorithm(uint16_t signature_algorithm);
+
  private:
   CertificatePrivateKey() = default;
 
