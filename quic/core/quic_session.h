@@ -494,6 +494,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return connection()->helper()->GetClock();
   }
 
+  bool liveness_testing_in_progress() const {
+    return liveness_testing_in_progress_;
+  }
+
  protected:
   using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
