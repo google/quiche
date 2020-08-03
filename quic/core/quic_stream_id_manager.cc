@@ -55,13 +55,10 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
         " exceeds incoming max stream ", incoming_advertised_max_streams_);
     return false;
   }
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_stop_sending_duplicate_max_streams);
-    DCHECK_LE(incoming_advertised_max_streams_, incoming_actual_max_streams_);
-    if (incoming_advertised_max_streams_ == incoming_actual_max_streams_) {
-      // We have told peer about current max.
-      return true;
-    }
+  DCHECK_LE(incoming_advertised_max_streams_, incoming_actual_max_streams_);
+  if (incoming_advertised_max_streams_ == incoming_actual_max_streams_) {
+    // We have told peer about current max.
+    return true;
   }
   if (frame.stream_count < incoming_actual_max_streams_) {
     // Peer thinks it's blocked on a stream count that is less than our current
@@ -112,10 +109,7 @@ void QuicStreamIdManager::MaybeSendMaxStreamsFrame() {
 }
 
 void QuicStreamIdManager::SendMaxStreamsFrame() {
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    QUIC_BUG_IF(incoming_advertised_max_streams_ >=
-                incoming_actual_max_streams_);
-  }
+  QUIC_BUG_IF(incoming_advertised_max_streams_ >= incoming_actual_max_streams_);
   incoming_advertised_max_streams_ = incoming_actual_max_streams_;
   delegate_->SendMaxStreams(incoming_advertised_max_streams_, unidirectional_);
 }

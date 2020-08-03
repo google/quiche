@@ -287,32 +287,20 @@ TEST_P(UberQuicStreamIdManagerTest, OnStreamsBlockedFrame) {
 
   QuicStreamsBlockedFrame frame(kInvalidControlFrameId, stream_count,
                                 /*unidirectional=*/false);
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    EXPECT_CALL(delegate_,
-                SendMaxStreams(manager_.max_incoming_bidirectional_streams(),
-                               frame.unidirectional))
-        .Times(0);
-  } else {
-    EXPECT_CALL(delegate_,
-                SendMaxStreams(manager_.max_incoming_bidirectional_streams(),
-                               frame.unidirectional));
-  }
+  EXPECT_CALL(delegate_,
+              SendMaxStreams(manager_.max_incoming_bidirectional_streams(),
+                             frame.unidirectional))
+      .Times(0);
   EXPECT_TRUE(manager_.OnStreamsBlockedFrame(frame, nullptr));
 
   stream_count = manager_.advertised_max_incoming_unidirectional_streams() - 1;
   frame.stream_count = stream_count;
   frame.unidirectional = true;
 
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    EXPECT_CALL(delegate_,
-                SendMaxStreams(manager_.max_incoming_unidirectional_streams(),
-                               frame.unidirectional))
-        .Times(0);
-  } else {
-    EXPECT_CALL(delegate_,
-                SendMaxStreams(manager_.max_incoming_unidirectional_streams(),
-                               frame.unidirectional));
-  }
+  EXPECT_CALL(delegate_,
+              SendMaxStreams(manager_.max_incoming_unidirectional_streams(),
+                             frame.unidirectional))
+      .Times(0);
   EXPECT_TRUE(manager_.OnStreamsBlockedFrame(frame, nullptr));
 }
 

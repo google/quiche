@@ -144,13 +144,9 @@ TEST_P(QuicStreamIdManagerTest, ProcessStreamsBlockedOk) {
   QuicStreamCount stream_count =
       stream_id_manager_.incoming_initial_max_open_streams();
   QuicStreamsBlockedFrame frame(0, stream_count - 1, IsUnidirectional());
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    // We have notified peer about current max.
-    EXPECT_CALL(delegate_, SendMaxStreams(stream_count, IsUnidirectional()))
-        .Times(0);
-  } else {
-    EXPECT_CALL(delegate_, SendMaxStreams(stream_count, IsUnidirectional()));
-  }
+  // We have notified peer about current max.
+  EXPECT_CALL(delegate_, SendMaxStreams(stream_count, IsUnidirectional()))
+      .Times(0);
   std::string error_details;
   EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame, &error_details));
 }
@@ -403,12 +399,8 @@ TEST_P(QuicStreamIdManagerTest, StreamsBlockedEdgeConditions) {
   // Check that receipt of a STREAMS BLOCKED with stream-count = 0 invokes a
   // MAX STREAMS, count = 123, when the MaxOpen... is set to 123.
   EXPECT_CALL(delegate_, SendMaxStreams(123u, IsUnidirectional()));
-  if (GetQuicReloadableFlag(quic_stop_sending_duplicate_max_streams)) {
-    QuicStreamIdManagerPeer::set_incoming_actual_max_streams(
-        &stream_id_manager_, 123);
-  } else {
-    stream_id_manager_.SetMaxOpenIncomingStreams(123);
-  }
+  QuicStreamIdManagerPeer::set_incoming_actual_max_streams(&stream_id_manager_,
+                                                           123);
   frame.stream_count = 0;
   EXPECT_TRUE(stream_id_manager_.OnStreamsBlockedFrame(frame, &error_details));
 }
