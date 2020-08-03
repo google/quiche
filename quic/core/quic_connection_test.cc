@@ -11215,13 +11215,8 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x01));
-  if (GetQuicReloadableFlag(quic_fix_undecryptable_packets)) {
-    // Verify all ENCRYPTION_HANDSHAKE packets get processed.
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
-  } else {
-    // Verify packets before 4 get processed.
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(3);
-  }
+  // Verify all ENCRYPTION_HANDSHAKE packets get processed.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
   EXPECT_EQ(4u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
 
@@ -11231,13 +11226,8 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                            std::make_unique<TaggingEncrypter>(0x02));
-  if (GetQuicReloadableFlag(quic_fix_undecryptable_packets)) {
-    // Verify the 1-RTT packet gets processed.
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  } else {
-    // Verify all packets get processed.
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(4);
-  }
+  // Verify the 1-RTT packet gets processed.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
   EXPECT_EQ(0u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
 }
