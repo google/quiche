@@ -100,7 +100,6 @@ QuicSession::QuicSession(
       enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false),
-      fix_gquic_stream_type_(GetQuicReloadableFlag(quic_fix_gquic_stream_type)),
       remove_streams_waiting_for_acks_(
           GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)),
       do_not_use_stream_map_(
@@ -1347,8 +1346,7 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
   // Inform all existing outgoing unidirectional streams about the new window.
   for (auto const& kv : stream_map_) {
     const QuicStreamId id = kv.first;
-    if (fix_gquic_stream_type_ && !version().HasIetfQuicFrames()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_gquic_stream_type, 1, 3);
+    if (!version().HasIetfQuicFrames()) {
       if (kv.second->type() == BIDIRECTIONAL) {
         continue;
       }
@@ -1381,8 +1379,7 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
   // Inform all existing outgoing bidirectional streams about the new window.
   for (auto const& kv : stream_map_) {
     const QuicStreamId id = kv.first;
-    if (fix_gquic_stream_type_ && !version().HasIetfQuicFrames()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_gquic_stream_type, 2, 3);
+    if (!version().HasIetfQuicFrames()) {
       if (kv.second->type() != BIDIRECTIONAL) {
         continue;
       }
@@ -1415,8 +1412,7 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
   // Inform all existing incoming bidirectional streams about the new window.
   for (auto const& kv : stream_map_) {
     const QuicStreamId id = kv.first;
-    if (fix_gquic_stream_type_ && !version().HasIetfQuicFrames()) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_gquic_stream_type, 3, 3);
+    if (!version().HasIetfQuicFrames()) {
       if (kv.second->type() != BIDIRECTIONAL) {
         continue;
       }

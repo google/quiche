@@ -430,8 +430,7 @@ bool QuicUtils::IsOutgoingStreamId(ParsedQuicVersion version,
 // static
 bool QuicUtils::IsBidirectionalStreamId(QuicStreamId id,
                                         ParsedQuicVersion version) {
-  DCHECK(!GetQuicReloadableFlag(quic_fix_gquic_stream_type) ||
-         version.HasIetfQuicFrames());
+  DCHECK(version.HasIetfQuicFrames());
   return id % 4 < 2;
 }
 
@@ -440,8 +439,7 @@ StreamType QuicUtils::GetStreamType(QuicStreamId id,
                                     Perspective perspective,
                                     bool peer_initiated,
                                     ParsedQuicVersion version) {
-  DCHECK(!GetQuicReloadableFlag(quic_fix_gquic_stream_type) ||
-         version.HasIetfQuicFrames());
+  DCHECK(version.HasIetfQuicFrames());
   if (IsBidirectionalStreamId(id, version)) {
     return BIDIRECTIONAL;
   }

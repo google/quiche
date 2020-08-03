@@ -853,9 +853,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
 
-  // Latched value of flag quic_fix_gquic_stream_type.
-  const bool fix_gquic_stream_type_;
-
   // Latched value of flag quic_remove_streams_waiting_for_acks.
   const bool remove_streams_waiting_for_acks_;
 
