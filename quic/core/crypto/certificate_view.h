@@ -88,6 +88,9 @@ class QUIC_EXPORT_PRIVATE CertificateView {
 // certificate.
 class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
  public:
+  explicit CertificatePrivateKey(bssl::UniquePtr<EVP_PKEY> private_key)
+      : private_key_(std::move(private_key)) {}
+
   // Loads a DER-encoded PrivateKeyInfo structure (RFC 5958) as a private key.
   static std::unique_ptr<CertificatePrivateKey> LoadFromDer(
       quiche::QuicheStringPiece private_key);
@@ -108,6 +111,8 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
   // Verifies that the private key can be used with the specified TLS signature
   // algorithm.
   bool ValidForSignatureAlgorithm(uint16_t signature_algorithm);
+
+  EVP_PKEY* private_key() { return private_key_.get(); }
 
  private:
   CertificatePrivateKey() = default;
