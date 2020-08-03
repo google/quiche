@@ -1218,7 +1218,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // starts effective peer migration if current packet is confirmed not a
   // connectivity probe and |current_effective_peer_migration_type_| indicates
   // effective peer address change.
-  void UpdatePacketContent(PacketContent type);
+  void UpdatePacketContent(QuicFrameType type);
 
   // Called when last received ack frame has been processed.
   // |send_stop_waiting| indicates whether a stop waiting needs to be sent.

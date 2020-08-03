@@ -1126,7 +1126,7 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
 
   // Since a stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(STREAM_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamFrame(frame);
@@ -1162,7 +1162,7 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
 
   // Since a CRYPTO frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(CRYPTO_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnCryptoFrame(frame);
@@ -1185,7 +1185,7 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
 
   // Since an ack frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(ACK_FRAME);
 
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnAckFrameStart, largest_acked: " << largest_acked;
@@ -1305,7 +1305,7 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 
   // Since a stop waiting frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(STOP_WAITING_FRAME);
 
   if (no_stop_waiting_frames_) {
     return true;
@@ -1336,7 +1336,7 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 
 bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
   DCHECK(connected_);
-  UpdatePacketContent(SECOND_FRAME_IS_PADDING);
+  UpdatePacketContent(PADDING_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPaddingFrame(frame);
@@ -1346,7 +1346,7 @@ bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
 
 bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   DCHECK(connected_);
-  UpdatePacketContent(FIRST_FRAME_IS_PING);
+  UpdatePacketContent(PING_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPingFrame(frame);
@@ -1384,7 +1384,7 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(RST_STREAM_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRstStreamFrame(frame);
@@ -1403,7 +1403,7 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(STOP_SENDING_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStopSendingFrame(frame);
@@ -1418,6 +1418,7 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 }
 
 bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
+  UpdatePacketContent(PATH_CHALLENGE_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathChallengeFrame(frame);
   }
@@ -1430,6 +1431,7 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
 }
 
 bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
+  UpdatePacketContent(PATH_RESPONSE_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathResponseFrame(frame);
   }
@@ -1450,7 +1452,7 @@ bool QuicConnection::OnConnectionCloseFrame(
 
   // Since a connection close frame was received, this is not a connectivity
   // probe. A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(CONNECTION_CLOSE_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionCloseFrame(frame);
@@ -1492,6 +1494,7 @@ bool QuicConnection::OnConnectionCloseFrame(
 }
 
 bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+  UpdatePacketContent(MAX_STREAMS_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
   }
@@ -1500,6 +1503,7 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
 
 bool QuicConnection::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& frame) {
+  UpdatePacketContent(STREAMS_BLOCKED_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
   }
@@ -1511,7 +1515,7 @@ bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
 
   // Since a go away frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(GOAWAY_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnGoAwayFrame(frame);
@@ -1530,7 +1534,7 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
   // Since a window update frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(WINDOW_UPDATE_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnWindowUpdateFrame(
@@ -1544,6 +1548,7 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
 bool QuicConnection::OnNewConnectionIdFrame(
     const QuicNewConnectionIdFrame& frame) {
+  UpdatePacketContent(NEW_CONNECTION_ID_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewConnectionIdFrame(frame);
   }
@@ -1552,6 +1557,7 @@ bool QuicConnection::OnNewConnectionIdFrame(
 
 bool QuicConnection::OnRetireConnectionIdFrame(
     const QuicRetireConnectionIdFrame& frame) {
+  UpdatePacketContent(RETIRE_CONNECTION_ID_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRetireConnectionIdFrame(frame);
   }
@@ -1559,6 +1565,7 @@ bool QuicConnection::OnRetireConnectionIdFrame(
 }
 
 bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+  UpdatePacketContent(NEW_TOKEN_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewTokenFrame(frame);
   }
@@ -1570,7 +1577,7 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 
   // Since a message frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(MESSAGE_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMessageFrame(frame);
@@ -1599,7 +1606,7 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
 
   // Since a handshake done frame was received, this is not a connectivity
   // probe. A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(HANDSHAKE_DONE_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnHandshakeDoneFrame(frame);
@@ -1611,6 +1618,7 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
 
 bool QuicConnection::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& /*frame*/) {
+  UpdatePacketContent(ACK_FREQUENCY_FRAME);
   // TODO(b/148614353): implement this fully.
   QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
   return false;
@@ -1620,7 +1628,7 @@ bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
 
   // Since a blocked frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(NOT_PADDED_PING);
+  UpdatePacketContent(BLOCKED_FRAME);
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnBlockedFrame(frame);
@@ -4047,12 +4055,13 @@ void QuicConnection::CheckIfApplicationLimited() {
   sent_packet_manager_.OnApplicationLimited();
 }
 
-void QuicConnection::UpdatePacketContent(PacketContent type) {
+void QuicConnection::UpdatePacketContent(QuicFrameType type) {
   // Packet content is tracked to identify connectivity probe in non-IETF
   // version, where a connectivity probe is defined as
   // - a padded PING packet with peer address change received by server,
   // - a padded PING packet on new path received by client.
   if (version().HasIetfQuicFrames()) {
+    // TODO(b/149315151) detect IETF non-probing packet.
     return;
   }
 
@@ -4063,11 +4072,7 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
     return;
   }
 
-  if (type == NO_FRAMES_RECEIVED) {
-    return;
-  }
-
-  if (type == FIRST_FRAME_IS_PING) {
+  if (type == PING_FRAME) {
     if (current_packet_content_ == NO_FRAMES_RECEIVED) {
       current_packet_content_ = FIRST_FRAME_IS_PING;
       return;
@@ -4077,8 +4082,7 @@ void QuicConnection::UpdatePacketContent(PacketContent type) {
   // In Google QUIC, we look for a packet with just a PING and PADDING.
   // If the condition is met, mark things as connectivity-probing, causing
   // later processing to generate the correct response.
-  if (type == SECOND_FRAME_IS_PADDING &&
-      current_packet_content_ == FIRST_FRAME_IS_PING) {
+  if (type == PADDING_FRAME && current_packet_content_ == FIRST_FRAME_IS_PING) {
     current_packet_content_ = SECOND_FRAME_IS_PADDING;
     if (perspective_ == Perspective::IS_SERVER) {
       is_current_packet_connectivity_probing_ =
