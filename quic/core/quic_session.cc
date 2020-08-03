@@ -1975,6 +1975,8 @@ size_t QuicSession::GetNumActiveStreams() const {
            stream_id_manager_.num_open_outgoing_streams() -
            locally_closed_streams_highest_offset_.size();
   }
+  DCHECK_GE(static_cast<QuicStreamCount>(stream_map_.size()),
+            num_static_streams_ + num_draining_streams_);
   return stream_map_.size() - num_draining_streams_ - num_static_streams_;
 }
 
