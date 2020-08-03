@@ -2593,6 +2593,24 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddControlFrame_NotWritable) {
   delete rst_frame;
 }
 
+TEST_F(QuicPacketCreatorMultiplePacketsTest,
+       WrongEncryptionLevelForStreamDataFastPath) {
+  if (!GetQuicReloadableFlag(quic_check_encryption_level_in_fast_path)) {
+    return;
+  }
+  creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
+  delegate_.SetCanWriteAnything();
+  // Create a 10000 byte IOVector.
+  CreateData(10000);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_)).Times(0);
+  EXPECT_CALL(delegate_, OnUnrecoverableError(_, _));
+  EXPECT_QUIC_BUG(creator_.ConsumeDataFastPath(
+                      QuicUtils::GetFirstBidirectionalStreamId(
+                          framer_.transport_version(), Perspective::IS_CLIENT),
+                      &iov_, 1u, iov_.iov_len, 0, true),
+                  "");
+}
+
 TEST_F(QuicPacketCreatorMultiplePacketsTest, AddControlFrame_OnlyAckWritable) {
   delegate_.SetCanWriteOnlyNonRetransmittable();
 

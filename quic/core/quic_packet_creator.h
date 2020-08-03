@@ -571,6 +571,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // packet size required for header protection.
   void MaybeAddExtraPaddingForHeaderProtection();
 
+  // Returns true and close connection if it attempts to send unencrypted data.
+  bool AttemptingToSendUnencryptedStreamData();
+
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;
   DebugDelegate* debug_delegate_;

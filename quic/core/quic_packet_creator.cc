@@ -1324,6 +1324,13 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
     bool fin,
     size_t total_bytes_consumed) {
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
+  if (GetQuicReloadableFlag(quic_check_encryption_level_in_fast_path)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_check_encryption_level_in_fast_path);
+    if (AttemptingToSendUnencryptedStreamData()) {
+      return QuicConsumedData(total_bytes_consumed,
+                              fin && (total_bytes_consumed == write_length));
+    }
+  }
 
   while (total_bytes_consumed < write_length &&
          delegate_->ShouldGeneratePacket(HAS_RETRANSMITTABLE_DATA,
@@ -1612,14 +1619,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (frame.type == STREAM_FRAME &&
       !QuicUtils::IsCryptoStreamId(framer_->transport_version(),
                                    frame.stream_frame.stream_id) &&
-      (packet_.encryption_level == ENCRYPTION_INITIAL ||
-       packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
-    const std::string error_details =
-        quiche::QuicheStrCat("Cannot send stream data with level: ",
-                             EncryptionLevelToString(packet_.encryption_level));
-    QUIC_BUG << error_details;
-    delegate_->OnUnrecoverableError(
-        QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA, error_details);
+      AttemptingToSendUnencryptedStreamData()) {
     return false;
   }
 
@@ -1947,6 +1947,20 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
   // This must always be less than or equal to GetCurrentLargestMessagePayload.
   DCHECK_LE(largest_payload, GetCurrentLargestMessagePayload());
   return largest_payload;
+}
+
+bool QuicPacketCreator::AttemptingToSendUnencryptedStreamData() {
+  if (packet_.encryption_level == ENCRYPTION_ZERO_RTT ||
+      packet_.encryption_level == ENCRYPTION_FORWARD_SECURE) {
+    return false;
+  }
+  const std::string error_details =
+      quiche::QuicheStrCat("Cannot send stream data with level: ",
+                           EncryptionLevelToString(packet_.encryption_level));
+  QUIC_BUG << error_details;
+  delegate_->OnUnrecoverableError(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA,
+                                  error_details);
+  return true;
 }
 
 bool QuicPacketCreator::HasIetfLongHeader() const {
