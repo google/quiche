@@ -565,7 +565,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   StreamMap& stream_map() { return stream_map_; }
 
   // TODO(b/136274541): remove this getter and only expose GetNumActiveStreams()
-  QuicStreamCount stream_map_size() const { return stream_map_.size(); }
+  size_t stream_map_size() const { return stream_map_.size(); }
 
   const PendingStreamMap& pending_streams() const {
     return pending_stream_map_;
