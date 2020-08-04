@@ -844,10 +844,8 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
 
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
-  if (!VersionUsesHttp3(transport_version())) {
-    DCHECK(pending_streams().empty());
-  }
-  return GetNumActiveStreams() + pending_streams().size() > 0;
+  DCHECK(VersionUsesHttp3(transport_version()) || 0u == pending_streams_size());
+  return GetNumActiveStreams() + pending_streams_size() > 0;
 }
 
 bool QuicSpdySession::UsesPendingStreams() const {
