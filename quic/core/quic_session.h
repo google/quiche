@@ -347,6 +347,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Called when stream |id| is done waiting for acks either because all data
   // gets acked or is not interested in data being acked (which happens when
   // a stream is reset because of an error).
+  // TODO(b/136274541): rename to CloseZombieStreams.
   void OnStreamDoneWaitingForAcks(QuicStreamId id);
 
   // TODO(b/136274541): Remove this once quic_remove_streams_waiting_for_acks is
@@ -498,6 +499,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return liveness_testing_in_progress_;
   }
 
+  bool remove_zombie_streams() const { return remove_zombie_streams_; }
+
  protected:
   using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
@@ -620,6 +623,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicDatagramQueue* datagram_queue() { return &datagram_queue_; }
 
   size_t num_static_streams() const { return num_static_streams_; }
+
+  size_t num_zombie_streams() const { return num_zombie_streams_; }
 
   bool was_zero_rtt_rejected() const { return was_zero_rtt_rejected_; }
 
@@ -799,6 +804,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // A counter for static streams which are in stream_map_.
   size_t num_static_streams_;
 
+  // A counter for streams which have done reading and writing, but are waiting
+  // for acks.
+  size_t num_zombie_streams_;
+
   // Received information for a connection close.
   QuicConnectionCloseFrame on_closed_frame_;
 
@@ -860,6 +869,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Latched value of flag quic_do_not_use_stream_map.
   const bool do_not_use_stream_map_;
+
+  // Latched value of flag quic_remove_zombie_streams.
+  const bool remove_zombie_streams_;
 };
 
 }  // namespace quic

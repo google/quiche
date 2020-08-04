@@ -364,6 +364,7 @@ class TestSession : public QuicSession {
   using QuicSession::closed_streams;
   using QuicSession::GetNextOutgoingBidirectionalStreamId;
   using QuicSession::GetNextOutgoingUnidirectionalStreamId;
+  using QuicSession::stream_map;
   using QuicSession::zombie_streams;
 
  private:
@@ -2572,7 +2573,13 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   stream2->WriteOrBufferData(body, true, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   // Verify stream2 is a zombie streams.
-  EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
+  if (!session_.remove_zombie_streams()) {
+    EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
+  } else {
+    ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream2->id()));
+    auto* stream = session_.stream_map().find(stream2->id())->second.get();
+    EXPECT_TRUE(stream->IsZombie());
+  }
 
   QuicStreamFrame frame(stream2->id(), true, 0, 100);
   EXPECT_CALL(*stream2, HasPendingRetransmission())
@@ -2620,7 +2627,13 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   stream4->WriteOrBufferData(body, false, nullptr);
   EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
   stream4->WriteOrBufferData(body, true, nullptr);
-  EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
+  if (!session_.remove_zombie_streams()) {
+    EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
+  } else {
+    ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream4->id()));
+    auto* stream = session_.stream_map().find(stream4->id())->second.get();
+    EXPECT_TRUE(stream->IsZombie());
+  }
 }
 
 TEST_P(QuicSessionTestServer, ReceivedDataOnWriteUnidirectionalStream) {

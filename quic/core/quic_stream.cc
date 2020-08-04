@@ -979,7 +979,8 @@ bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
     fin_outstanding_ = false;
     fin_lost_ = false;
   }
-  if (!IsWaitingForAcks()) {
+  if (!IsWaitingForAcks() && (!session()->remove_zombie_streams() ||
+                              (read_side_closed_ && write_side_closed_))) {
     session_->OnStreamDoneWaitingForAcks(id_);
   }
   return new_data_acked;

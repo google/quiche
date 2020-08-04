@@ -331,7 +331,6 @@ class TestSession : public QuicSpdySession {
 
   using QuicSession::closed_streams;
   using QuicSession::ShouldKeepConnectionAlive;
-  using QuicSession::zombie_streams;
   using QuicSpdySession::ProcessPendingStream;
   using QuicSpdySession::UsesPendingStreams;
 
@@ -2094,21 +2093,6 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
   QuicStream* stream = session_.GetOrCreateStream(stream_id);
   EXPECT_EQ(3u, stream->flow_controller()->highest_received_byte_offset());
-}
-
-TEST_P(QuicSpdySessionTestServer, ZombieStreams) {
-  TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  QuicStreamPeer::SetStreamBytesWritten(3, stream2);
-  EXPECT_TRUE(stream2->IsWaitingForAcks());
-
-  CloseStream(stream2->id());
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
-  ASSERT_EQ(1u, session_.closed_streams()->size());
-  EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
-  session_.OnStreamDoneWaitingForAcks(2);
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
-  EXPECT_EQ(1u, session_.closed_streams()->size());
-  EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {

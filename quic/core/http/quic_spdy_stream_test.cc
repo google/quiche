@@ -1730,18 +1730,6 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
                                      QuicTime::Zero()));
 }
 
-TEST_P(QuicSpdyStreamTest, StreamBecomesZombieWithWriteThatCloses) {
-  Initialize(kShouldProcessData);
-  EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AtLeast(1));
-  QuicStreamPeer::CloseReadSide(stream_);
-  // This write causes stream to be closed.
-  stream_->WriteOrBufferBody("Test1", true);
-  // stream_ has unacked data and should become zombie.
-  EXPECT_TRUE(QuicContainsKey(QuicSessionPeer::zombie_streams(session_.get()),
-                              stream_->id()));
-  EXPECT_TRUE(QuicSessionPeer::closed_streams(session_.get()).empty());
-}
-
 TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
   Initialize(kShouldProcessData);
   stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));

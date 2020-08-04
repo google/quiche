@@ -420,6 +420,7 @@ QuicSpdySession::~QuicSpdySession() {
   for (auto& stream : *closed_streams()) {
     static_cast<QuicSpdyStream*>(stream.get())->ClearSession();
   }
+  DCHECK(!remove_zombie_streams() || zombie_streams().empty());
   for (auto const& kv : zombie_streams()) {
     static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
   }
@@ -1178,8 +1179,9 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 }
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
-  DCHECK_GE(static_cast<size_t>(stream_map_size()), num_static_streams());
-  return stream_map_size() - num_static_streams() > 0;
+  DCHECK_GE(static_cast<size_t>(stream_map_size()),
+            num_static_streams() + num_zombie_streams());
+  return stream_map_size() - num_static_streams() - num_zombie_streams() > 0;
 }
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {

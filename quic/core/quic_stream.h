@@ -203,6 +203,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   }
   bool write_side_closed() const { return write_side_closed_; }
 
+  bool IsZombie() const {
+    return read_side_closed_ && write_side_closed_ && IsWaitingForAcks();
+  }
+
   bool rst_received() const { return rst_received_; }
   bool rst_sent() const { return rst_sent_; }
   bool fin_received() const { return fin_received_; }
