@@ -394,7 +394,7 @@ void TlsServerHandshaker::FinishHandshake() {
     return;
   }
 
-  QUIC_LOG(INFO) << "Server: handshake finished";
+  QUIC_DLOG(INFO) << "Server: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
   one_rtt_keys_available_ = true;
 
@@ -566,8 +566,8 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  QUIC_LOG(INFO) << "Set " << chain->certs.size() << " certs for server "
-                 << "with hostname " << hostname_;
+  QUIC_DLOG(INFO) << "Set " << chain->certs.size() << " certs for server "
+                  << "with hostname " << hostname_;
   return SSL_TLSEXT_ERR_OK;
 }
 
