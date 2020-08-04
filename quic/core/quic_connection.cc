@@ -1665,44 +1665,7 @@ void QuicConnection::OnPacketComplete() {
       << ENDPOINT << "Received a padded PING packet. is_probing: "
       << IsCurrentPacketConnectivityProbing();
 
-  if (IsCurrentPacketConnectivityProbing()) {
-    DCHECK(!version().HasIetfQuicFrames());
-    visitor_->OnPacketReceived(last_packet_destination_address_,
-                               last_packet_source_address_,
-                               /*is_connectivity_probe=*/true);
-  } else if (perspective_ == Perspective::IS_CLIENT) {
-    // This node is a client, notify that a speculative connectivity probing
-    // packet has been received anyway.
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Received a speculative connectivity probing packet for "
-                  << GetServerConnectionIdAsRecipient(last_header_,
-                                                      perspective_)
-                  << " from ip:port: " << last_packet_source_address_.ToString()
-                  << " to ip:port: "
-                  << last_packet_destination_address_.ToString();
-    visitor_->OnPacketReceived(last_packet_destination_address_,
-                               last_packet_source_address_,
-                               /*is_connectivity_probe=*/false);
-  } else if (version().HasIetfQuicFrames() &&
-             !received_path_challenge_payloads_.empty()) {
-    if (current_effective_peer_migration_type_ != NO_CHANGE) {
-      // TODO(b/150095588): change the stats to
-      // num_valid_path_challenge_received.
-      ++stats_.num_connectivity_probing_received;
-    }
-    // If the packet contains PATH CHALLENGE, send appropriate RESPONSE.
-    // There was at least one PATH CHALLENGE in the received packet,
-    // Generate the required PATH RESPONSE.
-    SendGenericPathProbePacket(nullptr, last_packet_source_address_,
-                               /* is_response=*/true);
-  } else if (last_header_.packet_number == GetLargestReceivedPacket()) {
-    direct_peer_address_ = last_packet_source_address_;
-    if (current_effective_peer_migration_type_ != NO_CHANGE) {
-      // TODO(fayang): When multiple packet number spaces is supported, only
-      // start peer migration for the application data.
-      StartEffectivePeerMigration(current_effective_peer_migration_type_);
-    }
-  }
+  MaybeRespondToConnectivityProbingOrMigration();
 
   current_effective_peer_migration_type_ = NO_CHANGE;
 
@@ -1719,6 +1682,64 @@ void QuicConnection::OnPacketComplete() {
 
   ClearLastFrames();
   CloseIfTooManyOutstandingSentPackets();
+}
+
+void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
+  if (version().HasIetfQuicFrames()) {
+    if (perspective_ == Perspective::IS_CLIENT) {
+      // This node is a client, notify that a speculative connectivity probing
+      // packet has been received anyway.
+      visitor_->OnPacketReceived(last_packet_destination_address_,
+                                 last_packet_source_address_,
+                                 /*is_connectivity_probe=*/false);
+      return;
+    }
+    if (!received_path_challenge_payloads_.empty()) {
+      if (current_effective_peer_migration_type_ != NO_CHANGE) {
+        // TODO(b/150095588): change the stats to
+        // num_valid_path_challenge_received.
+        ++stats_.num_connectivity_probing_received;
+      }
+      // If the packet contains PATH CHALLENGE, send appropriate RESPONSE.
+      // There was at least one PATH CHALLENGE in the received packet,
+      // Generate the required PATH RESPONSE.
+      SendGenericPathProbePacket(nullptr, last_packet_source_address_,
+                                 /* is_response=*/true);
+      return;
+    }
+  } else {
+    if (IsCurrentPacketConnectivityProbing()) {
+      visitor_->OnPacketReceived(last_packet_destination_address_,
+                                 last_packet_source_address_,
+                                 /*is_connectivity_probe=*/true);
+      return;
+    }
+    if (perspective_ == Perspective::IS_CLIENT) {
+      // This node is a client, notify that a speculative connectivity probing
+      // packet has been received anyway.
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Received a speculative connectivity probing packet for "
+                    << GetServerConnectionIdAsRecipient(last_header_,
+                                                        perspective_)
+                    << " from ip:port: "
+                    << last_packet_source_address_.ToString() << " to ip:port: "
+                    << last_packet_destination_address_.ToString();
+      visitor_->OnPacketReceived(last_packet_destination_address_,
+                                 last_packet_source_address_,
+                                 /*is_connectivity_probe=*/false);
+      return;
+    }
+  }
+  // Server starts to migrate connection upon receiving of non-probing packet
+  // from a new peer address.
+  if (last_header_.packet_number == GetLargestReceivedPacket()) {
+    direct_peer_address_ = last_packet_source_address_;
+    if (current_effective_peer_migration_type_ != NO_CHANGE) {
+      // TODO(fayang): When multiple packet number spaces is supported, only
+      // start peer migration for the application data.
+      StartEffectivePeerMigration(current_effective_peer_migration_type_);
+    }
+  }
 }
 
 bool QuicConnection::IsValidStatelessResetToken(QuicUint128 token) const {

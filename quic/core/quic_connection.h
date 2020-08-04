@@ -1341,6 +1341,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void MaybeActivateLegacyVersionEncapsulation();
   void MaybeDisactivateLegacyVersionEncapsulation();
 
+  // For Google Quic, if the current packet is connectivity probing packet, call
+  // session OnPacketReceived() which eventually sends connectivity probing
+  // response on server side. And no-op on client side. And for both Google Quic
+  // and IETF Quic, start migration if the current packet is a non-probing
+  // packet.
+  // TODO(danzh) rename to MaybeRespondToPeerMigration() when Google Quic is
+  // deprecated.
+  void MaybeRespondToConnectivityProbingOrMigration();
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
