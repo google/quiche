@@ -1588,8 +1588,25 @@ void QuicSession::OnNewEncryptionKeyAvailable(
     return;
   }
 
+  bool reset_encryption_level = false;
+  if (IsEncryptionEstablished() && level == ENCRYPTION_HANDSHAKE) {
+    // ENCRYPTION_HANDSHAKE keys are only used for the handshake. If
+    // ENCRYPTION_ZERO_RTT keys exist, it is possible for a client to send
+    // stream data, which must not be sent at the ENCRYPTION_HANDSHAKE level.
+    // Therefore, we avoid setting the default encryption level to
+    // ENCRYPTION_HANDSHAKE.
+    reset_encryption_level = true;
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
   connection()->SetDefaultEncryptionLevel(level);
+  if (reset_encryption_level) {
+    connection()->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  }
+  QUIC_BUG_IF(IsEncryptionEstablished() &&
+              (connection()->encryption_level() == ENCRYPTION_INITIAL ||
+               connection()->encryption_level() == ENCRYPTION_HANDSHAKE))
+      << "Encryption is established, but the encryption level " << level
+      << " does not support sending stream data";
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {

@@ -1614,6 +1614,70 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
   VerifyCleanConnection(false);
 }
 
+// This is a regression test for b/162595387
+TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
+  if (!version_.UsesTls()) {
+    // This test is TLS specific.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  // Send a request and then disconnect. This prepares the client to attempt
+  // a 0-RTT handshake for the next request.
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  ASSERT_TRUE(Initialize());
+
+  std::string body(20480, 'a');
+  SpdyHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+
+  EXPECT_EQ(kFooResponseBody,
+            client_->SendCustomSynchronousRequest(headers, body));
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+
+  client_->Disconnect();
+
+  // The 0-RTT handshake should succeed.
+  ON_CALL(visitor, OnCryptoFrame(_))
+      .WillByDefault(Invoke([this, &headers,
+                             &body](const QuicCryptoFrame& frame) {
+        if (frame.level != ENCRYPTION_HANDSHAKE) {
+          return;
+        }
+        // At this point in the handshake, the client should have derived
+        // ENCRYPTION_ZERO_RTT keys (thus set encryption_established). It
+        // should also have set ENCRYPTION_HANDSHAKE keys after receiving
+        // the server's ENCRYPTION_INITIAL flight.
+        EXPECT_TRUE(
+            GetClientSession()->GetCryptoStream()->encryption_established());
+        EXPECT_TRUE(
+            GetClientConnection()->framer().HasEncrypterOfEncryptionLevel(
+                ENCRYPTION_HANDSHAKE));
+        EXPECT_GT(client_->SendMessage(headers, body, /*fin*/ true,
+                                       /*flush*/ false),
+                  0);
+      }));
+  client_->Connect();
+  ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  client_->WaitForWriteToFlush();
+  client_->WaitForResponse();
+  ASSERT_TRUE(client_->client()->connected());
+  EXPECT_EQ(kFooResponseBody, client_->response_body());
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+}
+
 TEST_P(EndToEndTest, RejectWithPacketLoss) {
   // In this test, we intentionally drop the first packet from the
   // server, which corresponds with the initial REJ response from
