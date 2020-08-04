@@ -393,16 +393,16 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   if (!do_not_use_stream_map_) {
     // Copy all non static streams in a new map for the ease of deleting.
-    QuicSmallMap<QuicStreamId, QuicStream*, 10> non_static_streams;
+    std::vector<QuicStream*> non_static_streams;
     for (const auto& it : stream_map_) {
       if (!it.second->is_static()) {
-        non_static_streams[it.first] = it.second.get();
+        non_static_streams.push_back(it.second.get());
       }
     }
 
-    for (const auto& it : non_static_streams) {
-      QuicStreamId id = it.first;
-      it.second->OnConnectionClosed(frame.quic_error_code, source);
+    for (QuicStream* stream : non_static_streams) {
+      QuicStreamId id = stream->id();
+      stream->OnConnectionClosed(frame.quic_error_code, source);
       QUIC_RELOADABLE_FLAG_COUNT(
           quic_do_not_close_stream_again_on_connection_close);
       if (stream_map_.find(id) != stream_map_.end()) {
@@ -2562,16 +2562,16 @@ void QuicSession::NeuterCryptoDataOfEncryptionLevel(EncryptionLevel level) {
 
 void QuicSession::PerformActionOnActiveStreams(
     std::function<bool(QuicStream*)> action) {
-  QuicSmallMap<QuicStreamId, QuicStream*, 10> active_streams;
+  std::vector<QuicStream*> active_streams;
   for (const auto& it : stream_map_) {
     if (!it.second->is_static() &&
         (!remove_zombie_streams_ || !it.second->IsZombie())) {
-      active_streams[it.first] = it.second.get();
+      active_streams.push_back(it.second.get());
     }
   }
 
-  for (const auto& it : active_streams) {
-    if (!action(it.second)) {
+  for (QuicStream* stream : active_streams) {
+    if (!action(stream)) {
       return;
     }
   }
