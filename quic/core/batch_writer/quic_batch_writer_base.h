@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     return {batch_buffer_->GetNextWriteLocation(), nullptr};
   }
 
-  WriteResult Flush() final;
+  WriteResult Flush() override;
 
  protected:
   const QuicBatchWriterBuffer& batch_buffer() const { return *batch_buffer_; }
