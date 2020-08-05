@@ -38,6 +38,10 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
 // SETTINGS_QPACK_MAX_TABLE_CAPACITY.
 const QuicByteCount kDefaultQpackMaxDynamicTableCapacity = 64 * 1024;  // 64 KB
 
+// Default limit on the size of uncompressed headers,
+// communicated via SETTINGS_MAX_HEADER_LIST_SIZE.
+const QuicByteCount kDefaultMaxUncompressedHeaderSize = 16 * 1024;  // 16 KB
+
 // Default limit on number of blocked streams, communicated via
 // SETTINGS_QPACK_BLOCKED_STREAMS.
 const uint64_t kDefaultMaximumBlockedStreams = 100;

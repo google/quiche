@@ -80,11 +80,6 @@ const QuicByteCount kDefaultFlowControlSendWindow = 16 * 1024;  // 16 KB
 const QuicByteCount kStreamReceiveWindowLimit = 16 * 1024 * 1024;   // 16 MB
 const QuicByteCount kSessionReceiveWindowLimit = 24 * 1024 * 1024;  // 24 MB
 
-// Default limit on the size of uncompressed headers,
-// communicated via SETTINGS_MAX_HEADER_LIST_SIZE.
-// TODO(bnc): Move this constant to quic/core/http/.
-const QuicByteCount kDefaultMaxUncompressedHeaderSize = 16 * 1024;  // 16 KB
-
 // Minimum size of the CWND, in packets, when doing bandwidth resumption.
 const QuicPacketCount kMinCongestionWindowForBandwidthResumption = 10;
 
