@@ -55,7 +55,8 @@ class HpackStringDecoderTest : public RandomDecoderTest {
                           bool expected_huffman) {
     return
         [expected_str, expected_huffman, this](
-            const DecodeBuffer& input, DecodeStatus status) -> AssertionResult {
+            const DecodeBuffer& /*input*/,
+            DecodeStatus /*status*/) -> AssertionResult {
           AssertionResult result = Collected(expected_str, expected_huffman);
           if (result) {
             VERIFY_EQ(collector_,

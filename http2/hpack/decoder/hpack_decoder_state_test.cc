@@ -108,7 +108,7 @@ class HpackDecoderStateTest : public ::testing::Test {
   }
 
   void SendIndexAndVerifyCallback(size_t index,
-                                  HpackEntryType expected_type,
+                                  HpackEntryType /*expected_type*/,
                                   const char* expected_name,
                                   const char* expected_value) {
     EXPECT_CALL(listener_, OnHeader(Eq(expected_name), Eq(expected_value)));

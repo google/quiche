@@ -55,8 +55,8 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
     // DecodeBuffer is decoded, each with a different segmentation of the input.
     // Validate that decoder_.value() matches the expected value.
     Validator validator = [expected_value, this](
-                              const DecodeBuffer& db,
-                              DecodeStatus status) -> AssertionResult {
+                              const DecodeBuffer& /*db*/,
+                              DecodeStatus /*status*/) -> AssertionResult {
       if (decoder_.value() != expected_value) {
         return AssertionFailure()
                << "Value doesn't match expected: " << decoder_.value()

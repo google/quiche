@@ -122,15 +122,15 @@ class RandomDecoderTest : public ::testing::Test {
   // Returns a SelectSize function for fast decoding, i.e. passing all that
   // is available to the decoder.
   static SelectSize SelectRemaining() {
-    return [](bool first, size_t offset, size_t remaining) -> size_t {
+    return [](bool /*first*/, size_t /*offset*/, size_t remaining) -> size_t {
       return remaining;
     };
   }
 
   // Returns a SelectSize function for decoding a single byte at a time.
   static SelectSize SelectOne() {
-    return
-        [](bool first, size_t offset, size_t remaining) -> size_t { return 1; };
+    return [](bool /*first*/, size_t /*offset*/,
+              size_t /*remaining*/) -> size_t { return 1; };
   }
 
   // Returns a SelectSize function for decoding a single byte at a time, where
@@ -149,7 +149,7 @@ class RandomDecoderTest : public ::testing::Test {
                                                const Validator& validator);
 
   static Validator ToValidator(std::nullptr_t) {
-    return [](const DecodeBuffer& input, DecodeStatus status) {
+    return [](const DecodeBuffer& /*input*/, DecodeStatus /*status*/) {
       return ::testing::AssertionSuccess();
     };
   }
@@ -165,7 +165,7 @@ class RandomDecoderTest : public ::testing::Test {
     if (validator == nullptr) {
       return ToValidator(nullptr);
     }
-    return [validator](const DecodeBuffer& input, DecodeStatus status) {
+    return [validator](const DecodeBuffer& /*input*/, DecodeStatus /*status*/) {
       return validator();
     };
   }

@@ -133,7 +133,8 @@ RandomDecoderTest::SelectSize RandomDecoderTest::SelectZeroAndOne(
     bool return_non_zero_on_first) {
   std::shared_ptr<bool> zero_next(new bool);
   *zero_next = !return_non_zero_on_first;
-  return [zero_next](bool first, size_t offset, size_t remaining) -> size_t {
+  return [zero_next](bool /*first*/, size_t /*offset*/,
+                     size_t /*remaining*/) -> size_t {
     if (*zero_next) {
       *zero_next = false;
       return 0;
@@ -146,7 +147,7 @@ RandomDecoderTest::SelectSize RandomDecoderTest::SelectZeroAndOne(
 
 RandomDecoderTest::SelectSize RandomDecoderTest::SelectRandom(
     bool return_non_zero_on_first) {
-  return [this, return_non_zero_on_first](bool first, size_t offset,
+  return [this, return_non_zero_on_first](bool first, size_t /*offset*/,
                                           size_t remaining) -> size_t {
     uint32_t r = random_.Rand32();
     if (first && return_non_zero_on_first) {

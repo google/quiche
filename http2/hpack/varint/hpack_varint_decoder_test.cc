@@ -35,8 +35,8 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
                            uint32_t prefix_length,
                            uint64_t expected_value) {
     Validator validator = [expected_value, this](
-                              const DecodeBuffer& db,
-                              DecodeStatus status) -> AssertionResult {
+                              const DecodeBuffer& /*db*/,
+                              DecodeStatus /*status*/) -> AssertionResult {
       VERIFY_EQ(expected_value, decoder_.value())
           << "Value doesn't match expected: " << decoder_.value()
           << " != " << expected_value;
@@ -54,7 +54,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
 
   void DecodeExpectError(quiche::QuicheStringPiece data,
                          uint32_t prefix_length) {
-    Validator validator = [](const DecodeBuffer& db,
+    Validator validator = [](const DecodeBuffer& /*db*/,
                              DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(DecodeStatus::kDecodeError, status);
       return AssertionSuccess();

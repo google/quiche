@@ -6,9 +6,8 @@
 
 #include <sstream>
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 
 namespace http2 {
 namespace test {
