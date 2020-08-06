@@ -784,7 +784,8 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       it->first, action,
       TimeWaitConnectionInfo(
           VersionHasIetfInvariantHeader(connection->transport_version()),
-          connection->termination_packets()));
+          connection->termination_packets(),
+          connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
   session_map_.erase(it);
 }
 

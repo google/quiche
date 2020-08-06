@@ -32,6 +32,10 @@ struct QUIC_EXPORT_PRIVATE TimeWaitConnectionInfo {
   TimeWaitConnectionInfo(
       bool ietf_quic,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
+  TimeWaitConnectionInfo(
+      bool ietf_quic,
+      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+      QuicTime::Delta srtt);
 
   TimeWaitConnectionInfo(const TimeWaitConnectionInfo& other) = delete;
   TimeWaitConnectionInfo(TimeWaitConnectionInfo&& other) = default;
@@ -40,6 +44,7 @@ struct QUIC_EXPORT_PRIVATE TimeWaitConnectionInfo {
 
   bool ietf_quic;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+  QuicTime::Delta srtt;
 };
 
 // Maintains a list of all connection_ids that have been recently closed. A
@@ -239,6 +244,12 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // afterward.  Returns true if the oldest connection was expired.  Returns
   // false if the map is empty or the oldest connection has not expired.
   bool MaybeExpireOldestConnection(QuicTime expiration_time);
+
+  // Called when a packet is received for a connection in this time wait list.
+  virtual void OnPacketReceivedForKnownConnection(
+      int /*num_packets*/,
+      QuicTime::Delta /*delta*/,
+      QuicTime::Delta /*srtt*/) const {}
 
   std::unique_ptr<QuicEncryptedPacket> BuildIetfStatelessResetPacket(
       QuicConnectionId connection_id);

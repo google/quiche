@@ -50,7 +50,15 @@ class ConnectionIdCleanUpAlarm : public QuicAlarm::Delegate {
 TimeWaitConnectionInfo::TimeWaitConnectionInfo(
     bool ietf_quic,
     std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets)
-    : ietf_quic(ietf_quic) {
+    : TimeWaitConnectionInfo(ietf_quic,
+                             termination_packets,
+                             QuicTime::Delta::Zero()) {}
+
+TimeWaitConnectionInfo::TimeWaitConnectionInfo(
+    bool ietf_quic,
+    std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+    QuicTime::Delta srtt)
+    : ietf_quic(ietf_quic), srtt(srtt) {
   if (termination_packets != nullptr) {
     this->termination_packets.swap(*termination_packets);
   }
@@ -132,6 +140,13 @@ void QuicTimeWaitListManager::ProcessPacket(
   // Increment the received packet count.
   ConnectionIdData* connection_data = &it->second;
   ++(connection_data->num_packets);
+  const QuicTime now = clock_->ApproximateNow();
+  QuicTime::Delta delta = QuicTime::Delta::Zero();
+  if (now > connection_data->time_added) {
+    delta = now - connection_data->time_added;
+  }
+  OnPacketReceivedForKnownConnection(connection_data->num_packets, delta,
+                                     connection_data->info.srtt);
 
   if (!ShouldSendResponse(connection_data->num_packets)) {
     QUIC_DLOG(INFO) << "Processing " << connection_id << " in time wait state: "
