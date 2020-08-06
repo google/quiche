@@ -859,6 +859,8 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override {}
+  void OnConnectionClosed(QuicErrorCode /*error*/,
+                          ConnectionCloseSource /*source*/) override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
