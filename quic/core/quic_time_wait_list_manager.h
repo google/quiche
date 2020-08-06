@@ -26,6 +26,22 @@ class QuicDispatcherPeer;
 class QuicTimeWaitListManagerPeer;
 }  // namespace test
 
+// TimeWaitConnectionInfo comprises information of a connection which is in the
+// time wait list.
+struct QUIC_EXPORT_PRIVATE TimeWaitConnectionInfo {
+  TimeWaitConnectionInfo(
+      bool ietf_quic,
+      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
+
+  TimeWaitConnectionInfo(const TimeWaitConnectionInfo& other) = delete;
+  TimeWaitConnectionInfo(TimeWaitConnectionInfo&& other) = default;
+
+  ~TimeWaitConnectionInfo() = default;
+
+  bool ietf_quic;
+  std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+};
+
 // Maintains a list of all connection_ids that have been recently closed. A
 // connection_id lives in this state for time_wait_period_. All packets received
 // for connection_ids in this state are handed over to the
@@ -78,11 +94,9 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // will be move from |termination_packets| and will become owned by the
   // manager. |action| specifies what the time wait list manager should do when
   // processing packets of the connection.
-  virtual void AddConnectionIdToTimeWait(
-      QuicConnectionId connection_id,
-      bool ietf_quic,
-      TimeWaitAction action,
-      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
+  virtual void AddConnectionIdToTimeWait(QuicConnectionId connection_id,
+                                         TimeWaitAction action,
+                                         TimeWaitConnectionInfo info);
 
   // Returns true if the connection_id is in time wait state, false otherwise.
   // Packets received for this connection_id should not lead to creation of new
@@ -234,9 +248,9 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // connection_id.
   struct QUIC_NO_EXPORT ConnectionIdData {
     ConnectionIdData(int num_packets,
-                     bool ietf_quic,
                      QuicTime time_added,
-                     TimeWaitAction action);
+                     TimeWaitAction action,
+                     TimeWaitConnectionInfo info);
 
     ConnectionIdData(const ConnectionIdData& other) = delete;
     ConnectionIdData(ConnectionIdData&& other);
@@ -244,11 +258,9 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
     ~ConnectionIdData();
 
     int num_packets;
-    bool ietf_quic;
     QuicTime time_added;
-    // These packets may contain CONNECTION_CLOSE frames, or SREJ messages.
-    std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
     TimeWaitAction action;
+    TimeWaitConnectionInfo info;
   };
 
   // QuicLinkedHashMap allows lookup by ConnectionId and traversal in add order.

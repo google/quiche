@@ -47,6 +47,15 @@ class ConnectionIdCleanUpAlarm : public QuicAlarm::Delegate {
   QuicTimeWaitListManager* time_wait_list_manager_;
 };
 
+TimeWaitConnectionInfo::TimeWaitConnectionInfo(
+    bool ietf_quic,
+    std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets)
+    : ietf_quic(ietf_quic) {
+  if (termination_packets != nullptr) {
+    this->termination_packets.swap(*termination_packets);
+  }
+}
+
 QuicTimeWaitListManager::QuicTimeWaitListManager(
     QuicPacketWriter* writer,
     Visitor* visitor,
@@ -68,11 +77,11 @@ QuicTimeWaitListManager::~QuicTimeWaitListManager() {
 
 void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
     QuicConnectionId connection_id,
-    bool ietf_quic,
     TimeWaitAction action,
-    std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets) {
-  DCHECK(action != SEND_TERMINATION_PACKETS || termination_packets != nullptr);
-  DCHECK(action != DO_NOTHING || ietf_quic);
+    TimeWaitConnectionInfo info) {
+  DCHECK(action != SEND_TERMINATION_PACKETS ||
+         !info.termination_packets.empty());
+  DCHECK(action != DO_NOTHING || info.ietf_quic);
   int num_packets = 0;
   auto it = connection_id_map_.find(connection_id);
   const bool new_connection_id = it == connection_id_map_.end();
@@ -85,11 +94,8 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
       GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
   DCHECK(connection_id_map_.empty() ||
          num_connections() < static_cast<size_t>(max_connections));
-  ConnectionIdData data(num_packets, ietf_quic, clock_->ApproximateNow(),
-                        action);
-  if (termination_packets != nullptr) {
-    data.termination_packets.swap(*termination_packets);
-  }
+  ConnectionIdData data(num_packets, clock_->ApproximateNow(), action,
+                        std::move(info));
   connection_id_map_.emplace(std::make_pair(connection_id, std::move(data)));
   if (new_connection_id) {
     visitor_->OnConnectionAddedToTimeWaitList(connection_id);
@@ -135,39 +141,39 @@ void QuicTimeWaitListManager::ProcessPacket(
 
   QUIC_DLOG(INFO) << "Processing " << connection_id << " in time wait state: "
                   << "header format=" << header_format
-                  << " ietf=" << connection_data->ietf_quic
+                  << " ietf=" << connection_data->info.ietf_quic
                   << ", action=" << connection_data->action
                   << ", number termination packets="
-                  << connection_data->termination_packets.size();
+                  << connection_data->info.termination_packets.size();
   switch (connection_data->action) {
     case SEND_TERMINATION_PACKETS:
-      if (connection_data->termination_packets.empty()) {
+      if (connection_data->info.termination_packets.empty()) {
         QUIC_BUG << "There are no termination packets.";
         return;
       }
       switch (header_format) {
         case IETF_QUIC_LONG_HEADER_PACKET:
-          if (!connection_data->ietf_quic) {
+          if (!connection_data->info.ietf_quic) {
             QUIC_CODE_COUNT(quic_received_long_header_packet_for_gquic);
           }
           break;
         case IETF_QUIC_SHORT_HEADER_PACKET:
-          if (!connection_data->ietf_quic) {
+          if (!connection_data->info.ietf_quic) {
             QUIC_CODE_COUNT(quic_received_short_header_packet_for_gquic);
           }
           // Send stateless reset in response to short header packets.
           SendPublicReset(self_address, peer_address, connection_id,
-                          connection_data->ietf_quic,
+                          connection_data->info.ietf_quic,
                           std::move(packet_context));
           return;
         case GOOGLE_QUIC_PACKET:
-          if (connection_data->ietf_quic) {
+          if (connection_data->info.ietf_quic) {
             QUIC_CODE_COUNT(quic_received_gquic_packet_for_ietf_quic);
           }
           break;
       }
 
-      for (const auto& packet : connection_data->termination_packets) {
+      for (const auto& packet : connection_data->info.termination_packets) {
         SendOrQueuePacket(std::make_unique<QueuedPacket>(
                               self_address, peer_address, packet->Clone()),
                           packet_context.get());
@@ -175,11 +181,11 @@ void QuicTimeWaitListManager::ProcessPacket(
       return;
 
     case SEND_CONNECTION_CLOSE_PACKETS:
-      if (connection_data->termination_packets.empty()) {
+      if (connection_data->info.termination_packets.empty()) {
         QUIC_BUG << "There are no termination packets.";
         return;
       }
-      for (const auto& packet : connection_data->termination_packets) {
+      for (const auto& packet : connection_data->info.termination_packets) {
         SendOrQueuePacket(std::make_unique<QueuedPacket>(
                               self_address, peer_address, packet->Clone()),
                           packet_context.get());
@@ -191,11 +197,12 @@ void QuicTimeWaitListManager::ProcessPacket(
         QUIC_CODE_COUNT(quic_stateless_reset_long_header_packet);
       }
       SendPublicReset(self_address, peer_address, connection_id,
-                      connection_data->ietf_quic, std::move(packet_context));
+                      connection_data->info.ietf_quic,
+                      std::move(packet_context));
       return;
     case DO_NOTHING:
       QUIC_CODE_COUNT(quic_time_wait_list_do_nothing);
-      DCHECK(connection_data->ietf_quic);
+      DCHECK(connection_data->info.ietf_quic);
   }
 }
 
@@ -394,13 +401,13 @@ void QuicTimeWaitListManager::TrimTimeWaitListIfNeeded() {
 
 QuicTimeWaitListManager::ConnectionIdData::ConnectionIdData(
     int num_packets,
-    bool ietf_quic,
     QuicTime time_added,
-    TimeWaitAction action)
+    TimeWaitAction action,
+    TimeWaitConnectionInfo info)
     : num_packets(num_packets),
-      ietf_quic(ietf_quic),
       time_added(time_added),
-      action(action) {}
+      action(action),
+      info(std::move(info)) {}
 
 QuicTimeWaitListManager::ConnectionIdData::ConnectionIdData(
     ConnectionIdData&& other) = default;

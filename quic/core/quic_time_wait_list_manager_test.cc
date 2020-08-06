@@ -153,8 +153,8 @@ class QuicTimeWaitListManagerTest : public QuicTest {
     termination_packets.push_back(std::unique_ptr<QuicEncryptedPacket>(
         new QuicEncryptedPacket(nullptr, 0, false)));
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        connection_id, false, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        &termination_packets);
+        connection_id, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+        TimeWaitConnectionInfo(false, &termination_packets));
   }
 
   void AddConnectionId(
@@ -163,8 +163,9 @@ class QuicTimeWaitListManagerTest : public QuicTest {
       QuicTimeWaitListManager::TimeWaitAction action,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* packets) {
     time_wait_list_manager_.AddConnectionIdToTimeWait(
-        connection_id, VersionHasIetfInvariantHeader(version.transport_version),
-        action, packets);
+        connection_id, action,
+        TimeWaitConnectionInfo(
+            VersionHasIetfInvariantHeader(version.transport_version), packets));
   }
 
   bool IsConnectionIdInTimeWait(QuicConnectionId connection_id) {
@@ -630,8 +631,8 @@ TEST_F(QuicTimeWaitListManagerTest,
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, /*ietf_quic=*/true,
-      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, &termination_packets);
+      connection_id_, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets));
 
   // Termination packet is not encrypted, instead, send stateless reset.
   EXPECT_CALL(writer_,
@@ -654,9 +655,8 @@ TEST_F(QuicTimeWaitListManagerTest,
           new char[kConnectionCloseLength], kConnectionCloseLength, true)));
   // Add a CONNECTION_CLOSE termination packet.
   time_wait_list_manager_.AddConnectionIdToTimeWait(
-      connection_id_, /*ietf_quic=*/true,
-      QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
-      &termination_packets);
+      connection_id_, QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS,
+      TimeWaitConnectionInfo(/*ietf_quic=*/true, &termination_packets));
   EXPECT_CALL(writer_, WritePacket(_, kConnectionCloseLength,
                                    self_address_.host(), peer_address_, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 1)));

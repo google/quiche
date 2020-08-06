@@ -22,18 +22,16 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
   MOCK_METHOD(void,
               AddConnectionIdToTimeWait,
               (QuicConnectionId connection_id,
-               bool ietf_quic,
                QuicTimeWaitListManager::TimeWaitAction action,
-               std::vector<std::unique_ptr<QuicEncryptedPacket>>*),
+               quic::TimeWaitConnectionInfo info),
               (override));
 
   void QuicTimeWaitListManager_AddConnectionIdToTimeWait(
       QuicConnectionId connection_id,
-      bool ietf_quic,
       QuicTimeWaitListManager::TimeWaitAction action,
-      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets) {
-    QuicTimeWaitListManager::AddConnectionIdToTimeWait(
-        connection_id, ietf_quic, action, termination_packets);
+      quic::TimeWaitConnectionInfo info) {
+    QuicTimeWaitListManager::AddConnectionIdToTimeWait(connection_id, action,
+                                                       std::move(info));
   }
 
   MOCK_METHOD(void,

@@ -155,9 +155,9 @@ class StatelessConnectionTerminator {
     SerializeConnectionClosePacket(error_code, error_details);
 
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id_, ietf_quic,
+        server_connection_id_,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        collector_.packets());
+        TimeWaitConnectionInfo(ietf_quic, collector_.packets()));
   }
 
  private:
@@ -781,8 +781,10 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
   }
   time_wait_list_manager_->AddConnectionIdToTimeWait(
-      it->first, VersionHasIetfInvariantHeader(connection->transport_version()),
-      action, connection->termination_packets());
+      it->first, action,
+      TimeWaitConnectionInfo(
+          VersionHasIetfInvariantHeader(connection->transport_version()),
+          connection->termination_packets()));
   session_map_.erase(it);
 }
 
@@ -931,7 +933,8 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_code:" << error_code
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        server_connection_id, format != GOOGLE_QUIC_PACKET, action, nullptr);
+        server_connection_id, action,
+        TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr));
     return;
   }
 
@@ -965,8 +968,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       /*ietf_quic=*/format != GOOGLE_QUIC_PACKET, use_length_prefix,
       /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
-      server_connection_id, /*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
-      QuicTimeWaitListManager::SEND_TERMINATION_PACKETS, &termination_packets);
+      server_connection_id, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
+      TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
+                             &termination_packets));
 }
 
 bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
