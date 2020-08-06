@@ -11580,6 +11580,43 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
   EXPECT_EQ(deadline, connection_.GetTimeoutAlarm()->deadline());
 }
 
+TEST_P(QuicConnectionTest, SilentIdleTimeout) {
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+
+  QuicConfig config;
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                         QuicConnectionId());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+
+  EXPECT_CALL(visitor_,
+              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.GetTimeoutAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_add_silent_idle_timeout)) {
+    // Verify the connection close packets get serialized and added to
+    // termination packets list.
+    EXPECT_NE(nullptr,
+              QuicConnectionPeer::GetConnectionClosePacket(&connection_));
+  } else {
+    // Verify no connection close packet is serialized.
+    EXPECT_EQ(nullptr,
+              QuicConnectionPeer::GetConnectionClosePacket(&connection_));
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

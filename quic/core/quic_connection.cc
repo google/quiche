@@ -514,6 +514,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                        config.IdleNetworkTimeout());
     idle_timeout_connection_close_behavior_ =
         ConnectionCloseBehavior::SILENT_CLOSE;
+    if (GetQuicReloadableFlag(quic_add_silent_idle_timeout) &&
+        perspective_ == Perspective::IS_SERVER) {
+      idle_timeout_connection_close_behavior_ = ConnectionCloseBehavior::
+          SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED;
+    }
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
@@ -2573,7 +2578,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           ? packet->fate
           : GetSerializedPacketFate(is_mtu_discovery, packet->encryption_level);
   // Termination packets are encrypted and saved, so don't exit early.
-  const bool is_termination_packet = IsTerminationPacket(*packet);
+  QuicErrorCode error_code = QUIC_NO_ERROR;
+  const bool is_termination_packet = IsTerminationPacket(*packet, &error_code);
   QuicPacketNumber packet_number = packet->packet_number;
   QuicPacketLength encrypted_length = packet->encrypted_length;
   // Termination packets are eventually owned by TimeWaitListManager.
@@ -2587,6 +2593,17 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     char* buffer_copy = CopyBuffer(*packet);
     termination_packets_->emplace_back(
         new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
+    if (error_code == QUIC_SILENT_IDLE_TIMEOUT) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_add_silent_idle_timeout);
+      DCHECK_EQ(Perspective::IS_SERVER, perspective_);
+      // TODO(fayang): populate histogram indicating the time elapsed from this
+      // connection gets closed to following client packets get received.
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "Added silent connection close to termination packets, "
+                       "num of termination packets: "
+                    << termination_packets_->size();
+      return true;
+    }
   }
 
   DCHECK_LE(encrypted_length, kMaxOutgoingPacketSize);
@@ -3772,12 +3789,14 @@ HasRetransmittableData QuicConnection::IsRetransmittable(
   }
 }
 
-bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet) {
+bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet,
+                                         QuicErrorCode* error_code) {
   if (packet.retransmittable_frames.empty()) {
     return false;
   }
   for (const QuicFrame& frame : packet.retransmittable_frames) {
     if (frame.type == CONNECTION_CLOSE_FRAME) {
+      *error_code = frame.connection_close_frame->quic_error_code;
       return true;
     }
   }
@@ -4715,7 +4734,12 @@ void QuicConnection::OnIdleNetworkDetected() {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT, error_details,
+  QuicErrorCode error_code = QUIC_NETWORK_IDLE_TIMEOUT;
+  if (GetQuicReloadableFlag(quic_add_silent_idle_timeout) &&
+      perspective_ == Perspective::IS_SERVER) {
+    error_code = QUIC_SILENT_IDLE_TIMEOUT;
+  }
+  CloseConnection(error_code, error_details,
                   idle_timeout_connection_close_behavior_);
 }
 

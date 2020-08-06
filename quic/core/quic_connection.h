@@ -1188,7 +1188,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number);
 
   HasRetransmittableData IsRetransmittable(const SerializedPacket& packet);
-  bool IsTerminationPacket(const SerializedPacket& packet);
+  bool IsTerminationPacket(const SerializedPacket& packet,
+                           QuicErrorCode* error_code);
 
   // Set the size of the packet we are targeting while doing path MTU discovery.
   void SetMtuDiscoveryTarget(QuicByteCount target);

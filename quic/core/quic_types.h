@@ -211,6 +211,7 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
 // Should a connection be closed silently or not.
 enum class ConnectionCloseBehavior {
   SILENT_CLOSE,
+  SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED,
   SEND_CONNECTION_CLOSE_PACKET
 };
 

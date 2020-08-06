@@ -489,8 +489,11 @@ enum QuicErrorCode {
   // This is the peer violating QUIC spec.
   QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED = 163,
 
+  // The connection silently timed out due to no network activity.
+  QUIC_SILENT_IDLE_TIMEOUT = 168,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 168,
+  QUIC_LAST_ERROR = 169,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
