@@ -127,7 +127,6 @@ void QuicSession::Initialize() {
   connection_->SetDataProducer(this);
   connection_->SetFromConfig(config_);
   if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
-    config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
     if (GetQuicReloadableFlag(quic_support_handshake_done_in_t050) &&
         !version().HasHandshakeDone()) {
       config_.SetSupportHandshakeDone();

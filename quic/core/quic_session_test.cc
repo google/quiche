@@ -2208,14 +2208,6 @@ TEST_P(QuicSessionTestClient, IncomingStreamWithClientInitiatedStreamId) {
   session_.OnStreamFrame(frame);
 }
 
-TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
-  if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-  ASSERT_EQ(session_.config()->GetMinAckDelayToSendMs(),
-            kDefaultMinAckDelayTimeMs);
-}
-
 TEST_P(QuicSessionTestClient, FailedToCreateStreamIfTooCloseToIdleTimeout) {
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());
