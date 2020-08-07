@@ -347,6 +347,9 @@ void QuicSession::OnRstStream(const QuicRstStreamFrame& frame) {
 }
 
 void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
+  QUIC_BUG_IF(version().UsesHttp3())
+      << "gQUIC GOAWAY received on version " << version();
+
   goaway_received_ = true;
 }
 

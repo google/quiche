@@ -657,6 +657,9 @@ void QuicSpdySession::WriteHttp3PriorityUpdate(
 }
 
 void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
+  QUIC_BUG_IF(!version().UsesHttp3())
+      << "HTTP/3 GOAWAY received on version " << version();
+
   if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
     if (last_received_http3_goaway_id_.has_value() &&
         id > last_received_http3_goaway_id_.value()) {
