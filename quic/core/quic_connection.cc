@@ -519,6 +519,12 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       idle_timeout_connection_close_behavior_ = ConnectionCloseBehavior::
           SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED;
     }
+    if (GetQuicReloadableFlag(quic_no_silent_close_for_idle_timeout) &&
+        config.HasClientRequestedIndependentOption(kNSLC, perspective_)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_no_silent_close_for_idle_timeout);
+      idle_timeout_connection_close_behavior_ =
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET;
+    }
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
@@ -4735,8 +4741,9 @@ void QuicConnection::OnIdleNetworkDetected() {
     return;
   }
   QuicErrorCode error_code = QUIC_NETWORK_IDLE_TIMEOUT;
-  if (GetQuicReloadableFlag(quic_add_silent_idle_timeout) &&
-      perspective_ == Perspective::IS_SERVER) {
+  if (idle_timeout_connection_close_behavior_ ==
+      ConnectionCloseBehavior::
+          SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED) {
     error_code = QUIC_SILENT_IDLE_TIMEOUT;
   }
   CloseConnection(error_code, error_details,

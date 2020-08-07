@@ -307,6 +307,9 @@ const QuicTag kLIFO = TAG('L', 'I', 'F', 'O');  // Stream with the largest ID
                                                 // has the highest priority.
 const QuicTag kRRWS = TAG('R', 'R', 'W', 'S');  // Round robin write scheduling.
 
+const QuicTag kNSLC = TAG('N', 'S', 'L', 'C');  // Always send connection close
+                                                // for idle timeout.
+
 // Proof types (i.e. certificate types)
 // NOTE: although it would be silly to do so, specifying both kX509 and kX59R
 // is allowed and is equivalent to specifying only kX509.
