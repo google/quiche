@@ -389,6 +389,11 @@ bool QuicTimeWaitListManager::MaybeExpireOldestConnection(
   QUIC_DLOG(INFO) << "Connection " << it->first
                   << " expired from time wait list";
   connection_id_map_.erase(it);
+  if (expiration_time == QuicTime::Infinite()) {
+    QUIC_CODE_COUNT(quic_time_wait_list_trim_full);
+  } else {
+    QUIC_CODE_COUNT(quic_time_wait_list_expire_connections);
+  }
   return true;
 }
 
