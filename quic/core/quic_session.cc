@@ -1397,7 +1397,8 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing unidirectional stream " << id
                   << " of new stream flow control window " << new_window;
-    if (!ValidateStreamFlowControlLimit(new_window, kv.second.get())) {
+    if (!kv.second->ValidateFlowControlLimit(new_window,
+                                             was_zero_rtt_rejected_)) {
       return;
     }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
@@ -1430,7 +1431,8 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing outgoing bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    if (!ValidateStreamFlowControlLimit(new_window, kv.second.get())) {
+    if (!kv.second->ValidateFlowControlLimit(new_window,
+                                             was_zero_rtt_rejected_)) {
       return;
     }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
@@ -1463,48 +1465,14 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing incoming bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    if (!ValidateStreamFlowControlLimit(new_window, kv.second.get())) {
+    if (!kv.second->ValidateFlowControlLimit(new_window,
+                                             was_zero_rtt_rejected_)) {
       return;
     }
     if (!kv.second->ConfigSendWindowOffset(new_window)) {
       return;
     }
   }
-}
-
-bool QuicSession::ValidateStreamFlowControlLimit(QuicStreamOffset new_window,
-                                                 const QuicStream* stream) {
-  if (was_zero_rtt_rejected_ &&
-      new_window < stream->flow_controller()->bytes_sent()) {
-    QUIC_BUG_IF(perspective() == Perspective::IS_SERVER)
-        << "Server should never receive configs twice.";
-    connection_->CloseConnection(
-        QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-        quiche::QuicheStrCat(
-            "Server rejected 0-RTT, aborting because new stream max data ",
-            new_window, " for stream ", stream->id(),
-            " is less than currently used: ",
-            stream->flow_controller()->bytes_sent()),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
-  }
-
-  if (version().AllowsLowFlowControlLimits() &&
-      new_window < stream->flow_controller()->send_window_offset()) {
-    QUIC_BUG_IF(perspective() == Perspective::IS_SERVER)
-        << "Server should never receive configs twice.";
-    connection_->CloseConnection(
-        was_zero_rtt_rejected_ ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
-                               : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-        quiche::QuicheStrCat(
-            was_zero_rtt_rejected_ ? "Server rejected 0-RTT, aborting because "
-                                   : "",
-            "new stream max data ", new_window, " decreases current limit: ",
-            stream->flow_controller()->send_window_offset()),
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return false;
-  }
-  return true;
 }
 
 void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {

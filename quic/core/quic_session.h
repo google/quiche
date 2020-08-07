@@ -736,12 +736,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
                                QuicRstStreamErrorCode error,
                                QuicStreamOffset bytes_written);
 
-  // Closes the connection and returns false if |new_window| is lower than
-  // |stream|'s current flow control window.
-  // Returns true otherwise.
-  bool ValidateStreamFlowControlLimit(QuicStreamOffset new_window,
-                                      const QuicStream* stream);
-
   // Sends a STOP_SENDING frame if the stream type allows.
   void MaybeSendStopSendingFrame(QuicStreamId id, QuicRstStreamErrorCode error);
 
