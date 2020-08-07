@@ -28,7 +28,7 @@ class QuicTimeWaitListManagerPeer;
 
 // TimeWaitConnectionInfo comprises information of a connection which is in the
 // time wait list.
-struct QUIC_EXPORT_PRIVATE TimeWaitConnectionInfo {
+struct QUIC_NO_EXPORT TimeWaitConnectionInfo {
   TimeWaitConnectionInfo(
       bool ietf_quic,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
