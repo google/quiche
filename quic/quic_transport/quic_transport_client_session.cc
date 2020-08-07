@@ -26,20 +26,6 @@
 
 namespace quic {
 
-namespace {
-// ProofHandler is primarily used by QUIC crypto to persist QUIC server configs
-// and perform some of related debug logging.  QuicTransport does not support
-// QUIC crypto, so those methods are not called.
-class DummyProofHandler : public QuicCryptoClientStream::ProofHandler {
- public:
-  void OnProofValid(
-      const QuicCryptoClientConfig::CachedState& /*cached*/) override {}
-  void OnProofVerifyDetailsAvailable(
-      const ProofVerifyDetails& /*verify_details*/) override {}
-};
-
-}  // namespace
-
 QuicTransportClientSession::QuicTransportClientSession(
     QuicConnection* connection,
     Visitor* owner,
@@ -61,12 +47,10 @@ QuicTransportClientSession::QuicTransportClientSession(
     QUIC_BUG_IF(version.handshake_protocol != PROTOCOL_TLS1_3)
         << "QuicTransport requires TLS 1.3 handshake";
   }
-  // ProofHandler API is not used by TLS 1.3.
-  static DummyProofHandler* proof_handler = new DummyProofHandler();
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(
       QuicServerId(url.host(), url.EffectiveIntPort()), this,
       crypto_config->proof_verifier()->CreateDefaultContext(), crypto_config,
-      proof_handler, /*has_application_state = */ true);
+      /*proof_handler=*/this, /*has_application_state = */ true);
 }
 
 void QuicTransportClientSession::OnAlpnSelected(
@@ -266,5 +250,11 @@ void QuicTransportClientSession::OnCanCreateNewOutgoingStream(
     visitor_->OnCanCreateNewOutgoingBidirectionalStream();
   }
 }
+
+void QuicTransportClientSession::OnProofValid(
+    const QuicCryptoClientConfig::CachedState& /*cached*/) {}
+
+void QuicTransportClientSession::OnProofVerifyDetailsAvailable(
+    const ProofVerifyDetails& /*verify_details*/) {}
 
 }  // namespace quic

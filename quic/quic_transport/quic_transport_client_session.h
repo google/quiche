@@ -31,7 +31,8 @@ namespace quic {
 // A client session for the QuicTransport protocol.
 class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     : public QuicSession,
-      public QuicTransportSessionInterface {
+      public QuicTransportSessionInterface,
+      public QuicCryptoClientStream::ProofHandler {
  public:
   class QUIC_EXPORT_PRIVATE ClientVisitor {
    public:
@@ -110,6 +111,11 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   QuicTransportStream* OpenOutgoingUnidirectionalStream();
 
   using QuicSession::datagram_queue;
+
+  // QuicCryptoClientStream::ProofHandler implementation.
+  void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
+  void OnProofVerifyDetailsAvailable(
+      const ProofVerifyDetails& verify_details) override;
 
  protected:
   class QUIC_EXPORT_PRIVATE ClientIndication : public QuicStream {
