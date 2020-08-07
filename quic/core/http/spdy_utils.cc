@@ -34,7 +34,8 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
         quiche::QuicheTextUtils::Split(content_length_header, '\0');
     for (const quiche::QuicheStringPiece& value : values) {
       uint64_t new_value;
-      if (!quiche::QuicheTextUtils::StringToUint64(value, &new_value)) {
+      if (!quiche::QuicheTextUtils::StringToUint64(value, &new_value) ||
+          !quiche::QuicheTextUtils::IsAllDigits(value)) {
         QUIC_DLOG(ERROR)
             << "Content length was either unparseable or negative.";
         return false;

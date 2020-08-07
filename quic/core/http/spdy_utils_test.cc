@@ -141,6 +141,20 @@ TEST_F(CopyAndValidateHeaders, LargeContentLength) {
   EXPECT_EQ(9000000000, content_length);
 }
 
+TEST_F(CopyAndValidateHeaders, NonDigitContentLength) {
+  // Section 3.3.2 of RFC 7230 defines content-length as being only digits.
+  // Number parsers might accept symbols like a leading plus; test that this
+  // fails to parse.
+  auto headers = FromList({{"content-length", "+123"},
+                           {"foo", "foovalue"},
+                           {"bar", "barvalue"},
+                           {"baz", ""}});
+  int64_t content_length = -1;
+  SpdyHeaderBlock block;
+  EXPECT_FALSE(
+      SpdyUtils::CopyAndValidateHeaders(*headers, &content_length, &block));
+}
+
 TEST_F(CopyAndValidateHeaders, MultipleValues) {
   auto headers = FromList({{"foo", "foovalue"},
                            {"bar", "barvalue"},
