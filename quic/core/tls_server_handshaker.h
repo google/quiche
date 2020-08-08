@@ -53,6 +53,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
+  const ProofSource::Details* ProofSourceDetails() const override;
 
   // From QuicCryptoServerStreamBase and TlsHandshaker
   bool encryption_established() const override;
@@ -75,10 +76,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   const TlsConnection* tls_connection() const override {
     return &tls_connection_;
-  }
-
-  ProofSource::Details* proof_source_details() const {
-    return proof_source_details_.get();
   }
 
   virtual void ProcessAdditionalTransportParameters(

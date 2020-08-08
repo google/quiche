@@ -166,6 +166,10 @@ bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {
   return false;
 }
 
+const ProofSource::Details* TlsServerHandshaker::ProofSourceDetails() const {
+  return proof_source_details_.get();
+}
+
 void TlsServerHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
                                              ConnectionCloseSource /*source*/) {
   state_ = STATE_CONNECTION_CLOSED;

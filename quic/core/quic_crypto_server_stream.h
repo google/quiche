@@ -29,7 +29,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
 
   ~QuicCryptoServerStream() override;
 
-  // From HandshakerInterface
+  // From QuicCryptoServerStreamBase
   void CancelOutstandingCallbacks() override;
   bool GetBase64SHA256ClientChannelID(std::string* output) const override;
   void SendServerConfigUpdate(
@@ -48,6 +48,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
                           ConnectionCloseSource /*source*/) override {}
   void OnHandshakeDoneReceived() override;
   bool ShouldSendExpectCTHeader() const override;
+  const ProofSource::Details* ProofSourceDetails() const override;
 
   // From QuicCryptoStream
   bool encryption_established() const override;
@@ -236,6 +237,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerStream
   // FinishProcessingHandshakeMessageAfterProcessClientHello.  Note that this
   // field is mutually exclusive with validate_client_hello_cb_.
   ProcessClientHelloCallback* process_client_hello_cb_;
+
+  // The ProofSource::Details from this connection.
+  std::unique_ptr<ProofSource::Details> proof_source_details_;
 
   bool encryption_established_;
   bool one_rtt_keys_available_;
