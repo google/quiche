@@ -827,7 +827,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyMarkConsumed) {
   EXPECT_EQ(body, std::string(static_cast<char*>(vec.iov_base), vec.iov_len));
 
   stream_->MarkConsumed(body.length());
-  EXPECT_EQ(data.length(), stream_->flow_controller()->bytes_consumed());
+  EXPECT_EQ(data.length(), QuicStreamPeer::bytes_consumed(stream_));
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeadersAndConsumeMultipleBody) {
@@ -848,7 +848,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndConsumeMultipleBody) {
 
   stream_->MarkConsumed(body1.length() + body2.length());
   EXPECT_EQ(data1.length() + data2.length(),
-            stream_->flow_controller()->bytes_consumed());
+            QuicStreamPeer::bytes_consumed(stream_));
 }
 
 TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyIncrementalReadv) {
@@ -911,10 +911,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
 
   // Set a small flow control limit.
   const uint64_t kWindow = 36;
-  QuicFlowControllerPeer::SetSendWindowOffset(stream_->flow_controller(),
-                                              kWindow);
-  EXPECT_EQ(kWindow, QuicFlowControllerPeer::SendWindowOffset(
-                         stream_->flow_controller()));
+  QuicStreamPeer::SetSendWindowOffset(stream_, kWindow);
+  EXPECT_EQ(kWindow, QuicStreamPeer::SendWindowOffset(stream_));
 
   // Try to send more data than the flow control limit allows.
   const uint64_t kOverflow = 15;
@@ -931,8 +929,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlBlocked) {
   stream_->WriteOrBufferBody(body, false);
 
   // Should have sent as much as possible, resulting in no send window left.
-  EXPECT_EQ(0u,
-            QuicFlowControllerPeer::SendWindowSize(stream_->flow_controller()));
+  EXPECT_EQ(0u, QuicStreamPeer::SendWindowSize(stream_));
 
   // And we should have queued the overflowed data.
   EXPECT_EQ(kOverflow + kHeaderLength, stream_->BufferedDataBytes());
@@ -950,12 +947,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
 
   // Set a small flow control receive window.
   const uint64_t kWindow = 36;
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(),
-                                                 kWindow);
-  QuicFlowControllerPeer::SetMaxReceiveWindow(stream_->flow_controller(),
-                                              kWindow);
-  EXPECT_EQ(kWindow, QuicFlowControllerPeer::ReceiveWindowOffset(
-                         stream_->flow_controller()));
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, kWindow);
+  QuicStreamPeer::SetMaxReceiveWindow(stream_, kWindow);
 
   // Stream receives enough data to fill a fraction of the receive window.
   std::string body(kWindow / 3, 'a');
@@ -977,9 +970,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                          quiche::QuicheStringPiece(data));
   stream_->OnStreamFrame(frame1);
-  EXPECT_EQ(
-      kWindow - (kWindow / 3) - header_length,
-      QuicFlowControllerPeer::ReceiveWindowSize(stream_->flow_controller()));
+  EXPECT_EQ(kWindow - (kWindow / 3) - header_length,
+            QuicStreamPeer::ReceiveWindowSize(stream_));
 
   // Now receive another frame which results in the receive window being over
   // half full. This should all be buffered, decreasing the receive window but
@@ -988,9 +980,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlNoWindowUpdateIfNotConsumed) {
                          kWindow / 3 + header_length,
                          quiche::QuicheStringPiece(data));
   stream_->OnStreamFrame(frame2);
-  EXPECT_EQ(
-      kWindow - (2 * kWindow / 3) - 2 * header_length,
-      QuicFlowControllerPeer::ReceiveWindowSize(stream_->flow_controller()));
+  EXPECT_EQ(kWindow - (2 * kWindow / 3) - 2 * header_length,
+            QuicStreamPeer::ReceiveWindowSize(stream_));
 }
 
 // Tests that on receipt of data, the stream updates its receive window offset
@@ -1001,12 +992,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
 
   // Set a small flow control limit.
   const uint64_t kWindow = 36;
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(),
-                                                 kWindow);
-  QuicFlowControllerPeer::SetMaxReceiveWindow(stream_->flow_controller(),
-                                              kWindow);
-  EXPECT_EQ(kWindow, QuicFlowControllerPeer::ReceiveWindowOffset(
-                         stream_->flow_controller()));
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, kWindow);
+  QuicStreamPeer::SetMaxReceiveWindow(stream_, kWindow);
 
   // Stream receives enough data to fill a fraction of the receive window.
   std::string body(kWindow / 3, 'a');
@@ -1029,9 +1016,8 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), false, 0,
                          quiche::QuicheStringPiece(data));
   stream_->OnStreamFrame(frame1);
-  EXPECT_EQ(
-      kWindow - (kWindow / 3) - header_length,
-      QuicFlowControllerPeer::ReceiveWindowSize(stream_->flow_controller()));
+  EXPECT_EQ(kWindow - (kWindow / 3) - header_length,
+            QuicStreamPeer::ReceiveWindowSize(stream_));
 
   // Now receive another frame which results in the receive window being over
   // half full.  This will trigger the stream to increase its receive window
@@ -1043,8 +1029,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlWindowUpdate) {
   EXPECT_CALL(*session_, SendWindowUpdate(_, _));
   EXPECT_CALL(*connection_, SendControlFrame(_));
   stream_->OnStreamFrame(frame2);
-  EXPECT_EQ(kWindow, QuicFlowControllerPeer::ReceiveWindowSize(
-                         stream_->flow_controller()));
+  EXPECT_EQ(kWindow, QuicStreamPeer::ReceiveWindowSize(stream_));
 }
 
 // Tests that on receipt of data, the connection updates its receive window
@@ -1055,14 +1040,10 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlWindowUpdate) {
 
   // Set a small flow control limit for streams and connection.
   const uint64_t kWindow = 36;
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(),
-                                                 kWindow);
-  QuicFlowControllerPeer::SetMaxReceiveWindow(stream_->flow_controller(),
-                                              kWindow);
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream2_->flow_controller(),
-                                                 kWindow);
-  QuicFlowControllerPeer::SetMaxReceiveWindow(stream2_->flow_controller(),
-                                              kWindow);
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, kWindow);
+  QuicStreamPeer::SetMaxReceiveWindow(stream_, kWindow);
+  QuicStreamPeer::SetReceiveWindowOffset(stream2_, kWindow);
+  QuicStreamPeer::SetMaxReceiveWindow(stream2_, kWindow);
   QuicFlowControllerPeer::SetReceiveWindowOffset(session_->flow_controller(),
                                                  kWindow);
   QuicFlowControllerPeer::SetMaxReceiveWindow(session_->flow_controller(),
@@ -1130,8 +1111,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlViolation) {
 
   // Set a small flow control limit.
   const uint64_t kWindow = 50;
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(),
-                                                 kWindow);
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, kWindow);
 
   ProcessHeaders(false, headers_);
 
@@ -1166,8 +1146,7 @@ TEST_P(QuicSpdyStreamTest, ConnectionFlowControlViolation) {
   // Set a small flow control window on streams, and connection.
   const uint64_t kStreamWindow = 50;
   const uint64_t kConnectionWindow = 10;
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(),
-                                                 kStreamWindow);
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, kStreamWindow);
   QuicFlowControllerPeer::SetReceiveWindowOffset(session_->flow_controller(),
                                                  kConnectionWindow);
 
@@ -1192,9 +1171,7 @@ TEST_P(QuicSpdyStreamTest, StreamFlowControlFinNotBlocked) {
   Initialize(kShouldProcessData);
 
   // Set a flow control limit of zero.
-  QuicFlowControllerPeer::SetReceiveWindowOffset(stream_->flow_controller(), 0);
-  EXPECT_EQ(0u, QuicFlowControllerPeer::ReceiveWindowOffset(
-                    stream_->flow_controller()));
+  QuicStreamPeer::SetReceiveWindowOffset(stream_, 0);
 
   // Send a frame with a FIN but no data. This should not be blocked.
   std::string body = "";

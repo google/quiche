@@ -1313,20 +1313,28 @@ void QuicStream::SendStopSending(uint16_t code) {
   session_->SendStopSending(code, id_);
 }
 
-QuicFlowController* QuicStream::flow_controller() {
-  if (flow_controller_.has_value()) {
-    return &flow_controller_.value();
+bool QuicStream::IsFlowControlBlocked() const {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << "Trying to access non-existent flow controller.";
+    return false;
   }
-  QUIC_BUG << "Trying to access non-existent flow controller.";
-  return nullptr;
+  return flow_controller_->IsBlocked();
 }
 
-const QuicFlowController* QuicStream::flow_controller() const {
-  if (flow_controller_.has_value()) {
-    return &flow_controller_.value();
+QuicStreamOffset QuicStream::highest_received_byte_offset() const {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << "Trying to access non-existent flow controller.";
+    return 0;
   }
-  QUIC_BUG << "Trying to access non-existent flow controller.";
-  return nullptr;
+  return flow_controller_->highest_received_byte_offset();
+}
+
+void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
+  if (!flow_controller_.has_value()) {
+    QUIC_BUG << "Trying to access non-existent flow controller.";
+    return;
+  }
+  flow_controller_->UpdateReceiveWindowSize(size);
 }
 
 // static

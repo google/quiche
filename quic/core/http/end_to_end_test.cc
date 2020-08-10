@@ -573,12 +573,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   static void ExpectFlowControlsSynced(QuicStream* client, QuicStream* server) {
-    EXPECT_EQ(
-        QuicFlowControllerPeer::SendWindowSize(client->flow_controller()),
-        QuicFlowControllerPeer::ReceiveWindowSize(server->flow_controller()));
-    EXPECT_EQ(
-        QuicFlowControllerPeer::ReceiveWindowSize(client->flow_controller()),
-        QuicFlowControllerPeer::SendWindowSize(server->flow_controller()));
+    EXPECT_EQ(QuicStreamPeer::SendWindowSize(client),
+              QuicStreamPeer::ReceiveWindowSize(server));
+    EXPECT_EQ(QuicStreamPeer::ReceiveWindowSize(client),
+              QuicStreamPeer::SendWindowSize(server));
   }
 
   // Must be called before Initialize to have effect.
@@ -1748,9 +1746,9 @@ TEST_P(EndToEndTest, DoNotSetSendAlarmIfConnectionFlowControlBlocked) {
   QuicSpdyClientStream* stream = client_->GetOrCreateStream();
   QuicSession* session = GetClientSession();
   ASSERT_TRUE(session);
-  QuicFlowControllerPeer::SetSendWindowOffset(stream->flow_controller(), 0);
+  QuicStreamPeer::SetSendWindowOffset(stream, 0);
   QuicFlowControllerPeer::SetSendWindowOffset(session->flow_controller(), 0);
-  EXPECT_TRUE(stream->flow_controller()->IsBlocked());
+  EXPECT_TRUE(stream->IsFlowControlBlocked());
   EXPECT_TRUE(session->flow_controller()->IsBlocked());
 
   // Make sure that the stream has data pending so that it will be marked as
@@ -2404,8 +2402,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
                   ->config()
                   ->ReceivedInitialSessionFlowControlWindowBytes());
   }
-  EXPECT_EQ(kServerStreamIFCW, QuicFlowControllerPeer::SendWindowOffset(
-                                   stream->flow_controller()));
+  EXPECT_EQ(kServerStreamIFCW, QuicStreamPeer::SendWindowOffset(stream));
   QuicSpdyClientSession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
   EXPECT_EQ(kServerSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
@@ -2480,8 +2477,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
               client_session->config()
                   ->ReceivedInitialSessionFlowControlWindowBytes());
   }
-  EXPECT_EQ(kExpectedStreamIFCW, QuicFlowControllerPeer::SendWindowOffset(
-                                     stream->flow_controller()));
+  EXPECT_EQ(kExpectedStreamIFCW, QuicStreamPeer::SendWindowOffset(stream));
   EXPECT_EQ(kExpectedSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
                                       client_session->flow_controller()));
 }
@@ -2512,9 +2508,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   // In v47 and later, the crypto handshake (sent in CRYPTO frames) is not
   // subject to flow control.
   if (!version_.UsesCryptoFrames()) {
-    EXPECT_LT(QuicFlowControllerPeer::SendWindowSize(
-                  crypto_stream->flow_controller()),
-              kStreamIFCW);
+    EXPECT_LT(QuicStreamPeer::SendWindowSize(crypto_stream), kStreamIFCW);
   }
   // When stream type is enabled, control streams will send settings and
   // contribute to flow control windows, so this expectation is no longer valid.
@@ -2535,9 +2529,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   QuicHeadersStream* headers_stream =
       QuicSpdySessionPeer::GetHeadersStream(client_session);
   ASSERT_TRUE(headers_stream);
-  EXPECT_LT(
-      QuicFlowControllerPeer::SendWindowSize(headers_stream->flow_controller()),
-      kStreamIFCW);
+  EXPECT_LT(QuicStreamPeer::SendWindowSize(headers_stream), kStreamIFCW);
   EXPECT_EQ(kSessionIFCW, QuicFlowControllerPeer::SendWindowSize(
                               client_session->flow_controller()));
 
@@ -2618,29 +2610,25 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
                               kDefaultMaxUncompressedHeaderSize);
     SpdySerializedFrame frame(spdy_framer.SerializeFrame(settings_frame));
 
-    QuicFlowController* client_header_stream_flow_controller =
-        QuicSpdySessionPeer::GetHeadersStream(client_session)
-            ->flow_controller();
-    QuicFlowController* server_header_stream_flow_controller =
-        QuicSpdySessionPeer::GetHeadersStream(server_session)
-            ->flow_controller();
+    QuicHeadersStream* client_header_stream =
+        QuicSpdySessionPeer::GetHeadersStream(client_session);
+    QuicHeadersStream* server_header_stream =
+        QuicSpdySessionPeer::GetHeadersStream(server_session);
     // Both client and server are sending this SETTINGS frame, and the send
     // window is consumed. But because of timing issue, the server may send or
     // not send the frame, and the client may send/ not send / receive / not
     // receive the frame.
     // TODO(fayang): Rewrite this part because it is hacky.
-    QuicByteCount win_difference1 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                        server_header_stream_flow_controller) -
-                                    QuicFlowControllerPeer::SendWindowSize(
-                                        client_header_stream_flow_controller);
+    QuicByteCount win_difference1 =
+        QuicStreamPeer::ReceiveWindowSize(server_header_stream) -
+        QuicStreamPeer::SendWindowSize(client_header_stream);
     if (win_difference1 != 0) {
       EXPECT_EQ(frame.size(), win_difference1);
     }
 
-    QuicByteCount win_difference2 = QuicFlowControllerPeer::ReceiveWindowSize(
-                                        client_header_stream_flow_controller) -
-                                    QuicFlowControllerPeer::SendWindowSize(
-                                        server_header_stream_flow_controller);
+    QuicByteCount win_difference2 =
+        QuicStreamPeer::ReceiveWindowSize(client_header_stream) -
+        QuicStreamPeer::SendWindowSize(server_header_stream);
     if (win_difference2 != 0) {
       EXPECT_EQ(frame.size(), win_difference2);
     }
@@ -2649,14 +2637,12 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
     // TODO(fayang): Rewrite this part because it is hacky.
     float ratio1 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
                        client_session->flow_controller())) /
-                   QuicFlowControllerPeer::ReceiveWindowSize(
-                       QuicSpdySessionPeer::GetHeadersStream(client_session)
-                           ->flow_controller());
+                   QuicStreamPeer::ReceiveWindowSize(
+                       QuicSpdySessionPeer::GetHeadersStream(client_session));
     float ratio2 = static_cast<float>(QuicFlowControllerPeer::ReceiveWindowSize(
                        client_session->flow_controller())) /
-                   (QuicFlowControllerPeer::ReceiveWindowSize(
-                        QuicSpdySessionPeer::GetHeadersStream(client_session)
-                            ->flow_controller()) +
+                   (QuicStreamPeer::ReceiveWindowSize(
+                        QuicSpdySessionPeer::GetHeadersStream(client_session)) +
                     frame.size());
     EXPECT_TRUE(ratio1 == kSessionToStreamRatio ||
                 ratio2 == kSessionToStreamRatio);

@@ -566,7 +566,7 @@ bool QuicSession::CheckStreamNotBusyLooping(QuicStream* stream,
 
 bool QuicSession::CheckStreamWriteBlocked(QuicStream* stream) const {
   if (!stream->write_side_closed() && stream->HasBufferedData() &&
-      !stream->flow_controller()->IsBlocked() &&
+      !stream->IsFlowControlBlocked() &&
       !write_blocked_streams_.IsStreamBlocked(stream->id())) {
     QUIC_DLOG(ERROR) << ENDPOINT << "stream " << stream->id()
                      << " has buffered " << stream->BufferedDataBytes()
@@ -654,7 +654,7 @@ void QuicSession::OnCanWrite() {
     QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
                   << currently_writing_stream_id_ << " from write-blocked list";
     QuicStream* stream = GetOrCreateStream(currently_writing_stream_id_);
-    if (stream != nullptr && !stream->flow_controller()->IsBlocked()) {
+    if (stream != nullptr && !stream->IsFlowControlBlocked()) {
       // If the stream can't write all bytes it'll re-add itself to the blocked
       // list.
       uint64_t previous_bytes_written = stream->stream_bytes_written();
@@ -961,7 +961,7 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
     // perspective. Do not inform stream Id manager yet.
     DCHECK(!stream->was_draining());
     InsertLocallyClosedStreamsHighestOffset(
-        stream_id, stream->flow_controller()->highest_received_byte_offset());
+        stream_id, stream->highest_received_byte_offset());
     if (!remove_zombie_streams_) {
       stream_map_.erase(it);
     }
@@ -1310,11 +1310,10 @@ void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
   flow_controller_.UpdateReceiveWindowSize(session_window);
   // Inform all existing streams about the new window.
   for (auto const& kv : stream_map_) {
-    kv.second->flow_controller()->UpdateReceiveWindowSize(stream_window);
+    kv.second->UpdateReceiveWindowSize(stream_window);
   }
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
-    GetMutableCryptoStream()->flow_controller()->UpdateReceiveWindowSize(
-        stream_window);
+    GetMutableCryptoStream()->UpdateReceiveWindowSize(stream_window);
   }
 }
 
@@ -2048,12 +2047,12 @@ bool QuicSession::IsConnectionFlowControlBlocked() const {
 
 bool QuicSession::IsStreamFlowControlBlocked() {
   for (auto const& kv : stream_map_) {
-    if (kv.second->flow_controller()->IsBlocked()) {
+    if (kv.second->IsFlowControlBlocked()) {
       return true;
     }
   }
   if (!QuicVersionUsesCryptoFrames(transport_version()) &&
-      GetMutableCryptoStream()->flow_controller()->IsBlocked()) {
+      GetMutableCryptoStream()->IsFlowControlBlocked()) {
     return true;
   }
   return false;

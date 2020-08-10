@@ -10,6 +10,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 
 namespace quic {
 
@@ -25,8 +26,17 @@ class QuicStreamPeer {
   static void SetWriteSideClosed(bool value, QuicStream* stream);
   static void SetStreamBytesWritten(QuicStreamOffset stream_bytes_written,
                                     QuicStream* stream);
+  static void SetSendWindowOffset(QuicStream* stream, QuicStreamOffset offset);
+  static void SetReceiveWindowOffset(QuicStream* stream,
+                                     QuicStreamOffset offset);
+  static void SetMaxReceiveWindow(QuicStream* stream, QuicStreamOffset size);
   static bool read_side_closed(QuicStream* stream);
   static void CloseReadSide(QuicStream* stream);
+  static QuicByteCount bytes_consumed(QuicStream* stream);
+  static QuicByteCount ReceiveWindowSize(QuicStream* stream);
+  static QuicByteCount SendWindowSize(QuicStream* stream);
+  static QuicStreamOffset SendWindowOffset(QuicStream* stream);
+  static QuicStreamOffset ReceiveWindowOffset(QuicStream* stream);
 
   static bool StreamContributesToConnectionFlowControl(QuicStream* stream);
 

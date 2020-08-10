@@ -7,6 +7,8 @@
 #include <list>
 
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 
 namespace quic {
@@ -25,6 +27,52 @@ void QuicStreamPeer::SetStreamBytesWritten(
   stream->send_buffer_.stream_bytes_outstanding_ = stream_bytes_written;
   QuicStreamSendBufferPeer::SetStreamOffset(&stream->send_buffer_,
                                             stream_bytes_written);
+}
+
+// static
+void QuicStreamPeer::SetSendWindowOffset(QuicStream* stream,
+                                         QuicStreamOffset offset) {
+  QuicFlowControllerPeer::SetSendWindowOffset(&*stream->flow_controller_,
+                                              offset);
+}
+
+// static
+QuicByteCount QuicStreamPeer::bytes_consumed(QuicStream* stream) {
+  return stream->flow_controller_->bytes_consumed();
+}
+
+// static
+void QuicStreamPeer::SetReceiveWindowOffset(QuicStream* stream,
+                                            QuicStreamOffset offset) {
+  QuicFlowControllerPeer::SetReceiveWindowOffset(&*stream->flow_controller_,
+                                                 offset);
+}
+
+// static
+void QuicStreamPeer::SetMaxReceiveWindow(QuicStream* stream,
+                                         QuicStreamOffset size) {
+  QuicFlowControllerPeer::SetMaxReceiveWindow(&*stream->flow_controller_, size);
+}
+
+// static
+QuicByteCount QuicStreamPeer::SendWindowSize(QuicStream* stream) {
+  return stream->flow_controller_->SendWindowSize();
+}
+
+// static
+QuicStreamOffset QuicStreamPeer::ReceiveWindowOffset(QuicStream* stream) {
+  return QuicFlowControllerPeer::ReceiveWindowOffset(
+      &*stream->flow_controller_);
+}
+
+// static
+QuicByteCount QuicStreamPeer::ReceiveWindowSize(QuicStream* stream) {
+  return QuicFlowControllerPeer::ReceiveWindowSize(&*stream->flow_controller_);
+}
+
+// static
+QuicStreamOffset QuicStreamPeer::SendWindowOffset(QuicStream* stream) {
+  return stream->flow_controller_->send_window_offset();
 }
 
 // static

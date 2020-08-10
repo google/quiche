@@ -228,9 +228,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   int num_frames_received() const;
   int num_duplicate_frames_received() const;
 
-  QuicFlowController* flow_controller();
-
-  const QuicFlowController* flow_controller() const;
+  // Flow controller related methods.
+  bool IsFlowControlBlocked() const;
+  QuicStreamOffset highest_received_byte_offset() const;
+  void UpdateReceiveWindowSize(QuicStreamOffset size);
 
   // Called when endpoint receives a frame which could increase the highest
   // offset.

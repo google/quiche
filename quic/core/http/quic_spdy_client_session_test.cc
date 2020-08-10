@@ -33,6 +33,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_packet_creator_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
@@ -1031,7 +1032,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
     auto* control_stream =
         QuicSpdySessionPeer::GetSendControlStream(session_.get());
     EXPECT_EQ(kInitialStreamFlowControlWindowForTest,
-              control_stream->flow_controller()->send_window_offset());
+              QuicStreamPeer::SendWindowOffset(control_stream));
     EXPECT_EQ(5u, session_->max_outbound_header_list_size());
   } else {
     auto* id_manager = QuicSessionPeer::GetStreamIdManager(session_.get());
@@ -1064,7 +1065,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
                   kHttp3StaticUnidirectionalStreamCount + 1,
               id_manager->max_outgoing_unidirectional_streams());
     EXPECT_EQ(kInitialStreamFlowControlWindowForTest + 1,
-              control_stream->flow_controller()->send_window_offset());
+              QuicStreamPeer::SendWindowOffset(control_stream));
   } else {
     auto* id_manager = QuicSessionPeer::GetStreamIdManager(session_.get());
     EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,

@@ -1598,12 +1598,12 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
   // Create a stream, and send enough data to make it flow control blocked.
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   std::string body(kMinimumFlowControlSendWindow, '.');
-  EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
+  EXPECT_FALSE(stream2->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AtLeast(1));
   stream2->WriteOrBufferData(body, false, nullptr);
-  EXPECT_TRUE(stream2->flow_controller()->IsBlocked());
+  EXPECT_TRUE(stream2->IsFlowControlBlocked());
   EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());
   EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
 
@@ -1613,7 +1613,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
   session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
   EXPECT_TRUE(QuicSessionPeer::IsStreamWriteBlocked(&session_, stream2->id()));
   // Stream is now unblocked.
-  EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
+  EXPECT_FALSE(stream2->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
 }
@@ -1629,15 +1629,15 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
   // contains a larger send window offset, the stream becomes unblocked.
   session_.set_writev_consumes_all_data(true);
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
-  EXPECT_FALSE(crypto_stream->flow_controller()->IsBlocked());
+  EXPECT_FALSE(crypto_stream->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
-  for (QuicStreamId i = 0;
-       !crypto_stream->flow_controller()->IsBlocked() && i < 1000u; i++) {
+  for (QuicStreamId i = 0; !crypto_stream->IsFlowControlBlocked() && i < 1000u;
+       i++) {
     EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
     EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
     QuicStreamOffset offset = crypto_stream->stream_bytes_written();
@@ -1649,7 +1649,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
     QuicDataWriter writer(1000, buf, quiche::NETWORK_BYTE_ORDER);
     crypto_stream->WriteStreamData(offset, crypto_message.size(), &writer);
   }
-  EXPECT_TRUE(crypto_stream->flow_controller()->IsBlocked());
+  EXPECT_TRUE(crypto_stream->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
   EXPECT_FALSE(session_.HasDataToWrite());
@@ -1663,7 +1663,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
       &session_,
       QuicUtils::GetCryptoStreamId(connection_->transport_version())));
   // Stream is now unblocked and will no longer have buffered data.
-  EXPECT_FALSE(crypto_stream->flow_controller()->IsBlocked());
+  EXPECT_FALSE(crypto_stream->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
 }
@@ -1711,9 +1711,9 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingFinAndLocalReset) {
   session_.OnStreamFrame(frame);
   EXPECT_TRUE(connection_->connected());
 
-  EXPECT_EQ(0u, stream->flow_controller()->bytes_consumed());
+  EXPECT_EQ(0u, session_.flow_controller()->bytes_consumed());
   EXPECT_EQ(kByteOffset + frame.data_length,
-            stream->flow_controller()->highest_received_byte_offset());
+            stream->highest_received_byte_offset());
 
   // Reset stream locally.
   EXPECT_CALL(*connection_, SendControlFrame(_));
@@ -3057,7 +3057,7 @@ TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
   // blocked.
   QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(&session_, 10);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
-  EXPECT_TRUE(stream2->flow_controller()->IsBlocked());
+  EXPECT_TRUE(stream2->IsFlowControlBlocked());
   EXPECT_TRUE(session_.IsConnectionFlowControlBlocked());
   EXPECT_TRUE(session_.IsStreamFlowControlBlocked());
 
@@ -3069,7 +3069,7 @@ TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
   session_.OnConfigNegotiated();
 
   // Stream is now unblocked.
-  EXPECT_FALSE(stream2->flow_controller()->IsBlocked());
+  EXPECT_FALSE(stream2->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
 }

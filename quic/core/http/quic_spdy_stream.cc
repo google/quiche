@@ -639,10 +639,9 @@ void QuicSpdyStream::OnInitialHeadersComplete(
 
   if (VersionUsesHttp3(transport_version())) {
     if (fin) {
-      OnStreamFrame(
-          QuicStreamFrame(id(), /* fin = */ true,
-                          flow_controller()->highest_received_byte_offset(),
-                          quiche::QuicheStringPiece()));
+      OnStreamFrame(QuicStreamFrame(id(), /* fin = */ true,
+                                    highest_received_byte_offset(),
+                                    quiche::QuicheStringPiece()));
     }
     return;
   }
@@ -701,10 +700,9 @@ void QuicSpdyStream::OnTrailingHeadersComplete(
   }
   trailers_decompressed_ = true;
   if (fin) {
-    const QuicStreamOffset offset =
-        VersionUsesHttp3(transport_version())
-            ? flow_controller()->highest_received_byte_offset()
-            : final_byte_offset;
+    const QuicStreamOffset offset = VersionUsesHttp3(transport_version())
+                                        ? highest_received_byte_offset()
+                                        : final_byte_offset;
     OnStreamFrame(
         QuicStreamFrame(id(), fin, offset, quiche::QuicheStringPiece()));
   }
