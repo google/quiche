@@ -1023,15 +1023,10 @@ void QuicConfig::ToHandshakeMessage(
     max_unidirectional_streams_.ToHandshakeMessage(out);
     ack_delay_exponent_.ToHandshakeMessage(out);
   }
-  if (GetQuicReloadableFlag(quic_dont_send_max_ack_delay_if_default)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_dont_send_max_ack_delay_if_default);
-    if (max_ack_delay_ms_.GetSendValue() != kDefaultDelayedAckTimeMs) {
-      // Only send max ack delay if it is using a non-default value, because
-      // the default value is used by QuicSentPacketManager if it is not
-      // sent during the handshake, and we want to save bytes.
-      max_ack_delay_ms_.ToHandshakeMessage(out);
-    }
-  } else {
+  if (max_ack_delay_ms_.GetSendValue() != kDefaultDelayedAckTimeMs) {
+    // Only send max ack delay if it is using a non-default value, because
+    // the default value is used by QuicSentPacketManager if it is not
+    // sent during the handshake, and we want to save bytes.
     max_ack_delay_ms_.ToHandshakeMessage(out);
   }
   bytes_for_connection_id_.ToHandshakeMessage(out);
