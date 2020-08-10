@@ -395,10 +395,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_full_hello() const { return pad_full_hello_; }
   void set_pad_full_hello(bool new_value) { pad_full_hello_ = new_value; }
 
-  void set_disable_chlo_padding(bool disabled) {
-    disable_chlo_padding_ = disabled;
-  }
-
  private:
   // Sets the members to reasonable, default values.
   void SetDefaults();
@@ -466,7 +462,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientConfig : public QuicCryptoConfig {
   // other means of verifying the client.
   bool pad_inchoate_hello_ = true;
   bool pad_full_hello_ = true;
-  bool disable_chlo_padding_;
 };
 
 }  // namespace quic

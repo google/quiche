@@ -662,21 +662,20 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         BufferEarlyPacket(*packet_info);
         break;
       }
-      if (GetQuicReloadableFlag(quic_dont_pad_chlo)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_dont_pad_chlo, 2, 2);
-        // We only apply this check for versions that do not use the IETF
-        // invariant header because those versions are already checked in
-        // QuicDispatcher::MaybeDispatchPacket.
-        if (packet_info->version_flag &&
-            !packet_info->version.HasIetfInvariantHeader() &&
-            crypto_config()->validate_chlo_size() &&
-            packet_info->packet.length() < kMinClientInitialPacketLength) {
-          QUIC_DVLOG(1) << "Dropping CHLO packet which is too short, length: "
-                        << packet_info->packet.length();
-          QUIC_CODE_COUNT(quic_drop_small_chlo_packets);
-          break;
-        }
+
+      // We only apply this check for versions that do not use the IETF
+      // invariant header because those versions are already checked in
+      // QuicDispatcher::MaybeDispatchPacket.
+      if (packet_info->version_flag &&
+          !packet_info->version.HasIetfInvariantHeader() &&
+          crypto_config()->validate_chlo_size() &&
+          packet_info->packet.length() < kMinClientInitialPacketLength) {
+        QUIC_DVLOG(1) << "Dropping CHLO packet which is too short, length: "
+                      << packet_info->packet.length();
+        QUIC_CODE_COUNT(quic_drop_small_chlo_packets);
+        break;
       }
+
       if (GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation)) {
         QUIC_RELOADABLE_FLAG_COUNT_N(
             quic_dispatcher_legacy_version_encapsulation, 3, 3);

@@ -507,22 +507,6 @@ TEST_P(CryptoServerTest, RejectTooLargeButValidSTK) {
   CheckRejectReasons(kRejectReasons, QUICHE_ARRAYSIZE(kRejectReasons));
 }
 
-TEST_P(CryptoServerTest, TooSmall) {
-  if (GetQuicReloadableFlag(quic_dont_pad_chlo)) {
-    // This test validates that non-padded CHLOs are rejected, it cannot pass
-    // when the padding is no longer required.
-    // TODO(dschinazi) remove this test when we deprecate quic_dont_pad_chlo.
-    return;
-  }
-  ShouldFailMentioning(
-      "too small", crypto_test_utils::CreateCHLO(
-                       {{"PDMD", "X509"}, {"VER\0", client_version_string_}}));
-
-  const HandshakeFailureReason kRejectReasons[] = {
-      SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
-  CheckRejectReasons(kRejectReasons, QUICHE_ARRAYSIZE(kRejectReasons));
-}
-
 TEST_P(CryptoServerTest, BadSourceAddressToken) {
   // Invalid source-address tokens should be ignored.
   // clang-format off

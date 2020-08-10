@@ -42,9 +42,6 @@ void QuicSpdyClientSession::Initialize() {
   if (config()->HasClientRequestedIndependentOption(kQLVE,
                                                     Perspective::IS_CLIENT)) {
     connection()->EnableLegacyVersionEncapsulation(server_id_.host());
-    // Legacy Version Encapsulation needs CHLO padding to be disabled.
-    // TODO(dschinazi) remove this line once we deprecate quic_dont_pad_chlo.
-    crypto_config_->set_disable_chlo_padding(true);
   }
   QuicSpdyClientSessionBase::Initialize();
 }

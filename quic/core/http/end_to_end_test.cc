@@ -4739,7 +4739,6 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulation) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
   SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
   ASSERT_TRUE(Initialize());
@@ -4764,7 +4763,6 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithMultiPacketChlo) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
   SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
   constexpr auto kCustomParameter =
@@ -4789,7 +4787,6 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithVersionNegotiation) {
   }
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
-  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
   SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
   ASSERT_TRUE(Initialize());
@@ -4809,7 +4806,6 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
     return;
   }
   SetPacketLossPercentage(30);
-  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
   SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   client_config_.SetClientConnectionOptions(QuicTagVector{kQLVE});
   // Disable blackhole detection as this test is testing loss recovery.

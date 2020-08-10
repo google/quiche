@@ -68,8 +68,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
     : proof_verifier_(std::move(proof_verifier)),
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
-          GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2))),
-      disable_chlo_padding_(GetQuicReloadableFlag(quic_dont_pad_chlo)) {
+          GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2))) {
   DCHECK(proof_verifier_.get());
   SetDefaults();
 }
@@ -419,12 +418,7 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     CryptoHandshakeMessage* out) const {
   out->set_tag(kCHLO);
-  // TODO(rch): Remove this when we remove quic_use_chlo_packet_size flag.
-  if (pad_inchoate_hello_ && !disable_chlo_padding_) {
-    out->set_minimum_size(kClientHelloMinimumSize);
-  } else {
-    out->set_minimum_size(1);
-  }
+  out->set_minimum_size(1);
 
   // Server name indication. We only send SNI if it's a valid domain name, as
   // per the spec.
@@ -509,11 +503,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   FillInchoateClientHello(server_id, preferred_version, cached, rand,
                           /* demand_x509_proof= */ true, out_params, out);
 
-  if (pad_full_hello_ && !disable_chlo_padding_) {
-    out->set_minimum_size(kClientHelloMinimumSize);
-  } else {
-    out->set_minimum_size(1);
-  }
+  out->set_minimum_size(1);
 
   const CryptoHandshakeMessage* scfg = cached->GetServerConfig();
   if (!scfg) {

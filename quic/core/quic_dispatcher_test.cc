@@ -587,7 +587,6 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
     // is not currently supported in QuicDispatcher.
     return;
   }
-  SetQuicReloadableFlag(quic_dont_pad_chlo, true);
   SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId server_connection_id = TestConnectionId();
@@ -1376,14 +1375,6 @@ TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTest) {
 }
 
 TEST_P(QuicDispatcherTestAllVersions, DoNotProcessSmallPacket) {
-  if (!version_.HasIetfInvariantHeader() &&
-      !GetQuicReloadableFlag(quic_dont_pad_chlo)) {
-    // When quic_dont_pad_chlo is false, we only drop small packets when using
-    // IETF_QUIC_LONG_HEADER_PACKET. When quic_dont_pad_chlo is true, we drop
-    // small packets for all versions.
-    // TODO(dschinazi) remove this early return when we deprecate the flag.
-    return;
-  }
   CreateTimeWaitListManager();
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
