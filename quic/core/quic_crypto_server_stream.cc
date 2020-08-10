@@ -408,14 +408,11 @@ void QuicCryptoServerStream::ProcessClientHello(
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_save_user_agent_in_quic_session)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_save_user_agent_in_quic_session, 1, 3);
-    quiche::QuicheStringPiece user_agent_id;
-    message.GetStringPiece(quic::kUAID, &user_agent_id);
-    if (!session()->user_agent_id().has_value()) {
-      std::string uaid = user_agent_id.empty() ? "" : user_agent_id.data();
-      session()->SetUserAgentId(std::move(uaid));
-    }
+  quiche::QuicheStringPiece user_agent_id;
+  message.GetStringPiece(quic::kUAID, &user_agent_id);
+  if (!session()->user_agent_id().has_value()) {
+    std::string uaid = user_agent_id.empty() ? "" : user_agent_id.data();
+    session()->SetUserAgentId(std::move(uaid));
   }
 
   if (!result->info.server_nonce.empty()) {
