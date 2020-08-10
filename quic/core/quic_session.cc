@@ -1347,7 +1347,7 @@ void QuicSession::HandleRstOnValidNonexistentStream(
 }
 
 void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
-  DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_QUIC_CRYPTO);
+  DCHECK(version().UsesQuicCrypto());
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamFlowControlWindow " << new_window;
   if (new_window < kMinimumFlowControlSendWindow &&
       !connection_->version().AllowsLowFlowControlLimits()) {
@@ -1364,7 +1364,8 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   for (auto const& kv : stream_map_) {
     QUIC_DVLOG(1) << ENDPOINT << "Informing stream " << kv.first
                   << " of new stream flow control window " << new_window;
-    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+    if (!kv.second->MaybeConfigSendWindowOffset(
+            new_window, /* was_zero_rtt_rejected = */ false)) {
       return;
     }
   }
@@ -1373,7 +1374,8 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
         << ENDPOINT
         << "Informing crypto stream of new stream flow control window "
         << new_window;
-    GetMutableCryptoStream()->ConfigSendWindowOffset(new_window);
+    GetMutableCryptoStream()->MaybeConfigSendWindowOffset(
+        new_window, /* was_zero_rtt_rejected = */ false);
   }
 }
 
@@ -1400,11 +1402,8 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing unidirectional stream " << id
                   << " of new stream flow control window " << new_window;
-    if (!kv.second->ValidateFlowControlLimit(new_window,
-                                             was_zero_rtt_rejected_)) {
-      return;
-    }
-    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+    if (!kv.second->MaybeConfigSendWindowOffset(new_window,
+                                                was_zero_rtt_rejected_)) {
       return;
     }
   }
@@ -1434,11 +1433,8 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing outgoing bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    if (!kv.second->ValidateFlowControlLimit(new_window,
-                                             was_zero_rtt_rejected_)) {
-      return;
-    }
-    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+    if (!kv.second->MaybeConfigSendWindowOffset(new_window,
+                                                was_zero_rtt_rejected_)) {
       return;
     }
   }
@@ -1468,11 +1464,8 @@ void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     }
     QUIC_DVLOG(1) << ENDPOINT << "Informing incoming bidirectional stream "
                   << id << " of new stream flow control window " << new_window;
-    if (!kv.second->ValidateFlowControlLimit(new_window,
-                                             was_zero_rtt_rejected_)) {
-      return;
-    }
-    if (!kv.second->ConfigSendWindowOffset(new_window)) {
+    if (!kv.second->MaybeConfigSendWindowOffset(new_window,
+                                                was_zero_rtt_rejected_)) {
       return;
     }
   }

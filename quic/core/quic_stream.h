@@ -179,12 +179,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Send PRIORITY_UPDATE frame if application protocol supports it.
   virtual void MaybeSendPriorityUpdateFrame() {}
 
-  // Closes the connection and returns false if |new_window| is lower than
-  // stream's current flow control window.
-  // Returns true otherwise.
-  bool ValidateFlowControlLimit(QuicStreamOffset new_window,
-                                bool was_zero_rtt_rejected);
-
   // Sets |priority_| to priority.  This should only be called before bytes are
   // written to the server.  For a server stream, this is called when a
   // PRIORITY_UPDATE frame is received.  This calls
@@ -244,7 +238,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
   bool MaybeIncreaseHighestReceivedOffset(QuicStreamOffset new_offset);
 
   // Set the flow controller's send window offset from session config.
-  bool ConfigSendWindowOffset(QuicStreamOffset new_offset);
+  // |was_zero_rtt_rejected| is true if this config is from a rejected IETF QUIC
+  // 0-RTT attempt. Closes the connection and returns false if |new_offset| is
+  // not valid.
+  bool MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
+                                   bool was_zero_rtt_rejected);
 
   // Returns true if the stream has received either a RST_STREAM or a FIN -
   // either of which gives a definitive number of bytes which the peer has

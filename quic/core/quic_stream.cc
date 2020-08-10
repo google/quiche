@@ -931,17 +931,41 @@ void QuicStream::AddBytesConsumed(QuicByteCount bytes) {
   }
 }
 
-bool QuicStream::ConfigSendWindowOffset(QuicStreamOffset new_offset) {
+bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
+                                             bool was_zero_rtt_rejected) {
   if (!flow_controller_.has_value()) {
     QUIC_BUG << ENDPOINT
              << "ConfigSendWindowOffset called on stream without flow control";
     return false;
   }
 
-  QUIC_BUG_IF(session()->version().AllowsLowFlowControlLimits() &&
-              new_offset < flow_controller_->send_window_offset())
-      << ENDPOINT << "The new offset " << new_offset
-      << " decreases current offset " << flow_controller_->send_window_offset();
+  if (was_zero_rtt_rejected && new_offset < flow_controller_->bytes_sent()) {
+    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+        << "Server streams' flow control should never be configured twice.";
+    OnUnrecoverableError(
+        QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+        quiche::QuicheStrCat(
+            "Server rejected 0-RTT, aborting because new stream max data ",
+            new_offset, " for stream ", id_,
+            " is less than currently used: ", flow_controller_->bytes_sent()));
+    return false;
+  }
+
+  if (session()->version().AllowsLowFlowControlLimits() &&
+      new_offset < flow_controller_->send_window_offset()) {
+    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+        << "Server streams' flow control should never be configured twice.";
+    OnUnrecoverableError(
+        was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
+                              : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
+        quiche::QuicheStrCat(
+            was_zero_rtt_rejected ? "Server rejected 0-RTT, aborting because "
+                                  : "",
+            "new stream max data ", new_offset, " decreases current limit: ",
+            flow_controller_->send_window_offset()));
+    return false;
+  }
+
   if (flow_controller_->UpdateSendWindowOffset(new_offset)) {
     // Let session unblock this stream.
     session_->MarkConnectionLevelWriteBlocked(id_);
@@ -1245,37 +1269,6 @@ void QuicStream::WritePendingRetransmission() {
       }
     }
   }
-}
-
-bool QuicStream::ValidateFlowControlLimit(QuicStreamOffset new_window,
-                                          bool was_zero_rtt_rejected) {
-  if (was_zero_rtt_rejected && new_window < flow_controller_->bytes_sent()) {
-    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
-        << "Server streams' flow control should never be configured twice.";
-    OnUnrecoverableError(
-        QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-        quiche::QuicheStrCat(
-            "Server rejected 0-RTT, aborting because new stream max data ",
-            new_window, " for stream ", id_,
-            " is less than currently used: ", flow_controller_->bytes_sent()));
-    return false;
-  }
-
-  if (VersionUsesHttp3(transport_version()) &&
-      new_window < flow_controller_->send_window_offset()) {
-    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
-        << "Server streams' flow control should never be configured twice.";
-    OnUnrecoverableError(
-        was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
-                              : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-        quiche::QuicheStrCat(
-            was_zero_rtt_rejected ? "Server rejected 0-RTT, aborting because "
-                                  : "",
-            "new stream max data ", new_window, " decreases current limit: ",
-            flow_controller_->send_window_offset()));
-    return false;
-  }
-  return true;
 }
 
 bool QuicStream::MaybeSetTtl(QuicTime::Delta ttl) {
