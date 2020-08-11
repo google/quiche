@@ -920,7 +920,9 @@ bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
     return false;
   }
 
-  // TODO(b/153726130): Add OnSettingsFrameResumed() in debug visitor.
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnSettingsFrameResumed(out);
+  }
   for (const auto& setting : out.values) {
     OnSetting(setting.first, setting.second);
   }
@@ -1410,6 +1412,13 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
   CloseConnectionWithDetails(
       QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
       quiche::QuicheStrCat(type, " stream is received twice."));
+}
+
+void QuicSpdySession::OnZeroRttRejected() {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnZeroRttRejected();
+  }
+  QuicSession::OnZeroRttRejected();
 }
 
 // static
