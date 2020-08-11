@@ -11646,6 +11646,58 @@ TEST_P(QuicConnectionTest, NoSilentClose) {
   }
 }
 
+TEST_P(QuicConnectionTest, DonotSendPing) {
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()),
+      "GET /", 0, FIN, nullptr);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(15),
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  // Now recevie an ACK and response of the previous packet, which will move the
+  // ping alarm forward.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
+  QuicFrames frames;
+  QuicAckFrame ack_frame = InitAckFrame(1);
+  frames.push_back(QuicFrame(&ack_frame));
+  frames.push_back(QuicFrame(QuicStreamFrame(
+      GetNthClientInitiatedStreamId(0, connection_.transport_version()), true,
+      0u, quiche::QuicheStringPiece())));
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessFramesPacketAtLevel(1, frames, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  // The ping timer is set slightly less than 15 seconds in the future, because
+  // of the 1s ping timer alarm granularity.
+  EXPECT_EQ(
+      QuicTime::Delta::FromSeconds(15) - QuicTime::Delta::FromMilliseconds(5),
+      connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
+  // Suppose now ShouldKeepConnectionAlive returns false.
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(false));
+  if (GetQuicReloadableFlag(quic_fix_on_ping_timeout)) {
+    // Verify PING does not get sent.
+    EXPECT_CALL(visitor_, SendPing()).Times(0);
+  } else {
+    // PING get sent even ShouldKeepConnectionAlive returns false.
+    EXPECT_CALL(visitor_, SendPing()).Times(1);
+  }
+  connection_.GetPingAlarm()->Fire();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

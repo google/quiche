@@ -3091,9 +3091,14 @@ void QuicConnection::SendOrQueuePacket(SerializedPacket packet) {
 }
 
 void QuicConnection::OnPingTimeout() {
-  if (!retransmission_alarm_->IsSet()) {
-    visitor_->SendPing();
+  if (retransmission_alarm_->IsSet()) {
+    return;
   }
+  if (GetQuicReloadableFlag(quic_fix_on_ping_timeout) &&
+      !visitor_->ShouldKeepConnectionAlive()) {
+    return;
+  }
+  visitor_->SendPing();
 }
 
 void QuicConnection::SendAck() {
