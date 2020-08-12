@@ -1239,6 +1239,11 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_omit_old, 1, 3);
   }
 
+  if (GetQuicReloadableFlag(quic_send_key_update_not_yet_supported)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_send_key_update_not_yet_supported);
+    params->key_update_not_yet_supported = true;
+  }
+
   params->custom_parameters = custom_transport_parameters_to_send_;
 
   return true;

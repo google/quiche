@@ -429,7 +429,7 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
             config_.IdleNetworkTimeout());
 }
 
-TEST_P(QuicConfigTest, RecievedInvalidMinAckDelayInTransportParameter) {
+TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayInTransportParameter) {
   if (!version_.UsesTls()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
@@ -505,6 +505,8 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(
       static_cast<uint64_t>(kDefaultMinAckDelayTimeMs) * kNumMicrosPerMilli,
       params.min_ack_delay_us.value());
+  EXPECT_EQ(params.key_update_not_yet_supported,
+            GetQuicReloadableFlag(quic_send_key_update_not_yet_supported));
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {

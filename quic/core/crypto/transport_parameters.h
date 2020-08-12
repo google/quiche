@@ -209,6 +209,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Google-specific handshake done support. This is only used for T050.
   bool support_handshake_done;
 
+  // Google-specific mechanism to indicate that IETF QUIC Key Update has not
+  // yet been implemented. This will be removed once we implement it.
+  bool key_update_not_yet_supported;
+
   // Transport parameters used by Google QUIC but not IETF QUIC. This is
   // serialized into a TransportParameter struct with a TransportParameterId of
   // kGoogleQuicParamId.
