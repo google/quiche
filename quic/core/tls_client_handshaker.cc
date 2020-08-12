@@ -138,6 +138,9 @@ bool TlsClientHandshaker::PrepareZeroRttConfig(
                     "Client failed to parse cached Transport Parameters.");
     return false;
   }
+
+  session()->connection()->OnTransportParametersResumed(
+      *(cached_state->transport_params));
   session()->OnConfigNegotiated();
 
   if (has_application_state_) {

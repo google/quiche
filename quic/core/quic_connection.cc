@@ -1040,6 +1040,13 @@ void QuicConnection::OnTransportParametersReceived(
   }
 }
 
+void QuicConnection::OnTransportParametersResumed(
+    const TransportParameters& transport_parameters) const {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnTransportParametersResumed(transport_parameters);
+  }
+}
+
 bool QuicConnection::HasPendingAcks() const {
   return ack_alarm_->IsSet();
 }

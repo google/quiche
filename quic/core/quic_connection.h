@@ -353,6 +353,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called for QUIC+TLS versions when we receive transport parameters.
   virtual void OnTransportParametersReceived(
       const TransportParameters& /*transport_parameters*/) {}
+
+  // Called for QUIC+TLS versions when we resume cached transport parameters for
+  // 0-RTT.
+  virtual void OnTransportParametersResumed(
+      const TransportParameters& /*transport_parameters*/) {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {
@@ -979,6 +984,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called for QUIC+TLS versions when we receive transport parameters.
   void OnTransportParametersReceived(
+      const TransportParameters& transport_parameters) const;
+
+  // Called for QUIC+TLS versions when we resume cached transport parameters for
+  // 0-RTT.
+  void OnTransportParametersResumed(
       const TransportParameters& transport_parameters) const;
 
   // Returns true if ack_alarm_ is set.
