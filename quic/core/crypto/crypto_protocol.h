@@ -355,6 +355,9 @@ const QuicTag kQLVE = TAG('Q', 'L', 'V', 'E');   // Legacy Version
                                                  // Encapsulation.
 const QuicTag kQNZR = TAG('Q', 'N', 'Z', 'R');   // Turn off QUIC crypto 0-RTT.
 
+const QuicTag kQNSP = TAG('Q', 'N', 'S', 'P');   // Turn off server push in
+                                                 // gQUIC.
+
 const QuicTag kMAD  = TAG('M', 'A', 'D', 0);     // Max Ack Delay (IETF QUIC)
 
 // Rejection tags
