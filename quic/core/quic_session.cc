@@ -1348,8 +1348,7 @@ void QuicSession::HandleRstOnValidNonexistentStream(
 void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
   DCHECK(version().UsesQuicCrypto());
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamFlowControlWindow " << new_window;
-  if (new_window < kMinimumFlowControlSendWindow &&
-      !connection_->version().AllowsLowFlowControlLimits()) {
+  if (new_window < kMinimumFlowControlSendWindow) {
     QUIC_LOG_FIRST_N(ERROR, 1)
         << "Peer sent us an invalid stream flow control send window: "
         << new_window << ", below minimum: " << kMinimumFlowControlSendWindow;
