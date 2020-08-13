@@ -665,6 +665,11 @@ bool QuicConnection::MaybeTestLiveness() {
     return false;
   }
   const QuicTime::Delta timeout = idle_network_deadline - now;
+  if (2 * timeout > idle_network_detector_.idle_network_timeout()) {
+    // Do not test liveness if timeout is > half timeout. This is used to
+    // prevent an infinite loop for short idle timeout.
+    return false;
+  }
   if (!sent_packet_manager_.IsLessThanThreePTOs(timeout)) {
     return false;
   }

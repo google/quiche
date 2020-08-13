@@ -180,9 +180,8 @@ QuicSpdyClientStream* QuicSpdyClientBase::CreateClientStream() {
     return nullptr;
   }
   if (VersionHasIetfQuicFrames(client_session()->transport_version())) {
-    // Process MAX_STREAMS from peer.
-    while (!client_session()->CanOpenNextOutgoingBidirectionalStream() &&
-           !client_session()->liveness_testing_in_progress()) {
+    // Process MAX_STREAMS from peer or wait for liveness testing succeeds.
+    while (!client_session()->CanOpenNextOutgoingBidirectionalStream()) {
       network_helper()->RunEventLoop();
     }
   }
