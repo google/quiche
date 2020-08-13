@@ -24,6 +24,7 @@ namespace test {
 
 namespace {
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::StrictMock;
 
 struct TestParams {
@@ -86,6 +87,7 @@ class QuicReceiveControlStreamTest : public QuicTestWithParam<TestParams> {
             perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
+    EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
     QuicStreamId id = perspective() == Perspective::IS_SERVER
                           ? GetNthClientInitiatedUnidirectionalStreamId(

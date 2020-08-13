@@ -684,6 +684,8 @@ MockQuicSpdySession::MockQuicSpdySession(QuicConnection* connection,
   ON_CALL(*this, SendBlocked(_)).WillByDefault([this](QuicStreamId id) {
     return QuicSpdySession::SendBlocked(id);
   });
+
+  ON_CALL(*this, OnCongestionWindowChange(_)).WillByDefault(testing::Return());
 }
 
 MockQuicSpdySession::~MockQuicSpdySession() {

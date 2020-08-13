@@ -18,6 +18,7 @@ namespace test {
 
 namespace {
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Invoke;
 using ::testing::StrictMock;
 
@@ -66,6 +67,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
             perspective(),
             SupportedVersions(GetParam().version))),
         session_(connection_) {
+    EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
     if (connection_->version().SupportsAntiAmplificationLimit()) {
       QuicConnectionPeer::SetAddressValidated(connection_);

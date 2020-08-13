@@ -61,6 +61,7 @@ using spdy::SpdyStreamId;
 using spdy::SpdyWindowUpdateIR;
 using spdy::test::TestHeadersHandler;
 using testing::_;
+using testing::AnyNumber;
 using testing::AtLeast;
 using testing::InSequence;
 using testing::Invoke;
@@ -223,6 +224,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
             ""),
         next_promised_stream_id_(2) {
     QuicSpdySessionPeer::SetMaxInboundHeaderListSize(&session_, 256 * 1024);
+    EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
     headers_stream_ = QuicSpdySessionPeer::GetHeadersStream(&session_);
     headers_[":status"] = "200 Ok";

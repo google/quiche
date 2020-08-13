@@ -959,6 +959,7 @@ class MockQuicSpdySession : public QuicSpdySession {
               OnPriorityFrame,
               (QuicStreamId id, const spdy::SpdyStreamPrecedence& precedence),
               (override));
+  MOCK_METHOD(void, OnCongestionWindowChange, (QuicTime now), (override));
 
   // Returns a QuicConsumedData that indicates all of |write_length| (and |fin|
   // if set) has been consumed.

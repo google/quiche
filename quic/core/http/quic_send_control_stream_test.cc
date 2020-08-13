@@ -79,6 +79,7 @@ class QuicSendControlStreamTest : public QuicTestWithParam<TestParams> {
   }
 
   void Initialize() {
+    EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
     send_control_stream_ = QuicSpdySessionPeer::GetSendControlStream(&session_);
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
