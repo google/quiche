@@ -939,31 +939,37 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
     return false;
   }
 
-  if (was_zero_rtt_rejected && new_offset < flow_controller_->bytes_sent()) {
-    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
-        << "Server streams' flow control should never be configured twice.";
-    OnUnrecoverableError(
-        QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-        quiche::QuicheStrCat(
-            "Server rejected 0-RTT, aborting because new stream max data ",
-            new_offset, " for stream ", id_,
-            " is less than currently used: ", flow_controller_->bytes_sent()));
-    return false;
-  }
-
-  if (session()->version().AllowsLowFlowControlLimits() &&
-      new_offset < flow_controller_->send_window_offset()) {
-    QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
-        << "Server streams' flow control should never be configured twice.";
-    OnUnrecoverableError(
-        was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
-                              : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-        quiche::QuicheStrCat(
-            was_zero_rtt_rejected ? "Server rejected 0-RTT, aborting because "
-                                  : "",
-            "new stream max data ", new_offset, " decreases current limit: ",
-            flow_controller_->send_window_offset()));
-    return false;
+  // The validation code below is for QUIC with TLS only.
+  if (new_offset < flow_controller_->send_window_offset()) {
+    DCHECK(session()->version().UsesTls());
+    if (was_zero_rtt_rejected && new_offset < flow_controller_->bytes_sent()) {
+      // The client is given flow control window lower than what's written in
+      // 0-RTT. This QUIC implementation is unable to retransmit them.
+      QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+          << "Server streams' flow control should never be configured twice.";
+      OnUnrecoverableError(
+          QUIC_ZERO_RTT_UNRETRANSMITTABLE,
+          quiche::QuicheStrCat(
+              "Server rejected 0-RTT, aborting because new stream max data ",
+              new_offset, " for stream ", id_, " is less than currently used: ",
+              flow_controller_->bytes_sent()));
+      return false;
+    } else if (session()->version().AllowsLowFlowControlLimits()) {
+      // In IETF QUIC, if the client receives flow control limit lower than what
+      // was resumed from 0-RTT, depending on 0-RTT status, it's either the
+      // peer's fault or our implementation's fault.
+      QUIC_BUG_IF(perspective_ == Perspective::IS_SERVER)
+          << "Server streams' flow control should never be configured twice.";
+      OnUnrecoverableError(
+          was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
+                                : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
+          quiche::QuicheStrCat(
+              was_zero_rtt_rejected ? "Server rejected 0-RTT, aborting because "
+                                    : "",
+              "new stream max data ", new_offset, " decreases current limit: ",
+              flow_controller_->send_window_offset()));
+      return false;
+    }
   }
 
   if (flow_controller_->UpdateSendWindowOffset(new_offset)) {
