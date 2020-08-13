@@ -634,6 +634,8 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
   EXPECT_EQ(QuicPacketNumber(4),
             unacked_packets_.GetLargestSentRetransmittableOfPacketNumberSpace(
                 APPLICATION_DATA));
+  EXPECT_TRUE(unacked_packets_.GetLastPacketContent() & (1 << STREAM_FRAME));
+  EXPECT_FALSE(unacked_packets_.GetLastPacketContent() & (1 << ACK_FRAME));
 }
 
 }  // namespace

@@ -228,6 +228,12 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
 
   void EnableMultiplePacketNumberSpacesSupport();
 
+  // Returns a bitfield of retransmittable frames of last packet in
+  // unacked_packets_. For example, if the packet contains STREAM_FRAME, content
+  // & (1 << STREAM_FRAME) would be set. Returns max uint32_t if
+  // unacked_packets_ is empty.
+  uint32_t GetLastPacketContent() const;
+
   Perspective perspective() const { return perspective_; }
 
   bool supports_multiple_packet_number_spaces() const {

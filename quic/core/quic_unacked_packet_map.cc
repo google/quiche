@@ -529,4 +529,21 @@ void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
   supports_multiple_packet_number_spaces_ = true;
 }
 
+uint32_t QuicUnackedPacketMap::GetLastPacketContent() const {
+  if (empty()) {
+    // Use max uint32_t to distinguish with packets with no retransmittable
+    // frames nor acks.
+    return std::numeric_limits<uint32_t>::max();
+  }
+  uint32_t content = 0;
+  const QuicTransmissionInfo& last_packet = unacked_packets_.back();
+  for (const auto& frame : last_packet.retransmittable_frames) {
+    content |= (1 << frame.type);
+  }
+  if (last_packet.largest_acked.IsInitialized()) {
+    content |= (1 << ACK_FRAME);
+  }
+  return content;
+}
+
 }  // namespace quic
