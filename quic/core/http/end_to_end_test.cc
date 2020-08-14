@@ -3860,7 +3860,8 @@ class WindowUpdateObserver : public QuicConnectionDebugVisitor {
     ++num_window_update_frames_;
   }
 
-  void OnPingFrame(const QuicPingFrame& /*frame*/) override {
+  void OnPingFrame(const QuicPingFrame& /*frame*/,
+                   const QuicTime::Delta /*ping_received_delay*/) override {
     ++num_ping_frames_;
   }
 

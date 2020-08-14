@@ -1372,7 +1372,12 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   UpdatePacketContent(PING_FRAME);
 
   if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnPingFrame(frame);
+    QuicTime::Delta ping_received_delay = QuicTime::Delta::Zero();
+    const QuicTime now = clock_->ApproximateNow();
+    if (now > stats_.connection_creation_time) {
+      ping_received_delay = now - stats_.connection_creation_time;
+    }
+    debug_visitor_->OnPingFrame(frame, ping_received_delay);
   }
   MaybeUpdateAckTimeout();
   return true;

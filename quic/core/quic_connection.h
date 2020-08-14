@@ -257,7 +257,8 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   virtual void OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {}
 
   // Called when a Ping has been parsed.
-  virtual void OnPingFrame(const QuicPingFrame& /*frame*/) {}
+  virtual void OnPingFrame(const QuicPingFrame& /*frame*/,
+                           QuicTime::Delta /*ping_received_delay*/) {}
 
   // Called when a GoAway has been parsed.
   virtual void OnGoAwayFrame(const QuicGoAwayFrame& /*frame*/) {}
