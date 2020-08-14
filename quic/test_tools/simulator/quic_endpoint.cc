@@ -88,6 +88,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
     }
   }
   connection_->SetFromConfig(config);
+  connection_->DisableMtuDiscovery();
 }
 
 QuicByteCount QuicEndpoint::bytes_received() const {

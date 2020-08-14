@@ -864,12 +864,16 @@ class TestConnection : public QuicConnection {
   void EnablePathMtuDiscovery(MockSendAlgorithm* send_algorithm) {
     ASSERT_EQ(Perspective::IS_SERVER, perspective());
 
-    QuicConfig config;
-    QuicTagVector connection_options;
-    connection_options.push_back(kMTUH);
-    config.SetInitialReceivedConnectionOptions(connection_options);
-    EXPECT_CALL(*send_algorithm, SetFromConfig(_, _));
-    SetFromConfig(config);
+    if (GetQuicReloadableFlag(quic_enable_mtu_discovery_at_server)) {
+      OnConfigNegotiated();
+    } else {
+      QuicConfig config;
+      QuicTagVector connection_options;
+      connection_options.push_back(kMTUH);
+      config.SetInitialReceivedConnectionOptions(connection_options);
+      EXPECT_CALL(*send_algorithm, SetFromConfig(_, _));
+      SetFromConfig(config);
+    }
 
     // Normally, the pacing would be disabled in the test, but calling
     // SetFromConfig enables it.  Set nearly-infinite bandwidth to make the

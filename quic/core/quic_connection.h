@@ -823,6 +823,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   virtual void SendConnectivityProbingResponsePacket(
       const QuicSocketAddress& peer_address);
 
+  // Disable MTU discovery on this connection.
+  void DisableMtuDiscovery();
+
   // Sends an MTU discovery packet and updates the MTU discovery alarm.
   void DiscoverMtu();
 

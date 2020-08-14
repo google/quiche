@@ -544,8 +544,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
   max_undecryptable_packets_ = config.max_undecryptable_packets();
 
-  if (config.HasClientRequestedIndependentOption(kMTUH, perspective_)) {
-    SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeHigh);
+  if (!GetQuicReloadableFlag(quic_enable_mtu_discovery_at_server)) {
+    if (config.HasClientRequestedIndependentOption(kMTUH, perspective_)) {
+      SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeHigh);
+    }
   }
   if (config.HasClientRequestedIndependentOption(kMTUL, perspective_)) {
     SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeLow);
@@ -719,6 +721,12 @@ void QuicConnection::SetLossDetectionTuner(
 
 void QuicConnection::OnConfigNegotiated() {
   sent_packet_manager_.OnConfigNegotiated();
+
+  if (GetQuicReloadableFlag(quic_enable_mtu_discovery_at_server) &&
+      perspective_ == Perspective::IS_SERVER) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_mtu_discovery_at_server);
+    SetMtuDiscoveryTarget(kMtuDiscoveryTargetPacketSizeHigh);
+  }
 }
 
 QuicBandwidth QuicConnection::MaxPacingRate() const {
@@ -3990,6 +3998,11 @@ bool QuicConnection::SendGenericPathProbePacket(
   }
 
   return true;
+}
+
+void QuicConnection::DisableMtuDiscovery() {
+  mtu_discoverer_.Disable();
+  mtu_discovery_alarm_->Cancel();
 }
 
 void QuicConnection::DiscoverMtu() {
