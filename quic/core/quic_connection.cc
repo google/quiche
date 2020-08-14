@@ -4206,6 +4206,13 @@ void QuicConnection::PostProcessAfterAckFrame(bool send_stop_waiting,
   SetRetransmissionAlarm();
   if (acked_new_packet) {
     OnForwardProgressMade();
+  } else if (default_enable_5rto_blackhole_detection_ &&
+             !sent_packet_manager_.HasInFlightPackets() &&
+             blackhole_detector_.IsDetectionInProgress()) {
+    // In case no new packets get acknowledged, it is possible packets are
+    // detected lost because of time based loss detection. Cancel blackhole
+    // detection if there is no packets in flight.
+    blackhole_detector_.StopDetection();
   }
 
   if (send_stop_waiting) {
@@ -4707,16 +4714,15 @@ void QuicConnection::OnPathDegradingDetected() {
 }
 
 void QuicConnection::OnBlackholeDetected() {
-  QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
-              !sent_packet_manager_.HasInFlightPackets())
-      << ENDPOINT
-      << "Closing connection because of blackhole, but there is no bytes in "
-         "flight";
-  const std::string error_detail = quiche::QuicheStrCat(
-      "Network blackhole detected", sent_packet_manager_.HasInFlightPackets()
-                                        ? "."
-                                        : " with no packets in flight.");
-  CloseConnection(QUIC_TOO_MANY_RTOS, error_detail,
+  if (default_enable_5rto_blackhole_detection_ &&
+      !sent_packet_manager_.HasInFlightPackets()) {
+    QUIC_BUG << ENDPOINT
+             << "Blackhole detected, but there is no bytes in flight, version: "
+             << version();
+    // Do not close connection if there is no bytes in flight.
+    return;
+  }
+  CloseConnection(QUIC_TOO_MANY_RTOS, "Network blackhole detected",
                   ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 

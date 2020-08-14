@@ -11698,6 +11698,70 @@ TEST_P(QuicConnectionTest, DonotSendPing) {
   connection_.GetPingAlarm()->Fire();
 }
 
+// Regression test for b/159698337
+TEST_P(QuicConnectionTest, DuplicateAckCausesLostPackets) {
+  if (!GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+    return;
+  }
+  // Finish handshake.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  notifier_.NeuterUnencryptedData();
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+
+  std::string data(1200, 'a');
+  // Send data packets 1 - 5.
+  for (size_t i = 0; i < 5; ++i) {
+    SendStreamDataToPeer(
+        GetNthClientInitiatedStreamId(1, connection_.transport_version()), data,
+        i * 1200, i == 4 ? FIN : NO_FIN, nullptr);
+  }
+  ASSERT_TRUE(connection_.BlackholeDetectionInProgress());
+
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _)).Times(3);
+
+  // ACK packet 5 and 1 and 2 are detected lost.
+  QuicAckFrame frame =
+      InitAckFrame({{QuicPacketNumber(5), QuicPacketNumber(6)}});
+  LostPacketVector lost_packets;
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(1), kMaxOutgoingPacketSize));
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(2), kMaxOutgoingPacketSize));
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
+      .Times(AnyNumber())
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
+  ProcessAckPacket(1, &frame);
+  EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
+  QuicAlarm* retransmission_alarm = connection_.GetRetransmissionAlarm();
+  EXPECT_TRUE(retransmission_alarm->IsSet());
+
+  // ACK packet 1 - 5 and 7.
+  QuicAckFrame frame2 =
+      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(6)},
+                    {QuicPacketNumber(7), QuicPacketNumber(8)}});
+  ProcessAckPacket(2, &frame2);
+  EXPECT_TRUE(connection_.BlackholeDetectionInProgress());
+
+  // ACK packet 7 again and assume packet 6 is detected lost.
+  QuicAckFrame frame3 =
+      InitAckFrame({{QuicPacketNumber(7), QuicPacketNumber(8)}});
+  lost_packets.clear();
+  lost_packets.push_back(
+      LostPacket(QuicPacketNumber(6), kMaxOutgoingPacketSize));
+  EXPECT_CALL(*loss_algorithm_, DetectLosses(_, _, _, _, _, _))
+      .Times(AnyNumber())
+      .WillOnce(DoAll(SetArgPointee<5>(lost_packets),
+                      Return(LossDetectionInterface::DetectionStats())));
+  ProcessAckPacket(3, &frame3);
+  // Make sure loss detection is cancelled even there is no new acked packets.
+  EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
