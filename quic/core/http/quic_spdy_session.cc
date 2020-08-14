@@ -1330,6 +1330,11 @@ void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
     DCHECK_GE(max_push_id, max_push_id_.value());
   }
 
+  if (!max_push_id_.has_value() && max_push_id == 0) {
+    // The default max_push_id is 0. So no need to send out MaxPushId frame.
+    return;
+  }
+
   ietf_server_push_enabled_ = true;
 
   if (max_push_id_.has_value()) {

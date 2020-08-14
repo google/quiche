@@ -3013,6 +3013,21 @@ TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
   CompleteHandshake();
 }
 
+TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfSetToDefaut) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  session_.SetMaxPushId(0);
+
+  InSequence s;
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  CompleteHandshake();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
