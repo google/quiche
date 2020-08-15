@@ -410,9 +410,8 @@ void QuicCryptoServerStream::ProcessClientHello(
 
   quiche::QuicheStringPiece user_agent_id;
   message.GetStringPiece(quic::kUAID, &user_agent_id);
-  if (!session()->user_agent_id().has_value()) {
-    std::string uaid = user_agent_id.empty() ? "" : user_agent_id.data();
-    session()->SetUserAgentId(std::move(uaid));
+  if (!session()->user_agent_id().has_value() && !user_agent_id.empty()) {
+    session()->SetUserAgentId(std::string(user_agent_id));
   }
 
   if (!result->info.server_nonce.empty()) {
