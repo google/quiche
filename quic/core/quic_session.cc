@@ -1680,13 +1680,7 @@ QuicErrorCode QuicSession::ProcessTransportParameters(
     const TransportParameters& params,
     bool is_resumption,
     std::string* error_details) {
-  HelloType hello_type;
-  if (perspective_ == Perspective::IS_CLIENT) {
-    hello_type = SERVER;
-  } else {
-    hello_type = CLIENT;
-  }
-  return config_.ProcessTransportParameters(params, hello_type, is_resumption,
+  return config_.ProcessTransportParameters(params, is_resumption,
                                             error_details);
 }
 

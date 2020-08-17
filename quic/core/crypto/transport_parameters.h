@@ -8,13 +8,14 @@
 #include <memory>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
@@ -212,11 +213,6 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // Google-specific mechanism to indicate that IETF QUIC Key Update has not
   // yet been implemented. This will be removed once we implement it.
   bool key_update_not_yet_supported;
-
-  // Transport parameters used by Google QUIC but not IETF QUIC. This is
-  // serialized into a TransportParameter struct with a TransportParameterId of
-  // kGoogleQuicParamId.
-  std::unique_ptr<CryptoHandshakeMessage> google_quic_params;
 
   // Validates whether transport parameters are valid according to
   // the specification. If the transport parameters are not valid, this method

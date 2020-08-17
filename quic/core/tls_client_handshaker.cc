@@ -206,9 +206,6 @@ bool TlsClientHandshaker::SetTransportParameters() {
   if (!user_agent_id_.empty()) {
     params.user_agent_id = user_agent_id_;
   }
-  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
-    params.google_quic_params->SetStringPiece(kUAID, user_agent_id_);
-  }
 
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersSent(params);

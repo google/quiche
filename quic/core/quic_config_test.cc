@@ -422,7 +422,7 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
 
   std::string error_details = "foobar";
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ false, &error_details),
+                  params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
   EXPECT_EQ("", error_details);
   EXPECT_EQ(quic::QuicTime::Delta::FromSeconds(60),
@@ -441,14 +441,14 @@ TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayInTransportParameter) {
   params.min_ack_delay_us.set_value(25 * kNumMicrosPerMilli + 1);
   std::string error_details = "foobar";
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ false, &error_details),
+                  params, /* is_resumption = */ false, &error_details),
               IsError(IETF_QUIC_PROTOCOL_VIOLATION));
   EXPECT_EQ("MinAckDelay is greater than MaxAckDelay.", error_details);
 
   params.max_ack_delay.set_value(25 /*ms*/);
   params.min_ack_delay_us.set_value(25 * kNumMicrosPerMilli);
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ false, &error_details),
+                  params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
   EXPECT_TRUE(error_details.empty());
 }
@@ -536,7 +536,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ true, &error_details),
+                  params, /* is_resumption = */ true, &error_details),
               IsQuicNoError())
       << error_details;
 
@@ -596,7 +596,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.support_handshake_done = true;
 
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ false, &error_details),
+                  params, /* is_resumption = */ false, &error_details),
               IsQuicNoError())
       << error_details;
 
@@ -669,7 +669,7 @@ TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
   params.disable_active_migration = true;
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
-                  params, SERVER, /* is_resumption = */ false, &error_details),
+                  params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
   EXPECT_TRUE(config_.DisableConnectionMigration());
 }

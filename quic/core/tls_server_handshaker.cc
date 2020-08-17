@@ -303,16 +303,9 @@ bool TlsServerHandshaker::ProcessTransportParameters(
     return false;
   }
   ProcessAdditionalTransportParameters(client_params);
-  if (!session()->user_agent_id().has_value()) {
-    if (client_params.user_agent_id.has_value()) {
-      session()->SetUserAgentId(client_params.user_agent_id.value());
-    } else if (client_params.google_quic_params) {
-      quiche::QuicheStringPiece user_agent_id;
-      client_params.google_quic_params->GetStringPiece(kUAID, &user_agent_id);
-      if (!user_agent_id.empty()) {
-        session()->SetUserAgentId(user_agent_id.data());
-      }
-    }
+  if (!session()->user_agent_id().has_value() &&
+      client_params.user_agent_id.has_value()) {
+    session()->SetUserAgentId(client_params.user_agent_id.value());
   }
 
   return true;

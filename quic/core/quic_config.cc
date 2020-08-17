@@ -1228,17 +1228,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->google_connection_options = connection_options_.GetSendValues();
   }
 
-  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
-    if (!params->google_quic_params) {
-      params->google_quic_params = std::make_unique<CryptoHandshakeMessage>();
-    }
-    initial_round_trip_time_us_.ToHandshakeMessage(
-        params->google_quic_params.get());
-    connection_options_.ToHandshakeMessage(params->google_quic_params.get());
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_omit_old, 1, 3);
-  }
-
   if (GetQuicReloadableFlag(quic_send_key_update_not_yet_supported)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_send_key_update_not_yet_supported);
     params->key_update_not_yet_supported = true;
@@ -1251,7 +1240,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
 
 QuicErrorCode QuicConfig::ProcessTransportParameters(
     const TransportParameters& params,
-    HelloType hello_type,
     bool is_resumption,
     std::string* error_details) {
   if (!is_resumption && params.original_destination_connection_id.has_value()) {
@@ -1375,26 +1363,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     google_params_already_parsed = true;
     connection_options_.SetReceivedValues(
         params.google_connection_options.value());
-  }
-
-  if (!GetQuicRestartFlag(quic_google_transport_param_omit_old)) {
-    const CryptoHandshakeMessage* peer_params = params.google_quic_params.get();
-    if (peer_params != nullptr && !google_params_already_parsed) {
-      QuicErrorCode error = initial_round_trip_time_us_.ProcessPeerHello(
-          *peer_params, hello_type, error_details);
-      if (error != QUIC_NO_ERROR) {
-        DCHECK(!error_details->empty());
-        return error;
-      }
-      error = connection_options_.ProcessPeerHello(*peer_params, hello_type,
-                                                   error_details);
-      if (error != QUIC_NO_ERROR) {
-        DCHECK(!error_details->empty());
-        return error;
-      }
-    }
-  } else {
-    QUIC_RESTART_FLAG_COUNT_N(quic_google_transport_param_omit_old, 2, 3);
   }
 
   received_custom_transport_parameters_ = params.custom_parameters;

@@ -12,8 +12,6 @@
 
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -58,7 +56,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleUserAgentId = 0x3129,
   kGoogleSupportHandshakeDone = 0x312A,  // Only used in T050.
   kGoogleKeyUpdateNotYetSupported = 0x312B,
-  kGoogleQuicParam = 0x4751,  // Used for non-standard Google-specific params.
+  // 0x4751 was used for non-standard Google-specific parameters encoded as a
+  // Google QUIC_CRYPTO CHLO, it has been replaced by individual parameters.
   kGoogleQuicVersion =
       0x4752,  // Used to transmit version and supported_versions.
 
@@ -128,8 +127,6 @@ std::string TransportParameterIdToString(
       return "support_handshake_done";
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
       return "key_update_not_yet_supported";
-    case TransportParameters::kGoogleQuicParam:
-      return "google";
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
     case TransportParameters::kMinAckDelay:
@@ -164,7 +161,6 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kGoogleUserAgentId:
     case TransportParameters::kGoogleSupportHandshakeDone:
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
-    case TransportParameters::kGoogleQuicParam:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
       return true;
@@ -485,9 +481,6 @@ std::string TransportParameters::ToString() const {
   if (key_update_not_yet_supported) {
     rv += " " + TransportParameterIdToString(kGoogleKeyUpdateNotYetSupported);
   }
-  if (google_quic_params) {
-    rv += " " + TransportParameterIdToString(kGoogleQuicParam);
-  }
   for (const auto& kv : custom_parameters) {
     rv += " 0x" + quiche::QuicheTextUtils::Hex(static_cast<uint32_t>(kv.first));
     rv += "=";
@@ -580,10 +573,6 @@ TransportParameters::TransportParameters(const TransportParameters& other)
     preferred_address = std::make_unique<TransportParameters::PreferredAddress>(
         *other.preferred_address);
   }
-  if (other.google_quic_params) {
-    google_quic_params =
-        std::make_unique<CryptoHandshakeMessage>(*other.google_quic_params);
-  }
 }
 
 bool TransportParameters::operator==(const TransportParameters& rhs) const {
@@ -626,21 +615,15 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
   }
 
   if ((!preferred_address && rhs.preferred_address) ||
-      (preferred_address && !rhs.preferred_address) ||
-      (!google_quic_params && rhs.google_quic_params) ||
-      (google_quic_params && !rhs.google_quic_params)) {
+      (preferred_address && !rhs.preferred_address)) {
     return false;
   }
-  bool address = true;
-  if (preferred_address && rhs.preferred_address) {
-    address = (*preferred_address == *rhs.preferred_address);
+  if (preferred_address && rhs.preferred_address &&
+      *preferred_address != *rhs.preferred_address) {
+    return false;
   }
 
-  bool google_quic = true;
-  if (google_quic_params && rhs.google_quic_params) {
-    google_quic = (*google_quic_params == *rhs.google_quic_params);
-  }
-  return address && google_quic;
+  return true;
 }
 
 bool TransportParameters::operator!=(const TransportParameters& rhs) const {
@@ -783,7 +766,6 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       kTypeAndValueLength +               // user_agent_id
       kTypeAndValueLength +               // support_handshake_done
       kTypeAndValueLength +               // key_update_not_yet_supported
-      kTypeAndValueLength +               // google
       kTypeAndValueLength +               // google-version
       kGreaseParameterLength;             // GREASE
 
@@ -804,11 +786,6 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   // Custom parameters.
   for (const auto& kv : in.custom_parameters) {
     max_transport_param_length += kTypeAndValueLength + kv.second.length();
-  }
-  // Google-specific non-standard parameter.
-  if (in.google_quic_params) {
-    max_transport_param_length +=
-        in.google_quic_params->GetSerialized().length();
   }
 
   out->resize(max_transport_param_length);
@@ -1023,20 +1000,6 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             version) ||
         !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
       QUIC_BUG << "Failed to write key_update_not_yet_supported for " << in;
-      return false;
-    }
-  }
-
-  // Google-specific non-standard parameter.
-  if (in.google_quic_params) {
-    const QuicData& serialized_google_quic_params =
-        in.google_quic_params->GetSerialized();
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kGoogleQuicParam, version) ||
-        !WriteTransportParameterStringPiece(
-            &writer, serialized_google_quic_params.AsStringPiece(), version)) {
-      QUIC_BUG << "Failed to write Google params of length "
-               << serialized_google_quic_params.length() << " for " << in;
       return false;
     }
   }
@@ -1402,14 +1365,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
         out->key_update_not_yet_supported = true;
         break;
-      case TransportParameters::kGoogleQuicParam: {
-        if (out->google_quic_params) {
-          *error_details = "Received a second Google parameter";
-          return false;
-        }
-        out->google_quic_params =
-            CryptoFramer::ParseMessage(value_reader.ReadRemainingPayload());
-      } break;
       case TransportParameters::kGoogleQuicVersion: {
         if (!value_reader.ReadUInt32(&out->version)) {
           *error_details = "Failed to read Google version extension version";

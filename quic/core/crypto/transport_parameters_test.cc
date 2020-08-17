@@ -189,27 +189,6 @@ TEST_P(TransportParametersTest, Comparator) {
   EXPECT_TRUE(orig_params == new_params);
   EXPECT_FALSE(orig_params != new_params);
 
-  // Test comparison on CryptoHandshakeMessage.
-  orig_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
-  const std::string kTestString = "test string";
-  orig_params.google_quic_params->SetStringPiece(42, kTestString);
-  const uint32_t kTestValue = 12;
-  orig_params.google_quic_params->SetValue(1337, kTestValue);
-  EXPECT_NE(orig_params, new_params);
-  EXPECT_FALSE(orig_params == new_params);
-  EXPECT_TRUE(orig_params != new_params);
-
-  new_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
-  new_params.google_quic_params->SetStringPiece(42, kTestString);
-  new_params.google_quic_params->SetValue(1337, kTestValue + 1);
-  EXPECT_NE(orig_params, new_params);
-  EXPECT_FALSE(orig_params == new_params);
-  EXPECT_TRUE(orig_params != new_params);
-  new_params.google_quic_params->SetValue(1337, kTestValue);
-  EXPECT_EQ(orig_params, new_params);
-  EXPECT_TRUE(orig_params == new_params);
-  EXPECT_FALSE(orig_params != new_params);
-
   // Test comparison on CustomMap
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -1244,42 +1223,6 @@ TEST_P(TransportParametersTest,
   ASSERT_TRUE(out_params.original_destination_connection_id.has_value());
   EXPECT_EQ(out_params.original_destination_connection_id.value(),
             EmptyQuicConnectionId());
-}
-
-TEST_P(TransportParametersTest, CryptoHandshakeMessageRoundtrip) {
-  TransportParameters orig_params;
-  orig_params.perspective = Perspective::IS_CLIENT;
-  orig_params.version = kFakeVersionLabel;
-  orig_params.max_udp_payload_size.set_value(kMaxPacketSizeForTest);
-
-  orig_params.google_quic_params = std::make_unique<CryptoHandshakeMessage>();
-  const std::string kTestString = "test string";
-  orig_params.google_quic_params->SetStringPiece(42, kTestString);
-  const uint32_t kTestValue = 12;
-  orig_params.google_quic_params->SetValue(1337, kTestValue);
-
-  std::vector<uint8_t> serialized;
-  ASSERT_TRUE(SerializeTransportParameters(version_, orig_params, &serialized));
-
-  TransportParameters new_params;
-  std::string error_details;
-  ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
-                                       serialized.data(), serialized.size(),
-                                       &new_params, &error_details))
-      << error_details;
-  EXPECT_TRUE(error_details.empty());
-  ASSERT_NE(new_params.google_quic_params.get(), nullptr);
-  EXPECT_EQ(new_params.google_quic_params->tag(),
-            orig_params.google_quic_params->tag());
-  quiche::QuicheStringPiece test_string;
-  EXPECT_TRUE(new_params.google_quic_params->GetStringPiece(42, &test_string));
-  EXPECT_EQ(test_string, kTestString);
-  uint32_t test_value;
-  EXPECT_THAT(new_params.google_quic_params->GetUint32(1337, &test_value),
-              IsQuicNoError());
-  EXPECT_EQ(test_value, kTestValue);
-  EXPECT_EQ(kFakeVersionLabel, new_params.version);
-  EXPECT_EQ(kMaxPacketSizeForTest, new_params.max_udp_payload_size.value());
 }
 
 TEST_P(TransportParametersTest, VeryLongCustomParameter) {
