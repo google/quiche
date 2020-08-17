@@ -41,7 +41,10 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
                      clockid_t clockid_for_release_time,
                      ReleaseTimeForceEnabler enabler);
 
-  uint64_t NowInNanosForReleaseTime() const override;
+  ReleaseTime GetReleaseTime(const PerPacketOptions* options) const override;
+
+  // Get the current time in nanos from |clockid_for_release_time_|.
+  virtual uint64_t NowInNanosForReleaseTime() const;
 
   static size_t MaxSegments(size_t gso_size) {
     // Max segments should be the min of UDP_MAX_SEGMENTS(64) and

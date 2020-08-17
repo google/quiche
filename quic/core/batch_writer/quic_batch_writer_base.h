@@ -64,13 +64,6 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     return batch_buffer_->buffered_writes();
   }
 
-  // Get the current time in nanos which is understood by the sending api for
-  // releasing packets in the future.
-  virtual uint64_t NowInNanosForReleaseTime() const {
-    DCHECK(false) << "Should not be called since release time is unsupported.";
-    return 0;
-  }
-
   // Given the release delay in |options| and the state of |batch_buffer_|, get
   // the absolute release time.
   struct QUIC_NO_EXPORT ReleaseTime {
@@ -80,7 +73,11 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
     // which is (now + |options->release_time_delay|).
     QuicTime::Delta release_time_offset = QuicTime::Delta::Zero();
   };
-  ReleaseTime GetReleaseTime(const PerPacketOptions* options) const;
+  virtual ReleaseTime GetReleaseTime(
+      const PerPacketOptions* /*options*/) const {
+    DCHECK(false) << "Should not be called since release time is unsupported.";
+    return ReleaseTime{0, QuicTime::Delta::Zero()};
+  }
 
   struct QUIC_EXPORT_PRIVATE CanBatchResult {
     CanBatchResult(bool can_batch, bool must_flush)

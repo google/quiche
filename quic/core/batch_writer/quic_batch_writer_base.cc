@@ -8,7 +8,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 
 namespace quic {
 
@@ -28,52 +27,6 @@ WriteResult QuicBatchWriterBase::WritePacket(
     write_blocked_ = true;
   }
   return result;
-}
-
-QuicBatchWriterBase::ReleaseTime QuicBatchWriterBase::GetReleaseTime(
-    const PerPacketOptions* options) const {
-  DCHECK(SupportsReleaseTime());
-
-  if (options == nullptr) {
-    return {0, QuicTime::Delta::Zero()};
-  }
-
-  const uint64_t now = NowInNanosForReleaseTime();
-  const uint64_t ideal_release_time =
-      now + options->release_time_delay.ToMicroseconds() * 1000;
-
-  if ((options->release_time_delay.IsZero() || options->allow_burst) &&
-      !buffered_writes().empty() &&
-      // If release time of buffered packets is in the past, flush buffered
-      // packets and buffer this packet at the ideal release time.
-      (buffered_writes().back().release_time >= now)) {
-    // Send as soon as possible, but no sooner than the last buffered packet.
-    const uint64_t actual_release_time = buffered_writes().back().release_time;
-
-    const int64_t offset_ns = actual_release_time - ideal_release_time;
-    if (offset_ns >= 0) {
-      QUIC_SERVER_HISTOGRAM_TIMES("batch_writer_positive_release_time_offset",
-                                  offset_ns / 1000, 1, 100000, 50,
-                                  "Duration from ideal release time to actual "
-                                  "release time, in microseconds.");
-    } else {
-      QUIC_SERVER_HISTOGRAM_TIMES("batch_writer_negative_release_time_offset",
-                                  -offset_ns / 1000, 1, 100000, 50,
-                                  "Duration from actual release time to ideal "
-                                  "release time, in microseconds.");
-    }
-
-    ReleaseTime result{actual_release_time,
-                       QuicTime::Delta::FromMicroseconds(offset_ns / 1000)};
-
-    QUIC_DVLOG(1) << "ideal_release_time:" << ideal_release_time
-                  << ", actual_release_time:" << actual_release_time
-                  << ", offset:" << result.release_time_offset;
-    return result;
-  }
-
-  // Send according to the release time delay.
-  return {ideal_release_time, QuicTime::Delta::Zero()};
 }
 
 WriteResult QuicBatchWriterBase::InternalWritePacket(
