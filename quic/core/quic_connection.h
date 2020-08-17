@@ -359,6 +359,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // 0-RTT.
   virtual void OnTransportParametersResumed(
       const TransportParameters& /*transport_parameters*/) {}
+
+  // Called for QUIC+TLS versions when 0-RTT is rejected.
+  virtual void OnZeroRttRejected() {}
 };
 
 class QUIC_EXPORT_PRIVATE QuicConnectionHelperInterface {

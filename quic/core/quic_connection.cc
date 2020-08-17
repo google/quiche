@@ -2450,6 +2450,9 @@ void QuicConnection::SendProbingRetransmissions() {
 }
 
 void QuicConnection::MarkZeroRttPacketsForRetransmission() {
+  if (debug_visitor_ != nullptr && version().UsesTls()) {
+    debug_visitor_->OnZeroRttRejected();
+  }
   sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
 }
 

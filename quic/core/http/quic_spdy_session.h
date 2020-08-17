@@ -133,7 +133,6 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) {}
-  virtual void OnZeroRttRejected() {}
 };
 
 // A QUIC session for HTTP.
@@ -390,9 +389,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Decode SETTINGS from |cached_state| and apply it to the session.
   bool ResumeApplicationState(ApplicationState* cached_state) override;
-
-  // Let the debug visitor know that 0-RTT is rejected.
-  void OnZeroRttRejected() override;
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and

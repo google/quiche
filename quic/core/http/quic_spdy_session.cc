@@ -1419,13 +1419,6 @@ void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
       quiche::QuicheStrCat(type, " stream is received twice."));
 }
 
-void QuicSpdySession::OnZeroRttRejected() {
-  if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnZeroRttRejected();
-  }
-  QuicSession::OnZeroRttRejected();
-}
-
 // static
 void QuicSpdySession::LogHeaderCompressionRatioHistogram(
     bool using_qpack,
