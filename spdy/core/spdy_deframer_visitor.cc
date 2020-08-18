@@ -475,15 +475,15 @@ void SpdyTestDeframerImpl::OnError(
 // The frame may also contain data. After this OnGoAwayFrameData will be called
 // for any non-zero amount of data, and after that it will be called with len==0
 // to indicate the end of the GOAWAY frame.
-void SpdyTestDeframerImpl::OnGoAway(SpdyStreamId last_good_stream_id,
+void SpdyTestDeframerImpl::OnGoAway(SpdyStreamId last_accepted_stream_id,
                                     SpdyErrorCode error_code) {
-  SPDY_DVLOG(1) << "OnGoAway last_good_stream_id: " << last_good_stream_id
-                << "     error code: " << error_code;
+  SPDY_DVLOG(1) << "OnGoAway last_accepted_stream_id: "
+                << last_accepted_stream_id << "     error code: " << error_code;
   CHECK_EQ(frame_type_, UNSET)
       << "   frame_type_=" << Http2FrameTypeToString(frame_type_);
   frame_type_ = GOAWAY;
   goaway_ir_ =
-      std::make_unique<SpdyGoAwayIR>(last_good_stream_id, error_code, "");
+      std::make_unique<SpdyGoAwayIR>(last_accepted_stream_id, error_code, "");
   goaway_description_ = std::make_unique<std::string>();
 }
 
