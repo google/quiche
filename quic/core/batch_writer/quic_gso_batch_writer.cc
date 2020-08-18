@@ -12,16 +12,18 @@
 
 namespace quic {
 
-QuicGsoBatchWriter::QuicGsoBatchWriter(
-    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-    int fd)
-    : QuicGsoBatchWriter(std::move(batch_buffer), fd, CLOCK_MONOTONIC) {}
+// static
+std::unique_ptr<QuicBatchWriterBuffer>
+QuicGsoBatchWriter::CreateBatchWriterBuffer() {
+  return std::make_unique<QuicBatchWriterBuffer>();
+}
 
-QuicGsoBatchWriter::QuicGsoBatchWriter(
-    std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-    int fd,
-    clockid_t clockid_for_release_time)
-    : QuicUdpBatchWriter(std::move(batch_buffer), fd),
+QuicGsoBatchWriter::QuicGsoBatchWriter(int fd)
+    : QuicGsoBatchWriter(fd, CLOCK_MONOTONIC) {}
+
+QuicGsoBatchWriter::QuicGsoBatchWriter(int fd,
+                                       clockid_t clockid_for_release_time)
+    : QuicUdpBatchWriter(CreateBatchWriterBuffer(), fd),
       clockid_for_release_time_(clockid_for_release_time),
       supports_release_time_(
           GetQuicRestartFlag(quic_support_release_time_for_gso) &&

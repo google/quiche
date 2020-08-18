@@ -276,8 +276,7 @@ TEST_F(QuicGsoBatchWriterTest, BatchCriteria) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, WriteSuccess) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 1000));
 
@@ -292,8 +291,7 @@ TEST_F(QuicGsoBatchWriterTest, WriteSuccess) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, WriteBlockDataNotBuffered) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
@@ -311,8 +309,7 @@ TEST_F(QuicGsoBatchWriterTest, WriteBlockDataNotBuffered) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, WriteBlockDataBuffered) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
@@ -330,8 +327,7 @@ TEST_F(QuicGsoBatchWriterTest, WriteBlockDataBuffered) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, WriteErrorWithoutDataBuffered) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
@@ -351,8 +347,7 @@ TEST_F(QuicGsoBatchWriterTest, WriteErrorWithoutDataBuffered) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, WriteErrorAfterDataBuffered) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
@@ -372,8 +367,7 @@ TEST_F(QuicGsoBatchWriterTest, WriteErrorAfterDataBuffered) {
 }
 
 TEST_F(QuicGsoBatchWriterTest, FlushError) {
-  TestQuicGsoBatchWriter writer(std::make_unique<QuicBatchWriterBuffer>(),
-                                /*fd=*/-1);
+  TestQuicGsoBatchWriter writer(/*fd=*/-1);
 
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));
   ASSERT_EQ(WriteResult(WRITE_STATUS_OK, 0), WritePacket(&writer, 100));

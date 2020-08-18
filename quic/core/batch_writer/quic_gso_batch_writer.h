@@ -13,14 +13,11 @@ namespace quic {
 // segmentation offload(GSO) capability.
 class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
  public:
-  QuicGsoBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-                     int fd);
+  explicit QuicGsoBatchWriter(int fd);
 
   // |clockid_for_release_time|: FQ qdisc requires CLOCK_MONOTONIC, EDF requires
   // CLOCK_TAI.
-  QuicGsoBatchWriter(std::unique_ptr<QuicBatchWriterBuffer> batch_buffer,
-                     int fd,
-                     clockid_t clockid_for_release_time);
+  QuicGsoBatchWriter(int fd, clockid_t clockid_for_release_time);
 
   bool SupportsReleaseTime() const final { return supports_release_time_; }
 
@@ -109,6 +106,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
   }
 
  private:
+  static std::unique_ptr<QuicBatchWriterBuffer> CreateBatchWriterBuffer();
+
   const clockid_t clockid_for_release_time_;
   const bool supports_release_time_;
 };

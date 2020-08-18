@@ -37,8 +37,7 @@ class QuicGsoBatchWriterIOTestDelegate
   }
 
   void ResetWriter(int fd) override {
-    writer_ = std::make_unique<QuicGsoBatchWriter>(
-        std::make_unique<QuicBatchWriterBuffer>(), fd);
+    writer_ = std::make_unique<QuicGsoBatchWriter>(fd);
   }
 
   QuicUdpBatchWriter* GetWriter() override { return writer_.get(); }
