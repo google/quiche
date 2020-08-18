@@ -1596,7 +1596,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
   }
 }
 
-void QuicSession::OnOneRttKeysAvailable() {
+void QuicSession::OnTlsHandshakeComplete() {
   DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
   QUIC_BUG_IF(!GetCryptoStream()->crypto_negotiated_params().cipher_suite)
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";

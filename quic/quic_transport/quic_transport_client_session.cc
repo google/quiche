@@ -88,8 +88,8 @@ void QuicTransportClientSession::SetDefaultEncryptionLevel(
   }
 }
 
-void QuicTransportClientSession::OnOneRttKeysAvailable() {
-  QuicSession::OnOneRttKeysAvailable();
+void QuicTransportClientSession::OnTlsHandshakeComplete() {
+  QuicSession::OnTlsHandshakeComplete();
   SendClientIndication();
 }
 

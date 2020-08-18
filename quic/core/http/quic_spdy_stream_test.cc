@@ -108,7 +108,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         std::make_unique<NullEncrypter>(session()->perspective()));
     session()->OnConfigNegotiated();
     if (session()->version().UsesTls()) {
-      session()->OnOneRttKeysAvailable();
+      session()->OnTlsHandshakeComplete();
     } else {
       session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }

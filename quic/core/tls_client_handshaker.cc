@@ -511,7 +511,7 @@ void TlsClientHandshaker::FinishHandshake() {
   QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
                   << "'";
   one_rtt_keys_available_ = true;
-  handshaker_delegate()->OnOneRttKeysAvailable();
+  handshaker_delegate()->OnTlsHandshakeComplete();
 }
 
 void TlsClientHandshaker::HandleZeroRttReject() {
