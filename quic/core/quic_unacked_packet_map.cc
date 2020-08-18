@@ -22,6 +22,90 @@ bool WillStreamFrameLengthSumWrapAround(QuicPacketLength lhs,
       "This function assumes QuicPacketLength is an unsigned integer type.");
   return std::numeric_limits<QuicPacketLength>::max() - lhs < rhs;
 }
+
+enum QuicFrameTypeBitfield : uint32_t {
+  kInvalidFrameBitfield = 0,
+  kPaddingFrameBitfield = 1,
+  kRstStreamFrameBitfield = 1 << 1,
+  kConnectionCloseFrameBitfield = 1 << 2,
+  kGoawayFrameBitfield = 1 << 3,
+  kWindowUpdateFrameBitfield = 1 << 4,
+  kBlockedFrameBitfield = 1 << 5,
+  kStopWaitingFrameBitfield = 1 << 6,
+  kPingFrameBitfield = 1 << 7,
+  kCryptoFrameBitfield = 1 << 8,
+  kHandshakeDoneFrameBitfield = 1 << 9,
+  kStreamFrameBitfield = 1 << 10,
+  kAckFrameBitfield = 1 << 11,
+  kMtuDiscoveryFrameBitfield = 1 << 12,
+  kNewConnectionIdFrameBitfield = 1 << 13,
+  kMaxStreamsFrameBitfield = 1 << 14,
+  kStreamsBlockedFrameBitfield = 1 << 15,
+  kPathResponseFrameBitfield = 1 << 16,
+  kPathChallengeFrameBitfield = 1 << 17,
+  kStopSendingFrameBitfield = 1 << 18,
+  kMessageFrameBitfield = 1 << 19,
+  kNewTokenFrameBitfield = 1 << 20,
+  kRetireConnectionIdFrameBitfield = 1 << 21,
+  kAckFrequencyFrameBitfield = 1 << 22,
+};
+
+QuicFrameTypeBitfield GetFrameTypeBitfield(QuicFrameType type) {
+  switch (type) {
+    case PADDING_FRAME:
+      return kPaddingFrameBitfield;
+    case RST_STREAM_FRAME:
+      return kRstStreamFrameBitfield;
+    case CONNECTION_CLOSE_FRAME:
+      return kConnectionCloseFrameBitfield;
+    case GOAWAY_FRAME:
+      return kGoawayFrameBitfield;
+    case WINDOW_UPDATE_FRAME:
+      return kWindowUpdateFrameBitfield;
+    case BLOCKED_FRAME:
+      return kBlockedFrameBitfield;
+    case STOP_WAITING_FRAME:
+      return kStopWaitingFrameBitfield;
+    case PING_FRAME:
+      return kPingFrameBitfield;
+    case CRYPTO_FRAME:
+      return kCryptoFrameBitfield;
+    case HANDSHAKE_DONE_FRAME:
+      return kHandshakeDoneFrameBitfield;
+    case STREAM_FRAME:
+      return kStreamFrameBitfield;
+    case ACK_FRAME:
+      return kAckFrameBitfield;
+    case MTU_DISCOVERY_FRAME:
+      return kMtuDiscoveryFrameBitfield;
+    case NEW_CONNECTION_ID_FRAME:
+      return kNewConnectionIdFrameBitfield;
+    case MAX_STREAMS_FRAME:
+      return kMaxStreamsFrameBitfield;
+    case STREAMS_BLOCKED_FRAME:
+      return kStreamsBlockedFrameBitfield;
+    case PATH_RESPONSE_FRAME:
+      return kPathResponseFrameBitfield;
+    case PATH_CHALLENGE_FRAME:
+      return kPathChallengeFrameBitfield;
+    case STOP_SENDING_FRAME:
+      return kStopSendingFrameBitfield;
+    case MESSAGE_FRAME:
+      return kMessageFrameBitfield;
+    case NEW_TOKEN_FRAME:
+      return kNewTokenFrameBitfield;
+    case RETIRE_CONNECTION_ID_FRAME:
+      return kRetireConnectionIdFrameBitfield;
+    case ACK_FREQUENCY_FRAME:
+      return kAckFrequencyFrameBitfield;
+    case NUM_FRAME_TYPES:
+      QUIC_BUG << "Unexpected frame type";
+      return kInvalidFrameBitfield;
+  }
+  QUIC_BUG << "Unexpected frame type";
+  return kInvalidFrameBitfield;
+}
+
 }  // namespace
 
 QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
@@ -529,19 +613,19 @@ void QuicUnackedPacketMap::EnableMultiplePacketNumberSpacesSupport() {
   supports_multiple_packet_number_spaces_ = true;
 }
 
-uint32_t QuicUnackedPacketMap::GetLastPacketContent() const {
+int32_t QuicUnackedPacketMap::GetLastPacketContent() const {
   if (empty()) {
-    // Use max uint32_t to distinguish with packets with no retransmittable
-    // frames nor acks.
-    return std::numeric_limits<uint32_t>::max();
+    // Use -1 to distinguish with packets with no retransmittable frames nor
+    // acks.
+    return -1;
   }
-  uint32_t content = 0;
+  int32_t content = 0;
   const QuicTransmissionInfo& last_packet = unacked_packets_.back();
   for (const auto& frame : last_packet.retransmittable_frames) {
-    content |= (1 << frame.type);
+    content |= GetFrameTypeBitfield(frame.type);
   }
   if (last_packet.largest_acked.IsInitialized()) {
-    content |= (1 << ACK_FRAME);
+    content |= GetFrameTypeBitfield(ACK_FRAME);
   }
   return content;
 }
