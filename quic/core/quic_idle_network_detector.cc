@@ -71,13 +71,18 @@ void QuicIdleNetworkDetector::StopDetection() {
   idle_network_timeout_ = QuicTime::Delta::Infinite();
 }
 
-void QuicIdleNetworkDetector::OnPacketSent(QuicTime now) {
+void QuicIdleNetworkDetector::OnPacketSent(QuicTime now,
+                                           QuicTime::Delta pto_delay) {
   if (time_of_first_packet_sent_after_receiving_ >
       time_of_last_received_packet_) {
     return;
   }
   time_of_first_packet_sent_after_receiving_ =
       std::max(time_of_first_packet_sent_after_receiving_, now);
+  if (shorter_idle_timeout_on_sent_packet_) {
+    MaybeSetAlarmOnSentPacket(pto_delay);
+    return;
+  }
 
   SetAlarm();
 }
@@ -103,6 +108,22 @@ void QuicIdleNetworkDetector::SetAlarm() {
     }
   }
   alarm_->Update(new_deadline, kAlarmGranularity);
+}
+
+void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
+    QuicTime::Delta pto_delay) {
+  DCHECK(shorter_idle_timeout_on_sent_packet_);
+  if (!handshake_timeout_.IsInfinite() || !alarm_->IsSet()) {
+    SetAlarm();
+    return;
+  }
+  // Make sure connection will be alive for another PTO.
+  const QuicTime deadline = alarm_->deadline();
+  const QuicTime min_deadline = last_network_activity_time() + pto_delay;
+  if (deadline > min_deadline) {
+    return;
+  }
+  alarm_->Update(min_deadline, kAlarmGranularity);
 }
 
 QuicTime QuicIdleNetworkDetector::GetIdleNetworkDeadline() const {

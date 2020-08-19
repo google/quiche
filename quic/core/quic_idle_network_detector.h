@@ -49,10 +49,14 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   void StopDetection();
 
   // Called when a packet gets sent.
-  void OnPacketSent(QuicTime now);
+  void OnPacketSent(QuicTime now, QuicTime::Delta pto_delay);
 
   // Called when a packet gets received.
   void OnPacketReceived(QuicTime now);
+
+  void enable_shorter_idle_timeout_on_sent_packet() {
+    shorter_idle_timeout_on_sent_packet_ = true;
+  }
 
   QuicTime::Delta handshake_timeout() const { return handshake_timeout_; }
 
@@ -74,6 +78,8 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   friend class test::QuicIdleNetworkDetectorTestPeer;
 
   void SetAlarm();
+
+  void MaybeSetAlarmOnSentPacket(QuicTime::Delta pto_delay);
 
   Delegate* delegate_;  // Not owned.
 
@@ -98,6 +104,8 @@ class QUIC_EXPORT_PRIVATE QuicIdleNetworkDetector {
   QuicTime::Delta idle_network_timeout_;
 
   QuicArenaScopedPtr<QuicAlarm> alarm_;
+
+  bool shorter_idle_timeout_on_sent_packet_ = false;
 };
 
 }  // namespace quic

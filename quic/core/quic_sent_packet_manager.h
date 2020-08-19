@@ -417,6 +417,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Returns true if |timeout| is less than 3 * RTO/PTO delay.
   bool IsLessThanThreePTOs(QuicTime::Delta timeout) const;
 
+  // Returns current PTO delay.
+  QuicTime::Delta GetPtoDelay() const;
+
   bool supports_multiple_packet_number_spaces() const {
     return unacked_packets_.supports_multiple_packet_number_spaces();
   }

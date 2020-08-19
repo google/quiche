@@ -578,6 +578,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
   }
 
+  if (config.HasClientRequestedIndependentOption(kFIDT, perspective_)) {
+    idle_network_detector_.enable_shorter_idle_timeout_on_sent_packet();
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);
   }
@@ -2858,7 +2862,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                                            GetNetworkBlackholeDeadline(),
                                            GetPathMtuReductionDeadline());
     }
-    idle_network_detector_.OnPacketSent(packet_send_time);
+    idle_network_detector_.OnPacketSent(packet_send_time,
+                                        sent_packet_manager_.GetPtoDelay());
   }
 
   MaybeSetMtuAlarm(packet_number);

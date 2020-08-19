@@ -11766,6 +11766,52 @@ TEST_P(QuicConnectionTest, DuplicateAckCausesLostPackets) {
   EXPECT_FALSE(connection_.BlackholeDetectionInProgress());
 }
 
+TEST_P(QuicConnectionTest, ShorterIdleTimeoutOnSentPackets) {
+  EXPECT_TRUE(connection_.connected());
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(100),
+                       QuicTime::Delta::Zero(), QuicTime::Zero());
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  config.SetClientConnectionOptions(QuicTagVector{kFIDT});
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
+    EXPECT_CALL(visitor_, GetHandshakeState())
+        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  }
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  connection_.SetFromConfig(config);
+
+  ASSERT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+  // Send a packet close to timeout.
+  QuicTime::Delta timeout =
+      connection_.GetTimeoutAlarm()->deadline() - clock_.Now();
+  clock_.AdvanceTime(timeout - QuicTime::Delta::FromSeconds(1));
+  // Send stream data.
+  SendStreamDataToPeer(
+      GetNthClientInitiatedStreamId(1, connection_.transport_version()), "foo",
+      0, FIN, nullptr);
+  // Verify this sent packet does not extend idle timeout since 1s is > PTO
+  // delay.
+  ASSERT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
+  EXPECT_EQ(QuicTime::Delta::FromSeconds(1),
+            connection_.GetTimeoutAlarm()->deadline() - clock_.Now());
+
+  // Received an ACK 100ms later.
+  clock_.AdvanceTime(timeout - QuicTime::Delta::FromMilliseconds(100));
+  QuicAckFrame ack = InitAckFrame(1);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  ProcessAckPacket(1, &ack);
+  // Verify idle timeout gets extended.
+  EXPECT_EQ(clock_.Now() + timeout, connection_.GetTimeoutAlarm()->deadline());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

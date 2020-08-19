@@ -1583,10 +1583,12 @@ bool QuicSentPacketManager::PeerCompletedAddressValidation() const {
 }
 
 bool QuicSentPacketManager::IsLessThanThreePTOs(QuicTime::Delta timeout) const {
-  const QuicTime::Delta retransmission_delay =
-      pto_enabled_ ? GetProbeTimeoutDelay(APPLICATION_DATA)
-                   : GetRetransmissionDelay();
-  return timeout < 3 * retransmission_delay;
+  return timeout < 3 * GetPtoDelay();
+}
+
+QuicTime::Delta QuicSentPacketManager::GetPtoDelay() const {
+  return pto_enabled_ ? GetProbeTimeoutDelay(APPLICATION_DATA)
+                      : GetRetransmissionDelay();
 }
 
 #undef ENDPOINT  // undef for jumbo builds
