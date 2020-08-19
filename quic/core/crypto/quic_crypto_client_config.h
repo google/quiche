@@ -42,13 +42,13 @@ struct QUIC_EXPORT_PRIVATE QuicResumptionState {
   // client didn't receive a 0-RTT capable session ticket from the server,
   // |transport_params| will be null. Otherwise, it will contain the transport
   // parameters received from the server on the original connection.
-  TransportParameters* transport_params;
+  std::unique_ptr<TransportParameters> transport_params = nullptr;
 
   // If |transport_params| is null, then |application_state| is ignored and
   // should be empty. |application_state| contains serialized state that the
   // client received from the server at the application layer that the client
   // needs to remember when performing a 0-RTT handshake.
-  ApplicationState* application_state;
+  std::unique_ptr<ApplicationState> application_state = nullptr;
 };
 
 // SessionCache is an interface for managing storing and retrieving

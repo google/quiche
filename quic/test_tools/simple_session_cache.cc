@@ -42,8 +42,12 @@ std::unique_ptr<QuicResumptionState> SimpleSessionCache::Lookup(
 
   auto state = std::make_unique<QuicResumptionState>();
   state->tls_session = std::move(it->second.session);
-  state->application_state = it->second.application_state.get();
-  state->transport_params = it->second.params.get();
+  if (it->second.application_state != nullptr) {
+    state->application_state =
+        std::make_unique<ApplicationState>(*it->second.application_state);
+  }
+  state->transport_params =
+      std::make_unique<TransportParameters>(*it->second.params);
   return state;
 }
 

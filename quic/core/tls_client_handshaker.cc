@@ -130,7 +130,8 @@ bool TlsClientHandshaker::CryptoConnect() {
 bool TlsClientHandshaker::PrepareZeroRttConfig(
     QuicResumptionState* cached_state) {
   std::string error_details;
-  if (handshaker_delegate()->ProcessTransportParameters(
+  if (!cached_state->transport_params ||
+      handshaker_delegate()->ProcessTransportParameters(
           *(cached_state->transport_params),
           /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
     QUIC_BUG << "Unable to parse cached transport parameters.";
@@ -144,7 +145,9 @@ bool TlsClientHandshaker::PrepareZeroRttConfig(
   session()->OnConfigNegotiated();
 
   if (has_application_state_) {
-    if (!session()->ResumeApplicationState(cached_state->application_state)) {
+    if (!cached_state->application_state ||
+        !session()->ResumeApplicationState(
+            cached_state->application_state.get())) {
       QUIC_BUG << "Unable to parse cached application state.";
       CloseConnection(QUIC_HANDSHAKE_FAILED,
                       "Client failed to parse cached application state.");
