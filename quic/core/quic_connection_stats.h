@@ -129,6 +129,9 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Creation time, as reported by the QuicClock.
   QuicTime connection_creation_time = QuicTime::Zero();
 
+  // Handshake completion time.
+  QuicTime handshake_completion_time = QuicTime::Zero();
+
   uint64_t blocked_frames_received = 0;
   uint64_t blocked_frames_sent = 0;
 

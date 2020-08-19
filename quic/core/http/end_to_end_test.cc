@@ -785,6 +785,8 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
     }
     server_thread_->Resume();
   }
+  QuicConnectionStats client_stats = GetClientConnection()->GetStats();
+  EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
 }
 
 TEST_P(EndToEndTest, HandshakeConfirmed) {

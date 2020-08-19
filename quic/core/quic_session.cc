@@ -1590,6 +1590,8 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
     case ENCRYPTION_FORWARD_SECURE:
       QUIC_BUG_IF(!config_.negotiated())
           << ENDPOINT << "Handshake confirmed without parameter negotiation.";
+      connection()->mutable_stats().handshake_completion_time =
+          connection()->clock()->ApproximateNow();
       break;
     default:
       QUIC_BUG << "Unknown encryption level: " << level;
@@ -1602,6 +1604,8 @@ void QuicSession::OnTlsHandshakeComplete() {
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";
   QUIC_BUG_IF(!config_.negotiated())
       << ENDPOINT << "Handshake completes without parameter negotiation.";
+  connection()->mutable_stats().handshake_completion_time =
+      connection()->clock()->ApproximateNow();
   if ((connection()->version().HasHandshakeDone() ||
        config_.PeerSupportsHandshakeDone()) &&
       perspective_ == Perspective::IS_SERVER) {
