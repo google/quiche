@@ -766,7 +766,7 @@ size_t QuicFramer::GetNewTokenFrameSize(const QuicNewTokenFrame& frame) {
 // TODO(nharper): Change this method to take a ParsedQuicVersion.
 bool QuicFramer::IsSupportedTransportVersion(
     const QuicTransportVersion version) const {
-  for (ParsedQuicVersion supported_version : supported_versions_) {
+  for (const ParsedQuicVersion& supported_version : supported_versions_) {
     if (version == supported_version.transport_version) {
       return true;
     }

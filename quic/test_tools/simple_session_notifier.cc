@@ -451,7 +451,7 @@ bool SimpleSessionNotifier::HasUnackedCryptoData() const {
 }
 
 bool SimpleSessionNotifier::HasUnackedStreamData() const {
-  for (auto it : stream_map_) {
+  for (const auto& it : stream_map_) {
     if (StreamIsWaitingForAcks(it.first))
       return true;
   }

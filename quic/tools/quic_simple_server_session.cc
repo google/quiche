@@ -71,7 +71,7 @@ void QuicSimpleServerSession::PromisePushResources(
     return;
   }
 
-  for (QuicBackendResponse::ServerPushInfo resource : resources) {
+  for (const QuicBackendResponse::ServerPushInfo& resource : resources) {
     spdy::SpdyHeaderBlock headers = SynthesizePushRequestHeaders(
         request_url, resource, original_request_headers);
     // TODO(b/136295430): Use sequential push IDs for IETF QUIC.

@@ -255,7 +255,7 @@ int main(int argc, char* argv[]) {
   quic::QuicFramer framer(versions, start, perspective,
                           quic::kQuicDefaultConnectionIdLength);
   if (!GetQuicFlag(FLAGS_quic_version).empty()) {
-    for (quic::ParsedQuicVersion version : versions) {
+    for (const quic::ParsedQuicVersion& version : versions) {
       if (quic::QuicVersionToString(version.transport_version) ==
           GetQuicFlag(FLAGS_quic_version)) {
         framer.set_version(version);

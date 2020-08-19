@@ -83,7 +83,7 @@ void CryptoHandshakeMessage::SetVersionVector(
     QuicTag tag,
     ParsedQuicVersionVector versions) {
   QuicVersionLabelVector version_labels;
-  for (ParsedQuicVersion version : versions) {
+  for (const ParsedQuicVersion& version : versions) {
     version_labels.push_back(
         quiche::QuicheEndian::HostToNet32(CreateQuicVersionLabel(version)));
   }
