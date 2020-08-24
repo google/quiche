@@ -475,7 +475,8 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       transmission_type(other.transmission_type),
       largest_acked(other.largest_acked),
       has_ack_frame_copy(other.has_ack_frame_copy),
-      fate(other.fate) {
+      fate(other.fate),
+      peer_address(other.peer_address) {
   if (this != &other) {
     if (release_encrypted_buffer && encrypted_buffer != nullptr) {
       release_encrypted_buffer(encrypted_buffer);
@@ -519,6 +520,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->transmission_type = serialized.transmission_type;
   copy->largest_acked = serialized.largest_acked;
   copy->fate = serialized.fate;
+  copy->peer_address = serialized.peer_address;
 
   if (copy_buffer) {
     copy->encrypted_buffer = CopyBuffer(serialized);

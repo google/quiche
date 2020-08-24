@@ -2011,5 +2011,30 @@ bool QuicPacketCreator::HasSoftMaxPacketLength() const {
   return latched_hard_max_packet_length_ != 0;
 }
 
+void QuicPacketCreator::SetDefaultPeerAddress(QuicSocketAddress address) {
+  if (!packet_.peer_address.IsInitialized()) {
+    packet_.peer_address = address;
+    return;
+  }
+  if (packet_.peer_address != address) {
+    FlushCurrentPacket();
+    packet_.peer_address = address;
+  }
+}
+
+QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
+    QuicPacketCreator* creator,
+    QuicSocketAddress address)
+    : creator_(creator), old_peer_address_(creator_->packet_.peer_address) {
+  QUIC_BUG_IF(!creator_->packet_.peer_address.IsInitialized())
+      << "Context is used before seralized packet's peer address is "
+         "initialized.";
+  creator_->SetDefaultPeerAddress(address);
+}
+
+QuicPacketCreator::ScopedPeerAddressContext::~ScopedPeerAddressContext() {
+  creator_->SetDefaultPeerAddress(old_peer_address_);
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

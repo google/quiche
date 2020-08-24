@@ -82,6 +82,20 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
     virtual void OnStreamFrameCoalesced(const QuicStreamFrame& /*frame*/) {}
   };
 
+  // Set the peer address which the serialized packet will be sent to during the
+  // scope of this object. Upon exiting the scope, the original peer address is
+  // restored.
+  class QUIC_EXPORT_PRIVATE ScopedPeerAddressContext {
+   public:
+    ScopedPeerAddressContext(QuicPacketCreator* creator,
+                             QuicSocketAddress address);
+    ~ScopedPeerAddressContext();
+
+   private:
+    QuicPacketCreator* creator_;
+    QuicSocketAddress old_peer_address_;
+  };
+
   QuicPacketCreator(QuicConnectionId server_connection_id,
                     QuicFramer* framer,
                     DelegateInterface* delegate);
@@ -462,6 +476,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   bool coalesced_packet_of_higher_space() const {
     return coalesced_packet_of_higher_space_;
   }
+
+  // Use this address to sent to the peer from now on. If this address is
+  // different from the current one, flush all the queue frames first.
+  void SetDefaultPeerAddress(QuicSocketAddress address);
 
  private:
   friend class test::QuicPacketCreatorPeer;

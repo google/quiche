@@ -404,6 +404,7 @@ struct QUIC_EXPORT_PRIVATE SerializedPacket {
   // nonretransmittable_frames.
   bool has_ack_frame_copy;
   SerializedPacketFate fate;
+  QuicSocketAddress peer_address;
 };
 
 // Make a copy of |serialized| (including the underlying frames). |copy_buffer|
