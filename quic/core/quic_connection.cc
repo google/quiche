@@ -581,6 +581,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kFIDT, perspective_)) {
     idle_network_detector_.enable_shorter_idle_timeout_on_sent_packet();
   }
+  if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
+    anti_amplification_factor_ = 3;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);
@@ -4644,7 +4647,7 @@ bool QuicConnection::EnforceAntiAmplificationLimit() const {
 bool QuicConnection::LimitedByAmplificationFactor() const {
   return EnforceAntiAmplificationLimit() &&
          bytes_sent_before_address_validation_ >=
-             GetQuicFlag(FLAGS_quic_anti_amplification_factor) *
+             anti_amplification_factor_ *
                  bytes_received_before_address_validation_;
 }
 

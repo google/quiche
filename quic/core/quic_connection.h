@@ -1720,6 +1720,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True if next packet is intended to consume remaining space in the
   // coalescer.
   bool fill_coalesced_packet_ = false;
+
+  size_t anti_amplification_factor_ =
+      GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 };
 
 }  // namespace quic
