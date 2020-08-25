@@ -149,9 +149,6 @@ QuicSession::~QuicSession() {
   if (!remove_zombie_streams_) {
     QUIC_LOG_IF(WARNING, !zombie_streams_.empty())
         << "Still have zombie streams";
-  } else {
-    QUIC_LOG_IF(WARNING, num_zombie_streams_ > 0)
-        << "Still have zombie streams";
   }
 }
 
