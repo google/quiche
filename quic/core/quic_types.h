@@ -709,10 +709,6 @@ enum SerializedPacketFate : uint8_t {
   COALESCE,        // Try to coalesce packet.
   BUFFER,          // Buffer packet in buffered_packets_.
   SEND_TO_WRITER,  // Send packet to writer.
-  // TODO(fayang): remove FAILED_TO_WRITE_COALESCED_PACKET when deprecating
-  // quic_determine_serialized_packet_fate_early.
-  FAILED_TO_WRITE_COALESCED_PACKET,  // Packet cannot be coalesced, error occurs
-                                     // when sending existing coalesced packet.
   LEGACY_VERSION_ENCAPSULATE,  // Perform Legacy Version Encapsulation on this
                                // packet.
 };

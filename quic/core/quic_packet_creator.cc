@@ -571,14 +571,11 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   // Write out the packet header
   QuicPacketHeader header;
   FillPacketHeader(&header);
-  if (determine_serialized_packet_fate_early_) {
-    packet_.fate = delegate_->GetSerializedPacketFate(
-        /*is_mtu_discovery=*/false, packet_.encryption_level);
-    QUIC_DVLOG(1) << ENDPOINT << "fate of packet " << packet_.packet_number
-                  << ": " << SerializedPacketFateToString(packet_.fate)
-                  << " of "
-                  << EncryptionLevelToString(packet_.encryption_level);
-  }
+  packet_.fate = delegate_->GetSerializedPacketFate(
+      /*is_mtu_discovery=*/false, packet_.encryption_level);
+  QUIC_DVLOG(1) << ENDPOINT << "fate of packet " << packet_.packet_number
+                << ": " << SerializedPacketFateToString(packet_.fate) << " of "
+                << EncryptionLevelToString(packet_.encryption_level);
 
   QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   QuicOwnedPacketBuffer packet_buffer(delegate_->GetPacketBuffer());
@@ -760,8 +757,7 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   QuicPacketHeader header;
   // FillPacketHeader increments packet_number_.
   FillPacketHeader(&header);
-  if (determine_serialized_packet_fate_early_ && delegate_ != nullptr) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_determine_serialized_packet_fate_early);
+  if (delegate_ != nullptr) {
     packet_.fate = delegate_->GetSerializedPacketFate(
         /*is_mtu_discovery=*/QuicUtils::ContainsFrameType(queued_frames_,
                                                           MTU_DISCOVERY_FRAME),
@@ -1765,36 +1761,10 @@ void QuicPacketCreator::MaybeAddPadding() {
     needs_full_padding_ = true;
   }
 
-  if (determine_serialized_packet_fate_early_) {
-    if (packet_.fate == COALESCE ||
-        packet_.fate == LEGACY_VERSION_ENCAPSULATE) {
-      // Do not add full padding if the packet is going to be coalesced or
-      // encapsulated.
-      needs_full_padding_ = false;
-    }
-  } else {
-    // Packet coalescer pads INITIAL packets, so the creator should not.
-    if (framer_->version().CanSendCoalescedPackets() &&
-        (packet_.encryption_level == ENCRYPTION_INITIAL ||
-         packet_.encryption_level == ENCRYPTION_HANDSHAKE)) {
-      // TODO(fayang): MTU discovery packets should not ever be sent as
-      // ENCRYPTION_INITIAL or ENCRYPTION_HANDSHAKE.
-      bool is_mtu_discovery = false;
-      for (const auto& frame : packet_.nonretransmittable_frames) {
-        if (frame.type == MTU_DISCOVERY_FRAME) {
-          is_mtu_discovery = true;
-          break;
-        }
-      }
-      if (!is_mtu_discovery) {
-        // Do not add full padding if connection tries to coalesce packet.
-        needs_full_padding_ = false;
-      }
-    }
-
-    if (disable_padding_override_) {
-      needs_full_padding_ = false;
-    }
+  if (packet_.fate == COALESCE || packet_.fate == LEGACY_VERSION_ENCAPSULATE) {
+    // Do not add full padding if the packet is going to be coalesced or
+    // encapsulated.
+    needs_full_padding_ = false;
   }
 
   // Header protection requires a minimum plaintext packet size.

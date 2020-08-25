@@ -465,14 +465,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true if max_packet_length_ is currently a soft value.
   bool HasSoftMaxPacketLength() const;
 
-  void set_disable_padding_override(bool should_disable_padding) {
-    disable_padding_override_ = should_disable_padding;
-  }
-
-  bool determine_serialized_packet_fate_early() const {
-    return determine_serialized_packet_fate_early_;
-  }
-
   bool coalesced_packet_of_higher_space() const {
     return coalesced_packet_of_higher_space_;
   }
@@ -663,19 +655,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
 
-  // When true, this will override the padding generation code to disable it.
-  // TODO(fayang): remove this when deprecating
-  // quic_determine_serialized_packet_fate_early.
-  bool disable_padding_override_ = false;
-
   const bool update_packet_size_ =
       GetQuicReloadableFlag(quic_update_packet_size);
 
   const bool fix_extra_padding_bytes_ =
       GetQuicReloadableFlag(quic_fix_extra_padding_bytes);
-
-  const bool determine_serialized_packet_fate_early_ =
-      GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early);
 
   const bool coalesced_packet_of_higher_space_ =
       GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);

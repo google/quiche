@@ -164,10 +164,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         creator_(connection_id_, &client_framer_, &delegate_, &producer_) {
     EXPECT_CALL(delegate_, GetPacketBuffer())
         .WillRepeatedly(Return(QuicPacketBuffer()));
-    if (GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early)) {
-      EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
-          .WillRepeatedly(Return(SEND_TO_WRITER));
-    }
+    EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
+        .WillRepeatedly(Return(SEND_TO_WRITER));
     creator_.SetEncrypter(ENCRYPTION_INITIAL, std::make_unique<NullEncrypter>(
                                                   Perspective::IS_CLIENT));
     creator_.SetEncrypter(ENCRYPTION_HANDSHAKE, std::make_unique<NullEncrypter>(
@@ -510,8 +508,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillRepeatedly(
             Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-    if (GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early) &&
-        client_framer_.version().CanSendCoalescedPackets()) {
+    if (client_framer_.version().CanSendCoalescedPackets()) {
       EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
           .WillRepeatedly(Return(COALESCE));
     }
@@ -2453,10 +2450,8 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
         ack_frame_(InitAckFrame(1)) {
     EXPECT_CALL(delegate_, GetPacketBuffer())
         .WillRepeatedly(Return(QuicPacketBuffer()));
-    if (GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early)) {
-      EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
-          .WillRepeatedly(Return(SEND_TO_WRITER));
-    }
+    EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
+        .WillRepeatedly(Return(SEND_TO_WRITER));
     creator_.SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));

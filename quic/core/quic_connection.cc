@@ -2146,10 +2146,6 @@ void QuicConnection::MaybeUpdatePacketCreatorMaxPacketLengthAndPadding() {
     max_packet_length -= minimum_overhead;
   }
   packet_creator_.SetMaxPacketLength(max_packet_length);
-  if (legacy_version_encapsulation_enabled_) {
-    packet_creator_.set_disable_padding_override(
-        legacy_version_encapsulation_in_progress_);
-  }
 }
 
 void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
@@ -2599,11 +2595,6 @@ QuicTime QuicConnection::CalculatePacketSentTime() {
 }
 
 bool QuicConnection::WritePacket(SerializedPacket* packet) {
-  if (!packet_creator_.determine_serialized_packet_fate_early() &&
-      ShouldDiscardPacket(packet->encryption_level)) {
-    ++stats_.packets_discarded;
-    return true;
-  }
   if (sent_packet_manager_.GetLargestSentPacket().IsInitialized() &&
       packet->packet_number < sent_packet_manager_.GetLargestSentPacket()) {
     QUIC_BUG << "Attempt to write packet:" << packet->packet_number
@@ -2614,10 +2605,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
   const bool is_mtu_discovery = QuicUtils::ContainsFrameType(
       packet->nonretransmittable_frames, MTU_DISCOVERY_FRAME);
-  const SerializedPacketFate fate =
-      packet_creator_.determine_serialized_packet_fate_early()
-          ? packet->fate
-          : GetSerializedPacketFate(is_mtu_discovery, packet->encryption_level);
+  const SerializedPacketFate fate = packet->fate;
   // Termination packets are encrypted and saved, so don't exit early.
   QuicErrorCode error_code = QUIC_NO_ERROR;
   const bool is_termination_packet = IsTerminationPacket(*packet, &error_code);
@@ -2673,7 +2661,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   switch (fate) {
     case DISCARD:
-      DCHECK(packet_creator_.determine_serialized_packet_fate_early());
       ++stats_.packets_discarded;
       return true;
     case COALESCE:
@@ -2734,11 +2721,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         result = writer_->Flush();
       }
       break;
-    case FAILED_TO_WRITE_COALESCED_PACKET:
-      // Failed to send existing coalesced packet when determining packet fate,
-      // write error has been handled.
-      QUIC_BUG_IF(!version().CanSendCoalescedPackets());
-      return false;
     case LEGACY_VERSION_ENCAPSULATE: {
       DCHECK(!is_mtu_discovery);
       DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
@@ -4654,28 +4636,18 @@ bool QuicConnection::LimitedByAmplificationFactor() const {
 SerializedPacketFate QuicConnection::GetSerializedPacketFate(
     bool is_mtu_discovery,
     EncryptionLevel encryption_level) {
-  if (packet_creator_.determine_serialized_packet_fate_early()) {
-    if (ShouldDiscardPacket(encryption_level)) {
-      return DISCARD;
-    }
+  if (ShouldDiscardPacket(encryption_level)) {
+    return DISCARD;
   }
   if (legacy_version_encapsulation_in_progress_) {
     DCHECK(!is_mtu_discovery);
     return LEGACY_VERSION_ENCAPSULATE;
   }
-  if (version().CanSendCoalescedPackets()) {
-    // Disable coalescing when Legacy Version Encapsulation is in use to avoid
-    // having to reframe encapsulated packets.
-    if (!IsHandshakeConfirmed() && !is_mtu_discovery) {
-      // Before receiving ACK for any 1-RTT packets, always try to coalesce
-      // packet (except MTU discovery packet).
-      return COALESCE;
-    }
-    // Packet cannot be coalesced, flush existing coalesced packet.
-    if (!packet_creator_.determine_serialized_packet_fate_early() &&
-        !FlushCoalescedPacket()) {
-      return FAILED_TO_WRITE_COALESCED_PACKET;
-    }
+  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed() &&
+      !is_mtu_discovery) {
+    // Before receiving ACK for any 1-RTT packets, always try to coalesce
+    // packet (except MTU discovery packet).
+    return COALESCE;
   }
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     return BUFFER;

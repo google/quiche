@@ -299,7 +299,6 @@ std::string SerializedPacketFateToString(SerializedPacketFate fate) {
     RETURN_STRING_LITERAL(COALESCE);
     RETURN_STRING_LITERAL(BUFFER);
     RETURN_STRING_LITERAL(SEND_TO_WRITER);
-    RETURN_STRING_LITERAL(FAILED_TO_WRITE_COALESCED_PACKET);
     RETURN_STRING_LITERAL(LEGACY_VERSION_ENCAPSULATE);
     default:
       return quiche::QuicheStrCat("Unknown(", static_cast<int>(fate), ")");

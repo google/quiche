@@ -7259,20 +7259,8 @@ TEST_P(QuicConnectionTest, SendWhenDisconnected) {
                               ConnectionCloseBehavior::SILENT_CLOSE);
   EXPECT_FALSE(connection_.connected());
   EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
-  if (GetQuicReloadableFlag(quic_determine_serialized_packet_fate_early)) {
-    EXPECT_EQ(DISCARD, connection_.GetSerializedPacketFate(
-                           /*is_mtu_discovery=*/false, ENCRYPTION_INITIAL));
-    return;
-  }
-  std::unique_ptr<QuicPacket> packet =
-      ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
-      .Times(0);
-  connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
-                         HAS_RETRANSMITTABLE_DATA, false, false);
-  EXPECT_EQ(1, connection_close_frame_count_);
-  EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
-              IsError(QUIC_PEER_GOING_AWAY));
+  EXPECT_EQ(DISCARD, connection_.GetSerializedPacketFate(
+                         /*is_mtu_discovery=*/false, ENCRYPTION_INITIAL));
 }
 
 TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
