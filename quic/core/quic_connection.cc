@@ -3267,11 +3267,6 @@ void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   encryption_level_ = level;
   packet_creator_.set_encryption_level(level);
 
-  if (!sent_packet_manager_.fix_packet_number_length()) {
-    return;
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_packet_number_length, 2, 2);
-
   if (!changing_level) {
     return;
   }

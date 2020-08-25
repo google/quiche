@@ -1508,10 +1508,6 @@ QuicPacketNumber QuicSentPacketManager::GetLargestAckedPacket(
 
 QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
     EncryptionLevel encryption_level) const {
-  if (!fix_packet_number_length_) {
-    return GetLeastUnacked();
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_packet_number_length, 1, 2);
   QuicPacketNumber largest_acked;
   if (supports_multiple_packet_number_spaces()) {
     largest_acked = GetLargestAckedPacket(encryption_level);
