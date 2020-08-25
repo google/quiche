@@ -658,9 +658,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   const bool update_packet_size_ =
       GetQuicReloadableFlag(quic_update_packet_size);
 
-  const bool fix_extra_padding_bytes_ =
-      GetQuicReloadableFlag(quic_fix_extra_padding_bytes);
-
   const bool coalesced_packet_of_higher_space_ =
       GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);
 };

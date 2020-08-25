@@ -3820,12 +3820,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
   creator_.Flush();
   ASSERT_FALSE(packets_[0].nonretransmittable_frames.empty());
   QuicFrame padding = packets_[0].nonretransmittable_frames[0];
-  if (GetQuicReloadableFlag(quic_fix_extra_padding_bytes)) {
-    // Verify stream frame expansion is excluded.
-    padding.padding_frame.num_padding_bytes = 3;
-  } else {
-    padding.padding_frame.num_padding_bytes = 4;
-  }
+  // Verify stream frame expansion is excluded.
+  padding.padding_frame.num_padding_bytes = 3;
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,

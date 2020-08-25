@@ -444,15 +444,10 @@ bool QuicPacketCreator::CreateCryptoFrame(EncryptionLevel level,
                                           size_t write_length,
                                           QuicStreamOffset offset,
                                           QuicFrame* frame) {
-  size_t min_frame_size =
+  const size_t min_frame_size =
       QuicFramer::GetMinCryptoFrameSize(write_length, offset);
-  size_t min_plaintext_bytes = min_frame_size;
-  if (!fix_extra_padding_bytes_ && queued_frames_.empty()) {
-    min_plaintext_bytes =
-        std::max(min_frame_size, MinPlaintextPacketSize(framer_->version()));
-  }
-  if (BytesFree() <= min_plaintext_bytes &&
-      (!RemoveSoftMaxPacketLength() || BytesFree() <= min_plaintext_bytes)) {
+  if (BytesFree() <= min_frame_size &&
+      (!RemoveSoftMaxPacketLength() || BytesFree() <= min_frame_size)) {
     return false;
   }
   size_t max_write_length = BytesFree() - min_frame_size;
@@ -1575,9 +1570,6 @@ size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
   size_t serialized_frame_length = framer_->GetSerializedFrameLength(
       frame, BytesFree(), queued_frames_.empty(),
       /* last_frame_in_packet= */ true, GetPacketNumberLength());
-  if (!fix_extra_padding_bytes_) {
-    return serialized_frame_length;
-  }
   if (!framer_->version().HasHeaderProtection() ||
       serialized_frame_length == 0) {
     return serialized_frame_length;
@@ -1589,7 +1581,6 @@ size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
     // No extra bytes is needed.
     return serialized_frame_length;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_extra_padding_bytes, 1, 3);
   if (BytesFree() < serialized_frame_length) {
     QUIC_BUG << ENDPOINT << "Frame does not fit: " << frame;
     return 0;
@@ -1686,7 +1677,6 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 }
 
 void QuicPacketCreator::MaybeAddExtraPaddingForHeaderProtection() {
-  DCHECK(fix_extra_padding_bytes_);
   if (!framer_->version().HasHeaderProtection() || needs_full_padding_) {
     return;
   }
@@ -1698,7 +1688,6 @@ void QuicPacketCreator::MaybeAddExtraPaddingForHeaderProtection() {
       std::max(1 + ExpansionOnNewFrame(),
                MinPlaintextPacketSize(framer_->version()) - frame_bytes) -
       ExpansionOnNewFrame();
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_extra_padding_bytes, 2, 3);
   // Update pending_padding_bytes_.
   pending_padding_bytes_ =
       std::max(pending_padding_bytes_, min_header_protection_padding);
@@ -1768,26 +1757,9 @@ void QuicPacketCreator::MaybeAddPadding() {
   }
 
   // Header protection requires a minimum plaintext packet size.
-  // TODO(fayang): remove extra_padding_bytes when deprecating
-  // quic_fix_extra_padding_bytes.
-  size_t extra_padding_bytes = 0;
-  if (fix_extra_padding_bytes_) {
-    MaybeAddExtraPaddingForHeaderProtection();
-  } else {
-    if (framer_->version().HasHeaderProtection()) {
-      size_t frame_bytes = PacketSize() - PacketHeaderSize();
+  MaybeAddExtraPaddingForHeaderProtection();
 
-      if (frame_bytes + pending_padding_bytes_ <
-              MinPlaintextPacketSize(framer_->version()) &&
-          !needs_full_padding_) {
-        extra_padding_bytes =
-            MinPlaintextPacketSize(framer_->version()) - frame_bytes;
-      }
-    }
-  }
-
-  if (!needs_full_padding_ && pending_padding_bytes_ == 0 &&
-      extra_padding_bytes == 0) {
+  if (!needs_full_padding_ && pending_padding_bytes_ == 0) {
     // Do not need padding.
     return;
   }
@@ -1796,7 +1768,6 @@ void QuicPacketCreator::MaybeAddPadding() {
   if (!needs_full_padding_) {
     padding_bytes = std::min<int16_t>(pending_padding_bytes_, BytesFree());
     pending_padding_bytes_ -= padding_bytes;
-    padding_bytes = std::max<int16_t>(padding_bytes, extra_padding_bytes);
   }
 
   bool success = AddFrame(QuicFrame(QuicPaddingFrame(padding_bytes)),
