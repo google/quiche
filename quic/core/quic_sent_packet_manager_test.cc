@@ -69,7 +69,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         QuicFrame(QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), HANDSHAKE_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMITTABLE_DATA, true);
   }
 
   void RetransmitDataPacket(uint64_t packet_number,
@@ -81,8 +81,8 @@ class QuicSentPacketManagerTest : public QuicTest {
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, true));
     packet.encryption_level = level;
-    manager_.OnPacketSent(&packet, clock_.Now(), type,
-                          HAS_RETRANSMITTABLE_DATA);
+    manager_.OnPacketSent(&packet, clock_.Now(), type, HAS_RETRANSMITTABLE_DATA,
+                          true);
   }
 
   void RetransmitDataPacket(uint64_t packet_number, TransmissionType type) {
@@ -238,7 +238,7 @@ class QuicSentPacketManagerTest : public QuicTest {
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(new_packet_number, true));
     manager_.OnPacketSent(&packet, clock_.Now(), transmission_type,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMITTABLE_DATA, true);
   }
 
   SerializedPacket CreateDataPacket(uint64_t packet_number) {
@@ -276,7 +276,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreateDataPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMITTABLE_DATA, true);
   }
 
   void SendPingPacket(uint64_t packet_number,
@@ -287,7 +287,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     SerializedPacket packet(CreatePingPacket(packet_number));
     packet.encryption_level = encryption_level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMITTABLE_DATA, true);
   }
 
   void SendCryptoPacket(uint64_t packet_number) {
@@ -300,7 +300,7 @@ class QuicSentPacketManagerTest : public QuicTest {
         QuicFrame(QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          HAS_RETRANSMITTABLE_DATA);
+                          HAS_RETRANSMITTABLE_DATA, true);
     EXPECT_CALL(notifier_, HasUnackedCryptoData()).WillRepeatedly(Return(true));
   }
 
@@ -319,7 +319,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     packet.largest_acked = QuicPacketNumber(largest_acked);
     packet.encryption_level = level;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                          NO_RETRANSMITTABLE_DATA);
+                          NO_RETRANSMITTABLE_DATA, true);
   }
 
   void EnablePto(QuicTag tag) {
@@ -2272,7 +2272,7 @@ TEST_F(QuicSentPacketManagerTest, PathMtuIncreased) {
   SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
                           nullptr, kDefaultLength + 100, false, false);
   manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
-                        HAS_RETRANSMITTABLE_DATA);
+                        HAS_RETRANSMITTABLE_DATA, true);
 
   // Ack the large packet and expect the path MTU to increase.
   ExpectAck(1);
@@ -4188,6 +4188,33 @@ TEST_F(QuicSentPacketManagerTest, PtoWithTlpr) {
   QuicTime sent_time = clock_.Now();
   EXPECT_EQ(sent_time + expected_pto_delay * 2,
             manager_.GetRetransmissionTime());
+}
+
+TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
+  QuicPacketNumber packet_number(1);
+  EXPECT_CALL(*send_algorithm_,
+              OnPacketSent(_, BytesInFlight(), packet_number, _, _));
+  SerializedPacket packet(packet_number, PACKET_4BYTE_PACKET_NUMBER, nullptr,
+                          kDefaultLength, false, false);
+  QuicPathFrameBuffer path_frame_buffer{0, 1, 2, 3, 4, 5, 6, 7};
+  packet.nonretransmittable_frames.push_back(
+      QuicFrame(new QuicPathChallengeFrame(0, path_frame_buffer)));
+  packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+  manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                        NO_RETRANSMITTABLE_DATA, false);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  EXPECT_CALL(*send_algorithm_,
+              OnCongestionEvent(/*rtt_updated=*/false, _, _,
+                                Pointwise(PacketNumberEq(), {1}), IsEmpty()));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+
+  // Get ACK for the packet.
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE));
 }
 
 }  // namespace

@@ -2862,7 +2862,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
-      IsRetransmittable(*packet));
+      IsRetransmittable(*packet), /*measure_rtt=*/true);
   QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
               blackhole_detector_.IsDetectionInProgress() &&
               !sent_packet_manager_.HasInFlightPackets())
@@ -3975,9 +3975,9 @@ bool QuicConnection::SendGenericPathProbePacket(
   }
 
   // Call OnPacketSent regardless of the write result.
-  sent_packet_manager_.OnPacketSent(probing_packet.get(), packet_send_time,
-                                    probing_packet->transmission_type,
-                                    NO_RETRANSMITTABLE_DATA);
+  sent_packet_manager_.OnPacketSent(
+      probing_packet.get(), packet_send_time, probing_packet->transmission_type,
+      NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
 
   if (IsWriteBlockedStatus(result.status)) {
     if (probing_writer == writer_) {

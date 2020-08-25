@@ -43,7 +43,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
                             encrypted_length, false, false);
     packet.retransmittable_frames.push_back(QuicFrame(frame));
     unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
-                                   true);
+                                   true, true);
   }
 
   void SendDataPacket(uint64_t packet_number) {
@@ -55,7 +55,7 @@ class GeneralLossAlgorithmTest : public QuicTest {
                             PACKET_1BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             true, false);
     unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
-                                   false);
+                                   false, true);
   }
 
   void VerifyLosses(uint64_t largest_newly_acked,

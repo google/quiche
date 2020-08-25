@@ -691,7 +691,8 @@ bool QuicSentPacketManager::OnPacketSent(
     SerializedPacket* serialized_packet,
     QuicTime sent_time,
     TransmissionType transmission_type,
-    HasRetransmittableData has_retransmittable_data) {
+    HasRetransmittableData has_retransmittable_data,
+    bool measure_rtt) {
   QuicPacketNumber packet_number = serialized_packet->packet_number;
   DCHECK_LE(FirstSendingPacketNumber(), packet_number);
   DCHECK(!unacked_packets_.IsUnacked(packet_number));
@@ -717,7 +718,7 @@ bool QuicSentPacketManager::OnPacketSent(
   }
 
   unacked_packets_.AddSentPacket(serialized_packet, transmission_type,
-                                 sent_time, in_flight);
+                                 sent_time, in_flight, measure_rtt);
   // Reset the retransmission timer anytime a pending packet is sent.
   return in_flight;
 }

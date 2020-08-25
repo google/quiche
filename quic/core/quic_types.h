@@ -533,6 +533,9 @@ enum SentPacketState : uint8_t {
   PTO_RETRANSMITTED,
   // This packet has been retransmitted for probing purpose.
   PROBE_RETRANSMITTED,
+  // Do not collect RTT sample if this packet is the largest_acked of an
+  // incoming ACK.
+  NOT_CONTRIBUTING_RTT,
   LAST_PACKET_STATE = PROBE_RETRANSMITTED,
 };
 

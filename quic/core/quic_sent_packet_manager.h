@@ -186,12 +186,14 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   }
 
   // Called when we have sent bytes to the peer.  This informs the manager both
-  // the number of bytes sent and if they were retransmitted.  Returns true if
-  // the sender should reset the retransmission timer.
+  // the number of bytes sent and if they were retransmitted and if this packet
+  // is used for rtt measuring.  Returns true if the sender should reset the
+  // retransmission timer.
   bool OnPacketSent(SerializedPacket* serialized_packet,
                     QuicTime sent_time,
                     TransmissionType transmission_type,
-                    HasRetransmittableData has_retransmittable_data);
+                    HasRetransmittableData has_retransmittable_data,
+                    bool measure_rtt);
 
   // Called when the retransmission timer expires and returns the retransmission
   // mode.

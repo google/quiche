@@ -53,7 +53,7 @@ class UberLossAlgorithmTest : public QuicTest {
     packet.encryption_level = encryption_level;
     packet.retransmittable_frames.push_back(QuicFrame(frame));
     unacked_packets_->AddSentPacket(&packet, NOT_RETRANSMISSION, clock_.Now(),
-                                    true);
+                                    true, true);
   }
 
   void AckPackets(const std::vector<uint64_t>& packets_acked) {
