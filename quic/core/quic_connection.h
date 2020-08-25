@@ -1368,6 +1368,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // deprecated.
   void MaybeRespondToConnectivityProbingOrMigration();
 
+  // Called in IETF QUIC. Start peer migration if a non-probing frame is
+  // received and the current packet number is largest received so far.
+  void MaybeStartIetfPeerMigration(QuicFrameType type);
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1723,6 +1727,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   size_t anti_amplification_factor_ =
       GetQuicFlag(FLAGS_quic_anti_amplification_factor);
+
+  bool start_peer_migration_earlier_ =
+      GetQuicReloadableFlag(quic_start_peer_migration_earlier);
 };
 
 }  // namespace quic

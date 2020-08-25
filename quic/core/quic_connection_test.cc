@@ -375,8 +375,9 @@ class TestPacketWriter : public QuicPacketWriter {
   WriteResult WritePacket(const char* buffer,
                           size_t buf_len,
                           const QuicIpAddress& /*self_address*/,
-                          const QuicSocketAddress& /*peer_address*/,
+                          const QuicSocketAddress& peer_address,
                           PerPacketOptions* /*options*/) override {
+    last_write_peer_address_ = peer_address;
     // If the buffer is allocated from the pool, return it back to the pool.
     // Note the buffer content doesn't change.
     if (packet_buffer_pool_index_.find(const_cast<char*>(buffer)) !=
@@ -621,6 +622,10 @@ class TestPacketWriter : public QuicPacketWriter {
 
   SimpleQuicFramer* framer() { return &framer_; }
 
+  QuicSocketAddress last_write_peer_address() const {
+    return last_write_peer_address_;
+  }
+
  private:
   char* AllocPacketBuffer() {
     PacketBuffer* p = packet_buffer_free_list_.front();
@@ -673,6 +678,8 @@ class TestPacketWriter : public QuicPacketWriter {
   QuicHashMap<char*, PacketBuffer*> packet_buffer_pool_index_;
   // Indices in packet_buffer_pool_ that are not allocated.
   std::list<PacketBuffer*> packet_buffer_free_list_;
+  // The peer address passed into WritePacket().
+  QuicSocketAddress last_write_peer_address_;
 };
 
 class TestConnection : public QuicConnection {
@@ -1958,6 +1965,11 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  // Prevent packets from being coalesced.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
 
   // Clear direct_peer_address.
   QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
@@ -1967,23 +1979,30 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
-  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
-    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
-  } else {
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  }
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kPeerAddress);
+  const QuicSocketAddress kNewPeerAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  EXPECT_CALL(visitor_, OnStreamFrame(_))
+      .WillOnce(Invoke(
+          [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
+      .WillOnce(Invoke([=]() {
+        EXPECT_EQ((GetQuicReloadableFlag(quic_start_peer_migration_earlier) ||
+                           !GetParam().version.HasIetfQuicFrames()
+                       ? kNewPeerAddress
+                       : kPeerAddress),
+                  connection_.peer_address());
+      }));
+  QuicFrames frames;
+  frames.push_back(QuicFrame(frame1_));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
 
   // Process another packet with a different peer address on server side will
   // start connection migration.
-  const QuicSocketAddress kNewPeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kNewPeerAddress);
+  QuicFrames frames2;
+  frames2.push_back(QuicFrame(frame2_));
+  ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
 }

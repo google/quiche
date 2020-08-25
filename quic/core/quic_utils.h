@@ -230,6 +230,9 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
   // exceeds this value, it will result in a stream ID that exceeds the
   // implementation limit on stream ID size.
   static QuicStreamCount GetMaxStreamCount();
+
+  // Return true if this frame is an IETF probing frame.
+  static bool IsProbingFrame(QuicFrameType type);
 };
 
 template <typename Mask>

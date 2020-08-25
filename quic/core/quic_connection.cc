@@ -1775,7 +1775,8 @@ void QuicConnection::MaybeRespondToConnectivityProbingOrMigration() {
   }
   // Server starts to migrate connection upon receiving of non-probing packet
   // from a new peer address.
-  if (last_header_.packet_number == GetLargestReceivedPacket()) {
+  if (!start_peer_migration_earlier_ &&
+      last_header_.packet_number == GetLargestReceivedPacket()) {
     direct_peer_address_ = last_packet_source_address_;
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // TODO(fayang): When multiple packet number spaces is supported, only
@@ -4125,14 +4126,14 @@ void QuicConnection::CheckIfApplicationLimited() {
 }
 
 void QuicConnection::UpdatePacketContent(QuicFrameType type) {
+  if (version().HasIetfQuicFrames()) {
+    MaybeStartIetfPeerMigration(type);
+    return;
+  }
   // Packet content is tracked to identify connectivity probe in non-IETF
   // version, where a connectivity probe is defined as
   // - a padded PING packet with peer address change received by server,
   // - a padded PING packet on new path received by client.
-  if (version().HasIetfQuicFrames()) {
-    // TODO(b/149315151) detect IETF non-probing packet.
-    return;
-  }
 
   if (current_packet_content_ == NOT_PADDED_PING) {
     // We have already learned the current packet is not a connectivity
@@ -4184,6 +4185,24 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
     if (current_effective_peer_migration_type_ != NO_CHANGE) {
       // Start effective peer migration immediately when the current packet is
       // confirmed not a connectivity probing packet.
+      StartEffectivePeerMigration(current_effective_peer_migration_type_);
+    }
+  }
+  current_effective_peer_migration_type_ = NO_CHANGE;
+}
+
+void QuicConnection::MaybeStartIetfPeerMigration(QuicFrameType type) {
+  DCHECK(version().HasIetfQuicFrames());
+  if (!start_peer_migration_earlier_ || QuicUtils::IsProbingFrame(type)) {
+    return;
+  }
+  QUIC_CODE_COUNT(quic_start_peer_migration_earlier);
+  if (GetLargestReceivedPacket().IsInitialized() &&
+      last_header_.packet_number == GetLargestReceivedPacket()) {
+    direct_peer_address_ = last_packet_source_address_;
+    if (current_effective_peer_migration_type_ != NO_CHANGE) {
+      // Start effective peer migration when the current packet contains a
+      // non-probing frame.
       // TODO(fayang): When multiple packet number spaces is supported, only
       // start peer migration for the application data.
       StartEffectivePeerMigration(current_effective_peer_migration_type_);

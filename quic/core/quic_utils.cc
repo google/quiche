@@ -654,5 +654,18 @@ EncryptionLevel QuicUtils::GetEncryptionLevel(
   }
 }
 
+// static
+bool QuicUtils::IsProbingFrame(QuicFrameType type) {
+  switch (type) {
+    case PATH_CHALLENGE_FRAME:
+    case PATH_RESPONSE_FRAME:
+    case NEW_CONNECTION_ID_FRAME:
+    case PADDING_FRAME:
+      return true;
+    default:
+      return false;
+  }
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 }  // namespace quic
