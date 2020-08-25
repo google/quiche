@@ -403,15 +403,9 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     for (QuicStream* stream : non_static_streams) {
       QuicStreamId id = stream->id();
       stream->OnConnectionClosed(frame.quic_error_code, source);
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_do_not_close_stream_again_on_connection_close);
       if (stream_map_.find(id) != stream_map_.end()) {
         QUIC_BUG << ENDPOINT << "Stream " << id
                  << " failed to close under OnConnectionClosed";
-        if (!GetQuicReloadableFlag(
-                quic_do_not_close_stream_again_on_connection_close)) {
-          CloseStream(id);
-        }
       }
     }
   } else {
@@ -419,8 +413,6 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
     PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
       QuicStreamId id = stream->id();
       stream->OnConnectionClosed(frame.quic_error_code, source);
-      QUIC_RELOADABLE_FLAG_COUNT(
-          quic_do_not_close_stream_again_on_connection_close);
       auto it = stream_map_.find(id);
       if (it != stream_map_.end()) {
         if (!remove_zombie_streams_) {
@@ -430,10 +422,6 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
           QUIC_BUG_IF(!it->second->IsZombie())
               << ENDPOINT << "Non-zombie stream " << id
               << " failed to close under OnConnectionClosed";
-        }
-        if (!GetQuicReloadableFlag(
-                quic_do_not_close_stream_again_on_connection_close)) {
-          CloseStream(id);
         }
       }
       return true;
