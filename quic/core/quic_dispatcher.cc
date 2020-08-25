@@ -194,14 +194,10 @@ class ChloAlpnExtractor : public ChloExtractor::Delegate {
     if (chlo.GetStringPiece(kALPN, &alpn_value)) {
       alpn_ = std::string(alpn_value);
     }
-    if (GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_dispatcher_legacy_version_encapsulation,
-                                   1, 3);
-      if (version == LegacyVersionForEncapsulation().transport_version) {
-        quiche::QuicheStringPiece qlve_value;
-        if (chlo.GetStringPiece(kQLVE, &qlve_value)) {
-          legacy_version_encapsulation_inner_packet_ = std::string(qlve_value);
-        }
+    if (version == LegacyVersionForEncapsulation().transport_version) {
+      quiche::QuicheStringPiece qlve_value;
+      if (chlo.GetStringPiece(kQLVE, &qlve_value)) {
+        legacy_version_encapsulation_inner_packet_ = std::string(qlve_value);
       }
     }
   }
@@ -209,7 +205,6 @@ class ChloAlpnExtractor : public ChloExtractor::Delegate {
   std::string&& ConsumeAlpn() { return std::move(alpn_); }
 
   std::string&& ConsumeLegacyVersionEncapsulationInnerPacket() {
-    DCHECK(GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation));
     return std::move(legacy_version_encapsulation_inner_packet_);
   }
 
@@ -222,7 +217,6 @@ bool MaybeHandleLegacyVersionEncapsulation(
     QuicDispatcher* dispatcher,
     ChloAlpnExtractor* alpn_extractor,
     const ReceivedPacketInfo& packet_info) {
-  DCHECK(GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation));
   std::string legacy_version_encapsulation_inner_packet =
       alpn_extractor->ConsumeLegacyVersionEncapsulationInnerPacket();
   if (legacy_version_encapsulation_inner_packet.empty()) {
@@ -489,23 +483,19 @@ bool QuicDispatcher::MaybeDispatchPacket(
   auto it = session_map_.find(server_connection_id);
   if (it != session_map_.end()) {
     DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
-    if (GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_dispatcher_legacy_version_encapsulation,
-                                   2, 3);
-      if (packet_info.version_flag &&
-          packet_info.version != it->second->version() &&
-          packet_info.version == LegacyVersionForEncapsulation()) {
-        // This packet is using the Legacy Version Encapsulation version but the
-        // corresponding session isn't, attempt extraction of inner packet.
-        ChloAlpnExtractor alpn_extractor;
-        if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
-                                   config_->create_session_tag_indicators(),
-                                   &alpn_extractor,
-                                   server_connection_id.length())) {
-          if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                    packet_info)) {
-            return true;
-          }
+    if (packet_info.version_flag &&
+        packet_info.version != it->second->version() &&
+        packet_info.version == LegacyVersionForEncapsulation()) {
+      // This packet is using the Legacy Version Encapsulation version but the
+      // corresponding session isn't, attempt extraction of inner packet.
+      ChloAlpnExtractor alpn_extractor;
+      if (ChloExtractor::Extract(packet_info.packet, packet_info.version,
+                                 config_->create_session_tag_indicators(),
+                                 &alpn_extractor,
+                                 server_connection_id.length())) {
+        if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
+                                                  packet_info)) {
+          return true;
         }
       }
     }
@@ -676,14 +666,11 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
         break;
       }
 
-      if (GetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(
-            quic_dispatcher_legacy_version_encapsulation, 3, 3);
-        if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
-                                                  *packet_info)) {
-          break;
-        }
+      if (MaybeHandleLegacyVersionEncapsulation(this, &alpn_extractor,
+                                                *packet_info)) {
+        break;
       }
+
       ProcessChlo({alpn_extractor.ConsumeAlpn()}, packet_info);
     } break;
     case kFateTimeWait:

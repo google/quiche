@@ -587,7 +587,6 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
     // is not currently supported in QuicDispatcher.
     return;
   }
-  SetQuicReloadableFlag(quic_dispatcher_legacy_version_encapsulation, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId server_connection_id = TestConnectionId();
   QuicConfig client_config = DefaultQuicConfig();
