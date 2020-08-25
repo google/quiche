@@ -11442,12 +11442,8 @@ TEST_P(QuicConnectionTest, ServerRetransmitsHandshakeDataEarly) {
   clock_.AdvanceTime(kAlarmGranularity);
   connection_.GetAckAlarm()->Fire();
   EXPECT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early)) {
-    // Verify handshake data gets retransmitted early.
-    EXPECT_FALSE(writer_->crypto_frames().empty());
-  } else {
-    EXPECT_TRUE(writer_->crypto_frames().empty());
-  }
+  // Verify handshake data gets retransmitted early.
+  EXPECT_FALSE(writer_->crypto_frames().empty());
 }
 
 // Regression test for b/161228202

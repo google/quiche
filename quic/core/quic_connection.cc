@@ -4318,23 +4318,15 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
 
 void QuicConnection::MaybeBundleCryptoDataWithAcks() {
   DCHECK(SupportsMultiplePacketNumberSpaces());
-  if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early) &&
-      IsHandshakeConfirmed()) {
+  if (IsHandshakeConfirmed()) {
     return;
   }
   PacketNumberSpace space = HANDSHAKE_DATA;
-  if (perspective() == Perspective::IS_SERVER) {
-    // On the server side, sends INITIAL data with INITIAL ACK. On the client
-    // side, sends HANDSHAKE data (containing client Finished) with HANDSHAKE
-    // ACK.
+  if (perspective() == Perspective::IS_SERVER &&
+      framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+    // On the server side, sends INITIAL data with INITIAL ACK if initial key is
+    // available.
     space = INITIAL_DATA;
-    if (GetQuicReloadableFlag(quic_retransmit_handshake_data_early)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_retransmit_handshake_data_early);
-      if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
-        // Retransmit HANDSHAKE data early.
-        space = HANDSHAKE_DATA;
-      }
-    }
   }
   const QuicTime ack_timeout =
       uber_received_packet_manager_.GetAckTimeout(space);
