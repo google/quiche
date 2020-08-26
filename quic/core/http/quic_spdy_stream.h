@@ -213,7 +213,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Returns true if the sequencer has delivered the FIN, and no more body bytes
   // will be available.
-  bool IsClosed() { return sequencer()->IsClosed(); }
+  bool IsSequencerClosed() { return sequencer()->IsClosed(); }
 
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers,
