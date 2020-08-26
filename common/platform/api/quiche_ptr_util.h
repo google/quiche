@@ -7,13 +7,16 @@
 
 #include <memory>
 
+#include "absl/memory/memory.h"
 #include "net/quiche/common/platform/impl/quiche_ptr_util_impl.h"
 
 namespace quiche {
 
 template <typename T>
 std::unique_ptr<T> QuicheWrapUnique(T* ptr) {
-  return QuicheWrapUniqueImpl<T>(ptr);
+  // TODO(b/166325009): replace this in code with absl::WrapUnique and delete
+  // this function.
+  return absl::WrapUnique<T>(ptr);
 }
 
 }  // namespace quiche
