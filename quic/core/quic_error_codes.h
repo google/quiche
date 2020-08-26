@@ -580,13 +580,13 @@ enum class QuicHttpQpackErrorCode {
 
 // Convert a QuicRstStreamErrorCode to an application error code to be used in
 // an IETF QUIC RESET_STREAM frame
-uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
+QUIC_EXPORT_PRIVATE uint64_t RstStreamErrorCodeToIetfResetStreamErrorCode(
     QuicRstStreamErrorCode rst_stream_error_code);
 
 // Convert the application error code of an IETF QUIC RESET_STREAM frame
 // to QuicRstStreamErrorCode.
-QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
-    uint64_t ietf_error_code);
+QUIC_EXPORT_PRIVATE QuicRstStreamErrorCode
+IetfResetStreamErrorCodeToRstStreamErrorCode(uint64_t ietf_error_code);
 
 QUIC_EXPORT_PRIVATE inline std::string HistogramEnumString(
     QuicErrorCode enum_value) {
