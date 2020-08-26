@@ -233,12 +233,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Create and transmit a STOP_SENDING frame
   virtual void SendStopSending(uint16_t code, QuicStreamId stream_id);
 
-  // Close stream |stream_id|. Whether sending RST_STREAM (and STOP_SENDING)
-  // depends on the sending and receiving states.
-  // TODO(b/136274541): Deprecate CloseStream, instead always use ResetStream to
-  // close a stream from session.
-  virtual void CloseStream(QuicStreamId stream_id);
-
   // Called by stream |stream_id| when it gets closed.
   virtual void OnStreamClosed(QuicStreamId stream_id);
 

@@ -46,8 +46,6 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       delete;
   ~MockQuicSpdyClientSession() override = default;
 
-  MOCK_METHOD(void, CloseStream, (QuicStreamId stream_id), (override));
-
   using QuicSession::ActivateStream;
 
  private:

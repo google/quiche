@@ -865,31 +865,6 @@ void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
   control_frame_manager_.WriteOrBufferMaxStreams(stream_count, unidirectional);
 }
 
-void QuicSession::CloseStream(QuicStreamId stream_id) {
-  QUIC_DVLOG(1) << ENDPOINT << "Closing stream " << stream_id;
-
-  StreamMap::iterator it = stream_map_.find(stream_id);
-  if (it == stream_map_.end()) {
-    // When CloseStream has been called recursively (via
-    // QuicStream::OnClose), the stream will already have been deleted
-    // from stream_map_, so return immediately.
-    QUIC_DVLOG(1) << ENDPOINT << "Stream is already closed: " << stream_id;
-    return;
-  }
-  QuicStream* stream = it->second.get();
-  if (stream->is_static()) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Try to close a static stream, id: " << stream_id
-                  << " Closing connection";
-    connection()->CloseConnection(
-        QUIC_INVALID_STREAM_ID, "Try to close a static stream",
-        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-    return;
-  }
-  stream->CloseReadSide();
-  stream->CloseWriteSide();
-}
-
 void QuicSession::InsertLocallyClosedStreamsHighestOffset(
     const QuicStreamId id,
     QuicStreamOffset offset) {

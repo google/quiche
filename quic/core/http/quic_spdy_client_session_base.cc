@@ -213,13 +213,6 @@ void QuicSpdyClientSessionBase::ResetPromised(
   }
 }
 
-void QuicSpdyClientSessionBase::CloseStream(QuicStreamId stream_id) {
-  QuicSpdySession::CloseStream(stream_id);
-  if (!VersionUsesHttp3(transport_version())) {
-    headers_stream()->MaybeReleaseSequencerBuffer();
-  }
-}
-
 void QuicSpdyClientSessionBase::OnStreamClosed(QuicStreamId stream_id) {
   QuicSpdySession::OnStreamClosed(stream_id);
   if (!VersionUsesHttp3(transport_version())) {

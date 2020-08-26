@@ -168,7 +168,6 @@ class TestStream : public QuicStream {
   TestStream(PendingStream* pending, StreamType type)
       : QuicStream(pending, type, /*is_static=*/false) {}
 
-  using QuicStream::CloseReadSide;
   using QuicStream::CloseWriteSide;
   using QuicStream::WriteMemSlices;
 
@@ -2560,7 +2559,7 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   std::string body(100, '.');
-  stream2->CloseReadSide();
+  QuicStreamPeer::CloseReadSide(stream2);
   stream2->WriteOrBufferData(body, true, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   // Verify stream2 is a zombie streams.

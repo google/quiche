@@ -349,19 +349,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // gracefully.
   virtual bool OnStopSending(uint16_t code);
 
-  // Close the write side of the socket.  Further writes will fail.
-  // Can be called by the subclass or internally.
-  // Does not send a FIN.  May cause the stream to be closed.
-  virtual void CloseWriteSide();
-
-  // Close the read side of the stream.  May cause the stream to be closed.
-  // Subclasses and consumers should use StopReading to terminate reading early
-  // if expecting a FIN. Can be used directly by subclasses if not expecting a
-  // FIN.
-  // TODO(fayang): move this to protected when removing
-  // QuicSession::CloseStream.
-  void CloseReadSide();
-
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }
 
@@ -414,6 +401,11 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // empty.
   void SetFinSent();
 
+  // Close the write side of the socket.  Further writes will fail.
+  // Can be called by the subclass or internally.
+  // Does not send a FIN.  May cause the stream to be closed.
+  virtual void CloseWriteSide();
+
   void set_rst_received(bool rst_received) { rst_received_ = rst_received; }
   void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
 
@@ -460,6 +452,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Write buffered data in send buffer. TODO(fayang): Consider combine
   // WriteOrBufferData, Writev and WriteBufferedData.
   void WriteBufferedData();
+
+  // Close the read side of the stream.  May cause the stream to be closed.
+  void CloseReadSide();
 
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);
