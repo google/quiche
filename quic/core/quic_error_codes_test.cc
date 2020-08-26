@@ -13,12 +13,7 @@ namespace quic {
 namespace test {
 namespace {
 
-class QuicErrorCodesTest : public QuicTest {};
-
-TEST_F(QuicErrorCodesTest, QuicRstStreamErrorCodeToString) {
-  EXPECT_STREQ("QUIC_BAD_APPLICATION_PAYLOAD",
-               QuicRstStreamErrorCodeToString(QUIC_BAD_APPLICATION_PAYLOAD));
-}
+using QuicErrorCodesTest = QuicTest;
 
 TEST_F(QuicErrorCodesTest, QuicErrorCodeToString) {
   EXPECT_STREQ("QUIC_NO_ERROR", QuicErrorCodeToString(QUIC_NO_ERROR));
@@ -91,6 +86,45 @@ TEST_F(QuicErrorCodesTest, QuicErrorCodeToTransportErrorCode) {
       EXPECT_TRUE(is_valid_http3_error_code || is_valid_qpack_error_code)
           << internal_error_code_string;
     }
+  }
+}
+
+using QuicRstErrorCodesTest = QuicTest;
+
+TEST_F(QuicRstErrorCodesTest, QuicRstStreamErrorCodeToString) {
+  EXPECT_STREQ("QUIC_BAD_APPLICATION_PAYLOAD",
+               QuicRstStreamErrorCodeToString(QUIC_BAD_APPLICATION_PAYLOAD));
+}
+
+// When an IETF application protocol error code (sent on the wire in
+// RESET_STREAM and STOP_SENDING frames) is translated into a
+// QuicRstStreamErrorCode and back, it must yield the original value.
+TEST_F(QuicRstErrorCodesTest,
+       IetfResetStreamErrorCodeToRstStreamErrorCodeAndBack) {
+  for (uint64_t wire_code :
+       {static_cast<uint64_t>(QuicHttp3ErrorCode::HTTP3_NO_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::CLOSED_CRITICAL_STREAM),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_UNEXPECTED),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::FRAME_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::EXCESSIVE_LOAD),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::SETTINGS_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::MISSING_SETTINGS),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_REJECTED),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_INCOMPLETE),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::CONNECT_ERROR),
+        static_cast<uint64_t>(QuicHttp3ErrorCode::VERSION_FALLBACK),
+        static_cast<uint64_t>(QuicHttpQpackErrorCode::DECOMPRESSION_FAILED),
+        static_cast<uint64_t>(QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR),
+        static_cast<uint64_t>(QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)}) {
+    QuicRstStreamErrorCode rst_stream_error_code =
+        IetfResetStreamErrorCodeToRstStreamErrorCode(wire_code);
+    EXPECT_EQ(wire_code, RstStreamErrorCodeToIetfResetStreamErrorCode(
+                             rst_stream_error_code));
   }
 }
 
