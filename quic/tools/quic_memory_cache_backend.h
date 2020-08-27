@@ -124,12 +124,6 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
       quiche::QuicheStringPiece response_body,
       QuicBackendResponse::SpecialResponseType response_type);
 
-  void AddStopSendingResponse(quiche::QuicheStringPiece host,
-                              quiche::QuicheStringPiece path,
-                              spdy::SpdyHeaderBlock response_headers,
-                              quiche::QuicheStringPiece response_body,
-                              uint16_t stop_sending_code);
-
   // Sets a default response in case of cache misses.  Takes ownership of
   // 'response'.
   void AddDefaultResponse(QuicBackendResponse* response);
@@ -159,8 +153,7 @@ class QuicMemoryCacheBackend : public QuicSimpleServerBackend {
                        QuicBackendResponse::SpecialResponseType response_type,
                        spdy::SpdyHeaderBlock response_headers,
                        quiche::QuicheStringPiece response_body,
-                       spdy::SpdyHeaderBlock response_trailers,
-                       uint16_t stop_sending_code);
+                       spdy::SpdyHeaderBlock response_trailers);
 
   std::string GetKey(quiche::QuicheStringPiece host,
                      quiche::QuicheStringPiece path) const;

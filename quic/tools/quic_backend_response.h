@@ -40,9 +40,6 @@ class QuicBackendResponse {
     INCOMPLETE_RESPONSE,   // The server will act as if there is a non-empty
                            // trailer but it will not be sent, as a result, FIN
                            // will not be sent too.
-    STOP_SENDING,          // Acts like INCOMPLETE_RESPONSE in that the entire
-                           // response is not sent. After sending what is sent,
-                           // the server will send a STOP_SENDING.
     GENERATE_BYTES         // Sends a response with a length equal to the number
                            // of bytes in the URL path.
   };
@@ -73,15 +70,12 @@ class QuicBackendResponse {
   void set_body(quiche::QuicheStringPiece body) {
     body_.assign(body.data(), body.size());
   }
-  uint16_t stop_sending_code() const { return stop_sending_code_; }
-  void set_stop_sending_code(uint16_t code) { stop_sending_code_ = code; }
 
  private:
   SpecialResponseType response_type_;
   spdy::SpdyHeaderBlock headers_;
   spdy::SpdyHeaderBlock trailers_;
   std::string body_;
-  uint16_t stop_sending_code_;
 };
 
 }  // namespace quic

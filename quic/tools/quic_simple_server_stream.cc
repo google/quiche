@@ -254,15 +254,6 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
     return;
   }
 
-  if (response->response_type() == QuicBackendResponse::STOP_SENDING) {
-    QUIC_DVLOG(1)
-        << "Stream " << id()
-        << " sending an incomplete response, i.e. no trailer, no fin.";
-    SendIncompleteResponse(response->headers().Clone(), response->body());
-    SendStopSending(response->stop_sending_code());
-    return;
-  }
-
   if (response->response_type() == QuicBackendResponse::GENERATE_BYTES) {
     QUIC_DVLOG(1) << "Stream " << id() << " sending a generate bytes response.";
     std::string path = request_headers_[":path"].as_string().substr(1);

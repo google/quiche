@@ -338,13 +338,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   StreamType type() const { return type_; }
 
-  // Creates and sends a STOP_SENDING frame.  This can be called regardless of
-  // the version that has been negotiated.  If not IETF QUIC/Version 99 then the
-  // method is a noop, relieving the application of the necessity of
-  // understanding the connection's QUIC version and knowing whether it can call
-  // this method or not.
-  void SendStopSending(uint16_t code);
-
   // Handle received StopSending frame. Returns true if the processing finishes
   // gracefully.
   virtual bool OnStopSending(uint16_t code);

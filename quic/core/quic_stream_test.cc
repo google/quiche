@@ -1554,30 +1554,6 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
   stream_->RetransmitStreamData(0, 100, false, PTO_RETRANSMISSION);
 }
 
-// Test that QuicStream::StopSending A) is a no-op if the connection is not in
-// version 99, B) that it properly invokes QuicSession::StopSending, and C) that
-// the correct data is passed along, including getting the stream ID.
-TEST_P(QuicStreamTest, CheckStopSending) {
-  Initialize();
-  const int kStopSendingCode = 123;
-  // These must start as false.
-  EXPECT_FALSE(stream_->write_side_closed());
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-  // Expect to actually see a stop sending if and only if we are in version 99.
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    EXPECT_CALL(*session_, SendStopSending(kStopSendingCode, stream_->id()))
-        .Times(1);
-  } else {
-    EXPECT_CALL(*session_, SendStopSending(_, _)).Times(0);
-  }
-  stream_->SendStopSending(kStopSendingCode);
-  // Sending a STOP_SENDING does not actually close the local stream.
-  // Our implementation waits for the responding RESET_STREAM to effect the
-  // closes. Therefore, read- and write-side closes should both be false.
-  EXPECT_FALSE(stream_->write_side_closed());
-  EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream_));
-}
-
 // Test that OnStreamReset does one-way (read) closes if version 99, two way
 // (read and write) if not version 99.
 TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {

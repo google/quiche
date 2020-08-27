@@ -1309,16 +1309,6 @@ void QuicStream::OnDeadlinePassed() {
   Reset(QUIC_STREAM_TTL_EXPIRED);
 }
 
-void QuicStream::SendStopSending(uint16_t code) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
-    // If the connection is not version 99, do nothing.
-    // Do not QUIC_BUG or anything; the application really does not need to know
-    // what version the connection is in.
-    return;
-  }
-  session_->SendStopSending(code, id_);
-}
-
 bool QuicStream::IsFlowControlBlocked() const {
   if (!flow_controller_.has_value()) {
     QUIC_BUG << "Trying to access non-existent flow controller.";
