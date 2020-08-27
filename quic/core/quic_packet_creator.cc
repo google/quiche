@@ -1619,6 +1619,13 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     }
   }
 
+  // If this is an ACK frame, validate that it is non-empty and that
+  // largest_acked matches the max packet number.
+  DCHECK(frame.type != ACK_FRAME ||
+         (!frame.ack_frame->packets.Empty() &&
+          frame.ack_frame->packets.Max() == frame.ack_frame->largest_acked))
+      << "Invalid ACK frame: " << frame;
+
   size_t frame_len = GetSerializedFrameLength(frame);
   if (frame_len == 0 && RemoveSoftMaxPacketLength()) {
     // Remove soft max_packet_length and retry.
@@ -1975,6 +1982,14 @@ QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
 
 QuicPacketCreator::ScopedPeerAddressContext::~ScopedPeerAddressContext() {
   creator_->SetDefaultPeerAddress(old_peer_address_);
+}
+
+void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {
+  DCHECK(level == packet_.encryption_level || !HasPendingFrames())
+      << "Cannot update encryption level from " << packet_.encryption_level
+      << " to " << level << " when we already have pending frames: "
+      << QuicFramesToString(queued_frames_);
+  packet_.encryption_level = level;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

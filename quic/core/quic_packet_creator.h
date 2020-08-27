@@ -282,9 +282,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void SetClientConnectionId(QuicConnectionId client_connection_id);
 
   // Sets the encryption level that will be applied to new packets.
-  void set_encryption_level(EncryptionLevel level) {
-    packet_.encryption_level = level;
-  }
+  void set_encryption_level(EncryptionLevel level);
   EncryptionLevel encryption_level() { return packet_.encryption_level; }
 
   // packet number of the last created packet, or 0 if no packets have been

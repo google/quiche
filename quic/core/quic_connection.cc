@@ -65,6 +65,7 @@ class AckAlarmDelegate : public QuicAlarm::Delegate {
 
   void OnAlarm() override {
     DCHECK(connection_->ack_frame_updated());
+    DCHECK(connection_->connected());
     QuicConnection::ScopedPacketFlusher flusher(connection_);
     if (connection_->SupportsMultiplePacketNumberSpaces()) {
       connection_->SendAllPendingAcks();
@@ -88,7 +89,10 @@ class RetransmissionAlarmDelegate : public QuicAlarm::Delegate {
   RetransmissionAlarmDelegate& operator=(const RetransmissionAlarmDelegate&) =
       delete;
 
-  void OnAlarm() override { connection_->OnRetransmissionTimeout(); }
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    connection_->OnRetransmissionTimeout();
+  }
 
  private:
   QuicConnection* connection_;
@@ -103,7 +107,10 @@ class SendAlarmDelegate : public QuicAlarm::Delegate {
   SendAlarmDelegate(const SendAlarmDelegate&) = delete;
   SendAlarmDelegate& operator=(const SendAlarmDelegate&) = delete;
 
-  void OnAlarm() override { connection_->WriteAndBundleAcksIfNotBlocked(); }
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    connection_->WriteAndBundleAcksIfNotBlocked();
+  }
 
  private:
   QuicConnection* connection_;
@@ -116,7 +123,10 @@ class PingAlarmDelegate : public QuicAlarm::Delegate {
   PingAlarmDelegate(const PingAlarmDelegate&) = delete;
   PingAlarmDelegate& operator=(const PingAlarmDelegate&) = delete;
 
-  void OnAlarm() override { connection_->OnPingTimeout(); }
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    connection_->OnPingTimeout();
+  }
 
  private:
   QuicConnection* connection_;
@@ -130,7 +140,10 @@ class MtuDiscoveryAlarmDelegate : public QuicAlarm::Delegate {
   MtuDiscoveryAlarmDelegate& operator=(const MtuDiscoveryAlarmDelegate&) =
       delete;
 
-  void OnAlarm() override { connection_->DiscoverMtu(); }
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    connection_->DiscoverMtu();
+  }
 
  private:
   QuicConnection* connection_;
@@ -146,6 +159,7 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
       const ProcessUndecryptablePacketsAlarmDelegate&) = delete;
 
   void OnAlarm() override {
+    DCHECK(connection_->connected());
     QuicConnection::ScopedPacketFlusher flusher(connection_);
     connection_->MaybeProcessUndecryptablePackets();
   }
