@@ -189,7 +189,13 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
     }
   }
 
+#if QUIC_FRAME_DEBUG
+  QuicFrame frame = QuicFrame(&ack_frame_);
+  frame.delete_forbidden = true;
+  return frame;
+#else  // QUIC_FRAME_DEBUG
   return QuicFrame(&ack_frame_);
+#endif  // QUIC_FRAME_DEBUG
 }
 
 void QuicReceivedPacketManager::DontWaitForPacketsBefore(

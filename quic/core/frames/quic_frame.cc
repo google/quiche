@@ -87,6 +87,16 @@ void DeleteFrames(QuicFrames* frames) {
 }
 
 void DeleteFrame(QuicFrame* frame) {
+#if QUIC_FRAME_DEBUG
+  // If the frame is not inlined, check that it can be safely deleted.
+  if (frame->type != PADDING_FRAME && frame->type != MTU_DISCOVERY_FRAME &&
+      frame->type != PING_FRAME && frame->type != MAX_STREAMS_FRAME &&
+      frame->type != STOP_WAITING_FRAME &&
+      frame->type != STREAMS_BLOCKED_FRAME && frame->type != STREAM_FRAME &&
+      frame->type != HANDSHAKE_DONE_FRAME) {
+    CHECK(!frame->delete_forbidden) << *frame;
+  }
+#endif  // QUIC_FRAME_DEBUG
   switch (frame->type) {
     // Frames smaller than a pointer are inlined, so don't need to be deleted.
     case PADDING_FRAME:

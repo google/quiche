@@ -36,6 +36,14 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
+#ifndef QUIC_FRAME_DEBUG
+#if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#define QUIC_FRAME_DEBUG 1
+#else  // !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#define QUIC_FRAME_DEBUG 0
+#endif  // !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+#endif  // QUIC_FRAME_DEBUG
+
 namespace quic {
 
 struct QUIC_EXPORT_PRIVATE QuicFrame {
@@ -86,6 +94,10 @@ struct QUIC_EXPORT_PRIVATE QuicFrame {
     // Out of line frames.
     struct {
       QuicFrameType type;
+
+#if QUIC_FRAME_DEBUG
+      bool delete_forbidden = false;
+#endif  // QUIC_FRAME_DEBUG
 
       // TODO(wub): These frames can also be inlined without increasing the size
       // of QuicFrame: QuicRstStreamFrame, QuicWindowUpdateFrame,
