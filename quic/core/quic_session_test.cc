@@ -1424,7 +1424,7 @@ TEST_P(QuicSessionTestServer, SendGoAway) {
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallySendControlFrame));
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
-  EXPECT_TRUE(session_.goaway_sent());
+  EXPECT_TRUE(session_.transport_goaway_sent());
 
   const QuicStreamId kTestStreamId = 5u;
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
@@ -1442,7 +1442,7 @@ TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
-  EXPECT_TRUE(session_.goaway_sent());
+  EXPECT_TRUE(session_.transport_goaway_sent());
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
 }
 

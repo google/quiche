@@ -128,7 +128,7 @@ class QuicClientBase {
   const QuicSession* session() const;
 
   bool connected() const;
-  bool goaway_received() const;
+  virtual bool goaway_received() const;
 
   const QuicServerId& server_id() const { return server_id_; }
 

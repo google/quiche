@@ -1403,6 +1403,17 @@ void QuicSpdySession::EnableServerPush() {
   ietf_server_push_enabled_ = true;
 }
 
+bool QuicSpdySession::goaway_received() const {
+  return VersionUsesHttp3(transport_version())
+             ? last_received_http3_goaway_id_.has_value()
+             : transport_goaway_received();
+}
+
+bool QuicSpdySession::goaway_sent() const {
+  return VersionUsesHttp3(transport_version()) ? http3_goaway_sent_
+                                               : transport_goaway_sent();
+}
+
 bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
   DCHECK(VersionUsesHttp3(transport_version()));
 

@@ -143,6 +143,8 @@ class QuicSpdyClientBase : public QuicClientBase,
   // TODO(b/151641466): Rename this method.
   void SetMaxAllowedPushId(PushId max) { max_allowed_push_id_ = max; }
 
+  // QuicClientBase methods.
+  bool goaway_received() const override;
   bool EarlyDataAccepted() override;
   bool ReceivedInchoateReject() override;
 

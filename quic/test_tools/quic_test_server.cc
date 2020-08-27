@@ -252,7 +252,7 @@ void ImmediateGoAwaySession::OnNewEncryptionKeyAvailable(
   QuicSimpleServerSession::OnNewEncryptionKeyAvailable(level,
                                                        std::move(encrypter));
   if (VersionUsesHttp3(transport_version())) {
-    if (IsEncryptionEstablished() && !http3_goaway_sent()) {
+    if (IsEncryptionEstablished() && !goaway_sent()) {
       SendHttp3GoAway();
     }
   }

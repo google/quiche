@@ -366,9 +366,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // connection ID lengths do not change.
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
-  bool goaway_sent() const { return goaway_sent_; }
+  bool transport_goaway_sent() const { return transport_goaway_sent_; }
 
-  bool goaway_received() const { return goaway_received_; }
+  bool transport_goaway_received() const { return transport_goaway_received_; }
 
   // Returns the Google QUIC error code
   QuicErrorCode error() const { return on_closed_frame_.quic_error_code; }
@@ -804,11 +804,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // call stack of OnCanWrite.
   QuicStreamId currently_writing_stream_id_;
 
-  // Whether a GoAway has been sent.
-  bool goaway_sent_;
+  // Whether a transport layer GOAWAY frame has been sent.
+  // Such a frame only exists in Google QUIC, therefore |transport_goaway_sent_|
+  // is always false when using IETF QUIC.
+  bool transport_goaway_sent_;
 
-  // Whether a GoAway has been received.
-  bool goaway_received_;
+  // Whether a transport layer GOAWAY frame has been received.
+  // Such a frame only exists in Google QUIC, therefore
+  // |transport_goaway_received_| is always false when using IETF QUIC.
+  bool transport_goaway_received_;
 
   QuicControlFrameManager control_frame_manager_;
 

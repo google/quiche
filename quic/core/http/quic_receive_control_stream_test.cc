@@ -292,7 +292,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   std::string data = std::string(buffer.get(), header_length);
 
   QuicStreamFrame frame(receive_control_stream_->id(), false, offset, data);
-  EXPECT_FALSE(session_.http3_goaway_received());
+  EXPECT_FALSE(session_.goaway_received());
 
   EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
 
@@ -306,7 +306,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
   receive_control_stream_->OnStreamFrame(frame);
   if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior) ||
       perspective() == Perspective::IS_CLIENT) {
-    EXPECT_TRUE(session_.http3_goaway_received());
+    EXPECT_TRUE(session_.goaway_received());
   }
 }
 

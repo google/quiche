@@ -57,10 +57,7 @@ bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
     QUIC_DLOG(INFO) << "Encryption not active so no outgoing stream created.";
     return false;
   }
-  bool goaway_received = VersionUsesHttp3(transport_version())
-                             ? http3_goaway_received()
-                             : QuicSession::goaway_received();
-  if (goaway_received && respect_goaway_) {
+  if (goaway_received() && respect_goaway_) {
     QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
                     << "Already received goaway.";
     return false;
@@ -131,10 +128,7 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
     QUIC_BUG << "ShouldCreateIncomingStream called when disconnected";
     return false;
   }
-  bool goaway_received = quic::VersionUsesHttp3(transport_version())
-                             ? http3_goaway_received()
-                             : QuicSession::goaway_received();
-  if (goaway_received && respect_goaway_) {
+  if (goaway_received() && respect_goaway_) {
     QUIC_DLOG(INFO) << "Failed to create a new outgoing stream. "
                     << "Already received goaway.";
     return false;

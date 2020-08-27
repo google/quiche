@@ -353,11 +353,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   Http3DebugVisitor* debug_visitor() { return debug_visitor_; }
 
-  bool http3_goaway_received() const {
-    return last_received_http3_goaway_id_.has_value();
-  }
-
-  bool http3_goaway_sent() const { return http3_goaway_sent_; }
+  // When using Google QUIC, return whether a transport layer GOAWAY frame has
+  // been received or sent.
+  // When using IETF QUIC, return whether an HTTP/3 GOAWAY frame has been
+  // received or sent.
+  bool goaway_received() const;
+  bool goaway_sent() const;
 
   // Log header compression ratio histogram.
   // |using_qpack| is true for QPACK, false for HPACK.

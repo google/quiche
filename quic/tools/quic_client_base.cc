@@ -286,7 +286,7 @@ bool QuicClientBase::connected() const {
 }
 
 bool QuicClientBase::goaway_received() const {
-  return session_ != nullptr && session_->goaway_received();
+  return session_ != nullptr && session_->transport_goaway_received();
 }
 
 int QuicClientBase::GetNumSentClientHellos() {

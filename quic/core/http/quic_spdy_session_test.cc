@@ -1082,7 +1082,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
   session_.SendHttp3GoAway();
-  EXPECT_TRUE(session_.http3_goaway_sent());
+  EXPECT_TRUE(session_.goaway_sent());
 
   const QuicStreamId kTestStreamId =
       GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
@@ -1120,10 +1120,10 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
     return;
   }
 
-  EXPECT_FALSE(session_.http3_goaway_received());
+  EXPECT_FALSE(session_.goaway_received());
   PushId push_id1 = 0;
   session_.OnHttp3GoAway(push_id1);
-  EXPECT_TRUE(session_.http3_goaway_received());
+  EXPECT_TRUE(session_.goaway_received());
 
   EXPECT_CALL(
       *connection_,
@@ -2703,11 +2703,11 @@ TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
     return;
   }
 
-  EXPECT_FALSE(session_.http3_goaway_received());
+  EXPECT_FALSE(session_.goaway_received());
   QuicStreamId stream_id1 =
       GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
   session_.OnHttp3GoAway(stream_id1);
-  EXPECT_TRUE(session_.http3_goaway_received());
+  EXPECT_TRUE(session_.goaway_received());
 
   EXPECT_CALL(
       *connection_,

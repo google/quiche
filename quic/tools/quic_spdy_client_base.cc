@@ -195,6 +195,10 @@ QuicSpdyClientStream* QuicSpdyClientBase::CreateClientStream() {
   return stream;
 }
 
+bool QuicSpdyClientBase::goaway_received() const {
+  return client_session() && client_session()->goaway_received();
+}
+
 bool QuicSpdyClientBase::EarlyDataAccepted() {
   return client_session()->EarlyDataAccepted();
 }

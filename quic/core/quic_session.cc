@@ -89,8 +89,8 @@ QuicSession::QuicSession(
           perspective() == Perspective::IS_SERVER,
           nullptr),
       currently_writing_stream_id_(0),
-      goaway_sent_(false),
-      goaway_received_(false),
+      transport_goaway_sent_(false),
+      transport_goaway_received_(false),
       control_frame_manager_(this),
       last_message_id_(0),
       datagram_queue_(this),
@@ -345,7 +345,7 @@ void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
   QUIC_BUG_IF(version().UsesHttp3())
       << "gQUIC GOAWAY received on version " << version();
 
-  goaway_received_ = true;
+  transport_goaway_received_ = true;
 }
 
 void QuicSession::OnMessageReceived(quiche::QuicheStringPiece message) {
@@ -832,10 +832,10 @@ void QuicSession::SendGoAway(QuicErrorCode error_code,
                              const std::string& reason) {
   // GOAWAY frame is not supported in v99.
   DCHECK(!VersionHasIetfQuicFrames(transport_version()));
-  if (goaway_sent_) {
+  if (transport_goaway_sent_) {
     return;
   }
-  goaway_sent_ = true;
+  transport_goaway_sent_ = true;
   control_frame_manager_.WriteOrBufferGoAway(
       error_code, stream_id_manager_.largest_peer_created_stream_id(), reason);
 }
@@ -1794,10 +1794,10 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
     return nullptr;
   }
 
-  // TODO(fkastenholz): If we are creating a new stream and we have
-  // sent a goaway, we should ignore the stream creation. Need to
-  // add code to A) test if goaway was sent ("if (goaway_sent_)") and
-  // B) reject stream creation ("return nullptr")
+  // TODO(fkastenholz): If we are creating a new stream and we have sent a
+  // goaway, we should ignore the stream creation. Need to add code to A) test
+  // if goaway was sent ("if (transport_goaway_sent_)") and B) reject stream
+  // creation ("return nullptr")
 
   if (!MaybeIncreaseLargestPeerStreamId(stream_id)) {
     return nullptr;
