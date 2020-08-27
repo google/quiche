@@ -544,6 +544,7 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
     }
   }
   SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len);
+  // TODO(b/166255274): report unrecoverable error on serialization failures.
   const size_t encrypted_length = packet_.encrypted_length;
   // Clear frames in packet_. No need to DeleteFrames since frames are owned by
   // initial_packet.
@@ -739,6 +740,10 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
 
 void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                         size_t encrypted_buffer_len) {
+  const bool use_queued_frames_cleaner = GetQuicReloadableFlag(
+      quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded);
+  ScopedQueuedFramesCleaner cleaner(use_queued_frames_cleaner ? this : nullptr);
+
   DCHECK_LT(0u, encrypted_buffer_len);
   QUIC_BUG_IF(queued_frames_.empty() && pending_padding_bytes_ == 0)
       << "Attempt to serialize empty packet";
@@ -810,7 +815,9 @@ void QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   }
 
   packet_size_ = 0;
-  queued_frames_.clear();
+  if (!use_queued_frames_cleaner) {
+    queued_frames_.clear();
+  }
   packet_.encrypted_buffer = encrypted_buffer.buffer;
   packet_.encrypted_length = encrypted_length;
 
@@ -1974,6 +1981,17 @@ QuicPacketCreator::ScopedPeerAddressContext::ScopedPeerAddressContext(
 
 QuicPacketCreator::ScopedPeerAddressContext::~ScopedPeerAddressContext() {
   creator_->SetDefaultPeerAddress(old_peer_address_);
+}
+
+QuicPacketCreator::ScopedQueuedFramesCleaner::ScopedQueuedFramesCleaner(
+    QuicPacketCreator* creator)
+    : creator_(creator) {}
+
+QuicPacketCreator::ScopedQueuedFramesCleaner::~ScopedQueuedFramesCleaner() {
+  if (creator_ == nullptr) {
+    return;
+  }
+  creator_->queued_frames_.clear();
 }
 
 void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {

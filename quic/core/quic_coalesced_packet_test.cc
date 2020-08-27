@@ -125,6 +125,84 @@ TEST(QuicCoalescedPacketTest, CopyEncryptedBuffers) {
                                               length_copied, expected, 1000);
 }
 
+TEST(QuicCoalescedPacketTest, NeuterInitialPacket) {
+  QuicCoalescedPacket coalesced;
+  EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
+            coalesced.ToString(0));
+  // Noop when neutering initial packet on a empty coalescer.
+  coalesced.NeuterInitialPacket();
+  EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
+            coalesced.ToString(0));
+
+  SimpleBufferAllocator allocator;
+  EXPECT_EQ(0u, coalesced.length());
+  char buffer[1000];
+  QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+  SerializedPacket packet1(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 500, false, false);
+  packet1.transmission_type = PTO_RETRANSMISSION;
+  QuicAckFrame ack_frame(InitAckFrame(1));
+  packet1.nonretransmittable_frames.push_back(QuicFrame(&ack_frame));
+  packet1.retransmittable_frames.push_back(
+      QuicFrame(QuicStreamFrame(1, true, 0, 100)));
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
+                                            &allocator, 1500));
+  EXPECT_EQ(PTO_RETRANSMISSION,
+            coalesced.TransmissionTypeOfPacket(ENCRYPTION_INITIAL));
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+  EXPECT_EQ(500u, coalesced.length());
+  EXPECT_EQ(
+      "total_length: 1500 padding_size: 1000 packets: {ENCRYPTION_INITIAL}",
+      coalesced.ToString(1500));
+  // Neuter initial packet.
+  coalesced.NeuterInitialPacket();
+  EXPECT_EQ(0u, coalesced.max_packet_length());
+  EXPECT_EQ(0u, coalesced.length());
+  EXPECT_EQ("total_length: 0 padding_size: 0 packets: {}",
+            coalesced.ToString(0));
+
+  // Coalesce initial packet again.
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
+                                            &allocator, 1500));
+
+  SerializedPacket packet2(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 500, false, false);
+  packet2.nonretransmittable_frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+  packet2.encryption_level = ENCRYPTION_ZERO_RTT;
+  packet2.transmission_type = LOSS_RETRANSMISSION;
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
+                                            &allocator, 1500));
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+  EXPECT_EQ(1000u, coalesced.length());
+  EXPECT_EQ(LOSS_RETRANSMISSION,
+            coalesced.TransmissionTypeOfPacket(ENCRYPTION_ZERO_RTT));
+  EXPECT_EQ(
+      "total_length: 1500 padding_size: 500 packets: {ENCRYPTION_INITIAL, "
+      "ENCRYPTION_ZERO_RTT}",
+      coalesced.ToString(1500));
+
+  // Neuter initial packet.
+  coalesced.NeuterInitialPacket();
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+  EXPECT_EQ(500u, coalesced.length());
+  EXPECT_EQ(
+      "total_length: 1500 padding_size: 1000 packets: {ENCRYPTION_ZERO_RTT}",
+      coalesced.ToString(1500));
+
+  SerializedPacket packet3(QuicPacketNumber(5), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 501, false, false);
+  packet3.encryption_level = ENCRYPTION_FORWARD_SECURE;
+  EXPECT_TRUE(coalesced.MaybeCoalescePacket(packet3, self_address, peer_address,
+                                            &allocator, 1500));
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+  EXPECT_EQ(1001u, coalesced.length());
+  // Neuter initial packet.
+  coalesced.NeuterInitialPacket();
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+  EXPECT_EQ(1001u, coalesced.length());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

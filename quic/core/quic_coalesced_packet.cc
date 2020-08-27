@@ -97,6 +97,26 @@ void QuicCoalescedPacket::Clear() {
   initial_packet_ = nullptr;
 }
 
+void QuicCoalescedPacket::NeuterInitialPacket() {
+  if (initial_packet_ == nullptr) {
+    return;
+  }
+  if (length_ < initial_packet_->encrypted_length) {
+    QUIC_BUG << "length_: " << length_
+             << ", is less than initial packet length: "
+             << initial_packet_->encrypted_length;
+    Clear();
+    return;
+  }
+  length_ -= initial_packet_->encrypted_length;
+  if (length_ == 0) {
+    Clear();
+    return;
+  }
+  transmission_types_[ENCRYPTION_INITIAL] = NOT_RETRANSMISSION;
+  initial_packet_ = nullptr;
+}
+
 bool QuicCoalescedPacket::CopyEncryptedBuffers(char* buffer,
                                                size_t buffer_len,
                                                size_t* length_copied) const {
