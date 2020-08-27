@@ -717,21 +717,14 @@ size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
   return kQuicStreamPayloadLengthSize;
 }
 
-size_t QuicPacketCreator::BytesFree() {
+size_t QuicPacketCreator::BytesFree() const {
   DCHECK_GE(max_plaintext_size_, PacketSize());
   return max_plaintext_size_ -
          std::min(max_plaintext_size_, PacketSize() + ExpansionOnNewFrame());
 }
 
-size_t QuicPacketCreator::PacketSize() {
-  if (update_packet_size_) {
-    return queued_frames_.empty() ? PacketHeaderSize() : packet_size_;
-  }
-  if (!queued_frames_.empty()) {
-    return packet_size_;
-  }
-  packet_size_ = PacketHeaderSize();
-  return packet_size_;
+size_t QuicPacketCreator::PacketSize() const {
+  return queued_frames_.empty() ? PacketHeaderSize() : packet_size_;
 }
 
 bool QuicPacketCreator::AddPaddedSavedFrame(
@@ -1637,8 +1630,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     FlushCurrentPacket();
     return false;
   }
-  if (update_packet_size_ && queued_frames_.empty()) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_update_packet_size);
+  if (queued_frames_.empty()) {
     packet_size_ = PacketHeaderSize();
   }
   DCHECK_LT(0u, packet_size_);

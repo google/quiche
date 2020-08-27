@@ -163,14 +163,14 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns true if current open packet can accommodate more stream frames of
   // stream |id| at |offset| and data length |data_size|, false otherwise.
-  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
+  // TODO(fayang): mark this const by moving RemoveSoftMaxPacketLength out.
   bool HasRoomForStreamFrame(QuicStreamId id,
                              QuicStreamOffset offset,
                              size_t data_size);
 
   // Returns true if current open packet can accommodate a message frame of
   // |length|.
-  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
+  // TODO(fayang): mark this const by moving RemoveSoftMaxPacketLength out.
   bool HasRoomForMessageFrame(QuicByteCount length);
 
   // Serializes all added frames into a single packet and invokes the delegate_
@@ -202,8 +202,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // frames in the packet.  Since stream frames are slightly smaller when they
   // are the last frame in a packet, this method will return a different
   // value than max_packet_size - PacketSize(), in this case.
-  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
-  size_t BytesFree();
+  size_t BytesFree() const;
 
   // Returns the number of bytes that the packet will expand by if a new frame
   // is added to the packet. If the last frame was a stream frame, it will
@@ -220,8 +219,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // if serialized with the current frames.  Adding a frame to the packet
   // may change the serialized length of existing frames, as per the comment
   // in BytesFree.
-  // TODO(fayang): mark this const when deprecating quic_update_packet_size.
-  size_t PacketSize();
+  size_t PacketSize() const;
 
   // Tries to add |frame| to the packet creator's list of frames to be
   // serialized. If the frame does not fit into the current packet, flushes the
@@ -652,9 +650,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
-
-  const bool update_packet_size_ =
-      GetQuicReloadableFlag(quic_update_packet_size);
 
   const bool coalesced_packet_of_higher_space_ =
       GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);
