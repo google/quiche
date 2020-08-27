@@ -466,6 +466,16 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
  private:
   friend class test::QuicPacketCreatorPeer;
 
+  // Used to clear queued_frames_ of creator upon exiting the scope.
+  class QUIC_EXPORT_PRIVATE ScopedQueuedFramesCleaner {
+   public:
+    explicit ScopedQueuedFramesCleaner(QuicPacketCreator* creator);
+    ~ScopedQueuedFramesCleaner();
+
+   private:
+    QuicPacketCreator* creator_;  // Unowned.
+  };
+
   // Creates a stream frame which fits into the current open packet. If
   // |data_size| is 0 and fin is true, the expected behavior is to consume
   // the fin.

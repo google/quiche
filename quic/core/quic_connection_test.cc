@@ -11812,6 +11812,45 @@ TEST_P(QuicConnectionTest, ShorterIdleTimeoutOnSentPackets) {
   EXPECT_EQ(clock_.Now() + timeout, connection_.GetTimeoutAlarm()->deadline());
 }
 
+// Regression test for b/166255274
+TEST_P(QuicConnectionTest,
+       ReserializeInitialPacketInCoalescerAfterDiscardingInitialKey) {
+  SetQuicReloadableFlag(
+      quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded, true);
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.GetAckAlarm()->Fire();
+    // Verify this ACK packet is on hold.
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+
+    // Discard INITIAL key while there is an INITIAL packet in the coalescer.
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
+  }
+  // If not setting
+  // quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded, there
+  // will be pending frames in the creator.
+  EXPECT_FALSE(connection_.packet_creator().HasPendingFrames());
+  // The ACK frame is deleted along with initial_packet_ in coalescer. Sending
+  // connection close would cause this (released) ACK frame be serialized (and
+  // crashes).
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(1000, false, ENCRYPTION_FORWARD_SECURE);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

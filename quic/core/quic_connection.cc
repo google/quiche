@@ -2462,6 +2462,13 @@ void QuicConnection::MarkZeroRttPacketsForRetransmission() {
 
 void QuicConnection::NeuterUnencryptedPackets() {
   sent_packet_manager_.NeuterUnencryptedPackets();
+  if (GetQuicReloadableFlag(
+          quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded) &&
+      version().CanSendCoalescedPackets()) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded);
+    coalesced_packet_.NeuterInitialPacket();
+  }
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
   if (default_enable_5rto_blackhole_detection_) {

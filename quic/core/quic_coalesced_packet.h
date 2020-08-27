@@ -27,6 +27,9 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // Clears this coalesced packet.
   void Clear();
 
+  // Clears all state associated with initial_packet_.
+  void NeuterInitialPacket();
+
   // Copies encrypted_buffers_ to |buffer| and sets |length_copied| to the
   // copied amount. Returns false if copy fails (i.e., |buffer_len| is not
   // enough).
