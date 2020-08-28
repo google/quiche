@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/spdy/core/fifo_write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
@@ -103,6 +104,8 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   // Set to kBatchWriteSize when we set a new batch_write_stream_id_ for a given
   // priority.  This is decremented with each write the stream does until it is
   // done with its batch write.
+  // TODO(fayang): switch this to uint32_t when deprecating
+  // quic_fix_bytes_left_for_batch_write.
   int32_t bytes_left_for_batch_write_[spdy::kV3LowestPriority + 1];
   // Tracks the last priority popped for UpdateBytesForStream.
   spdy::SpdyPriority last_priority_popped_;
@@ -153,6 +156,9 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
   StaticStreamCollection static_stream_collection_;
 
   spdy::WriteSchedulerType scheduler_type_;
+
+  const bool fix_bytes_left_for_batch_write_ =
+      GetQuicReloadableFlag(quic_fix_bytes_left_for_batch_write);
 };
 
 }  // namespace quic
