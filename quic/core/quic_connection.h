@@ -1730,6 +1730,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool start_peer_migration_earlier_ =
       GetQuicReloadableFlag(quic_start_peer_migration_earlier);
+
+  bool fix_missing_connected_checks_ =
+      GetQuicReloadableFlag(quic_add_missing_connected_checks);
 };
 
 }  // namespace quic

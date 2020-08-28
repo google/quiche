@@ -318,6 +318,9 @@ QuicConnection::QuicConnection(
                              &arena_,
                              alarm_factory_),
       support_handshake_done_(version().HasHandshakeDone()) {
+  if (fix_missing_connected_checks_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_connected_checks);
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
@@ -3175,6 +3178,9 @@ void QuicConnection::OnRetransmissionTimeout() {
     DCHECK(!IsHandshakeComplete());
   }
 #endif
+  if (fix_missing_connected_checks_ && !connected_) {
+    return;
+  }
 
   QuicPacketNumber previous_created_packet_number =
       packet_creator_.packet_number();
@@ -3687,6 +3693,13 @@ void QuicConnection::SetPingAlarm() {
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
+  if (fix_missing_connected_checks_ && !connected_) {
+    if (retransmission_alarm_->IsSet()) {
+      QUIC_BUG << ENDPOINT << "Retransmission alarm is set while disconnected";
+      retransmission_alarm_->Cancel();
+    }
+    return;
+  }
   if (packet_creator_.PacketFlusherAttached()) {
     pending_retransmission_alarm_ = true;
     return;
@@ -4125,7 +4138,8 @@ void QuicConnection::MaybeSendProbingRetransmissions() {
 }
 
 void QuicConnection::CheckIfApplicationLimited() {
-  if (probing_retransmission_pending_) {
+  if ((fix_missing_connected_checks_ && !connected_) ||
+      probing_retransmission_pending_) {
     return;
   }
 
@@ -4505,6 +4519,9 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
 
 bool QuicConnection::FlushCoalescedPacket() {
   ScopedCoalescedPacketClearer clearer(&coalesced_packet_);
+  if (fix_missing_connected_checks_ && !connected_) {
+    return false;
+  }
   if (!version().CanSendCoalescedPackets()) {
     QUIC_BUG_IF(coalesced_packet_.length() > 0);
     return true;
