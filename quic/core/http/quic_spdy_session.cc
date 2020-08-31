@@ -1239,7 +1239,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         return false;
       }
       auto encoder_receive = std::make_unique<QpackReceiveStream>(
-          pending, qpack_decoder_->encoder_stream_receiver());
+          pending, this, qpack_decoder_->encoder_stream_receiver());
       qpack_encoder_receive_stream_ = encoder_receive.get();
       ActivateStream(std::move(encoder_receive));
       qpack_encoder_receive_stream_->SetUnblocked();
@@ -1256,7 +1256,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
         return false;
       }
       auto decoder_receive = std::make_unique<QpackReceiveStream>(
-          pending, qpack_encoder_->decoder_stream_receiver());
+          pending, this, qpack_encoder_->decoder_stream_receiver());
       qpack_decoder_receive_stream_ = decoder_receive.get();
       ActivateStream(std::move(decoder_receive));
       qpack_decoder_receive_stream_->SetUnblocked();

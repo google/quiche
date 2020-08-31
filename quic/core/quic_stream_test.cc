@@ -58,8 +58,11 @@ class TestStream : public QuicStream {
     sequencer()->set_level_triggered(true);
   }
 
-  TestStream(PendingStream* pending, StreamType type, bool is_static)
-      : QuicStream(pending, type, is_static) {}
+  TestStream(PendingStream* pending,
+             QuicSession* session,
+             StreamType type,
+             bool is_static)
+      : QuicStream(pending, session, type, is_static) {}
 
   MOCK_METHOD(void, OnDataAvailable, (), (override));
 
@@ -169,11 +172,12 @@ TEST_P(QuicStreamTest, PendingStreamStaticness) {
   Initialize();
 
   PendingStream pending(kTestStreamId + 2, session_.get());
-  TestStream stream(&pending, StreamType::BIDIRECTIONAL, false);
+  TestStream stream(&pending, session_.get(), StreamType::BIDIRECTIONAL, false);
   EXPECT_FALSE(stream.is_static());
 
   PendingStream pending2(kTestStreamId + 3, session_.get());
-  TestStream stream2(&pending2, StreamType::BIDIRECTIONAL, true);
+  TestStream stream2(&pending2, session_.get(), StreamType::BIDIRECTIONAL,
+                     true);
   EXPECT_TRUE(stream2.is_static());
 }
 
@@ -233,7 +237,8 @@ TEST_P(QuicStreamTest, FromPendingStream) {
   QuicStreamFrame frame2(kTestStreamId + 2, true, 3, ".");
   pending.OnStreamFrame(frame2);
 
-  TestStream stream(&pending, StreamType::READ_UNIDIRECTIONAL, false);
+  TestStream stream(&pending, session_.get(), StreamType::READ_UNIDIRECTIONAL,
+                    false);
   EXPECT_EQ(3, stream.num_frames_received());
   EXPECT_EQ(3u, stream.stream_bytes_read());
   EXPECT_EQ(1, stream.num_duplicate_frames_received());
@@ -251,8 +256,8 @@ TEST_P(QuicStreamTest, FromPendingStreamThenData) {
   QuicStreamFrame frame(kTestStreamId + 2, false, 2, ".");
   pending.OnStreamFrame(frame);
 
-  auto stream =
-      new TestStream(&pending, StreamType::READ_UNIDIRECTIONAL, false);
+  auto stream = new TestStream(&pending, session_.get(),
+                               StreamType::READ_UNIDIRECTIONAL, false);
   session_->ActivateStream(QuicWrapUnique(stream));
 
   QuicStreamFrame frame2(kTestStreamId + 2, true, 3, ".");

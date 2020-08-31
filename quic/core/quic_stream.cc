@@ -111,7 +111,6 @@ const SpdyPriority QuicStream::kDefaultPriority;
 
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
-      session_(session),
       stream_delegate_(session),
       stream_bytes_read_(0),
       fin_received_(false),
@@ -122,8 +121,8 @@ PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
                        GetReceivedFlowControlWindow(session, id),
                        GetInitialStreamFlowControlWindowToSend(session, id),
                        kStreamReceiveWindowLimit,
-                       session_->flow_controller()->auto_tune_receive_window(),
-                       session_->flow_controller()),
+                       session->flow_controller()->auto_tune_receive_window(),
+                       session->flow_controller()),
       sequencer_(this) {}
 
 void PendingStream::OnDataAvailable() {
@@ -264,9 +263,12 @@ void PendingStream::StopReading() {
   sequencer_.StopReading();
 }
 
-QuicStream::QuicStream(PendingStream* pending, StreamType type, bool is_static)
+QuicStream::QuicStream(PendingStream* pending,
+                       QuicSession* session,
+                       StreamType type,
+                       bool is_static)
     : QuicStream(pending->id_,
-                 pending->session_,
+                 session,
                  std::move(pending->sequencer_),
                  is_static,
                  type,

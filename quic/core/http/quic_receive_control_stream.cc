@@ -20,7 +20,10 @@ namespace quic {
 QuicReceiveControlStream::QuicReceiveControlStream(
     PendingStream* pending,
     QuicSpdySession* spdy_session)
-    : QuicStream(pending, READ_UNIDIRECTIONAL, /*is_static=*/true),
+    : QuicStream(pending,
+                 spdy_session,
+                 READ_UNIDIRECTIONAL,
+                 /*is_static=*/true),
       settings_frame_received_(false),
       decoder_(this),
       spdy_session_(spdy_session) {

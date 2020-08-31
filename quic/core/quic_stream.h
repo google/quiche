@@ -90,9 +90,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
   // ID of this stream.
   QuicStreamId id_;
 
-  // Session which owns this.
-  // TODO(b/136274541): Remove session pointer from streams.
-  QuicSession* session_;
+  // |stream_delegate_| must outlive this stream.
   StreamDelegateInterface* stream_delegate_;
 
   // Bytes read refers to payload bytes only: they do not include framing,
@@ -133,7 +131,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
              QuicSession* session,
              bool is_static,
              StreamType type);
-  QuicStream(PendingStream* pending, StreamType type, bool is_static);
+  QuicStream(PendingStream* pending,
+             QuicSession* session,
+             StreamType type,
+             bool is_static);
   QuicStream(const QuicStream&) = delete;
   QuicStream& operator=(const QuicStream&) = delete;
 
