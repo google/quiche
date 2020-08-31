@@ -2143,7 +2143,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
   // PRIORITY_UPDATE frame arrives after stream creation.
   TestStream* stream1 = session_.CreateIncomingStream(stream_id1);
-  EXPECT_EQ(QuicStream::kDefaultUrgency,
+  EXPECT_EQ(QuicStream::DefaultUrgency(),
             stream1->precedence().spdy3_priority());
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_.OnStreamFrame(data3);

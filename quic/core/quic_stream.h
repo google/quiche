@@ -113,6 +113,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
 class QUIC_EXPORT_PRIVATE QuicStream
     : public QuicStreamSequencer::StreamInterface {
  public:
+  // Default priority for Google QUIC.
   // This is somewhat arbitrary.  It's possible, but unlikely, we will either
   // fail to set a priority client-side, or cancel a stream before stripping the
   // priority from the wire server-side.  In either case, start out with a
@@ -121,10 +122,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   static_assert(kDefaultPriority ==
                     (spdy::kV3LowestPriority + spdy::kV3HighestPriority) / 2,
                 "Unexpected value of kDefaultPriority");
-  // On the other hand, when using IETF QUIC, use the default value defined by
-  // the priority extension at
-  // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html#default.
-  static const int kDefaultUrgency = 1;
 
   // Creates a new stream with stream_id |id| associated with |session|. If
   // |is_static| is true, then the stream will be given precedence
@@ -141,6 +138,12 @@ class QUIC_EXPORT_PRIVATE QuicStream
   QuicStream& operator=(const QuicStream&) = delete;
 
   virtual ~QuicStream();
+
+  // Default priority for IETF QUIC, defined by the priority extension at
+  // https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html#urgency.
+  // TODO(bnc): Remove this method and reinstate static const int
+  // kDefaultUrgency member when removing quic_http3_new_default_urgency_value.
+  static int DefaultUrgency();
 
   // QuicStreamSequencer::StreamInterface implementation.
   QuicStreamId id() const override { return id_; }
