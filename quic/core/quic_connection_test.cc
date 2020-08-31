@@ -11760,13 +11760,8 @@ TEST_P(QuicConnectionTest, DonotSendPing) {
   // Suppose now ShouldKeepConnectionAlive returns false.
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
       .WillRepeatedly(Return(false));
-  if (GetQuicReloadableFlag(quic_fix_on_ping_timeout)) {
-    // Verify PING does not get sent.
-    EXPECT_CALL(visitor_, SendPing()).Times(0);
-  } else {
-    // PING get sent even ShouldKeepConnectionAlive returns false.
-    EXPECT_CALL(visitor_, SendPing()).Times(1);
-  }
+  // Verify PING does not get sent.
+  EXPECT_CALL(visitor_, SendPing()).Times(0);
   connection_.GetPingAlarm()->Fire();
 }
 
