@@ -27,6 +27,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -472,11 +473,12 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
  private:
   friend class test::QuicPacketCreatorPeer;
 
-  // Used to clear queued_frames_ of creator upon exiting the scope.
-  class QUIC_EXPORT_PRIVATE ScopedQueuedFramesCleaner {
+  // Used to 1) clear queued_frames_, 2) report unrecoverable error (if
+  // serialization fails) upon exiting the scope.
+  class QUIC_EXPORT_PRIVATE ScopedSerializationFailureHandler {
    public:
-    explicit ScopedQueuedFramesCleaner(QuicPacketCreator* creator);
-    ~ScopedQueuedFramesCleaner();
+    explicit ScopedSerializationFailureHandler(QuicPacketCreator* creator);
+    ~ScopedSerializationFailureHandler();
 
    private:
     QuicPacketCreator* creator_;  // Unowned.
@@ -507,10 +509,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Serializes all frames which have been added and adds any which should be
   // retransmitted to packet_.retransmittable_frames. All frames must fit into
-  // a single packet.
-  // Fails if |encrypted_buffer_len| isn't long enough for the encrypted packet.
-  void SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
-                       size_t encrypted_buffer_len);
+  // a single packet. Returns true on success, otherwise, returns false.
+  // Fails if |encrypted_buffer| is not large enough for the encrypted packet.
+  QUIC_MUST_USE_RESULT bool SerializePacket(
+      QuicOwnedPacketBuffer encrypted_buffer,
+      size_t encrypted_buffer_len);
 
   // Called after a new SerialiedPacket is created to call the delegate's
   // OnSerializedPacket and reset state.
@@ -663,6 +666,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool coalesced_packet_of_higher_space_ =
       GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);
+
+  const bool close_connection_on_serialization_failure_ =
+      GetQuicReloadableFlag(quic_close_connection_on_serialization_failure);
 };
 
 }  // namespace quic
