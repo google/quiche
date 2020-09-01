@@ -7,7 +7,6 @@
 
 #include <functional>
 
-#include "absl/container/node_hash_map.h"
 #include "net/quiche/common/platform/impl/quiche_unordered_containers_impl.h"
 
 namespace quiche {
@@ -17,13 +16,11 @@ template <typename Key>
 using QuicheDefaultHasher = QuicheDefaultHasherImpl<Key>;
 
 // A general-purpose unordered map.
-// TODO(b/166325009): replace this in code with absl::node_hash_map and
-// absl::flat_hash_map and delete this alias.
 template <typename Key,
           typename Value,
           typename Hash = QuicheDefaultHasher<Key>,
           typename Eq = std::equal_to<Key>>
-using QuicheUnorderedMap = absl::node_hash_map<Key, Value, Hash, Eq>;
+using QuicheUnorderedMap = QuicheUnorderedMapImpl<Key, Value, Hash, Eq>;
 
 }  // namespace quiche
 
