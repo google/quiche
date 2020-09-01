@@ -719,8 +719,15 @@ QuicConsumedData QuicSession::WritevData(
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
     // up write blocked until OnCanWrite is next called.
-    QUIC_BUG << ENDPOINT << "Try to send data of stream " << id
-             << " before encryption is established.";
+    if (was_zero_rtt_rejected_ && !OneRttKeysAvailable()) {
+      DCHECK(version().UsesTls() && perspective() == Perspective::IS_CLIENT);
+      QUIC_BUG_IF(type == NOT_RETRANSMISSION)
+          << ENDPOINT << "Try to send new data on stream " << id
+          << "before 1-RTT keys are available while 0-RTT is rejected.";
+    } else {
+      QUIC_BUG << ENDPOINT << "Try to send data of stream " << id
+               << " before encryption is established.";
+    }
     return QuicConsumedData(0, false);
   }
 

@@ -2471,10 +2471,10 @@ void QuicConnection::SendProbingRetransmissions() {
 }
 
 void QuicConnection::MarkZeroRttPacketsForRetransmission() {
+  sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
   if (debug_visitor_ != nullptr && version().UsesTls()) {
     debug_visitor_->OnZeroRttRejected();
   }
-  sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
 }
 
 void QuicConnection::NeuterUnencryptedPackets() {

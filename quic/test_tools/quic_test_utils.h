@@ -1464,6 +1464,8 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
               OnTransportParametersReceived,
               (const TransportParameters&),
               (override));
+
+  MOCK_METHOD(void, OnZeroRttRejected, (), (override));
 };
 
 class MockReceivedPacketManager : public QuicReceivedPacketManager {

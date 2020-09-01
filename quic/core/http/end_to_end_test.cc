@@ -1670,6 +1670,65 @@ TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
   EXPECT_TRUE(client_->client()->EarlyDataAccepted());
 }
 
+// Regression test for b/166836136.
+TEST_P(EndToEndTest, LargePostZeroRTTRejectRequestDuringHandshake) {
+  if (!version_.UsesTls()) {
+    // This test is TLS specific.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  // Send a request and then disconnect. This prepares the client to attempt
+  // a 0-RTT handshake for the next request.
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  ASSERT_TRUE(Initialize());
+
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+
+  client_->Disconnect();
+
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+
+  client_->Disconnect();
+
+  // Restart the server so that the 0-RTT handshake will take 1 RTT.
+  StopServer();
+  server_writer_ = new PacketDroppingTestWriter();
+  StartServer();
+
+  ON_CALL(visitor, OnZeroRttRejected()).WillByDefault(Invoke([this]() {
+    EXPECT_FALSE(GetClientSession()->IsEncryptionEstablished());
+    // Trigger an OnCanWrite() to make sure no unencrypted data will be written.
+    GetClientSession()->OnCanWrite();
+  }));
+
+  // The 0-RTT handshake should fail.
+  client_->Connect();
+  ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  client_->WaitForWriteToFlush();
+  client_->WaitForResponse();
+  ASSERT_TRUE(client_->client()->connected());
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+}
+
 TEST_P(EndToEndTest, RejectWithPacketLoss) {
   // In this test, we intentionally drop the first packet from the
   // server, which corresponds with the initial REJ response from
