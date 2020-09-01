@@ -1607,7 +1607,7 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 }
 
 // This is a regression test for b/162595387
-TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
+TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
   if (!version_.UsesTls()) {
     // This test is TLS specific.
     ASSERT_TRUE(Initialize());
@@ -1619,15 +1619,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
   connection_debug_visitor_ = &visitor;
   ASSERT_TRUE(Initialize());
 
-  std::string body(20480, 'a');
-  SpdyHeaderBlock headers;
-  headers[":method"] = "POST";
-  headers[":path"] = "/foo";
-  headers[":scheme"] = "https";
-  headers[":authority"] = server_hostname_;
-
-  EXPECT_EQ(kFooResponseBody,
-            client_->SendCustomSynchronousRequest(headers, body));
+  SendSynchronousFooRequestAndCheckResponse();
   QuicSpdyClientSession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
   EXPECT_FALSE(client_session->EarlyDataAccepted());
@@ -1639,8 +1631,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
 
   // The 0-RTT handshake should succeed.
   ON_CALL(visitor, OnCryptoFrame(_))
-      .WillByDefault(Invoke([this, &headers,
-                             &body](const QuicCryptoFrame& frame) {
+      .WillByDefault(Invoke([this](const QuicCryptoFrame& frame) {
         if (frame.level != ENCRYPTION_HANDSHAKE) {
           return;
         }
@@ -1653,9 +1644,14 @@ TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
         EXPECT_TRUE(
             GetClientConnection()->framer().HasEncrypterOfEncryptionLevel(
                 ENCRYPTION_HANDSHAKE));
-        EXPECT_GT(client_->SendMessage(headers, body, /*fin*/ true,
-                                       /*flush*/ false),
-                  0);
+        SpdyHeaderBlock headers;
+        headers[":method"] = "POST";
+        headers[":path"] = "/foo";
+        headers[":scheme"] = "https";
+        headers[":authority"] = server_hostname_;
+        EXPECT_GT(
+            client_->SendMessage(headers, "", /*fin*/ true, /*flush*/ false),
+            0);
       }));
   client_->Connect();
   ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
@@ -1671,7 +1667,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTRequestDuringHandshake) {
 }
 
 // Regression test for b/166836136.
-TEST_P(EndToEndTest, LargePostZeroRTTRejectRequestDuringHandshake) {
+TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
   if (!version_.UsesTls()) {
     // This test is TLS specific.
     ASSERT_TRUE(Initialize());
