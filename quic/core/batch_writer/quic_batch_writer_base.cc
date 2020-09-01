@@ -8,6 +8,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 
 namespace quic {
 
@@ -39,9 +40,23 @@ WriteResult QuicBatchWriterBase::InternalWritePacket(
     return WriteResult(WRITE_STATUS_MSG_TOO_BIG, EMSGSIZE);
   }
 
-  ReleaseTime release_time = SupportsReleaseTime()
-                                 ? GetReleaseTime(options)
-                                 : ReleaseTime{0, QuicTime::Delta::Zero()};
+  ReleaseTime release_time{0, QuicTime::Delta::Zero()};
+  if (SupportsReleaseTime()) {
+    release_time = GetReleaseTime(options);
+    if (release_time.release_time_offset >= QuicTime::Delta::Zero()) {
+      QUIC_SERVER_HISTOGRAM_TIMES(
+          "batch_writer_positive_release_time_offset",
+          release_time.release_time_offset.ToMicroseconds(), 1, 100000, 50,
+          "Duration from ideal release time to actual "
+          "release time, in microseconds.");
+    } else {
+      QUIC_SERVER_HISTOGRAM_TIMES(
+          "batch_writer_negative_release_time_offset",
+          -release_time.release_time_offset.ToMicroseconds(), 1, 100000, 50,
+          "Duration from actual release time to ideal "
+          "release time, in microseconds.");
+    }
+  }
 
   const CanBatchResult can_batch_result =
       CanBatch(buffer, buf_len, self_address, peer_address, options,

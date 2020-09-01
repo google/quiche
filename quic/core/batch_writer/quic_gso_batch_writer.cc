@@ -120,18 +120,6 @@ QuicGsoBatchWriter::ReleaseTime QuicGsoBatchWriter::GetReleaseTime(
     const uint64_t actual_release_time = buffered_writes().back().release_time;
 
     const int64_t offset_ns = actual_release_time - ideal_release_time;
-    if (offset_ns >= 0) {
-      QUIC_SERVER_HISTOGRAM_TIMES("gso_writer_positive_release_time_offset",
-                                  offset_ns / 1000, 1, 100000, 50,
-                                  "Duration from ideal release time to actual "
-                                  "release time, in microseconds.");
-    } else {
-      QUIC_SERVER_HISTOGRAM_TIMES("gso_writer_negative_release_time_offset",
-                                  -offset_ns / 1000, 1, 100000, 50,
-                                  "Duration from actual release time to ideal "
-                                  "release time, in microseconds.");
-    }
-
     ReleaseTime result{actual_release_time,
                        QuicTime::Delta::FromMicroseconds(offset_ns / 1000)};
 
