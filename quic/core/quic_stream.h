@@ -344,7 +344,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // Handle received StopSending frame. Returns true if the processing finishes
   // gracefully.
-  virtual bool OnStopSending(uint16_t code);
+  virtual bool OnStopSending(QuicRstStreamErrorCode code);
 
   // Returns true if the stream is static.
   bool is_static() const { return is_static_; }

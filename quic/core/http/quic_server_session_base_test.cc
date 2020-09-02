@@ -182,20 +182,19 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   // would cause a close in the opposite direction. This allows tests to do the
   // extra work to get a two-way (full) close where desired. Also sets up
   // expects needed to ensure that the STOP_SENDING worked as expected.
-  void InjectStopSendingFrame(QuicStreamId stream_id,
-                              QuicRstStreamErrorCode rst_stream_code) {
+  void InjectStopSendingFrame(QuicStreamId stream_id) {
     if (!VersionHasIetfQuicFrames(transport_version())) {
       // Only needed for version 99/IETF QUIC. Noop otherwise.
       return;
     }
-    QuicStopSendingFrame stop_sending(
-        kInvalidControlFrameId, stream_id,
-        static_cast<QuicApplicationErrorCode>(rst_stream_code));
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_id,
+                                      QUIC_ERROR_PROCESSING_STREAM);
     EXPECT_CALL(owner_, OnStopSendingReceived(_)).Times(1);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
     EXPECT_CALL(*connection_, SendControlFrame(_));
-    EXPECT_CALL(*connection_, OnStreamReset(stream_id, rst_stream_code));
+    EXPECT_CALL(*connection_,
+                OnStreamReset(stream_id, QUIC_ERROR_PROCESSING_STREAM));
     session_->OnStopSendingFrame(stop_sending);
   }
 
@@ -258,8 +257,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
-  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0),
-                         QUIC_ERROR_PROCESSING_STREAM);
+  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0));
 
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   // Send the same two bytes of payload in a new packet.
@@ -288,8 +286,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
-  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0),
-                         QUIC_ERROR_PROCESSING_STREAM);
+  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0));
 
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   // Send two bytes of payload.
@@ -329,8 +326,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
 
   // For version-99 will create and receive a stop-sending, completing
   // the full-close expected by this test.
-  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0),
-                         QUIC_ERROR_PROCESSING_STREAM);
+  InjectStopSendingFrame(GetNthClientInitiatedBidirectionalId(0));
 
   // If we were tracking, we'd probably want to reject this because it's data
   // past the reset point of stream 3.  As it's a closed stream we just drop the

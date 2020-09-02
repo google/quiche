@@ -2821,7 +2821,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInvalidStreamId) {
     return;
   }
   // Check that "invalid" stream ids are rejected.
-  QuicStopSendingFrame frame(1, -1, 123);
+  QuicStopSendingFrame frame(1, -1, QUIC_STREAM_CANCELLED);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
@@ -2834,7 +2834,8 @@ TEST_P(QuicSessionTestServer, OnStopSendingReadUnidirectional) {
     return;
   }
   // It's illegal to send STOP_SENDING with a stream ID that is read-only.
-  QuicStopSendingFrame frame(1, GetNthClientInitiatedUnidirectionalId(1), 123);
+  QuicStopSendingFrame frame(1, GetNthClientInitiatedUnidirectionalId(1),
+                             QUIC_STREAM_CANCELLED);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_INVALID_STREAM_ID,
@@ -2852,7 +2853,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingStaticStreams) {
       stream_id, &session_, /*is_static*/ true, BIDIRECTIONAL);
   QuicSessionPeer::ActivateStream(&session_, std::move(fake_static_stream));
   // Check that a stream id in the static stream map is ignored.
-  QuicStopSendingFrame frame(1, stream_id, 123);
+  QuicStopSendingFrame frame(1, stream_id, QUIC_STREAM_CANCELLED);
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_INVALID_STREAM_ID,
                               "Received STOP_SENDING for a static stream", _));
@@ -2870,7 +2871,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingForWriteClosedStream) {
   QuicStreamPeer::SetFinSent(stream);
   stream->CloseWriteSide();
   EXPECT_TRUE(stream->write_side_closed());
-  QuicStopSendingFrame frame(1, stream_id, 123);
+  QuicStopSendingFrame frame(1, stream_id, QUIC_STREAM_CANCELLED);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
 }
@@ -2884,7 +2885,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingClosedStream) {
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
   CloseStream(stream_id);
-  QuicStopSendingFrame frame(1, stream_id, 123);
+  QuicStopSendingFrame frame(1, stream_id, QUIC_STREAM_CANCELLED);
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
 }
@@ -2897,7 +2898,7 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputNonExistentLocalStream) {
   }
 
   QuicStopSendingFrame frame(1, GetNthServerInitiatedBidirectionalId(123456),
-                             123);
+                             QUIC_STREAM_CANCELLED);
   EXPECT_CALL(*connection_, CloseConnection(QUIC_HTTP_STREAM_WRONG_DIRECTION,
                                             "Data for nonexistent stream", _))
       .Times(1);
@@ -2910,7 +2911,8 @@ TEST_P(QuicSessionTestServer, OnStopSendingNewStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
-  QuicStopSendingFrame frame(1, GetNthClientInitiatedBidirectionalId(1), 123);
+  QuicStopSendingFrame frame(1, GetNthClientInitiatedBidirectionalId(1),
+                             QUIC_STREAM_CANCELLED);
 
   // A Rst will be sent as a response for STOP_SENDING.
   EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
@@ -2937,12 +2939,10 @@ TEST_P(QuicSessionTestServer, OnStopSendingInputValidStream) {
   EXPECT_FALSE(QuicStreamPeer::read_side_closed(stream));
 
   QuicStreamId stream_id = stream->id();
-  QuicStopSendingFrame frame(1, stream_id, 123);
+  QuicStopSendingFrame frame(1, stream_id, QUIC_STREAM_CANCELLED);
   // Expect a reset to come back out.
   EXPECT_CALL(*connection_, SendControlFrame(_));
-  EXPECT_CALL(
-      *connection_,
-      OnStreamReset(stream_id, static_cast<QuicRstStreamErrorCode>(123)));
+  EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_STREAM_CANCELLED));
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   session_.OnStopSendingFrame(frame);
 

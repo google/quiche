@@ -46,9 +46,6 @@ using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
 enum : size_t { kQuicPathFrameBufferSize = 8 };
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
 
-// Application error code used in the QUIC Stop Sending frame.
-using QuicApplicationErrorCode = uint16_t;
-
 // The connection id sequence number specifies the order that connection
 // ids must be used in. This is also the sequence number carried in
 // the IETF QUIC NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames.

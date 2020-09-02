@@ -484,7 +484,7 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
   sequencer_.OnStreamFrame(frame);
 }
 
-bool QuicStream::OnStopSending(uint16_t code) {
+bool QuicStream::OnStopSending(QuicRstStreamErrorCode code) {
   // Do not reset the stream if all data has been sent and acknowledged.
   if (write_side_closed() && !IsWaitingForAcks()) {
     QUIC_DVLOG(1) << ENDPOINT
@@ -502,11 +502,10 @@ bool QuicStream::OnStopSending(uint16_t code) {
     return false;
   }
 
-  stream_error_ = static_cast<QuicRstStreamErrorCode>(code);
+  stream_error_ = code;
 
-  session()->SendRstStream(id(),
-                           static_cast<quic::QuicRstStreamErrorCode>(code),
-                           stream_bytes_written(), /*send_rst_only = */ true);
+  session()->SendRstStream(id(), code, stream_bytes_written(),
+                           /*send_rst_only = */ true);
   rst_sent_ = true;
   CloseWriteSide();
   return true;

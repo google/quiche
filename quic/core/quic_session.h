@@ -231,7 +231,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void SendWindowUpdate(QuicStreamId id, QuicStreamOffset byte_offset);
 
   // Create and transmit a STOP_SENDING frame
-  virtual void SendStopSending(uint16_t code, QuicStreamId stream_id);
+  virtual void SendStopSending(QuicRstStreamErrorCode code,
+                               QuicStreamId stream_id);
 
   // Called by stream |stream_id| when it gets closed.
   virtual void OnStreamClosed(QuicStreamId stream_id);

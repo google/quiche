@@ -10977,7 +10977,7 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.stop_sending_frame_.stream_id);
-  EXPECT_EQ(0x7654, visitor_.stop_sending_frame_.application_error_code);
+  EXPECT_EQ(0x7654, visitor_.stop_sending_frame_.error_code);
 
   CheckFramingBoundaries(packet99, QUIC_INVALID_STOP_SENDING_FRAME_DATA);
 }
@@ -10996,7 +10996,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
 
   QuicStopSendingFrame frame;
   frame.stream_id = kStreamId;
-  frame.application_error_code = 0xffff;
+  frame.error_code = static_cast<QuicRstStreamErrorCode>(0xffff);
   QuicFrames frames = {QuicFrame(&frame)};
 
   // clang-format off
@@ -11260,7 +11260,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&path_challenge_frame)));
 
-  QuicStopSendingFrame stop_sending_frame(10, 3, 20);
+  QuicStopSendingFrame stop_sending_frame(10, 3, QUIC_STREAM_CANCELLED);
   EXPECT_EQ(QuicFramer::GetStopSendingFrameSize(stop_sending_frame),
             QuicFramer::GetRetransmittableControlFrameSize(
                 framer_.transport_version(), QuicFrame(&stop_sending_frame)));

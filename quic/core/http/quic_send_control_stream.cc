@@ -30,7 +30,7 @@ void QuicSendControlStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
   QUIC_BUG << "OnStreamReset() called for write unidirectional stream.";
 }
 
-bool QuicSendControlStream::OnStopSending(uint16_t /* code */) {
+bool QuicSendControlStream::OnStopSending(QuicRstStreamErrorCode /* code */) {
   stream_delegate()->OnStreamError(
       QUIC_HTTP_CLOSED_CRITICAL_STREAM,
       "STOP_SENDING received for send control stream");

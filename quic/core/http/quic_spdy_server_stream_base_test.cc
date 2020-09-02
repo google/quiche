@@ -75,9 +75,8 @@ TEST_F(QuicSpdyServerStreamBaseTest,
   if (VersionHasIetfQuicFrames(session_.transport_version())) {
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
-    QuicStopSendingFrame stop_sending(
-        kInvalidControlFrameId, stream_->id(),
-        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
+                                      QUIC_STREAM_CANCELLED);
     session_.OnStopSendingFrame(stop_sending);
   }
 

@@ -77,7 +77,8 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
 
   // Tries to send an IETF-QUIC STOP_SENDING frame. The frame is buffered if it
   // can not be sent immediately.
-  void WriteOrBufferStopSending(uint16_t code, QuicStreamId stream_id);
+  void WriteOrBufferStopSending(QuicRstStreamErrorCode code,
+                                QuicStreamId stream_id);
 
   // Tries to send an HANDSHAKE_DONE frame. The frame is buffered if it can not
   // be sent immediately.

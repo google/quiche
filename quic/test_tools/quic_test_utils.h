@@ -813,7 +813,7 @@ class MockQuicSession : public QuicSession {
   MOCK_METHOD(bool, ShouldKeepConnectionAlive, (), (const, override));
   MOCK_METHOD(void,
               SendStopSending,
-              (uint16_t code, QuicStreamId stream_id),
+              (QuicRstStreamErrorCode code, QuicStreamId stream_id),
               (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(std::vector<quiche::QuicheStringPiece>::const_iterator,

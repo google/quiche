@@ -296,9 +296,8 @@ class QuicSimpleServerSessionTest
       return;
     }
     EXPECT_CALL(owner_, OnStopSendingReceived(_)).Times(1);
-    QuicStopSendingFrame stop_sending(
-        kInvalidControlFrameId, stream_id,
-        static_cast<QuicApplicationErrorCode>(rst_stream_code));
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_id,
+                                      rst_stream_code);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
     EXPECT_CALL(*connection_, OnStreamReset(stream_id, rst_stream_code));

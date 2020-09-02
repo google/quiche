@@ -1205,9 +1205,9 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
   // one-way close.
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Only needed for version 99/IETF QUIC.
-    QuicStopSendingFrame stop_sending(
-        kInvalidControlFrameId, GetNthClientInitiatedBidirectionalId(0),
-        static_cast<QuicApplicationErrorCode>(QUIC_ERROR_PROCESSING_STREAM));
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId,
+                                      GetNthClientInitiatedBidirectionalId(0),
+                                      QUIC_ERROR_PROCESSING_STREAM);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
     EXPECT_CALL(*connection_,
@@ -1487,9 +1487,8 @@ TEST_P(QuicSpdySessionTestServer,
   // one-way close.
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Only needed for version 99/IETF QUIC.
-    QuicStopSendingFrame stop_sending(
-        kInvalidControlFrameId, stream->id(),
-        static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream->id(),
+                                      QUIC_STREAM_CANCELLED);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
     EXPECT_CALL(*connection_,
@@ -2201,8 +2200,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
           QuicStopSendingFrame* stop_sending = frame.stop_sending_frame;
           EXPECT_EQ(stream_id, stop_sending->stream_id);
           EXPECT_EQ(QuicHttp3ErrorCode::STREAM_CREATION_ERROR,
-                    static_cast<QuicHttp3ErrorCode>(
-                        stop_sending->application_error_code));
+                    static_cast<QuicHttp3ErrorCode>(stop_sending->error_code));
 
           return ClearControlFrame(frame);
         }));
@@ -2907,8 +2905,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   ASSERT_TRUE(control_stream);
 
   QuicStopSendingFrame stop_sending_control_stream(
-      kInvalidControlFrameId, control_stream->id(),
-      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+      kInvalidControlFrameId, control_stream->id(), QUIC_STREAM_CANCELLED);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
@@ -2920,8 +2917,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   ASSERT_TRUE(decoder_stream);
 
   QuicStopSendingFrame stop_sending_decoder_stream(
-      kInvalidControlFrameId, decoder_stream->id(),
-      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+      kInvalidControlFrameId, decoder_stream->id(), QUIC_STREAM_CANCELLED);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,
@@ -2933,8 +2929,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   ASSERT_TRUE(encoder_stream);
 
   QuicStopSendingFrame stop_sending_encoder_stream(
-      kInvalidControlFrameId, encoder_stream->id(),
-      static_cast<QuicApplicationErrorCode>(QUIC_STREAM_CANCELLED));
+      kInvalidControlFrameId, encoder_stream->id(), QUIC_STREAM_CANCELLED);
   EXPECT_CALL(
       *connection_,
       CloseConnection(QUIC_HTTP_CLOSED_CRITICAL_STREAM,

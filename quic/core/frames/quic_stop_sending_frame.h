@@ -17,7 +17,7 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
   QuicStopSendingFrame() = default;
   QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                        QuicStreamId stream_id,
-                       QuicApplicationErrorCode application_error_code);
+                       QuicRstStreamErrorCode error_code);
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os,
@@ -27,7 +27,9 @@ struct QUIC_EXPORT_PRIVATE QuicStopSendingFrame {
   // and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
   QuicStreamId stream_id = 0;
-  QuicApplicationErrorCode application_error_code = 0;
+
+  // QuicRstStreamErrorCode associated with the frame.
+  QuicRstStreamErrorCode error_code = QUIC_STREAM_NO_ERROR;
 };
 
 }  // namespace quic

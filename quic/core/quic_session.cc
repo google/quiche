@@ -262,7 +262,7 @@ void QuicSession::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
     return;
   }
 
-  stream->OnStopSending(frame.application_error_code);
+  stream->OnStopSending(frame.error_code);
 }
 
 void QuicSession::OnPacketDecrypted(EncryptionLevel level) {
@@ -2431,7 +2431,8 @@ QuicPacketLength QuicSession::GetGuaranteedLargestMessagePayload() const {
   return connection_->GetGuaranteedLargestMessagePayload();
 }
 
-void QuicSession::SendStopSending(uint16_t code, QuicStreamId stream_id) {
+void QuicSession::SendStopSending(QuicRstStreamErrorCode code,
+                                  QuicStreamId stream_id) {
   control_frame_manager_.WriteOrBufferStopSending(code, stream_id);
 }
 

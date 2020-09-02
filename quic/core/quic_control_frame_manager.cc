@@ -103,8 +103,9 @@ void QuicControlFrameManager::WriteOrBufferMaxStreams(QuicStreamCount count,
       QuicMaxStreamsFrame(++last_control_frame_id_, count, unidirectional)));
 }
 
-void QuicControlFrameManager::WriteOrBufferStopSending(uint16_t code,
-                                                       QuicStreamId stream_id) {
+void QuicControlFrameManager::WriteOrBufferStopSending(
+    QuicRstStreamErrorCode code,
+    QuicStreamId stream_id) {
   QUIC_DVLOG(1) << "Writing STOP_SENDING_FRAME";
   WriteOrBufferQuicFrame(QuicFrame(
       new QuicStopSendingFrame(++last_control_frame_id_, stream_id, code)));

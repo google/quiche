@@ -31,7 +31,8 @@ class QuicControlFrameManagerPeer {
 namespace {
 
 const QuicStreamId kTestStreamId = 5;
-const QuicStreamId kTestStopSendingCode = 321;
+const QuicRstStreamErrorCode kTestStopSendingCode =
+    QUIC_STREAM_ENCODER_STREAM_ERROR;
 
 class QuicControlFrameManagerTest : public QuicTest {
  public:
