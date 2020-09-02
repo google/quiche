@@ -1090,6 +1090,51 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
+TEST_P(QuicSpdySessionTestServer, SendHttp3Shutdown) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  CompleteHandshake();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
+  session_.SendHttp3Shutdown();
+  EXPECT_TRUE(session_.goaway_sent());
+
+  const QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
+}
+
+TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterShutdownNotice) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  CompleteHandshake();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .Times(2)
+      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_)).Times(2);
+
+  session_.SendHttp3Shutdown();
+  EXPECT_TRUE(session_.goaway_sent());
+  session_.SendHttp3GoAway();
+
+  const QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
+}
+
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
   if (VersionHasIetfQuicFrames(transport_version())) {
     // HTTP/3 GOAWAY doesn't have such restriction.

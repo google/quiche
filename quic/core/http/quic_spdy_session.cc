@@ -404,7 +404,6 @@ QuicSpdySession::QuicSpdySession(
       server_push_enabled_(true),
       ietf_server_push_enabled_(
           GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
-      http3_goaway_sent_(false),
       http3_max_push_id_sent_(false) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -731,9 +730,29 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
 void QuicSpdySession::SendHttp3GoAway() {
   DCHECK_EQ(perspective(), Perspective::IS_SERVER);
   DCHECK(VersionUsesHttp3(transport_version()));
-  http3_goaway_sent_ = true;
-  send_control_stream_->SendGoAway(
-      GetLargestPeerCreatedStreamId(/*unidirectional = */ false));
+  const QuicStreamId stream_id =
+      GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
+  send_control_stream_->SendGoAway(stream_id);
+  last_sent_http3_goaway_id_ = stream_id;
+}
+
+void QuicSpdySession::SendHttp3Shutdown() {
+  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  DCHECK(VersionUsesHttp3(transport_version()));
+  QuicStreamCount advertised_max_incoming_bidirectional_streams =
+      GetAdvertisedMaxIncomingBidirectionalStreams();
+  const QuicStreamId stream_id =
+      QuicUtils::GetFirstBidirectionalStreamId(transport_version(),
+                                               Perspective::IS_CLIENT) +
+      QuicUtils::StreamIdDelta(transport_version()) *
+          advertised_max_incoming_bidirectional_streams;
+  if (last_sent_http3_goaway_id_.has_value() &&
+      last_sent_http3_goaway_id_.value() < stream_id) {
+    send_control_stream_->SendGoAway(last_sent_http3_goaway_id_.value());
+    return;
+  }
+  send_control_stream_->SendGoAway(stream_id);
+  last_sent_http3_goaway_id_ = stream_id;
 }
 
 void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
@@ -1410,8 +1429,9 @@ bool QuicSpdySession::goaway_received() const {
 }
 
 bool QuicSpdySession::goaway_sent() const {
-  return VersionUsesHttp3(transport_version()) ? http3_goaway_sent_
-                                               : transport_goaway_sent();
+  return VersionUsesHttp3(transport_version())
+             ? last_sent_http3_goaway_id_.has_value()
+             : transport_goaway_sent();
 }
 
 bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {

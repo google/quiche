@@ -225,8 +225,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Send GOAWAY if the peer is blocked on the implementation max.
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
 
-  // Write the GOAWAY |frame| on control stream.
+  // Write GOAWAY frame to the control stream with the last seen stream ID.
   void SendHttp3GoAway();
+
+  // Write advisory GOAWAY frame on the control stream with the max stream ID
+  // that the client could send. If GOAWAY has already been sent, the lesser of
+  // its max stream ID and the one advertised via MAX_STREAMS is used.
+  void SendHttp3Shutdown();
 
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
   // PUSH_PROMISE frame to peer.
@@ -582,8 +587,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.
   quiche::QuicheOptional<uint64_t> last_received_http3_goaway_id_;
-  // If the endpoint has sent HTTP/3 GOAWAY frame.
-  bool http3_goaway_sent_;
+  // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
+  // frame has been sent yet.
+  quiche::QuicheOptional<uint64_t> last_sent_http3_goaway_id_;
 
   // Only used by a client, only with IETF QUIC.  True if a MAX_PUSH_ID frame
   // has been sent, in which case |max_push_id_| has the value sent in the most
