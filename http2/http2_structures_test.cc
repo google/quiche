@@ -47,7 +47,9 @@ E IncrementEnum(E e) {
 template <class T>
 AssertionResult VerifyRandomCalls() {
   T t1;
-  Http2Random seq1;
+  // Initialize with a stable key, to avoid test flakiness.
+  Http2Random seq1(
+      "6d9a61ddf2bc1fc0b8245505a1f28e324559d8b5c9c3268f38b42b1af3287c47");
   Randomize(&t1, &seq1);
 
   T t2;
