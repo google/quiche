@@ -392,5 +392,12 @@ size_t QuicConnectionPeer::NumUndecryptablePackets(QuicConnection* connection) {
   return connection->undecryptable_packets_.size();
 }
 
+// static
+const QuicCircularDeque<std::pair<QuicPathFrameBuffer, QuicSocketAddress>>&
+QuicConnectionPeer::pending_path_challenge_payloads(
+    QuicConnection* connection) {
+  return connection->pending_path_challenge_payloads_;
+}
+
 }  // namespace test
 }  // namespace quic

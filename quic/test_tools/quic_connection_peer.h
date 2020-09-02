@@ -156,6 +156,10 @@ class QuicConnectionPeer {
       const QuicConnectionId& server_connection_id);
 
   static size_t NumUndecryptablePackets(QuicConnection* connection);
+
+  static const QuicCircularDeque<
+      std::pair<QuicPathFrameBuffer, QuicSocketAddress>>&
+  pending_path_challenge_payloads(QuicConnection* connection);
 };
 
 }  // namespace test

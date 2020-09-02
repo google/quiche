@@ -823,6 +823,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Sends response to a connectivity probe. Sends either a Padded Ping
   // or an IETF PATH_RESPONSE based on the version of the connection.
   // Is the counterpart to SendConnectivityProbingPacket().
+  // TODO(danzh): remove this method after deprecating
+  // --gfe2_reloadable_flag_quic_send_path_response.
   virtual void SendConnectivityProbingResponsePacket(
       const QuicSocketAddress& peer_address);
 
@@ -1006,6 +1008,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Enables Legacy Version Encapsulation using |server_name| as SNI.
   // Can only be set if this is a client connection.
   void EnableLegacyVersionEncapsulation(const std::string& server_name);
+
+  bool send_path_response() const { return send_path_response_; }
 
   // If now is close to idle timeout, returns true and sends a connectivity
   // probing packet to test the connection for liveness. Otherwise, returns
@@ -1247,9 +1251,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void UpdateReleaseTimeIntoFuture();
 
   // Sends generic path probe packet to the peer. If we are not IETF QUIC, will
-  // always send a padded ping, regardless of whether this is a request or
-  // response. If version 99/ietf quic, will send a PATH_RESPONSE if
-  // |is_response| is true, a PATH_CHALLENGE if not.
+  // always send a padded ping, regardless of whether this is a request or not.
+  // TODO(danzh): remove |is_response| after deprecating
+  // --gfe2_reloadable_flag_quic_send_path_response.
   bool SendGenericPathProbePacket(QuicPacketWriter* probing_writer,
                                   const QuicSocketAddress& peer_address,
                                   bool is_response);
@@ -1372,6 +1376,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // received and the current packet number is largest received so far.
   void MaybeStartIetfPeerMigration(QuicFrameType type);
 
+  // Send PATH_RESPONSE to the given peer address.
+  bool SendPathResponse(const QuicPathFrameBuffer& data_buffer,
+                        QuicSocketAddress peer_address_to_send);
+
+  // Update both connection's and packet creator's peer address.
+  void UpdatePeerAddress(QuicSocketAddress peer_address);
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1381,6 +1392,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // detected as a connectivity probing.
   // Always false outside the context of ProcessUdpPacket().
   bool is_current_packet_connectivity_probing_;
+
+  bool has_path_challenge_in_current_packet_;
 
   // Caches the current effective peer migration type if a effective peer
   // migration might be initiated. As soon as the current packet is confirmed
@@ -1407,6 +1420,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicSocketAddress self_address_;
   QuicSocketAddress peer_address_;
 
+  // Other than initialization, do not modify it directly, use
+  // UpdatePeerAddress() instead.
   QuicSocketAddress direct_peer_address_;
   // Address of the endpoint behind the proxy if the connection is proxied.
   // Otherwise it is the same as |peer_address_|.
@@ -1655,7 +1670,15 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Deque because the peer might no be using this implementation, and others
   // might send a packet with more than one PATH_CHALLENGE, so all need to be
   // saved and responded to.
+  // TODO(danzh) deprecate this field when deprecating
+  // --quic_send_path_response.
   QuicCircularDeque<QuicPathFrameBuffer> received_path_challenge_payloads_;
+
+  // Buffer outstanding PATH_CHALLENGEs if socket write is blocked, future
+  // OnCanWrite will attempt to respond with PATH_RESPONSEs using the retained
+  // payload and peer addresses.
+  QuicCircularDeque<std::pair<QuicPathFrameBuffer, QuicSocketAddress>>
+      pending_path_challenge_payloads_;
 
   // Set of connection IDs that should be accepted as destination on
   // received packets. This is conceptually a set but is implemented as a
@@ -1733,6 +1756,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool fix_missing_connected_checks_ =
       GetQuicReloadableFlag(quic_add_missing_connected_checks);
+
+  // latch --gfe2_reloadable_flag_quic_send_path_response and
+  // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
+  bool send_path_response_ = start_peer_migration_earlier_ &&
+                             GetQuicReloadableFlag(quic_send_path_response);
 };
 
 }  // namespace quic

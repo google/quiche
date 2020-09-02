@@ -464,7 +464,14 @@ void QuicSession::OnPacketReceived(const QuicSocketAddress& /*self_address*/,
   if (is_connectivity_probe && perspective() == Perspective::IS_SERVER) {
     // Server only sends back a connectivity probe after received a
     // connectivity probe from a new peer address.
-    connection_->SendConnectivityProbingResponsePacket(peer_address);
+    if (connection_->send_path_response()) {
+      // SendConnectivityProbingResponsePacket() will be deprecated.
+      // SendConnectivityProbingPacket() will be used to send both probing
+      // request and response as both of them are padded PING.
+      connection_->SendConnectivityProbingPacket(nullptr, peer_address);
+    } else {
+      connection_->SendConnectivityProbingResponsePacket(peer_address);
+    }
   }
 }
 

@@ -1138,6 +1138,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   QuicSocketAddress old_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
   EXPECT_EQ(old_peer_address, session_.peer_address());
@@ -1145,8 +1146,14 @@ TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
   QuicSocketAddress new_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort + 1);
 
-  EXPECT_CALL(*connection_,
-              SendConnectivityProbingResponsePacket(new_peer_address));
+  if (connection_->send_path_response()) {
+    EXPECT_CALL(*connection_,
+                SendConnectivityProbingPacket(nullptr, new_peer_address));
+  } else {
+    EXPECT_CALL(*connection_,
+                SendConnectivityProbingResponsePacket(new_peer_address));
+  }
+
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Need to explicitly do this to emulate the reception of a PathChallenge,
     // which stores its payload for use in generating the response.

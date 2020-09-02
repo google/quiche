@@ -2037,5 +2037,29 @@ void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {
   packet_.encryption_level = level;
 }
 
+bool QuicPacketCreator::AddPathResponseFrame(
+    const QuicPathFrameBuffer& data_buffer) {
+  auto path_response =
+      new QuicPathResponseFrame(kInvalidControlFrameId, data_buffer);
+  QuicFrame frame(path_response);
+  if (HasPendingFrames()) {
+    if (AddPaddedSavedFrame(frame, NOT_RETRANSMISSION)) {
+      // Frame is queued.
+      return true;
+    }
+  }
+  // Frame was not queued but queued frames were flushed.
+  DCHECK(!HasPendingFrames());
+  if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
+                                       NOT_HANDSHAKE)) {
+    QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_RESPONSE now";
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 5, 5);
+    delete path_response;
+    return false;
+  }
+  bool success = AddPaddedSavedFrame(frame, NOT_RETRANSMISSION);
+  QUIC_BUG_IF(!success);
+  return true;
+}
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

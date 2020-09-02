@@ -1460,6 +1460,10 @@ TEST_P(QuicSessionTestServer, InvalidGoAway) {
 // Test that server session will send a connectivity probe in response to a
 // connectivity probe on the same path.
 TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
+  if (connection_->send_path_response() &&
+      VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   QuicSocketAddress old_peer_address =
       QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
@@ -1472,10 +1476,17 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
       QuicConnectionPeer::GetWriter(session_.connection()));
   EXPECT_CALL(*writer, WritePacket(_, _, _, new_peer_address, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  EXPECT_CALL(*connection_, SendConnectivityProbingResponsePacket(_))
-      .WillOnce(Invoke(
-          connection_,
-          &MockQuicConnection::ReallySendConnectivityProbingResponsePacket));
+  if (connection_->send_path_response()) {
+    EXPECT_CALL(*connection_, SendConnectivityProbingPacket(_, _))
+        .WillOnce(
+            Invoke(connection_,
+                   &MockQuicConnection::ReallySendConnectivityProbingPacket));
+  } else {
+    EXPECT_CALL(*connection_, SendConnectivityProbingResponsePacket(_))
+        .WillOnce(Invoke(
+            connection_,
+            &MockQuicConnection::ReallySendConnectivityProbingResponsePacket));
+  }
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Need to explicitly do this to emulate the reception of a PathChallenge,
     // which stores its payload for use in generating the response.
@@ -1491,7 +1502,8 @@ TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbe) {
 // packet, the response has both of them AND we do not do migration.  This for
 // IETF QUIC only.
 TEST_P(QuicSessionTestServer, ServerReplyToConnectivityProbes) {
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (connection_->send_path_response() ||
+      !VersionHasIetfQuicFrames(transport_version())) {
     return;
   }
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

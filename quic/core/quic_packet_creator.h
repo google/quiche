@@ -255,6 +255,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
       const QuicCircularDeque<QuicPathFrameBuffer>& payloads,
       const bool is_padded);
 
+  // Add PATH_RESPONSE to current packet, flush before or afterwards if needed.
+  bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
+
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
 
