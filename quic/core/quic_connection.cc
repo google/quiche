@@ -2306,7 +2306,21 @@ void QuicConnection::OnCanWrite() {
   if (!connected_) {
     return;
   }
-  DCHECK(!writer_->IsWriteBlocked());
+  if (GetQuicReloadableFlag(
+          quic_close_connection_in_on_can_write_with_blocked_writer)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_close_connection_in_on_can_write_with_blocked_writer);
+    if (writer_->IsWriteBlocked()) {
+      const std::string error_details =
+          "Writer is blocked while calling OnCanWrite.";
+      QUIC_BUG << ENDPOINT << error_details;
+      CloseConnection(QUIC_INTERNAL_ERROR, error_details,
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+  } else {
+    DCHECK(!writer_->IsWriteBlocked());
+  }
 
   // Add a flusher to ensure the connection is marked app-limited.
   ScopedPacketFlusher flusher(this);
