@@ -247,9 +247,6 @@ QuicConnection::QuicConnection(
       should_last_packet_instigate_acks_(false),
       max_undecryptable_packets_(0),
       max_tracked_packets_(GetQuicFlag(FLAGS_quic_max_tracked_packet_count)),
-      pending_version_negotiation_packet_(false),
-      send_ietf_version_negotiation_packet_(false),
-      send_version_negotiation_packet_with_prefixed_lengths_(false),
       idle_timeout_connection_close_behavior_(
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET),
       num_rtos_for_blackhole_detection_(0),
@@ -1930,47 +1927,6 @@ void QuicConnection::MaybeSendInResponseToPacket() {
   }
 }
 
-void QuicConnection::SendVersionNegotiationPacket(bool ietf_quic,
-                                                  bool has_length_prefix) {
-  pending_version_negotiation_packet_ = true;
-  send_ietf_version_negotiation_packet_ = ietf_quic;
-  send_version_negotiation_packet_with_prefixed_lengths_ = has_length_prefix;
-
-  if (HandleWriteBlocked()) {
-    return;
-  }
-
-  QUIC_DLOG(INFO) << ENDPOINT << "Sending version negotiation packet: {"
-                  << ParsedQuicVersionVectorToString(
-                         framer_.supported_versions())
-                  << "}, " << (ietf_quic ? "" : "!") << "ietf_quic";
-  std::unique_ptr<QuicEncryptedPacket> version_packet(
-      packet_creator_.SerializeVersionNegotiationPacket(
-          ietf_quic, has_length_prefix, framer_.supported_versions()));
-  QUIC_DVLOG(2) << ENDPOINT << "Sending version negotiation packet: {"
-                << ParsedQuicVersionVectorToString(framer_.supported_versions())
-                << "}, " << (ietf_quic ? "" : "!") << "ietf_quic:" << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                       version_packet->data(), version_packet->length()));
-  WriteResult result = writer_->WritePacket(
-      version_packet->data(), version_packet->length(), self_address().host(),
-      peer_address(), per_packet_options_);
-
-  if (IsWriteError(result.status)) {
-    OnWriteError(result.error_code);
-    return;
-  }
-  if (IsWriteBlockedStatus(result.status)) {
-    visitor_->OnWriteBlocked();
-    if (result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
-      pending_version_negotiation_packet_ = false;
-    }
-    return;
-  }
-
-  pending_version_negotiation_packet_ = false;
-}
-
 void QuicConnection::MaybeActivateLegacyVersionEncapsulation() {
   if (!legacy_version_encapsulation_enabled_) {
     return;
@@ -2474,12 +2430,6 @@ bool QuicConnection::ValidateReceivedPacketNumber(
 
 void QuicConnection::WriteQueuedPackets() {
   DCHECK(!writer_->IsWriteBlocked());
-
-  if (pending_version_negotiation_packet_) {
-    SendVersionNegotiationPacket(
-        send_ietf_version_negotiation_packet_,
-        send_version_negotiation_packet_with_prefixed_lengths_);
-  }
 
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
                                buffered_packets_.size(), 1, 1000, 50, "");
@@ -3686,8 +3636,7 @@ void QuicConnection::SetMaxPacketLength(QuicByteCount length) {
 }
 
 bool QuicConnection::HasQueuedData() const {
-  return pending_version_negotiation_packet_ ||
-         packet_creator_.HasPendingFrames() || !buffered_packets_.empty();
+  return packet_creator_.HasPendingFrames() || !buffered_packets_.empty();
 }
 
 void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,

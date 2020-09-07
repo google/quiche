@@ -1480,13 +1480,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Maximum number of tracked packets.
   QuicPacketCount max_tracked_packets_;
 
-  // When the version negotiation packet could not be sent because the socket
-  // was not writable, this is set to true.
-  bool pending_version_negotiation_packet_;
-  // Used when pending_version_negotiation_packet_ is true.
-  bool send_ietf_version_negotiation_packet_;
-  bool send_version_negotiation_packet_with_prefixed_lengths_;
-
   // Contains the connection close packets if the connection has been closed.
   std::unique_ptr<std::vector<std::unique_ptr<QuicEncryptedPacket>>>
       termination_packets_;
