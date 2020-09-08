@@ -211,13 +211,7 @@ void Bbr2NetworkModel::OnCongestionEventFinish(
   bandwidth_sampler_.RemoveObsoletePackets(least_unacked_packet);
 }
 
-void Bbr2NetworkModel::UpdateNetworkParameters(QuicBandwidth bandwidth,
-                                               QuicTime::Delta rtt) {
-  if (!improve_adjust_network_parameters_ && !bandwidth.IsInfinite() &&
-      bandwidth > MaxBandwidth()) {
-    max_bandwidth_filter_.Update(bandwidth);
-  }
-
+void Bbr2NetworkModel::UpdateNetworkParameters(QuicTime::Delta rtt) {
   if (!rtt.IsZero()) {
     min_rtt_filter_.Update(rtt, MinRttTimestamp());
   }

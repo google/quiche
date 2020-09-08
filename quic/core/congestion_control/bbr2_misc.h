@@ -326,10 +326,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
                                const Bbr2CongestionEvent& congestion_event);
 
   // Update the model without a congestion event.
-  // Max bandwidth is updated if |bandwidth| is larger than existing max
-  // bandwidth. Min rtt is updated if |rtt| is non-zero and smaller than
-  // existing min rtt.
-  void UpdateNetworkParameters(QuicBandwidth bandwidth, QuicTime::Delta rtt);
+  // Min rtt is updated if |rtt| is non-zero and smaller than existing min rtt.
+  void UpdateNetworkParameters(QuicTime::Delta rtt);
 
   // Update inflight/bandwidth short-term lower bounds.
   void AdaptLowerBounds(const Bbr2CongestionEvent& congestion_event);
@@ -450,10 +448,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   float pacing_gain() const { return pacing_gain_; }
   void set_pacing_gain(float pacing_gain) { pacing_gain_ = pacing_gain; }
 
-  bool improve_adjust_network_parameters() const {
-    return improve_adjust_network_parameters_;
-  }
-
  private:
   const Bbr2Params& Params() const { return *params_; }
   const Bbr2Params* const params_;
@@ -485,9 +479,6 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float cwnd_gain_;
   float pacing_gain_;
-
-  const bool improve_adjust_network_parameters_ =
-      GetQuicReloadableFlag(quic_bbr2_improve_adjust_network_parameters);
 };
 
 enum class Bbr2Mode : uint8_t {

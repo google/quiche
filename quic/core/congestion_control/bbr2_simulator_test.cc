@@ -1007,13 +1007,9 @@ TEST_F(Bbr2DefaultTopologyTest, AdjustNetworkParameters) {
 
   EXPECT_EQ(params.BDP(), sender_->ExportDebugState().congestion_window);
 
-  if (GetQuicReloadableFlag(quic_bbr2_improve_adjust_network_parameters)) {
-    EXPECT_EQ(params.BottleneckBandwidth(),
-              sender_->PacingRate(/*bytes_in_flight=*/0));
-    EXPECT_NE(params.BottleneckBandwidth(), sender_->BandwidthEstimate());
-  } else {
-    EXPECT_EQ(params.BottleneckBandwidth(), sender_->BandwidthEstimate());
-  }
+  EXPECT_EQ(params.BottleneckBandwidth(),
+            sender_->PacingRate(/*bytes_in_flight=*/0));
+  EXPECT_NE(params.BottleneckBandwidth(), sender_->BandwidthEstimate());
 
   EXPECT_APPROX_EQ(params.RTT(), sender_->ExportDebugState().min_rtt, 0.01f);
 
