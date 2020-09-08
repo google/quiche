@@ -7,7 +7,6 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_client.h"
 
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
-#include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
@@ -59,7 +58,7 @@ class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
     QuicWriterMutexLock lock(&mu_);
-    data_.push_back(std::string(packet, size));
+    data_.emplace_back(std::string(packet, size));
   }
 
   std::vector<std::string> data() {
