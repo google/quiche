@@ -1767,7 +1767,6 @@ void QuicConnection::OnPacketComplete() {
     uber_received_packet_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
         last_header_.packet_number,
-        idle_network_detector_.time_of_last_received_packet(),
         clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
   }
 
@@ -4847,7 +4846,6 @@ void QuicConnection::MaybeUpdateAckTimeout() {
   uber_received_packet_manager_.MaybeUpdateAckTimeout(
       /*should_last_packet_instigate_acks=*/true, last_decrypted_packet_level_,
       last_header_.packet_number,
-      idle_network_detector_.time_of_last_received_packet(),
       clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
 }
 

@@ -46,7 +46,6 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   void MaybeUpdateAckTimeout(bool should_last_packet_instigate_acks,
                              EncryptionLevel decrypted_packet_level,
                              QuicPacketNumber last_received_packet_number,
-                             QuicTime time_of_last_received_packet,
                              QuicTime now,
                              const RttStats* rtt_stats);
 

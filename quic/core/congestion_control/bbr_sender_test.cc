@@ -292,8 +292,6 @@ TEST_F(BbrSenderTest, SetInitialCongestionWindow) {
 
 // Test a simple long data transfer in the default setup.
 TEST_F(BbrSenderTest, SimpleTransfer) {
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
 
   // At startup make sure we are at the default.
@@ -341,8 +339,6 @@ TEST_F(BbrSenderTest, SimpleTransferSmallBuffer) {
 }
 
 TEST_F(BbrSenderTest, RemoveBytesLostInRecovery) {
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
 
   DriveOutOfStartup();
@@ -421,9 +417,6 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
       GetQuicFlag(FLAGS_quic_max_congestion_window), &random_,
       QuicConnectionPeer::GetStats(bbr_sender_.connection()));
   QuicConnectionPeer::SetSendAlgorithm(bbr_sender_.connection(), sender_);
-  // Enable Ack Decimation on the receiver.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(),
-                                 AckMode::ACK_DECIMATION);
   CreateDefaultSetup();
 
   // Transfer 12MB.
@@ -445,8 +438,6 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
   SetConnectionOption(kBSAO);
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
   SetConnectionOption(kBBR4);
   // 2 RTTs of aggregation, with a max of 10kb.
@@ -471,8 +462,6 @@ TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
 // Test a simple long data transfer with 2 rtts of aggregation.
 TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes40RTTWindow) {
   SetConnectionOption(kBSAO);
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
   SetConnectionOption(kBBR5);
   // 2 RTTs of aggregation, with a max of 10kb.
@@ -590,8 +579,6 @@ TEST_F(BbrSenderTest, ApplicationLimitedBurstsWithoutPrior) {
 
 // Verify that the DRAIN phase works correctly.
 TEST_F(BbrSenderTest, Drain) {
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
   const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
   // Get the queue at the bottleneck, which is the outgoing queue at the port to
@@ -654,10 +641,6 @@ TEST_F(BbrSenderTest, Drain) {
 // TODO(wub): Re-enable this test once default drain_gain changed to 0.75.
 // Verify that the DRAIN phase works correctly.
 TEST_F(BbrSenderTest, DISABLED_ShallowDrain) {
-  // TODO(haoyuewang) Remove this when TCP_ACKING is deprecated.
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
-
   CreateDefaultSetup();
   const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
   // Get the queue at the bottleneck, which is the outgoing queue at the port to
@@ -746,8 +729,6 @@ TEST_F(BbrSenderTest, ProbeRtt) {
 // bandwidth will not exit high gain phase, and similarly ensure that the
 // connection will exit low gain early if the number of bytes in flight is low.
 TEST_F(BbrSenderTest, InFlightAwareGainCycling) {
-  // Disable Ack Decimation on the receiver, because it can increase srtt.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
   DriveOutOfStartup();
 
@@ -987,9 +968,6 @@ TEST_F(BbrSenderTest, DerivedCWNDGainStartup) {
 }
 
 TEST_F(BbrSenderTest, AckAggregationInStartup) {
-  // Disable Ack Decimation on the receiver to avoid loss and make results
-  // consistent.
-  QuicConnectionPeer::SetAckMode(receiver_.connection(), AckMode::TCP_ACKING);
   CreateDefaultSetup();
 
   SetConnectionOption(kBBQ3);

@@ -687,8 +687,6 @@ enum PacketNumberSpace : uint8_t {
 QUIC_EXPORT_PRIVATE std::string PacketNumberSpaceToString(
     PacketNumberSpace packet_number_space);
 
-enum AckMode { TCP_ACKING, ACK_DECIMATION, ACK_DECIMATION_WITH_REORDERING };
-
 // Used to return the result of processing a received ACK frame.
 enum AckResult {
   PACKETS_NEWLY_ACKED,

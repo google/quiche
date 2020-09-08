@@ -41,13 +41,11 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       time_largest_observed_(QuicTime::Zero()),
       save_timestamps_(false),
       stats_(stats),
-      ack_mode_(ACK_DECIMATION),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
       ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
-      fast_ack_after_quiescence_(false),
       one_immediate_ack_(false),
       local_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
@@ -59,39 +57,11 @@ QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
 void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
                                               Perspective perspective) {
-  if (remove_unused_ack_options_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_remove_unused_ack_options);
-  }
-  if (!remove_unused_ack_options_) {
-    if (config.HasClientSentConnectionOption(kACD0, perspective)) {
-      ack_mode_ = TCP_ACKING;
-    }
-    if (config.HasClientSentConnectionOption(kACKD, perspective)) {
-      ack_mode_ = ACK_DECIMATION;
-    }
-    if (config.HasClientSentConnectionOption(kAKD2, perspective)) {
-      ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
-    }
-  }
   if (config.HasClientSentConnectionOption(kAKD3, perspective)) {
-    if (!remove_unused_ack_options_) {
-      ack_mode_ = ACK_DECIMATION;
-    }
     ack_decimation_delay_ = kShortAckDecimationDelay;
-  }
-  if (!remove_unused_ack_options_) {
-    if (config.HasClientSentConnectionOption(kAKD4, perspective)) {
-      ack_mode_ = ACK_DECIMATION_WITH_REORDERING;
-      ack_decimation_delay_ = kShortAckDecimationDelay;
-    }
   }
   if (config.HasClientSentConnectionOption(kAKDU, perspective)) {
     unlimited_ack_decimation_ = true;
-  }
-  if (!remove_unused_ack_options_) {
-    if (config.HasClientSentConnectionOption(kACKQ, perspective)) {
-      fast_ack_after_quiescence_ = true;
-    }
   }
   if (config.HasClientSentConnectionOption(k1ACK, perspective)) {
     one_immediate_ack_ = true;
@@ -224,7 +194,6 @@ void QuicReceivedPacketManager::DontWaitForPacketsBefore(
 QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
     QuicPacketNumber last_received_packet_number,
     const RttStats& rtt_stats) const {
-  DCHECK(simplify_received_packet_manager_ack_);
   if (last_received_packet_number <
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return local_max_ack_delay_;
@@ -243,7 +212,6 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
 
 void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
     QuicPacketNumber last_received_packet_number) {
-  DCHECK(simplify_received_packet_manager_ack_);
   if (last_received_packet_number <
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return;
@@ -256,7 +224,6 @@ void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     bool should_last_packet_instigate_acks,
     QuicPacketNumber last_received_packet_number,
-    QuicTime time_of_last_received_packet,
     QuicTime now,
     const RttStats* rtt_stats) {
   if (!ack_frame_updated_) {
@@ -278,85 +245,20 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   ++num_retransmittable_packets_received_since_last_ack_sent_;
 
-  if (simplify_received_packet_manager_ack_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_simplify_received_packet_manager_ack);
-    MaybeUpdateAckFrequency(last_received_packet_number);
-    if (num_retransmittable_packets_received_since_last_ack_sent_ >=
-        ack_frequency_) {
-      ack_timeout_ = now;
-      return;
-    }
-
-    if (HasNewMissingPackets()) {
-      ack_timeout_ = now;
-      return;
-    }
-
-    MaybeUpdateAckTimeoutTo(
-        now + GetMaxAckDelay(last_received_packet_number, *rtt_stats));
+  MaybeUpdateAckFrequency(last_received_packet_number);
+  if (num_retransmittable_packets_received_since_last_ack_sent_ >=
+      ack_frequency_) {
+    ack_timeout_ = now;
     return;
   }
 
-  if (ack_mode_ != TCP_ACKING &&
-      last_received_packet_number >= PeerFirstSendingPacketNumber() +
-                                         min_received_before_ack_decimation_) {
-    // Ack up to 10 packets at once unless ack decimation is unlimited.
-    if (!unlimited_ack_decimation_ &&
-        num_retransmittable_packets_received_since_last_ack_sent_ >=
-            kMaxRetransmittablePacketsBeforeAck) {
-      ack_timeout_ = now;
-      return;
-    }
-    // Wait for the minimum of the ack decimation delay or the delayed ack time
-    // before sending an ack.
-    QuicTime::Delta ack_delay = std::min(
-        local_max_ack_delay_, rtt_stats->min_rtt() * ack_decimation_delay_);
-    if (GetQuicReloadableFlag(quic_ack_delay_alarm_granularity)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_ack_delay_alarm_granularity);
-      ack_delay = std::max(ack_delay, kAlarmGranularity);
-    }
-    if (fast_ack_after_quiescence_ && now - time_of_previous_received_packet_ >
-                                          rtt_stats->SmoothedOrInitialRtt()) {
-      // Ack the first packet out of queiscence faster, because QUIC does
-      // not pace the first few packets and commonly these may be handshake
-      // or TLP packets, which we'd like to acknowledge quickly.
-      ack_delay = kAlarmGranularity;
-    }
-    MaybeUpdateAckTimeoutTo(now + ack_delay);
-  } else {
-    // Ack with a timer or every 2 packets by default.
-    if (num_retransmittable_packets_received_since_last_ack_sent_ >=
-        ack_frequency_) {
-      ack_timeout_ = now;
-    } else if (fast_ack_after_quiescence_ &&
-               (now - time_of_previous_received_packet_) >
-                   rtt_stats->SmoothedOrInitialRtt()) {
-      // Ack the first packet out of queiscence faster, because QUIC does
-      // not pace the first few packets and commonly these may be handshake
-      // or TLP packets, which we'd like to acknowledge quickly.
-      MaybeUpdateAckTimeoutTo(now + kAlarmGranularity);
-    } else {
-      MaybeUpdateAckTimeoutTo(now + local_max_ack_delay_);
-    }
-  }
-
-  // If there are new missing packets to report, send an ack immediately.
   if (HasNewMissingPackets()) {
-    // TODO(haoyuewang) Remove ACK_DECIMATION_WITH_REORDERING after
-    // quic_remove_unused_ack_options is deprecated.
-    if (ack_mode_ == ACK_DECIMATION_WITH_REORDERING) {
-      DCHECK(!remove_unused_ack_options_);
-      // Wait the minimum of an eighth min_rtt and the existing ack time.
-      QuicTime ack_time = now + kShortAckDecimationDelay * rtt_stats->min_rtt();
-      MaybeUpdateAckTimeoutTo(ack_time);
-    } else {
-      ack_timeout_ = now;
-    }
+    ack_timeout_ = now;
+    return;
   }
 
-  if (fast_ack_after_quiescence_) {
-    time_of_previous_received_packet_ = time_of_last_received_packet;
-  }
+  MaybeUpdateAckTimeoutTo(
+      now + GetMaxAckDelay(last_received_packet_number, *rtt_stats));
 }
 
 void QuicReceivedPacketManager::ResetAckStates() {

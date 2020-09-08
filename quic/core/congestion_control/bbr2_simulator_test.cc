@@ -449,9 +449,6 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferAckDecimation) {
   SetConnectionOption(kBSAO);
-  // Enable Ack Decimation on the receiver.
-  QuicConnectionPeer::SetAckMode(receiver_endpoint_.connection(),
-                                 AckMode::ACK_DECIMATION);
   DefaultTopologyParams params;
   CreateNetwork(params);
 
