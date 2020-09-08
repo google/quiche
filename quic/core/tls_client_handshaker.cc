@@ -456,6 +456,14 @@ void TlsClientHandshaker::CloseConnection(QuicErrorCode error,
 }
 
 void TlsClientHandshaker::FinishHandshake() {
+  // Fill crypto_negotiated_params_:
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  if (cipher) {
+    crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
+  }
+  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
+  crypto_negotiated_params_->peer_signature_algorithm =
+      SSL_get_peer_signature_algorithm(ssl());
   if (SSL_in_early_data(ssl())) {
     // SSL_do_handshake returns after sending the ClientHello if the session is
     // 0-RTT-capable, which means that FinishHandshake will get called twice -
@@ -470,14 +478,6 @@ void TlsClientHandshaker::FinishHandshake() {
   }
   QUIC_LOG(INFO) << "Client: handshake finished";
   state_ = STATE_HANDSHAKE_COMPLETE;
-  // Fill crypto_negotiated_params_:
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
-  if (cipher) {
-    crypto_negotiated_params_->cipher_suite = SSL_CIPHER_get_value(cipher);
-  }
-  crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
-  crypto_negotiated_params_->peer_signature_algorithm =
-      SSL_get_peer_signature_algorithm(ssl());
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {

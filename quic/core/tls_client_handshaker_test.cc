@@ -399,6 +399,9 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   // messages from the server.
   stream()->CryptoConnect();
   EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_NE(stream()->crypto_negotiated_params().cipher_suite, 0);
+  EXPECT_NE(stream()->crypto_negotiated_params().key_exchange_group, 0);
+  EXPECT_NE(stream()->crypto_negotiated_params().peer_signature_algorithm, 0);
   // Finish the handshake with the server.
   QuicConfig config;
   crypto_test_utils::HandshakeWithFakeServer(
