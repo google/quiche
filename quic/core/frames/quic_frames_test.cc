@@ -96,14 +96,10 @@ TEST_F(QuicFramesTest, StopSendingFrameToString) {
   EXPECT_EQ(1u, GetControlFrameId(frame));
   stop_sending.stream_id = 321;
   stop_sending.error_code = QUIC_STREAM_CANCELLED;
-  stop_sending.ietf_error_code =
-      static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_CANCELLED);
   std::ostringstream stream;
   stream << stop_sending;
-  EXPECT_EQ(
-      "{ control_frame_id: 1, stream_id: 321, error_code: 6, ietf_error_code: "
-      "268 }\n",
-      stream.str());
+  EXPECT_EQ("{ control_frame_id: 1, stream_id: 321, error_code: 6 }\n",
+            stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 

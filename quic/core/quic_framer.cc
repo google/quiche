@@ -621,7 +621,7 @@ size_t QuicFramer::GetBlockedFrameSize(QuicTransportVersion version,
 // static
 size_t QuicFramer::GetStopSendingFrameSize(const QuicStopSendingFrame& frame) {
   return kQuicFrameTypeSize + QuicDataWriter::GetVarInt62Len(frame.stream_id) +
-         QuicDataWriter::GetVarInt62Len(frame.ietf_error_code);
+         QuicDataWriter::GetVarInt62Len(frame.error_code);
 }
 
 // static
@@ -5907,27 +5907,20 @@ bool QuicFramer::ProcessStopSendingFrame(
     return false;
   }
 
-  if (!reader->ReadVarInt62(&stop_sending_frame->ietf_error_code)) {
+  uint64_t error_code;
+  if (!reader->ReadVarInt62(&error_code)) {
     set_detailed_error("Unable to read stop sending application error code.");
     return false;
   }
-
-  if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
-    stop_sending_frame->error_code =
-        IetfResetStreamErrorCodeToRstStreamErrorCode(
-            stop_sending_frame->ietf_error_code);
-    return true;
-  }
-
   // TODO(fkastenholz): when error codes go to uint64_t, remove this.
-  if (stop_sending_frame->ietf_error_code > 0xffff) {
+  if (error_code > 0xffff) {
     stop_sending_frame->error_code =
         static_cast<QuicRstStreamErrorCode>(0xffff);
-    QUIC_DLOG(ERROR) << "Stop sending error code ("
-                     << stop_sending_frame->ietf_error_code << ") > 0xffff";
+    QUIC_DLOG(ERROR) << "Stop sending error code (" << error_code
+                     << ") > 0xffff";
   } else {
-    stop_sending_frame->error_code = static_cast<QuicRstStreamErrorCode>(
-        stop_sending_frame->ietf_error_code);
+    stop_sending_frame->error_code =
+        static_cast<QuicRstStreamErrorCode>(error_code);
   }
   return true;
 }
@@ -5940,7 +5933,7 @@ bool QuicFramer::AppendStopSendingFrame(
     return false;
   }
   if (!writer->WriteVarInt62(
-          static_cast<uint64_t>(stop_sending_frame.ietf_error_code))) {
+          static_cast<uint64_t>(stop_sending_frame.error_code))) {
     set_detailed_error("Can not write application error code");
     return false;
   }
