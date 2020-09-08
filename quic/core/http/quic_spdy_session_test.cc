@@ -2244,8 +2244,15 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
           QuicStopSendingFrame* stop_sending = frame.stop_sending_frame;
           EXPECT_EQ(stream_id, stop_sending->stream_id);
-          EXPECT_EQ(QuicHttp3ErrorCode::STREAM_CREATION_ERROR,
-                    static_cast<QuicHttp3ErrorCode>(stop_sending->error_code));
+          EXPECT_EQ(
+              GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)
+                  ? QUIC_STREAM_STREAM_CREATION_ERROR
+                  : static_cast<QuicRstStreamErrorCode>(
+                        QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
+              stop_sending->error_code);
+          EXPECT_EQ(
+              static_cast<uint64_t>(QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
+              stop_sending->ietf_error_code);
 
           return ClearControlFrame(frame);
         }));

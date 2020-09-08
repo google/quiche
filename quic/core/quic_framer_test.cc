@@ -10977,7 +10977,14 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.stop_sending_frame_.stream_id);
-  EXPECT_EQ(0x7654, visitor_.stop_sending_frame_.error_code);
+  if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
+    EXPECT_EQ(QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
+              visitor_.stop_sending_frame_.error_code);
+  } else {
+    EXPECT_EQ(0x7654, visitor_.stop_sending_frame_.error_code);
+  }
+  EXPECT_EQ(static_cast<uint64_t>(0x7654),
+            visitor_.stop_sending_frame_.ietf_error_code);
 
   CheckFramingBoundaries(packet99, QUIC_INVALID_STOP_SENDING_FRAME_DATA);
 }
@@ -10996,7 +11003,9 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
 
   QuicStopSendingFrame frame;
   frame.stream_id = kStreamId;
-  frame.error_code = static_cast<QuicRstStreamErrorCode>(0xffff);
+  frame.error_code = QUIC_STREAM_ENCODER_STREAM_ERROR;
+  frame.ietf_error_code =
+      static_cast<uint64_t>(QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR);
   QuicFrames frames = {QuicFrame(&frame)};
 
   // clang-format off
@@ -11013,7 +11022,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
     // Stream ID
     kVarInt62FourBytes + 0x01, 0x02, 0x03, 0x04,
     // Application error code
-    kVarInt62FourBytes + 0x00, 0x00, 0xff, 0xff
+    kVarInt62TwoBytes + 0x02, 0x01,
   };
   // clang-format on
 
