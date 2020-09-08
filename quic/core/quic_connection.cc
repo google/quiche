@@ -603,6 +603,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
+  if (config.HasClientRequestedIndependentOption(k10AF, perspective_)) {
+    anti_amplification_factor_ = 10;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);

@@ -300,6 +300,7 @@ const QuicTag kFIDT = TAG('F', 'I', 'D', 'T');  // Extend idle timer by PTO
                                                 // timeout.
 
 const QuicTag k3AFF = TAG('3', 'A', 'F', 'F');  // 3 anti amplification factor.
+const QuicTag k10AF = TAG('1', '0', 'A', 'F');  // 10 anti amplification factor.
 
 // Enable path MTU discovery experiment.
 const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.

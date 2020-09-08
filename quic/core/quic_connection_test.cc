@@ -10293,6 +10293,71 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   }
 }
 
+TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
+  if (!connection_.version().SupportsAntiAmplificationLimit()) {
+    return;
+  }
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+
+  set_perspective(Perspective::IS_SERVER);
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(k10AF);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                         QuicConnectionId());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  // Verify no data can be sent at the beginning because bytes received is 0.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo", 0);
+  EXPECT_FALSE(connection_.CanWrite(HAS_RETRANSMITTABLE_DATA));
+  EXPECT_FALSE(connection_.CanWrite(NO_RETRANSMITTABLE_DATA));
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Receives packet 1.
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+
+  const size_t anti_amplification_factor = 10;
+  // Verify now packets can be sent.
+  for (size_t i = 0; i < anti_amplification_factor; ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendCryptoDataWithString("foo", i * 3);
+    // Verify retransmission alarm is not set if throttled by anti-amplification
+    // limit.
+    EXPECT_EQ(i != anti_amplification_factor - 1,
+              connection_.GetRetransmissionAlarm()->IsSet());
+  }
+  // Verify server is throttled by anti-amplification limit.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo", anti_amplification_factor * 3);
+
+  // Receives packet 2.
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_INITIAL);
+  // Verify more packets can be sent.
+  for (size_t i = anti_amplification_factor; i < anti_amplification_factor * 2;
+       ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendCryptoDataWithString("foo", i * 3);
+  }
+  // Verify server is throttled by anti-amplification limit.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  connection_.SendCryptoDataWithString("foo",
+                                       2 * anti_amplification_factor * 3);
+
+  ProcessPacket(3);
+  // Verify anti-amplification limit is gone after address validation.
+  for (size_t i = 0; i < 100; ++i) {
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+    connection_.SendStreamDataWithString(3, "first", i * 0, NO_FIN);
+  }
+}
+
 TEST_P(QuicConnectionTest, AckPendingWithAmplificationLimited) {
   if (!connection_.version().SupportsAntiAmplificationLimit()) {
     return;
