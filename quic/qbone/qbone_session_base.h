@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
+#include "net/third_party/quiche/src/quic/qbone/qbone_stream.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
@@ -30,6 +31,8 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // Overrides from QuicSession.
   // This will ensure that the crypto session is created.
   void Initialize() override;
+  // This will check if the packet is wholly contained.
+  void OnStreamFrame(const QuicStreamFrame& frame) override;
   // Called whenever a MESSAGE frame is received.
   void OnMessageReceived(quiche::QuicheStringPiece message) override;
 
@@ -41,11 +44,22 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // a QboneReadOnlyStream.
   uint64_t GetNumEphemeralPackets() const;
 
+  // Returns the number of QBONE network packets that were via
+  // multiple packets, requiring the creation of a QboneReadOnlyStream.
+  uint64_t GetNumStreamedPackets() const;
+
   // Returns the number of QBONE network packets that were received using QUIC
   // MESSAGE frame.
   uint64_t GetNumMessagePackets() const;
 
+  // Returns the number of times sending a MESSAGE frame failed, and the session
+  // used an ephemeral stream instead.
+  uint64_t GetNumFallbackToStream() const;
+
   void set_writer(QbonePacketWriter* writer);
+  void set_send_packets_as_messages(bool send_packets_as_messages) {
+    send_packets_as_messages_ = send_packets_as_messages;
+  }
 
  protected:
   virtual std::unique_ptr<QuicCryptoStream> CreateCryptoStream() = 0;
@@ -61,6 +75,12 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
     return true;
   }
 
+  QuicStream* CreateOutgoingStream();
+  std::unique_ptr<QuicStream> CreateDataStream(QuicStreamId id);
+  // Activates a QuicStream.  The session takes ownership of the stream, but
+  // returns an unowned pointer to the stream for convenience.
+  QuicStream* ActivateDataStream(std::unique_ptr<QuicStream> stream);
+
   // Accepts a given packet from the network and writes it out
   // to the QUIC stream. This will create an ephemeral stream per
   // packet. This function will return true if a stream was created
@@ -69,6 +89,11 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   void SendPacketToPeer(quiche::QuicheStringPiece packet);
 
   QbonePacketWriter* writer_;
+
+  // If true, MESSAGE frames are used for short datagrams.  If false, ephemeral
+  // streams are used instead.  Note that receiving MESSAGE frames is always
+  // supported.
+  bool send_packets_as_messages_ = false;
 
  private:
   // Used for the crypto handshake.

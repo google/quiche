@@ -190,7 +190,7 @@ class IndirectionProofVerifier : public ProofVerifier {
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
-    data_.emplace_back(std::string(packet, size));
+    data_.push_back(std::string(packet, size));
   }
 
   const std::vector<std::string>& data() { return data_; }
@@ -425,7 +425,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   // Test handshake establishment and sending/receiving of data for two
   // directions.
-  void TestConnection() {
+  void TestStreamConnection(bool use_messages) {
     ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(server_peer_->IsEncryptionEstablished());
@@ -457,18 +457,22 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
     EXPECT_EQ(0u, client_peer_->GetNumActiveStreams());
 
-    const QuicPacketLength max_packet_length = std::max(
-        server_peer_->connection()->GetGuaranteedLargestMessagePayload(),
-        client_peer_->connection()->GetGuaranteedLargestMessagePayload());
-
-    std::string long_data(max_packet_length + 1, 'A');
+    // Try to send long payloads that are larger than the QUIC MTU but
+    // smaller than the QBONE max size.
+    // This should trigger the non-ephemeral stream code path.
+    std::string long_data(
+        QboneConstants::kMaxQbonePacketBytes - sizeof(ip6_hdr) - 1, 'A');
     QUIC_LOG(INFO) << "Sending server -> client long data";
     server_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    ExpectICMPTooBigResponse(
-        server_writer_->data(),
-        server_peer_->connection()->GetGuaranteedLargestMessagePayload(),
-        TestPacketOut(long_data));
+    if (use_messages) {
+      ExpectICMPTooBigResponse(
+          server_writer_->data(),
+          server_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          TestPacketOut(long_data));
+    } else {
+      EXPECT_THAT(client_writer_->data(), Contains(TestPacketOut(long_data)));
+    }
     EXPECT_THAT(server_writer_->data(),
                 Not(Contains(TestPacketOut(long_data))));
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
@@ -477,18 +481,34 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     QUIC_LOG(INFO) << "Sending client -> server long data";
     client_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    ExpectICMPTooBigResponse(
-        client_writer_->data(),
-        client_peer_->connection()->GetGuaranteedLargestMessagePayload(),
-        TestPacketIn(long_data));
+    if (use_messages) {
+      ExpectICMPTooBigResponse(
+          client_writer_->data(),
+          client_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          TestPacketIn(long_data));
+    } else {
+      EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
+    }
     EXPECT_FALSE(client_peer_->EarlyDataAccepted());
     EXPECT_FALSE(client_peer_->ReceivedInchoateReject());
     EXPECT_THAT(client_peer_->GetNumReceivedServerConfigUpdates(), Eq(0));
 
-    EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(0));
-    EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(0));
-    EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(2));
-    EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(2));
+    if (!use_messages) {
+      EXPECT_THAT(client_peer_->GetNumStreamedPackets(), Eq(1));
+      EXPECT_THAT(server_peer_->GetNumStreamedPackets(), Eq(1));
+    }
+
+    if (use_messages) {
+      EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(0));
+      EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(0));
+      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(2));
+      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(2));
+    } else {
+      EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(2));
+      EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(2));
+      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(0));
+      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(0));
+    }
 
     // All streams are ephemeral and should be gone.
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
@@ -532,10 +552,20 @@ INSTANTIATE_TEST_SUITE_P(Tests,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
+TEST_P(QboneSessionTest, StreamConnection) {
+  CreateClientAndServerSessions();
+  client_peer_->set_send_packets_as_messages(false);
+  server_peer_->set_send_packets_as_messages(false);
+  StartHandshake();
+  TestStreamConnection(false);
+}
+
 TEST_P(QboneSessionTest, Messages) {
   CreateClientAndServerSessions();
+  client_peer_->set_send_packets_as_messages(true);
+  server_peer_->set_send_packets_as_messages(true);
   StartHandshake();
-  TestConnection();
+  TestStreamConnection(true);
 }
 
 TEST_P(QboneSessionTest, ClientRejection) {
