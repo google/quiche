@@ -236,14 +236,10 @@ TEST_F(QuicVersionsTest, ParseQuicVersionString) {
   EXPECT_EQ(ParsedQuicVersion::T050(), ParseQuicVersionString("T050"));
   EXPECT_EQ(ParsedQuicVersion::T050(), ParseQuicVersionString("h3-T050"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("ff00001d"));
-  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
-    EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("draft29"));
-  }
+  EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("draft29"));
   EXPECT_EQ(ParsedQuicVersion::Draft29(), ParseQuicVersionString("h3-29"));
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("ff00001b"));
-  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
-    EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("draft27"));
-  }
+  EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("draft27"));
   EXPECT_EQ(ParsedQuicVersion::Draft27(), ParseQuicVersionString("h3-27"));
 
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
@@ -407,17 +403,8 @@ TEST_F(QuicVersionsTest, ParsedQuicVersionToString) {
   EXPECT_EQ("Q046", ParsedQuicVersionToString(ParsedQuicVersion::Q046()));
   EXPECT_EQ("Q050", ParsedQuicVersionToString(ParsedQuicVersion::Q050()));
   EXPECT_EQ("T050", ParsedQuicVersionToString(ParsedQuicVersion::T050()));
-  if (GetQuicReloadableFlag(quic_fix_print_draft_version)) {
-    EXPECT_EQ("draft27",
-              ParsedQuicVersionToString(ParsedQuicVersion::Draft27()));
-    EXPECT_EQ("draft29",
-              ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
-  } else {
-    EXPECT_EQ("ff00001b",
-              ParsedQuicVersionToString(ParsedQuicVersion::Draft27()));
-    EXPECT_EQ("ff00001d",
-              ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
-  }
+  EXPECT_EQ("draft27", ParsedQuicVersionToString(ParsedQuicVersion::Draft27()));
+  EXPECT_EQ("draft29", ParsedQuicVersionToString(ParsedQuicVersion::Draft29()));
 
   ParsedQuicVersionVector versions_vector = {ParsedQuicVersion::Q043()};
   EXPECT_EQ("Q043", ParsedQuicVersionVectorToString(versions_vector));
