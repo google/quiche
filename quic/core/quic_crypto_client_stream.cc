@@ -71,6 +71,10 @@ bool QuicCryptoClientStream::EarlyDataAccepted() const {
   return handshaker_->EarlyDataAccepted();
 }
 
+ssl_early_data_reason_t QuicCryptoClientStream::EarlyDataReason() const {
+  return handshaker_->EarlyDataReason();
+}
+
 bool QuicCryptoClientStream::ReceivedInchoateReject() const {
   return handshaker_->ReceivedInchoateReject();
 }

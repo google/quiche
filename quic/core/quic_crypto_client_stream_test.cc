@@ -107,6 +107,7 @@ TEST_F(QuicCryptoClientStreamTest, ConnectedAfterSHLO) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_no_session_offered);
 }
 
 TEST_F(QuicCryptoClientStreamTest, MessageAfterHandshake) {
@@ -179,6 +180,7 @@ TEST_F(QuicCryptoClientStreamTest, ClientTurnedOffZeroRtt) {
   // Check that a client hello was sent.
   ASSERT_EQ(1u, connection_->encrypted_packets_.size());
   EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_disabled);
 }
 
 TEST_F(QuicCryptoClientStreamTest, ClockSkew) {

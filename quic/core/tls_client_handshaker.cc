@@ -295,6 +295,10 @@ bool TlsClientHandshaker::EarlyDataAccepted() const {
   return SSL_early_data_accepted(ssl()) == 1;
 }
 
+ssl_early_data_reason_t TlsClientHandshaker::EarlyDataReason() const {
+  return SSL_get_early_data_reason(ssl());
+}
+
 bool TlsClientHandshaker::ReceivedInchoateReject() const {
   QUIC_BUG_IF(!one_rtt_keys_available_);
   // REJ messages are a QUIC crypto feature, so TLS always returns false.

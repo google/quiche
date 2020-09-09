@@ -46,6 +46,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   int num_sent_client_hellos() const override;
   bool IsResumption() const override;
   bool EarlyDataAccepted() const override;
+  ssl_early_data_reason_t EarlyDataReason() const override;
   bool ReceivedInchoateReject() const override;
   int num_scup_messages_received() const override;
   std::string chlo_hash() const override;

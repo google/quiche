@@ -376,6 +376,8 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
+  EXPECT_EQ(stream()->EarlyDataReason(),
+            ssl_early_data_unsupported_for_session);
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
@@ -413,6 +415,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
   EXPECT_TRUE(stream()->EarlyDataAccepted());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_accepted);
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
@@ -461,6 +464,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_peer_declined);
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
@@ -509,6 +513,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_session_not_resumed);
 }
 
 TEST_P(TlsClientHandshakerTest, ClientSendsNoSNI) {
@@ -606,6 +611,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRTTNotAttemptedOnALPNChange) {
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
+  EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_alpn_mismatch);
 }
 
 TEST_P(TlsClientHandshakerTest, InvalidSNI) {

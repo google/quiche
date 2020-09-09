@@ -128,6 +128,10 @@ bool QuicCryptoClientHandshaker::EarlyDataAccepted() const {
   return num_client_hellos_ == 1;
 }
 
+ssl_early_data_reason_t QuicCryptoClientHandshaker::EarlyDataReason() const {
+  return early_data_reason_;
+}
+
 bool QuicCryptoClientHandshaker::ReceivedInchoateReject() const {
   QUIC_BUG_IF(!one_rtt_keys_available_);
   return num_client_hellos_ >= 3;
@@ -290,9 +294,16 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   // inchoate or subsequent hello.
   session()->config()->ToHandshakeMessage(&out, session()->transport_version());
 
-  if (!cached->IsComplete(session()->connection()->clock()->WallNow()) ||
-      session()->config()->HasClientRequestedIndependentOption(
-          kQNZR, session()->perspective())) {
+  bool fill_inchoate_client_hello = false;
+  if (!cached->IsComplete(session()->connection()->clock()->WallNow())) {
+    early_data_reason_ = ssl_early_data_no_session_offered;
+    fill_inchoate_client_hello = true;
+  } else if (session()->config()->HasClientRequestedIndependentOption(
+                 kQNZR, session()->perspective())) {
+    early_data_reason_ = ssl_early_data_disabled;
+    fill_inchoate_client_hello = true;
+  }
+  if (fill_inchoate_client_hello) {
     crypto_config_->FillInchoateClientHello(
         server_id_, session()->supported_versions().front(), cached,
         session()->connection()->random_generator(),
@@ -356,6 +367,9 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
       /*latch_once_used=*/true);
   encryption_established_ = true;
   delegate_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  if (early_data_reason_ == ssl_early_data_unknown && num_client_hellos_ > 1) {
+    early_data_reason_ = ssl_early_data_peer_declined;
+  }
 }
 
 void QuicCryptoClientHandshaker::DoReceiveREJ(
@@ -530,6 +544,9 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
     stream_->OnUnrecoverableError(QUIC_CRYPTO_ENCRYPTION_LEVEL_INCORRECT,
                                   "unencrypted SHLO message");
     return;
+  }
+  if (num_client_hellos_ == 1) {
+    early_data_reason_ = ssl_early_data_accepted;
   }
 
   std::string error_details;
