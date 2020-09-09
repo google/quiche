@@ -4562,9 +4562,9 @@ bool QuicConnection::FlushCoalescedPacket() {
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "Buffering coalesced packet of len: " << length;
-    buffered_packets_.emplace_back(buffer, length,
-                                   coalesced_packet_.self_address(),
-                                   coalesced_packet_.peer_address());
+    buffered_packets_.emplace_back(
+        buffer, static_cast<QuicPacketLength>(length),
+        coalesced_packet_.self_address(), coalesced_packet_.peer_address());
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
     }
@@ -4589,9 +4589,9 @@ bool QuicConnection::FlushCoalescedPacket() {
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
       QUIC_DVLOG(1) << ENDPOINT
                     << "Buffering coalesced packet of len: " << length;
-      buffered_packets_.emplace_back(buffer, length,
-                                     coalesced_packet_.self_address(),
-                                     coalesced_packet_.peer_address());
+      buffered_packets_.emplace_back(
+          buffer, static_cast<QuicPacketLength>(length),
+          coalesced_packet_.self_address(), coalesced_packet_.peer_address());
     }
   }
   if (debug_visitor_ != nullptr) {

@@ -768,6 +768,8 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
       pending_timer_transmission_count_ = max_probe_packets_per_pto_;
       return PTO_MODE;
   }
+  QUIC_BUG << "Unknown retransmission mode " << GetRetransmissionMode();
+  return GetRetransmissionMode();
 }
 
 void QuicSentPacketManager::RetransmitCryptoPackets() {
