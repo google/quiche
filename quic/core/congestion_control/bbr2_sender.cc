@@ -73,8 +73,10 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
              /*cwnd_gain=*/1.0,
              /*pacing_gain=*/kInitialPacingGain,
              old_sender ? &old_sender->sampler_ : nullptr),
-      initial_cwnd_(
-          cwnd_limits().ApplyLimits(initial_cwnd_in_packets * kDefaultTCPMSS)),
+      initial_cwnd_(cwnd_limits().ApplyLimits(
+          (GetQuicReloadableFlag(quic_copy_bbr_cwnd_to_bbr2) && old_sender)
+              ? old_sender->GetCongestionWindow()
+              : (initial_cwnd_in_packets * kDefaultTCPMSS))),
       cwnd_(initial_cwnd_),
       pacing_rate_(kInitialPacingGain * QuicBandwidth::FromBytesAndTimeDelta(
                                             cwnd_,
@@ -84,6 +86,10 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
       probe_bw_(this, &model_),
       probe_rtt_(this, &model_),
       last_sample_is_app_limited_(false) {
+  if (GetQuicReloadableFlag(quic_copy_bbr_cwnd_to_bbr2) && old_sender) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_copy_bbr_cwnd_to_bbr2);
+  }
+
   QUIC_DVLOG(2) << this << " Initializing Bbr2Sender. mode:" << mode_
                 << ", PacingRate:" << pacing_rate_ << ", Cwnd:" << cwnd_
                 << ", CwndLimits:" << cwnd_limits() << "  @ " << now;
