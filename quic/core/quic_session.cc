@@ -101,12 +101,10 @@ QuicSession::QuicSession(
       enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false),
-      remove_streams_waiting_for_acks_(
-          GetQuicReloadableFlag(quic_remove_streams_waiting_for_acks)),
       do_not_use_stream_map_(GetQuicReloadableFlag(quic_do_not_use_stream_map)),
       remove_zombie_streams_(
           GetQuicReloadableFlag(quic_remove_zombie_streams) &&
-          do_not_use_stream_map_ && remove_streams_waiting_for_acks_) {
+          do_not_use_stream_map_) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -933,12 +931,6 @@ void QuicSession::OnStreamClosed(QuicStreamId stream_id) {
       zombie_streams_[stream_id] = std::move(it->second);
     }
   } else {
-    // Clean up the stream since it is no longer waiting for acks.
-    if (remove_streams_waiting_for_acks_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 1, 4);
-    } else {
-      streams_waiting_for_acks_.erase(stream_id);
-    }
     closed_streams_.push_back(std::move(it->second));
     if (remove_zombie_streams_) {
       // When zombie_streams_ is removed, stream is only erased from stream map
@@ -2073,12 +2065,6 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
 }
 
 void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
-  if (remove_streams_waiting_for_acks_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 2, 4);
-  } else {
-    streams_waiting_for_acks_.erase(id);
-  }
-
   if (!remove_zombie_streams_) {
     auto it = zombie_streams_.find(id);
     if (it == zombie_streams_.end()) {
@@ -2103,31 +2089,6 @@ void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
   }
   // Do not retransmit data of a closed stream.
   streams_with_pending_retransmission_.erase(id);
-}
-
-void QuicSession::OnStreamWaitingForAcks(QuicStreamId id) {
-  if (remove_streams_waiting_for_acks_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 3, 4);
-    return;
-  }
-  // Exclude crypto stream's status since it is counted in HasUnackedCryptoData.
-  if (GetCryptoStream() != nullptr && id == GetCryptoStream()->id()) {
-    return;
-  }
-
-  streams_waiting_for_acks_.insert(id);
-
-  // The number of the streams waiting for acks should not be larger than the
-  // number of streams.
-  DCHECK(!remove_zombie_streams_ || zombie_streams_.empty());
-  if (static_cast<size_t>(stream_map_.size() + zombie_streams_.size()) <
-      streams_waiting_for_acks_.size()) {
-    QUIC_BUG << "More streams are waiting for acks than the number of streams. "
-             << "Sizes: streams: " << stream_map_.size()
-             << ", zombie streams: " << zombie_streams_.size()
-             << ", vs streams waiting for acks: "
-             << streams_waiting_for_acks_.size();
-  }
 }
 
 QuicStream* QuicSession::GetStream(QuicStreamId id) const {
@@ -2282,10 +2243,6 @@ bool QuicSession::HasUnackedCryptoData() const {
 }
 
 bool QuicSession::HasUnackedStreamData() const {
-  if (!remove_streams_waiting_for_acks_) {
-    return !streams_waiting_for_acks_.empty();
-  }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_remove_streams_waiting_for_acks, 4, 4);
   DCHECK(!remove_zombie_streams_ || zombie_streams_.empty());
   if (!zombie_streams().empty()) {
     return true;

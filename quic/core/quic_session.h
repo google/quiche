@@ -346,10 +346,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // TODO(b/136274541): rename to CloseZombieStreams.
   void OnStreamDoneWaitingForAcks(QuicStreamId id);
 
-  // TODO(b/136274541): Remove this once quic_remove_streams_waiting_for_acks is
-  // deprecated. Called when stream |id| is newly waiting for acks.
-  void OnStreamWaitingForAcks(QuicStreamId id);
-
   // Returns true if there is pending handshake data in the crypto stream.
   // TODO(ianswett): Make this private or remove.
   bool HasPendingHandshake() const;
@@ -768,11 +764,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // which are waiting for the first byte of payload to arrive.
   PendingStreamMap pending_stream_map_;
 
-  // TODO(b/136274541): Remove this once quic_remove_streams_waiting_for_acks is
-  // deprecated. Set of stream ids that are waiting for acks excluding crypto
-  // stream id.
-  QuicHashSet<QuicStreamId> streams_waiting_for_acks_;
-
   // TODO(fayang): Consider moving LegacyQuicStreamIdManager into
   // UberQuicStreamIdManager.
   // Manages stream IDs for Google QUIC.
@@ -855,9 +846,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  // Latched value of flag quic_remove_streams_waiting_for_acks.
-  const bool remove_streams_waiting_for_acks_;
 
   // Latched value of flag quic_do_not_use_stream_map.
   const bool do_not_use_stream_map_;
