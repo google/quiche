@@ -101,10 +101,8 @@ QuicSession::QuicSession(
       enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false),
-      do_not_use_stream_map_(GetQuicReloadableFlag(quic_do_not_use_stream_map)),
       remove_zombie_streams_(
-          GetQuicReloadableFlag(quic_remove_zombie_streams) &&
-          do_not_use_stream_map_) {
+          GetQuicReloadableFlag(quic_remove_zombie_streams)) {
   closed_streams_clean_up_alarm_ =
       QuicWrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));
@@ -386,42 +384,22 @@ void QuicSession::OnConnectionClosed(const QuicConnectionCloseFrame& frame,
 
   GetMutableCryptoStream()->OnConnectionClosed(frame.quic_error_code, source);
 
-  if (!do_not_use_stream_map_) {
-    // Copy all non static streams in a new map for the ease of deleting.
-    std::vector<QuicStream*> non_static_streams;
-    for (const auto& it : stream_map_) {
-      if (!it.second->is_static()) {
-        non_static_streams.push_back(it.second.get());
-      }
-    }
-
-    for (QuicStream* stream : non_static_streams) {
-      QuicStreamId id = stream->id();
-      stream->OnConnectionClosed(frame.quic_error_code, source);
-      if (stream_map_.find(id) != stream_map_.end()) {
+  PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
+    QuicStreamId id = stream->id();
+    stream->OnConnectionClosed(frame.quic_error_code, source);
+    auto it = stream_map_.find(id);
+    if (it != stream_map_.end()) {
+      if (!remove_zombie_streams_) {
         QUIC_BUG << ENDPOINT << "Stream " << id
                  << " failed to close under OnConnectionClosed";
+      } else {
+        QUIC_BUG_IF(!it->second->IsZombie())
+            << ENDPOINT << "Non-zombie stream " << id
+            << " failed to close under OnConnectionClosed";
       }
     }
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_do_not_use_stream_map, 1, 2);
-    PerformActionOnActiveStreams([this, frame, source](QuicStream* stream) {
-      QuicStreamId id = stream->id();
-      stream->OnConnectionClosed(frame.quic_error_code, source);
-      auto it = stream_map_.find(id);
-      if (it != stream_map_.end()) {
-        if (!remove_zombie_streams_) {
-          QUIC_BUG << ENDPOINT << "Stream " << id
-                   << " failed to close under OnConnectionClosed";
-        } else {
-          QUIC_BUG_IF(!it->second->IsZombie())
-              << ENDPOINT << "Non-zombie stream " << id
-              << " failed to close under OnConnectionClosed";
-        }
-      }
-      return true;
-    });
-  }
+    return true;
+  });
 
   if (!remove_zombie_streams_) {
     // Cleanup zombie stream map on connection close.

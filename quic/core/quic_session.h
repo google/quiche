@@ -618,8 +618,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool was_zero_rtt_rejected() const { return was_zero_rtt_rejected_; }
 
-  bool do_not_use_stream_map() const { return do_not_use_stream_map_; }
-
   size_t num_outgoing_draining_streams() const {
     return num_outgoing_draining_streams_;
   }
@@ -846,9 +844,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  // Latched value of flag quic_do_not_use_stream_map.
-  const bool do_not_use_stream_map_;
 
   // Latched value of flag quic_remove_zombie_streams.
   const bool remove_zombie_streams_;
