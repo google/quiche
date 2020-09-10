@@ -4815,15 +4815,23 @@ void QuicConnection::OnIdleNetworkDetected() {
   const QuicTime::Delta duration =
       clock_->ApproximateNow() -
       idle_network_detector_.last_network_activity_time();
-  const std::string error_details = quiche::QuicheStrCat(
+  std::string error_details = quiche::QuicheStrCat(
       "No recent network activity after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.idle_network_timeout().ToDebuggingValue());
   QUIC_DVLOG(1) << ENDPOINT << error_details;
-  if ((sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
-       sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
-       sent_packet_manager_.GetConsecutivePtoCount() > 0 ||
-       visitor_->ShouldKeepConnectionAlive())) {
+  const bool has_consecutive_pto =
+      sent_packet_manager_.GetConsecutiveTlpCount() > 0 ||
+      sent_packet_manager_.GetConsecutiveRtoCount() > 0 ||
+      sent_packet_manager_.GetConsecutivePtoCount() > 0;
+  if (has_consecutive_pto || visitor_->ShouldKeepConnectionAlive()) {
+    if (GetQuicReloadableFlag(quic_add_stream_info_to_idle_close_detail) &&
+        !has_consecutive_pto) {
+      // Include stream information in error detail if there are open streams.
+      QUIC_RELOADABLE_FLAG_COUNT(quic_add_stream_info_to_idle_close_detail);
+      error_details = quiche::QuicheStrCat(
+          error_details, ", ", visitor_->GetStreamsInfoForLogging());
+    }
     CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;

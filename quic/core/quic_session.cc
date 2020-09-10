@@ -696,6 +696,34 @@ bool QuicSession::WillingAndAbleToWrite() const {
          write_blocked_streams_.HasWriteBlockedDataStreams();
 }
 
+std::string QuicSession::GetStreamsInfoForLogging() const {
+  std::string info = quiche::QuicheStrCat(
+      "num_active_streams: ", GetNumActiveStreams(),
+      ", num_pending_streams: ", pending_streams_size(),
+      ", num_outgoing_draining_streams: ", num_outgoing_draining_streams(),
+      " ");
+  // Log info for up to 5 streams.
+  size_t i = 5;
+  for (const auto& it : stream_map_) {
+    if (it.second->is_static()) {
+      continue;
+    }
+    // Calculate the stream creation delay.
+    const QuicTime::Delta delay =
+        connection_->clock()->ApproximateNow() - it.second->creation_time();
+    info = quiche::QuicheStrCat(
+        info, "{", it.second->id(), ":", delay.ToDebuggingValue(), ";",
+        it.second->stream_bytes_written(), ",", it.second->fin_sent(), ",",
+        it.second->HasBufferedData(), ",", it.second->fin_buffered(), ";",
+        it.second->stream_bytes_read(), ",", it.second->fin_received(), "}");
+    --i;
+    if (i == 0) {
+      break;
+    }
+  }
+  return info;
+}
+
 bool QuicSession::HasPendingHandshake() const {
   if (QuicVersionUsesCryptoFrames(transport_version())) {
     return GetCryptoStream()->HasPendingCryptoRetransmission() ||

@@ -123,6 +123,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnAckNeedsRetransmittableFrame() override;
   void SendPing() override;
   bool WillingAndAbleToWrite() const override;
+  std::string GetStreamsInfoForLogging() const override;
   void OnPathDegrading() override;
   void OnForwardProgressMadeAfterPathDegrading() override;
   bool AllowSelfAddressChange() const override;

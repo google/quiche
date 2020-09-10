@@ -361,6 +361,7 @@ QuicStream::QuicStream(QuicStreamId id,
                                            session->IsIncomingStream(id_),
                                            session->version())
                 : type),
+      creation_time_(session->connection()->clock()->ApproximateNow()),
       perspective_(session->perspective()) {
   if (type_ == WRITE_UNIDIRECTIONAL) {
     fin_received_ = true;

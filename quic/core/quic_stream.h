@@ -354,6 +354,10 @@ class QUIC_EXPORT_PRIVATE QuicStream
   static spdy::SpdyStreamPrecedence CalculateDefaultPriority(
       const QuicSession* session);
 
+  QuicTime creation_time() const { return creation_time_; }
+
+  bool fin_buffered() const { return fin_buffered_; }
+
  protected:
   // Called when data of [offset, offset + data_length] is buffered in send
   // buffer.
@@ -407,8 +411,6 @@ class QUIC_EXPORT_PRIVATE QuicStream
   void set_stream_error(QuicRstStreamErrorCode error) { stream_error_ = error; }
 
   StreamDelegateInterface* stream_delegate() { return stream_delegate_; }
-
-  bool fin_buffered() const { return fin_buffered_; }
 
   const QuicSession* session() const { return session_; }
   QuicSession* session() { return session_; }
@@ -544,6 +546,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Indicates whether this stream is bidirectional, read unidirectional or
   // write unidirectional.
   const StreamType type_;
+
+  // Creation time of this stream, as reported by the QuicClock.
+  const QuicTime creation_time_;
 
   Perspective perspective_;
 };

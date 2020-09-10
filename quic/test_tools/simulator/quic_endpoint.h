@@ -59,6 +59,7 @@ class QuicEndpoint : public QuicEndpointBase,
   bool WillingAndAbleToWrite() const override;
   bool ShouldKeepConnectionAlive() const override;
 
+  std::string GetStreamsInfoForLogging() const override { return ""; }
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& /*frame*/) override {}
   void OnBlockedFrame(const QuicBlockedFrame& /*frame*/) override {}
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}

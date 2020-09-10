@@ -5970,6 +5970,9 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
   // Indicate streams are still open.
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
       .WillRepeatedly(Return(true));
+  if (GetQuicReloadableFlag(quic_add_stream_info_to_idle_close_detail)) {
+    EXPECT_CALL(visitor_, GetStreamsInfoForLogging()).WillOnce(Return(""));
+  }
 
   // This time, we should time out and send a connection close due to the TLP.
   EXPECT_CALL(visitor_,

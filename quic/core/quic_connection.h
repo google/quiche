@@ -170,6 +170,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // transactions expecting a response.
   virtual bool ShouldKeepConnectionAlive() const = 0;
 
+  // Called to retrieve streams information for logging purpose.
+  virtual std::string GetStreamsInfoForLogging() const = 0;
+
   // Called when a self address change is observed. Returns true if self address
   // change is allowed.
   virtual bool AllowSelfAddressChange() const = 0;
