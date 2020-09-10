@@ -212,7 +212,7 @@ class SimpleLinkedHashMap {
     typename ListType::iterator last = list_.end();
     --last;
 
-    CHECK(map_.insert(std::make_pair(pair.first, last)).second)
+    CHECK(map_.insert(std::make_pair(last->first, last)).second)
         << "Map and list are inconsistent";
     return std::make_pair(last, true);
   }
