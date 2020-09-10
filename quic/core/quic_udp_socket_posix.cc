@@ -68,11 +68,7 @@ QuicUdpSocketFd CreateNonblockingSocket(int address_family) {
         << strerror(errno);
     return kQuicInvalidSocketFd;
   }
-
-  return fd;
-
 #else
-
   // Create a socket and use fcntl to set it to nonblocking.
   // This implementation is used when building for iOS, OSX and old versions of
   // Linux (< 2.6.27) and old versions of Android (< API 21).
@@ -98,10 +94,10 @@ QuicUdpSocketFd CreateNonblockingSocket(int address_family) {
     close(fd);
     return kQuicInvalidSocketFd;
   }
-
-  return fd;
-
 #endif
+
+  SetGoogleSocketOptions(fd);
+  return fd;
 }  // End CreateNonblockingSocket
 
 void SetV4SelfIpInControlMessage(const QuicIpAddress& self_address,

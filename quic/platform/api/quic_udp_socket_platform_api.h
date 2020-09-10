@@ -20,6 +20,10 @@ inline bool GetGooglePacketHeadersFromControlMessage(
                                                       packet_headers_len);
 }
 
+inline void SetGoogleSocketOptions(int fd) {
+  SetGoogleSocketOptionsImpl(fd);
+}
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_UDP_SOCKET_PLATFORM_API_H_
