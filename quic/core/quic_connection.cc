@@ -1476,7 +1476,8 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
   }
 
   QUIC_DLOG(INFO) << ENDPOINT << "STOP_SENDING frame received for stream: "
-                  << frame.stream_id << " with error: " << frame.error_code;
+                  << frame.stream_id
+                  << " with error: " << frame.ietf_error_code;
 
   visitor_->OnStopSendingFrame(frame);
   return connected_;

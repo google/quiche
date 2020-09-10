@@ -11,12 +11,17 @@ QuicStopSendingFrame::QuicStopSendingFrame(QuicControlFrameId control_frame_id,
                                            QuicRstStreamErrorCode error_code)
     : control_frame_id(control_frame_id),
       stream_id(stream_id),
-      error_code(error_code) {}
+      error_code(error_code),
+      ietf_error_code(
+          GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)
+              ? RstStreamErrorCodeToIetfResetStreamErrorCode(error_code)
+              : error_code) {}
 
 std::ostream& operator<<(std::ostream& os, const QuicStopSendingFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id
      << ", stream_id: " << frame.stream_id
-     << ", error_code: " << frame.error_code << " }\n";
+     << ", error_code: " << frame.error_code
+     << ", ietf_error_code: " << frame.ietf_error_code << " }\n";
   return os;
 }
 
