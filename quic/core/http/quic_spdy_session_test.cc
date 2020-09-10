@@ -1080,7 +1080,10 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
   EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
+  // No client-initiated stream has been received, therefore a GOAWAY frame with
+  // stream ID = 0 is sent to notify the client that all requests can be retried
+  // on a different connection.
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
   session_.SendHttp3GoAway();
   EXPECT_TRUE(session_.goaway_sent());
 
@@ -1088,6 +1091,37 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
       GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
   EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
   EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
+}
+
+TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  if (!GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
+    return;
+  }
+
+  CompleteHandshake();
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  const QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
+
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  // The first stream, of kTestStreamId = 0, could already have been processed.
+  // A GOAWAY frame is sent to notify the client that requests starting with
+  // stream ID = 4 can be retried on a different connection.
+  EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 4));
+  session_.SendHttp3GoAway();
+  EXPECT_TRUE(session_.goaway_sent());
+
+  // No more GOAWAY frames are sent because they could not convey new
+  // information to the client.
+  session_.SendHttp3GoAway();
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3Shutdown) {

@@ -128,7 +128,8 @@ void QuicSendControlStream::SendGoAway(QuicStreamId id) {
   GoAwayFrame frame;
   // If the peer has not created any stream yet, use stream ID 0 to indicate no
   // request is accepted.
-  if (id == QuicUtils::GetInvalidStreamId(session()->transport_version())) {
+  if (!GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id) &&
+      id == QuicUtils::GetInvalidStreamId(session()->transport_version())) {
     id = 0;
   }
   frame.id = id;

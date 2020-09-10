@@ -225,7 +225,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Send GOAWAY if the peer is blocked on the implementation max.
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
 
-  // Write GOAWAY frame to the control stream with the last seen stream ID.
+  // Write GOAWAY frame on the control stream to notify the client that every
+  // stream that has not reached the server yet can be retried.  Do not send a
+  // GOAWAY frame if it could not convey new information to the client with
+  // respect to the previous GOAWAY frame.
   void SendHttp3GoAway();
 
   // Write advisory GOAWAY frame on the control stream with the max stream ID
