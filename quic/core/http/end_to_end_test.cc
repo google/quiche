@@ -1496,7 +1496,11 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   EXPECT_FALSE(client_session->ReceivedInchoateReject());
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-
+  while (client_->client()->connected() &&
+         client_session->connection()->HasPendingAcks()) {
+    // Flush all pending acks.
+    client_->client()->WaitForEvents();
+  }
   VerifyCleanConnection(false);
 }
 
