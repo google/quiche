@@ -5913,6 +5913,7 @@ bool QuicFramer::ProcessStopSendingFrame(
   }
 
   if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_stop_sending_uses_ietf_error_code, 2, 2);
     stop_sending_frame->error_code =
         IetfResetStreamErrorCodeToRstStreamErrorCode(
             stop_sending_frame->ietf_error_code);
