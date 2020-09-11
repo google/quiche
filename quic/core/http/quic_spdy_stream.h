@@ -209,6 +209,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
 
   // Called when owning session is getting deleted to avoid subsequent
   // use of the spdy_session_ member.
+  // TODO(b/136274541): Remove this method once
+  // flag_quic_clean_up_spdy_session_destructor is deprecated.
   void ClearSession();
 
   // Returns true if the sequencer has delivered the FIN, and no more body bytes

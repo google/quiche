@@ -414,6 +414,12 @@ QuicSpdySession::~QuicSpdySession() {
   QUIC_BUG_IF(destruction_indicator_ != 123456789)
       << "QuicSpdyStream use after free. " << destruction_indicator_
       << QuicStackTrace();
+  destruction_indicator_ = 987654321;
+
+  if (GetQuicReloadableFlag(quic_clean_up_spdy_session_destructor)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_clean_up_spdy_session_destructor);
+    return;
+  }
   // Set the streams' session pointers in closed and dynamic stream lists
   // to null to avoid subsequent use of this session.
   for (auto& stream : *closed_streams()) {
@@ -428,7 +434,6 @@ QuicSpdySession::~QuicSpdySession() {
       static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
     }
   }
-  destruction_indicator_ = 987654321;
 }
 
 void QuicSpdySession::Initialize() {
