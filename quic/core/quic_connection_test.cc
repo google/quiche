@@ -865,6 +865,8 @@ class TestConnection : public QuicConnection {
   void set_perspective(Perspective perspective) {
     writer()->set_perspective(perspective);
     QuicConnectionPeer::SetPerspective(this, perspective);
+    QuicSentPacketManagerPeer::SetPerspective(
+        QuicConnectionPeer::GetSentPacketManager(this), perspective);
   }
 
   // Enable path MTU discovery.  Assumes that the test is performed from the
@@ -1371,7 +1373,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     } else {
       frames.push_back(QuicFrame(frame1_));
     }
-    frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+    if (level == ENCRYPTION_INITIAL) {
+      frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+    }
     std::unique_ptr<QuicPacket> packet = ConstructPacket(header, frames);
     char buffer[kMaxOutgoingPacketSize];
     peer_creator_.set_encryption_level(level);
@@ -11855,6 +11859,90 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
   EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
   EXPECT_TRUE(QuicConnectionPeer::pending_path_challenge_payloads(&connection_)
                   .empty());
+}
+
+// Regression test for b/168101557.
+TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces() ||
+      !GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2)) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
+    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  }
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+  use_tagging_decrypter();
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.HasPendingAcks());
+
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  // Send INITIAL 1.
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
+
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypter>(0x02));
+  // Send HANDSHAKE packets.
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
+
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x03));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Send half RTT packet.
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+
+  // Receives HANDSHAKE 1.
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x02));
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_HANDSHAKE);
+  // Discard INITIAL key.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  // Verify there is pending ACK.
+  ASSERT_TRUE(connection_.HasPendingAcks());
+  // Set the send alarm.
+  connection_.GetSendAlarm()->Set(clock_.ApproximateNow());
+
+  // Fire ACK alarm.
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  connection_.GetAckAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
+    // Verify 1-RTT packet is coalesced with handshake packet.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  } else {
+    // Verify handshake crypto frame is not bundled.
+    EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
+    EXPECT_FALSE(writer_->ack_frames().empty());
+    EXPECT_TRUE(writer_->crypto_frames().empty());
+  }
+  connection_.GetSendAlarm()->Fire();
+
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
+  } else {
+    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(0);
+    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
+      SendPing();
+    }));
+  }
+  connection_.GetRetransmissionAlarm()->Fire();
+  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
+    // Verify a handshake packet gets PTOed and 1-RTT packet gets coalesced.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+  } else {
+    // Verify an 1-RTT PING gets sent because there is nothing to PTO, bummer,
+    // since this 1-RTT PING cannot be processed by peer and there is a
+    // deadlock.
+    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
+    EXPECT_FALSE(writer_->ping_frames().empty());
+  }
 }
 
 }  // namespace
