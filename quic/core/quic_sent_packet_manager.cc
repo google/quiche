@@ -688,37 +688,37 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
 }
 
 bool QuicSentPacketManager::OnPacketSent(
-    SerializedPacket* serialized_packet,
+    SerializedPacket* mutable_packet,
     QuicTime sent_time,
     TransmissionType transmission_type,
     HasRetransmittableData has_retransmittable_data,
     bool measure_rtt) {
-  QuicPacketNumber packet_number = serialized_packet->packet_number;
+  const SerializedPacket& packet = *mutable_packet;
+  QuicPacketNumber packet_number = packet.packet_number;
   DCHECK_LE(FirstSendingPacketNumber(), packet_number);
   DCHECK(!unacked_packets_.IsUnacked(packet_number));
-  QUIC_BUG_IF(serialized_packet->encrypted_length == 0)
-      << "Cannot send empty packets.";
+  QUIC_BUG_IF(packet.encrypted_length == 0) << "Cannot send empty packets.";
   if (pending_timer_transmission_count_ > 0) {
     --pending_timer_transmission_count_;
   }
 
   bool in_flight = has_retransmittable_data == HAS_RETRANSMITTABLE_DATA;
   if (using_pacing_) {
-    pacing_sender_.OnPacketSent(
-        sent_time, unacked_packets_.bytes_in_flight(), packet_number,
-        serialized_packet->encrypted_length, has_retransmittable_data);
+    pacing_sender_.OnPacketSent(sent_time, unacked_packets_.bytes_in_flight(),
+                                packet_number, packet.encrypted_length,
+                                has_retransmittable_data);
   } else {
-    send_algorithm_->OnPacketSent(
-        sent_time, unacked_packets_.bytes_in_flight(), packet_number,
-        serialized_packet->encrypted_length, has_retransmittable_data);
+    send_algorithm_->OnPacketSent(sent_time, unacked_packets_.bytes_in_flight(),
+                                  packet_number, packet.encrypted_length,
+                                  has_retransmittable_data);
   }
 
-  if (serialized_packet->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+  if (packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
     one_rtt_packet_sent_ = true;
   }
 
-  unacked_packets_.AddSentPacket(serialized_packet, transmission_type,
-                                 sent_time, in_flight, measure_rtt);
+  unacked_packets_.AddSentPacket(mutable_packet, transmission_type, sent_time,
+                                 in_flight, measure_rtt);
   // Reset the retransmission timer anytime a pending packet is sent.
   return in_flight;
 }

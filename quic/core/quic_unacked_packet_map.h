@@ -30,13 +30,13 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   QuicUnackedPacketMap& operator=(const QuicUnackedPacketMap&) = delete;
   ~QuicUnackedPacketMap();
 
-  // Adds |serialized_packet| to the map and marks it as sent at |sent_time|.
+  // Adds |mutable_packet| to the map and marks it as sent at |sent_time|.
   // Marks the packet as in flight if |set_in_flight| is true.
   // Packets marked as in flight are expected to be marked as missing when they
   // don't arrive, indicating the need for retransmission.
-  // Any AckNotifierWrappers in |serialized_packet| are swapped from the
-  // serialized packet into the QuicTransmissionInfo.
-  void AddSentPacket(SerializedPacket* serialized_packet,
+  // Any retransmittible_frames in |mutable_packet| are swapped from
+  // |mutable_packet| into the QuicTransmissionInfo.
+  void AddSentPacket(SerializedPacket* mutable_packet,
                      TransmissionType transmission_type,
                      QuicTime sent_time,
                      bool set_in_flight,

@@ -189,7 +189,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // the number of bytes sent and if they were retransmitted and if this packet
   // is used for rtt measuring.  Returns true if the sender should reset the
   // retransmission timer.
-  bool OnPacketSent(SerializedPacket* serialized_packet,
+  bool OnPacketSent(SerializedPacket* mutable_packet,
                     QuicTime sent_time,
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data,
