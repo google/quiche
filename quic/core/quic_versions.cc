@@ -49,7 +49,7 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
   } else if (version == ParsedQuicVersion::Draft27()) {
     SetQuicReloadableFlag(quic_disable_version_draft_27, disable);
   } else if (version == ParsedQuicVersion::T051()) {
-    SetQuicReloadableFlag(quic_enable_version_t051, enable);
+    SetQuicReloadableFlag(quic_disable_version_t051, disable);
   } else if (version == ParsedQuicVersion::T050()) {
     SetQuicReloadableFlag(quic_disable_version_t050, disable);
   } else if (version == ParsedQuicVersion::Q050()) {
@@ -422,7 +422,7 @@ ParsedQuicVersionVector FilterSupportedVersions(
         filtered_versions.push_back(version);
       }
     } else if (version == ParsedQuicVersion::T051()) {
-      if (GetQuicReloadableFlag(quic_enable_version_t051)) {
+      if (!GetQuicReloadableFlag(quic_disable_version_t051)) {
         filtered_versions.push_back(version);
       }
     } else if (version == ParsedQuicVersion::T050()) {
