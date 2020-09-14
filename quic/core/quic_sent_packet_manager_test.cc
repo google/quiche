@@ -4141,7 +4141,6 @@ TEST_F(QuicSentPacketManagerTest, ClientOnlyTLPR) {
 }
 
 TEST_F(QuicSentPacketManagerTest, PtoWithTlpr) {
-  SetQuicReloadableFlag(quic_use_half_rtt_as_first_pto, true);
   QuicConfig config;
   QuicTagVector options;
 

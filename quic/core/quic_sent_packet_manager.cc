@@ -1258,10 +1258,8 @@ const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay(
                QuicTime::Delta::FromMilliseconds(kMinHandshakeTimeoutMs)) *
            (1 << consecutive_pto_count_);
   }
-  if (GetQuicReloadableFlag(quic_use_half_rtt_as_first_pto) &&
-      enable_half_rtt_tail_loss_probe_ && consecutive_pto_count_ == 0 &&
+  if (enable_half_rtt_tail_loss_probe_ && consecutive_pto_count_ == 0 &&
       handshake_finished_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_half_rtt_as_first_pto);
     return std::max(min_tlp_timeout_, rtt_stats_.smoothed_rtt() * 0.5);
   }
   const QuicTime::Delta rtt_var = use_standard_deviation_for_pto_
