@@ -354,9 +354,6 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   bool last_sample_is_app_limited_;
   // Indicates whether any non app-limited samples have been recorded.
   bool has_non_app_limited_sample_;
-  // Indicates app-limited calls should be ignored as long as there's
-  // enough data inflight to see more bandwidth when necessary.
-  bool flexible_app_limited_;
 
   // Current state of recovery.
   RecoveryState recovery_state_;

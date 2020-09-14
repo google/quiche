@@ -112,7 +112,6 @@ BbrSender::BbrSender(QuicTime now,
       probe_rtt_round_passed_(false),
       last_sample_is_app_limited_(false),
       has_non_app_limited_sample_(false),
-      flexible_app_limited_(false),
       recovery_state_(NOT_IN_RECOVERY),
       recovery_window_(max_congestion_window_),
       slower_startup_(false),
@@ -219,12 +218,7 @@ bool BbrSender::ShouldSendProbingPacket() const {
 
   // TODO(b/77975811): If the pipe is highly under-utilized, consider not
   // sending a probing transmission, because the extra bandwidth is not needed.
-  // If flexible_app_limited is enabled, check if the pipe is sufficiently full.
-  if (flexible_app_limited_) {
-    return !IsPipeSufficientlyFull();
-  } else {
-    return true;
-  }
+  return true;
 }
 
 bool BbrSender::IsPipeSufficientlyFull() const {
@@ -267,11 +261,6 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
   }
   if (config.HasClientRequestedIndependentOption(kBBR5, perspective)) {
     sampler_.SetMaxAckHeightTrackerWindowLength(4 * kBandwidthWindowSize);
-  }
-  if (GetQuicReloadableFlag(quic_bbr_flexible_app_limited) &&
-      config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr_flexible_app_limited);
-    flexible_app_limited_ = true;
   }
   if (config.HasClientRequestedIndependentOption(kBBQ1, perspective)) {
     set_high_gain(kDerivedHighGain);
@@ -883,9 +872,6 @@ std::string BbrSender::GetDebugState() const {
 
 void BbrSender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
   if (bytes_in_flight >= GetCongestionWindow()) {
-    return;
-  }
-  if (flexible_app_limited_ && IsPipeSufficientlyFull()) {
     return;
   }
 

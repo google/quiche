@@ -96,8 +96,7 @@ const QuicTag kBBR3 = TAG('B', 'B', 'R', '3');   // Fully drain the queue once
                                                  // per cycle
 const QuicTag kBBR4 = TAG('B', 'B', 'R', '4');   // 20 RTT ack aggregation
 const QuicTag kBBR5 = TAG('B', 'B', 'R', '5');   // 40 RTT ack aggregation
-const QuicTag kBBR9 = TAG('B', 'B', 'R', '9');   // Ignore app-limited calls in
-                                                 // BBR if enough inflight.
+const QuicTag kBBR9 = TAG('B', 'B', 'R', '9');   // DEPRECATED
 const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // DEPRECATED
 const QuicTag kBBQ1 = TAG('B', 'B', 'Q', '1');   // BBR with lower 2.77 STARTUP
                                                  // pacing and CWND gain.
