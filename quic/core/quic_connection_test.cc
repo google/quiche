@@ -11945,6 +11945,39 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
   }
 }
 
+// Regression test for b/168294218.
+TEST_P(QuicConnectionTest, InitialPacketCausedCoalescerToBeFlushed) {
+  if (!connection_.version().CanSendCoalescedPackets()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_discard_initial_packet_with_key_dropped, true);
+  // Verify only one HANDSHAKE packet gets sent.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
+  }));
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+
+  EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
+  {
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    use_tagging_decrypter();
+    ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+    connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                             std::make_unique<TaggingEncrypter>(0x01));
+    connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                             std::make_unique<TaggingEncrypter>(0x02));
+    connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    connection_.SendCryptoDataWithString(std::string(1300, 'a'), 0);
+    // Verify this packet is on hold.
+    EXPECT_EQ(0u, writer_->packets_write_attempts());
+  }
+  // Verify the INITIAL ACK packet gets discarded.
+  EXPECT_EQ(1u, connection_.GetStats().packets_discarded);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

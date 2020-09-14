@@ -2713,6 +2713,18 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           // Failed to flush coalesced packet, write error has been handled.
           return false;
         }
+        if (GetQuicReloadableFlag(
+                quic_discard_initial_packet_with_key_dropped)) {
+          QUIC_RELOADABLE_FLAG_COUNT(
+              quic_discard_initial_packet_with_key_dropped);
+          if (packet->encryption_level == ENCRYPTION_INITIAL &&
+              !framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+            // Discard initial packet since flush of coalesce packet could
+            // cause initial keys to be dropped.
+            ++stats_.packets_discarded;
+            return true;
+          }
+        }
         if (!coalesced_packet_.MaybeCoalescePacket(
                 *packet, self_address(), send_to_address,
                 helper_->GetStreamSendBufferAllocator(),
