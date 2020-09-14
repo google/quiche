@@ -1195,9 +1195,6 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  if (!GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
-    return;
-  }
 
   EXPECT_FALSE(session_.goaway_received());
   PushId push_id1 = 0;
@@ -2770,17 +2767,9 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
-    EXPECT_CALL(*connection_,
-                CloseConnection(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
-                                "GOAWAY with invalid stream ID", _));
-  } else {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(
-            QUIC_INVALID_STREAM_ID,
-            "GOAWAY's last stream id has to point to a request stream", _));
-  }
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
+                              "GOAWAY with invalid stream ID", _));
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   session_.OnHttp3GoAway(stream_id);
@@ -2788,9 +2777,6 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
 
 TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
   if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-  if (!GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
     return;
   }
 

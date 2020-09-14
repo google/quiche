@@ -110,13 +110,6 @@ bool QuicReceiveControlStream::OnGoAwayFrame(const GoAwayFrame& frame) {
     return false;
   }
 
-  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_http3_goaway_new_behavior);
-  } else if (spdy_session()->perspective() == Perspective::IS_SERVER) {
-    OnWrongFrame("Go Away");
-    return false;
-  }
-
   spdy_session()->OnHttp3GoAway(frame.id);
   return true;
 }

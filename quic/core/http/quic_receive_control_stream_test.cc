@@ -296,18 +296,8 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveGoAwayFrame) {
 
   EXPECT_CALL(debug_visitor, OnGoAwayFrameReceived(goaway));
 
-  if (!GetQuicReloadableFlag(quic_http3_goaway_new_behavior) &&
-      perspective() == Perspective::IS_SERVER) {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _));
-  }
-
   receive_control_stream_->OnStreamFrame(frame);
-  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior) ||
-      perspective() == Perspective::IS_CLIENT) {
-    EXPECT_TRUE(session_.goaway_received());
-  }
+  EXPECT_TRUE(session_.goaway_received());
 }
 
 TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {

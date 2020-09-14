@@ -664,42 +664,21 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
   QUIC_BUG_IF(!version().UsesHttp3())
       << "HTTP/3 GOAWAY received on version " << version();
 
-  if (GetQuicReloadableFlag(quic_http3_goaway_new_behavior)) {
-    if (last_received_http3_goaway_id_.has_value() &&
-        id > last_received_http3_goaway_id_.value()) {
-      CloseConnectionWithDetails(
-          QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
-          quiche::QuicheStrCat("GOAWAY received with ID ", id,
-                               " greater than previously received ID ",
-                               last_received_http3_goaway_id_.value()));
-      return;
-    }
-    last_received_http3_goaway_id_ = id;
-
-    if (perspective() == Perspective::IS_SERVER) {
-      // TODO(b/151749109): Cancel server pushes with push ID larger than |id|.
-      return;
-    }
-
-    // QuicStreamId is uint32_t.  Casting to this narrower type is well-defined
-    // and preserves the lower 32 bits.  Both IsBidirectionalStreamId() and
-    // IsIncomingStream() give correct results, because their return value is
-    // determined by the least significant two bits.
-    QuicStreamId stream_id = static_cast<QuicStreamId>(id);
-    if (!QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
-        IsIncomingStream(stream_id)) {
-      CloseConnectionWithDetails(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
-                                 "GOAWAY with invalid stream ID");
-      return;
-    }
-
-    // TODO(b/161252736): Cancel client requests with ID larger than |id|.
-    // If |id| is larger than numeric_limits<QuicStreamId>::max(), then use
-    // max() instead of downcast value.
+  if (last_received_http3_goaway_id_.has_value() &&
+      id > last_received_http3_goaway_id_.value()) {
+    CloseConnectionWithDetails(
+        QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
+        quiche::QuicheStrCat("GOAWAY received with ID ", id,
+                             " greater than previously received ID ",
+                             last_received_http3_goaway_id_.value()));
     return;
   }
+  last_received_http3_goaway_id_ = id;
 
-  DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
+  if (perspective() == Perspective::IS_SERVER) {
+    // TODO(b/151749109): Cancel server pushes with push ID larger than |id|.
+    return;
+  }
 
   // QuicStreamId is uint32_t.  Casting to this narrower type is well-defined
   // and preserves the lower 32 bits.  Both IsBidirectionalStreamId() and
@@ -708,12 +687,14 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
   QuicStreamId stream_id = static_cast<QuicStreamId>(id);
   if (!QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       IsIncomingStream(stream_id)) {
-    CloseConnectionWithDetails(
-        QUIC_INVALID_STREAM_ID,
-        "GOAWAY's last stream id has to point to a request stream");
+    CloseConnectionWithDetails(QUIC_HTTP_GOAWAY_INVALID_STREAM_ID,
+                               "GOAWAY with invalid stream ID");
     return;
   }
-  last_received_http3_goaway_id_ = id;
+
+  // TODO(b/161252736): Cancel client requests with ID larger than |id|.
+  // If |id| is larger than numeric_limits<QuicStreamId>::max(), then use
+  // max() instead of downcast value.
 }
 
 bool QuicSpdySession::OnStreamsBlockedFrame(
