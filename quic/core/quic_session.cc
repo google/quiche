@@ -1618,11 +1618,8 @@ void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
 }
 
 void QuicSession::NeuterHandshakeData() {
-  if (GetQuicReloadableFlag(quic_fix_neuter_handshake_data)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_neuter_handshake_data);
-    GetMutableCryptoStream()->NeuterStreamDataOfEncryptionLevel(
-        ENCRYPTION_HANDSHAKE);
-  }
+  GetMutableCryptoStream()->NeuterStreamDataOfEncryptionLevel(
+      ENCRYPTION_HANDSHAKE);
   connection()->OnHandshakeComplete();
 }
 
