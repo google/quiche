@@ -3804,10 +3804,7 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     }
     connection_->packet_creator_.Flush();
     if (connection_->version().CanSendCoalescedPackets()) {
-      if (connection_->packet_creator().coalesced_packet_of_higher_space()) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_coalesced_packet_of_higher_space2);
-        connection_->MaybeCoalescePacketOfHigherSpace();
-      }
+      connection_->MaybeCoalescePacketOfHigherSpace();
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();

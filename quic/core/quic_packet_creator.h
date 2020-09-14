@@ -465,10 +465,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Returns true if max_packet_length_ is currently a soft value.
   bool HasSoftMaxPacketLength() const;
 
-  bool coalesced_packet_of_higher_space() const {
-    return coalesced_packet_of_higher_space_;
-  }
-
   // Use this address to sent to the peer from now on. If this address is
   // different from the current one, flush all the queue frames first.
   void SetDefaultPeerAddress(QuicSocketAddress address);
@@ -666,9 +662,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
-
-  const bool coalesced_packet_of_higher_space_ =
-      GetQuicReloadableFlag(quic_coalesced_packet_of_higher_space2);
 
   const bool close_connection_on_serialization_failure_ =
       GetQuicReloadableFlag(quic_close_connection_on_serialization_failure);

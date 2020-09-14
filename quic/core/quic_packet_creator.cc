@@ -206,9 +206,7 @@ void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
     // Please note: this would not guarantee to fit next packet if the size of
     // packet header increases (e.g., encryption level changes).
     QUIC_DLOG(INFO) << length << " is too small to fit packet header";
-    if (coalesced_packet_of_higher_space_) {
-      RemoveSoftMaxPacketLength();
-    }
+    RemoveSoftMaxPacketLength();
     return;
   }
   QUIC_DVLOG(1) << "Setting soft max packet length to: " << length;
