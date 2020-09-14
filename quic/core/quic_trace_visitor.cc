@@ -108,6 +108,75 @@ void QuicTraceVisitor::OnPacketSent(const SerializedPacket& serialized_packet,
   }
 }
 
+void QuicTraceVisitor::OnPacketSent(
+    QuicPacketNumber packet_number,
+    QuicPacketLength packet_length,
+    bool /*has_crypto_handshake*/,
+    TransmissionType /*transmission_type*/,
+    EncryptionLevel encryption_level,
+    const QuicFrames& retransmittable_frames,
+    const QuicFrames& /*nonretransmittable_frames*/,
+    QuicTime sent_time) {
+  quic_trace::Event* event = trace_.add_events();
+  event->set_event_type(quic_trace::PACKET_SENT);
+  event->set_time_us(ConvertTimestampToRecordedFormat(sent_time));
+  event->set_packet_number(packet_number.ToUint64());
+  event->set_packet_size(packet_length);
+  event->set_encryption_level(EncryptionLevelToProto(encryption_level));
+
+  for (const QuicFrame& frame : retransmittable_frames) {
+    switch (frame.type) {
+      case STREAM_FRAME:
+      case RST_STREAM_FRAME:
+      case CONNECTION_CLOSE_FRAME:
+      case WINDOW_UPDATE_FRAME:
+      case BLOCKED_FRAME:
+      case PING_FRAME:
+      case HANDSHAKE_DONE_FRAME:
+      case ACK_FREQUENCY_FRAME:
+        PopulateFrameInfo(frame, event->add_frames());
+        break;
+
+      case PADDING_FRAME:
+      case MTU_DISCOVERY_FRAME:
+      case STOP_WAITING_FRAME:
+      case ACK_FRAME:
+        QUIC_BUG
+            << "Frames of type are not retransmittable and are not supposed "
+               "to be in retransmittable_frames";
+        break;
+
+      // New IETF frames, not used in current gQUIC version.
+      case NEW_CONNECTION_ID_FRAME:
+      case RETIRE_CONNECTION_ID_FRAME:
+      case MAX_STREAMS_FRAME:
+      case STREAMS_BLOCKED_FRAME:
+      case PATH_RESPONSE_FRAME:
+      case PATH_CHALLENGE_FRAME:
+      case STOP_SENDING_FRAME:
+      case MESSAGE_FRAME:
+      case CRYPTO_FRAME:
+      case NEW_TOKEN_FRAME:
+        break;
+
+      // Ignore gQUIC-specific frames.
+      case GOAWAY_FRAME:
+        break;
+
+      case NUM_FRAME_TYPES:
+        QUIC_BUG << "Unknown frame type encountered";
+        break;
+    }
+  }
+
+  // Output PCC DebugState on packet sent for analysis.
+  if (connection_->sent_packet_manager()
+          .GetSendAlgorithm()
+          ->GetCongestionControlType() == kPCC) {
+    PopulateTransportState(event->mutable_transport_state());
+  }
+}
+
 void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
                                          quic_trace::Frame* frame_record) {
   switch (frame.type) {

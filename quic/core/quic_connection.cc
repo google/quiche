@@ -2879,7 +2879,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     packet_send_time = packet_send_time + result.send_time_offset;
   }
 
-  if (debug_visitor_ != nullptr) {
+  if (!sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
+      debug_visitor_ != nullptr) {
     // Pass the write result to the visitor.
     debug_visitor_->OnPacketSent(*packet, packet->transmission_type,
                                  packet_send_time);
@@ -2926,6 +2927,24 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
               !sent_packet_manager_.HasInFlightPackets())
       << ENDPOINT
       << "Trying to start blackhole detection without no bytes in flight";
+
+  if (sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
+      debug_visitor_ != nullptr) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_give_sent_packet_to_debug_visitor_after_sent, 1, 2);
+    if (sent_packet_manager_.unacked_packets().empty()) {
+      QUIC_BUG << "Unacked map is empty right after packet is sent";
+    } else {
+      debug_visitor_->OnPacketSent(
+          packet->packet_number, packet->encrypted_length,
+          packet->has_crypto_handshake, packet->transmission_type,
+          packet->encryption_level,
+          sent_packet_manager_.unacked_packets()
+              .rbegin()
+              ->retransmittable_frames,
+          packet->nonretransmittable_frames, packet_send_time);
+    }
+  }
 
   if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
@@ -4026,7 +4045,8 @@ bool QuicConnection::SendGenericPathProbePacket(
     return false;
   }
 
-  if (debug_visitor_ != nullptr) {
+  if (!sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
+      debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketSent(
         *probing_packet, probing_packet->transmission_type, packet_send_time);
   }
@@ -4035,6 +4055,24 @@ bool QuicConnection::SendGenericPathProbePacket(
   sent_packet_manager_.OnPacketSent(
       probing_packet.get(), packet_send_time, probing_packet->transmission_type,
       NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+
+  if (sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
+      debug_visitor_ != nullptr) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(
+        quic_give_sent_packet_to_debug_visitor_after_sent, 2, 2);
+    if (sent_packet_manager_.unacked_packets().empty()) {
+      QUIC_BUG << "Unacked map is empty right after packet is sent";
+    } else {
+      debug_visitor_->OnPacketSent(
+          probing_packet->packet_number, probing_packet->encrypted_length,
+          probing_packet->has_crypto_handshake,
+          probing_packet->transmission_type, probing_packet->encryption_level,
+          sent_packet_manager_.unacked_packets()
+              .rbegin()
+              ->retransmittable_frames,
+          probing_packet->nonretransmittable_frames, packet_send_time);
+    }
+  }
 
   if (IsWriteBlockedStatus(result.status)) {
     if (probing_writer == writer_) {

@@ -438,6 +438,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   void OnUserAgentIdKnown() { loss_algorithm_->OnUserAgentIdKnown(); }
 
+  bool give_sent_packet_to_debug_visitor_after_sent() const {
+    return give_sent_packet_to_debug_visitor_after_sent_;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -694,6 +698,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The multiplier for caculating PTO timeout before any RTT sample is
   // available.
   float pto_multiplier_without_rtt_samples_;
+
+  const bool give_sent_packet_to_debug_visitor_after_sent_ =
+      GetQuicReloadableFlag(quic_give_sent_packet_to_debug_visitor_after_sent);
 };
 
 }  // namespace quic

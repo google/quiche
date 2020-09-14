@@ -7170,10 +7170,20 @@ TEST_P(QuicConnectionTest, OnPacketSentDebugVisitor) {
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  }
   connection_.SendStreamDataWithString(1, "foo", 0, NO_FIN);
 
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  }
   connection_.SendConnectivityProbingPacket(writer_.get(),
                                             connection_.peer_address());
 }
@@ -7300,7 +7310,12 @@ TEST_P(QuicConnectionTest, SendPingImmediately) {
   CongestionBlockWrites();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  }
   EXPECT_CALL(debug_visitor, OnPingSent()).Times(1);
   connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
   EXPECT_FALSE(connection_.HasQueuedData());
@@ -7312,7 +7327,12 @@ TEST_P(QuicConnectionTest, SendBlockedImmediately) {
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  }
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(new QuicBlockedFrame(1, 3)));
   EXPECT_EQ(1u, connection_.GetStats().blocked_frames_sent);
@@ -7328,7 +7348,12 @@ TEST_P(QuicConnectionTest, FailedToSendBlockedFrames) {
   QuicBlockedFrame blocked(1, 3);
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(0);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
+  }
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
   connection_.SendControlFrame(QuicFrame(&blocked));
   EXPECT_EQ(0u, connection_.GetStats().blocked_frames_sent);
@@ -8051,21 +8076,45 @@ TEST_P(QuicConnectionTest, SendProbingRetransmissions) {
   }
   // Expect them retransmitted in cyclic order (foo, bar, test, foo, bar...).
   QuicPacketCount sent_count = 0;
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _))
-      .WillRepeatedly(Invoke([this, &sent_count](const SerializedPacket&,
-                                                 TransmissionType, QuicTime) {
-        ASSERT_EQ(1u, writer_->stream_frames().size());
-        if (connection_.version().CanSendCoalescedPackets()) {
-          // There is a delay of sending coalesced packet, so (6, 0, 3, 6,
-          // 0...).
-          EXPECT_EQ(3 * ((sent_count + 2) % 3),
-                    writer_->stream_frames()[0]->offset);
-        } else {
-          // Identify the frames by stream offset (0, 3, 6, 0, 3...).
-          EXPECT_EQ(3 * (sent_count % 3), writer_->stream_frames()[0]->offset);
-        }
-        sent_count++;
-      }));
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _))
+        .WillRepeatedly(
+            Invoke([this, &sent_count](QuicPacketNumber, QuicPacketLength, bool,
+                                       TransmissionType, EncryptionLevel,
+                                       const QuicFrames&, const QuicFrames&,
+                                       QuicTime) {
+              ASSERT_EQ(1u, writer_->stream_frames().size());
+              if (connection_.version().CanSendCoalescedPackets()) {
+                // There is a delay of sending coalesced packet, so (6, 0, 3, 6,
+                // 0...).
+                EXPECT_EQ(3 * ((sent_count + 2) % 3),
+                          writer_->stream_frames()[0]->offset);
+              } else {
+                // Identify the frames by stream offset (0, 3, 6, 0, 3...).
+                EXPECT_EQ(3 * (sent_count % 3),
+                          writer_->stream_frames()[0]->offset);
+              }
+              sent_count++;
+            }));
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _))
+        .WillRepeatedly(Invoke([this, &sent_count](const SerializedPacket&,
+                                                   TransmissionType, QuicTime) {
+          ASSERT_EQ(1u, writer_->stream_frames().size());
+          if (connection_.version().CanSendCoalescedPackets()) {
+            // There is a delay of sending coalesced packet, so (6, 0, 3, 6,
+            // 0...).
+            EXPECT_EQ(3 * ((sent_count + 2) % 3),
+                      writer_->stream_frames()[0]->offset);
+          } else {
+            // Identify the frames by stream offset (0, 3, 6, 0, 3...).
+            EXPECT_EQ(3 * (sent_count % 3),
+                      writer_->stream_frames()[0]->offset);
+          }
+          sent_count++;
+        }));
+  }
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
   EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
@@ -8089,7 +8138,12 @@ TEST_P(QuicConnectionTest,
 
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(0);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(0);
+  }
   EXPECT_CALL(*send_algorithm_, ShouldSendProbingPacket())
       .WillRepeatedly(Return(true));
   EXPECT_CALL(visitor_, SendProbingData()).WillRepeatedly([this] {
@@ -9975,7 +10029,12 @@ TEST_P(QuicConnectionTest, SendCoalescedPackets) {
   }
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(3);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(3);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(3);
+  }
   EXPECT_CALL(debug_visitor, OnCoalescedPacketSent(_, _)).Times(1);
   EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   {
@@ -10017,7 +10076,12 @@ TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
 
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  if (connection_.sent_packet_manager()
+          .give_sent_packet_to_debug_visitor_after_sent()) {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _, _, _, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(debug_visitor, OnPacketSent(_, _, _)).Times(1);
+  }
 
   // Our TestPacketWriter normally parses the sent packet using the version
   // from the connection, so here we need to tell it to use the encapsulation

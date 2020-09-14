@@ -115,10 +115,13 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   typedef std::deque<QuicTransmissionInfo> UnackedPacketMap;
 
   typedef UnackedPacketMap::const_iterator const_iterator;
+  typedef UnackedPacketMap::const_reverse_iterator const_reverse_iterator;
   typedef UnackedPacketMap::iterator iterator;
 
   const_iterator begin() const { return unacked_packets_.begin(); }
   const_iterator end() const { return unacked_packets_.end(); }
+  const_reverse_iterator rbegin() const { return unacked_packets_.rbegin(); }
+  const_reverse_iterator rend() const { return unacked_packets_.rend(); }
   iterator begin() { return unacked_packets_.begin(); }
   iterator end() { return unacked_packets_.end(); }
 
