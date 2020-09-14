@@ -3007,9 +3007,6 @@ bool QuicConnection::ShouldDiscardPacket(EncryptionLevel encryption_level) {
 }
 
 QuicTime QuicConnection::GetPathMtuReductionDeadline() const {
-  if (!blackhole_detector_.revert_mtu_after_two_ptos()) {
-    return QuicTime::Zero();
-  }
   if (previous_validated_mtu_ == 0) {
     return QuicTime::Zero();
   }
@@ -4800,12 +4797,7 @@ void QuicConnection::OnBlackholeDetected() {
 }
 
 void QuicConnection::OnPathMtuReductionDetected() {
-  DCHECK(blackhole_detector_.revert_mtu_after_two_ptos());
-  if (MaybeRevertToPreviousMtu()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_revert_mtu_after_two_ptos, 1, 2);
-  } else {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_revert_mtu_after_two_ptos, 2, 2);
-  }
+  MaybeRevertToPreviousMtu();
 }
 
 void QuicConnection::OnHandshakeTimeout() {

@@ -77,20 +77,6 @@ TEST_F(QuicNetworkBlackholeDetectorTest, StartAndFire) {
   EXPECT_CALL(delegate_, OnPathDegradingDetected());
   alarm_->Fire();
 
-  if (!detector_.revert_mtu_after_two_ptos()) {
-    // Verify blackhole detection is still in progress.
-    EXPECT_TRUE(detector_.IsDetectionInProgress());
-    EXPECT_EQ(clock_.Now() + blackhole_delay_ - path_degrading_delay_,
-              alarm_->deadline());
-
-    // Fire blackhole detection alarm.
-    clock_.AdvanceTime(blackhole_delay_ - path_degrading_delay_);
-    EXPECT_CALL(delegate_, OnBlackholeDetected());
-    alarm_->Fire();
-    EXPECT_FALSE(detector_.IsDetectionInProgress());
-    return;
-  }
-
   // Verify path mtu reduction detection is still in progress.
   EXPECT_TRUE(detector_.IsDetectionInProgress());
   EXPECT_EQ(clock_.Now() + path_mtu_reduction_delay_ - path_degrading_delay_,
@@ -135,17 +121,10 @@ TEST_F(QuicNetworkBlackholeDetectorTest, PathDegradingFiresAndRestart) {
   EXPECT_CALL(delegate_, OnPathDegradingDetected());
   alarm_->Fire();
 
-  if (!detector_.revert_mtu_after_two_ptos()) {
-    // Verify blackhole detection is still in progress.
-    EXPECT_TRUE(detector_.IsDetectionInProgress());
-    EXPECT_EQ(clock_.Now() + blackhole_delay_ - path_degrading_delay_,
-              alarm_->deadline());
-  } else {
-    // Verify path mtu reduction detection is still in progress.
-    EXPECT_TRUE(detector_.IsDetectionInProgress());
-    EXPECT_EQ(clock_.Now() + path_mtu_reduction_delay_ - path_degrading_delay_,
-              alarm_->deadline());
-  }
+  // Verify path mtu reduction detection is still in progress.
+  EXPECT_TRUE(detector_.IsDetectionInProgress());
+  EXPECT_EQ(clock_.Now() + path_mtu_reduction_delay_ - path_degrading_delay_,
+            alarm_->deadline());
 
   // After 100ms, restart detections on forward progress.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));

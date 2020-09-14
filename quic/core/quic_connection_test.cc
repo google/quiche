@@ -5481,11 +5481,6 @@ TEST_P(QuicConnectionTest, MtuDiscoverySecondProbeFailed) {
   EXPECT_EQ(third_probe_size, connection_.max_packet_length());
 
   SendStreamDataToPeer(3, "$", stream_offset++, NO_FIN, nullptr);
-  if (!GetQuicReloadableFlag(quic_revert_mtu_after_two_ptos)) {
-    EXPECT_FALSE(connection_.PathMtuReductionDetectionInProgress());
-    return;
-  }
-
   EXPECT_TRUE(connection_.PathMtuReductionDetectionInProgress());
 
   if (connection_.PathDegradingDetectionInProgress() &&

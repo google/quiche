@@ -60,8 +60,6 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   // Returns true if |alarm_| is set.
   bool IsDetectionInProgress() const;
 
-  bool revert_mtu_after_two_ptos() const { return revert_mtu_after_two_ptos_; }
-
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicNetworkBlackholeDetectorPeer;
@@ -73,9 +71,6 @@ class QUIC_EXPORT_PRIVATE QuicNetworkBlackholeDetector {
   void UpdateAlarm() const;
 
   Delegate* delegate_;  // Not owned.
-
-  const bool revert_mtu_after_two_ptos_ =
-      GetQuicReloadableFlag(quic_revert_mtu_after_two_ptos);
 
   // Time that Delegate::OnPathDegrading will be called. 0 means no path
   // degrading detection is in progress.
