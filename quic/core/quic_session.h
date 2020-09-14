@@ -262,7 +262,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void DiscardOldEncryptionKey(EncryptionLevel level) override;
   void NeuterUnencryptedData() override;
   void NeuterHandshakeData() override;
-  void OnZeroRttRejected() override;
+  void OnZeroRttRejected(int reason) override;
   bool FillTransportParameters(TransportParameters* params) override;
   QuicErrorCode ProcessTransportParameters(const TransportParameters& params,
                                            bool is_resumption,

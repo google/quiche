@@ -526,7 +526,7 @@ void TlsClientHandshaker::HandleZeroRttReject() {
   DCHECK(session_cache_);
   // Disable encrytion to block outgoing data until 1-RTT keys are available.
   encryption_established_ = false;
-  handshaker_delegate()->OnZeroRttRejected();
+  handshaker_delegate()->OnZeroRttRejected(EarlyDataReason());
   SSL_reset_early_data_reject(ssl());
   session_cache_->ClearEarlyData(server_id_);
   AdvanceHandshake();

@@ -4574,7 +4574,7 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
 
   SendStreamDataToPeer(2, "bar", 0, NO_FIN, nullptr);
   EXPECT_FALSE(notifier_.HasLostStreamData());
-  connection_.MarkZeroRttPacketsForRetransmission();
+  connection_.MarkZeroRttPacketsForRetransmission(0);
   EXPECT_TRUE(notifier_.HasLostStreamData());
 }
 

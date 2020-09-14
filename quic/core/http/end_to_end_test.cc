@@ -1710,7 +1710,7 @@ TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
 
-  ON_CALL(visitor, OnZeroRttRejected()).WillByDefault(Invoke([this]() {
+  ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault(Invoke([this]() {
     EXPECT_FALSE(GetClientSession()->IsEncryptionEstablished());
     // Trigger an OnCanWrite() to make sure no unencrypted data will be written.
     GetClientSession()->OnCanWrite();

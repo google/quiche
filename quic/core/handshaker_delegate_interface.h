@@ -58,7 +58,7 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
 
   // Called when 0-RTT data is rejected by the server. This is only called in
   // TLS handshakes and only called on clients.
-  virtual void OnZeroRttRejected() = 0;
+  virtual void OnZeroRttRejected(int reason) = 0;
 
   // Fills in |params| with values from the delegate's QuicConfig.
   // Returns whether the operation succeeded.

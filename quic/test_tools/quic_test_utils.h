@@ -1466,7 +1466,7 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
               (const TransportParameters&),
               (override));
 
-  MOCK_METHOD(void, OnZeroRttRejected, (), (override));
+  MOCK_METHOD(void, OnZeroRttRejected, (int), (override));
 };
 
 class MockReceivedPacketManager : public QuicReceivedPacketManager {

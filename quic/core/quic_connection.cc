@@ -2482,10 +2482,10 @@ void QuicConnection::SendProbingRetransmissions() {
   }
 }
 
-void QuicConnection::MarkZeroRttPacketsForRetransmission() {
+void QuicConnection::MarkZeroRttPacketsForRetransmission(int reject_reason) {
   sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
   if (debug_visitor_ != nullptr && version().UsesTls()) {
-    debug_visitor_->OnZeroRttRejected();
+    debug_visitor_->OnZeroRttRejected(reject_reason);
   }
 }
 
