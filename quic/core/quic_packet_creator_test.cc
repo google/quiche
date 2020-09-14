@@ -2590,9 +2590,6 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddControlFrame_NotWritable) {
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest,
        WrongEncryptionLevelForStreamDataFastPath) {
-  if (!GetQuicReloadableFlag(quic_check_encryption_level_in_fast_path)) {
-    return;
-  }
   creator_.set_encryption_level(ENCRYPTION_HANDSHAKE);
   delegate_.SetCanWriteAnything();
   // Create a 10000 byte IOVector.

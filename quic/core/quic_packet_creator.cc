@@ -1340,12 +1340,9 @@ QuicConsumedData QuicPacketCreator::ConsumeDataFastPath(
     bool fin,
     size_t total_bytes_consumed) {
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
-  if (GetQuicReloadableFlag(quic_check_encryption_level_in_fast_path)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_check_encryption_level_in_fast_path);
-    if (AttemptingToSendUnencryptedStreamData()) {
-      return QuicConsumedData(total_bytes_consumed,
-                              fin && (total_bytes_consumed == write_length));
-    }
+  if (AttemptingToSendUnencryptedStreamData()) {
+    return QuicConsumedData(total_bytes_consumed,
+                            fin && (total_bytes_consumed == write_length));
   }
 
   while (total_bytes_consumed < write_length &&
