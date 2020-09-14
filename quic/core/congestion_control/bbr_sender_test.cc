@@ -1277,9 +1277,6 @@ TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
 }
 
 TEST_F(BbrSenderTest, EnableOvershootingDetection) {
-  if (!GetQuicReloadableFlag(quic_enable_overshooting_detection)) {
-    return;
-  }
   SetConnectionOption(kDTOS);
   CreateSmallBufferSetup();
   // Set a overly large initial cwnd.

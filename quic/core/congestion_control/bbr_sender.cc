@@ -291,9 +291,7 @@ void BbrSender::SetFromConfig(const QuicConfig& config,
     max_congestion_window_with_network_parameters_adjusted_ =
         100 * kDefaultTCPMSS;
   }
-  if (GetQuicReloadableFlag(quic_enable_overshooting_detection) &&
-      config.HasClientRequestedIndependentOption(kDTOS, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_overshooting_detection);
+  if (config.HasClientRequestedIndependentOption(kDTOS, perspective)) {
     detect_overshooting_ = true;
     // DTOS would allow pacing rate drop to IW 10 / min_rtt if overshooting is
     // detected.
