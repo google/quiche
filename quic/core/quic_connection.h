@@ -1481,7 +1481,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // established, but which could not be decrypted.  We buffer these on
   // the assumption that they could not be processed because they were
   // sent with the INITIAL encryption and the CHLO message was lost.
-  QuicCircularDeque<UndecryptablePacket> undecryptable_packets_;
+  std::deque<UndecryptablePacket> undecryptable_packets_;
 
   // Collection of coalesced packets which were received while processing
   // the current packet.
