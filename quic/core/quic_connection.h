@@ -1149,6 +1149,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     // This gets set to true if 1) connection sucessfully processed the packet
     // or 2) connection failed to process the packet and will not try to process
     // it later.
+    // TODO(fayang): Remove this when deprecating
+    // quic_fix_undecryptable_packets2.
     bool processed;
   };
 

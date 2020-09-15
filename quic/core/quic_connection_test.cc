@@ -10934,7 +10934,11 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
   // Verify all ENCRYPTION_HANDSHAKE packets get processed.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
-  EXPECT_EQ(4u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  if (GetQuicReloadableFlag(quic_fix_undecryptable_packets2)) {
+    EXPECT_EQ(1u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  } else {
+    EXPECT_EQ(4u, QuicConnectionPeer::NumUndecryptablePackets(&connection_));
+  }
 
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
                std::make_unique<StrictTaggingDecrypter>(0x02));
