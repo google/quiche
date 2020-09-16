@@ -2976,16 +2976,47 @@ TEST_P(QuicConnectionTest, AckReceiptCausesAckSend) {
   ProcessAckPacket(&frame2);
 }
 
-TEST_P(QuicConnectionTest, AckSentEveryNthPacket) {
-  connection_.set_ack_frequency(3);
+TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+
+  QuicAckFrequencyFrame frame;
+  frame.packet_tolerance = 3;
+
+  connection_.set_can_receive_ack_frequency_frame();
+  connection_.OnDecryptedPacket(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnAckFrequencyFrame(frame);
 
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(39);
-
   // Expect 13 acks, every 3rd packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(13);
   // Receives packets 1 - 39.
   for (size_t i = 1; i <= 39; ++i) {
+    ProcessDataPacket(i);
+  }
+}
+
+TEST_P(QuicConnectionTest,
+       AckFrequencyFrameOutsideApplicationDataNumberSpaceIsIgnored) {
+  if (!GetParam().version.HasIetfQuicFrames()) {
+    return;
+  }
+
+  QuicAckFrequencyFrame frame;
+  frame.packet_tolerance = 3;
+  connection_.set_can_receive_ack_frequency_frame();
+  connection_.OnDecryptedPacket(ENCRYPTION_HANDSHAKE);
+  connection_.OnAckFrequencyFrame(frame);
+  connection_.OnDecryptedPacket(ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(60);
+  // Expect 30 acks, every 2nd (instead of 3rd) packet.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(30);
+  // Receives packets 1 - 60.
+  for (size_t i = 1; i <= 60; ++i) {
     ProcessDataPacket(i);
   }
 }

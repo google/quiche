@@ -8,6 +8,16 @@
 
 namespace quic {
 
+QuicAckFrequencyFrame::QuicAckFrequencyFrame(
+    QuicControlFrameId control_frame_id,
+    uint64_t sequence_number,
+    uint64_t packet_tolerance,
+    QuicTime::Delta max_ack_delay)
+    : control_frame_id(control_frame_id),
+      sequence_number(sequence_number),
+      packet_tolerance(packet_tolerance),
+      max_ack_delay(max_ack_delay) {}
+
 std::ostream& operator<<(std::ostream& os, const QuicAckFrequencyFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id
      << ", sequence_number: " << frame.sequence_number

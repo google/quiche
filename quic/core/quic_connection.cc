@@ -1708,13 +1708,24 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
   return connected_;
 }
 
-bool QuicConnection::OnAckFrequencyFrame(
-    const QuicAckFrequencyFrame& /*frame*/) {
+bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
   UpdatePacketContent(ACK_FREQUENCY_FRAME);
-  // TODO(b/148614353): implement this fully.
-  QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
-  return false;
+  if (!can_receive_ack_frequency_frame_) {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
+    return false;
+  }
+  if (auto packet_number_space =
+          QuicUtils::GetPacketNumberSpace(last_decrypted_packet_level_) ==
+          APPLICATION_DATA) {
+    uber_received_packet_manager_.OnAckFrequencyFrame(frame);
+  } else {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 120)
+        << "Get AckFrequencyFrame in packet number space "
+        << packet_number_space;
+  }
+  return true;
 }
+
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
   DCHECK(connected_);
 
@@ -4798,11 +4809,6 @@ size_t QuicConnection::min_received_before_ack_decimation() const {
 void QuicConnection::set_min_received_before_ack_decimation(size_t new_value) {
   uber_received_packet_manager_.set_min_received_before_ack_decimation(
       new_value);
-}
-
-void QuicConnection::set_ack_frequency(size_t new_value) {
-  DCHECK_GT(new_value, 0u);
-  uber_received_packet_manager_.set_ack_frequency(new_value);
 }
 
 const QuicAckFrame& QuicConnection::ack_frame() const {

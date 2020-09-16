@@ -332,20 +332,6 @@ TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-TEST_F(UberReceivedPacketManagerTest, SendDelayedMaxAckDelay) {
-  EXPECT_FALSE(HasPendingAck());
-  QuicTime::Delta max_ack_delay = QuicTime::Delta::FromMilliseconds(100);
-  manager_->set_max_ack_delay(max_ack_delay);
-  QuicTime ack_time = clock_.ApproximateNow() + max_ack_delay;
-
-  RecordPacketReceipt(1, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 1);
-  CheckAckTimeout(ack_time);
-  // Simulate delayed ack alarm firing.
-  clock_.AdvanceTime(max_ack_delay);
-  CheckAckTimeout(clock_.ApproximateNow());
-}
-
 TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
   // The ack time should be based on min_rtt * 1/4, since it's less than the

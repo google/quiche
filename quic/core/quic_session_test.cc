@@ -2219,6 +2219,17 @@ TEST_P(QuicSessionTestClient, IncomingStreamWithClientInitiatedStreamId) {
   session_.OnStreamFrame(frame);
 }
 
+TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
+  if (!session_.version().HasIetfQuicFrames()) {
+    return;
+  }
+  session_.config()->SetClientConnectionOptions({kAFFE});
+  session_.Initialize();
+  ASSERT_EQ(session_.config()->GetMinAckDelayToSendMs(),
+            kDefaultMinAckDelayTimeMs);
+  ASSERT_TRUE(session_.connection()->can_receive_ack_frequency_frame());
+}
+
 TEST_P(QuicSessionTestClient, FailedToCreateStreamIfTooCloseToIdleTimeout) {
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());

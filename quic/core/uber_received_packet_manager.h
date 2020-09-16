@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_UBER_RECEIVED_PACKET_MANAGER_H_
 #define QUICHE_QUIC_CORE_UBER_RECEIVED_PACKET_MANAGER_H_
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
 
 namespace quic {
@@ -89,8 +90,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
 
   void set_max_ack_ranges(size_t max_ack_ranges);
 
-  // Set the max ack delay to use for application data.
-  void set_max_ack_delay(QuicTime::Delta max_ack_delay);
+  void OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame);
 
   void set_save_timestamps(bool save_timestamps);
 

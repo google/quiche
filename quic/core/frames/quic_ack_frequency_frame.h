@@ -21,8 +21,14 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrequencyFrame {
       std::ostream& os,
       const QuicAckFrequencyFrame& ack_frequency_frame);
 
-  // A unique identifier of this control frame. 0 when this frame is received,
-  // and non-zero when sent.
+  QuicAckFrequencyFrame() = default;
+  QuicAckFrequencyFrame(QuicControlFrameId control_frame_id,
+                        uint64_t sequence_number,
+                        uint64_t packet_tolerance,
+                        QuicTime::Delta max_ack_delay);
+
+  // A unique identifier of this control frame. 0 when this frame is
+  // received, and non-zero when sent.
   QuicControlFrameId control_frame_id = kInvalidControlFrameId;
 
   // If true, do not ack immediately upon observeation of packet reordering.
@@ -34,10 +40,11 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrequencyFrame {
 
   // The maximum number of ack-eliciting packets after which the receiver sends
   // an acknowledgement. Invald if == 0.
-  uint64_t packet_tolerance = 0;
+  uint64_t packet_tolerance = 2;
 
   // The maximum time that ack packets can be delayed.
-  QuicTime::Delta max_ack_delay = QuicTime::Delta::Zero();
+  QuicTime::Delta max_ack_delay =
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
 };
 
 }  // namespace quic

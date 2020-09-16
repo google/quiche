@@ -214,20 +214,20 @@ void UberReceivedPacketManager::set_max_ack_ranges(size_t max_ack_ranges) {
   }
 }
 
-void UberReceivedPacketManager::set_max_ack_delay(
-    QuicTime::Delta max_ack_delay) {
-  if (!supports_multiple_packet_number_spaces_) {
-    received_packet_managers_[0].set_local_max_ack_delay(max_ack_delay);
-    return;
-  }
-  received_packet_managers_[APPLICATION_DATA].set_local_max_ack_delay(
-      max_ack_delay);
-}
-
 void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_save_timestamps(save_timestamps);
   }
+}
+
+void UberReceivedPacketManager::OnAckFrequencyFrame(
+    const QuicAckFrequencyFrame& frame) {
+  if (!supports_multiple_packet_number_spaces_) {
+    QUIC_BUG << "Received AckFrequencyFrame when multiple packet number spaces "
+                "is not supported";
+    return;
+  }
+  received_packet_managers_[APPLICATION_DATA].OnAckFrequencyFrame(frame);
 }
 
 }  // namespace quic

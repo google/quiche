@@ -925,8 +925,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   size_t min_received_before_ack_decimation() const;
   void set_min_received_before_ack_decimation(size_t new_value);
 
-  void set_ack_frequency(size_t new_value);
-
   // If |defer| is true, configures the connection to defer sending packets in
   // response to an ACK to the SendAlarm. If |defer| is false, packets may be
   // sent immediately after receiving an ACK.
@@ -1029,6 +1027,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // probing packet to test the connection for liveness. Otherwise, returns
   // false.
   bool MaybeTestLiveness();
+
+  bool can_receive_ack_frequency_frame() const {
+    return can_receive_ack_frequency_frame_;
+  }
+
+  void set_can_receive_ack_frequency_frame() {
+    can_receive_ack_frequency_frame_ = true;
+  }
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
@@ -1770,6 +1776,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
   bool send_path_response_ = start_peer_migration_earlier_ &&
                              GetQuicReloadableFlag(quic_send_path_response);
+  // True if AckFrequencyFrame is supported.
+  bool can_receive_ack_frequency_frame_ = false;
 };
 
 }  // namespace quic

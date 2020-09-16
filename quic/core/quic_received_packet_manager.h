@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 #define QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 
+#include <cstddef>
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -123,6 +125,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   QuicTime ack_timeout() const { return ack_timeout_; }
 
+  void OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame);
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicReceivedPacketManagerPeer;
@@ -136,6 +140,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   QuicTime::Delta GetMaxAckDelay(QuicPacketNumber last_received_packet_number,
                                  const RttStats& rtt_stats) const;
+
+  bool AckFrequencyFrameReceived() const {
+    return last_ack_frequency_frame_sequence_number_ >= 0;
+  }
 
   // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
@@ -177,6 +185,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   bool unlimited_ack_decimation_;
   // When true, only send 1 immediate ACK when reordering is detected.
   bool one_immediate_ack_;
+  // When true, do not ack immediately upon observation of packet reordering.
+  bool ignore_order_;
 
   // The local node's maximum ack delay time. This is the maximum amount of
   // time to wait before sending an acknowledgement.
@@ -192,6 +202,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
+
+  // The sequence number of the last received AckFrequencyFrame. Negative if
+  // none received.
+  int64_t last_ack_frequency_frame_sequence_number_;
 };
 
 }  // namespace quic

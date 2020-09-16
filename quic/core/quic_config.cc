@@ -1326,6 +1326,7 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
           *error_details = "MinAckDelay is greater than MaxAckDelay.";
           return IETF_QUIC_PROTOCOL_VIOLATION;
         }
+        QUIC_RELOADABLE_FLAG_COUNT(quic_record_received_min_ack_delay);
         min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
                                            kNumMicrosPerMilli);
       }

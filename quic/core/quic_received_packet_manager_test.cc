@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <ostream>
 #include <vector>
 
@@ -530,6 +531,125 @@ TEST_P(QuicReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
     MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + i);
   }
   CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       UpdateMaxAckDelayAndAckFrequencyFromAckFrequencyFrame) {
+  EXPECT_FALSE(HasPendingAck());
+
+  QuicAckFrequencyFrame frame;
+  frame.max_ack_delay = QuicTime::Delta::FromMilliseconds(10);
+  frame.packet_tolerance = 5;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  for (int i = 1; i <= 50; ++i) {
+    RecordPacketReceipt(i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, i);
+    if (i % frame.packet_tolerance == 0) {
+      CheckAckTimeout(clock_.ApproximateNow());
+    } else {
+      CheckAckTimeout(clock_.ApproximateNow() + frame.max_ack_delay);
+    }
+  }
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       DisableOutOfOrderAckByIgnoreOrderFromAckFrequencyFrame) {
+  EXPECT_FALSE(HasPendingAck());
+
+  QuicAckFrequencyFrame frame;
+  frame.max_ack_delay = kDelayedAckTime;
+  frame.packet_tolerance = 2;
+  frame.ignore_order = true;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(4, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  // Immediate ack is sent as this is the 2nd packet of every two packets.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(3, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
+  // Don't ack as ignore_order is set by AckFrequencyFrame.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  // Immediate ack is sent as this is the 2nd packet of every two packets.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 1);
+  // Don't ack as ignore_order is set by AckFrequencyFrame.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       DisableMissingPaketsAckByIgnoreOrderFromAckFrequencyFrame) {
+  EXPECT_FALSE(HasPendingAck());
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kAFFE});
+  received_manager_.SetFromConfig(config, Perspective::IS_CLIENT);
+
+  QuicAckFrequencyFrame frame;
+  frame.max_ack_delay = kDelayedAckTime;
+  frame.packet_tolerance = 2;
+  frame.ignore_order = true;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 1);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  // Immediate ack is sent as this is the 2nd packet of every two packets.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(4, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  // Don't ack even if packet 3 is newly missing as ignore_order is set by
+  // AckFrequencyFrame.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  // Immediate ack is sent as this is the 2nd packet of every two packets.
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(7, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 7);
+  // Don't ack even if packet 6 is newly missing as ignore_order is set by
+  // AckFrequencyFrame.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       AckDecimationDisabledWhenAckFrequencyFrameIsReceived) {
+  EXPECT_FALSE(HasPendingAck());
+
+  QuicAckFrequencyFrame frame;
+  frame.max_ack_delay = kDelayedAckTime;
+  frame.packet_tolerance = 3;
+  frame.ignore_order = true;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  // Process all the packets in order so there aren't missing packets.
+  uint64_t kFirstDecimatedPacket = 101;
+  uint64_t FiftyPacketsAfterAckDecimation = kFirstDecimatedPacket + 50;
+  for (uint64_t i = 1; i < FiftyPacketsAfterAckDecimation; ++i) {
+    RecordPacketReceipt(i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, i);
+    if (i % 3 == 0) {
+      // Ack every 3 packets as decimation is disabled.
+      CheckAckTimeout(clock_.ApproximateNow());
+    } else {
+      // Ack at default delay as decimation is disabled.
+      CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+    }
+  }
 }
 
 }  // namespace

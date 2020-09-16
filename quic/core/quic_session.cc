@@ -122,6 +122,12 @@ void QuicSession::Initialize() {
   connection_->SetSessionNotifier(this);
   connection_->SetDataProducer(this);
   connection_->SetFromConfig(config_);
+  if (perspective_ == Perspective::IS_CLIENT &&
+      config_.HasClientRequestedIndependentOption(kAFFE, perspective_) &&
+      version().HasIetfQuicFrames()) {
+    connection_->set_can_receive_ack_frequency_frame();
+    config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
+  }
   if (perspective() == Perspective::IS_CLIENT && version().UsesTls() &&
       !version().HasHandshakeDone()) {
     config_.SetSupportHandshakeDone();

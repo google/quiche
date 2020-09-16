@@ -47,11 +47,13 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
+      ignore_order_(false),
       local_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs)),
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
-      was_last_packet_missing_(false) {}
+      was_last_packet_missing_(false),
+      last_ack_frequency_frame_sequence_number_(-1) {}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
@@ -194,8 +196,9 @@ void QuicReceivedPacketManager::DontWaitForPacketsBefore(
 QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
     QuicPacketNumber last_received_packet_number,
     const RttStats& rtt_stats) const {
-  if (last_received_packet_number <
-      PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
+  if (AckFrequencyFrameReceived() ||
+      last_received_packet_number < PeerFirstSendingPacketNumber() +
+                                        min_received_before_ack_decimation_) {
     return local_max_ack_delay_;
   }
 
@@ -212,6 +215,11 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
 
 void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
     QuicPacketNumber last_received_packet_number) {
+  if (AckFrequencyFrameReceived()) {
+    // Skip Ack Decimation below after receiving an AckFrequencyFrame from the
+    // other end point.
+    return;
+  }
   if (last_received_packet_number <
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return;
@@ -231,7 +239,8 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (was_last_packet_missing_ && last_sent_largest_acked_.IsInitialized() &&
+  if (!ignore_order_ && was_last_packet_missing_ &&
+      last_sent_largest_acked_.IsInitialized() &&
       last_received_packet_number < last_sent_largest_acked_) {
     // Only ack immediately if an ACK frame was sent with a larger largest acked
     // than the newly received packet number.
@@ -252,7 +261,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (HasNewMissingPackets()) {
+  if (!ignore_order_ && HasNewMissingPackets()) {
     ack_timeout_ = now;
     return;
   }
@@ -312,6 +321,19 @@ QuicPacketNumber QuicReceivedPacketManager::PeerFirstSendingPacketNumber()
 
 bool QuicReceivedPacketManager::IsAckFrameEmpty() const {
   return ack_frame_.packets.Empty();
+}
+
+void QuicReceivedPacketManager::OnAckFrequencyFrame(
+    const QuicAckFrequencyFrame& frame) {
+  int64_t new_sequence_number = frame.sequence_number;
+  if (new_sequence_number <= last_ack_frequency_frame_sequence_number_) {
+    // Ignore old ACK_FREQUENCY frames.
+    return;
+  }
+  last_ack_frequency_frame_sequence_number_ = new_sequence_number;
+  ack_frequency_ = frame.packet_tolerance;
+  local_max_ack_delay_ = frame.max_ack_delay;
+  ignore_order_ = frame.ignore_order;
 }
 
 }  // namespace quic
