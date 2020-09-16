@@ -2195,7 +2195,7 @@ TEST_F(QuicSentPacketManagerTest, UseInitialRoundTripTimeToSend) {
 TEST_F(QuicSentPacketManagerTest, ResumeConnectionState) {
   // The sent packet manager should use the RTT from CachedNetworkParameters if
   // it is provided.
-  const QuicTime::Delta kRtt = QuicTime::Delta::FromMilliseconds(1234);
+  const QuicTime::Delta kRtt = QuicTime::Delta::FromMilliseconds(123);
   CachedNetworkParameters cached_network_params;
   cached_network_params.set_min_rtt_ms(kRtt.ToMilliseconds());
 
