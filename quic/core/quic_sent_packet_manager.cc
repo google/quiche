@@ -559,6 +559,11 @@ QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
 
 bool QuicSentPacketManager::ShouldArmPtoForApplicationData() const {
   DCHECK(supports_multiple_packet_number_spaces());
+  if (GetQuicReloadableFlag(quic_fix_arm_pto_for_application_data)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_arm_pto_for_application_data);
+    // Do not arm PTO for application data until handshake gets confirmed.
+    return handshake_finished_;
+  }
   // Application data must be ignored before handshake completes (1-RTT key
   // is available). Not arming PTO for application data to prioritize the
   // completion of handshake. On the server side, handshake_finished_

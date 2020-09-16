@@ -3110,6 +3110,8 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFramesAfterPto) {
   connection_.SetFromConfig(config);
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(10);
 
@@ -9563,8 +9565,9 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   connection_.SetFromConfig(config);
   if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   }
+  connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
@@ -9614,8 +9617,9 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   connection_.SetFromConfig(config);
   if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   }
+  connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
@@ -9664,8 +9668,9 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   connection_.SetFromConfig(config);
   if (GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2)) {
     EXPECT_CALL(visitor_, GetHandshakeState())
-        .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+        .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   }
+  connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Send stream data.
@@ -10603,6 +10608,7 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   }
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   connection_.SetFromConfig(config);
+  connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
   EXPECT_EQ(MESSAGE_STATUS_SUCCESS, SendMessage("message"));

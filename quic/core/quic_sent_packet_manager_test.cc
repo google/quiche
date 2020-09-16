@@ -3327,18 +3327,32 @@ TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
 
   // Send packet 7 in handshake.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  const QuicTime packet7_sent_time = clock_.Now();
   SendDataPacket(7, ENCRYPTION_HANDSHAKE);
-  // Verify PTO timeout is now based on packet 6.
-  expected_pto_delay =
-      srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
-      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
-  EXPECT_EQ(packet6_sent_time + expected_pto_delay * 2,
-            manager_.GetRetransmissionTime());
+
+  if (GetQuicReloadableFlag(quic_fix_arm_pto_for_application_data)) {
+    expected_pto_delay =
+        srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation();
+    // Verify PTO timeout is now based on packet 7.
+    EXPECT_EQ(packet7_sent_time + expected_pto_delay * 2,
+              manager_.GetRetransmissionTime());
+
+  } else {
+    expected_pto_delay =
+        srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
+        QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
+    // Verify PTO timeout is now based on packet 6.
+    EXPECT_EQ(packet6_sent_time + expected_pto_delay * 2,
+              manager_.GetRetransmissionTime());
+  }
 
   // Neuter handshake key.
   manager_.SetHandshakeConfirmed();
   // Forward progress has been made, verify PTO counter gets reset. PTO timeout
   // is armed by left edge.
+  expected_pto_delay =
+      srtt + pto_rttvar_multiplier * rtt_stats->mean_deviation() +
+      QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs);
   EXPECT_EQ(packet4_sent_time + expected_pto_delay,
             manager_.GetRetransmissionTime());
 }
