@@ -2416,6 +2416,64 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
 }
 
+// Regression test for b/132603592: QPACK decoding unblocked after stream is
+// closed.
+TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  testing::InSequence s;
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string headers = HeadersFrame(encoded_headers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
+  stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
+
+  // Decoding is blocked because dynamic table entry has not been received yet.
+  EXPECT_FALSE(stream_->headers_decompressed());
+
+  // Decoder stream type and stream cancellation instruction.
+  auto decoder_send_stream =
+      QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
+  EXPECT_CALL(*session_,
+              WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                         /* offset = */ 0, _, _, _));
+  EXPECT_CALL(*session_,
+              WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                         /* offset = */ 1, _, _, _));
+
+  // Reset stream.
+  EXPECT_CALL(*session_,
+              SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, _, _));
+  stream_->Reset(QUIC_STREAM_CANCELLED);
+
+  if (!GetQuicReloadableFlag(quic_abort_qpack_on_stream_close)) {
+    // Header acknowledgement.
+    EXPECT_CALL(*session_,
+                WritevData(decoder_send_stream->id(), /* write_length = */ 1,
+                           /* offset = */ 2, _, _, _));
+    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
+  }
+
+  // Deliver dynamic table entry to decoder.
+  session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
+
+  if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_close)) {
+    EXPECT_FALSE(stream_->headers_decompressed());
+  } else {
+    // Verify headers.
+    EXPECT_TRUE(stream_->headers_decompressed());
+    EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
+  }
+}
+
 class QuicSpdyStreamIncrementalConsumptionTest : public QuicSpdyStreamTest {
  protected:
   QuicSpdyStreamIncrementalConsumptionTest() : offset_(0), consumed_bytes_(0) {}

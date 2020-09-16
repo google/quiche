@@ -801,6 +801,11 @@ void QuicSpdyStream::OnDataAvailable() {
 void QuicSpdyStream::OnClose() {
   QuicStream::OnClose();
 
+  if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_close)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_abort_qpack_on_stream_close);
+    qpack_decoded_headers_accumulator_.reset();
+  }
+
   if (visitor_) {
     Visitor* visitor = visitor_;
     // Calling Visitor::OnClose() may result the destruction of the visitor,
