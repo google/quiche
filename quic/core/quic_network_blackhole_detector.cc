@@ -40,12 +40,12 @@ void QuicNetworkBlackholeDetector::OnAlarm() {
     return;
   }
 
-  QUIC_DLOG(INFO) << "BlackholeDetector alarm firing. next_deadline:"
-                  << next_deadline
-                  << ", path_degrading_deadline_:" << path_degrading_deadline_
-                  << ", path_mtu_reduction_deadline_:"
-                  << path_mtu_reduction_deadline_
-                  << ", blackhole_deadline_:" << blackhole_deadline_;
+  QUIC_DVLOG(1) << "BlackholeDetector alarm firing. next_deadline:"
+                << next_deadline
+                << ", path_degrading_deadline_:" << path_degrading_deadline_
+                << ", path_mtu_reduction_deadline_:"
+                << path_mtu_reduction_deadline_
+                << ", blackhole_deadline_:" << blackhole_deadline_;
   if (path_degrading_deadline_ == next_deadline) {
     path_degrading_deadline_ = QuicTime::Zero();
     delegate_->OnPathDegradingDetected();
@@ -110,11 +110,11 @@ QuicTime QuicNetworkBlackholeDetector::GetLastDeadline() const {
 void QuicNetworkBlackholeDetector::UpdateAlarm() const {
   QuicTime next_deadline = GetEarliestDeadline();
 
-  QUIC_DLOG(INFO) << "Updating alarm. next_deadline:" << next_deadline
-                  << ", path_degrading_deadline_:" << path_degrading_deadline_
-                  << ", path_mtu_reduction_deadline_:"
-                  << path_mtu_reduction_deadline_
-                  << ", blackhole_deadline_:" << blackhole_deadline_;
+  QUIC_DVLOG(1) << "Updating alarm. next_deadline:" << next_deadline
+                << ", path_degrading_deadline_:" << path_degrading_deadline_
+                << ", path_mtu_reduction_deadline_:"
+                << path_mtu_reduction_deadline_
+                << ", blackhole_deadline_:" << blackhole_deadline_;
 
   alarm_->Update(next_deadline, kAlarmGranularity);
 }
