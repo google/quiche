@@ -151,7 +151,8 @@ class RecordingCB : public EpollCallbackInterface {
     delete recorder_;
   }
 
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int fd,
+                      int event_mask) override {
     recorder_->Record(this, REGISTRATION, fd, event_mask);
   }
 
@@ -565,7 +566,7 @@ class TestAlarm : public EpollAlarmCallbackInterface {
     }
   }
 
-  void OnShutdown(SimpleEpollServer* eps) override {
+  void OnShutdown(SimpleEpollServer* /*eps*/) override {
     onshutdown_called_ = true;
     has_token_ = false;
   }
@@ -657,7 +658,7 @@ class TestChildAlarm : public TestAlarm {
     parent_->OnShutdown(this, eps);
   }
   void OnRegistration(const SimpleEpollServer::AlarmRegToken& token,
-                      SimpleEpollServer* eps) override {
+                      SimpleEpollServer* /*eps*/) override {
     parent_->OnRegistration(this, token);
   }
 
@@ -766,7 +767,7 @@ class TestAlarmUnregister : public TestAlarm {
     delete iterator_token_;
   }
 
-  void OnShutdown(SimpleEpollServer* eps) override {
+  void OnShutdown(SimpleEpollServer* /*eps*/) override {
     onshutdown_called_ = true;
   }
 
@@ -778,7 +779,7 @@ class TestAlarmUnregister : public TestAlarm {
   }
 
   void OnRegistration(const SimpleEpollServer::AlarmRegToken& token,
-                      SimpleEpollServer* eps) override {
+                      SimpleEpollServer* /*eps*/) override {
     // Multiple iterator tokens are not maintained by this code,
     // so we should have reset the iterator_token in OnAlarm or
     // OnUnregistration.
@@ -1562,7 +1563,7 @@ class UnregisterCB : public EpollCallbackInterface {
   ~UnregisterCB() override {
   }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {
+  void OnShutdown(SimpleEpollServer* /*eps*/, int fd) override {
     eps_->UnregisterFD(fd_);
     eps_->UnregisterFD(fd);
     onshutdown_called_ = true;
@@ -1572,11 +1573,11 @@ class UnregisterCB : public EpollCallbackInterface {
   void set_epollserver(SimpleEpollServer* eps) { eps_ = eps; }
   bool onshutdown_called() { return onshutdown_called_; }
 
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {}
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
 
   std::string Name() const override { return "UnregisterCB"; }
 
@@ -1680,10 +1681,10 @@ class EpollReader: public EpollCallbackInterface {
 
   ~EpollReader() override {}
 
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
 
-  void OnModification(int fd, int event_mask) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
 
   void OnEvent(int fd, EpollEvent* event) override {
     if (event->in_events & EPOLLIN) {
@@ -1697,9 +1698,9 @@ class EpollReader: public EpollCallbackInterface {
     }
   }
 
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {
     // None of the current tests involve having active callbacks when the
     // server shuts down.
     EPOLL_LOG(FATAL);
@@ -1934,12 +1935,12 @@ class EdgeTriggerCB : public EpollCallbackInterface {
     }
   }
 
-  void OnUnregistration(int fd, bool replaced) override {
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {
     EXPECT_TRUE(eps_ != nullptr);
     eps_ = nullptr;
   }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {
     // None of the current tests involve having active callbacks when the
     // server shuts down.
     EPOLL_LOG(FATAL);
@@ -2068,17 +2069,17 @@ class UnRegisterWhileProcessingCB: public EpollCallbackInterface {
   ~UnRegisterWhileProcessingCB() override {
   }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {
     // This should cause no problems.
     eps_->UnregisterFD(fd_);
   }
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
   std::string Name() const override { return "UnRegisterWhileProcessingCB"; }
 
  protected:
@@ -2094,17 +2095,17 @@ class RegisterWhileProcessingCB: public EpollCallbackInterface {
   ~RegisterWhileProcessingCB() override {
   }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {
     // This should cause no problems.
     eps_->RegisterFDForReadWrite(fd_, cb_);
   }
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
   std::string Name() const override { return "RegisterWhileProcessingCB"; }
 
  protected:
@@ -2180,21 +2181,21 @@ TEST(SimpleEpollServerTest,
 
 class ReRegWhileReadyListOnEvent: public EpollCallbackInterface {
  public:
-  explicit ReRegWhileReadyListOnEvent(int fd) : eps_(nullptr) {}
+  explicit ReRegWhileReadyListOnEvent(int /*fd*/) : eps_(nullptr) {}
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int fd, EpollEvent* /*event_mask*/) override {
     // This should cause no problems.
     eps_->UnregisterFD(fd);
     eps_->RegisterFDForReadWrite(fd, this);
     eps_->UnregisterFD(fd);
   }
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
   std::string Name() const override { return "ReRegWhileReadyListOnEvent"; }
 
  protected:
@@ -2226,14 +2227,15 @@ class UnRegEverythingReadyListOnEvent: public EpollCallbackInterface {
   void set_fd_range(int fd_range) { fd_range_ = fd_range; }
   void set_num_called(int* num_called) { num_called_ = num_called; }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
+  void OnRegistration(SimpleEpollServer* eps, int fd,
+                      int /*event_mask*/) override {
     eps->SetFDReady(fd, EPOLLIN);
   }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {
     // This should cause no problems.
     CHECK(num_called_ != nullptr);
     ++(*num_called_);
@@ -2247,7 +2249,7 @@ class UnRegEverythingReadyListOnEvent: public EpollCallbackInterface {
       eps_->UnregisterFD(i);
     }
   }
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
   std::string Name() const override {
     return "UnRegEverythingReadyListOnEvent";
   }
@@ -2306,10 +2308,10 @@ class ApproximateNowInUsecTestCB: public EpollCallbackInterface {
  public:
   ApproximateNowInUsecTestCB() : feps_(nullptr), called_(false) {}
 
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {
     EXPECT_EQ(feps_->ApproximateNowInUsec(), feps_->NowInUsec());
     feps_->AdvanceBy(1111);
     EXPECT_EQ(1 * 1111 + feps_->ApproximateNowInUsec(), feps_->NowInUsec());
@@ -2317,8 +2319,8 @@ class ApproximateNowInUsecTestCB: public EpollCallbackInterface {
     EXPECT_EQ(2 * 1111 + feps_->ApproximateNowInUsec(), feps_->NowInUsec());
     called_ = true;
   }
-  void OnUnregistration(int fd, bool replaced) override {}
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
   std::string Name() const override { return "ApproximateNowInUsecTestCB"; }
 
   void set_fakeepollserver(FakeSimpleEpollServer* feps) { feps_ = feps; }
@@ -2374,18 +2376,18 @@ class RecordDelayOnEvent: public EpollCallbackInterface {
   ~RecordDelayOnEvent() override {
   }
 
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
 
   std::string Name() const override { return "RecordDelayOnEvent"; }
 
   void set_epoll_server(SimpleEpollServer* eps) { eps_ = eps; }
-  void OnRegistration(SimpleEpollServer* eps, int fd, int event_mask) override {
-  }
-  void OnModification(int fd, int event_mask) override {}
-  void OnEvent(int fd, EpollEvent* event) override {
+  void OnRegistration(SimpleEpollServer* /*eps*/, int /*fd*/,
+                      int /*event_mask*/) override {}
+  void OnModification(int /*fd*/, int /*event_mask*/) override {}
+  void OnEvent(int /*fd*/, EpollEvent* /*event*/) override {
     last_delay = eps_->LastDelayInUsec();
   }
-  void OnUnregistration(int fd, bool replaced) override {}
+  void OnUnregistration(int /*fd*/, bool /*replaced*/) override {}
 
   int64_t last_delay;
 

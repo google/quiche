@@ -87,7 +87,7 @@ class ReadPipeCallback : public EpollCallbackInterface {
       data_read = read(fd, &data, sizeof(data));
     }
   }
-  void OnShutdown(SimpleEpollServer* eps, int fd) override {}
+  void OnShutdown(SimpleEpollServer* /*eps*/, int /*fd*/) override {}
   void OnRegistration(SimpleEpollServer*, int, int) override {}
   void OnModification(int, int) override {}     // COV_NF_LINE
   void OnUnregistration(int, bool) override {}  // COV_NF_LINE
@@ -790,7 +790,7 @@ void EpollAlarm::OnRegistration(const SimpleEpollServer::AlarmRegToken& token,
 
 void EpollAlarm::OnUnregistration() { registered_ = false; }
 
-void EpollAlarm::OnShutdown(SimpleEpollServer* eps) {
+void EpollAlarm::OnShutdown(SimpleEpollServer* /*eps*/) {
   registered_ = false;
   eps_ = NULL;
 }

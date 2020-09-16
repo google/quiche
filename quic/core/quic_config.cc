@@ -1354,14 +1354,11 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
     }
   }
 
-  bool google_params_already_parsed = false;
   if (params.initial_round_trip_time_us.value() > 0) {
-    google_params_already_parsed = true;
     initial_round_trip_time_us_.SetReceivedValue(
         params.initial_round_trip_time_us.value());
   }
   if (params.google_connection_options.has_value()) {
-    google_params_already_parsed = true;
     connection_options_.SetReceivedValues(
         params.google_connection_options.value());
   }

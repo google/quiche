@@ -15,7 +15,7 @@ QuicStopSendingFrame::QuicStopSendingFrame(QuicControlFrameId control_frame_id,
       ietf_error_code(
           GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)
               ? RstStreamErrorCodeToIetfResetStreamErrorCode(error_code)
-              : error_code) {
+              : static_cast<uint64_t>(error_code)) {
   if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_stop_sending_uses_ietf_error_code, 1, 2);
   }

@@ -17,7 +17,8 @@ FakeSimpleEpollServer::FakeSimpleEpollServer() : until_in_usec_(-1) {}
 
 FakeSimpleEpollServer::~FakeSimpleEpollServer() = default;
 
-int FakeSimpleEpollServer::epoll_wait_impl(int epfd, struct epoll_event* events,
+int FakeSimpleEpollServer::epoll_wait_impl(int /*epfd*/,
+                                           struct epoll_event* events,
                                            int max_events, int timeout_in_ms) {
   int num_events = 0;
   while (!event_queue_.empty() && num_events < max_events &&
