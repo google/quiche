@@ -17,7 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_map_util.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_intrusive_list.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -211,7 +210,7 @@ Http2PriorityWriteScheduler<StreamIdType>::Http2PriorityWriteScheduler() {
 template <typename StreamIdType>
 bool Http2PriorityWriteScheduler<StreamIdType>::StreamRegistered(
     StreamIdType stream_id) const {
-  return quiche::QuicheContainsKey(all_stream_infos_, stream_id);
+  return all_stream_infos_.find(stream_id) != all_stream_infos_.end();
 }
 
 template <typename StreamIdType>
