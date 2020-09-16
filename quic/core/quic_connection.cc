@@ -4781,11 +4781,20 @@ SerializedPacketFate QuicConnection::GetSerializedPacketFate(
     DCHECK(!is_mtu_discovery);
     return LEGACY_VERSION_ENCAPSULATE;
   }
-  if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed() &&
-      !is_mtu_discovery) {
-    // Before receiving ACK for any 1-RTT packets, always try to coalesce
-    // packet (except MTU discovery packet).
-    return COALESCE;
+  if (version().CanSendCoalescedPackets() && !is_mtu_discovery) {
+    if (!IsHandshakeConfirmed()) {
+      // Before receiving ACK for any 1-RTT packets, always try to coalesce
+      // packet (except MTU discovery packet).
+      return COALESCE;
+    }
+    if (GetQuicReloadableFlag(quic_fix_out_of_order_sending)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_out_of_order_sending);
+      if (coalesced_packet_.length() > 0) {
+        // If the coalescer is not empty, let this packet go through coalescer
+        // to avoid potential out of order sending.
+        return COALESCE;
+      }
+    }
   }
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {
     return BUFFER;

@@ -201,6 +201,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // Enable fixes for bugs found in tests and prod.
     SetQuicRestartFlag(quic_enable_tls_resumption_v4, true);
     SetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2, true);
+    SetQuicReloadableFlag(quic_fix_out_of_order_sending, true);
   }
 
   ~EndToEndTest() override { QuicRecyclePort(server_address_.port()); }
@@ -530,8 +531,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       if (server_connection != nullptr) {
         QuicConnectionStats server_stats = server_connection->GetStats();
         if (!had_packet_loss) {
-          EXPECT_EQ(0u, server_stats.packets_lost -
-                            server_stats.packet_spuriously_detected_lost);
+          EXPECT_EQ(0u, server_stats.packets_lost);
         }
         EXPECT_EQ(0u, server_stats.packets_discarded);
         EXPECT_EQ(server_session->user_agent_id().value_or("MissingUserAgent"),
@@ -1496,11 +1496,6 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   EXPECT_FALSE(client_session->ReceivedInchoateReject());
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-  while (client_->client()->connected() &&
-         client_session->connection()->HasPendingAcks()) {
-    // Flush all pending acks.
-    client_->client()->WaitForEvents();
-  }
   VerifyCleanConnection(false);
 }
 
