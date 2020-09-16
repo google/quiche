@@ -42,12 +42,13 @@ namespace {
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
 
-class TlsServerHandshakerTest : public QuicTest {
+class TlsServerHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   TlsServerHandshakerTest()
       : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        server_id_(kServerHostname, kServerPort, false) {
+        server_id_(kServerHostname, kServerPort, false),
+        supported_versions_({GetParam()}) {
     SetQuicRestartFlag(quic_enable_tls_resumption_v4, true);
     SetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2, true);
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -223,21 +224,26 @@ class TlsServerHandshakerTest : public QuicTest {
   std::pair<size_t, size_t> moved_messages_counts_ = {0, 0};
 
   // Which QUIC versions the client and server support.
-  ParsedQuicVersionVector supported_versions_ = AllSupportedVersionsWithTls();
+  ParsedQuicVersionVector supported_versions_;
 };
 
-TEST_F(TlsServerHandshakerTest, NotInitiallyConected) {
+INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests,
+                         TlsServerHandshakerTest,
+                         ::testing::ValuesIn(AllSupportedVersionsWithTls()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(TlsServerHandshakerTest, NotInitiallyConected) {
   EXPECT_FALSE(server_stream()->encryption_established());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_F(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
+TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsServerHandshakerTest, HandshakeWithAsyncProofSource) {
+TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncProofSource) {
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it
@@ -255,7 +261,7 @@ TEST_F(TlsServerHandshakerTest, HandshakeWithAsyncProofSource) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsServerHandshakerTest, CancelPendingProofSource) {
+TEST_P(TlsServerHandshakerTest, CancelPendingProofSource) {
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it
@@ -271,7 +277,7 @@ TEST_F(TlsServerHandshakerTest, CancelPendingProofSource) {
   proof_source_->InvokePendingCallback(0);
 }
 
-TEST_F(TlsServerHandshakerTest, ExtractSNI) {
+TEST_P(TlsServerHandshakerTest, ExtractSNI) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
 
@@ -279,7 +285,7 @@ TEST_F(TlsServerHandshakerTest, ExtractSNI) {
             "test.example.com");
 }
 
-TEST_F(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
+TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
   EXPECT_CALL(*server_connection_,
               CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
 
@@ -297,7 +303,7 @@ TEST_F(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_F(TlsServerHandshakerTest, ClientSendingBadALPN) {
+TEST_P(TlsServerHandshakerTest, ClientSendingBadALPN) {
   const std::string kTestBadClientAlpn = "bad-client-alpn";
   EXPECT_CALL(*client_session_, GetAlpnsToOffer())
       .WillOnce(Return(std::vector<std::string>({kTestBadClientAlpn})));
@@ -333,7 +339,7 @@ TEST_F(TlsServerHandshakerTest, ClientSendingBadALPN) {
 #endif  // BORINGSSL_API_VERSION
 }
 
-TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {
+TEST_P(TlsServerHandshakerTest, CustomALPNNegotiation) {
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
 
@@ -357,7 +363,7 @@ TEST_F(TlsServerHandshakerTest, CustomALPNNegotiation) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_F(TlsServerHandshakerTest, RejectInvalidSNI) {
+TEST_P(TlsServerHandshakerTest, RejectInvalidSNI) {
   server_id_ = QuicServerId("invalid!.example.com", kServerPort, false);
   InitializeFakeClient();
   static_cast<TlsClientHandshaker*>(
@@ -370,7 +376,7 @@ TEST_F(TlsServerHandshakerTest, RejectInvalidSNI) {
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
 }
 
-TEST_F(TlsServerHandshakerTest, Resumption) {
+TEST_P(TlsServerHandshakerTest, Resumption) {
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -389,7 +395,7 @@ TEST_F(TlsServerHandshakerTest, Resumption) {
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
-TEST_F(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
+TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -412,7 +418,7 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
-TEST_F(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
+TEST_P(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -429,7 +435,7 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
-TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
+TEST_P(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -453,7 +459,7 @@ TEST_F(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
   EXPECT_TRUE(server_stream()->ResumptionAttempted());
 }
 
-TEST_F(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
+TEST_P(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
   InitializeServerConfigWithFailingProofSource();
   InitializeServer();
   InitializeFakeClient();
@@ -465,7 +471,7 @@ TEST_F(TlsServerHandshakerTest, HandshakeFailsWithFailingProofSource) {
   EXPECT_EQ(moved_messages_counts_.second, 0u);
 }
 
-TEST_F(TlsServerHandshakerTest, ZeroRttResumption) {
+TEST_P(TlsServerHandshakerTest, ZeroRttResumption) {
   std::vector<uint8_t> application_state = {0, 1, 2, 3};
 
   // Do the first handshake
@@ -488,7 +494,7 @@ TEST_F(TlsServerHandshakerTest, ZeroRttResumption) {
   EXPECT_TRUE(server_stream()->IsZeroRtt());
 }
 
-TEST_F(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
+TEST_P(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
   std::vector<uint8_t> original_application_state = {1, 2};
   std::vector<uint8_t> new_application_state = {3, 4};
 
