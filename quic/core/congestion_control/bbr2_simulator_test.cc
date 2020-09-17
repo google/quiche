@@ -661,10 +661,10 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
   }
 
   // Now that in-flight is almost zero and the pacing gain is still above 1,
-  // send approximately 1.25 BDPs worth of data.  This should cause the
-  // PROBE_BW mode to enter low gain cycle(PROBE_DOWN), and exit it earlier than
-  // one min_rtt due to running out of data to send.
-  sender_endpoint_.AddBytesToTransfer(1.3 * params.BDP());
+  // send approximately 1.4 BDPs worth of data. This should cause the PROBE_BW
+  // mode to enter low gain cycle(PROBE_DOWN), and exit it earlier than one
+  // min_rtt due to running out of data to send.
+  sender_endpoint_.AddBytesToTransfer(1.4 * params.BDP());
   simulator_result = simulator_.RunUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().probe_bw.phase ==

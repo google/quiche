@@ -436,10 +436,16 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     QuicByteCount queuing_threshold =
         (Params().probe_bw_probe_inflight_gain * bdp) +
         queuing_threshold_extra_bytes;
-    is_queuing = prior_in_flight >= queuing_threshold;
+    if (GetQuicReloadableFlag(quic_bbr2_use_post_inflight_to_detect_queuing)) {
+      is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
+    } else {
+      is_queuing = prior_in_flight >= queuing_threshold;
+    }
     QUIC_DVLOG(3) << sender_
                   << " Checking if building up a queue. prior_in_flight:"
-                  << prior_in_flight << ", threshold:" << queuing_threshold
+                  << prior_in_flight
+                  << ", post_in_flight:" << congestion_event.bytes_in_flight
+                  << ", threshold:" << queuing_threshold
                   << ", is_queuing:" << is_queuing
                   << ", max_bw:" << model_->MaxBandwidth()
                   << ", min_rtt:" << model_->MinRtt();
