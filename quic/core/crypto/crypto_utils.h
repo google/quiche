@@ -12,6 +12,7 @@
 #include <string>
 
 #include "third_party/boringssl/src/include/openssl/evp.h"
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -210,6 +211,9 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // Returns the name of the HandshakeFailureReason as a char*
   static const char* HandshakeFailureReasonToString(
       HandshakeFailureReason reason);
+
+  // Returns the name of an ssl_early_data_reason_t as a char*
+  static const char* EarlyDataReasonToString(ssl_early_data_reason_t reason);
 
   // Returns a hash of the serialized |message|.
   static std::string HashHandshakeMessage(const CryptoHandshakeMessage& message,

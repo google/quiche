@@ -691,6 +691,30 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
 }
 
 // static
+const char* CryptoUtils::EarlyDataReasonToString(
+    ssl_early_data_reason_t reason) {
+  switch (reason) {
+    RETURN_STRING_LITERAL(ssl_early_data_unknown);
+    RETURN_STRING_LITERAL(ssl_early_data_disabled);
+    RETURN_STRING_LITERAL(ssl_early_data_accepted);
+    RETURN_STRING_LITERAL(ssl_early_data_protocol_version);
+    RETURN_STRING_LITERAL(ssl_early_data_peer_declined);
+    RETURN_STRING_LITERAL(ssl_early_data_no_session_offered);
+    RETURN_STRING_LITERAL(ssl_early_data_session_not_resumed);
+    RETURN_STRING_LITERAL(ssl_early_data_unsupported_for_session);
+    RETURN_STRING_LITERAL(ssl_early_data_hello_retry_request);
+    RETURN_STRING_LITERAL(ssl_early_data_alpn_mismatch);
+    RETURN_STRING_LITERAL(ssl_early_data_channel_id);
+    RETURN_STRING_LITERAL(ssl_early_data_token_binding);
+    RETURN_STRING_LITERAL(ssl_early_data_ticket_age_skew);
+    RETURN_STRING_LITERAL(ssl_early_data_quic_parameter_mismatch);
+  }
+  QUIC_BUG_IF(reason < 0 || reason > ssl_early_data_reason_max_value)
+      << "Unknown ssl_early_data_reason_t " << reason;
+  return "unknown ssl_early_data_reason_t";
+}
+
+// static
 std::string CryptoUtils::HashHandshakeMessage(
     const CryptoHandshakeMessage& message,
     Perspective /*perspective*/) {
