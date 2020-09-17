@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <string>
 
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
@@ -71,6 +72,13 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Writes |data| to the QuicStream at level |level|.
   virtual void WriteCryptoData(EncryptionLevel level,
                                quiche::QuicheStringPiece data);
+
+  // Returns the ssl_early_data_reason_t describing why 0-RTT was accepted or
+  // rejected. Note that the value returned by this function may vary during the
+  // handshake. Once |one_rtt_keys_available| returns true, the value returned
+  // by this function will not change for the rest of the lifetime of the
+  // QuicCryptoStream.
+  virtual ssl_early_data_reason_t EarlyDataReason() const = 0;
 
   // Returns true once an encrypter has been set for the connection.
   virtual bool encryption_established() const = 0;

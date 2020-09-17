@@ -48,6 +48,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // TlsHandshaker which use them to implement methods of QuicCryptoStream.
   CryptoMessageParser* crypto_message_parser() { return this; }
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
+  ssl_early_data_reason_t EarlyDataReason() const;
 
  protected:
   virtual void AdvanceHandshake() = 0;

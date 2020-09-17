@@ -131,6 +131,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
   }
 
   // QuicCryptoStream implementation
+  ssl_early_data_reason_t EarlyDataReason() const override {
+    return ssl_early_data_unknown;
+  }
   bool encryption_established() const override {
     return encryption_established_;
   }

@@ -57,6 +57,10 @@ size_t TlsHandshaker::BufferSizeLimitForLevel(EncryptionLevel level) const {
       ssl(), TlsConnection::BoringEncryptionLevel(level));
 }
 
+ssl_early_data_reason_t TlsHandshaker::EarlyDataReason() const {
+  return SSL_get_early_data_reason(ssl());
+}
+
 const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
   return EVP_get_digestbynid(SSL_CIPHER_get_prf_nid(cipher));
 }

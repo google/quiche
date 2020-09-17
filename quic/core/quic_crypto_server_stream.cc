@@ -360,6 +360,16 @@ bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
   return true;
 }
 
+ssl_early_data_reason_t QuicCryptoServerStream::EarlyDataReason() const {
+  if (IsZeroRtt()) {
+    return ssl_early_data_accepted;
+  }
+  if (zero_rtt_attempted_) {
+    return ssl_early_data_session_not_resumed;
+  }
+  return ssl_early_data_no_session_offered;
+}
+
 bool QuicCryptoServerStream::encryption_established() const {
   return encryption_established_;
 }

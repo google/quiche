@@ -643,6 +643,10 @@ MockQuicCryptoStream::MockQuicCryptoStream(QuicSession* session)
 
 MockQuicCryptoStream::~MockQuicCryptoStream() {}
 
+ssl_early_data_reason_t MockQuicCryptoStream::EarlyDataReason() const {
+  return ssl_early_data_unknown;
+}
+
 bool MockQuicCryptoStream::encryption_established() const {
   return false;
 }

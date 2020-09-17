@@ -175,6 +175,10 @@ void TlsServerHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
   state_ = STATE_CONNECTION_CLOSED;
 }
 
+ssl_early_data_reason_t TlsServerHandshaker::EarlyDataReason() const {
+  return TlsHandshaker::EarlyDataReason();
+}
+
 bool TlsServerHandshaker::encryption_established() const {
   return encryption_established_;
 }

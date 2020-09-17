@@ -46,6 +46,9 @@ class MockQuicCryptoStream : public QuicCryptoStream,
 
   std::vector<CryptoHandshakeMessage>* messages() { return &messages_; }
 
+  ssl_early_data_reason_t EarlyDataReason() const override {
+    return ssl_early_data_unknown;
+  }
   bool encryption_established() const override { return false; }
   bool one_rtt_keys_available() const override { return false; }
 

@@ -296,7 +296,7 @@ bool TlsClientHandshaker::EarlyDataAccepted() const {
 }
 
 ssl_early_data_reason_t TlsClientHandshaker::EarlyDataReason() const {
-  return SSL_get_early_data_reason(ssl());
+  return TlsHandshaker::EarlyDataReason();
 }
 
 bool TlsClientHandshaker::ReceivedInchoateReject() const {
