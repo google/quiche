@@ -4168,6 +4168,13 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 }
 
 void QuicConnection::OnConnectionMigration(AddressChangeType addr_change_type) {
+  if (debug_visitor_ != nullptr) {
+    const QuicTime now = clock_->ApproximateNow();
+    if (now >= stats_.handshake_completion_time) {
+      debug_visitor_->OnPeerAddressChange(
+          addr_change_type, now - stats_.handshake_completion_time);
+    }
+  }
   visitor_->OnConnectionMigration(addr_change_type);
   sent_packet_manager_.OnConnectionMigration(addr_change_type);
 }
