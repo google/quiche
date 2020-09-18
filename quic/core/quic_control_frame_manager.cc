@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -115,6 +117,16 @@ void QuicControlFrameManager::WriteOrBufferHandshakeDone() {
   QUIC_DVLOG(1) << "Writing HANDSHAKE_DONE";
   WriteOrBufferQuicFrame(
       QuicFrame(QuicHandshakeDoneFrame(++last_control_frame_id_)));
+}
+
+void QuicControlFrameManager::WriteOrBufferAckFrequency(
+    uint64_t packet_tolerance,
+    QuicTime::Delta max_ack_delay) {
+  QUIC_DVLOG(1) << "Writing ACK_FREQUENCY frame";
+  QuicControlFrameId control_frame_id = ++last_control_frame_id_;
+  WriteOrBufferQuicFrame(QuicFrame(new QuicAckFrequencyFrame(
+      control_frame_id,
+      /*sequence_number=*/control_frame_id, packet_tolerance, max_ack_delay)));
 }
 
 void QuicControlFrameManager::WritePing() {

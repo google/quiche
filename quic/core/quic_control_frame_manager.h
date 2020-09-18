@@ -84,6 +84,11 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // be sent immediately.
   void WriteOrBufferHandshakeDone();
 
+  // Tries to send an AckFrequencyFrame. The frame is buffered if it cannot be
+  // sent immediately.
+  void WriteOrBufferAckFrequency(uint64_t packet_tolerance,
+                                 QuicTime::Delta max_ack_delay);
+
   // Sends a PING_FRAME. Do not send PING if there is buffered frames.
   void WritePing();
 

@@ -645,6 +645,13 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
                                               QuicTime ack_receive_time,
                                               QuicTime::Delta ack_delay_time,
                                               QuicTime receive_timestamp) {
+  if (info->has_ack_frequency) {
+    for (const auto& frame : info->retransmittable_frames) {
+      if (frame.type == ACK_FREQUENCY_FRAME) {
+        OnAckFrequencyFrameAcked(*frame.ack_frequency_frame);
+      }
+    }
+  }
   // Try to aggregate acked stream frames if acked packet is not a
   // retransmission.
   if (info->transmission_type == NOT_RETRANSMISSION) {
@@ -722,6 +729,13 @@ bool QuicSentPacketManager::OnPacketSent(
     one_rtt_packet_sent_ = true;
   }
 
+  if (packet.has_ack_frequency) {
+    for (const auto& frame : packet.retransmittable_frames) {
+      if (frame.type == ACK_FREQUENCY_FRAME) {
+        OnAckFrequencyFrameSent(*frame.ack_frequency_frame);
+      }
+    }
+  }
   unacked_packets_.AddSentPacket(mutable_packet, transmission_type, sent_time,
                                  in_flight, measure_rtt);
   // Reset the retransmission timer anytime a pending packet is sent.
@@ -1601,6 +1615,38 @@ bool QuicSentPacketManager::IsLessThanThreePTOs(QuicTime::Delta timeout) const {
 QuicTime::Delta QuicSentPacketManager::GetPtoDelay() const {
   return pto_enabled_ ? GetProbeTimeoutDelay(APPLICATION_DATA)
                       : GetRetransmissionDelay();
+}
+
+void QuicSentPacketManager::OnAckFrequencyFrameSent(
+    const QuicAckFrequencyFrame& ack_frequency_frame) {
+  in_use_sent_ack_delays_.emplace_back(ack_frequency_frame.max_ack_delay,
+                                       ack_frequency_frame.sequence_number);
+  if (ack_frequency_frame.max_ack_delay > peer_max_ack_delay_) {
+    peer_max_ack_delay_ = ack_frequency_frame.max_ack_delay;
+  }
+}
+
+void QuicSentPacketManager::OnAckFrequencyFrameAcked(
+    const QuicAckFrequencyFrame& ack_frequency_frame) {
+  int stale_entry_count = 0;
+  for (auto it = in_use_sent_ack_delays_.cbegin();
+       it != in_use_sent_ack_delays_.cend(); ++it) {
+    if (it->second < ack_frequency_frame.sequence_number) {
+      ++stale_entry_count;
+    } else {
+      break;
+    }
+  }
+  if (stale_entry_count > 0) {
+    in_use_sent_ack_delays_.pop_front_n(stale_entry_count);
+  }
+  if (in_use_sent_ack_delays_.empty()) {
+    QUIC_BUG << "in_use_sent_ack_delays_ is empty.";
+    return;
+  }
+  peer_max_ack_delay_ = std::max_element(in_use_sent_ack_delays_.cbegin(),
+                                         in_use_sent_ack_delays_.cend())
+                            ->first;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

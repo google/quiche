@@ -503,6 +503,7 @@ void QuicPacketCreator::ClearPacket() {
   packet_.transmission_type = NOT_RETRANSMISSION;
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
+  packet_.has_ack_frequency = false;
   packet_.fate = SEND_TO_WRITER;
   QUIC_BUG_IF(packet_.release_encrypted_buffer != nullptr)
       << "packet_.release_encrypted_buffer should be empty";
@@ -1686,9 +1687,10 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
   if (frame.type == ACK_FRAME) {
     packet_.has_ack = true;
     packet_.largest_acked = LargestAcked(*frame.ack_frame);
-  }
-  if (frame.type == STOP_WAITING_FRAME) {
+  } else if (frame.type == STOP_WAITING_FRAME) {
     packet_.has_stop_waiting = true;
+  } else if (frame.type == ACK_FREQUENCY_FRAME) {
+    packet_.has_ack_frequency = true;
   }
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnFrameAddedToPacket(frame);

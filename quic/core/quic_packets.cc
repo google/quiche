@@ -463,6 +463,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       has_stop_waiting(has_stop_waiting),
       transmission_type(NOT_RETRANSMISSION),
       has_ack_frame_copy(false),
+      has_ack_frequency(false),
       fate(SEND_TO_WRITER) {}
 
 SerializedPacket::SerializedPacket(SerializedPacket&& other)
@@ -475,6 +476,7 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       transmission_type(other.transmission_type),
       largest_acked(other.largest_acked),
       has_ack_frame_copy(other.has_ack_frame_copy),
+      has_ack_frequency(other.has_ack_frequency),
       fate(other.fate),
       peer_address(other.peer_address) {
   if (this != &other) {
@@ -519,6 +521,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->encryption_level = serialized.encryption_level;
   copy->transmission_type = serialized.transmission_type;
   copy->largest_acked = serialized.largest_acked;
+  copy->has_ack_frequency = serialized.has_ack_frequency;
   copy->fate = serialized.fate;
   copy->peer_address = serialized.peer_address;
 

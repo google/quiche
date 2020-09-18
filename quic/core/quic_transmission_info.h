@@ -25,7 +25,8 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
                        TransmissionType transmission_type,
                        QuicTime sent_time,
                        QuicPacketLength bytes_sent,
-                       bool has_crypto_handshake);
+                       bool has_crypto_handshake,
+                       bool has_ack_frequency);
 
   QuicTransmissionInfo(const QuicTransmissionInfo& other);
 
@@ -43,6 +44,8 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   SentPacketState state;
   // True if the packet contains stream data from the crypto stream.
   bool has_crypto_handshake;
+  // True if the packet contains ack frequency frame.
+  bool has_ack_frequency;
   // Records the first sent packet after this packet was detected lost. Zero if
   // this packet has not been detected lost. This is used to keep lost packet
   // for another RTT (for potential spurious loss detection)

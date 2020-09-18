@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -229,6 +230,29 @@ TEST_F(QuicControlFrameManagerTest, DonotSendPingWithBufferedFrames) {
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->HasPendingRetransmission());
   EXPECT_FALSE(manager_->WillingToWrite());
+}
+
+TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
+  Initialize();
+  InSequence s;
+  // Send Non-AckFrequency frame 1-5.
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .Times(5)
+      .WillRepeatedly(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));
+  manager_->OnCanWrite();
+
+  // Send AckFrequencyFrame as frame 6.
+  QuicAckFrequencyFrame ack_frequency = {6, 6, 10,
+                                         QuicTime::Delta::FromMilliseconds(24)};
+  manager_->WriteOrBufferAckFrequency(10,
+                                      QuicTime::Delta::FromMilliseconds(24));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillOnce(Invoke(&ClearControlFrame));
+  manager_->OnCanWrite();
+
+  // Ack AckFrequencyFrame.
+  EXPECT_TRUE(manager_->OnControlFrameAcked(QuicFrame(&ack_frequency)));
 }
 
 TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {

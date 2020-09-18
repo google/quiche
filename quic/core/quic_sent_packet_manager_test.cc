@@ -7,6 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -4228,6 +4230,184 @@ TEST_F(QuicSentPacketManagerTest, SendPathChallengeAndGetAck) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_FORWARD_SECURE));
+}
+
+SerializedPacket MakePacketWithAckFrequencyFrame(
+    int packet_number,
+    int ack_frequency_sequence_number,
+    QuicTime::Delta max_ack_delay) {
+  auto* ack_frequency_frame = new QuicAckFrequencyFrame();
+  ack_frequency_frame->max_ack_delay = max_ack_delay;
+  ack_frequency_frame->sequence_number = ack_frequency_sequence_number;
+  SerializedPacket packet(QuicPacketNumber(packet_number),
+                          PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
+                          /*has_ack=*/false,
+                          /*has_stop_waiting=*/false);
+  packet.retransmittable_frames.push_back(QuicFrame(ack_frequency_frame));
+  packet.has_ack_frequency = true;
+  packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+  return packet;
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       PeerMaxAckDelayUpdatedFromAckFrequencyFrameOneAtATime) {
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
+      .Times(AnyNumber());
+
+  auto initial_peer_max_ack_delay = manager_.peer_max_ack_delay();
+  auto one_ms = QuicTime::Delta::FromMilliseconds(1);
+  auto plus_1_ms_delay = initial_peer_max_ack_delay + one_ms;
+  auto minus_1_ms_delay = initial_peer_max_ack_delay - one_ms;
+
+  // Send and Ack frame1.
+  SerializedPacket packet1 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/1, /*ack_frequency_sequence_number=*/1,
+      plus_1_ms_delay);
+  // Higher on the fly max_ack_delay changes peer_max_ack_delay.
+  manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
+
+  // Send and Ack frame2.
+  SerializedPacket packet2 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/2, /*ack_frequency_sequence_number=*/2,
+      minus_1_ms_delay);
+  // Lower on the fly max_ack_delay does not change peer_max_ack_delay.
+  manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), plus_1_ms_delay);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), minus_1_ms_delay);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       PeerMaxAckDelayUpdatedFromInOrderAckFrequencyFrames) {
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
+      .Times(AnyNumber());
+
+  auto initial_peer_max_ack_delay = manager_.peer_max_ack_delay();
+  auto one_ms = QuicTime::Delta::FromMilliseconds(1);
+  auto extra_1_ms = initial_peer_max_ack_delay + one_ms;
+  auto extra_2_ms = initial_peer_max_ack_delay + 2 * one_ms;
+  auto extra_3_ms = initial_peer_max_ack_delay + 3 * one_ms;
+  SerializedPacket packet1 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/1, /*ack_frequency_sequence_number=*/1, extra_1_ms);
+  SerializedPacket packet2 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/2, /*ack_frequency_sequence_number=*/2, extra_3_ms);
+  SerializedPacket packet3 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/3, /*ack_frequency_sequence_number=*/3, extra_2_ms);
+
+  // Send frame1, farme2, frame3.
+  manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
+  manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
+  manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
+
+  // Ack frame1, farme2, frame3.
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_3_ms);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_2_ms);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       PeerMaxAckDelayUpdatedFromOutOfOrderAckedAckFrequencyFrames) {
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange())
+      .Times(AnyNumber());
+
+  auto initial_peer_max_ack_delay = manager_.peer_max_ack_delay();
+  auto one_ms = QuicTime::Delta::FromMilliseconds(1);
+  auto extra_1_ms = initial_peer_max_ack_delay + one_ms;
+  auto extra_2_ms = initial_peer_max_ack_delay + 2 * one_ms;
+  auto extra_3_ms = initial_peer_max_ack_delay + 3 * one_ms;
+  auto extra_4_ms = initial_peer_max_ack_delay + 4 * one_ms;
+  SerializedPacket packet1 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/1, /*ack_frequency_sequence_number=*/1, extra_4_ms);
+  SerializedPacket packet2 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/2, /*ack_frequency_sequence_number=*/2, extra_3_ms);
+  SerializedPacket packet3 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/3, /*ack_frequency_sequence_number=*/3, extra_2_ms);
+  SerializedPacket packet4 = MakePacketWithAckFrequencyFrame(
+      /*packet_number=*/4, /*ack_frequency_sequence_number=*/4, extra_1_ms);
+
+  // Send frame1, farme2, frame3, frame4.
+  manager_.OnPacketSent(&packet1, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  manager_.OnPacketSent(&packet2, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  manager_.OnPacketSent(&packet3, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  manager_.OnPacketSent(&packet4, clock_.Now(), NOT_RETRANSMISSION,
+                        NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_4_ms);
+
+  // Ack frame3.
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_2_ms);
+  // Acking frame1 do not affect peer_max_ack_delay after frame3 is acked.
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_2_ms);
+  // Acking frame2 do not affect peer_max_ack_delay after frame3 is acked.
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(4));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_2_ms);
+  // Acking frame4 updates peer_max_ack_delay.
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(5));
+  manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                         ENCRYPTION_FORWARD_SECURE);
+  EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
 }
 
 }  // namespace
