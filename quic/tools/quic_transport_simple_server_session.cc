@@ -176,6 +176,12 @@ void QuicTransportSimpleServerSession::OnIncomingDataStream(
           break;
       }
       break;
+
+    case OUTGOING_BIDIRECTIONAL:
+      stream->set_visitor(std::make_unique<DiscardVisitor>(stream));
+      ++pending_outgoing_bidirectional_streams_;
+      MaybeCreateOutgoingBidirectionalStream();
+      break;
   }
 }
 
@@ -183,6 +189,8 @@ void QuicTransportSimpleServerSession::OnCanCreateNewOutgoingStream(
     bool unidirectional) {
   if (mode_ == ECHO && unidirectional) {
     MaybeEchoStreamsBack();
+  } else if (mode_ == OUTGOING_BIDIRECTIONAL && !unidirectional) {
+    MaybeCreateOutgoingBidirectionalStream();
   }
 }
 
@@ -206,6 +214,10 @@ bool QuicTransportSimpleServerSession::ProcessPath(const GURL& url) {
   }
   if (url.path() == "/echo") {
     mode_ = ECHO;
+    return true;
+  }
+  if (url.path() == "/receive-bidirectional") {
+    mode_ = OUTGOING_BIDIRECTIONAL;
     return true;
   }
 
@@ -243,6 +255,23 @@ void QuicTransportSimpleServerSession::MaybeEchoStreamsBack() {
     stream->set_visitor(
         std::make_unique<UnidirectionalEchoWriteVisitor>(stream, data));
     stream->visitor()->OnCanWrite();
+  }
+}
+
+void QuicTransportSimpleServerSession::
+    MaybeCreateOutgoingBidirectionalStream() {
+  while (pending_outgoing_bidirectional_streams_ > 0 &&
+         CanOpenNextOutgoingBidirectionalStream()) {
+    auto stream_owned = std::make_unique<QuicTransportStream>(
+        GetNextOutgoingBidirectionalStreamId(), this, this);
+    QuicTransportStream* stream = stream_owned.get();
+    ActivateStream(std::move(stream_owned));
+    QUIC_DVLOG(1) << "Opened outgoing bidirectional stream " << stream->id();
+    stream->set_visitor(std::make_unique<BidirectionalEchoVisitor>(stream));
+    if (!stream->Write("hello")) {
+      QUIC_DVLOG(1) << "Write failed.";
+    }
+    --pending_outgoing_bidirectional_streams_;
   }
 }
 
