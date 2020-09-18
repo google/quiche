@@ -5,8 +5,11 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_ENDIAN_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_ENDIAN_H_
 
+#include <algorithm>
+#include <cstdint>
+#include <type_traits>
+
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/quiche/common/platform/impl/quiche_endian_impl.h"
 
 namespace quiche {
 
@@ -20,33 +23,38 @@ enum Endianness {
 // platform).
 class QUICHE_EXPORT_PRIVATE QuicheEndian {
  public:
-  // Convert |x| from host order (can be either little or big endian depending
-  // on the platform) to network order (big endian).
-  static uint16_t HostToNet16(uint16_t x) {
-    return QuicheEndianImpl::HostToNet16(x);
-  }
-  static uint32_t HostToNet32(uint32_t x) {
-    return QuicheEndianImpl::HostToNet32(x);
-  }
-  static uint64_t HostToNet64(uint64_t x) {
-    return QuicheEndianImpl::HostToNet64(x);
-  }
+  // Convert |x| from host order (little endian) to network order (big endian).
+#if defined(__clang__) || \
+    (defined(__GNUC__) && \
+     ((__GNUC__ == 4 && __GNUC_MINOR__ >= 8) || __GNUC__ >= 5))
+  static uint16_t HostToNet16(uint16_t x) { return __builtin_bswap16(x); }
+  static uint32_t HostToNet32(uint32_t x) { return __builtin_bswap32(x); }
+  static uint64_t HostToNet64(uint64_t x) { return __builtin_bswap64(x); }
+#else
+  static uint16_t HostToNet16(uint16_t x) { return PortableByteSwap(x); }
+  static uint32_t HostToNet32(uint32_t x) { return PortableByteSwap(x); }
+  static uint64_t HostToNet64(uint64_t x) { return PortableByteSwap(x); }
+#endif
 
-  // Convert |x| from network order (big endian) to host order (can be either
-  // little or big endian depending on the platform).
-  static uint16_t NetToHost16(uint16_t x) {
-    return QuicheEndianImpl::NetToHost16(x);
-  }
-  static uint32_t NetToHost32(uint32_t x) {
-    return QuicheEndianImpl::NetToHost32(x);
-  }
-  static uint64_t NetToHost64(uint64_t x) {
-    return QuicheEndianImpl::NetToHost64(x);
-  }
+  // Convert |x| from network order (big endian) to host order (little endian).
+  static uint16_t NetToHost16(uint16_t x) { return HostToNet16(x); }
+  static uint32_t NetToHost32(uint32_t x) { return HostToNet32(x); }
+  static uint64_t NetToHost64(uint64_t x) { return HostToNet64(x); }
 
   // Returns true if current host order is little endian.
-  static bool HostIsLittleEndian() {
-    return QuicheEndianImpl::HostIsLittleEndian();
+  static bool HostIsLittleEndian() { return true; }
+
+  // Left public for tests.
+  template <typename T>
+  static T PortableByteSwap(T input) {
+    static_assert(std::is_unsigned<T>::value, "T has to be uintNN_t");
+    union {
+      T number;
+      char bytes[sizeof(T)];
+    } value;
+    value.number = input;
+    std::reverse(std::begin(value.bytes), std::end(value.bytes));
+    return value.number;
   }
 };
 

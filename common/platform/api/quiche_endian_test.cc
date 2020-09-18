@@ -18,40 +18,33 @@ const uint64_t k64BitSwappedTestData = 0x11223344ddccbbaa;
 
 class QuicheEndianTest : public QuicheTest {};
 
+// Test portable version.  Since we normally compile with either GCC or Clang,
+// it will very rarely used otherwise.
+TEST_F(QuicheEndianTest, Portable) {
+  EXPECT_EQ(k16BitSwappedTestData,
+            QuicheEndian::PortableByteSwap(k16BitTestData));
+  EXPECT_EQ(k32BitSwappedTestData,
+            QuicheEndian::PortableByteSwap(k32BitTestData));
+  EXPECT_EQ(k64BitSwappedTestData,
+            QuicheEndian::PortableByteSwap(k64BitTestData));
+}
+
 TEST_F(QuicheEndianTest, HostToNet) {
-  if (quiche::QuicheEndian::HostIsLittleEndian()) {
-    EXPECT_EQ(k16BitSwappedTestData,
-              quiche::QuicheEndian::HostToNet16(k16BitTestData));
-    EXPECT_EQ(k32BitSwappedTestData,
-              quiche::QuicheEndian::HostToNet32(k32BitTestData));
-    EXPECT_EQ(k64BitSwappedTestData,
-              quiche::QuicheEndian::HostToNet64(k64BitTestData));
-  } else {
-    EXPECT_EQ(k16BitTestData,
-              quiche::QuicheEndian::HostToNet16(k16BitTestData));
-    EXPECT_EQ(k32BitTestData,
-              quiche::QuicheEndian::HostToNet32(k32BitTestData));
-    EXPECT_EQ(k64BitTestData,
-              quiche::QuicheEndian::HostToNet64(k64BitTestData));
-  }
+  EXPECT_EQ(k16BitSwappedTestData,
+            quiche::QuicheEndian::HostToNet16(k16BitTestData));
+  EXPECT_EQ(k32BitSwappedTestData,
+            quiche::QuicheEndian::HostToNet32(k32BitTestData));
+  EXPECT_EQ(k64BitSwappedTestData,
+            quiche::QuicheEndian::HostToNet64(k64BitTestData));
 }
 
 TEST_F(QuicheEndianTest, NetToHost) {
-  if (quiche::QuicheEndian::HostIsLittleEndian()) {
-    EXPECT_EQ(k16BitTestData,
-              quiche::QuicheEndian::NetToHost16(k16BitSwappedTestData));
-    EXPECT_EQ(k32BitTestData,
-              quiche::QuicheEndian::NetToHost32(k32BitSwappedTestData));
-    EXPECT_EQ(k64BitTestData,
-              quiche::QuicheEndian::NetToHost64(k64BitSwappedTestData));
-  } else {
-    EXPECT_EQ(k16BitSwappedTestData,
-              quiche::QuicheEndian::NetToHost16(k16BitSwappedTestData));
-    EXPECT_EQ(k32BitSwappedTestData,
-              quiche::QuicheEndian::NetToHost32(k32BitSwappedTestData));
-    EXPECT_EQ(k64BitSwappedTestData,
-              quiche::QuicheEndian::NetToHost64(k64BitSwappedTestData));
-  }
+  EXPECT_EQ(k16BitTestData,
+            quiche::QuicheEndian::NetToHost16(k16BitSwappedTestData));
+  EXPECT_EQ(k32BitTestData,
+            quiche::QuicheEndian::NetToHost32(k32BitSwappedTestData));
+  EXPECT_EQ(k64BitTestData,
+            quiche::QuicheEndian::NetToHost64(k64BitSwappedTestData));
 }
 
 }  // namespace
