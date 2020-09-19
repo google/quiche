@@ -561,16 +561,11 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
           [kTestAlpn](const std::vector<quiche::QuicheStringPiece>& alpns) {
             return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
           });
-#if BORINGSSL_API_VERSION > 10
   EXPECT_CALL(*server_connection_,
               CloseConnection(QUIC_HANDSHAKE_FAILED,
                               "TLS handshake failure (ENCRYPTION_INITIAL) 120: "
                               "no application protocol",
                               _));
-#else  // BORINGSSL_API_VERSION <= 10
-  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED,
-                                            "Server did not select ALPN", _));
-#endif  // BORINGSSL_API_VERSION
 
   stream()->CryptoConnect();
   crypto_test_utils::AdvanceHandshake(connection_, stream(), 0,
@@ -578,13 +573,8 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
 
   EXPECT_FALSE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
-#if BORINGSSL_API_VERSION > 10
   EXPECT_FALSE(stream()->encryption_established());
   EXPECT_FALSE(server_stream()->encryption_established());
-#else  // BORINGSSL_API_VERSION <= 10
-  EXPECT_TRUE(stream()->encryption_established());
-  EXPECT_TRUE(server_stream()->encryption_established());
-#endif  // BORINGSSL_API_VERSION
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRTTNotAttemptedOnALPNChange) {
