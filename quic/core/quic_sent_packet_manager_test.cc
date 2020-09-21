@@ -335,6 +335,7 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_TRUE(manager_.pto_enabled());
   }
 
+  SimpleBufferAllocator allocator_;
   QuicSentPacketManager manager_;
   MockClock clock_;
   QuicConnectionStats stats_;
@@ -4408,6 +4409,34 @@ TEST_F(QuicSentPacketManagerTest,
   manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                          ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
+}
+
+TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
+  SetQuicReloadableFlag(quic_deallocate_message_right_after_sent, true);
+
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+
+  QuicMessageFrame* message_frame = nullptr;
+  {
+    QuicMemSlice slice(MakeUniqueBuffer(&allocator_, 1024), 1024);
+    message_frame =
+        new QuicMessageFrame(/*message_id=*/1, QuicMemSliceSpan(&slice));
+    EXPECT_FALSE(message_frame->message_data.empty());
+    EXPECT_EQ(message_frame->message_length, 1024);
+
+    SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                            /*encrypted_buffer=*/nullptr, kDefaultLength,
+                            /*has_ack=*/false,
+                            /*has_stop_waiting*/ false);
+    packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+    packet.retransmittable_frames.push_back(QuicFrame(message_frame));
+    packet.has_message = true;
+    manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                          HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  }
+
+  EXPECT_TRUE(message_frame->message_data.empty());
+  EXPECT_EQ(message_frame->message_length, 0);
 }
 
 }  // namespace
