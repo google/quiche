@@ -767,7 +767,7 @@ QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
 void RecordFailToSerializePacketLocation(
     QuicFailToSerializePacketLocation location) {
   QUIC_CLIENT_HISTOGRAM_ENUM("QuicSession.FailToSerializePacketLocation",
-                             location, QUIC_FAIL_LOCATION_MAX,
+                             location, kMaxFailLocationValue,
                              "The reason why a packet fails to serialize");
 }
 

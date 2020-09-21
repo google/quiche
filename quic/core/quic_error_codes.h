@@ -622,7 +622,7 @@ enum QuicFailToSerializePacketLocation {
   kQuicFailToEncryptHandshake = 20,
   kQuicFailToEncryptZeroRtt = 21,
   kQuicFailToEncryptOneRtt = 22,
-  kMaxValue = kQuicFailToEncryptOneRtt
+  kMaxFailLocationValue = kQuicFailToEncryptOneRtt
 };
 
 QUIC_EXPORT_PRIVATE void RecordFailToSerializePacketLocation(
