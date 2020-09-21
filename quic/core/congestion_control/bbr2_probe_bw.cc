@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
@@ -165,18 +166,26 @@ void Bbr2ProbeBwMode::UpdateProbeDown(
   QUIC_DVLOG(3)
       << sender_
       << " Checking if have enough inflight headroom. prior_in_flight:"
-      << prior_in_flight
+      << prior_in_flight << " congestion_event.bytes_in_flight:"
+      << congestion_event.bytes_in_flight
       << ", inflight_with_headroom:" << inflight_with_headroom;
-  if (prior_in_flight > inflight_with_headroom) {
+  QuicByteCount bytes_in_flight = prior_in_flight;
+  if (GetQuicReloadableFlag(quic_bbr2_use_post_inflight_to_detect_queuing)) {
+    // TODO(ianswett): Remove prior_in_flight from UpdateProbeDown.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_use_post_inflight_to_detect_queuing,
+                                 2, 2);
+    bytes_in_flight = congestion_event.bytes_in_flight;
+  }
+  if (bytes_in_flight > inflight_with_headroom) {
     // Stay in PROBE_DOWN.
     return;
   }
 
   // Transition to PROBE_CRUISE iff we've drained to target.
   QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
-  QUIC_DVLOG(3) << sender_ << " Checking if drained to target. prior_in_flight:"
-                << prior_in_flight << ", bdp:" << bdp;
-  if (prior_in_flight < bdp) {
+  QUIC_DVLOG(3) << sender_ << " Checking if drained to target. bytes_in_flight:"
+                << bytes_in_flight << ", bdp:" << bdp;
+  if (bytes_in_flight < bdp) {
     EnterProbeCruise(congestion_event.event_time);
   }
 }
@@ -437,6 +446,8 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
         (Params().probe_bw_probe_inflight_gain * bdp) +
         queuing_threshold_extra_bytes;
     if (GetQuicReloadableFlag(quic_bbr2_use_post_inflight_to_detect_queuing)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(
+          quic_bbr2_use_post_inflight_to_detect_queuing, 1, 2);
       is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
     } else {
       is_queuing = prior_in_flight >= queuing_threshold;
