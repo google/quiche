@@ -204,7 +204,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     if (session_->version().UsesHttp3()) {
       SettingsFrame settings;
       settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-      settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+      settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
       settings.values[256] = 4;  // unknown setting
       session_->OnSettingsFrame(settings);
     }
@@ -969,7 +969,7 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
   CompleteCryptoHandshake();
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[256] = 4;   // unknown setting
   char application_state[] = {// type (SETTINGS)
                               0x04,
@@ -979,7 +979,7 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
                               0x01,
                               // content
                               0x02,
-                              // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+                              // identifier (SETTINGS_MAX_FIELD_SECTION_SIZE)
                               0x06,
                               // content
                               0x05,
@@ -1078,7 +1078,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   if (session_->version().UsesHttp3()) {
     SettingsFrame settings;
     settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-    settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+    settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
     settings.values[256] = 4;  // unknown setting
     session_->OnSettingsFrame(settings);
   }
@@ -1400,7 +1400,7 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttResumption) {
   // Let the session receive a different SETTINGS frame.
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[256] = 4;  // unknown setting
   session_->OnSettingsFrame(settings);
 }
@@ -1430,8 +1430,8 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttRejection) {
   // Let the session receive a different SETTINGS frame.
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
-  // setting on SETTINGS_MAX_HEADER_LIST_SIZE is reduced.
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 4;
+  // setting on SETTINGS_MAX_FIELD_SECTION_SIZE is reduced.
+  settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 4;
   settings.values[256] = 4;  // unknown setting
   session_->OnSettingsFrame(settings);
 }
@@ -1455,8 +1455,8 @@ TEST_P(QuicSpdyClientSessionTest, ServerAcceptsZeroRttButOmitSetting) {
   // Let the session receive a different SETTINGS frame.
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
-  // Intentionally omit SETTINGS_MAX_HEADER_LIST_SIZE which was previously sent
-  // with a non-zero value.
+  // Intentionally omit SETTINGS_MAX_FIELD_SECTION_SIZE which was previously
+  // sent with a non-zero value.
   settings.values[256] = 4;  // unknown setting
   session_->OnSettingsFrame(settings);
 }

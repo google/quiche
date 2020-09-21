@@ -160,7 +160,7 @@ std::string SpdyUtils::H3SettingsToString(
     Http3AndQpackSettingsIdentifiers identifier) {
   switch (identifier) {
     RETURN_STRING_LITERAL(SETTINGS_QPACK_MAX_TABLE_CAPACITY);
-    RETURN_STRING_LITERAL(SETTINGS_MAX_HEADER_LIST_SIZE);
+    RETURN_STRING_LITERAL(SETTINGS_MAX_FIELD_SECTION_SIZE);
     RETURN_STRING_LITERAL(SETTINGS_QPACK_BLOCKED_STREAMS);
   }
   return quiche::QuicheStrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");

@@ -232,12 +232,12 @@ bool QuicSpdyClientSessionBase::ShouldKeepConnectionAlive() const {
 bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
   if (!was_zero_rtt_rejected()) {
     if (max_outbound_header_list_size() != std::numeric_limits<size_t>::max() &&
-        frame.values.find(SETTINGS_MAX_HEADER_LIST_SIZE) ==
+        frame.values.find(SETTINGS_MAX_FIELD_SECTION_SIZE) ==
             frame.values.end()) {
       CloseConnectionWithDetails(
           QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
           "Server accepted 0-RTT but omitted non-default "
-          "SETTINGS_MAX_HEADER_LIST_SIZE");
+          "SETTINGS_MAX_FIELD_SECTION_SIZE");
       return false;
     }
 

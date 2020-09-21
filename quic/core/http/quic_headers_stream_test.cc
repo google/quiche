@@ -663,7 +663,7 @@ TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameSupportedFields) {
   // Respect supported settings frames SETTINGS_HEADER_TABLE_SIZE,
   // SETTINGS_MAX_HEADER_LIST_SIZE.
   data.AddSetting(SETTINGS_HEADER_TABLE_SIZE, kTestHeaderTableSize);
-  data.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 2000);
+  data.AddSetting(spdy::SETTINGS_MAX_HEADER_LIST_SIZE, 2000);
   SpdySerializedFrame frame(framer_->SerializeFrame(data));
   stream_frame_.data_buffer = frame.data();
   stream_frame_.data_length = frame.size();

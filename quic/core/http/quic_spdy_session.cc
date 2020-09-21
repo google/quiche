@@ -475,7 +475,7 @@ void QuicSpdySession::FillSettingsFrame() {
       qpack_maximum_dynamic_table_capacity_;
   settings_.values[SETTINGS_QPACK_BLOCKED_STREAMS] =
       qpack_maximum_blocked_streams_;
-  settings_.values[SETTINGS_MAX_HEADER_LIST_SIZE] =
+  settings_.values[SETTINGS_MAX_FIELD_SECTION_SIZE] =
       max_inbound_header_list_size_;
 }
 
@@ -1000,9 +1000,9 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
             std::min(value, qpack_maximum_dynamic_table_capacity_));
         break;
       }
-      case SETTINGS_MAX_HEADER_LIST_SIZE:
+      case SETTINGS_MAX_FIELD_SECTION_SIZE:
         QUIC_DVLOG(1) << ENDPOINT
-                      << "SETTINGS_MAX_HEADER_LIST_SIZE received with value "
+                      << "SETTINGS_MAX_FIELD_SECTION_SIZE received with value "
                       << value;
         if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2) &&
             max_outbound_header_list_size_ !=
@@ -1016,7 +1016,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                   was_zero_rtt_rejected()
                       ? "Server rejected 0-RTT, aborting because "
                       : "",
-                  "Server sent an SETTINGS_MAX_HEADER_LIST_SIZE: ", value,
+                  "Server sent an SETTINGS_MAX_FIELD_SECTION_SIZE: ", value,
                   "which reduces current value: ",
                   max_outbound_header_list_size_));
           return false;

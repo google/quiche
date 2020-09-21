@@ -2415,7 +2415,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
 
   SettingsFrame settings;
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 512;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[SETTINGS_QPACK_BLOCKED_STREAMS] = 42;
   std::string data = EncodeSettings(settings);
   QuicStreamFrame frame(stream_id, false, 1, quiche::QuicheStringPiece(data));
@@ -2448,7 +2448,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   char type[] = {kControlStream};
   SettingsFrame settings;
   settings.values[3] = 2;
-  settings.values[SETTINGS_MAX_HEADER_LIST_SIZE] = 5;
+  settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   std::string data = EncodeSettings(settings);
 
   QuicStreamFrame data1(stream_id, false, 1, quiche::QuicheStringPiece(data));
@@ -2857,7 +2857,7 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
   if (VersionUsesHttp3(transport_version())) {
     EXPECT_EQ(std::numeric_limits<size_t>::max(),
               session_.max_outbound_header_list_size());
-    session_.OnSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 5);
+    session_.OnSetting(SETTINGS_MAX_FIELD_SECTION_SIZE, 5);
     EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 
     EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
@@ -2878,7 +2878,7 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
 
   EXPECT_EQ(std::numeric_limits<size_t>::max(),
             session_.max_outbound_header_list_size());
-  session_.OnSetting(SETTINGS_MAX_HEADER_LIST_SIZE, 5);
+  session_.OnSetting(SETTINGS_MAX_FIELD_SECTION_SIZE, 5);
   EXPECT_EQ(5u, session_.max_outbound_header_list_size());
 
   EXPECT_TRUE(session_.server_push_enabled());

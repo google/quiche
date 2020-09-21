@@ -2666,7 +2666,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   if (!version_.UsesHttp3()) {
     SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
     SpdySettingsIR settings_frame;
-    settings_frame.AddSetting(SETTINGS_MAX_HEADER_LIST_SIZE,
+    settings_frame.AddSetting(spdy::SETTINGS_MAX_HEADER_LIST_SIZE,
                               kDefaultMaxUncompressedHeaderSize);
     SpdySerializedFrame frame(spdy_framer.SerializeFrame(settings_frame));
 
