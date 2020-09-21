@@ -598,6 +598,36 @@ QUIC_EXPORT_PRIVATE inline std::string HistogramEnumDescription(
   return "cause";
 }
 
+enum QuicFailToSerializePacketLocation {
+  kQuicFailToAppendPacketHeaderFastPath = 0,
+  kQuicFailToAppendTypeFastPath = 1,
+  kQuicFailToAppendStreamFrameFastPath = 2,
+  kQuicFailToAddPaddingFastPath = 3,
+  kQuicFailToWriteIetfLongHeaderLengthFastPath = 4,
+  kQuicFailToEncryptPacketFastPath = 5,
+  kQuicSerializePacketNonEmptyBuffer = 6,
+  kQuicMissingInitialKey = 7,
+  kQuicMissingHandshakeKey = 8,
+  kQuicMissingZeroRttKey = 9,
+  kQuicMissingOneRttKey = 10,
+  kQuicFailToBuildPacketWithPaddingInitial = 11,
+  kQuicFailToBuildPacketInitial = 12,
+  kQuicFailToBuildPacketWithPaddingHandshake = 13,
+  kQuicFailToBuildPacketHandshake = 14,
+  kQuicFailToBuildPacketWithPaddingZeroRtt = 15,
+  kQuicFailToBuildPacketZeroRtt = 16,
+  kQuicFailToBuildPacketWithPaddingOneRtt = 17,
+  kQuicFailToBuildPacketOneRtt = 18,
+  kQuicFailToEncryptInitial = 19,
+  kQuicFailToEncryptHandshake = 20,
+  kQuicFailToEncryptZeroRtt = 21,
+  kQuicFailToEncryptOneRtt = 22,
+  kMaxValue = kQuicFailToEncryptOneRtt
+};
+
+QUIC_EXPORT_PRIVATE void RecordFailToSerializePacketLocation(
+    QuicFailToSerializePacketLocation location);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_ERROR_CODES_H_
