@@ -24,16 +24,13 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);
   // We don't actually need the TicketCrypter here, but we need to know
   // whether it's set.
-  if (GetQuicRestartFlag(quic_enable_tls_resumption_v4) &&
-      proof_source->GetTicketCrypter()) {
+  if (proof_source->GetTicketCrypter()) {
     SSL_CTX_set_ticket_aead_method(ssl_ctx.get(),
                                    &TlsServerConnection::kSessionTicketMethod);
-    QUIC_CODE_COUNT_N(quic_tls_resumption_ticket_method, 1, 2);
     if (GetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2)) {
       SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
     }
   } else {
-    QUIC_CODE_COUNT_N(quic_tls_resumption_ticket_method, 2, 2);
     SSL_CTX_set_options(ssl_ctx.get(), SSL_OP_NO_TICKET);
   }
   return ssl_ctx;

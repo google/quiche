@@ -446,7 +446,6 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
                                            size_t* out_len,
                                            size_t max_out_len,
                                            quiche::QuicheStringPiece in) {
-  QUIC_CODE_COUNT(quic_tls_ticket_seal);
   DCHECK(proof_source_->GetTicketCrypter());
   std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
   if (max_out_len < ticket.size()) {
@@ -466,7 +465,6 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
     size_t* out_len,
     size_t max_out_len,
     quiche::QuicheStringPiece in) {
-  QUIC_CODE_COUNT(quic_tls_ticket_open);
   DCHECK(proof_source_->GetTicketCrypter());
 
   if (!ticket_decryption_callback_) {
@@ -500,7 +498,6 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   memcpy(out, decrypted_session_ticket_.data(),
          decrypted_session_ticket_.size());
   *out_len = decrypted_session_ticket_.size();
-  QUIC_RESTART_FLAG_COUNT(quic_enable_tls_resumption_v4);
 
   return ssl_ticket_aead_success;
 }
