@@ -13,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -128,6 +129,11 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
       config.HasClientRequestedIndependentOption(kB2HI, perspective)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_limit_inflight_hi);
     params_.limit_inflight_hi_by_cwnd = true;
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_use_tcp_inflight_hi_headroom) &&
+      config.HasClientRequestedIndependentOption(kB2HR, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_use_tcp_inflight_hi_headroom);
+    params_.inflight_hi_headroom = 0.15;
   }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
