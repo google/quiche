@@ -415,13 +415,16 @@ void QuicPacketCreator::CreateStreamFrame(QuicStreamId id,
                                           QuicStreamOffset offset,
                                           bool fin,
                                           QuicFrame* frame) {
-  DCHECK_GT(
-      max_packet_length_,
-      StreamFramePacketOverhead(
-          framer_->transport_version(), GetDestinationConnectionIdLength(),
-          GetSourceConnectionIdLength(), kIncludeVersion,
-          IncludeNonceInPublicHeader(), PACKET_6BYTE_PACKET_NUMBER,
-          GetRetryTokenLengthLength(), GetLengthLength(), offset));
+  // Make sure max_packet_length_ is greater than the largest possible overhead
+  // or max_packet_length_ is set to the soft limit.
+  DCHECK(max_packet_length_ >
+             StreamFramePacketOverhead(
+                 framer_->transport_version(),
+                 GetDestinationConnectionIdLength(),
+                 GetSourceConnectionIdLength(), kIncludeVersion,
+                 IncludeNonceInPublicHeader(), PACKET_6BYTE_PACKET_NUMBER,
+                 GetRetryTokenLengthLength(), GetLengthLength(), offset) ||
+         latched_hard_max_packet_length_ > 0);
 
   QUIC_BUG_IF(!HasRoomForStreamFrame(id, offset, data_size))
       << "No room for Stream frame, BytesFree: " << BytesFree()
