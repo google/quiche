@@ -386,10 +386,16 @@ void TlsClientHandshaker::SetWriteSecret(
   if (level == ENCRYPTION_FORWARD_SECURE || level == ENCRYPTION_ZERO_RTT) {
     encryption_established_ = true;
   }
-  if (level == ENCRYPTION_FORWARD_SECURE) {
+  const bool postpone_discarding_zero_rtt_keys =
+      GetQuicReloadableFlag(quic_postpone_discarding_zero_rtt_keys);
+  if (!postpone_discarding_zero_rtt_keys &&
+      level == ENCRYPTION_FORWARD_SECURE) {
     handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_ZERO_RTT);
   }
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
+  if (postpone_discarding_zero_rtt_keys && level == ENCRYPTION_FORWARD_SECURE) {
+    handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_ZERO_RTT);
+  }
 }
 
 void TlsClientHandshaker::OnHandshakeConfirmed() {
