@@ -598,6 +598,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // has been sent, in which case |max_push_id_| has the value sent in the most
   // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
   bool http3_max_push_id_sent_;
+
+  // Latched value of reloadable flag quic_reject_spdy_settings.
+  const bool reject_spdy_settings_;
 };
 
 }  // namespace quic

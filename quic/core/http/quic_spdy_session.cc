@@ -404,7 +404,8 @@ QuicSpdySession::QuicSpdySession(
       server_push_enabled_(true),
       ietf_server_push_enabled_(
           GetQuicFlag(FLAGS_quic_enable_http3_server_push)),
-      http3_max_push_id_sent_(false) {
+      http3_max_push_id_sent_(false),
+      reject_spdy_settings_(GetQuicReloadableFlag(quic_reject_spdy_settings)) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
@@ -970,6 +971,9 @@ bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
 
 bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
   if (VersionUsesHttp3(transport_version())) {
+    if (reject_spdy_settings_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_reject_spdy_settings);
+    }
     // SETTINGS frame received on the control stream.
     switch (id) {
       case SETTINGS_QPACK_MAX_TABLE_CAPACITY: {
@@ -1044,6 +1048,21 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         }
         break;
       }
+      case spdy::SETTINGS_ENABLE_PUSH:
+        QUIC_FALLTHROUGH_INTENDED;
+      case spdy::SETTINGS_MAX_CONCURRENT_STREAMS:
+        QUIC_FALLTHROUGH_INTENDED;
+      case spdy::SETTINGS_INITIAL_WINDOW_SIZE:
+        QUIC_FALLTHROUGH_INTENDED;
+      case spdy::SETTINGS_MAX_FRAME_SIZE:
+        if (reject_spdy_settings_) {
+          CloseConnectionWithDetails(
+              QUIC_HTTP_RECEIVE_SPDY_SETTING,
+              quiche::QuicheStrCat(
+                  "received HTTP/2 specific setting in HTTP/3 session: ", id));
+          return false;
+        }
+        break;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
                       << " received with value " << value;

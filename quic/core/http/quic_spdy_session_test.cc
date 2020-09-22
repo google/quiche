@@ -2447,7 +2447,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
       GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
   char type[] = {kControlStream};
   SettingsFrame settings;
-  settings.values[3] = 2;
+  settings.values[10] = 2;
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   std::string data = EncodeSettings(settings);
 
@@ -3102,6 +3102,25 @@ TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfSetToDefaut) {
   InSequence s;
   EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
   CompleteHandshake();
+}
+
+TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
+  if (!VersionUsesHttp3(transport_version()) ||
+      !GetQuicReloadableFlag(quic_reject_spdy_settings)) {
+    return;
+  }
+
+  SettingsFrame frame;
+  frame.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
+  // https://datatracker.ietf.org/doc/html/draft-ietf-quic-http-30#appendix-A.3
+  // specifies the presence of HTTP/2 setting as error.
+  frame.values[spdy::SETTINGS_INITIAL_WINDOW_SIZE] = 100;
+
+  CompleteHandshake();
+
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_HTTP_RECEIVE_SPDY_SETTING, _, _));
+  session_.OnSettingsFrame(frame);
 }
 
 }  // namespace
