@@ -3112,7 +3112,7 @@ TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
 
   SettingsFrame frame;
   frame.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
-  // https://datatracker.ietf.org/doc/html/draft-ietf-quic-http-30#appendix-A.3
+  // https://datatracker.ietf.org/doc/html/draft-ietf-quic-http-30#section-7.2.4.1
   // specifies the presence of HTTP/2 setting as error.
   frame.values[spdy::SETTINGS_INITIAL_WINDOW_SIZE] = 100;
 
