@@ -1723,6 +1723,7 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
         << "Get AckFrequencyFrame in packet number space "
         << packet_number_space;
   }
+  MaybeUpdateAckTimeout();
   return true;
 }
 

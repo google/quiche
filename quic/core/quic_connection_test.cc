@@ -2980,20 +2980,21 @@ TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
   if (!GetParam().version.HasIetfQuicFrames()) {
     return;
   }
-
-  QuicAckFrequencyFrame frame;
-  frame.packet_tolerance = 3;
-
   connection_.set_can_receive_ack_frequency_frame();
-  connection_.OnDecryptedPacket(ENCRYPTION_FORWARD_SECURE);
-  connection_.OnAckFrequencyFrame(frame);
 
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(39);
-  // Expect 13 acks, every 3rd packet.
+  // Expect 13 acks, every 3rd packet including the first packet with
+  // AckFrequencyFrame.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(13);
-  // Receives packets 1 - 39.
-  for (size_t i = 1; i <= 39; ++i) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.packet_tolerance = 3;
+  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
+                            ENCRYPTION_FORWARD_SECURE);
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(38);
+  // Receives packets 2 - 39.
+  for (size_t i = 2; i <= 39; ++i) {
     ProcessDataPacket(i);
   }
 }
@@ -3003,20 +3004,19 @@ TEST_P(QuicConnectionTest,
   if (!GetParam().version.HasIetfQuicFrames()) {
     return;
   }
-
-  QuicAckFrequencyFrame frame;
-  frame.packet_tolerance = 3;
   connection_.set_can_receive_ack_frequency_frame();
-  connection_.OnDecryptedPacket(ENCRYPTION_HANDSHAKE);
-  connection_.OnAckFrequencyFrame(frame);
-  connection_.OnDecryptedPacket(ENCRYPTION_FORWARD_SECURE);
 
-  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(60);
-  // Expect 30 acks, every 2nd (instead of 3rd) packet.
+  QuicAckFrequencyFrame ack_frequency_frame;
+  ack_frequency_frame.packet_tolerance = 3;
+  ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
+                            ENCRYPTION_HANDSHAKE);
+
+  // Expect 30 acks, every 2nd (instead of 3rd) packet including the first
+  // packet with AckFrequencyFrame.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(30);
-  // Receives packets 1 - 60.
-  for (size_t i = 1; i <= 60; ++i) {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(60);
+  // Receives packets 2 - 61.
+  for (size_t i = 2; i <= 61; ++i) {
     ProcessDataPacket(i);
   }
 }
