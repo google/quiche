@@ -2948,12 +2948,6 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
       }
 
       case STOP_WAITING_FRAME: {
-        if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-            version_.HasIetfInvariantHeader()) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_do_not_accept_stop_waiting);
-          set_detailed_error("STOP WAITING not supported in version 44+.");
-          return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);
-        }
         QuicStopWaitingFrame stop_waiting_frame;
         if (!ProcessStopWaitingFrame(reader, header, &stop_waiting_frame)) {
           return RaiseError(QUIC_INVALID_STOP_WAITING_DATA);

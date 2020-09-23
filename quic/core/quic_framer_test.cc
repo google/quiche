@@ -4157,17 +4157,8 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
-  if (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-      framer_.version().HasIetfInvariantHeader()) {
-    EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-    EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_STOP_WAITING_DATA));
-    EXPECT_EQ("STOP WAITING not supported in version 44+.",
-              framer_.detailed_error());
-    return;
-  }
 
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
   EXPECT_TRUE(CheckDecryption(
@@ -4184,9 +4175,8 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 
 TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
   // The Stop Waiting frame is not in IETF QUIC
-  if (VersionHasIetfQuicFrames(version_.transport_version) ||
-      (GetQuicReloadableFlag(quic_do_not_accept_stop_waiting) &&
-       framer_.version().HasIetfInvariantHeader())) {
+  if (VersionHasIetfQuicFrames(version_.transport_version) &&
+      framer_.version().HasIetfInvariantHeader()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
