@@ -11544,7 +11544,10 @@ TEST_P(QuicConnectionTest,
        ReserializeInitialPacketInCoalescerAfterDiscardingInitialKey) {
   SetQuicReloadableFlag(
       quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded, true);
-  if (!connection_.version().CanSendCoalescedPackets()) {
+  if (!connection_.version().CanSendCoalescedPackets() ||
+      !GetQuicReloadableFlag(quic_fix_missing_initial_keys)) {
+    // Cannot set quic_fix_missing_initial_keys in the test since connection_ is
+    // created since the setup.
     return;
   }
   use_tagging_decrypter();
@@ -11576,6 +11579,7 @@ TEST_P(QuicConnectionTest,
   // crashes).
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1000, false, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(connection_.connected());
 }
 
 // Check that if there are two PATH_CHALLENGE frames in the packet, the latter
@@ -12009,8 +12013,9 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
 }
 
 // Regression test for b/168294218.
-TEST_P(QuicConnectionTest, InitialPacketCausedCoalescerToBeFlushed) {
-  if (!connection_.version().CanSendCoalescedPackets()) {
+TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
+  if (!connection_.version().CanSendCoalescedPackets() ||
+      !GetQuicReloadableFlag(quic_fix_missing_initial_keys)) {
     return;
   }
   SetQuicReloadableFlag(quic_discard_initial_packet_with_key_dropped, true);
@@ -12037,8 +12042,7 @@ TEST_P(QuicConnectionTest, InitialPacketCausedCoalescerToBeFlushed) {
     // Verify this packet is on hold.
     EXPECT_EQ(0u, writer_->packets_write_attempts());
   }
-  // Verify the INITIAL ACK packet gets discarded.
-  EXPECT_EQ(1u, connection_.GetStats().packets_discarded);
+  EXPECT_TRUE(connection_.connected());
 }
 
 }  // namespace
