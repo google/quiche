@@ -1349,6 +1349,70 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     return encrypted_length;
   }
 
+  struct PacketInfo {
+    PacketInfo(uint64_t packet_number, QuicFrames frames, EncryptionLevel level)
+        : packet_number(packet_number), frames(frames), level(level) {}
+
+    uint64_t packet_number;
+    QuicFrames frames;
+    EncryptionLevel level;
+  };
+
+  size_t ProcessCoalescedPacket(std::vector<PacketInfo> packets) {
+    char coalesced_buffer[kMaxOutgoingPacketSize];
+    size_t coalesced_size = 0;
+    bool contains_initial = false;
+    for (const auto& packet : packets) {
+      QuicPacketHeader header =
+          ConstructPacketHeader(packet.packet_number, packet.level);
+      // Set the correct encryption level and encrypter on peer_creator and
+      // peer_framer, respectively.
+      peer_creator_.set_encryption_level(packet.level);
+      if (packet.level == ENCRYPTION_INITIAL) {
+        contains_initial = true;
+      }
+      if (QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_) >
+          ENCRYPTION_INITIAL) {
+        peer_framer_.SetEncrypter(
+            QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
+            std::make_unique<TaggingEncrypter>(0x01));
+        // Set the corresponding decrypter.
+        if (connection_.version().KnowsWhichDecrypterToUse()) {
+          connection_.InstallDecrypter(
+              QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
+              std::make_unique<StrictTaggingDecrypter>(0x01));
+        } else {
+          connection_.SetDecrypter(
+              QuicPacketCreatorPeer::GetEncryptionLevel(&peer_creator_),
+              std::make_unique<StrictTaggingDecrypter>(0x01));
+        }
+      }
+      std::unique_ptr<QuicPacket> constructed_packet(
+          ConstructPacket(header, packet.frames));
+
+      char buffer[kMaxOutgoingPacketSize];
+      size_t encrypted_length = peer_framer_.EncryptPayload(
+          packet.level, QuicPacketNumber(packet.packet_number),
+          *constructed_packet, buffer, kMaxOutgoingPacketSize);
+      DCHECK_LE(coalesced_size + encrypted_length, kMaxOutgoingPacketSize);
+      memcpy(coalesced_buffer + coalesced_size, buffer, encrypted_length);
+      coalesced_size += encrypted_length;
+    }
+    if (contains_initial) {
+      // Padded coalesced packet to full if it contains initial packet.
+      memset(coalesced_buffer + coalesced_size, '0',
+             kMaxOutgoingPacketSize - coalesced_size);
+    }
+    connection_.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(coalesced_buffer, coalesced_size, clock_.Now(),
+                           false));
+    if (connection_.GetSendAlarm()->IsSet()) {
+      connection_.GetSendAlarm()->Fire();
+    }
+    return coalesced_size;
+  }
+
   size_t ProcessDataPacket(uint64_t number) {
     return ProcessDataPacketAtLevel(number, false, ENCRYPTION_FORWARD_SECURE);
   }
@@ -12043,6 +12107,71 @@ TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
     EXPECT_EQ(0u, writer_->packets_write_attempts());
   }
   EXPECT_TRUE(connection_.connected());
+}
+
+// Regresstion test for b/168294218
+TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces() ||
+      !GetQuicReloadableFlag(quic_fix_missing_initial_keys)) {
+    return;
+  }
+  // Not defer send in response to packet.
+  connection_.set_defer_send_in_response_to_packets(false);
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+    connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+    connection_.NeuterUnencryptedPackets();
+  }));
+  EXPECT_CALL(visitor_, OnCryptoFrame(_))
+      .WillRepeatedly(Invoke([=](const QuicCryptoFrame& frame) {
+        if (frame.level == ENCRYPTION_HANDSHAKE) {
+          // 0-RTT gets rejected.
+          connection_.MarkZeroRttPacketsForRetransmission(0);
+          // Send Crypto data.
+          connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                                   std::make_unique<TaggingEncrypter>(0x03));
+          connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+          connection_.SendCryptoStreamData();
+          connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                                   std::make_unique<TaggingEncrypter>(0x04));
+          connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+          // Retransmit rejected 0-RTT packets.
+          connection_.OnCanWrite();
+          // Advance INITIAL ack delay to trigger initial ACK to be sent AFTER
+          // the retransmission of rejected 0-RTT packets while the HANDSHAKE
+          // packet is still in the coalescer, such that the INITIAL key gets
+          // dropped between SendAllPendingAcks and actually send the ack frame,
+          // bummer.
+          clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+        }
+      }));
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SendCryptoStreamData();
+  // Send 0-RTT packet.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+
+  QuicAckFrame frame1 = InitAckFrame(1);
+  // Received ACK for packet 1.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+  ProcessFramePacketAtLevel(1, QuicFrame(&frame1), ENCRYPTION_INITIAL);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Fire retransmission alarm.
+  EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() { SendPing(); }));
+  connection_.GetRetransmissionAlarm()->Fire();
+
+  QuicFrames frames1;
+  frames1.push_back(QuicFrame(&crypto_frame_));
+  QuicFrames frames2;
+  QuicCryptoFrame crypto_frame(ENCRYPTION_HANDSHAKE, 0,
+                               quiche::QuicheStringPiece(data1));
+  frames2.push_back(QuicFrame(&crypto_frame));
+  ProcessCoalescedPacket(
+      {{2, frames1, ENCRYPTION_INITIAL}, {3, frames2, ENCRYPTION_HANDSHAKE}});
 }
 
 }  // namespace
