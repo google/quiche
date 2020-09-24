@@ -546,19 +546,8 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
-  std::vector<CRYPTO_BUFFER*> certs;
-  certs.resize(chain->certs.size());
-  for (size_t i = 0; i < certs.size(); i++) {
-    certs[i] = CRYPTO_BUFFER_new(
-        reinterpret_cast<const uint8_t*>(chain->certs[i].data()),
-        chain->certs[i].length(), nullptr);
-  }
-
-  tls_connection_.SetCertChain(certs);
-
-  for (size_t i = 0; i < certs.size(); i++) {
-    CRYPTO_BUFFER_free(certs[i]);
-  }
+  CryptoBuffers cert_buffers = chain->ToCryptoBuffers();
+  tls_connection_.SetCertChain(cert_buffers.value);
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {

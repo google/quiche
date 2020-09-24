@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_proof.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
@@ -17,6 +18,17 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
+
+// CryptoBuffers is a RAII class to own a std::vector<CRYPTO_BUFFER*> and the
+// buffers the elements point to.
+struct QUIC_EXPORT_PRIVATE CryptoBuffers {
+  CryptoBuffers() = default;
+  CryptoBuffers(const CryptoBuffers&) = delete;
+  CryptoBuffers(CryptoBuffers&&) = default;
+  ~CryptoBuffers();
+
+  std::vector<CRYPTO_BUFFER*> value;
+};
 
 // ProofSource is an interface by which a QUIC server can obtain certificate
 // chains and signatures that prove its identity.
@@ -28,6 +40,8 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     explicit Chain(const std::vector<std::string>& certs);
     Chain(const Chain&) = delete;
     Chain& operator=(const Chain&) = delete;
+
+    CryptoBuffers ToCryptoBuffers() const;
 
     const std::vector<std::string> certs;
 
