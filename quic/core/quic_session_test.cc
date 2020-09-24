@@ -2978,6 +2978,9 @@ TEST_P(QuicSessionTestServer, WriteBufferedCryptoFrames) {
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
 
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  connection_->SetEncrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::make_unique<NullEncrypter>(connection_->perspective()));
   crypto_stream->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
 
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 350, 1000))

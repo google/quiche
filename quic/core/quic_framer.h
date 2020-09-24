@@ -581,6 +581,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Returns true if decrypter of |level| is available.
   bool HasDecrypterOfEncryptionLevel(EncryptionLevel level) const;
 
+  // Returns true if an encrypter of |space| is available.
+  bool HasAnEncrypterForSpace(PacketNumberSpace space) const;
+
   void set_validate_flags(bool value) { validate_flags_ = value; }
 
   Perspective perspective() const { return perspective_; }

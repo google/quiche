@@ -221,15 +221,18 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
       std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
@@ -277,15 +280,18 @@ TEST_F(QuicCryptoStreamTest, RetransmitEncryptionHandshakeLevelCryptoFrames) {
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
   // Send [1000, 2000) in ENCRYPTION_HANDSHAKE.
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   std::unique_ptr<NullEncrypter> encrypter =
       std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_HANDSHAKE, std::move(encrypter));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   EXPECT_EQ(ENCRYPTION_HANDSHAKE, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_HANDSHAKE, 1000, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_HANDSHAKE, data);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
@@ -353,6 +359,9 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedCryptoData) {
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
+  connection_->SetEncrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
       std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
@@ -467,15 +476,18 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT.
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   std::unique_ptr<NullEncrypter> encrypter =
       std::make_unique<NullEncrypter>(Perspective::IS_CLIENT);
   connection_->SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
   EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_ZERO_RTT, 1350, 0))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::QuicConnection_SendCryptoData));
   stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(ENCRYPTION_FORWARD_SECURE, connection_->encryption_level());
 
@@ -591,6 +603,9 @@ TEST_F(QuicCryptoStreamTest, WriteBufferedCryptoFrames) {
   // Send [1350, 2700) in ENCRYPTION_ZERO_RTT and verify no write is attempted
   // because there is buffered data.
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
+  connection_->SetEncrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   stream_->WriteCryptoData(ENCRYPTION_ZERO_RTT, data);
   EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());

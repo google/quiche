@@ -3371,6 +3371,9 @@ void QuicConnection::SetDefaultEncryptionLevel(EncryptionLevel level) {
   }
   encryption_level_ = level;
   packet_creator_.set_encryption_level(level);
+  QUIC_BUG_IF(!framer_.HasEncrypterOfEncryptionLevel(level))
+      << ENDPOINT << "Trying to set encryption level to "
+      << EncryptionLevelToString(level) << " while the key is missing";
 
   if (!changing_level) {
     return;
@@ -4517,6 +4520,16 @@ void QuicConnection::MaybeBundleCryptoDataWithAcks() {
     return;
   }
 
+  if (check_keys_before_writing_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_keys_before_writing, 1, 2);
+    if (!framer_.HasAnEncrypterForSpace(space)) {
+      QUIC_BUG << ENDPOINT
+               << "Try to bundle crypto with ACK with missing key of space "
+               << PacketNumberSpaceToString(space);
+      return;
+    }
+  }
+
   sent_packet_manager_.RetransmitDataOfSpaceIfAny(space);
 }
 
@@ -4539,6 +4552,13 @@ void QuicConnection::SendAllPendingAcks() {
         static_cast<PacketNumberSpace>(i));
     if (!ack_timeout.IsInitialized()) {
       continue;
+    }
+    if (check_keys_before_writing_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_keys_before_writing, 2, 2);
+      if (!framer_.HasAnEncrypterForSpace(static_cast<PacketNumberSpace>(i))) {
+        // The key has been dropped.
+        continue;
+      }
     }
     if (ack_timeout > clock_->ApproximateNow() &&
         ack_timeout > earliest_ack_timeout) {

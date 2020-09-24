@@ -2034,6 +2034,23 @@ bool QuicFramer::HasDecrypterOfEncryptionLevel(EncryptionLevel level) const {
   return decrypter_[level] != nullptr;
 }
 
+bool QuicFramer::HasAnEncrypterForSpace(PacketNumberSpace space) const {
+  switch (space) {
+    case INITIAL_DATA:
+      return HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL);
+    case HANDSHAKE_DATA:
+      return HasEncrypterOfEncryptionLevel(ENCRYPTION_HANDSHAKE);
+    case APPLICATION_DATA:
+      return HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT) ||
+             HasEncrypterOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    case NUM_PACKET_NUMBER_SPACES:
+      break;
+  }
+  QUIC_BUG << ENDPOINT
+           << "Try to send data of space: " << PacketNumberSpaceToString(space);
+  return false;
+}
+
 bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
                                     QuicDataWriter* writer,
                                     size_t* length_field_offset) {

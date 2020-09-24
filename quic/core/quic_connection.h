@@ -1040,6 +1040,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     can_receive_ack_frequency_frame_ = true;
   }
 
+  bool check_keys_before_writing() const { return check_keys_before_writing_; }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1791,6 +1793,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool fix_out_of_order_sending_ =
       GetQuicReloadableFlag(quic_fix_out_of_order_sending2);
+
+  const bool check_keys_before_writing_ =
+      GetQuicReloadableFlag(quic_check_keys_before_writing);
 };
 
 }  // namespace quic

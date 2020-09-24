@@ -4634,9 +4634,9 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
   // which should result in the original packet being processed.
   SetDecrypter(ENCRYPTION_ZERO_RTT,
                std::make_unique<StrictTaggingDecrypter>(tag));
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                            std::make_unique<TaggingEncrypter>(tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(2);
   ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
 
@@ -4709,9 +4709,9 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
   SetDecrypter(ENCRYPTION_ZERO_RTT,
                std::make_unique<StrictTaggingDecrypter>(tag));
   EXPECT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
   connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
                            std::make_unique<TaggingEncrypter>(tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(100);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();
@@ -10965,9 +10965,9 @@ TEST_P(QuicConnectionTest, ProcessUndecryptablePacketsBasedOnEncryptionLevel) {
   SetDecrypter(ENCRYPTION_HANDSHAKE,
                std::make_unique<StrictTaggingDecrypter>(0x01));
   EXPECT_TRUE(connection_.GetProcessUndecryptablePacketsAlarm()->IsSet());
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify all ENCRYPTION_HANDSHAKE packets get processed.
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(6);
   connection_.GetProcessUndecryptablePacketsAlarm()->Fire();

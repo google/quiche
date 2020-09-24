@@ -495,8 +495,11 @@ enum QuicErrorCode {
   // The connection silently timed out due to no network activity.
   QUIC_SILENT_IDLE_TIMEOUT = 168,
 
+  // Try to write data without the right write keys.
+  QUIC_MISSING_WRITE_KEYS = 170,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 170,
+  QUIC_LAST_ERROR = 171,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

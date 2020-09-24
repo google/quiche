@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
@@ -347,7 +348,9 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // streams.  For versions other than version 99, the server accepts slightly
   // more than the negotiated stream limit to deal with rare cases where a
   // client FIN/RST is lost.
-
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -400,7 +403,9 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   // Test that the server closes the connection if a client makes too many data
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
-
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   const size_t kAvailableStreamLimit =
@@ -507,6 +512,9 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   QuicTagVector copt;
   copt.push_back(kBWRE);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
@@ -698,6 +706,9 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
   QuicTagVector copt;
   copt.push_back(kBWMX);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
@@ -707,6 +718,9 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
 TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
@@ -722,6 +736,9 @@ TEST_P(QuicServerSessionBaseTest, TurnOffServerPush) {
   QuicTagVector copt;
   copt.push_back(kQNSP);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
+  connection_->SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_FALSE(session_->server_push_enabled());

@@ -804,6 +804,8 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                 << packet_.encryption_level;
 
   if (!framer_->HasEncrypterOfEncryptionLevel(packet_.encryption_level)) {
+    // TODO(fayang): Use QUIC_MISSING_WRITE_KEYS for serialization failures due
+    // to missing keys.
     QUIC_BUG << ENDPOINT << "Attempting to serialize " << header
              << QuicFramesToString(queued_frames_)
              << " at missing encryption_level " << packet_.encryption_level

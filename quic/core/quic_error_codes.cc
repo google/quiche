@@ -231,6 +231,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED);
     RETURN_STRING_LITERAL(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED);
     RETURN_STRING_LITERAL(QUIC_SILENT_IDLE_TIMEOUT);
+    RETURN_STRING_LITERAL(QUIC_MISSING_WRITE_KEYS);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -627,6 +628,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED:
       return {true, static_cast<uint64_t>(PROTOCOL_VIOLATION)};
+    case QUIC_MISSING_WRITE_KEYS:
+      return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }
