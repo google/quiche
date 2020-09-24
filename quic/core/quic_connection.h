@@ -1783,8 +1783,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True if AckFrequencyFrame is supported.
   bool can_receive_ack_frequency_frame_ = false;
 
+  // Indicate whether coalescing is done.
+  bool coalescing_done_ = false;
+
   const bool fix_missing_initial_keys_ =
       GetQuicReloadableFlag(quic_fix_missing_initial_keys);
+
+  const bool fix_out_of_order_sending_ =
+      GetQuicReloadableFlag(quic_fix_out_of_order_sending2);
 };
 
 }  // namespace quic
