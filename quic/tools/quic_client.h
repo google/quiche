@@ -31,7 +31,13 @@ class QuicClientPeer;
 
 namespace tools {
 
-QuicSocketAddress LookupAddress(std::string host, std::string port);
+QuicSocketAddress LookupAddress(int address_family_for_lookup,
+                                std::string host,
+                                std::string port);
+
+inline QuicSocketAddress LookupAddress(std::string host, std::string port) {
+  return LookupAddress(0, host, port);
+}
 
 }  // namespace tools
 

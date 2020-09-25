@@ -32,9 +32,12 @@ namespace quic {
 
 namespace tools {
 
-QuicSocketAddress LookupAddress(std::string host, std::string port) {
+QuicSocketAddress LookupAddress(int address_family_for_lookup,
+                                std::string host,
+                                std::string port) {
   addrinfo hint;
   memset(&hint, 0, sizeof(hint));
+  hint.ai_family = address_family_for_lookup;
   hint.ai_protocol = IPPROTO_UDP;
 
   addrinfo* info_list = nullptr;

@@ -41,6 +41,7 @@
 // instructions at go/quic_client_binary_update
 
 #include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
+#include <sys/socket.h>
 
 #include <iostream>
 #include <memory>
@@ -76,6 +77,12 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "will be derived from the provided URL.");
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t, port, 0, "The port to connect to.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
+                              ip_version_for_host_lookup,
+                              "",
+                              "Only used if host address lookup is needed. "
+                              "4=ipv4; 6=ipv6; otherwise=don't care.");
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               body,
@@ -259,9 +266,17 @@ int QuicToyClient::SendRequestsAndPrintResponses(
         ParseQuicTagVector(client_connection_options_string));
   }
 
+  int address_family_for_lookup = AF_UNSPEC;
+  if (GetQuicFlag(FLAGS_ip_version_for_host_lookup) == "4") {
+    address_family_for_lookup = AF_INET;
+  } else if (GetQuicFlag(FLAGS_ip_version_for_host_lookup) == "6") {
+    address_family_for_lookup = AF_INET6;
+  }
+
   // Build the client, and try to connect.
   std::unique_ptr<QuicSpdyClientBase> client = client_factory_->CreateClient(
-      url.host(), host, port, versions, config, std::move(proof_verifier));
+      url.host(), host, address_family_for_lookup, port, versions, config,
+      std::move(proof_verifier));
 
   if (client == nullptr) {
     std::cerr << "Failed to create client." << std::endl;

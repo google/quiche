@@ -16,6 +16,7 @@ class QuicEpollClientFactory : public QuicToyClient::ClientFactory {
   std::unique_ptr<QuicSpdyClientBase> CreateClient(
       std::string host_for_handshake,
       std::string host_for_lookup,
+      int address_family_for_lookup,
       uint16_t port,
       ParsedQuicVersionVector versions,
       const QuicConfig& config,
