@@ -47,6 +47,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_testvalue.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -797,6 +798,11 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
     return;
   }
 
+  // Allow testing a specific adversarial case in which a client sends a public
+  // value of incorrect size.
+  AdjustTestValue("quic::QuicCryptoServerConfig::public_value_adjust",
+                  &public_value);
+
   const AsynchronousKeyExchange* key_exchange =
       configs.requested->key_exchanges[key_exchange_index].get();
   std::string* initial_premaster_secret =
@@ -824,9 +830,11 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
       << QuicVersionToString(context->transport_version());
 
   if (found_error) {
-    // If we are already using the fallback config, just bail out of the
-    // handshake.
-    if (context->signed_config()->config == configs.fallback ||
+    // If we are already using the fallback config, or there is no fallback
+    // config to use, just bail out of the handshake.
+    if ((GetQuicReloadableFlag(quic_check_fallback_null) &&
+         configs.fallback == nullptr) ||
+        context->signed_config()->config == configs.fallback ||
         !GetQuicReloadableFlag(
             send_quic_fallback_server_config_on_leto_error)) {
       context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
