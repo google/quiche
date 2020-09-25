@@ -105,6 +105,7 @@ QuicSentPacketManager::QuicSentPacketManager(
       pto_rttvar_multiplier_(4),
       num_tlp_timeout_ptos_(0),
       handshake_packet_acked_(false),
+      zero_rtt_packet_acked_(false),
       one_rtt_packet_acked_(false),
       one_rtt_packet_sent_(false),
       first_pto_srtt_multiplier_(0),
@@ -1475,8 +1476,9 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     last_ack_frame_.packets.Add(acked_packet.packet_number);
     if (info->encryption_level == ENCRYPTION_HANDSHAKE) {
       handshake_packet_acked_ = true;
-    }
-    if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+    } else if (info->encryption_level == ENCRYPTION_ZERO_RTT) {
+      zero_rtt_packet_acked_ = true;
+    } else if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
       one_rtt_packet_acked_ = true;
     }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);

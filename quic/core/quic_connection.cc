@@ -1319,6 +1319,8 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   }
   const bool one_rtt_packet_was_acked =
       sent_packet_manager_.one_rtt_packet_acked();
+  const bool zero_rtt_packet_was_acked =
+      sent_packet_manager_.zero_rtt_packet_acked();
   const AckResult ack_result = sent_packet_manager_.OnAckFrameEnd(
       idle_network_detector_.time_of_last_received_packet(),
       last_header_.packet_number, last_decrypted_packet_level_);
@@ -1334,6 +1336,11 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   if (SupportsMultiplePacketNumberSpaces() && !one_rtt_packet_was_acked &&
       sent_packet_manager_.one_rtt_packet_acked()) {
     visitor_->OnOneRttPacketAcknowledged();
+  }
+  if (debug_visitor_ != nullptr && version().UsesTls() &&
+      !zero_rtt_packet_was_acked &&
+      sent_packet_manager_.zero_rtt_packet_acked()) {
+    debug_visitor_->OnZeroRttPacketAcked();
   }
   // Cancel the send alarm because new packets likely have been acked, which
   // may change the congestion window and/or pacing rate.  Canceling the alarm

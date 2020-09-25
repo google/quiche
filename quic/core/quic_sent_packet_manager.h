@@ -436,6 +436,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return skip_packet_number_for_pto_;
   }
 
+  bool zero_rtt_packet_acked() const { return zero_rtt_packet_acked_; }
+
   bool one_rtt_packet_acked() const { return one_rtt_packet_acked_; }
 
   void OnUserAgentIdKnown() { loss_algorithm_->OnUserAgentIdKnown(); }
@@ -696,6 +698,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if any ENCRYPTION_HANDSHAKE packet gets acknowledged.
   bool handshake_packet_acked_;
+
+  // True if any 0-RTT packet gets acknowledged.
+  bool zero_rtt_packet_acked_;
 
   // True if any 1-RTT packet gets acknowledged.
   bool one_rtt_packet_acked_;

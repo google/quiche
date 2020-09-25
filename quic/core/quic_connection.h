@@ -377,6 +377,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   // Called for QUIC+TLS versions when 0-RTT is rejected.
   virtual void OnZeroRttRejected(int /*reject_reason*/) {}
 
+  // Called for QUIC+TLS versions when 0-RTT packet gets acked.
+  virtual void OnZeroRttPacketAcked() {}
+
   // Called on peer address change.
   virtual void OnPeerAddressChange(AddressChangeType /*type*/,
                                    QuicTime::Delta /*connection_time*/) {}

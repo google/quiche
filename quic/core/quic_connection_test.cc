@@ -12174,6 +12174,53 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
       {{2, frames1, ENCRYPTION_INITIAL}, {3, frames2, ENCRYPTION_HANDSHAKE}});
 }
 
+TEST_P(QuicConnectionTest, OnZeroRttPacketAcked) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+  MockQuicConnectionDebugVisitor debug_visitor;
+  connection_.set_debug_visitor(&debug_visitor);
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SendCryptoStreamData();
+  // Send 0-RTT packet.
+  connection_.SetEncrypter(ENCRYPTION_ZERO_RTT,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+  connection_.SendStreamDataWithString(4, "bar", 0, NO_FIN);
+  // Received ACK for packet 1, HANDSHAKE packet and 1-RTT ACK.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  QuicFrames frames1;
+  QuicAckFrame ack_frame1 = InitAckFrame(1);
+  frames1.push_back(QuicFrame(&ack_frame1));
+
+  QuicFrames frames2;
+  QuicCryptoFrame crypto_frame(ENCRYPTION_HANDSHAKE, 0,
+                               quiche::QuicheStringPiece(data1));
+  frames2.push_back(QuicFrame(&crypto_frame));
+  EXPECT_CALL(debug_visitor, OnZeroRttPacketAcked()).Times(0);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  ProcessCoalescedPacket(
+      {{1, frames1, ENCRYPTION_INITIAL}, {2, frames2, ENCRYPTION_HANDSHAKE}});
+
+  QuicFrames frames3;
+  QuicAckFrame ack_frame2 =
+      InitAckFrame({{QuicPacketNumber(2), QuicPacketNumber(3)}});
+  frames3.push_back(QuicFrame(&ack_frame2));
+  EXPECT_CALL(debug_visitor, OnZeroRttPacketAcked()).Times(1);
+  ProcessCoalescedPacket({{3, frames3, ENCRYPTION_FORWARD_SECURE}});
+
+  QuicFrames frames4;
+  QuicAckFrame ack_frame3 =
+      InitAckFrame({{QuicPacketNumber(3), QuicPacketNumber(4)}});
+  frames4.push_back(QuicFrame(&ack_frame3));
+  EXPECT_CALL(debug_visitor, OnZeroRttPacketAcked()).Times(0);
+  ProcessCoalescedPacket({{4, frames4, ENCRYPTION_FORWARD_SECURE}});
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
