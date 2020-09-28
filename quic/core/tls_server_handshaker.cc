@@ -405,7 +405,10 @@ void TlsServerHandshaker::FinishHandshake() {
     return;
   }
 
-  QUIC_DLOG(INFO) << "Server: handshake finished";
+  ssl_early_data_reason_t reason_code = EarlyDataReason();
+  QUIC_DLOG(INFO) << "Server: handshake finished. Early data reason "
+                  << reason_code << " ("
+                  << CryptoUtils::EarlyDataReasonToString(reason_code) << ")";
   state_ = STATE_HANDSHAKE_COMPLETE;
   one_rtt_keys_available_ = true;
 
