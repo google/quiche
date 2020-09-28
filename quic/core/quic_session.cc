@@ -1973,17 +1973,6 @@ bool QuicSession::IsStaticStream(QuicStreamId id) const {
 }
 
 size_t QuicSession::GetNumActiveStreams() const {
-  if (!VersionHasIetfQuicFrames(transport_version()) &&
-      !GetQuicReloadableFlag(quic_get_stream_information_from_stream_map)) {
-    // Exclude locally_closed_streams when determine whether to keep connection
-    // alive.
-    return stream_id_manager_.num_open_incoming_streams() +
-           stream_id_manager_.num_open_outgoing_streams() -
-           locally_closed_streams_highest_offset_.size();
-  }
-  if (GetQuicReloadableFlag(quic_get_stream_information_from_stream_map)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_get_stream_information_from_stream_map);
-  }
   DCHECK_GE(static_cast<QuicStreamCount>(stream_map_.size()),
             num_static_streams_ + num_draining_streams_ + num_zombie_streams_);
   return stream_map_.size() - num_draining_streams_ - num_static_streams_ -
