@@ -821,6 +821,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     // If true, when this flusher goes out of scope, flush connection and set
     // retransmission alarm if there is one pending.
     bool flush_and_set_pending_retransmission_alarm_on_delete_;
+    // Latched connection's handshake_packet_sent_ on creation of this flusher.
+    const bool handshake_packet_sent_;
   };
 
   QuicPacketWriter* writer() { return writer_; }
@@ -1791,8 +1793,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicate whether coalescing is done.
   bool coalescing_done_ = false;
 
+  // Indicate whether any ENCRYPTION_HANDSHAKE packet has been sent.
+  bool handshake_packet_sent_ = false;
+
   const bool fix_missing_initial_keys_ =
-      GetQuicReloadableFlag(quic_fix_missing_initial_keys);
+      GetQuicReloadableFlag(quic_fix_missing_initial_keys2);
 
   const bool fix_out_of_order_sending_ =
       GetQuicReloadableFlag(quic_fix_out_of_order_sending2);

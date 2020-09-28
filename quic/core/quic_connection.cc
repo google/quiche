@@ -2971,10 +2971,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
           packet->nonretransmittable_frames, packet_send_time);
     }
   }
-  if (fix_missing_initial_keys_ &&
-      packet->encryption_level == ENCRYPTION_HANDSHAKE) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys, 1, 2);
-    visitor_->OnHandshakePacketSent();
+  if (packet->encryption_level == ENCRYPTION_HANDSHAKE) {
+    handshake_packet_sent_ = true;
   }
 
   if (in_flight || !retransmission_alarm_->IsSet()) {
@@ -3833,7 +3831,9 @@ void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
 QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
     QuicConnection* connection)
     : connection_(connection),
-      flush_and_set_pending_retransmission_alarm_on_delete_(false) {
+      flush_and_set_pending_retransmission_alarm_on_delete_(false),
+      handshake_packet_sent_(connection != nullptr &&
+                             connection->handshake_packet_sent_) {
   if (connection_ == nullptr) {
     return;
   }
@@ -3886,6 +3886,13 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
+    if (connection_->fix_missing_initial_keys_ && !handshake_packet_sent_ &&
+        connection_->handshake_packet_sent_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys2, 1, 2);
+      // This would cause INITIAL key to be dropped. Drop keys here to avoid
+      // missing the write keys in the middle of writing.
+      connection_->visitor_->OnHandshakePacketSent();
+    }
     // Reset transmission type.
     connection_->SetTransmissionType(NOT_RETRANSMISSION);
 
@@ -4675,10 +4682,14 @@ bool QuicConnection::FlushCoalescedPacket() {
     return true;
   }
   if (fix_missing_initial_keys_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys, 2, 2);
-    if (!framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys2, 2, 2);
+    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
+        !framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
       // Initial packet will be re-serialized. Neuter it in case initial key has
       // been dropped.
+      QUIC_BUG << ENDPOINT
+               << "Coalescer contains initial packet while initial key has "
+                  "been dropped.";
       coalesced_packet_.NeuterInitialPacket();
     }
   }
