@@ -3162,7 +3162,6 @@ TEST_P(EndToEndTest, CanceledStreamDoesNotBecomeZombie) {
   QuicSession* session = GetClientSession();
   ASSERT_TRUE(session);
   // Verify canceled stream does not become zombie.
-  EXPECT_TRUE(QuicSessionPeer::zombie_streams(session).empty());
   EXPECT_EQ(1u, QuicSessionPeer::closed_streams(session).size());
 }
 

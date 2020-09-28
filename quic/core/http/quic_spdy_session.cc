@@ -426,10 +426,6 @@ QuicSpdySession::~QuicSpdySession() {
   for (auto& stream : *closed_streams()) {
     static_cast<QuicSpdyStream*>(stream.get())->ClearSession();
   }
-  DCHECK(!remove_zombie_streams() || zombie_streams().empty());
-  for (auto const& kv : zombie_streams()) {
-    static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();
-  }
   for (auto const& kv : stream_map()) {
     if (!kv.second->is_static()) {
       static_cast<QuicSpdyStream*>(kv.second.get())->ClearSession();

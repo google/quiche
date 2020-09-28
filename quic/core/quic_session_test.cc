@@ -367,7 +367,6 @@ class TestSession : public QuicSession {
   using QuicSession::GetNextOutgoingBidirectionalStreamId;
   using QuicSession::GetNextOutgoingUnidirectionalStreamId;
   using QuicSession::stream_map;
-  using QuicSession::zombie_streams;
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -2261,11 +2260,9 @@ TEST_P(QuicSessionTestServer, ZombieStreams) {
   EXPECT_TRUE(stream2->IsWaitingForAcks());
 
   CloseStream(stream2->id());
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
   session_.OnStreamDoneWaitingForAcks(stream2->id());
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   EXPECT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
 }
@@ -2320,7 +2317,6 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
     session_.OnStopSendingFrame(frame);
   }
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
 
@@ -2342,7 +2338,6 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   // QUIC it sends both a RST_STREAM and a STOP_SENDING (each of which
   // closes in only one direction).
   stream4->Reset(QUIC_STREAM_CANCELLED);
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
   EXPECT_EQ(2u, session_.closed_streams()->size());
 }
 
@@ -2590,13 +2585,9 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   stream2->WriteOrBufferData(body, true, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   // Verify stream2 is a zombie streams.
-  if (!session_.remove_zombie_streams()) {
-    EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
-  } else {
-    ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream2->id()));
-    auto* stream = session_.stream_map().find(stream2->id())->second.get();
-    EXPECT_TRUE(stream->IsZombie());
-  }
+  ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream2->id()));
+  auto* stream = session_.stream_map().find(stream2->id())->second.get();
+  EXPECT_TRUE(stream->IsZombie());
 
   QuicStreamFrame frame(stream2->id(), true, 0, 100);
   EXPECT_CALL(*stream2, HasPendingRetransmission())
@@ -2610,7 +2601,6 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   stream2->Reset(QUIC_STREAM_CANCELLED);
 
   // Verify stream 2 gets closed.
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   EXPECT_TRUE(session_.IsClosedStream(stream2->id()));
   EXPECT_CALL(*stream2, OnCanWrite()).Times(0);
   session_.OnCanWrite();
@@ -2625,7 +2615,6 @@ TEST_P(QuicSessionTestServer, CleanUpClosedStreamsAlarm) {
   EXPECT_FALSE(stream2->IsWaitingForAcks());
 
   CloseStream(stream2->id());
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream2->id()));
   EXPECT_EQ(1u, session_.closed_streams()->size());
   EXPECT_TRUE(
       QuicSessionPeer::GetCleanUpClosedStreamsAlarm(&session_)->IsSet());
@@ -2642,15 +2631,10 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   session_.ActivateStream(QuicWrapUnique(stream4));
   std::string body(100, '.');
   stream4->WriteOrBufferData(body, false, nullptr);
-  EXPECT_FALSE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
   stream4->WriteOrBufferData(body, true, nullptr);
-  if (!session_.remove_zombie_streams()) {
-    EXPECT_TRUE(QuicContainsKey(session_.zombie_streams(), stream4->id()));
-  } else {
-    ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream4->id()));
-    auto* stream = session_.stream_map().find(stream4->id())->second.get();
-    EXPECT_TRUE(stream->IsZombie());
-  }
+  ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream4->id()));
+  auto* stream = session_.stream_map().find(stream4->id())->second.get();
+  EXPECT_TRUE(stream->IsZombie());
 }
 
 TEST_P(QuicSessionTestServer, ReceivedDataOnWriteUnidirectionalStream) {

@@ -491,8 +491,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return liveness_testing_in_progress_;
   }
 
-  bool remove_zombie_streams() const { return remove_zombie_streams_; }
-
  protected:
   using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
@@ -565,8 +563,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   size_t pending_streams_size() const { return pending_stream_map_.size(); }
 
   ClosedStreams* closed_streams() { return &closed_streams_; }
-
-  const ZombieStreamMap& zombie_streams() const { return zombie_streams_; }
 
   void set_largest_peer_created_stream_id(
       QuicStreamId largest_peer_created_stream_id);
@@ -749,9 +745,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicWriteBlockedList write_blocked_streams_;
 
   ClosedStreams closed_streams_;
-  // Streams which are closed, but need to be kept alive. Currently, the only
-  // reason is the stream's sent data (including FIN) does not get fully acked.
-  ZombieStreamMap zombie_streams_;
 
   QuicConfig config_;
 
@@ -844,9 +837,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  // Latched value of flag quic_remove_zombie_streams.
-  const bool remove_zombie_streams_;
 };
 
 }  // namespace quic

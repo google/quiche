@@ -109,15 +109,9 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnection) {
   EXPECT_TRUE(session_->IsSessionReady());
 
   QuicStream* client_indication_stream;
-  if (session_->remove_zombie_streams()) {
-    client_indication_stream =
-        QuicSessionPeer::stream_map(session_.get())[ClientIndicationStream()]
-            .get();
-  } else {
-    client_indication_stream = QuicSessionPeer::zombie_streams(
-                                   session_.get())[ClientIndicationStream()]
-                                   .get();
-  }
+  client_indication_stream =
+      QuicSessionPeer::stream_map(session_.get())[ClientIndicationStream()]
+          .get();
   ASSERT_TRUE(client_indication_stream != nullptr);
   const std::string client_indication = DataInStream(client_indication_stream);
   const std::string expected_client_indication{
@@ -141,15 +135,9 @@ TEST_F(QuicTransportClientSessionTest, SuccessfulConnectionWithPath) {
   EXPECT_TRUE(session_->IsSessionReady());
 
   QuicStream* client_indication_stream;
-  if (session_->remove_zombie_streams()) {
-    client_indication_stream =
-        QuicSessionPeer::stream_map(session_.get())[ClientIndicationStream()]
-            .get();
-  } else {
-    client_indication_stream = QuicSessionPeer::zombie_streams(
-                                   session_.get())[ClientIndicationStream()]
-                                   .get();
-  }
+  client_indication_stream =
+      QuicSessionPeer::stream_map(session_.get())[ClientIndicationStream()]
+          .get();
   ASSERT_TRUE(client_indication_stream != nullptr);
   const std::string client_indication = DataInStream(client_indication_stream);
   const std::string expected_client_indication{

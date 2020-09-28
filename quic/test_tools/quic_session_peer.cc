@@ -137,12 +137,6 @@ const QuicSession::ClosedStreams& QuicSessionPeer::closed_streams(
 }
 
 // static
-QuicSession::ZombieStreamMap& QuicSessionPeer::zombie_streams(
-    QuicSession* session) {
-  return session->zombie_streams_;
-}
-
-// static
 void QuicSessionPeer::ActivateStream(QuicSession* session,
                                      std::unique_ptr<QuicStream> stream) {
   return session->ActivateStream(std::move(stream));
