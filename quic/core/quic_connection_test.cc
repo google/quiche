@@ -11411,6 +11411,7 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
 }
 
 TEST_P(QuicConnectionTest, NoSilentClose) {
+  SetQuicReloadableFlag(quic_add_silent_idle_timeout, false);
   set_perspective(Perspective::IS_SERVER);
   QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
   if (version().SupportsAntiAmplificationLimit()) {
