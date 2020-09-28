@@ -722,6 +722,7 @@ void QuicSpdySession::SendHttp3GoAway() {
       GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
 
   if (GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_http3_goaway_stream_id);
     if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
       // No client-initiated bidirectional streams received yet.
       // Send 0 to let client know that all requests can be retried.
