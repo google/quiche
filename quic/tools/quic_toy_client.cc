@@ -41,7 +41,6 @@
 // instructions at go/quic_client_binary_update
 
 #include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
-#include <sys/socket.h>
 
 #include <iostream>
 #include <memory>
@@ -54,6 +53,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
