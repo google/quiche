@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
@@ -27,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_error_code_wrappers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
@@ -1311,6 +1313,198 @@ QuicMemSlice MemSliceFromString(quiche::QuicheStringPiece data) {
   QuicUniqueBufferPtr buffer = MakeUniqueBuffer(allocator, data.size());
   memcpy(buffer.get(), data.data(), data.size());
   return QuicMemSlice(std::move(buffer), data.size());
+}
+
+bool TaggingEncrypter::EncryptPacket(
+    uint64_t /*packet_number*/,
+    quiche::QuicheStringPiece /*associated_data*/,
+    quiche::QuicheStringPiece plaintext,
+    char* output,
+    size_t* output_length,
+    size_t max_output_length) {
+  const size_t len = plaintext.size() + kTagSize;
+  if (max_output_length < len) {
+    return false;
+  }
+  // Memmove is safe for inplace encryption.
+  memmove(output, plaintext.data(), plaintext.size());
+  output += plaintext.size();
+  memset(output, tag_, kTagSize);
+  *output_length = len;
+  return true;
+}
+
+bool TaggingDecrypter::DecryptPacket(
+    uint64_t /*packet_number*/,
+    quiche::QuicheStringPiece /*associated_data*/,
+    quiche::QuicheStringPiece ciphertext,
+    char* output,
+    size_t* output_length,
+    size_t /*max_output_length*/) {
+  if (ciphertext.size() < kTagSize) {
+    return false;
+  }
+  if (!CheckTag(ciphertext, GetTag(ciphertext))) {
+    return false;
+  }
+  *output_length = ciphertext.size() - kTagSize;
+  memcpy(output, ciphertext.data(), *output_length);
+  return true;
+}
+
+bool TaggingDecrypter::CheckTag(quiche::QuicheStringPiece ciphertext,
+                                uint8_t tag) {
+  for (size_t i = ciphertext.size() - kTagSize; i < ciphertext.size(); i++) {
+    if (ciphertext.data()[i] != tag) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+TestPacketWriter::TestPacketWriter(ParsedQuicVersion version, MockClock* clock)
+    : version_(version),
+      framer_(SupportedVersions(version_), Perspective::IS_SERVER),
+      clock_(clock) {
+  QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
+                                                      TestConnectionId());
+  framer_.framer()->SetInitialObfuscators(TestConnectionId());
+
+  for (int i = 0; i < 128; ++i) {
+    PacketBuffer* p = new PacketBuffer();
+    packet_buffer_pool_.push_back(p);
+    packet_buffer_pool_index_[p->buffer] = p;
+    packet_buffer_free_list_.push_back(p);
+  }
+}
+
+TestPacketWriter::~TestPacketWriter() {
+  EXPECT_EQ(packet_buffer_pool_.size(), packet_buffer_free_list_.size())
+      << packet_buffer_pool_.size() - packet_buffer_free_list_.size()
+      << " out of " << packet_buffer_pool_.size()
+      << " packet buffers have been leaked.";
+  for (auto p : packet_buffer_pool_) {
+    delete p;
+  }
+}
+
+WriteResult TestPacketWriter::WritePacket(const char* buffer,
+                                          size_t buf_len,
+                                          const QuicIpAddress& /*self_address*/,
+                                          const QuicSocketAddress& peer_address,
+                                          PerPacketOptions* /*options*/) {
+  last_write_peer_address_ = peer_address;
+  // If the buffer is allocated from the pool, return it back to the pool.
+  // Note the buffer content doesn't change.
+  if (packet_buffer_pool_index_.find(const_cast<char*>(buffer)) !=
+      packet_buffer_pool_index_.end()) {
+    FreePacketBuffer(buffer);
+  }
+
+  QuicEncryptedPacket packet(buffer, buf_len);
+  ++packets_write_attempts_;
+
+  if (packet.length() >= sizeof(final_bytes_of_last_packet_)) {
+    final_bytes_of_previous_packet_ = final_bytes_of_last_packet_;
+    memcpy(&final_bytes_of_last_packet_, packet.data() + packet.length() - 4,
+           sizeof(final_bytes_of_last_packet_));
+  }
+
+  if (use_tagging_decrypter_) {
+    if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+      framer_.framer()->InstallDecrypter(ENCRYPTION_INITIAL,
+                                         std::make_unique<TaggingDecrypter>());
+      framer_.framer()->InstallDecrypter(ENCRYPTION_HANDSHAKE,
+                                         std::make_unique<TaggingDecrypter>());
+      framer_.framer()->InstallDecrypter(ENCRYPTION_ZERO_RTT,
+                                         std::make_unique<TaggingDecrypter>());
+      framer_.framer()->InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                                         std::make_unique<TaggingDecrypter>());
+    } else {
+      framer_.framer()->SetDecrypter(ENCRYPTION_INITIAL,
+                                     std::make_unique<TaggingDecrypter>());
+    }
+  } else if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+    framer_.framer()->InstallDecrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
+  }
+  EXPECT_TRUE(framer_.ProcessPacket(packet))
+      << framer_.framer()->detailed_error();
+  if (block_on_next_write_) {
+    write_blocked_ = true;
+    block_on_next_write_ = false;
+  }
+  if (next_packet_too_large_) {
+    next_packet_too_large_ = false;
+    return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
+  }
+  if (always_get_packet_too_large_) {
+    return WriteResult(WRITE_STATUS_ERROR, QUIC_EMSGSIZE);
+  }
+  if (IsWriteBlocked()) {
+    return WriteResult(is_write_blocked_data_buffered_
+                           ? WRITE_STATUS_BLOCKED_DATA_BUFFERED
+                           : WRITE_STATUS_BLOCKED,
+                       0);
+  }
+
+  if (ShouldWriteFail()) {
+    return WriteResult(WRITE_STATUS_ERROR, 0);
+  }
+
+  last_packet_size_ = packet.length();
+  last_packet_header_ = framer_.header();
+  if (!framer_.connection_close_frames().empty()) {
+    ++connection_close_packets_;
+  }
+  if (!write_pause_time_delta_.IsZero()) {
+    clock_->AdvanceTime(write_pause_time_delta_);
+  }
+  if (is_batch_mode_) {
+    bytes_buffered_ += last_packet_size_;
+    return WriteResult(WRITE_STATUS_OK, 0);
+  }
+  return WriteResult(WRITE_STATUS_OK, last_packet_size_);
+}
+
+QuicPacketBuffer TestPacketWriter::GetNextWriteLocation(
+    const QuicIpAddress& /*self_address*/,
+    const QuicSocketAddress& /*peer_address*/) {
+  return {AllocPacketBuffer(), [this](const char* p) { FreePacketBuffer(p); }};
+}
+
+WriteResult TestPacketWriter::Flush() {
+  flush_attempts_++;
+  if (block_on_next_flush_) {
+    block_on_next_flush_ = false;
+    SetWriteBlocked();
+    return WriteResult(WRITE_STATUS_BLOCKED, /*errno*/ -1);
+  }
+  if (write_should_fail_) {
+    return WriteResult(WRITE_STATUS_ERROR, /*errno*/ -1);
+  }
+  int bytes_flushed = bytes_buffered_;
+  bytes_buffered_ = 0;
+  return WriteResult(WRITE_STATUS_OK, bytes_flushed);
+}
+
+char* TestPacketWriter::AllocPacketBuffer() {
+  PacketBuffer* p = packet_buffer_free_list_.front();
+  EXPECT_FALSE(p->in_use);
+  p->in_use = true;
+  packet_buffer_free_list_.pop_front();
+  return p->buffer;
+}
+
+void TestPacketWriter::FreePacketBuffer(const char* buffer) {
+  auto iter = packet_buffer_pool_index_.find(const_cast<char*>(buffer));
+  ASSERT_TRUE(iter != packet_buffer_pool_index_.end());
+  PacketBuffer* p = iter->second;
+  ASSERT_TRUE(p->in_use);
+  p->in_use = false;
+  packet_buffer_free_list_.push_back(p);
 }
 
 }  // namespace test
