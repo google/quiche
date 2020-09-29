@@ -1363,9 +1363,12 @@ bool TaggingDecrypter::CheckTag(quiche::QuicheStringPiece ciphertext,
   return true;
 }
 
-TestPacketWriter::TestPacketWriter(ParsedQuicVersion version, MockClock* clock)
+TestPacketWriter::TestPacketWriter(ParsedQuicVersion version,
+                                   MockClock* clock,
+                                   Perspective perspective)
     : version_(version),
-      framer_(SupportedVersions(version_), Perspective::IS_SERVER),
+      framer_(SupportedVersions(version_),
+              QuicUtils::InvertPerspective(perspective)),
       clock_(clock) {
   QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
                                                       TestConnectionId());
@@ -1427,11 +1430,18 @@ WriteResult TestPacketWriter::WritePacket(const char* buffer,
     }
   } else if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
     framer_.framer()->InstallDecrypter(
+        ENCRYPTION_HANDSHAKE,
+        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
+    framer_.framer()->InstallDecrypter(
+        ENCRYPTION_ZERO_RTT,
+        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
+    framer_.framer()->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
-        std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
+        std::make_unique<NullDecrypter>(framer_.framer()->perspective()));
   }
   EXPECT_TRUE(framer_.ProcessPacket(packet))
-      << framer_.framer()->detailed_error();
+      << framer_.framer()->detailed_error() << " perspective "
+      << framer_.framer()->perspective();
   if (block_on_next_write_) {
     write_blocked_ = true;
     block_on_next_write_ = false;

@@ -358,11 +358,26 @@ class TestConnection : public QuicConnection {
     writer()->SetSupportedVersions(versions);
   }
 
+  // This should be called before setting customized encrypters/decrypters for
+  // connection and peer creator.
   void set_perspective(Perspective perspective) {
     writer()->set_perspective(perspective);
     QuicConnectionPeer::SetPerspective(this, perspective);
     QuicSentPacketManagerPeer::SetPerspective(
         QuicConnectionPeer::GetSentPacketManager(this), perspective);
+    QuicConnectionPeer::GetFramer(this)->SetInitialObfuscators(
+        TestConnectionId());
+    for (EncryptionLevel level : {ENCRYPTION_ZERO_RTT, ENCRYPTION_HANDSHAKE,
+                                  ENCRYPTION_FORWARD_SECURE}) {
+      if (QuicConnectionPeer::GetFramer(this)->HasEncrypterOfEncryptionLevel(
+              level)) {
+        SetEncrypter(level, std::make_unique<NullEncrypter>(perspective));
+      }
+      if (QuicConnectionPeer::GetFramer(this)->HasDecrypterOfEncryptionLevel(
+              level)) {
+        InstallDecrypter(level, std::make_unique<NullDecrypter>(perspective));
+      }
+    }
   }
 
   // Enable path MTU discovery.  Assumes that the test is performed from the
@@ -575,7 +590,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         peer_creator_(connection_id_,
                       &peer_framer_,
                       /*delegate=*/nullptr),
-        writer_(new TestPacketWriter(version(), &clock_)),
+        writer_(
+            new TestPacketWriter(version(), &clock_, Perspective::IS_CLIENT)),
         connection_(connection_id_,
                     kPeerAddress,
                     helper_.get(),
@@ -1251,6 +1267,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     QuicFramerPeer::SetPerspective(&peer_framer_,
                                    QuicUtils::InvertPerspective(perspective));
+    peer_framer_.SetInitialObfuscators(TestConnectionId());
+    for (EncryptionLevel level : {ENCRYPTION_ZERO_RTT, ENCRYPTION_HANDSHAKE,
+                                  ENCRYPTION_FORWARD_SECURE}) {
+      if (peer_framer_.HasEncrypterOfEncryptionLevel(level)) {
+        peer_creator_.SetEncrypter(
+            level, std::make_unique<NullEncrypter>(peer_framer_.perspective()));
+      }
+    }
   }
 
   void set_packets_between_probes_base(
@@ -6392,7 +6416,7 @@ TEST_P(QuicConnectionTest, SendConnectivityProbingWhenDisconnected) {
 
 TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
   PathProbeTestInit(Perspective::IS_CLIENT);
-  TestPacketWriter probing_writer(version(), &clock_);
+  TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
   // Block next write so that sending connectivity probe will encounter a
   // blocked write when send a connectivity probe to the peer.
   probing_writer.BlockOnNextWrite();
@@ -6424,7 +6448,7 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
 
 TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
   PathProbeTestInit(Perspective::IS_CLIENT);
-  TestPacketWriter probing_writer(version(), &clock_);
+  TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
   probing_writer.SetShouldWriteFail();
 
   // Connection should not be closed if a connectivity probe is failed to be
@@ -8447,7 +8471,7 @@ TEST_P(QuicConnectionTest,
 
   // Simulate path degrading handling by sending a probe on an alternet path.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
-  TestPacketWriter probing_writer(version(), &clock_);
+  TestPacketWriter probing_writer(version(), &clock_, Perspective::IS_CLIENT);
   connection_.SendConnectivityProbingPacket(&probing_writer,
                                             connection_.peer_address());
   // Verify that path degrading detection is not reset.

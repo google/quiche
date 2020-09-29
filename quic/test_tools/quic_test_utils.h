@@ -1878,7 +1878,10 @@ class TestPacketWriter : public QuicPacketWriter {
   };
 
  public:
-  TestPacketWriter(ParsedQuicVersion version, MockClock* clock);
+  TestPacketWriter(ParsedQuicVersion version,
+                   MockClock* clock,
+                   Perspective perspective);
+
   TestPacketWriter(const TestPacketWriter&) = delete;
   TestPacketWriter& operator=(const TestPacketWriter&) = delete;
 
@@ -2006,6 +2009,7 @@ class TestPacketWriter : public QuicPacketWriter {
     // we send.
     QuicFramerPeer::SetPerspective(framer_.framer(),
                                    QuicUtils::InvertPerspective(perspective));
+    framer_.framer()->SetInitialObfuscators(TestConnectionId());
   }
 
   // final_bytes_of_last_packet_ returns the last four bytes of the previous
