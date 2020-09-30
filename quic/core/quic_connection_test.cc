@@ -10981,13 +10981,7 @@ TEST_P(QuicConnectionTest, NoSilentClose) {
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   connection_.GetTimeoutAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_no_silent_close_for_idle_timeout)) {
-    TestConnectionCloseQuicErrorCode(QUIC_NETWORK_IDLE_TIMEOUT);
-  } else {
-    // Verify no connection close packet is serialized.
-    EXPECT_EQ(nullptr,
-              QuicConnectionPeer::GetConnectionClosePacket(&connection_));
-  }
+  TestConnectionCloseQuicErrorCode(QUIC_NETWORK_IDLE_TIMEOUT);
 }
 
 TEST_P(QuicConnectionTest, DonotSendPing) {

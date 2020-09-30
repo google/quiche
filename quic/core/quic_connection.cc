@@ -538,9 +538,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       idle_timeout_connection_close_behavior_ = ConnectionCloseBehavior::
           SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED;
     }
-    if (GetQuicReloadableFlag(quic_no_silent_close_for_idle_timeout) &&
-        config.HasClientRequestedIndependentOption(kNSLC, perspective_)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_no_silent_close_for_idle_timeout);
+    if (config.HasClientRequestedIndependentOption(kNSLC, perspective_)) {
       idle_timeout_connection_close_behavior_ =
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET;
     }
