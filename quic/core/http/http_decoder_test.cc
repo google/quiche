@@ -192,7 +192,7 @@ TEST_F(HttpDecoderTest, UnknownFrame) {
   const QuicByteCount payload_lengths[] = {0, 14, 100};
   const uint64_t frame_types[] = {
       0x21, 0x40, 0x5f, 0x7e, 0x9d,  // some reserved frame types
-      0x06, 0x6f, 0x14               // some unknown, not reserved frame types
+      0x6f, 0x14                     // some unknown, not reserved frame types
   };
 
   for (auto payload_length : payload_lengths) {
@@ -789,6 +789,21 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
   EXPECT_EQ(5u, decoder_.ProcessInput(input, QUICHE_ARRAYSIZE(input)));
   EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
   EXPECT_EQ("Frame is too large.", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, Http2Frame) {
+  SetQuicReloadableFlag(quic_reject_spdy_frames, true);
+  std::string input = quiche::QuicheTextUtils::HexDecode(
+      "06"    // PING in HTTP/2 but not supported in HTTP/3.
+      "05"    // length
+      "15");  // random payload
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnError(&decoder_));
+  EXPECT_EQ(1u, ProcessInput(input));
+  EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_RECEIVE_SPDY_FRAME));
+  EXPECT_EQ("HTTP/2 frame received in a HTTP/3 connection: 6",
+            decoder_.error_detail());
 }
 
 TEST_F(HttpDecoderTest, HeadersPausedThenData) {

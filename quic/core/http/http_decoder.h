@@ -158,8 +158,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
 
   // Reads the type of a frame from |reader|. Sets error_ and error_detail_
   // if there are any errors.  Also calls OnDataFrameStart() or
-  // OnHeadersFrameStart() for appropriate frame types.
-  void ReadFrameType(QuicDataReader* reader);
+  // OnHeadersFrameStart() for appropriate frame types. Returns whether the
+  // processing should continue.
+  bool ReadFrameType(QuicDataReader* reader);
 
   // Reads the length of a frame from |reader|. Sets error_ and error_detail_
   // if there are any errors.  Returns whether processing should continue.

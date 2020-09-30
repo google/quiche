@@ -6,8 +6,10 @@
 
 #include <cstdint>
 
+#include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
@@ -93,7 +95,7 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
 
     switch (state_) {
       case STATE_READING_FRAME_TYPE:
-        ReadFrameType(&reader);
+        continue_processing = ReadFrameType(&reader);
         break;
       case STATE_READING_FRAME_LENGTH:
         continue_processing = ReadFrameLength(&reader);
@@ -114,7 +116,7 @@ QuicByteCount HttpDecoder::ProcessInput(const char* data, QuicByteCount len) {
   return len - reader.BytesRemaining();
 }
 
-void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
+bool HttpDecoder::ReadFrameType(QuicDataReader* reader) {
   DCHECK_NE(0u, reader->BytesRemaining());
   if (current_type_field_length_ == 0) {
     // A new frame is coming.
@@ -124,7 +126,7 @@ void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
       // Buffer a new type field.
       remaining_type_field_length_ = current_type_field_length_;
       BufferFrameType(reader);
-      return;
+      return true;
     }
     // The reader has all type data needed, so no need to buffer.
     bool success = reader->ReadVarInt62(&current_frame_type_);
@@ -134,14 +136,34 @@ void HttpDecoder::ReadFrameType(QuicDataReader* reader) {
     BufferFrameType(reader);
     // The frame is still not buffered completely.
     if (remaining_type_field_length_ != 0) {
-      return;
+      return true;
     }
     QuicDataReader type_reader(type_buffer_.data(), current_type_field_length_);
     bool success = type_reader.ReadVarInt62(&current_frame_type_);
     DCHECK(success);
   }
 
+  if (GetQuicReloadableFlag(quic_reject_spdy_frames)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_spdy_frames);
+    // https://tools.ietf.org/html/draft-ietf-quic-http-31#section-7.2.8
+    // specifies that the following frames are treated as errors.
+    if (current_frame_type_ ==
+            static_cast<uint64_t>(http2::Http2FrameType::PRIORITY) ||
+        current_frame_type_ ==
+            static_cast<uint64_t>(http2::Http2FrameType::PING) ||
+        current_frame_type_ ==
+            static_cast<uint64_t>(http2::Http2FrameType::WINDOW_UPDATE) ||
+        current_frame_type_ ==
+            static_cast<uint64_t>(http2::Http2FrameType::CONTINUATION)) {
+      RaiseError(
+          QUIC_HTTP_RECEIVE_SPDY_FRAME,
+          quiche::QuicheStrCat("HTTP/2 frame received in a HTTP/3 connection: ",
+                               current_frame_type_));
+      return false;
+    }
+  }
   state_ = STATE_READING_FRAME_LENGTH;
+  return true;
 }
 
 bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {

@@ -445,6 +445,8 @@ enum QuicErrorCode {
   // HTTP/3 session received SETTINGS frame which contains HTTP/2 specific
   // settings.
   QUIC_HTTP_RECEIVE_SPDY_SETTING = 169,
+  // HTTP/3 session received an HTTP/2 only frame.
+  QUIC_HTTP_RECEIVE_SPDY_FRAME = 171,
 
   // HPACK header block decoding errors.
   // Index varint beyond implementation limit.
@@ -499,7 +501,7 @@ enum QuicErrorCode {
   QUIC_MISSING_WRITE_KEYS = 170,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 171,
+  QUIC_LAST_ERROR = 172,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
