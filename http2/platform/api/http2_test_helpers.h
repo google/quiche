@@ -5,11 +5,7 @@
 // an AssertionResult if the condition is not satisfied.
 #include "net/http2/platform/impl/http2_test_helpers_impl.h"
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"  // For AssertionSuccess
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 #pragma clang diagnostic pop
 

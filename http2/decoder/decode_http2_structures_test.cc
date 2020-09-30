@@ -20,6 +20,7 @@
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
 
@@ -42,7 +43,7 @@ std::string SerializeStructure(const S& s) {
 }
 
 template <class S>
-class StructureDecoderTest : public ::testing::Test {
+class StructureDecoderTest : public QuicheTest {
  protected:
   typedef S Structure;
 

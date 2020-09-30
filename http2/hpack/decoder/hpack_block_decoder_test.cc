@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <string>
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_block_collector.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
@@ -19,6 +18,7 @@
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionSuccess;
 

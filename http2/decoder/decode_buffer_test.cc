@@ -9,6 +9,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
@@ -43,7 +44,7 @@ struct TestStruct {
   TestEnum8 f8;
 };
 
-class DecodeBufferTest : public ::testing::Test {
+class DecodeBufferTest : public QuicheTest {
  protected:
   Http2Random random_;
   uint32_t decode_offset_;

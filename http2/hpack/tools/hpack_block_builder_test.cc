@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

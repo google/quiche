@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector_listener.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

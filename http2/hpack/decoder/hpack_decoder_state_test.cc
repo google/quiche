@@ -9,14 +9,13 @@
 #include <utility>
 #include <vector>
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -47,7 +46,7 @@ class MockHpackDecoderListener : public HpackDecoderListener {
 
 enum StringBacking { STATIC, UNBUFFERED, BUFFERED };
 
-class HpackDecoderStateTest : public ::testing::Test {
+class HpackDecoderStateTest : public QuicheTest {
  protected:
   HpackDecoderStateTest() : decoder_state_(&listener_) {}
 

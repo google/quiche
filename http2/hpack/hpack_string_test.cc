@@ -10,6 +10,7 @@
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -22,7 +23,7 @@ namespace {
 const char kStr0[] = "s0: Some string to be copied into another string.";
 const char kStr1[] = "S1 - some string to be copied into yet another string.";
 
-class HpackStringTest : public ::testing::Test {
+class HpackStringTest : public QuicheTest {
  protected:
   AssertionResult VerifyNotEqual(HpackString* actual,
                                  const std::string& not_expected_str) {

@@ -17,13 +17,13 @@
 #include <memory>
 #include <type_traits>
 
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
@@ -55,7 +55,7 @@ void CorruptEnum(T* out, Http2Random* rng) {
 
 // Base class for tests of the ability to decode a sequence of bytes with
 // various boundaries between the DecodeBuffers provided to the decoder.
-class RandomDecoderTest : public ::testing::Test {
+class RandomDecoderTest : public QuicheTest {
  public:
   // SelectSize returns the size of the next DecodeBuffer to be passed to the
   // decoder. Note that RandomDecoderTest allows that size to be zero, though

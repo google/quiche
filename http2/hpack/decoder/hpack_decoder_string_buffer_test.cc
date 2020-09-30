@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -20,7 +21,7 @@ namespace http2 {
 namespace test {
 namespace {
 
-class HpackDecoderStringBufferTest : public ::testing::Test {
+class HpackDecoderStringBufferTest : public QuicheTest {
  protected:
   typedef HpackDecoderStringBuffer::State State;
   typedef HpackDecoderStringBuffer::Backing Backing;

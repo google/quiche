@@ -5,12 +5,13 @@
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {
 namespace {
 
-class Http2ConstantsTest : public testing::Test {};
+class Http2ConstantsTest : public QuicheTest {};
 
 TEST(Http2ConstantsTest, Http2FrameType) {
   EXPECT_EQ(Http2FrameType::DATA, static_cast<Http2FrameType>(0));

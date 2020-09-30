@@ -7,9 +7,8 @@
 // Tests of HpackWholeEntryBuffer: does it buffer correctly, and does it
 // detect Huffman decoding errors and oversize string errors?
 
-#include "testing/gmock/include/gmock/gmock.h"
-#include "testing/gtest/include/gtest/gtest.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -47,7 +46,7 @@ class MockHpackWholeEntryListener : public HpackWholeEntryListener {
               (override));
 };
 
-class HpackWholeEntryBufferTest : public ::testing::Test {
+class HpackWholeEntryBufferTest : public QuicheTest {
  protected:
   HpackWholeEntryBufferTest() : entry_buffer_(&listener_, kMaxStringSize) {}
   ~HpackWholeEntryBufferTest() override = default;
