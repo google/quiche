@@ -1224,9 +1224,7 @@ void QuicSpdySession::CloseConnectionWithDetails(QuicErrorCode error,
 }
 
 bool QuicSpdySession::HasActiveRequestStreams() const {
-  DCHECK_GE(static_cast<size_t>(stream_map_size()),
-            num_static_streams() + num_zombie_streams());
-  return stream_map_size() - num_static_streams() - num_zombie_streams() > 0;
+  return GetNumActiveStreams() + num_draining_streams() > 0;
 }
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {

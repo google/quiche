@@ -557,9 +557,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   StreamMap& stream_map() { return stream_map_; }
 
-  // TODO(b/136274541): remove this getter and only expose GetNumActiveStreams()
-  size_t stream_map_size() const { return stream_map_.size(); }
-
   size_t pending_streams_size() const { return pending_stream_map_.size(); }
 
   ClosedStreams* closed_streams() { return &closed_streams_; }
@@ -617,6 +614,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   size_t num_outgoing_draining_streams() const {
     return num_outgoing_draining_streams_;
   }
+
+  size_t num_draining_streams() const { return num_draining_streams_; }
 
   // Processes the stream type information of |pending| depending on
   // different kinds of sessions' own rules. Returns true if the pending stream
