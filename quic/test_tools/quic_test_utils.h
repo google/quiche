@@ -1409,7 +1409,9 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD(void,
               OnPacketHeader,
-              (const QuicPacketHeader& header),
+              (const QuicPacketHeader& header,
+               QuicTime receive_time,
+               EncryptionLevel level),
               (override));
 
   MOCK_METHOD(void,

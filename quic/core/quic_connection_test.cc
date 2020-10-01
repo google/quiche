@@ -6822,7 +6822,7 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
 
   MockQuicConnectionDebugVisitor debug_visitor;
   connection_.set_debug_visitor(&debug_visitor);
-  EXPECT_CALL(debug_visitor, OnPacketHeader(Ref(header))).Times(1);
+  EXPECT_CALL(debug_visitor, OnPacketHeader(Ref(header), _, _)).Times(1);
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(1);
   EXPECT_CALL(debug_visitor, OnSuccessfulVersionNegotiation(_)).Times(1);
   connection_.OnPacketHeader(header);

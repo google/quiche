@@ -1113,7 +1113,8 @@ QuicSocketAddress QuicConnection::GetEffectivePeerAddressFromCurrentPacket()
 
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (debug_visitor_ != nullptr) {
-    debug_visitor_->OnPacketHeader(header);
+    debug_visitor_->OnPacketHeader(header, clock_->ApproximateNow(),
+                                   last_decrypted_packet_level_);
   }
 
   // Will be decremented below if we fall through to return true.
@@ -1714,6 +1715,9 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
 }
 
 bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
+  if (debug_visitor_ != nullptr) {
+    debug_visitor_->OnAckFrequencyFrame(frame);
+  }
   UpdatePacketContent(ACK_FREQUENCY_FRAME);
   if (!can_receive_ack_frequency_frame_) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";

@@ -256,7 +256,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   virtual void OnProtocolVersionMismatch(ParsedQuicVersion /*version*/) {}
 
   // Called when the complete header of a packet has been parsed.
-  virtual void OnPacketHeader(const QuicPacketHeader& /*header*/) {}
+  virtual void OnPacketHeader(const QuicPacketHeader& /*header*/,
+                              QuicTime /*receive_time*/,
+                              EncryptionLevel /*level*/) {}
 
   // Called when a StreamFrame has been parsed.
   virtual void OnStreamFrame(const QuicStreamFrame& /*frame*/) {}
@@ -356,6 +358,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
 
   // Called when a MaxStreamsFrame has been parsed.
   virtual void OnMaxStreamsFrame(const QuicMaxStreamsFrame& /*frame*/) {}
+
+  // Called when an AckFrequencyFrame has been parsed.
+  virtual void OnAckFrequencyFrame(const QuicAckFrequencyFrame& /*frame*/) {}
 
   // Called when |count| packet numbers have been skipped.
   virtual void OnNPacketNumbersSkipped(QuicPacketCount /*count*/,
