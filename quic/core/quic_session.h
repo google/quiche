@@ -340,11 +340,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // WINDOW_UPDATE arrives.
   virtual void MarkConnectionLevelWriteBlocked(QuicStreamId id);
 
-  // Called when stream |id| is done waiting for acks either because all data
-  // gets acked or is not interested in data being acked (which happens when
-  // a stream is reset because of an error).
-  // TODO(b/136274541): rename to CloseZombieStreams.
-  void OnStreamDoneWaitingForAcks(QuicStreamId id);
+  // Called to close zombie stream |id|.
+  void MaybeCloseZombieStream(QuicStreamId id);
 
   // Returns true if there is pending handshake data in the crypto stream.
   // TODO(ianswett): Make this private or remove.

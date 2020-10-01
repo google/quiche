@@ -2262,7 +2262,7 @@ TEST_P(QuicSessionTestServer, ZombieStreams) {
   CloseStream(stream2->id());
   ASSERT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
-  session_.OnStreamDoneWaitingForAcks(stream2->id());
+  session_.MaybeCloseZombieStream(stream2->id());
   EXPECT_EQ(1u, session_.closed_streams()->size());
   EXPECT_EQ(stream2->id(), session_.closed_streams()->front()->id());
 }

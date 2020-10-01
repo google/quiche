@@ -2002,7 +2002,7 @@ bool QuicSession::IsIncomingStream(QuicStreamId id) const {
   return stream_id_manager_.IsIncomingStream(id);
 }
 
-void QuicSession::OnStreamDoneWaitingForAcks(QuicStreamId id) {
+void QuicSession::MaybeCloseZombieStream(QuicStreamId id) {
   auto it = stream_map_.find(id);
   if (it == stream_map_.end()) {
     return;

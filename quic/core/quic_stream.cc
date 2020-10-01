@@ -598,7 +598,7 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
                            /*send_rst_only = */ false);
   rst_sent_ = true;
   if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
-    session()->OnStreamDoneWaitingForAcks(id_);
+    session()->MaybeCloseZombieStream(id_);
     return;
   }
   CloseReadSide();
@@ -841,7 +841,7 @@ void QuicStream::OnClose() {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending RST_STREAM in OnClose: " << id();
     session_->SendRstStream(id(), QUIC_RST_ACKNOWLEDGEMENT,
                             stream_bytes_written(), /*send_rst_only = */ false);
-    session_->OnStreamDoneWaitingForAcks(id_);
+    session_->MaybeCloseZombieStream(id_);
     rst_sent_ = true;
   }
 
@@ -1019,7 +1019,7 @@ bool QuicStream::OnStreamFrameAcked(QuicStreamOffset offset,
     fin_lost_ = false;
   }
   if (!IsWaitingForAcks() && read_side_closed_ && write_side_closed_) {
-    session_->OnStreamDoneWaitingForAcks(id_);
+    session_->MaybeCloseZombieStream(id_);
   }
   return new_data_acked;
 }
