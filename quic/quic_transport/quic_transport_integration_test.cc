@@ -62,8 +62,9 @@ class QuicTransportEndpointBase : public QuicEndpointBase {
       : QuicEndpointBase(simulator, name, peer_name) {
     QuicEnableVersion(DefaultVersionForQuicTransport());
     connection_ = std::make_unique<QuicConnection>(
-        TestConnectionId(0x10), simulator::GetAddressFromName(peer_name),
-        simulator, simulator->GetAlarmFactory(), &writer_,
+        TestConnectionId(0x10), simulator::GetAddressFromName(name),
+        simulator::GetAddressFromName(peer_name), simulator,
+        simulator->GetAlarmFactory(), &writer_,
         /*owns_writer=*/false, perspective, GetVersions());
     connection_->SetSelfAddress(simulator::GetAddressFromName(name));
   }

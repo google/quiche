@@ -106,7 +106,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
           id, self_address, peer_address, alpn, version);
     }
     QuicConnection* connection = new QuicConnection(
-        id, peer_address, helper(), alarm_factory(), writer(),
+        id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
         ParsedQuicVersionVector{version});
 

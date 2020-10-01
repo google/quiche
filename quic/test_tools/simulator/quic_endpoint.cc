@@ -34,10 +34,9 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
       wrong_data_received_(false),
       notifier_(nullptr) {
   connection_ = std::make_unique<QuicConnection>(
-      connection_id, GetAddressFromName(peer_name), simulator,
-      simulator->GetAlarmFactory(), &writer_, false, perspective,
+      connection_id, GetAddressFromName(name), GetAddressFromName(peer_name),
+      simulator, simulator->GetAlarmFactory(), &writer_, false, perspective,
       ParsedVersionOfIndex(CurrentSupportedVersions(), 0));
-  connection_->SetSelfAddress(GetAddressFromName(name));
   connection_->set_visitor(this);
   connection_->SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<NullEncrypter>(perspective));

@@ -46,6 +46,7 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
     crypto_config_.set_alpn(AlpnForVersion(version_));
     connection_ =
         new QuicConnection(server_connection_id_,
+                           /*initial_self_address=*/QuicSocketAddress(),
                            QuicSocketAddress(TestPeerIPAddress(), kTestPort),
                            &connection_helper_, &alarm_factory_, &writer_,
                            /*owns_writer=*/false, Perspective::IS_CLIENT,

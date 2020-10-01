@@ -318,9 +318,9 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
     {
       client_connection_ = new QuicConnection(
-          TestConnectionId(), server_address, &helper_, alarm_factory_.get(),
-          new NiceMock<MockPacketWriter>(), true, Perspective::IS_CLIENT,
-          supported_versions_);
+          TestConnectionId(), client_address, server_address, &helper_,
+          alarm_factory_.get(), new NiceMock<MockPacketWriter>(), true,
+          Perspective::IS_CLIENT, supported_versions_);
       client_connection_->SetSelfAddress(client_address);
       QuicConfig config;
       client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
@@ -337,9 +337,9 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
     {
       server_connection_ = new QuicConnection(
-          TestConnectionId(), client_address, &helper_, alarm_factory_.get(),
-          new NiceMock<MockPacketWriter>(), true, Perspective::IS_SERVER,
-          supported_versions_);
+          TestConnectionId(), server_address, client_address, &helper_,
+          alarm_factory_.get(), new NiceMock<MockPacketWriter>(), true,
+          Perspective::IS_SERVER, supported_versions_);
       server_connection_->SetSelfAddress(server_address);
       QuicConfig config;
       server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(

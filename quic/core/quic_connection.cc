@@ -211,6 +211,7 @@ CongestionControlType GetDefaultCongestionControlType() {
 
 QuicConnection::QuicConnection(
     QuicConnectionId server_connection_id,
+    QuicSocketAddress initial_self_address,
     QuicSocketAddress initial_peer_address,
     QuicConnectionHelperInterface* helper,
     QuicAlarmFactory* alarm_factory,
@@ -237,6 +238,10 @@ QuicConnection::QuicConnection(
       server_connection_id_(server_connection_id),
       client_connection_id_(EmptyQuicConnectionId()),
       client_connection_id_is_set_(false),
+      self_address_(
+          GetQuicReloadableFlag(quic_connection_set_initial_self_address)
+              ? initial_self_address
+              : QuicSocketAddress()),
       peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
@@ -319,6 +324,11 @@ QuicConnection::QuicConnection(
                              alarm_factory_),
       support_handshake_done_(version().HasHandshakeDone()) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
+  if (GetQuicReloadableFlag(quic_connection_set_initial_self_address)) {
+    DCHECK(perspective_ == Perspective::IS_CLIENT ||
+           self_address_.IsInitialized());
+    QUIC_RELOADABLE_FLAG_COUNT(quic_connection_set_initial_self_address);
+  }
   if (fix_missing_connected_checks_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_connected_checks);
   }

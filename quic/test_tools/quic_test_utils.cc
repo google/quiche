@@ -525,19 +525,21 @@ MockQuicConnection::MockQuicConnection(
 
 MockQuicConnection::MockQuicConnection(
     QuicConnectionId connection_id,
-    QuicSocketAddress address,
+    QuicSocketAddress initial_peer_address,
     MockQuicConnectionHelper* helper,
     MockAlarmFactory* alarm_factory,
     Perspective perspective,
     const ParsedQuicVersionVector& supported_versions)
-    : QuicConnection(connection_id,
-                     address,
-                     helper,
-                     alarm_factory,
-                     new testing::NiceMock<MockPacketWriter>(),
-                     /* owns_writer= */ true,
-                     perspective,
-                     supported_versions) {
+    : QuicConnection(
+          connection_id,
+          /*initial_self_address=*/QuicSocketAddress(QuicIpAddress::Any4(), 5),
+          initial_peer_address,
+          helper,
+          alarm_factory,
+          new testing::NiceMock<MockPacketWriter>(),
+          /* owns_writer= */ true,
+          perspective,
+          supported_versions) {
   ON_CALL(*this, OnError(_))
       .WillByDefault(
           Invoke(this, &PacketSavingConnection::QuicConnection_OnError));

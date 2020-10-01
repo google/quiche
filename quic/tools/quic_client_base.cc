@@ -121,8 +121,8 @@ void QuicClientBase::StartConnect() {
 
   session_ = CreateQuicClientSession(
       client_supported_versions,
-      new QuicConnection(GetNextConnectionId(), server_address(), helper(),
-                         alarm_factory(), writer,
+      new QuicConnection(GetNextConnectionId(), QuicSocketAddress(),
+                         server_address(), helper(), alarm_factory(), writer,
                          /* owns_writer= */ false, Perspective::IS_CLIENT,
                          client_supported_versions));
   if (connection_debug_visitor_ != nullptr) {

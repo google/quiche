@@ -417,6 +417,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // specifies whether the connection takes ownership of |writer|. |helper| must
   // outlive this connection.
   QuicConnection(QuicConnectionId server_connection_id,
+                 QuicSocketAddress initial_self_address,
                  QuicSocketAddress initial_peer_address,
                  QuicConnectionHelperInterface* helper,
                  QuicAlarmFactory* alarm_factory,

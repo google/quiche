@@ -181,14 +181,16 @@ class TestAlarmFactory : public QuicAlarmFactory {
 class TestConnection : public QuicConnection {
  public:
   TestConnection(QuicConnectionId connection_id,
-                 QuicSocketAddress address,
+                 QuicSocketAddress initial_self_address,
+                 QuicSocketAddress initial_peer_address,
                  TestConnectionHelper* helper,
                  TestAlarmFactory* alarm_factory,
                  TestPacketWriter* writer,
                  Perspective perspective,
                  ParsedQuicVersion version)
       : QuicConnection(connection_id,
-                       address,
+                       initial_self_address,
+                       initial_peer_address,
                        helper,
                        alarm_factory,
                        writer,
@@ -593,6 +595,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         writer_(
             new TestPacketWriter(version(), &clock_, Perspective::IS_CLIENT)),
         connection_(connection_id_,
+                    kSelfAddress,
                     kPeerAddress,
                     helper_.get(),
                     alarm_factory_.get(),
@@ -1510,6 +1513,7 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
   QuicIpAddress host;
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address1(host, 443);
+  connection_.SetSelfAddress(self_address1);
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address1,
                                   kPeerAddress, ENCRYPTION_INITIAL);
   // Cause self_address change to mapped Ipv4 address.
@@ -2229,8 +2233,8 @@ TEST_P(QuicConnectionTest, PeerCannotRaiseMaxPacketSize) {
 }
 
 TEST_P(QuicConnectionTest, SmallerServerMaxPacketSize) {
-  TestConnection connection(TestConnectionId(), kPeerAddress, helper_.get(),
-                            alarm_factory_.get(), writer_.get(),
+  TestConnection connection(TestConnectionId(), kSelfAddress, kPeerAddress,
+                            helper_.get(), alarm_factory_.get(), writer_.get(),
                             Perspective::IS_SERVER, version());
   EXPECT_EQ(Perspective::IS_SERVER, connection.perspective());
   EXPECT_EQ(1000u, connection.max_packet_length());
@@ -2344,8 +2348,8 @@ TEST_P(QuicConnectionTest, LimitMaxPacketSizeByWriterForNewConnection) {
   const QuicConnectionId connection_id = TestConnectionId(17);
   const QuicByteCount lower_max_packet_size = 1240;
   writer_->set_max_packet_size(lower_max_packet_size);
-  TestConnection connection(connection_id, kPeerAddress, helper_.get(),
-                            alarm_factory_.get(), writer_.get(),
+  TestConnection connection(connection_id, kSelfAddress, kPeerAddress,
+                            helper_.get(), alarm_factory_.get(), writer_.get(),
                             Perspective::IS_CLIENT, version());
   EXPECT_EQ(Perspective::IS_CLIENT, connection.perspective());
   EXPECT_EQ(lower_max_packet_size, connection.max_packet_length());
@@ -6829,11 +6833,11 @@ TEST_P(QuicConnectionTest, OnPacketHeaderDebugVisitor) {
 }
 
 TEST_P(QuicConnectionTest, Pacing) {
-  TestConnection server(connection_id_, kSelfAddress, helper_.get(),
-                        alarm_factory_.get(), writer_.get(),
+  TestConnection server(connection_id_, kPeerAddress, kSelfAddress,
+                        helper_.get(), alarm_factory_.get(), writer_.get(),
                         Perspective::IS_SERVER, version());
-  TestConnection client(connection_id_, kPeerAddress, helper_.get(),
-                        alarm_factory_.get(), writer_.get(),
+  TestConnection client(connection_id_, kSelfAddress, kPeerAddress,
+                        helper_.get(), alarm_factory_.get(), writer_.get(),
                         Perspective::IS_CLIENT, version());
   EXPECT_FALSE(QuicSentPacketManagerPeer::UsingPacing(
       static_cast<const QuicSentPacketManager*>(

@@ -28,15 +28,16 @@ MasqueDispatcher::MasqueDispatcher(
 
 std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
-    const QuicSocketAddress& /*self_address*/,
+    const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
     quiche::QuicheStringPiece /*alpn*/,
     const ParsedQuicVersion& version) {
   // The MasqueServerSession takes ownership of |connection| below.
-  QuicConnection* connection = new QuicConnection(
-      connection_id, peer_address, helper(), alarm_factory(), writer(),
-      /*owns_writer=*/false, Perspective::IS_SERVER,
-      ParsedQuicVersionVector{version});
+  QuicConnection* connection =
+      new QuicConnection(connection_id, self_address, peer_address, helper(),
+                         alarm_factory(), writer(),
+                         /*owns_writer=*/false, Perspective::IS_SERVER,
+                         ParsedQuicVersionVector{version});
 
   auto session = std::make_unique<MasqueServerSession>(
       config(), GetSupportedVersions(), connection, this, this,

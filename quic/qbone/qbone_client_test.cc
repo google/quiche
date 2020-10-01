@@ -123,13 +123,13 @@ class QuicQboneDispatcher : public QuicDispatcher {
 
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId id,
-      const QuicSocketAddress& /*self_address*/,
+      const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
       quiche::QuicheStringPiece alpn,
       const quic::ParsedQuicVersion& version) override {
     CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
-        id, peer_address, helper(), alarm_factory(), writer(),
+        id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,
         ParsedQuicVersionVector{version});
     // The connection owning wrapper owns the connection created.

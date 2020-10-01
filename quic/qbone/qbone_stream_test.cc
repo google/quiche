@@ -152,6 +152,7 @@ class QboneReadOnlyStreamTest : public ::testing::Test,
 
     connection_.reset(new QuicConnection(
         test::TestConnectionId(0), QuicSocketAddress(TestLoopback(), 0),
+        QuicSocketAddress(TestLoopback(), 0),
         this /*QuicConnectionHelperInterface*/, alarm_factory_.get(),
         new DummyPacketWriter(), owns_writer, perspective,
         ParsedVersionOfIndex(CurrentSupportedVersions(), 0)));
