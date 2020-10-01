@@ -61,9 +61,12 @@ size_t BoundedHuffmanSize(quiche::QuicheStringPiece plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(quiche::QuicheStringPiece plain, std::string* huffman) {
+void HuffmanEncode(quiche::QuicheStringPiece plain,
+                   size_t encoded_size,
+                   std::string* huffman) {
   DCHECK(huffman != nullptr);
   huffman->clear();         // Note that this doesn't release memory.
+  huffman->reserve(encoded_size);
   uint64_t bit_buffer = 0;  // High-bit is next bit to output. Not clear if that
                             // is more performant than having the low-bit be the
                             // last to be output.

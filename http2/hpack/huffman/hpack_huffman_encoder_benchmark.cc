@@ -9,14 +9,14 @@
 //
 // Benchmark                  Time(ns)  CPU(ns) Allocs Iterations
 // -----------------------------------------------------------------------------
-// BM_EncodeSmallStrings           239       239    0 2456085   0.000B  peak-mem
-// BM_EncodeLargeString/1k        4560      4561    5  153325   1.125kB peak-mem
-// BM_EncodeLargeString/4k       18787     18788    7   38430   4.500kB peak-mem
-// BM_EncodeLargeString/32k     147680    147657   10    4664  36.000kB peak-mem
-// BM_EncodeLargeString/256k   1161688   1161511   13     601 288.000kB peak-mem
-// BM_EncodeLargeString/2M    10042722  10036764   16      75   2.250MB peak-mem
-// BM_EncodeLargeString/16M   76127338  76138839   19       9  18.000MB peak-mem
-// BM_EncodeLargeString/128M 640008098 640154859   22       1 144.000MB peak-mem
+// BM_EncodeSmallStrings           256       256   0  2614132   0.000B  peak-mem
+// BM_EncodeLargeString/1k        4295      4296   1   164072 656.000B  peak-mem
+// BM_EncodeLargeString/4k       17077     17078   1    40336   2.516kB peak-mem
+// BM_EncodeLargeString/32k     136586    136584   1     5126  20.016kB peak-mem
+// BM_EncodeLargeString/256k   1094913   1094867   1      632 160.016kB peak-mem
+// BM_EncodeLargeString/2M     8771916   8773555   1       80   1.250MB peak-mem
+// BM_EncodeLargeString/16M   72575563  72590767   1       10  10.000MB peak-mem
+// BM_EncodeLargeString/128M 602461676 602487805   1        1  80.000MB peak-mem
 //
 
 #include <string>
@@ -37,9 +37,9 @@ void BM_EncodeSmallStrings(benchmark::State& state) {
       ":method", ":path", "cookie", "set-cookie", "vary", "accept-encoding"};
   for (auto s : state) {
     for (const auto& input : inputs) {
+      size_t encoded_size = ExactHuffmanSize(input);
       std::string result;
-      ExactHuffmanSize(input);
-      HuffmanEncode(input, &result);
+      HuffmanEncode(input, encoded_size, &result);
     }
   }
 }
@@ -47,9 +47,9 @@ void BM_EncodeSmallStrings(benchmark::State& state) {
 void BM_EncodeLargeString(benchmark::State& state) {
   const std::string input(state.range(0), 'a');
   for (auto s : state) {
+    size_t encoded_size = ExactHuffmanSize(input);
     std::string result;
-    ExactHuffmanSize(input);
-    HuffmanEncode(input, &result);
+    HuffmanEncode(input, encoded_size, &result);
   }
 }
 

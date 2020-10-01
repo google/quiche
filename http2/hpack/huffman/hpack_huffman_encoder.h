@@ -29,11 +29,13 @@ QUICHE_EXPORT_PRIVATE size_t ExactHuffmanSize(quiche::QuicheStringPiece plain);
 QUICHE_EXPORT_PRIVATE size_t
 BoundedHuffmanSize(quiche::QuicheStringPiece plain);
 
-// Encode the plain text string |plain| with the Huffman encoding defined in
-// the HPACK RFC, 7541.  |*huffman| does not have to be empty, it is cleared at
-// the beginning of this function.  This allows reusing the same string object
-// across multiple invocations.
+// Encode the plain text string |plain| with the Huffman encoding defined in the
+// HPACK RFC, 7541.  |encoded_size| is used to pre-allocate storage and it
+// should be the value returned by ExactHuffmanSize().  |*huffman| does not have
+// to be empty, it is cleared at the beginning of this function.  This allows
+// reusing the same string object across multiple invocations.
 QUICHE_EXPORT_PRIVATE void HuffmanEncode(quiche::QuicheStringPiece plain,
+                                         size_t encoded_size,
                                          std::string* huffman);
 
 }  // namespace http2

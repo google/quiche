@@ -25,11 +25,12 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
-    EXPECT_EQ(ExactHuffmanSize(plain_string), huffman_encoded.size());
-    EXPECT_EQ(BoundedHuffmanSize(plain_string), huffman_encoded.size());
+    size_t encoded_size = ExactHuffmanSize(plain_string);
+    EXPECT_EQ(huffman_encoded.size(), encoded_size);
+    EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
     buffer.reserve();
-    HuffmanEncode(plain_string, &buffer);
+    HuffmanEncode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
   }
 }
@@ -56,14 +57,12 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
-    EXPECT_EQ(ExactHuffmanSize(plain_string), huffman_encoded.size());
-    EXPECT_EQ(BoundedHuffmanSize(plain_string), huffman_encoded.size());
+    size_t encoded_size = ExactHuffmanSize(plain_string);
+    EXPECT_EQ(huffman_encoded.size(), encoded_size);
+    EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
-    buffer.reserve(huffman_encoded.size());
-    const size_t capacity = buffer.capacity();
-    HuffmanEncode(plain_string, &buffer);
+    HuffmanEncode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
-    EXPECT_EQ(capacity, buffer.capacity());
   }
 }
 
@@ -84,9 +83,10 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
 
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); ++i) {
     const std::string& plain_string = test_table[i];
+    size_t encoded_size = ExactHuffmanSize(plain_string);
     std::string huffman_encoded;
-    HuffmanEncode(plain_string, &huffman_encoded);
-    EXPECT_EQ(huffman_encoded.size(), ExactHuffmanSize(plain_string));
+    HuffmanEncode(plain_string, encoded_size, &huffman_encoded);
+    EXPECT_EQ(encoded_size, huffman_encoded.size());
     EXPECT_LE(BoundedHuffmanSize(plain_string), plain_string.size());
     EXPECT_LE(BoundedHuffmanSize(plain_string), ExactHuffmanSize(plain_string));
   }

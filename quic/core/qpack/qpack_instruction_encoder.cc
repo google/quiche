@@ -135,12 +135,14 @@ void QpackInstructionEncoder::DoStartString(quiche::QuicheStringPiece name,
 
   string_to_write_ =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
-  http2::HuffmanEncode(string_to_write_, &huffman_encoded_string_);
+  size_t encoded_size = http2::ExactHuffmanSize(string_to_write_);
 
-  if (huffman_encoded_string_.size() < string_to_write_.size()) {
+  if (encoded_size < string_to_write_.size()) {
     DCHECK_EQ(0, byte_ & (1 << field_->param));
-
     byte_ |= (1 << field_->param);
+
+    http2::HuffmanEncode(string_to_write_, encoded_size,
+                         &huffman_encoded_string_);
     string_to_write_ = huffman_encoded_string_;
   }
 
