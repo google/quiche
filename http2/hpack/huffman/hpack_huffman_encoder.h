@@ -38,6 +38,13 @@ QUICHE_EXPORT_PRIVATE void HuffmanEncode(quiche::QuicheStringPiece plain,
                                          size_t encoded_size,
                                          std::string* huffman);
 
+// Encode |input| with the Huffman encoding defined RFC7541, used in HPACK and
+// QPACK.  |encoded_size| must be the value returned by ExactHuffmanSize().
+// Appends the result to the end of |*output|.
+QUICHE_EXPORT_PRIVATE void HuffmanEncodeFast(quiche::QuicheStringPiece input,
+                                             size_t encoded_size,
+                                             std::string* output);
+
 }  // namespace http2
 
 #endif  // QUICHE_HTTP2_HPACK_HUFFMAN_HPACK_HUFFMAN_ENCODER_H_

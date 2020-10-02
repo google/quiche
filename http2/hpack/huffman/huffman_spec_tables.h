@@ -18,6 +18,10 @@ struct HuffmanSpecTables {
   // The encoding of each symbol, right justified (as printed), which means that
   // the last bit of the encoding is the low-order bit of the uint32.
   static const uint32_t kRightCodes[257];
+
+  // The encoding of each symbol, left justified (as printed), which means that
+  // the first bit of the encoding is the high-order bit of the uint32.
+  static const uint32_t kLeftCodes[257];
 };
 
 }  // namespace http2

@@ -110,4 +110,44 @@ void HuffmanEncode(quiche::QuicheStringPiece plain,
   }
 }
 
+void HuffmanEncodeFast(quiche::QuicheStringPiece input,
+                       size_t encoded_size,
+                       std::string* output) {
+  const size_t original_size = output->size();
+  const size_t final_size = original_size + encoded_size;
+  // Reserve an extra four bytes to avoid accessing unallocated memory (even
+  // though it would only be OR'd with zeros and thus not modified).
+  output->resize(final_size + 4, 0);
+
+  // Pointer to first appended byte.
+  char* const first = output->data() + original_size;
+  size_t bit_counter = 0;
+  for (uint8_t c : input) {
+    // Align the Huffman code to byte boundaries as it needs to be written.
+    // The longest Huffman code is 30 bits long, and it can be shifted by up to
+    // 7 bits, requiring 37 bits in total.  The most significant 24 bits and
+    // least significant 3 bits of |code| are always zero.
+    uint64_t code = static_cast<uint64_t>(HuffmanSpecTables::kLeftCodes[c])
+                    << (8 - (bit_counter % 8));
+    // The byte where the first bit of |code| needs to be written.
+    char* const current = first + (bit_counter / 8);
+    *current |= code >> 32;
+    *(current + 1) |= (code >> 24) & 0xff;
+    *(current + 2) |= (code >> 16) & 0xff;
+    *(current + 3) |= (code >> 8) & 0xff;
+    *(current + 4) |= code & 0xff;
+
+    bit_counter += HuffmanSpecTables::kCodeLengths[c];
+  }
+
+  DCHECK_EQ(encoded_size, (bit_counter + 7) / 8);
+
+  // EOF
+  if (bit_counter % 8 != 0) {
+    *(first + encoded_size - 1) |= 0xff >> (bit_counter & 7);
+  }
+
+  output->resize(final_size);
+}
+
 }  // namespace http2

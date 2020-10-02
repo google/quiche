@@ -11,7 +11,34 @@
 namespace http2 {
 namespace {
 
-TEST(HuffmanEncoderTest, SpecRequestExamples) {
+class HuffmanEncoderTest : public ::testing::TestWithParam<bool> {
+ protected:
+  HuffmanEncoderTest() : use_fast_encoder_(GetParam()) {}
+  virtual ~HuffmanEncoderTest() = default;
+
+  void Encode(quiche::QuicheStringPiece input,
+              size_t encoded_size,
+              std::string* output) {
+    use_fast_encoder_ ? HuffmanEncodeFast(input, encoded_size, output)
+                      : HuffmanEncode(input, encoded_size, output);
+  }
+
+  const bool use_fast_encoder_;
+};
+
+INSTANTIATE_TEST_SUITE_P(TwoEncoders, HuffmanEncoderTest, ::testing::Bool());
+
+TEST_P(HuffmanEncoderTest, Empty) {
+  std::string empty("");
+  size_t encoded_size = ExactHuffmanSize(empty);
+  EXPECT_EQ(0u, encoded_size);
+
+  std::string buffer;
+  Encode(empty, encoded_size, &buffer);
+  EXPECT_EQ("", buffer);
+}
+
+TEST_P(HuffmanEncoderTest, SpecRequestExamples) {
   std::string test_table[] = {
       Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff"),
       "www.example.com",
@@ -30,12 +57,12 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
     EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
     buffer.reserve();
-    HuffmanEncode(plain_string, encoded_size, &buffer);
+    Encode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
   }
 }
 
-TEST(HuffmanEncoderTest, SpecResponseExamples) {
+TEST_P(HuffmanEncoderTest, SpecResponseExamples) {
   // clang-format off
   std::string test_table[] = {
     Http2HexDecode("6402"),
@@ -61,12 +88,12 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
     EXPECT_EQ(huffman_encoded.size(), encoded_size);
     EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
-    HuffmanEncode(plain_string, encoded_size, &buffer);
+    Encode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
   }
 }
 
-TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
+TEST_P(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
   std::string test_table[] = {
       "",
       "Mon, 21 Oct 2013 20:13:21 GMT",
@@ -85,10 +112,28 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
     const std::string& plain_string = test_table[i];
     size_t encoded_size = ExactHuffmanSize(plain_string);
     std::string huffman_encoded;
-    HuffmanEncode(plain_string, encoded_size, &huffman_encoded);
+    Encode(plain_string, encoded_size, &huffman_encoded);
     EXPECT_EQ(encoded_size, huffman_encoded.size());
     EXPECT_LE(BoundedHuffmanSize(plain_string), plain_string.size());
     EXPECT_LE(BoundedHuffmanSize(plain_string), ExactHuffmanSize(plain_string));
+  }
+}
+
+TEST_P(HuffmanEncoderTest, AppendToOutput) {
+  size_t encoded_size = ExactHuffmanSize("foo");
+  std::string buffer;
+  Encode("foo", encoded_size, &buffer);
+  EXPECT_EQ(Http2HexDecode("94e7"), buffer);
+
+  encoded_size = ExactHuffmanSize("bar");
+  Encode("bar", encoded_size, &buffer);
+
+  if (use_fast_encoder_) {
+    // HuffmanEncodeFast() appends to output allowing callers to eliminate copy.
+    EXPECT_EQ(Http2HexDecode("94e78c767f"), buffer);
+  } else {
+    // HuffmanEncode() clears output before encoding.
+    EXPECT_EQ(Http2HexDecode("8c767f"), buffer);
   }
 }
 

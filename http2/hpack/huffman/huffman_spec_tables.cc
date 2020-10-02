@@ -46,9 +46,6 @@ const uint8_t HuffmanSpecTables::kCodeLengths[] = {
 
 // TODO(jamessynge): Remove use of binary literals, that is a C++ 14 feature.
 
-// Uncomment these codes if needed for generating Huffman output, as opposed
-// to decoding Huffman input.
-/*
 // The encoding of each symbol, left justified (as printed), which means that
 // the first bit of the encoding is the high-order bit of the uint32.
 // static
@@ -311,7 +308,6 @@ const uint32_t HuffmanSpecTables::kLeftCodes[] = {
     0b11111111111111111111101110000000,  // 0xff
     0b11111111111111111111111111111100,  // 0x100
 };
-*/
 
 // static
 const uint32_t HuffmanSpecTables::kRightCodes[] = {
