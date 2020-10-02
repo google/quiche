@@ -47,9 +47,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   using IndexingPolicy =
       std::function<bool(quiche::QuicheStringPiece, quiche::QuicheStringPiece)>;
 
-  // |table| is an initialized HPACK Huffman table, having an
-  // externally-managed lifetime which spans beyond HpackEncoder.
-  explicit HpackEncoder(const HpackHuffmanTable& table);
+  HpackEncoder();
   HpackEncoder(const HpackEncoder&) = delete;
   HpackEncoder& operator=(const HpackEncoder&) = delete;
   ~HpackEncoder();

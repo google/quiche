@@ -710,7 +710,7 @@ TEST_P(HpackDecoderAdapterTest, HuffmanEOSError) {
 // Round-tripping the header set from RFC 7541 C.3.1 should work.
 // http://httpwg.org/specs/rfc7541.html#rfc.section.C.3.1
 TEST_P(HpackDecoderAdapterTest, BasicC31) {
-  HpackEncoder encoder(ObtainHpackHuffmanTable());
+  HpackEncoder encoder;
 
   SpdyHeaderBlock expected_header_set;
   expected_header_set[":method"] = "GET";

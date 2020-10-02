@@ -77,9 +77,9 @@ bool DefaultPolicy(quiche::QuicheStringPiece name,
 
 }  // namespace
 
-HpackEncoder::HpackEncoder(const HpackHuffmanTable& table)
+HpackEncoder::HpackEncoder()
     : output_stream_(),
-      huffman_table_(table),
+      huffman_table_(ObtainHpackHuffmanTable()),
       min_table_size_setting_received_(std::numeric_limits<size_t>::max()),
       listener_(NoOpListener),
       should_index_(DefaultPolicy),

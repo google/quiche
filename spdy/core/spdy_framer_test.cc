@@ -16,7 +16,6 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
@@ -1106,7 +1105,7 @@ TEST_P(SpdyFramerTest, MultiValueHeader) {
   SpdyHeaderBlock header_set;
   header_set["name"] = value;
   std::string buffer;
-  HpackEncoder encoder(ObtainHpackHuffmanTable());
+  HpackEncoder encoder;
   encoder.DisableCompression();
   encoder.EncodeHeaderSet(header_set, &buffer);
   // Frame builder with plentiful buffer size.
@@ -2311,7 +2310,7 @@ TEST_P(SpdyFramerTest, CreateContinuationUncompressed) {
   header_block["bar"] = "foo";
   header_block["foo"] = "bar";
   auto buffer = std::make_unique<std::string>();
-  HpackEncoder encoder(ObtainHpackHuffmanTable());
+  HpackEncoder encoder;
   encoder.DisableCompression();
   encoder.EncodeHeaderSet(header_block, buffer.get());
 

@@ -13,7 +13,6 @@
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_ptr_util.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
@@ -1269,7 +1268,7 @@ size_t SpdyFramer::SerializeFrame(const SpdyFrameIR& frame,
 
 HpackEncoder* SpdyFramer::GetHpackEncoder() {
   if (hpack_encoder_ == nullptr) {
-    hpack_encoder_ = std::make_unique<HpackEncoder>(ObtainHpackHuffmanTable());
+    hpack_encoder_ = std::make_unique<HpackEncoder>();
     if (!compression_enabled()) {
       hpack_encoder_->DisableCompression();
     }

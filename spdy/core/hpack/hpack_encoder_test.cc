@@ -39,9 +39,6 @@ class HpackEncoderPeer {
   bool compression_enabled() const { return encoder_->enable_compression_; }
   HpackHeaderTable* table() { return &encoder_->header_table_; }
   HpackHeaderTablePeer table_peer() { return HpackHeaderTablePeer(table()); }
-  const HpackHuffmanTable& huffman_table() const {
-    return encoder_->huffman_table_;
-  }
   void EmitString(quiche::QuicheStringPiece str) { encoder_->EmitString(str); }
   void TakeString(std::string* out) {
     encoder_->output_stream_.TakeString(out);
@@ -133,8 +130,7 @@ class HpackEncoderTestBase : public QuicheTest {
   typedef test::HpackEncoderPeer::Representations Representations;
 
   HpackEncoderTestBase()
-      : encoder_(ObtainHpackHuffmanTable()),
-        peer_(&encoder_),
+      : peer_(&encoder_),
         static_(peer_.table()->GetByIndex(1)),
         headers_storage_(1024 /* block size */) {}
 
@@ -190,7 +186,7 @@ class HpackEncoderTestBase : public QuicheTest {
     ExpectString(&expected_, value);
   }
   void ExpectString(HpackOutputStream* stream, quiche::QuicheStringPiece str) {
-    const HpackHuffmanTable& huffman_table = peer_.huffman_table();
+    const HpackHuffmanTable& huffman_table = ObtainHpackHuffmanTable();
     size_t encoded_size = peer_.compression_enabled()
                               ? huffman_table.EncodedSize(str)
                               : str.size();

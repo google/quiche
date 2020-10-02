@@ -24,8 +24,6 @@ enum InputSizeParam { ALL_INPUT, ONE_BYTE, ZERO_THEN_ONE_BYTE };
 
 class HpackRoundTripTest : public QuicheTestWithParam<InputSizeParam> {
  protected:
-  HpackRoundTripTest() : encoder_(ObtainHpackHuffmanTable()), decoder_() {}
-
   void SetUp() override {
     // Use a small table size to tickle eviction handling.
     encoder_.ApplyHeaderTableSizeSetting(256);
