@@ -294,7 +294,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithNoFinOrRst) {
   EXPECT_FALSE(session_->CreateOutgoingBidirectionalStream());
 
   // Close the stream, but without having received a FIN or a RST_STREAM
-  // or MAX_STREAMS (V99) and check that a new one can not be created.
+  // or MAX_STREAMS (IETF QUIC) and check that a new one can not be created.
   session_->ResetStream(stream->id(), QUIC_STREAM_CANCELLED);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
@@ -317,7 +317,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   // Check that a new one can be created.
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    // In V99 the stream limit increases only if we get a MAX_STREAMS
+    // In IETF QUIC the stream limit increases only if we get a MAX_STREAMS
     // frame; pretend we got one.
 
     QuicMaxStreamsFrame frame(0, 2,
@@ -330,7 +330,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
     // Ensure that we have 2 total streams, 1 open and 1 closed.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
-              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+              QuicSessionPeer::ietf_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }
 }
@@ -347,7 +347,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   ASSERT_NE(nullptr, stream);
 
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
-    // For v99, trying to open a stream and failing due to lack
+    // For IETF QUIC, trying to open a stream and failing due to lack
     // of stream ids will result in a STREAMS_BLOCKED. Make
     // sure we get one. Also clear out the frame because if it's
     // left sitting, the later SendRstStream will not actually
@@ -399,7 +399,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
     // Ensure that we have 2 open streams.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
-              QuicSessionPeer::v99_bidirectional_stream_id_manager(&*session_)
+              QuicSessionPeer::ietf_bidirectional_stream_id_manager(&*session_)
                   ->outgoing_stream_count());
   }
 }
@@ -1022,7 +1022,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest,
             session_->flow_controller()->send_window_offset());
   if (session_->version().UsesHttp3()) {
-    auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+    auto* id_manager = QuicSessionPeer::ietf_streamid_manager(session_.get());
     EXPECT_EQ(kDefaultMaxStreamsPerConnection,
               id_manager->max_outgoing_bidirectional_streams());
     EXPECT_EQ(
@@ -1055,7 +1055,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   EXPECT_EQ(kInitialSessionFlowControlWindowForTest + 1,
             session_->flow_controller()->send_window_offset());
   if (session_->version().UsesHttp3()) {
-    auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+    auto* id_manager = QuicSessionPeer::ietf_streamid_manager(session_.get());
     auto* control_stream =
         QuicSpdySessionPeer::GetSendControlStream(session_.get());
     EXPECT_EQ(kDefaultMaxStreamsPerConnection + 1,

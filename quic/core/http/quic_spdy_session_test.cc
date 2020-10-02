@@ -405,7 +405,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillOnce(Invoke(&ClearControlFrame));
     } else {
-      // V99 has two frames, RST_STREAM and STOP_SENDING
+      // IETF QUIC has two frames, RST_STREAM and STOP_SENDING
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(2)
           .WillRepeatedly(Invoke(&ClearControlFrame));
@@ -601,27 +601,29 @@ TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
     // is not the number of open streams, we allocate the max and the max+2.
     // Get the max allowed stream ID, this should succeed.
     QuicStreamId stream_id = StreamCountToId(
-        QuicSessionPeer::v99_streamid_manager(&session_)
+        QuicSessionPeer::ietf_streamid_manager(&session_)
             ->max_incoming_bidirectional_streams(),
         Perspective::IS_CLIENT,  // Client initates stream, allocs stream id.
         /*bidirectional=*/true);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
-    stream_id = StreamCountToId(QuicSessionPeer::v99_streamid_manager(&session_)
-                                    ->max_incoming_unidirectional_streams(),
-                                Perspective::IS_CLIENT,
-                                /*bidirectional=*/false);
+    stream_id =
+        StreamCountToId(QuicSessionPeer::ietf_streamid_manager(&session_)
+                            ->max_incoming_unidirectional_streams(),
+                        Perspective::IS_CLIENT,
+                        /*bidirectional=*/false);
     EXPECT_NE(nullptr, session_.GetOrCreateStream(stream_id));
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(2);
     // Get the (max allowed stream ID)++. These should all fail.
-    stream_id = StreamCountToId(QuicSessionPeer::v99_streamid_manager(&session_)
-                                        ->max_incoming_bidirectional_streams() +
-                                    1,
-                                Perspective::IS_CLIENT,
-                                /*bidirectional=*/true);
+    stream_id =
+        StreamCountToId(QuicSessionPeer::ietf_streamid_manager(&session_)
+                                ->max_incoming_bidirectional_streams() +
+                            1,
+                        Perspective::IS_CLIENT,
+                        /*bidirectional=*/true);
     EXPECT_EQ(nullptr, session_.GetOrCreateStream(stream_id));
 
     stream_id =
-        StreamCountToId(QuicSessionPeer::v99_streamid_manager(&session_)
+        StreamCountToId(QuicSessionPeer::ietf_streamid_manager(&session_)
                                 ->max_incoming_unidirectional_streams() +
                             1,
                         Perspective::IS_CLIENT,
@@ -1669,7 +1671,7 @@ TEST_P(QuicSpdySessionTestServer,
   // However, the stream ID manager does not assume stream 4 is for headers.
   // The ID manager would assume that stream#5 is streamid 24.
   // In order to make this all work out properly, kFinalStreamId will
-  // be set to GetNth...(kMaxStreams-1)... but only for V99
+  // be set to GetNth...(kMaxStreams-1)... but only for IETF QUIC
   const QuicStreamId kFirstStreamId = GetNthClientInitiatedBidirectionalId(0);
   const QuicStreamId kFinalStreamId =
       GetNthClientInitiatedBidirectionalId(kMaxStreams);

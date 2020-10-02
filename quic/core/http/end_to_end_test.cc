@@ -1998,13 +1998,13 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   // count.
   size_t client_max_open_outgoing_bidirectional_streams =
       version_.HasIetfQuicFrames()
-          ? QuicSessionPeer::v99_streamid_manager(client_session)
+          ? QuicSessionPeer::ietf_streamid_manager(client_session)
                 ->max_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
       version_.HasIetfQuicFrames()
-          ? QuicSessionPeer::v99_streamid_manager(client_session)
+          ? QuicSessionPeer::ietf_streamid_manager(client_session)
                     ->max_outgoing_unidirectional_streams() -
                 kHttp3StaticUnidirectionalStreamCount
           : QuicSessionPeer::GetStreamIdManager(client_session)
@@ -2018,13 +2018,13 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   if (server_session != nullptr) {
     size_t server_max_open_outgoing_bidirectional_streams =
         version_.HasIetfQuicFrames()
-            ? QuicSessionPeer::v99_streamid_manager(server_session)
+            ? QuicSessionPeer::ietf_streamid_manager(server_session)
                   ->max_outgoing_bidirectional_streams()
             : QuicSessionPeer::GetStreamIdManager(server_session)
                   ->max_open_outgoing_streams();
     size_t server_max_open_outgoing_unidirectional_streams =
         version_.HasIetfQuicFrames()
-            ? QuicSessionPeer::v99_streamid_manager(server_session)
+            ? QuicSessionPeer::ietf_streamid_manager(server_session)
                       ->max_outgoing_unidirectional_streams() -
                   kHttp3StaticUnidirectionalStreamCount
             : QuicSessionPeer::GetStreamIdManager(server_session)
@@ -4602,7 +4602,7 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   QuicSpdySession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
   QuicStreamIdManager* stream_id_manager =
-      QuicSessionPeer::v99_bidirectional_stream_id_manager(client_session);
+      QuicSessionPeer::ietf_bidirectional_stream_id_manager(client_session);
   ASSERT_TRUE(stream_id_manager);
   QuicStreamCount max_number_of_streams =
       stream_id_manager->outgoing_max_streams();

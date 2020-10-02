@@ -634,7 +634,7 @@ TEST_P(TlsClientHandshakerTest, BadTransportParams) {
   CreateConnection();
 
   stream()->CryptoConnect();
-  auto* id_manager = QuicSessionPeer::v99_streamid_manager(session_.get());
+  auto* id_manager = QuicSessionPeer::ietf_streamid_manager(session_.get());
   EXPECT_EQ(kDefaultMaxStreamsPerConnection,
             id_manager->max_outgoing_bidirectional_streams());
   QuicConfig config;

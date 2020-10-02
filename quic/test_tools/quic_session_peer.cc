@@ -28,7 +28,7 @@ QuicStreamId QuicSessionPeer::GetNextOutgoingUnidirectionalStreamId(
 void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
                                                            QuicStreamId id) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
-    session->v99_streamid_manager_.bidirectional_stream_id_manager_
+    session->ietf_streamid_manager_.bidirectional_stream_id_manager_
         .next_outgoing_stream_id_ = id;
     return;
   }
@@ -40,9 +40,9 @@ void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
     QUIC_BUG << "SetmaxOpenIncomingStreams deprecated for IETF QUIC";
-    session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
+    session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
         max_streams);
-    session->v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
+    session->ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
         max_streams);
     return;
   }
@@ -56,7 +56,7 @@ void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
+  session->ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
       max_streams);
 }
 // static
@@ -66,7 +66,7 @@ void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
+  session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
       max_streams);
 }
 
@@ -87,7 +87,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
+  session->ietf_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
       max_streams);
 }
 // static
@@ -97,7 +97,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
   DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";
-  session->v99_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
+  session->ietf_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
       max_streams);
 }
 
@@ -157,12 +157,12 @@ bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
   if (VersionHasIetfQuicFrames(session->transport_version())) {
     if (id % QuicUtils::StreamIdDelta(session->transport_version()) < 2) {
       return QuicContainsKey(
-          session->v99_streamid_manager_.bidirectional_stream_id_manager_
+          session->ietf_streamid_manager_.bidirectional_stream_id_manager_
               .available_streams_,
           id);
     }
     return QuicContainsKey(
-        session->v99_streamid_manager_.unidirectional_stream_id_manager_
+        session->ietf_streamid_manager_.unidirectional_stream_id_manager_
             .available_streams_,
         id);
   }
@@ -192,21 +192,21 @@ LegacyQuicStreamIdManager* QuicSessionPeer::GetStreamIdManager(
 }
 
 // static
-UberQuicStreamIdManager* QuicSessionPeer::v99_streamid_manager(
+UberQuicStreamIdManager* QuicSessionPeer::ietf_streamid_manager(
     QuicSession* session) {
-  return &session->v99_streamid_manager_;
+  return &session->ietf_streamid_manager_;
 }
 
 // static
-QuicStreamIdManager* QuicSessionPeer::v99_bidirectional_stream_id_manager(
+QuicStreamIdManager* QuicSessionPeer::ietf_bidirectional_stream_id_manager(
     QuicSession* session) {
-  return &session->v99_streamid_manager_.bidirectional_stream_id_manager_;
+  return &session->ietf_streamid_manager_.bidirectional_stream_id_manager_;
 }
 
 // static
-QuicStreamIdManager* QuicSessionPeer::v99_unidirectional_stream_id_manager(
+QuicStreamIdManager* QuicSessionPeer::ietf_unidirectional_stream_id_manager(
     QuicSession* session) {
-  return &session->v99_streamid_manager_.unidirectional_stream_id_manager_;
+  return &session->ietf_streamid_manager_.unidirectional_stream_id_manager_;
 }
 
 // static

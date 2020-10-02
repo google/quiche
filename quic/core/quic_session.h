@@ -757,7 +757,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   LegacyQuicStreamIdManager stream_id_manager_;
 
   // Manages stream IDs for version99/IETF QUIC
-  UberQuicStreamIdManager v99_streamid_manager_;
+  UberQuicStreamIdManager ietf_streamid_manager_;
 
   // A counter for streams which have sent and received FIN but waiting for
   // application to consume data.
