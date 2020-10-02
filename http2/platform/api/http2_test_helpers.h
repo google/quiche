@@ -7,8 +7,6 @@
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
-#pragma clang diagnostic pop
-
 #define VERIFY_AND_RETURN_SUCCESS(expression) \
   {                                           \
     VERIFY_SUCCESS(expression);               \
