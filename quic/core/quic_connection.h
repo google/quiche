@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
@@ -52,7 +53,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -92,7 +92,7 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   virtual void OnGoAway(const QuicGoAwayFrame& frame) = 0;
 
   // Called when |message| has been received.
-  virtual void OnMessageReceived(quiche::QuicheStringPiece message) = 0;
+  virtual void OnMessageReceived(absl::string_view message) = 0;
 
   // Called when a HANDSHAKE_DONE frame has been received.
   virtual void OnHandshakeDoneReceived() = 0;
@@ -585,9 +585,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       const QuicVersionNegotiationPacket& packet) override;
   void OnRetryPacket(QuicConnectionId original_connection_id,
                      QuicConnectionId new_connection_id,
-                     quiche::QuicheStringPiece retry_token,
-                     quiche::QuicheStringPiece retry_integrity_tag,
-                     quiche::QuicheStringPiece retry_without_tag) override;
+                     absl::string_view retry_token,
+                     absl::string_view retry_integrity_tag,
+                     absl::string_view retry_without_tag) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel level) override;
@@ -913,7 +913,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const QuicConnectionHelperInterface* helper() const { return helper_; }
   QuicAlarmFactory* alarm_factory() { return alarm_factory_; }
 
-  quiche::QuicheStringPiece GetCurrentPacket();
+  absl::string_view GetCurrentPacket();
 
   const QuicFramer& framer() const { return framer_; }
 
@@ -1164,7 +1164,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     ~BufferedPacket();
 
     // encrypted_buffer is owned by buffered packet.
-    quiche::QuicheStringPiece encrypted_buffer;
+    absl::string_view encrypted_buffer;
     // Self and peer addresses when the packet is serialized.
     const QuicSocketAddress self_address;
     const QuicSocketAddress peer_address;
