@@ -469,6 +469,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // different from the current one, flush all the queue frames first.
   void SetDefaultPeerAddress(QuicSocketAddress address);
 
+  bool let_connection_handle_pings() const {
+    return let_connection_handle_pings_;
+  }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -665,6 +669,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   const bool close_connection_on_serialization_failure_ =
       GetQuicReloadableFlag(quic_close_connection_on_serialization_failure);
+
+  const bool let_connection_handle_pings_ =
+      GetQuicReloadableFlag(quic_let_connection_handle_pings);
 };
 
 }  // namespace quic

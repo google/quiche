@@ -831,6 +831,18 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     const bool handshake_packet_sent_;
   };
 
+  class QUIC_EXPORT_PRIVATE ScopedEncryptionLevelContext {
+   public:
+    ScopedEncryptionLevelContext(QuicConnection* connection,
+                                 EncryptionLevel level);
+    ~ScopedEncryptionLevelContext();
+
+   private:
+    QuicConnection* connection_;
+    // Latched current write encryption level on creation of this context.
+    EncryptionLevel latched_encryption_level_;
+  };
+
   QuicPacketWriter* writer() { return writer_; }
   const QuicPacketWriter* writer() const { return writer_; }
 
@@ -1421,6 +1433,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Update both connection's and packet creator's peer address.
   void UpdatePeerAddress(QuicSocketAddress peer_address);
+
+  // Send PING at encryption level.
+  void SendPingAtLevel(EncryptionLevel level);
 
   QuicFramer framer_;
 

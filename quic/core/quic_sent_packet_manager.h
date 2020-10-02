@@ -442,6 +442,11 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   void OnUserAgentIdKnown() { loss_algorithm_->OnUserAgentIdKnown(); }
 
+  // Gets the earliest in flight packet sent time to calculate PTO. Also
+  // updates |packet_number_space| if a PTO timer should be armed.
+  QuicTime GetEarliestPacketSentTimeForPto(
+      PacketNumberSpace* packet_number_space) const;
+
   bool give_sent_packet_to_debug_visitor_after_sent() const {
     return give_sent_packet_to_debug_visitor_after_sent_;
   }
@@ -539,11 +544,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // Indicates whether including peer_max_ack_delay_ when calculating PTO
   // timeout.
   bool ShouldAddMaxAckDelay(PacketNumberSpace space) const;
-
-  // Gets the earliest in flight packet sent time to calculate PTO. Also
-  // updates |packet_number_space| if a PTO timer should be armed.
-  QuicTime GetEarliestPacketSentTimeForPto(
-      PacketNumberSpace* packet_number_space) const;
 
   // Returns true if application data should be used to arm PTO. Only used when
   // multiple packet number space is enabled.

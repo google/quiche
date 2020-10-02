@@ -3233,7 +3233,11 @@ void QuicConnection::OnPingTimeout() {
       !visitor_->ShouldKeepConnectionAlive()) {
     return;
   }
-  visitor_->SendPing();
+  if (packet_creator_.let_connection_handle_pings()) {
+    SendPingAtLevel(encryption_level_);
+  } else {
+    visitor_->SendPing();
+  }
 }
 
 void QuicConnection::SendAck() {
@@ -3329,7 +3333,19 @@ void QuicConnection::OnRetransmissionTimeout() {
                     << "No packet gets sent when timer fires in mode "
                     << retransmission_mode << ", send PING";
     DCHECK_LT(0u, sent_packet_manager_.pending_timer_transmission_count());
-    visitor_->SendPing();
+    if (packet_creator_.let_connection_handle_pings()) {
+      EncryptionLevel level = encryption_level_;
+      PacketNumberSpace packet_number_space = NUM_PACKET_NUMBER_SPACES;
+      if (SupportsMultiplePacketNumberSpaces() &&
+          sent_packet_manager_
+              .GetEarliestPacketSentTimeForPto(&packet_number_space)
+              .IsInitialized()) {
+        level = QuicUtils::GetEncryptionLevel(packet_number_space);
+      }
+      SendPingAtLevel(level);
+    } else {
+      visitor_->SendPing();
+    }
   }
   if (retransmission_mode == QuicSentPacketManager::PTO_MODE) {
     sent_packet_manager_.AdjustPendingTimerTransmissions();
@@ -3933,6 +3949,24 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
   }
   DCHECK_EQ(flush_and_set_pending_retransmission_alarm_on_delete_,
             !connection_->packet_creator_.PacketFlusherAttached());
+}
+
+QuicConnection::ScopedEncryptionLevelContext::ScopedEncryptionLevelContext(
+    QuicConnection* connection,
+    EncryptionLevel encryption_level)
+    : connection_(connection), latched_encryption_level_(ENCRYPTION_INITIAL) {
+  if (connection_ == nullptr) {
+    return;
+  }
+  latched_encryption_level_ = connection_->encryption_level_;
+  connection_->SetDefaultEncryptionLevel(encryption_level);
+}
+
+QuicConnection::ScopedEncryptionLevelContext::~ScopedEncryptionLevelContext() {
+  if (connection_ == nullptr || !connection_->connected_) {
+    return;
+  }
+  connection_->SetDefaultEncryptionLevel(latched_encryption_level_);
 }
 
 QuicConnection::BufferedPacket::BufferedPacket(
@@ -5076,6 +5110,12 @@ bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,
 void QuicConnection::UpdatePeerAddress(QuicSocketAddress peer_address) {
   direct_peer_address_ = peer_address;
   packet_creator_.SetDefaultPeerAddress(peer_address);
+}
+
+void QuicConnection::SendPingAtLevel(EncryptionLevel level) {
+  DCHECK(packet_creator_.let_connection_handle_pings());
+  ScopedEncryptionLevelContext context(this, level);
+  SendControlFrame(QuicFrame(QuicPingFrame()));
 }
 
 #undef ENDPOINT  // undef for jumbo builds
