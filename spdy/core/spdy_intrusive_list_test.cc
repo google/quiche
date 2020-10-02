@@ -409,8 +409,7 @@ TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
   }
 }
 
-
-class IntrusiveListTagTypeTest : public testing::Test {
+class IntrusiveListTagTypeTest : public QuicheTest {
  protected:
   struct Tag {};
   class Element : public SpdyIntrusiveLink<Element, Tag> {};

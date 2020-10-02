@@ -6,17 +6,13 @@
 
 #include <utility>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Weverything"
-
-#include "testing/gtest/include/gtest/gtest.h"
-#pragma clang diagnostic pop
+#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
 namespace test {
 namespace {
 
-class SpdyMemSliceTest : public ::testing::Test {
+class SpdyMemSliceTest : public QuicheTest {
  public:
   SpdyMemSliceTest() {
     slice_ = SpdyMemSlice(1024);
