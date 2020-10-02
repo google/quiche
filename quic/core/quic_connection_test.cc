@@ -10954,47 +10954,10 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.GetTimeoutAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_add_silent_idle_timeout)) {
-    // Verify the connection close packets get serialized and added to
-    // termination packets list.
-    EXPECT_NE(nullptr,
-              QuicConnectionPeer::GetConnectionClosePacket(&connection_));
-  } else {
-    // Verify no connection close packet is serialized.
-    EXPECT_EQ(nullptr,
-              QuicConnectionPeer::GetConnectionClosePacket(&connection_));
-  }
-}
-
-TEST_P(QuicConnectionTest, NoSilentClose) {
-  SetQuicReloadableFlag(quic_add_silent_idle_timeout, false);
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  if (version().SupportsAntiAmplificationLimit()) {
-    QuicConnectionPeer::SetAddressValidated(&connection_);
-  }
-
-  QuicConfig config;
-  QuicTagVector connection_options;
-  connection_options.push_back(kNSLC);
-  config.SetInitialReceivedConnectionOptions(connection_options);
-  QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
-    QuicConfigPeer::SetReceivedOriginalConnectionId(
-        &config, connection_.connection_id());
-    QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
-                                                         QuicConnectionId());
-  }
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  connection_.SetFromConfig(config);
-
-  EXPECT_TRUE(connection_.connected());
-  EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
-
-  EXPECT_CALL(visitor_,
-              OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
-  connection_.GetTimeoutAlarm()->Fire();
-  TestConnectionCloseQuicErrorCode(QUIC_NETWORK_IDLE_TIMEOUT);
+  // Verify the connection close packets get serialized and added to
+  // termination packets list.
+  EXPECT_NE(nullptr,
+            QuicConnectionPeer::GetConnectionClosePacket(&connection_));
 }
 
 TEST_P(QuicConnectionTest, DonotSendPing) {

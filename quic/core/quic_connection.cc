@@ -543,8 +543,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                        config.IdleNetworkTimeout());
     idle_timeout_connection_close_behavior_ =
         ConnectionCloseBehavior::SILENT_CLOSE;
-    if (GetQuicReloadableFlag(quic_add_silent_idle_timeout) &&
-        perspective_ == Perspective::IS_SERVER) {
+    if (perspective_ == Perspective::IS_SERVER) {
       idle_timeout_connection_close_behavior_ = ConnectionCloseBehavior::
           SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED;
     }
@@ -2692,7 +2691,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     termination_packets_->emplace_back(
         new QuicEncryptedPacket(buffer_copy, encrypted_length, true));
     if (error_code == QUIC_SILENT_IDLE_TIMEOUT) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_add_silent_idle_timeout);
       DCHECK_EQ(Perspective::IS_SERVER, perspective_);
       // TODO(fayang): populate histogram indicating the time elapsed from this
       // connection gets closed to following client packets get received.
