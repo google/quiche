@@ -120,7 +120,7 @@ void HuffmanEncodeFast(quiche::QuicheStringPiece input,
   output->resize(final_size + 4, 0);
 
   // Pointer to first appended byte.
-  char* const first = output->data() + original_size;
+  char* const first = &*output->begin() + original_size;
   size_t bit_counter = 0;
   for (uint8_t c : input) {
     // Align the Huffman code to byte boundaries as it needs to be written.
