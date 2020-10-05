@@ -30,7 +30,7 @@ INSTANTIATE_TEST_SUITE_P(TwoEncoders, HuffmanEncoderTest, ::testing::Bool());
 
 TEST_P(HuffmanEncoderTest, Empty) {
   std::string empty("");
-  size_t encoded_size = ExactHuffmanSize(empty);
+  size_t encoded_size = HuffmanSize(empty);
   EXPECT_EQ(0u, encoded_size);
 
   std::string buffer;
@@ -52,9 +52,8 @@ TEST_P(HuffmanEncoderTest, SpecRequestExamples) {
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
-    size_t encoded_size = ExactHuffmanSize(plain_string);
+    size_t encoded_size = HuffmanSize(plain_string);
     EXPECT_EQ(huffman_encoded.size(), encoded_size);
-    EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
     buffer.reserve();
     Encode(plain_string, encoded_size, &buffer);
@@ -84,9 +83,8 @@ TEST_P(HuffmanEncoderTest, SpecResponseExamples) {
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
-    size_t encoded_size = ExactHuffmanSize(plain_string);
+    size_t encoded_size = HuffmanSize(plain_string);
     EXPECT_EQ(huffman_encoded.size(), encoded_size);
-    EXPECT_EQ(BoundedHuffmanSize(plain_string), encoded_size);
     std::string buffer;
     Encode(plain_string, encoded_size, &buffer);
     EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
@@ -110,22 +108,20 @@ TEST_P(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
 
   for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); ++i) {
     const std::string& plain_string = test_table[i];
-    size_t encoded_size = ExactHuffmanSize(plain_string);
+    size_t encoded_size = HuffmanSize(plain_string);
     std::string huffman_encoded;
     Encode(plain_string, encoded_size, &huffman_encoded);
     EXPECT_EQ(encoded_size, huffman_encoded.size());
-    EXPECT_LE(BoundedHuffmanSize(plain_string), plain_string.size());
-    EXPECT_LE(BoundedHuffmanSize(plain_string), ExactHuffmanSize(plain_string));
   }
 }
 
 TEST_P(HuffmanEncoderTest, AppendToOutput) {
-  size_t encoded_size = ExactHuffmanSize("foo");
+  size_t encoded_size = HuffmanSize("foo");
   std::string buffer;
   Encode("foo", encoded_size, &buffer);
   EXPECT_EQ(Http2HexDecode("94e7"), buffer);
 
-  encoded_size = ExactHuffmanSize("bar");
+  encoded_size = HuffmanSize("bar");
   Encode("bar", encoded_size, &buffer);
 
   if (use_fast_encoder_) {

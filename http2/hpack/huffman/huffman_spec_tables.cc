@@ -44,8 +44,6 @@ const uint8_t HuffmanSpecTables::kCodeLengths[] = {
     30,                              // 256
 };
 
-// TODO(jamessynge): Remove use of binary literals, that is a C++ 14 feature.
-
 // The encoding of each symbol, left justified (as printed), which means that
 // the first bit of the encoding is the high-order bit of the uint32.
 // static

@@ -17,29 +17,20 @@
 namespace http2 {
 
 // Returns the size of the Huffman encoding of |plain|, which may be greater
-// than plain.size(). Mostly present for testing.
-QUICHE_EXPORT_PRIVATE size_t ExactHuffmanSize(quiche::QuicheStringPiece plain);
-
-// Returns the size of the Huffman encoding of |plain|, unless it is greater
-// than or equal to plain.size(), in which case a value greater than or equal to
-// plain.size() is returned. The advantage of this over ExactHuffmanSize is that
-// it doesn't read as much of the input string in the event that the string is
-// not compressible by HuffmanEncode (i.e. when the encoding is longer than the
-// original string, it stops reading the input string as soon as it knows that).
-QUICHE_EXPORT_PRIVATE size_t
-BoundedHuffmanSize(quiche::QuicheStringPiece plain);
+// than plain.size().
+QUICHE_EXPORT_PRIVATE size_t HuffmanSize(quiche::QuicheStringPiece plain);
 
 // Encode the plain text string |plain| with the Huffman encoding defined in the
 // HPACK RFC, 7541.  |encoded_size| is used to pre-allocate storage and it
-// should be the value returned by ExactHuffmanSize().  |*huffman| does not have
-// to be empty, it is cleared at the beginning of this function.  This allows
+// should be the value returned by HuffmanSize().  |*huffman| does not have to
+// be empty, it is cleared at the beginning of this function.  This allows
 // reusing the same string object across multiple invocations.
 QUICHE_EXPORT_PRIVATE void HuffmanEncode(quiche::QuicheStringPiece plain,
                                          size_t encoded_size,
                                          std::string* huffman);
 
 // Encode |input| with the Huffman encoding defined RFC7541, used in HPACK and
-// QPACK.  |encoded_size| must be the value returned by ExactHuffmanSize().
+// QPACK.  |encoded_size| must be the value returned by HuffmanSize().
 // Appends the result to the end of |*output|.
 QUICHE_EXPORT_PRIVATE void HuffmanEncodeFast(quiche::QuicheStringPiece input,
                                              size_t encoded_size,

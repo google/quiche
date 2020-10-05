@@ -59,7 +59,7 @@ void BM_EncodeSmallStrings(benchmark::State& state) {
       ":method", ":path", "cookie", "set-cookie", "vary", "accept-encoding"};
   for (auto s : state) {
     for (const auto& input : inputs) {
-      size_t encoded_size = ExactHuffmanSize(input);
+      size_t encoded_size = HuffmanSize(input);
       std::string result;
       HuffmanEncode(input, encoded_size, &result);
     }
@@ -71,7 +71,7 @@ void BM_EncodeSmallStringsFast(benchmark::State& state) {
       ":method", ":path", "cookie", "set-cookie", "vary", "accept-encoding"};
   for (auto s : state) {
     for (const auto& input : inputs) {
-      size_t encoded_size = ExactHuffmanSize(input);
+      size_t encoded_size = HuffmanSize(input);
       std::string result;
       HuffmanEncodeFast(input, encoded_size, &result);
     }
@@ -81,7 +81,7 @@ void BM_EncodeSmallStringsFast(benchmark::State& state) {
 void BM_EncodeLargeString(benchmark::State& state) {
   const std::string input(state.range(0), 'a');
   for (auto s : state) {
-    size_t encoded_size = ExactHuffmanSize(input);
+    size_t encoded_size = HuffmanSize(input);
     std::string result;
     HuffmanEncode(input, encoded_size, &result);
   }
@@ -90,7 +90,7 @@ void BM_EncodeLargeString(benchmark::State& state) {
 void BM_EncodeLargeStringFast(benchmark::State& state) {
   const std::string input(state.range(0), 'a');
   for (auto s : state) {
-    size_t encoded_size = ExactHuffmanSize(input);
+    size_t encoded_size = HuffmanSize(input);
     std::string result;
     HuffmanEncodeFast(input, encoded_size, &result);
   }
@@ -103,7 +103,7 @@ void BM_EncodeLargeStringFast(benchmark::State& state) {
 void BM_EncodeLongCode(benchmark::State& state) {
   const std::string input(state.range(0), 13);
   for (auto s : state) {
-    size_t encoded_size = ExactHuffmanSize(input);
+    size_t encoded_size = HuffmanSize(input);
     std::string result;
     HuffmanEncode(input, encoded_size, &result);
   }
@@ -112,7 +112,7 @@ void BM_EncodeLongCode(benchmark::State& state) {
 void BM_EncodeLongCodeFast(benchmark::State& state) {
   const std::string input(state.range(0), 13);
   for (auto s : state) {
-    size_t encoded_size = ExactHuffmanSize(input);
+    size_t encoded_size = HuffmanSize(input);
     std::string result;
     HuffmanEncodeFast(input, encoded_size, &result);
   }

@@ -7,56 +7,12 @@
 #include "net/third_party/quiche/src/http2/hpack/huffman/huffman_spec_tables.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 
-// TODO(jamessynge): Remove use of binary literals, that is a C++ 14 feature.
-
 namespace http2 {
 
-size_t ExactHuffmanSize(quiche::QuicheStringPiece plain) {
+size_t HuffmanSize(quiche::QuicheStringPiece plain) {
   size_t bits = 0;
   for (const uint8_t c : plain) {
     bits += HuffmanSpecTables::kCodeLengths[c];
-  }
-  return (bits + 7) / 8;
-}
-
-size_t BoundedHuffmanSize(quiche::QuicheStringPiece plain) {
-  // TODO(jamessynge): Determine whether we should set the min size for Huffman
-  // encoding much higher (i.e. if less than N, then the savings isn't worth
-  // the cost of encoding and decoding). Of course, we need to decide on a
-  // value function, which might be throughput on a full load test, or a
-  // microbenchmark of the time to encode and then decode a HEADERS frame,
-  // possibly with the cost of crypto included (i.e. crypto is going to have
-  // a fairly constant per-byte cost, so reducing the number of bytes in-transit
-  // reduces the number that must be encrypted and later decrypted).
-  if (plain.size() < 3) {
-    // Huffman encoded string can't be smaller than the plain size for very
-    // short strings.
-    return plain.size();
-  }
-  // TODO(jamessynge): Measure whether this can be done more efficiently with
-  // nested loops (e.g. make exact measurement of 8 bytes, then check if min
-  // remaining is too long).
-  // Compute the number of bits in an encoding that is shorter than the plain
-  // string (i.e. the number of bits in a string 1 byte shorter than plain),
-  // and use this as the limit of the size of the encoding.
-  const size_t limit_bits = (plain.size() - 1) * 8;
-  // The shortest code length in the Huffman table of the HPACK spec has 5 bits
-  // (e.g. for 0, 1, a and e).
-  const size_t min_code_length = 5;
-  // We can therefore say that all plain text bytes whose code length we've not
-  // yet looked up will take at least 5 bits.
-  size_t min_bits_remaining = plain.size() * min_code_length;
-  size_t bits = 0;
-  for (const uint8_t c : plain) {
-    bits += HuffmanSpecTables::kCodeLengths[c];
-    min_bits_remaining -= min_code_length;
-    // If our minimum estimate of the total number of bits won't yield an
-    // encoding shorter the plain text, let's bail.
-    const size_t minimum_bits_total = bits + min_bits_remaining;
-    if (minimum_bits_total > limit_bits) {
-      bits += min_bits_remaining;
-      break;
-    }
   }
   return (bits + 7) / 8;
 }

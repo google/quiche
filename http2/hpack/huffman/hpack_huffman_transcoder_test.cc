@@ -73,7 +73,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
   AssertionResult TranscodeAndValidateSeveralWays(
       quiche::QuicheStringPiece plain,
       quiche::QuicheStringPiece expected_huffman) {
-    size_t encoded_size = ExactHuffmanSize(plain);
+    size_t encoded_size = HuffmanSize(plain);
     std::string encoded;
     HuffmanEncode(plain, encoded_size, &encoded);
     VERIFY_EQ(encoded_size, encoded.size());

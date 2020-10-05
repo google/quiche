@@ -26,8 +26,6 @@
 //             is 5 bits long, and the last canonical is EOS, which is the last
 //             of the symbols whose code is 30 bits long.
 
-// TODO(jamessynge): Remove use of binary literals, that is a C++ 14 feature.
-
 namespace http2 {
 namespace {
 
