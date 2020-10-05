@@ -505,8 +505,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   EXPECT_EQ(
       static_cast<uint64_t>(kDefaultMinAckDelayTimeMs) * kNumMicrosPerMilli,
       params.min_ack_delay_us.value());
-  EXPECT_EQ(params.key_update_not_yet_supported,
-            GetQuicReloadableFlag(quic_send_key_update_not_yet_supported));
+  EXPECT_TRUE(params.key_update_not_yet_supported);
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {

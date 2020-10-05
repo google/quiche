@@ -1228,10 +1228,7 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
     params->google_connection_options = connection_options_.GetSendValues();
   }
 
-  if (GetQuicReloadableFlag(quic_send_key_update_not_yet_supported)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_send_key_update_not_yet_supported);
-    params->key_update_not_yet_supported = true;
-  }
+  params->key_update_not_yet_supported = true;
 
   params->custom_parameters = custom_transport_parameters_to_send_;
 
