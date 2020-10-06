@@ -140,6 +140,11 @@ const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
 const uint8_t kT051Salt[] = {0x7a, 0x4e, 0xde, 0xf4, 0xe7, 0xcc, 0xee,
                              0x5f, 0xa4, 0x50, 0x6c, 0x19, 0x12, 0x4f,
                              0xc8, 0xcc, 0xda, 0x6e, 0x03, 0x3d};
+// Salt to use for initial obfuscators in
+// ParsedQuicVersion::ReservedForNegotiation().
+const uint8_t kReservedForNegotiationSalt[] = {
+    0xf9, 0x64, 0xbf, 0x45, 0x3a, 0x1f, 0x1b, 0x80, 0xa5, 0xf8,
+    0x82, 0x03, 0x77, 0xd4, 0xaf, 0xca, 0x58, 0x0e, 0xe7, 0x43};
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
@@ -148,8 +153,7 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
   if (version == ParsedQuicVersion::Draft29()) {
     *out_len = QUICHE_ARRAYSIZE(kDraft29InitialSalt);
     return kDraft29InitialSalt;
-  } else if (version == ParsedQuicVersion::Draft27() ||
-             version == ParsedQuicVersion::ReservedForNegotiation()) {
+  } else if (version == ParsedQuicVersion::Draft27()) {
     *out_len = QUICHE_ARRAYSIZE(kDraft27InitialSalt);
     return kDraft27InitialSalt;
   } else if (version == ParsedQuicVersion::T051()) {
@@ -161,6 +165,9 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
   } else if (version == ParsedQuicVersion::Q050()) {
     *out_len = QUICHE_ARRAYSIZE(kQ050Salt);
     return kQ050Salt;
+  } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
+    *out_len = QUICHE_ARRAYSIZE(kReservedForNegotiationSalt);
+    return kReservedForNegotiationSalt;
   }
   QUIC_BUG << "No initial obfuscation salt for version " << version;
   *out_len = QUICHE_ARRAYSIZE(kDraft27InitialSalt);
@@ -192,12 +199,19 @@ const uint8_t kT050RetryIntegrityKey[] = {0xc9, 0x2d, 0x32, 0x3d, 0x9c, 0xe3,
 const uint8_t kT051RetryIntegrityKey[] = {0x2e, 0xb9, 0x61, 0xa6, 0x79, 0x56,
                                           0xf8, 0x79, 0x53, 0x14, 0xda, 0xfb,
                                           0x2e, 0xbc, 0x83, 0xd7};
+// Retry integrity key used by ParsedQuicVersion::ReservedForNegotiation().
+const uint8_t kReservedForNegotiationRetryIntegrityKey[] = {
+    0xf2, 0xcd, 0x8f, 0xe0, 0x36, 0xd0, 0x25, 0x35,
+    0x03, 0xe6, 0x7c, 0x7b, 0xd2, 0x44, 0xca, 0xd9};
 // Nonces used by Google versions of QUIC. When introducing a new version,
 // generate a new nonce by running `openssl rand -hex 12`.
 const uint8_t kT050RetryIntegrityNonce[] = {0x26, 0xe4, 0xd6, 0x23, 0x83, 0xd5,
                                             0xc7, 0x60, 0xea, 0x02, 0xb4, 0x1f};
 const uint8_t kT051RetryIntegrityNonce[] = {0xb5, 0x0e, 0x4e, 0x53, 0x4c, 0xfc,
                                             0x0b, 0xbb, 0x85, 0xf2, 0xf9, 0xca};
+// Retry integrity nonce used by ParsedQuicVersion::ReservedForNegotiation().
+const uint8_t kReservedForNegotiationRetryIntegrityNonce[] = {
+    0x35, 0x9f, 0x16, 0xd1, 0xed, 0x80, 0x90, 0x8e, 0xec, 0x85, 0xc4, 0xd6};
 
 bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
                                   quiche::QuicheStringPiece* key,
@@ -239,6 +253,15 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
     *nonce = quiche::QuicheStringPiece(
         reinterpret_cast<const char*>(kT050RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kT050RetryIntegrityNonce));
+    return true;
+  } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
+    *key = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(kReservedForNegotiationRetryIntegrityKey),
+        QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityKey));
+    *nonce = quiche::QuicheStringPiece(
+        reinterpret_cast<const char*>(
+            kReservedForNegotiationRetryIntegrityNonce),
+        QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityNonce));
     return true;
   }
   QUIC_BUG << "Attempted to get retry integrity keys for version " << version;

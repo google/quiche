@@ -198,6 +198,7 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
       return transport_version == QUIC_VERSION_UNSUPPORTED;
     case PROTOCOL_QUIC_CRYPTO:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
+             transport_version != QUIC_VERSION_RESERVED_FOR_NEGOTIATION &&
              transport_version != QUIC_VERSION_51 &&
              transport_version != QUIC_VERSION_IETF_DRAFT_27 &&
              transport_version != QUIC_VERSION_IETF_DRAFT_29;
@@ -281,7 +282,7 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   }
 
   static constexpr ParsedQuicVersion ReservedForNegotiation() {
-    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO,
+    return ParsedQuicVersion(PROTOCOL_TLS1_3,
                              QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
 
