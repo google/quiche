@@ -81,19 +81,40 @@ void HuffmanEncodeFast(quiche::QuicheStringPiece input,
   for (uint8_t c : input) {
     // Align the Huffman code to byte boundaries as it needs to be written.
     // The longest Huffman code is 30 bits long, and it can be shifted by up to
-    // 7 bits, requiring 37 bits in total.  The most significant 24 bits and
-    // least significant 3 bits of |code| are always zero.
+    // 7 bits, requiring 37 bits in total.  The most significant 25 bits and
+    // least significant 2 bits of |code| are always zero.
     uint64_t code = static_cast<uint64_t>(HuffmanSpecTables::kLeftCodes[c])
                     << (8 - (bit_counter % 8));
     // The byte where the first bit of |code| needs to be written.
     char* const current = first + (bit_counter / 8);
-    *current |= code >> 32;
-    *(current + 1) |= (code >> 24) & 0xff;
-    *(current + 2) |= (code >> 16) & 0xff;
-    *(current + 3) |= (code >> 8) & 0xff;
-    *(current + 4) |= code & 0xff;
 
     bit_counter += HuffmanSpecTables::kCodeLengths[c];
+
+    *current |= code >> 32;
+
+    // Do not check if this write is zero before executing it, because with
+    // uniformly random shifts and an ideal random input distribution
+    // corresponding to the Huffman tree it would only be zero in 29% of the
+    // cases.
+    *(current + 1) |= (code >> 24) & 0xff;
+
+    // Continue to next input character if there is nothing else to write.
+    // (If next byte is zero, then rest must also be zero.)
+    if ((code & 0xff0000) == 0) {
+      continue;
+    }
+    *(current + 2) |= (code >> 16) & 0xff;
+
+    // Continue to next input character if there is nothing else to write.
+    // (If next byte is zero, then rest must also be zero.)
+    if ((code & 0xff00) == 0) {
+      continue;
+    }
+    *(current + 3) |= (code >> 8) & 0xff;
+
+    // Do not check if this write is zero, because the check would probably be
+    // as expensive as the write.
+    *(current + 4) |= code & 0xff;
   }
 
   DCHECK_EQ(encoded_size, (bit_counter + 7) / 8);
