@@ -1498,6 +1498,46 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   VerifyCleanConnection(false);
 }
 
+// Regression test for b/168020146.
+TEST_P(EndToEndTest, MultipleZeroRtt) {
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+
+  client_->Disconnect();
+
+  // The 0-RTT handshake should succeed.
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+
+  client_->Disconnect();
+
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+
+  client_->Disconnect();
+}
+
 TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
