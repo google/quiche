@@ -1519,5 +1519,108 @@ void TestPacketWriter::FreePacketBuffer(const char* buffer) {
   packet_buffer_free_list_.push_back(p);
 }
 
+bool WriteServerVersionNegotiationProbeResponse(
+    char* packet_bytes,
+    QuicByteCount* packet_length_out,
+    const char* source_connection_id_bytes,
+    uint8_t source_connection_id_length) {
+  if (packet_bytes == nullptr) {
+    QUIC_BUG << "Invalid packet_bytes";
+    return false;
+  }
+  if (packet_length_out == nullptr) {
+    QUIC_BUG << "Invalid packet_length_out";
+    return false;
+  }
+  QuicConnectionId source_connection_id(source_connection_id_bytes,
+                                        source_connection_id_length);
+  const bool use_length_prefix =
+      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
+  std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
+      QuicFramer::BuildVersionNegotiationPacket(
+          source_connection_id, EmptyQuicConnectionId(),
+          /*ietf_quic=*/true, use_length_prefix, ParsedQuicVersionVector{});
+  if (!encrypted_packet) {
+    QUIC_BUG << "Failed to create version negotiation packet";
+    return false;
+  }
+  if (*packet_length_out < encrypted_packet->length()) {
+    QUIC_BUG << "Invalid *packet_length_out " << *packet_length_out << " < "
+             << encrypted_packet->length();
+    return false;
+  }
+  *packet_length_out = encrypted_packet->length();
+  memcpy(packet_bytes, encrypted_packet->data(), *packet_length_out);
+  return true;
+}
+
+bool ParseClientVersionNegotiationProbePacket(
+    const char* packet_bytes,
+    QuicByteCount packet_length,
+    char* destination_connection_id_bytes,
+    uint8_t* destination_connection_id_length_out) {
+  if (packet_bytes == nullptr) {
+    QUIC_BUG << "Invalid packet_bytes";
+    return false;
+  }
+  if (packet_length < kMinPacketSizeForVersionNegotiation ||
+      packet_length > 65535) {
+    QUIC_BUG << "Invalid packet_length";
+    return false;
+  }
+  if (destination_connection_id_bytes == nullptr) {
+    QUIC_BUG << "Invalid destination_connection_id_bytes";
+    return false;
+  }
+  if (destination_connection_id_length_out == nullptr) {
+    QUIC_BUG << "Invalid destination_connection_id_length_out";
+    return false;
+  }
+  if (*destination_connection_id_length_out <
+      kQuicMinimumInitialConnectionIdLength) {
+    QUIC_BUG << "Invalid *destination_connection_id_length_out";
+    return false;
+  }
+
+  QuicEncryptedPacket encrypted_packet(packet_bytes, packet_length);
+  PacketHeaderFormat format;
+  QuicLongHeaderType long_packet_type;
+  bool version_present, has_length_prefix, retry_token_present;
+  QuicVersionLabel version_label;
+  ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
+  QuicConnectionId destination_connection_id, source_connection_id;
+  quiche::QuicheStringPiece retry_token;
+  std::string detailed_error;
+  QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
+      encrypted_packet,
+      /*expected_destination_connection_id_length=*/0, &format,
+      &long_packet_type, &version_present, &has_length_prefix, &version_label,
+      &parsed_version, &destination_connection_id, &source_connection_id,
+      &retry_token_present, &retry_token, &detailed_error);
+  if (error != QUIC_NO_ERROR) {
+    QUIC_BUG << "Failed to parse packet: " << detailed_error;
+    return false;
+  }
+  if (!version_present) {
+    QUIC_BUG << "Packet is not a long header";
+    return false;
+  }
+  if (destination_connection_id.length() <
+      kQuicMinimumInitialConnectionIdLength) {
+    QUIC_BUG << "Invalid destination_connection_id length "
+             << static_cast<int>(destination_connection_id.length());
+    return false;
+  }
+  if (*destination_connection_id_length_out <
+      destination_connection_id.length()) {
+    QUIC_BUG << "destination_connection_id_length_out too small";
+    return false;
+  }
+  *destination_connection_id_length_out = destination_connection_id.length();
+  memcpy(destination_connection_id_bytes, destination_connection_id.data(),
+         *destination_connection_id_length_out);
+  return true;
+}
+
 }  // namespace test
 }  // namespace quic

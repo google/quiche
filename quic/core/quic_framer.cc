@@ -6716,6 +6716,13 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     *detailed_error = "Received unexpected destination connection ID length";
     return false;
   }
+  if (*source_connection_id_length_out < source_connection_id.length()) {
+    *detailed_error = quiche::QuicheStrCat(
+        "*source_connection_id_length_out too small ",
+        static_cast<int>(*source_connection_id_length_out), " < ",
+        static_cast<int>(source_connection_id.length()));
+    return false;
+  }
 
   memcpy(source_connection_id_bytes, source_connection_id.data(),
          source_connection_id.length());

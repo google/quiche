@@ -397,7 +397,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       uint64_t retry_token_length,
       QuicVariableLengthIntegerLength length_length);
 
-  // Parses the unencryoted fields in a QUIC header using |reader| as input,
+  // Parses the unencrypted fields in a QUIC header using |reader| as input,
   // stores the result in the other parameters.
   // |expected_destination_connection_id_length| is only used for short headers.
   static QuicErrorCode ParsePublicHeader(
@@ -417,7 +417,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       quiche::QuicheStringPiece* retry_token,
       std::string* detailed_error);
 
-  // Parses the unencryoted fields in |packet| and stores them in the other
+  // Parses the unencrypted fields in |packet| and stores them in the other
   // parameters. This can only be called on the server.
   // |expected_destination_connection_id_length| is only used for short headers.
   static QuicErrorCode ParsePublicHeaderDispatcher(
@@ -637,10 +637,12 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // WriteClientVersionNegotiationProbePacket. |packet_bytes| must point to
   // |packet_length| bytes in memory which represent the response.
   // |packet_length| must be greater or equal to 6. This method will fill in
-  // |source_connection_id_bytes| which must point to at least 18 bytes in
-  // memory. |source_connection_id_length_out| will contain the length of the
-  // received source connection ID, which on success will match the contents of
-  // the destination connection ID passed in to
+  // |source_connection_id_bytes| which must point to at least
+  // |*source_connection_id_length_out| bytes in memory.
+  // |*source_connection_id_length_out| must be at least 18.
+  // |*source_connection_id_length_out| will contain the length of the received
+  // source connection ID, which on success will match the contents of the
+  // destination connection ID passed in to
   // WriteClientVersionNegotiationProbePacket. In the case of a failure,
   // |detailed_error| will be filled in with an explanation of what failed.
   static bool ParseServerVersionNegotiationProbeResponse(

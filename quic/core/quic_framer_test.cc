@@ -14296,7 +14296,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponseOld) {
   // clang-format on
   char probe_payload_bytes[] = {0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21};
   char parsed_probe_payload_bytes[255] = {};
-  uint8_t parsed_probe_payload_length = 0;
+  uint8_t parsed_probe_payload_length = sizeof(parsed_probe_payload_bytes);
   std::string parse_detailed_error = "";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
       reinterpret_cast<const char*>(packet), sizeof(packet),
@@ -14327,7 +14327,7 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
   // clang-format on
   char probe_payload_bytes[] = {0x56, 0x4e, 0x20, 0x70, 0x6c, 0x7a, 0x20, 0x21};
   char parsed_probe_payload_bytes[255] = {};
-  uint8_t parsed_probe_payload_length = 0;
+  uint8_t parsed_probe_payload_length = sizeof(parsed_probe_payload_bytes);
   std::string parse_detailed_error = "";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
       reinterpret_cast<const char*>(packet), sizeof(packet),
@@ -14337,6 +14337,96 @@ TEST_P(QuicFramerTest, ParseServerVersionNegotiationProbeResponse) {
   quiche::test::CompareCharArraysWithHexError(
       "parsed probe", parsed_probe_payload_bytes, parsed_probe_payload_length,
       probe_payload_bytes, sizeof(probe_payload_bytes));
+}
+
+TEST_P(QuicFramerTest, ParseClientVersionNegotiationProbePacket) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
+  char packet[1200];
+  char input_destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                                  0x6c, 0x7a, 0x20, 0x21};
+  ASSERT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), input_destination_connection_id_bytes,
+      sizeof(input_destination_connection_id_bytes)));
+  char parsed_destination_connection_id_bytes[255] = {0};
+  uint8_t parsed_destination_connection_id_length =
+      sizeof(parsed_destination_connection_id_bytes);
+  ASSERT_TRUE(ParseClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), parsed_destination_connection_id_bytes,
+      &parsed_destination_connection_id_length));
+  quiche::test::CompareCharArraysWithHexError(
+      "parsed destination connection ID",
+      parsed_destination_connection_id_bytes,
+      parsed_destination_connection_id_length,
+      input_destination_connection_id_bytes,
+      sizeof(input_destination_connection_id_bytes));
+}
+
+TEST_P(QuicFramerTest, WriteServerVersionNegotiationProbeResponse) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
+  char packet[1200];
+  size_t packet_length = sizeof(packet);
+  char input_source_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                             0x6c, 0x7a, 0x20, 0x21};
+  ASSERT_TRUE(WriteServerVersionNegotiationProbeResponse(
+      packet, &packet_length, input_source_connection_id_bytes,
+      sizeof(input_source_connection_id_bytes)));
+  char parsed_source_connection_id_bytes[255] = {0};
+  uint8_t parsed_source_connection_id_length =
+      sizeof(parsed_source_connection_id_bytes);
+  std::string detailed_error;
+  ASSERT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
+      packet, packet_length, parsed_source_connection_id_bytes,
+      &parsed_source_connection_id_length, &detailed_error))
+      << detailed_error;
+  quiche::test::CompareCharArraysWithHexError(
+      "parsed destination connection ID", parsed_source_connection_id_bytes,
+      parsed_source_connection_id_length, input_source_connection_id_bytes,
+      sizeof(input_source_connection_id_bytes));
+}
+
+TEST_P(QuicFramerTest, ParseClientVersionNegotiationProbePacketOld) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
+  char packet[1200];
+  char input_destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                                  0x6c, 0x7a, 0x20, 0x21};
+  ASSERT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), input_destination_connection_id_bytes,
+      sizeof(input_destination_connection_id_bytes)));
+  char parsed_destination_connection_id_bytes[255] = {0};
+  uint8_t parsed_destination_connection_id_length =
+      sizeof(parsed_destination_connection_id_bytes);
+  ASSERT_TRUE(ParseClientVersionNegotiationProbePacket(
+      packet, sizeof(packet), parsed_destination_connection_id_bytes,
+      &parsed_destination_connection_id_length));
+  quiche::test::CompareCharArraysWithHexError(
+      "parsed destination connection ID",
+      parsed_destination_connection_id_bytes,
+      parsed_destination_connection_id_length,
+      input_destination_connection_id_bytes,
+      sizeof(input_destination_connection_id_bytes));
+}
+
+TEST_P(QuicFramerTest, WriteServerVersionNegotiationProbeResponseOld) {
+  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
+  char packet[1200];
+  size_t packet_length = sizeof(packet);
+  char input_source_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
+                                             0x6c, 0x7a, 0x20, 0x21};
+  ASSERT_TRUE(WriteServerVersionNegotiationProbeResponse(
+      packet, &packet_length, input_source_connection_id_bytes,
+      sizeof(input_source_connection_id_bytes)));
+  char parsed_source_connection_id_bytes[255] = {0};
+  uint8_t parsed_source_connection_id_length =
+      sizeof(parsed_source_connection_id_bytes);
+  std::string detailed_error;
+  ASSERT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
+      packet, packet_length, parsed_source_connection_id_bytes,
+      &parsed_source_connection_id_length, &detailed_error))
+      << detailed_error;
+  quiche::test::CompareCharArraysWithHexError(
+      "parsed destination connection ID", parsed_source_connection_id_bytes,
+      parsed_source_connection_id_length, input_source_connection_id_bytes,
+      sizeof(input_source_connection_id_bytes));
 }
 
 TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {

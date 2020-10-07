@@ -1317,7 +1317,7 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEndOld) {
   ASSERT_EQ(1u, saving_writer->packets()->size());
 
   char source_connection_id_bytes[255] = {};
-  uint8_t source_connection_id_length = 0;
+  uint8_t source_connection_id_length = sizeof(source_connection_id_bytes);
   std::string detailed_error = "foobar";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
       (*(saving_writer->packets()))[0]->data(),
@@ -1361,7 +1361,7 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEnd) {
   ASSERT_EQ(1u, saving_writer->packets()->size());
 
   char source_connection_id_bytes[255] = {};
-  uint8_t source_connection_id_length = 0;
+  uint8_t source_connection_id_length = sizeof(source_connection_id_bytes);
   std::string detailed_error = "foobar";
   EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
       (*(saving_writer->packets()))[0]->data(),
