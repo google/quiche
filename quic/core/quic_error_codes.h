@@ -19,92 +19,92 @@ enum QuicRstStreamErrorCode {
   QUIC_STREAM_NO_ERROR = 0,
 
   // There was some error which halted stream processing.
-  QUIC_ERROR_PROCESSING_STREAM,
+  QUIC_ERROR_PROCESSING_STREAM = 1,
   // We got two fin or reset offsets which did not match.
-  QUIC_MULTIPLE_TERMINATION_OFFSETS,
+  QUIC_MULTIPLE_TERMINATION_OFFSETS = 2,
   // We got bad payload and can not respond to it at the protocol level.
-  QUIC_BAD_APPLICATION_PAYLOAD,
+  QUIC_BAD_APPLICATION_PAYLOAD = 3,
   // Stream closed due to connection error. No reset frame is sent when this
   // happens.
-  QUIC_STREAM_CONNECTION_ERROR,
+  QUIC_STREAM_CONNECTION_ERROR = 4,
   // GoAway frame sent. No more stream can be created.
-  QUIC_STREAM_PEER_GOING_AWAY,
+  QUIC_STREAM_PEER_GOING_AWAY = 5,
   // The stream has been cancelled.
-  QUIC_STREAM_CANCELLED,
+  QUIC_STREAM_CANCELLED = 6,
   // Closing stream locally, sending a RST to allow for proper flow control
   // accounting. Sent in response to a RST from the peer.
-  QUIC_RST_ACKNOWLEDGEMENT,
+  QUIC_RST_ACKNOWLEDGEMENT = 7,
   // Receiver refused to create the stream (because its limit on open streams
   // has been reached).  The sender should retry the request later (using
   // another stream).
-  QUIC_REFUSED_STREAM,
+  QUIC_REFUSED_STREAM = 8,
   // Invalid URL in PUSH_PROMISE request header.
-  QUIC_INVALID_PROMISE_URL,
+  QUIC_INVALID_PROMISE_URL = 9,
   // Server is not authoritative for this URL.
-  QUIC_UNAUTHORIZED_PROMISE_URL,
+  QUIC_UNAUTHORIZED_PROMISE_URL = 10,
   // Can't have more than one active PUSH_PROMISE per URL.
-  QUIC_DUPLICATE_PROMISE_URL,
+  QUIC_DUPLICATE_PROMISE_URL = 11,
   // Vary check failed.
-  QUIC_PROMISE_VARY_MISMATCH,
+  QUIC_PROMISE_VARY_MISMATCH = 12,
   // Only GET and HEAD methods allowed.
-  QUIC_INVALID_PROMISE_METHOD,
+  QUIC_INVALID_PROMISE_METHOD = 13,
   // The push stream is unclaimed and timed out.
-  QUIC_PUSH_STREAM_TIMED_OUT,
+  QUIC_PUSH_STREAM_TIMED_OUT = 14,
   // Received headers were too large.
-  QUIC_HEADERS_TOO_LARGE,
+  QUIC_HEADERS_TOO_LARGE = 15,
   // The data is not likely arrive in time.
-  QUIC_STREAM_TTL_EXPIRED,
+  QUIC_STREAM_TTL_EXPIRED = 16,
   // The stream received data that goes beyond its close offset.
-  QUIC_DATA_AFTER_CLOSE_OFFSET,
+  QUIC_DATA_AFTER_CLOSE_OFFSET = 17,
   // Peer violated protocol requirements in a way which does not match a more
   // specific error code, or endpoint declines to use the more specific error
   // code.
-  QUIC_STREAM_GENERAL_PROTOCOL_ERROR,
+  QUIC_STREAM_GENERAL_PROTOCOL_ERROR = 18,
   // An internal error has occurred.
-  QUIC_STREAM_INTERNAL_ERROR,
+  QUIC_STREAM_INTERNAL_ERROR = 19,
   // Peer created a stream that will not be accepted.
-  QUIC_STREAM_STREAM_CREATION_ERROR,
+  QUIC_STREAM_STREAM_CREATION_ERROR = 20,
   // A stream required by the connection was closed or reset.
-  QUIC_STREAM_CLOSED_CRITICAL_STREAM,
+  QUIC_STREAM_CLOSED_CRITICAL_STREAM = 21,
   // A frame was received which was not permitted in the current state or on the
   // current stream.
-  QUIC_STREAM_FRAME_UNEXPECTED,
+  QUIC_STREAM_FRAME_UNEXPECTED = 22,
   // A frame that fails to satisfy layout requirements or with an invalid size
   // was received.
-  QUIC_STREAM_FRAME_ERROR,
+  QUIC_STREAM_FRAME_ERROR = 23,
   // Peer exhibits a behavior that might be generating excessive load.
-  QUIC_STREAM_EXCESSIVE_LOAD,
+  QUIC_STREAM_EXCESSIVE_LOAD = 24,
   // A Stream ID or Push ID was used incorrectly, such as exceeding a limit,
   // reducing a limit, or being reused.
-  QUIC_STREAM_ID_ERROR,
+  QUIC_STREAM_ID_ERROR = 25,
   // Error in the payload of a SETTINGS frame.
-  QUIC_STREAM_SETTINGS_ERROR,
+  QUIC_STREAM_SETTINGS_ERROR = 26,
   // No SETTINGS frame was received at the beginning of the control stream.
-  QUIC_STREAM_MISSING_SETTINGS,
+  QUIC_STREAM_MISSING_SETTINGS = 27,
   // A server rejected a request without performing any application processing.
-  QUIC_STREAM_REQUEST_REJECTED,
+  QUIC_STREAM_REQUEST_REJECTED = 28,
   // The client's stream terminated without containing a fully-formed request.
-  QUIC_STREAM_REQUEST_INCOMPLETE,
+  QUIC_STREAM_REQUEST_INCOMPLETE = 29,
   // The connection established in response to a CONNECT request was reset or
   // abnormally closed.
-  QUIC_STREAM_CONNECT_ERROR,
+  QUIC_STREAM_CONNECT_ERROR = 30,
   // The requested operation cannot be served over HTTP/3.
   // The peer should retry over HTTP/1.1.
-  QUIC_STREAM_VERSION_FALLBACK,
+  QUIC_STREAM_VERSION_FALLBACK = 31,
   // The QPACK decoder failed to interpret a header block and is not able to
   // continue decoding that header block.
-  QUIC_STREAM_DECOMPRESSION_FAILED,
+  QUIC_STREAM_DECOMPRESSION_FAILED = 32,
   // The QPACK decoder failed to interpret an encoder instruction received on
   // the encoder stream.
-  QUIC_STREAM_ENCODER_STREAM_ERROR,
+  QUIC_STREAM_ENCODER_STREAM_ERROR = 33,
   // The QPACK encoder failed to interpret a decoder instruction received on the
   // decoder stream.
-  QUIC_STREAM_DECODER_STREAM_ERROR,
+  QUIC_STREAM_DECODER_STREAM_ERROR = 34,
   // IETF RESET_FRAME application error code not matching any HTTP/3 or QPACK
   // error codes.
-  QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
+  QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE = 35,
   // No error. Used as bound while iterating.
-  QUIC_STREAM_LAST_ERROR,
+  QUIC_STREAM_LAST_ERROR = 36,
 };
 // QuicRstStreamErrorCode is encoded as a single octet on-the-wire.
 static_assert(static_cast<int>(QUIC_STREAM_LAST_ERROR) <=
