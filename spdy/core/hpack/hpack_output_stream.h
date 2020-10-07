@@ -48,6 +48,9 @@ class QUICHE_EXPORT_PRIVATE HpackOutputStream {
   // boundary after this function is called.
   void AppendUint32(uint32_t I);
 
+  // Return pointer to internal buffer.  |bit_offset_| needs to be zero.
+  std::string* MutableString();
+
   // Swaps the internal buffer with |output|, then resets state.
   void TakeString(std::string* output);
 

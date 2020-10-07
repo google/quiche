@@ -5,8 +5,9 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 
 #include <cstdint>
-#include <map>
+#include <utility>
 
+#include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
@@ -125,14 +126,17 @@ enum EncodeStrategy {
   kRepresentations,
 };
 
-class HpackEncoderTestBase : public QuicheTest {
+class HpackEncoderTest
+    : public QuicheTestWithParam<std::tuple<EncodeStrategy, bool>> {
  protected:
   typedef test::HpackEncoderPeer::Representations Representations;
 
-  HpackEncoderTestBase()
+  HpackEncoderTest()
       : peer_(&encoder_),
         static_(peer_.table()->GetByIndex(1)),
-        headers_storage_(1024 /* block size */) {}
+        headers_storage_(1024 /* block size */),
+        strategy_(std::get<0>(GetParam())),
+        use_fast_huffman_encoder_(std::get<1>(GetParam())) {}
 
   void SetUp() override {
     // Populate dynamic entries into the table fixture. For simplicity each
@@ -187,13 +191,19 @@ class HpackEncoderTestBase : public QuicheTest {
   }
   void ExpectString(HpackOutputStream* stream, quiche::QuicheStringPiece str) {
     const HpackHuffmanTable& huffman_table = ObtainHpackHuffmanTable();
-    size_t encoded_size = peer_.compression_enabled()
-                              ? huffman_table.EncodedSize(str)
-                              : str.size();
+    size_t encoded_size =
+        peer_.compression_enabled()
+            ? (use_fast_huffman_encoder_ ? http2::HuffmanSize(str)
+                                         : huffman_table.EncodedSize(str))
+            : str.size();
     if (encoded_size < str.size()) {
       expected_.AppendPrefix(kStringLiteralHuffmanEncoded);
       expected_.AppendUint32(encoded_size);
-      huffman_table.EncodeString(str, stream);
+      if (use_fast_huffman_encoder_) {
+        http2::HuffmanEncodeFast(str, encoded_size, stream->MutableString());
+      } else {
+        huffman_table.EncodeString(str, stream);
+      }
     } else {
       expected_.AppendPrefix(kStringLiteralIdentityEncoded);
       expected_.AppendUint32(str.size());
@@ -255,10 +265,18 @@ class HpackEncoderTestBase : public QuicheTest {
       headers_observed_;
 
   HpackOutputStream expected_;
-  EncodeStrategy strategy_ = kDefault;
+  const EncodeStrategy strategy_;
+  const bool use_fast_huffman_encoder_;
 };
 
-TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
+using HpackEncoderTestWithDefaultStrategy = HpackEncoderTest;
+
+INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
+                         HpackEncoderTestWithDefaultStrategy,
+                         ::testing::Combine(::testing::Values(kDefault),
+                                            ::testing::Bool()));
+
+TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
   encoder_.SetHeaderListener(
       [this](quiche::QuicheStringPiece name, quiche::QuicheStringPiece value) {
         this->SaveHeaders(name, value);
@@ -290,20 +308,12 @@ TEST_F(HpackEncoderTestBase, EncodeRepresentations) {
                   Pair("withnul", quiche::QuicheStringPiece("one\0two", 7))));
 }
 
-class HpackEncoderTest : public HpackEncoderTestBase,
-                         public ::testing::WithParamInterface<EncodeStrategy> {
- protected:
-  void SetUp() override {
-    strategy_ = GetParam();
-    HpackEncoderTestBase::SetUp();
-  }
-};
-
 INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
                          HpackEncoderTest,
-                         ::testing::Values(kDefault,
-                                           kIncremental,
-                                           kRepresentations));
+                         ::testing::Combine(::testing::Values(kDefault,
+                                                              kIncremental,
+                                                              kRepresentations),
+                                            ::testing::Bool()));
 
 TEST_P(HpackEncoderTest, SingleDynamicIndex) {
   encoder_.SetHeaderListener(

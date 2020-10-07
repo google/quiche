@@ -271,6 +271,20 @@ TEST(HpackOutputStreamTest, BoundedTakeString) {
   EXPECT_EQ("\x10", str);
 }
 
+TEST(HpackOutputStreamTest, MutableString) {
+  HpackOutputStream output_stream;
+
+  output_stream.AppendBytes("1");
+  output_stream.MutableString()->append("2");
+
+  output_stream.AppendBytes("foo");
+  output_stream.MutableString()->append("bar");
+
+  std::string str;
+  output_stream.TakeString(&str);
+  EXPECT_EQ("12foobar", str);
+}
+
 }  // namespace
 
 }  // namespace spdy
