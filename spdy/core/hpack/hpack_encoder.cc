@@ -8,6 +8,7 @@
 #include <limits>
 #include <utility>
 
+#include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
@@ -84,7 +85,9 @@ HpackEncoder::HpackEncoder()
       listener_(NoOpListener),
       should_index_(DefaultPolicy),
       enable_compression_(true),
-      should_emit_table_size_(false) {}
+      should_emit_table_size_(false),
+      use_fast_huffman_encoder_(
+          GetSpdyReloadableFlag(http2_use_fast_huffman_encoder)) {}
 
 HpackEncoder::~HpackEncoder() = default;
 
@@ -199,13 +202,21 @@ void HpackEncoder::EmitLiteral(const Representation& representation) {
 
 void HpackEncoder::EmitString(quiche::QuicheStringPiece str) {
   size_t encoded_size =
-      enable_compression_ ? huffman_table_.EncodedSize(str) : str.size();
+      enable_compression_
+          ? (use_fast_huffman_encoder_ ? http2::HuffmanSize(str)
+                                       : huffman_table_.EncodedSize(str))
+          : str.size();
   if (encoded_size < str.size()) {
     SPDY_DVLOG(2) << "Emitted Huffman-encoded string of length "
                   << encoded_size;
     output_stream_.AppendPrefix(kStringLiteralHuffmanEncoded);
     output_stream_.AppendUint32(encoded_size);
-    huffman_table_.EncodeString(str, &output_stream_);
+    if (use_fast_huffman_encoder_) {
+      http2::HuffmanEncodeFast(str, encoded_size,
+                               output_stream_.MutableString());
+    } else {
+      huffman_table_.EncodeString(str, &output_stream_);
+    }
   } else {
     SPDY_DVLOG(2) << "Emitted literal string of length " << str.size();
     output_stream_.AppendPrefix(kStringLiteralIdentityEncoded);
