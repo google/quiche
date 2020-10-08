@@ -7,11 +7,11 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -62,7 +62,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when part of the payload of a DATA frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    virtual bool OnDataFramePayload(quiche::QuicheStringPiece payload) = 0;
+    virtual bool OnDataFramePayload(absl::string_view payload) = 0;
     // Called when a DATA frame has been completely processed.
     virtual bool OnDataFrameEnd() = 0;
 
@@ -74,7 +74,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when part of the payload of a HEADERS frame has been read.  May be
     // called multiple times for a single frame.  |payload| is guaranteed to be
     // non-empty.
-    virtual bool OnHeadersFramePayload(quiche::QuicheStringPiece payload) = 0;
+    virtual bool OnHeadersFramePayload(absl::string_view payload) = 0;
     // Called when a HEADERS frame has been completely processed.
     virtual bool OnHeadersFrameEnd() = 0;
 
@@ -91,8 +91,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when part of the header block of a PUSH_PROMISE frame has been
     // read. May be called multiple times for a single frame.  |payload| is
     // guaranteed to be non-empty.
-    virtual bool OnPushPromiseFramePayload(
-        quiche::QuicheStringPiece payload) = 0;
+    virtual bool OnPushPromiseFramePayload(absl::string_view payload) = 0;
     // Called when a PUSH_PROMISE frame has been completely processed.
     virtual bool OnPushPromiseFrameEnd() = 0;
 
@@ -113,7 +112,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when part of the payload of the unknown frame has been read.  May
     // be called multiple times for a single frame.  |payload| is guaranteed to
     // be non-empty.
-    virtual bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) = 0;
+    virtual bool OnUnknownFramePayload(absl::string_view payload) = 0;
     // Called when the unknown frame has been completely processed.
     virtual bool OnUnknownFrameEnd() = 0;
   };

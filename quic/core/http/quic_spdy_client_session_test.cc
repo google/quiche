@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
@@ -38,7 +39,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyHeaderBlock;
 using ::testing::_;
@@ -448,7 +448,7 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
         connection_->transport_version(), 3);
     char type[] = {0x00};
 
-    QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
+    QuicStreamFrame data1(id, false, 0, absl::string_view(type, 1));
     session_->OnStreamFrame(data1);
   } else {
     id = QuicUtils::GetHeadersStreamId(connection_->transport_version());
@@ -478,7 +478,7 @@ TEST_P(QuicSpdyClientSessionTest, OnPromiseHeaderListWithStaticStream) {
         connection_->transport_version(), 3);
     char type[] = {0x00};
 
-    QuicStreamFrame data1(id, false, 0, quiche::QuicheStringPiece(type, 1));
+    QuicStreamFrame data1(id, false, 0, absl::string_view(type, 1));
     session_->OnStreamFrame(data1);
   } else {
     id = QuicUtils::GetHeadersStreamId(connection_->transport_version());

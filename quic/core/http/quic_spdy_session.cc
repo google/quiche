@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
@@ -476,8 +476,7 @@ void QuicSpdySession::FillSettingsFrame() {
       max_inbound_header_list_size_;
 }
 
-void QuicSpdySession::OnDecoderStreamError(
-    quiche::QuicheStringPiece error_message) {
+void QuicSpdySession::OnDecoderStreamError(absl::string_view error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
@@ -485,8 +484,7 @@ void QuicSpdySession::OnDecoderStreamError(
       quiche::QuicheStrCat("Decoder stream error: ", error_message));
 }
 
-void QuicSpdySession::OnEncoderStreamError(
-    quiche::QuicheStringPiece error_message) {
+void QuicSpdySession::OnEncoderStreamError(absl::string_view error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
@@ -646,7 +644,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(priority_frame));
   headers_stream()->WriteOrBufferData(
-      quiche::QuicheStringPiece(frame.data(), frame.size()), false, nullptr);
+      absl::string_view(frame.data(), frame.size()), false, nullptr);
   return frame.size();
 }
 
@@ -777,7 +775,7 @@ void QuicSpdySession::WritePushPromise(QuicStreamId original_stream_id,
 
     SpdySerializedFrame frame(spdy_framer_.SerializeFrame(push_promise));
     headers_stream()->WriteOrBufferData(
-        quiche::QuicheStringPiece(frame.data(), frame.size()), false, nullptr);
+        absl::string_view(frame.data(), frame.size()), false, nullptr);
     return;
   }
 
@@ -903,7 +901,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
   }
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(headers_frame));
   headers_stream()->WriteOrBufferData(
-      quiche::QuicheStringPiece(frame.data(), frame.size()), false,
+      absl::string_view(frame.data(), frame.size()), false,
       std::move(ack_listener));
 
   // Calculate compressed header block size without framing overhead.
@@ -1467,7 +1465,7 @@ bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
 }
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
-    quiche::QuicheStringPiece type) {
+    absl::string_view type) {
   QUIC_PEER_BUG << quiche::QuicheStrCat("Received a duplicate ", type,
                                         " stream: Closing connection.");
   CloseConnectionWithDetails(

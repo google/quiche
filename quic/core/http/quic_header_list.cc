@@ -7,10 +7,10 @@
 #include <limits>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,8 +36,7 @@ void QuicHeaderList::OnHeaderBlockStart() {
       << "OnHeaderBlockStart called more than once!";
 }
 
-void QuicHeaderList::OnHeader(quiche::QuicheStringPiece name,
-                              quiche::QuicheStringPiece value) {
+void QuicHeaderList::OnHeader(absl::string_view name, absl::string_view value) {
   // Avoid infinite buffering of headers. No longer store headers
   // once the current headers are over the limit.
   if (current_header_list_size_ < max_header_list_size_) {

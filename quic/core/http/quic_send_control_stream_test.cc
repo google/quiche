@@ -6,11 +6,11 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -154,7 +154,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
 
   send_control_stream_->MaybeSendSettingsFrame();
   EXPECT_EQ(expected_write_data,
-            quiche::QuicheStringPiece(writer.data(), writer.length()));
+            absl::string_view(writer.data(), writer.length()));
 }
 
 TEST_P(QuicSendControlStreamTest, WriteSettingsOnlyOnce) {

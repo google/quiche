@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
@@ -65,7 +66,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_stream.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3LowestPriority;
@@ -465,9 +465,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
   }
 
-  void AddToCache(quiche::QuicheStringPiece path,
+  void AddToCache(absl::string_view path,
                   int response_code,
-                  quiche::QuicheStringPiece body) {
+                  absl::string_view body) {
     memory_cache_backend_.AddSimpleResponse(server_hostname_, path,
                                             response_code, body);
   }
@@ -4288,7 +4288,7 @@ TEST_P(EndToEndTest, SendMessages) {
   ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
 
   std::string message_string(kMaxOutgoingPacketSize, 'a');
-  quiche::QuicheStringPiece message_buffer(message_string);
+  absl::string_view message_buffer(message_string);
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
@@ -4298,7 +4298,7 @@ TEST_P(EndToEndTest, SendMessages) {
     EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
               client_session->SendMessage(MakeSpan(
                   client_connection->helper()->GetStreamSendBufferAllocator(),
-                  quiche::QuicheStringPiece(
+                  absl::string_view(
                       message_buffer.data(),
                       client_session->GetCurrentLargestMessagePayload()),
                   &storage)));
@@ -4312,8 +4312,7 @@ TEST_P(EndToEndTest, SendMessages) {
           1;
       MessageResult result = client_session->SendMessage(MakeSpan(
           client_connection->helper()->GetStreamSendBufferAllocator(),
-          quiche::QuicheStringPiece(message_buffer.data(), message_length),
-          &storage));
+          absl::string_view(message_buffer.data(), message_length), &storage));
       if (result.status == MESSAGE_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
@@ -4327,7 +4326,7 @@ TEST_P(EndToEndTest, SendMessages) {
             client_session
                 ->SendMessage(MakeSpan(
                     client_connection->helper()->GetStreamSendBufferAllocator(),
-                    quiche::QuicheStringPiece(
+                    absl::string_view(
                         message_buffer.data(),
                         client_session->GetCurrentLargestMessagePayload() + 1),
                     &storage))

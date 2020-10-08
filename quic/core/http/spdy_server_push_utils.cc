@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyHeaderBlock;
 
@@ -40,7 +40,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end() || it->second.empty()) {
     return std::string();
   }
-  quiche::QuicheStringPiece scheme = it->second;
+  absl::string_view scheme = it->second;
 
   // RFC 7540, Section 8.2: The server MUST include a value in the
   // ":authority" pseudo-header field for which the server is authoritative
@@ -49,7 +49,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end() || it->second.empty()) {
     return std::string();
   }
-  quiche::QuicheStringPiece authority = it->second;
+  absl::string_view authority = it->second;
 
   // RFC 7540, Section 8.1.2.3 requires that the ":path" pseudo-header MUST
   // NOT be empty for "http" or "https" URIs;
@@ -60,7 +60,7 @@ std::string SpdyServerPushUtils::GetPromisedUrlFromHeaders(
   if (it == headers.end()) {
     return std::string();
   }
-  quiche::QuicheStringPiece path = it->second;
+  absl::string_view path = it->second;
 
   return GetPushPromiseUrl(scheme, authority, path);
 }
@@ -80,10 +80,9 @@ bool SpdyServerPushUtils::PromisedUrlIsValid(const SpdyHeaderBlock& headers) {
 }
 
 // static
-std::string SpdyServerPushUtils::GetPushPromiseUrl(
-    quiche::QuicheStringPiece scheme,
-    quiche::QuicheStringPiece authority,
-    quiche::QuicheStringPiece path) {
+std::string SpdyServerPushUtils::GetPushPromiseUrl(absl::string_view scheme,
+                                                   absl::string_view authority,
+                                                   absl::string_view path) {
   // RFC 7540, Section 8.1.2.3: The ":path" pseudo-header field includes the
   // path and query parts of the target URI (the "path-absolute" production
   // and optionally a '?' character followed by the "query" production (see

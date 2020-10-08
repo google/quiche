@@ -15,6 +15,7 @@
 #include <list>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
@@ -26,7 +27,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -122,7 +122,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Sends |data| to the peer, or buffers if it can't be sent immediately.
-  void WriteOrBufferBody(quiche::QuicheStringPiece data, bool fin);
+  void WriteOrBufferBody(absl::string_view data, bool fin);
 
   // Writes the trailers contained in |trailer_block| on the dedicated headers
   // stream or on this stream, depending on VersionUsesHttp3().  Trailers will
@@ -220,7 +220,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // QpackDecodedHeadersAccumulator::Visitor implementation.
   void OnHeadersDecoded(QuicHeaderList headers,
                         bool header_list_size_limit_exceeded) override;
-  void OnHeaderDecodingError(quiche::QuicheStringPiece error_message) override;
+  void OnHeaderDecodingError(absl::string_view error_message) override;
 
   QuicSpdySession* spdy_session() const { return spdy_session_; }
 
@@ -262,22 +262,22 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStream
   // Called by HttpDecoderVisitor.
   bool OnDataFrameStart(QuicByteCount header_length,
                         QuicByteCount payload_length);
-  bool OnDataFramePayload(quiche::QuicheStringPiece payload);
+  bool OnDataFramePayload(absl::string_view payload);
   bool OnDataFrameEnd();
   bool OnHeadersFrameStart(QuicByteCount header_length,
                            QuicByteCount payload_length);
-  bool OnHeadersFramePayload(quiche::QuicheStringPiece payload);
+  bool OnHeadersFramePayload(absl::string_view payload);
   bool OnHeadersFrameEnd();
   bool OnPushPromiseFrameStart(QuicByteCount header_length);
   bool OnPushPromiseFramePushId(PushId push_id,
                                 QuicByteCount push_id_length,
                                 QuicByteCount header_block_length);
-  bool OnPushPromiseFramePayload(quiche::QuicheStringPiece payload);
+  bool OnPushPromiseFramePayload(absl::string_view payload);
   bool OnPushPromiseFrameEnd();
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount header_length,
                            QuicByteCount payload_length);
-  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload);
+  bool OnUnknownFramePayload(absl::string_view payload);
   bool OnUnknownFrameEnd();
 
   // Given the interval marked by [|offset|, |offset| + |data_length|), return

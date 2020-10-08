@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
@@ -39,7 +40,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::StrictMock;
@@ -237,7 +237,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Open a stream, then reset it.
   // Send two bytes of payload to open it.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        quiche::QuicheStringPiece("HT"));
+                        absl::string_view("HT"));
   session_->OnStreamFrame(data1);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
 
@@ -292,7 +292,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
   // Send two bytes of payload.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                        quiche::QuicheStringPiece("HT"));
+                        absl::string_view("HT"));
   session_->OnStreamFrame(data1);
 
   // The stream should never be opened, now that the reset is received.
@@ -303,9 +303,9 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
 TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   // Send (empty) compressed headers followed by two bytes of data.
   QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), false, 0,
-                         quiche::QuicheStringPiece("\1\0\0\0\0\0\0\0HT"));
+                         absl::string_view("\1\0\0\0\0\0\0\0HT"));
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(1), false, 0,
-                         quiche::QuicheStringPiece("\3\0\0\0\0\0\0\0HT"));
+                         absl::string_view("\3\0\0\0\0\0\0\0HT"));
   session_->OnStreamFrame(frame1);
   session_->OnStreamFrame(frame2);
   EXPECT_EQ(2u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
@@ -333,9 +333,9 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   // past the reset point of stream 3.  As it's a closed stream we just drop the
   // data on the floor, but accept the packet because it has data for stream 5.
   QuicStreamFrame frame3(GetNthClientInitiatedBidirectionalId(0), false, 2,
-                         quiche::QuicheStringPiece("TP"));
+                         absl::string_view("TP"));
   QuicStreamFrame frame4(GetNthClientInitiatedBidirectionalId(1), false, 2,
-                         quiche::QuicheStringPiece("TP"));
+                         absl::string_view("TP"));
   session_->OnStreamFrame(frame3);
   session_->OnStreamFrame(frame4);
   // The stream should never be opened, now that the reset is received.

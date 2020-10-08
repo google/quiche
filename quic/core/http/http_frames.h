@@ -9,11 +9,11 @@
 #include <map>
 #include <ostream>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -34,7 +34,7 @@ enum class HttpFrameType : uint8_t {
 //   DATA frames (type=0x0) convey arbitrary, variable-length sequences of
 //   octets associated with an HTTP request or response payload.
 struct QUIC_EXPORT_PRIVATE DataFrame {
-  quiche::QuicheStringPiece data;
+  absl::string_view data;
 };
 
 // 7.2.2.  HEADERS
@@ -42,7 +42,7 @@ struct QUIC_EXPORT_PRIVATE DataFrame {
 //   The HEADERS frame (type=0x1) is used to carry a header block,
 //   compressed using QPACK.
 struct QUIC_EXPORT_PRIVATE HeadersFrame {
-  quiche::QuicheStringPiece headers;
+  absl::string_view headers;
 };
 
 // 7.2.3.  CANCEL_PUSH
@@ -98,7 +98,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
 //   set from server to client, as in HTTP/2.
 struct QUIC_EXPORT_PRIVATE PushPromiseFrame {
   PushId push_id;
-  quiche::QuicheStringPiece headers;
+  absl::string_view headers;
 
   bool operator==(const PushPromiseFrame& rhs) const {
     return push_id == rhs.push_id && headers == rhs.headers;

@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -53,7 +53,7 @@ bool HttpDecoder::DecodeSettings(const char* data,
     return false;
   }
 
-  quiche::QuicheStringPiece frame_contents;
+  absl::string_view frame_contents;
   if (!reader.ReadStringPieceVarInt62(&frame_contents)) {
     QUIC_DLOG(ERROR) << "Failed to read SETTINGS frame contents";
     return false;
@@ -258,7 +258,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::DATA): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      quiche::QuicheStringPiece payload;
+      absl::string_view payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -269,7 +269,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     case static_cast<uint64_t>(HttpFrameType::HEADERS): {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      quiche::QuicheStringPiece payload;
+      absl::string_view payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -342,7 +342,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       if (bytes_to_read == 0) {
         break;
       }
-      quiche::QuicheStringPiece payload;
+      absl::string_view payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -367,7 +367,7 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
     default: {
       QuicByteCount bytes_to_read = std::min<QuicByteCount>(
           remaining_frame_length_, reader->BytesRemaining());
-      quiche::QuicheStringPiece payload;
+      absl::string_view payload;
       bool success = reader->ReadStringPiece(&payload, bytes_to_read);
       DCHECK(success);
       DCHECK(!payload.empty());
@@ -483,7 +483,7 @@ bool HttpDecoder::FinishParsing() {
 void HttpDecoder::DiscardFramePayload(QuicDataReader* reader) {
   QuicByteCount bytes_to_read = std::min<QuicByteCount>(
       remaining_frame_length_, reader->BytesRemaining());
-  quiche::QuicheStringPiece payload;
+  absl::string_view payload;
   bool success = reader->ReadStringPiece(&payload, bytes_to_read);
   DCHECK(success);
   remaining_frame_length_ -= payload.length();
@@ -596,8 +596,7 @@ bool HttpDecoder::ParsePriorityUpdateFrame(QuicDataReader* reader,
     return false;
   }
 
-  quiche::QuicheStringPiece priority_field_value =
-      reader->ReadRemainingPayload();
+  absl::string_view priority_field_value = reader->ReadRemainingPayload();
   frame->priority_field_value =
       std::string(priority_field_value.data(), priority_field_value.size());
 

@@ -8,11 +8,11 @@
 #include <numeric>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -154,7 +154,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, PeekBody) {
               static_cast<size_t>(body_manager.PeekBody(&iovecs[0], iov_len)));
     for (size_t iovec_index = 0; iovec_index < iovs_filled; ++iovec_index) {
       EXPECT_EQ(frame_payloads[iovec_index],
-                quiche::QuicheStringPiece(
+                absl::string_view(
                     static_cast<const char*>(iovecs[iovec_index].iov_base),
                     iovecs[iovec_index].iov_len));
     }

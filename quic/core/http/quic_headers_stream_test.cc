@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -150,7 +150,7 @@ class MockVisitor : public SpdyFramerVisitorInterface {
       void,
       OnAltSvc,
       (SpdyStreamId stream_id,
-       quiche::QuicheStringPiece origin,
+       absl::string_view origin,
        const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector),
       (override));
   MOCK_METHOD(void,
@@ -271,7 +271,7 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     return true;
   }
 
-  void SaveHeaderDataStringPiece(quiche::QuicheStringPiece data) {
+  void SaveHeaderDataStringPiece(absl::string_view data) {
     saved_header_data_.append(data.data(), data.length());
   }
 

@@ -5,13 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // Called when body is received.  |body| is added to |fragments_|.  The data
   // pointed to by |body| must be kept alive until an OnBodyConsumed() or
   // ReadBody() call consumes it.  |body| must not be empty.
-  void OnBody(quiche::QuicheStringPiece body);
+  void OnBody(absl::string_view body);
 
   // Internally marks |num_bytes| of body consumed.  |num_bytes| might be zero.
   // Returns the number of bytes that the caller should mark consumed with the
@@ -79,7 +79,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // consumed as soon as all of the body fragment is read.
   struct QUIC_EXPORT_PRIVATE Fragment {
     // |body| must not be empty.
-    quiche::QuicheStringPiece body;
+    absl::string_view body;
     // Might be zero.
     QuicByteCount trailing_non_body_byte_count;
   };

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
@@ -27,7 +28,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
 namespace quic {
@@ -154,10 +154,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void Initialize() override;
 
   // QpackEncoder::DecoderStreamErrorDelegate implementation.
-  void OnDecoderStreamError(quiche::QuicheStringPiece error_message) override;
+  void OnDecoderStreamError(absl::string_view error_message) override;
 
   // QpackDecoder::EncoderStreamErrorDelegate implementation.
-  void OnEncoderStreamError(quiche::QuicheStringPiece error_message) override;
+  void OnEncoderStreamError(absl::string_view error_message) override;
 
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.
@@ -485,7 +485,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
                   const spdy::SpdyStreamPrecedence& precedence);
 
   void CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
-      quiche::QuicheStringPiece type);
+      absl::string_view type);
 
   // Sends any data which should be sent at the start of a connection, including
   // the initial SETTINGS frame, and (when IETF QUIC is used) also a MAX_PUSH_ID

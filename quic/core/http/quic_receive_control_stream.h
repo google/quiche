@@ -42,24 +42,24 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   bool OnSettingsFrame(const SettingsFrame& frame) override;
   bool OnDataFrameStart(QuicByteCount header_length,
                         QuicByteCount payload_length) override;
-  bool OnDataFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnDataFramePayload(absl::string_view payload) override;
   bool OnDataFrameEnd() override;
   bool OnHeadersFrameStart(QuicByteCount header_length,
                            QuicByteCount payload_length) override;
-  bool OnHeadersFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnHeadersFramePayload(absl::string_view payload) override;
   bool OnHeadersFrameEnd() override;
   bool OnPushPromiseFrameStart(QuicByteCount header_length) override;
   bool OnPushPromiseFramePushId(PushId push_id,
                                 QuicByteCount push_id_length,
                                 QuicByteCount header_block_length) override;
-  bool OnPushPromiseFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnPushPromiseFramePayload(absl::string_view payload) override;
   bool OnPushPromiseFrameEnd() override;
   bool OnPriorityUpdateFrameStart(QuicByteCount header_length) override;
   bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) override;
   bool OnUnknownFrameStart(uint64_t frame_type,
                            QuicByteCount header_length,
                            QuicByteCount payload_length) override;
-  bool OnUnknownFramePayload(quiche::QuicheStringPiece payload) override;
+  bool OnUnknownFramePayload(absl::string_view payload) override;
   bool OnUnknownFrameEnd() override;
 
   void SetUnblocked() { sequencer()->SetUnblocked(); }
@@ -67,7 +67,7 @@ class QUIC_EXPORT_PRIVATE QuicReceiveControlStream
   QuicSpdySession* spdy_session() { return spdy_session_; }
 
  private:
-  void OnWrongFrame(quiche::QuicheStringPiece frame_type);
+  void OnWrongFrame(absl::string_view frame_type);
 
   // False until a SETTINGS frame is received.
   bool settings_frame_received_;

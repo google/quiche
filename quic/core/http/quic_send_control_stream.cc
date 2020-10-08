@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -47,8 +47,8 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   char data[sizeof(kControlStream)];
   QuicDataWriter writer(QUICHE_ARRAYSIZE(data), data);
   writer.WriteVarInt62(kControlStream);
-  WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
-                    false, nullptr);
+  WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
+                    nullptr);
 
   SettingsFrame settings = settings_;
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.4.1
@@ -72,7 +72,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   if (spdy_session_->debug_visitor()) {
     spdy_session_->debug_visitor()->OnSettingsFrameSent(settings);
   }
-  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
+  WriteOrBufferData(absl::string_view(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
   settings_sent_ = true;
 
@@ -81,7 +81,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   // discarded. A greasing frame is added here.
   std::unique_ptr<char[]> grease;
   QuicByteCount grease_length = HttpEncoder::SerializeGreasingFrame(&grease);
-  WriteOrBufferData(quiche::QuicheStringPiece(grease.get(), grease_length),
+  WriteOrBufferData(absl::string_view(grease.get(), grease_length),
                     /*fin = */ false, nullptr);
 }
 
@@ -99,8 +99,8 @@ void QuicSendControlStream::WritePriorityUpdate(
       HttpEncoder::SerializePriorityUpdateFrame(priority_update, &buffer);
   QUIC_DVLOG(1) << "Control Stream " << id() << " is writing "
                 << priority_update;
-  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
-                    false, nullptr);
+  WriteOrBufferData(absl::string_view(buffer.get(), frame_length), false,
+                    nullptr);
 }
 
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
@@ -117,7 +117,7 @@ void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeMaxPushIdFrame(frame, &buffer);
-  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
+  WriteOrBufferData(absl::string_view(buffer.get(), frame_length),
                     /*fin = */ false, nullptr);
 }
 
@@ -140,8 +140,8 @@ void QuicSendControlStream::SendGoAway(QuicStreamId id) {
   std::unique_ptr<char[]> buffer;
   QuicByteCount frame_length =
       HttpEncoder::SerializeGoAwayFrame(frame, &buffer);
-  WriteOrBufferData(quiche::QuicheStringPiece(buffer.get(), frame_length),
-                    false, nullptr);
+  WriteOrBufferData(absl::string_view(buffer.get(), frame_length), false,
+                    nullptr);
 }
 
 }  // namespace quic

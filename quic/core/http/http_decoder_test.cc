@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
@@ -62,7 +62,7 @@ class MockVisitor : public HttpDecoder::Visitor {
               (override));
   MOCK_METHOD(bool,
               OnDataFramePayload,
-              (quiche::QuicheStringPiece payload),
+              (absl::string_view payload),
               (override));
   MOCK_METHOD(bool, OnDataFrameEnd, (), (override));
 
@@ -72,7 +72,7 @@ class MockVisitor : public HttpDecoder::Visitor {
               (override));
   MOCK_METHOD(bool,
               OnHeadersFramePayload,
-              (quiche::QuicheStringPiece payload),
+              (absl::string_view payload),
               (override));
   MOCK_METHOD(bool, OnHeadersFrameEnd, (), (override));
 
@@ -88,7 +88,7 @@ class MockVisitor : public HttpDecoder::Visitor {
               (override));
   MOCK_METHOD(bool,
               OnPushPromiseFramePayload,
-              (quiche::QuicheStringPiece payload),
+              (absl::string_view payload),
               (override));
   MOCK_METHOD(bool, OnPushPromiseFrameEnd, (), (override));
 
@@ -109,7 +109,7 @@ class MockVisitor : public HttpDecoder::Visitor {
               (override));
   MOCK_METHOD(bool,
               OnUnknownFramePayload,
-              (quiche::QuicheStringPiece payload),
+              (absl::string_view payload),
               (override));
   MOCK_METHOD(bool, OnUnknownFrameEnd, (), (override));
 };
@@ -147,13 +147,13 @@ class HttpDecoderTest : public QuicTest {
   }
 
   // Process |input| in a single call to HttpDecoder::ProcessInput().
-  QuicByteCount ProcessInput(quiche::QuicheStringPiece input) {
+  QuicByteCount ProcessInput(absl::string_view input) {
     return decoder_.ProcessInput(input.data(), input.size());
   }
 
   // Feed |input| to |decoder_| one character at a time,
   // verifying that each character gets processed.
-  void ProcessInputCharByChar(quiche::QuicheStringPiece input) {
+  void ProcessInputCharByChar(absl::string_view input) {
     for (char c : input) {
       EXPECT_EQ(1u, decoder_.ProcessInput(&c, 1));
     }
@@ -161,8 +161,7 @@ class HttpDecoderTest : public QuicTest {
 
   // Append garbage to |input|, then process it in a single call to
   // HttpDecoder::ProcessInput().  Verify that garbage is not read.
-  QuicByteCount ProcessInputWithGarbageAppended(
-      quiche::QuicheStringPiece input) {
+  QuicByteCount ProcessInputWithGarbageAppended(absl::string_view input) {
     std::string input_with_garbage_appended =
         quiche::QuicheStrCat(input, "blahblah");
     QuicByteCount processed_bytes = ProcessInput(input_with_garbage_appended);
@@ -267,7 +266,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7))
       .WillOnce(Return(false));
-  quiche::QuicheStringPiece remaining_input(input);
+  absl::string_view remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(2u, processed_bytes);
@@ -276,8 +275,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_EQ(8u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("Headers")))
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("Headers")))
       .WillOnce(Return(false));
   processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(remaining_input.size(), processed_bytes);
@@ -291,7 +289,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
   EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
   EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("Headers")));
+              OnPushPromiseFramePayload(absl::string_view("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -300,20 +298,13 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
   EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("H")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("e")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("a")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("d")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("e")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("r")));
-  EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("s")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("H")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("e")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("d")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("e")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("r")));
+  EXPECT_CALL(visitor_, OnPushPromiseFramePayload(absl::string_view("s")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -323,7 +314,7 @@ TEST_F(HttpDecoderTest, PushPromiseFrame) {
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2));
   EXPECT_CALL(visitor_, OnPushPromiseFramePushId(257, 8, 7));
   EXPECT_CALL(visitor_,
-              OnPushPromiseFramePayload(quiche::QuicheStringPiece("Headers")));
+              OnPushPromiseFramePayload(absl::string_view("Headers")));
   EXPECT_CALL(visitor_, OnPushPromiseFrameEnd());
   ProcessInputCharByChar(input.substr(0, 9));
   EXPECT_EQ(8u, ProcessInput(input.substr(9)));
@@ -408,7 +399,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   frame.values[256] = 4;
 
   // Visitor pauses processing.
-  quiche::QuicheStringPiece remaining_input(input);
+  absl::string_view remaining_input(input);
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2)).WillOnce(Return(false));
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
@@ -499,13 +490,13 @@ TEST_F(HttpDecoderTest, DataFrame) {
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5)).WillOnce(Return(false));
-  quiche::QuicheStringPiece remaining_input(input);
+  absl::string_view remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(2u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("Data!")))
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("Data!")))
       .WillOnce(Return(false));
   processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(remaining_input.size(), processed_bytes);
@@ -517,7 +508,7 @@ TEST_F(HttpDecoderTest, DataFrame) {
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("Data!")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("Data!")));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -525,11 +516,11 @@ TEST_F(HttpDecoderTest, DataFrame) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("D")));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("a")));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("t")));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("a")));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("!")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("D")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("t")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("!")));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -557,7 +548,7 @@ TEST_F(HttpDecoderTest, FrameHeaderPartialDelivery) {
   EXPECT_EQ("", decoder_.error_detail());
 
   // Send data.
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece(input)));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view(input)));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
   EXPECT_EQ(2048u, decoder_.ProcessInput(input.data(), 2048));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -628,14 +619,13 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7)).WillOnce(Return(false));
-  quiche::QuicheStringPiece remaining_input(input);
+  absl::string_view remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(2u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
-  EXPECT_CALL(visitor_,
-              OnHeadersFramePayload(quiche::QuicheStringPiece("Headers")))
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("Headers")))
       .WillOnce(Return(false));
   processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(remaining_input.size(), processed_bytes);
@@ -647,8 +637,7 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
-  EXPECT_CALL(visitor_,
-              OnHeadersFramePayload(quiche::QuicheStringPiece("Headers")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("Headers")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -656,13 +645,13 @@ TEST_F(HttpDecoderTest, HeadersFrame) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("H")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("e")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("a")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("d")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("e")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("r")));
-  EXPECT_CALL(visitor_, OnHeadersFramePayload(quiche::QuicheStringPiece("s")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("H")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("e")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("a")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("d")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("e")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("r")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("s")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd());
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -818,10 +807,9 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
 
   // Visitor pauses processing, maybe because header decompression is blocked.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));
-  EXPECT_CALL(visitor_,
-              OnHeadersFramePayload(quiche::QuicheStringPiece("Headers")));
+  EXPECT_CALL(visitor_, OnHeadersFramePayload(absl::string_view("Headers")));
   EXPECT_CALL(visitor_, OnHeadersFrameEnd()).WillOnce(Return(false));
-  quiche::QuicheStringPiece remaining_input(input);
+  absl::string_view remaining_input(input);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(9u, processed_bytes);
@@ -829,7 +817,7 @@ TEST_F(HttpDecoderTest, HeadersPausedThenData) {
 
   // Process DATA frame.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5));
-  EXPECT_CALL(visitor_, OnDataFramePayload(quiche::QuicheStringPiece("Data!")));
+  EXPECT_CALL(visitor_, OnDataFramePayload(absl::string_view("Data!")));
   EXPECT_CALL(visitor_, OnDataFrameEnd());
 
   processed_bytes = ProcessInput(remaining_input);
@@ -878,7 +866,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
       HttpDecoder decoder(&visitor_);
       EXPECT_CALL(visitor_, OnError(&decoder));
 
-      quiche::QuicheStringPiece input(test_data.input);
+      absl::string_view input(test_data.input);
       decoder.ProcessInput(input.data(), input.size());
       EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
       EXPECT_EQ(test_data.error_message, decoder.error_detail());
@@ -887,7 +875,7 @@ TEST_F(HttpDecoderTest, CorruptFrame) {
       HttpDecoder decoder(&visitor_);
       EXPECT_CALL(visitor_, OnError(&decoder));
 
-      quiche::QuicheStringPiece input(test_data.input);
+      absl::string_view input(test_data.input);
       for (auto c : input) {
         decoder.ProcessInput(&c, 1);
       }
@@ -983,7 +971,7 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnPriorityUpdateFrameStart(2)).WillOnce(Return(false));
-  quiche::QuicheStringPiece remaining_input(input1);
+  absl::string_view remaining_input(input1);
   QuicByteCount processed_bytes =
       ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(2u, processed_bytes);
