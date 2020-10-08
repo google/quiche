@@ -30,7 +30,7 @@ MasqueServerSession::MasqueServerSession(
   masque_server_backend_->RegisterBackendClient(connection_id(), this);
 }
 
-void MasqueServerSession::OnMessageReceived(quiche::QuicheStringPiece message) {
+void MasqueServerSession::OnMessageReceived(absl::string_view message) {
   QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
 
   QuicConnectionId client_connection_id, server_connection_id;

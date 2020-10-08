@@ -27,7 +27,7 @@ class MasquePacketWriter : public QuicPacketWriter {
     DCHECK(peer_address.IsInitialized());
     QUIC_DVLOG(1) << "MasquePacketWriter trying to write " << buf_len
                   << " bytes to " << peer_address;
-    quiche::QuicheStringPiece packet(buffer, buf_len);
+    absl::string_view packet(buffer, buf_len);
     client_->masque_client()->masque_client_session()->SendPacket(
         client_->session()->connection()->client_connection_id(),
         client_->session()->connection()->connection_id(), packet,

@@ -23,7 +23,7 @@ MasqueClientSession::MasqueClientSession(
       owner_(owner),
       compression_engine_(this) {}
 
-void MasqueClientSession::OnMessageReceived(quiche::QuicheStringPiece message) {
+void MasqueClientSession::OnMessageReceived(absl::string_view message) {
   QUIC_DVLOG(1) << "Received DATAGRAM frame of length " << message.length();
 
   QuicConnectionId client_connection_id, server_connection_id;
@@ -46,7 +46,7 @@ void MasqueClientSession::OnMessageReceived(quiche::QuicheStringPiece message) {
   EncapsulatedClientSession* encapsulated_client_session =
       connection_id_registration->second;
   encapsulated_client_session->ProcessPacket(
-      quiche::QuicheStringPiece(packet.data(), packet.size()), server_address);
+      absl::string_view(packet.data(), packet.size()), server_address);
 
   QUIC_DVLOG(1) << "Sent " << packet.size() << " bytes to connection for "
                 << client_connection_id;
@@ -63,7 +63,7 @@ void MasqueClientSession::OnMessageLost(QuicMessageId message_id) {
 
 void MasqueClientSession::SendPacket(QuicConnectionId client_connection_id,
                                      QuicConnectionId server_connection_id,
-                                     quiche::QuicheStringPiece packet,
+                                     absl::string_view packet,
                                      const QuicSocketAddress& server_address) {
   compression_engine_.CompressAndSendPacket(
       packet, client_connection_id, server_connection_id, server_address);

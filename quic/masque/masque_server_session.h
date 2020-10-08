@@ -48,7 +48,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   MasqueServerSession& operator=(const MasqueServerSession&) = delete;
 
   // From QuicSession.
-  void OnMessageReceived(quiche::QuicheStringPiece message) override;
+  void OnMessageReceived(absl::string_view message) override;
   void OnMessageAcked(QuicMessageId message_id,
                       QuicTime receive_timestamp) override;
   void OnMessageLost(QuicMessageId message_id) override;

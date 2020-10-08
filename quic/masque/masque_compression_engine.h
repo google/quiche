@@ -5,13 +5,13 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -47,7 +47,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // hand off the uncompressed packet to an encapsulated session that will treat
   // it as having come from the provided |server_address|.
   // The connection IDs are the one used by the encapsulated |packet|.
-  void CompressAndSendPacket(quiche::QuicheStringPiece packet,
+  void CompressAndSendPacket(absl::string_view packet,
                              QuicConnectionId client_connection_id,
                              QuicConnectionId server_connection_id,
                              const QuicSocketAddress& server_address);
@@ -58,7 +58,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
   // |server_address| will be filled with the |server_address| passed to
   // CompressAndSendPacket. |version_present| will contain whether the
   // encapsulated |packet| contains a Version field.
-  bool DecompressDatagram(quiche::QuicheStringPiece datagram,
+  bool DecompressDatagram(absl::string_view datagram,
                           QuicConnectionId* client_connection_id,
                           QuicConnectionId* server_connection_id,
                           QuicSocketAddress* server_address,

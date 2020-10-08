@@ -6,6 +6,7 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -213,7 +213,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       return false;
     }
   }
-  quiche::QuicheStringPiece packet_payload = reader->ReadRemainingPayload();
+  absl::string_view packet_payload = reader->ReadRemainingPayload();
   if (!writer->WriteStringPiece(packet_payload)) {
     QUIC_BUG << "Failed to write packet_payload";
     return false;
@@ -222,7 +222,7 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
 }
 
 void MasqueCompressionEngine::CompressAndSendPacket(
-    quiche::QuicheStringPiece packet,
+    absl::string_view packet,
     QuicConnectionId client_connection_id,
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& server_address) {
@@ -452,7 +452,7 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
       return false;
     }
   }
-  quiche::QuicheStringPiece payload = reader->ReadRemainingPayload();
+  absl::string_view payload = reader->ReadRemainingPayload();
   if (!writer.WriteStringPiece(payload)) {
     QUIC_BUG << "Failed to write payload";
     return false;
@@ -461,7 +461,7 @@ bool MasqueCompressionEngine::WriteDecompressedPacket(
 }
 
 bool MasqueCompressionEngine::DecompressDatagram(
-    quiche::QuicheStringPiece datagram,
+    absl::string_view datagram,
     QuicConnectionId* client_connection_id,
     QuicConnectionId* server_connection_id,
     QuicSocketAddress* server_address,
@@ -514,8 +514,8 @@ bool MasqueCompressionEngine::DecompressDatagram(
 
   QUIC_DVLOG(2) << "Decompressed client " << context.client_connection_id
                 << " server " << context.server_connection_id << "\n"
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                       packet->data(), packet->size()));
+                << quiche::QuicheTextUtils::HexDump(
+                       absl::string_view(packet->data(), packet->size()));
 
   return true;
 }

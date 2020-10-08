@@ -42,7 +42,7 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
       const MasqueEncapsulatedClientSession&) = delete;
 
   // From MasqueClientSession::EncapsulatedClientSession.
-  void ProcessPacket(quiche::QuicheStringPiece packet,
+  void ProcessPacket(absl::string_view packet,
                      QuicSocketAddress server_address) override;
 
   // From QuicSession.

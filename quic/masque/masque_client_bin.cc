@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/masque/masque_client_tools.h"
 #include "net/third_party/quiche/src/quic/masque/masque_encapsulated_epoll_client.h"
@@ -21,7 +22,6 @@
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,

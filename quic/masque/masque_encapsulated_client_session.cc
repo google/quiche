@@ -23,7 +23,7 @@ MasqueEncapsulatedClientSession::MasqueEncapsulatedClientSession(
       masque_client_session_(masque_client_session) {}
 
 void MasqueEncapsulatedClientSession::ProcessPacket(
-    quiche::QuicheStringPiece packet,
+    absl::string_view packet,
     QuicSocketAddress server_address) {
   QuicTime now = connection()->clock()->ApproximateNow();
   QuicReceivedPacket received_packet(packet.data(), packet.length(), now);
