@@ -18,8 +18,8 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
 
   // TicketCrypter interface
   size_t MaxOverhead() override;
-  std::vector<uint8_t> Encrypt(quiche::QuicheStringPiece in) override;
-  void Decrypt(quiche::QuicheStringPiece in,
+  std::vector<uint8_t> Encrypt(absl::string_view in) override;
+  void Decrypt(absl::string_view in,
                std::unique_ptr<ProofSource::DecryptCallback> callback) override;
 
   void SetRunCallbacksAsync(bool run_async);
@@ -31,7 +31,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
 
  private:
   // Performs the Decrypt operation synchronously.
-  std::vector<uint8_t> Decrypt(quiche::QuicheStringPiece in);
+  std::vector<uint8_t> Decrypt(absl::string_view in);
 
   struct PendingCallback {
     std::unique_ptr<ProofSource::DecryptCallback> callback;

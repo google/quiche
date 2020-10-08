@@ -11,12 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -136,7 +136,7 @@ std::unique_ptr<ProofVerifyContext> ProofVerifyContextForTesting();
 
 // MockCommonCertSets returns a CommonCertSets that contains a single set with
 // hash |hash|, consisting of the certificate |cert| at index |index|.
-CommonCertSets* MockCommonCertSets(quiche::QuicheStringPiece cert,
+CommonCertSets* MockCommonCertSets(absl::string_view cert,
                                    uint64_t hash,
                                    uint32_t index);
 

@@ -17,10 +17,7 @@ class MockClientVisitor : public QuicTransportClientSession::ClientVisitor {
   MOCK_METHOD(void, OnSessionReady, (), (override));
   MOCK_METHOD(void, OnIncomingBidirectionalStreamAvailable, (), (override));
   MOCK_METHOD(void, OnIncomingUnidirectionalStreamAvailable, (), (override));
-  MOCK_METHOD(void,
-              OnDatagramReceived,
-              (quiche::QuicheStringPiece),
-              (override));
+  MOCK_METHOD(void, OnDatagramReceived, (absl::string_view), (override));
   MOCK_METHOD(void, OnCanCreateNewOutgoingBidirectionalStream, (), (override));
   MOCK_METHOD(void, OnCanCreateNewOutgoingUnidirectionalStream, (), (override));
 };

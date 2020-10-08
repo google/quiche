@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/quic_crypto_server_config_peer.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -53,7 +53,7 @@ std::string QuicCryptoServerConfigPeer::NewSourceAddressToken(
 
 HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
     std::string config_id,
-    quiche::QuicheStringPiece srct,
+    absl::string_view srct,
     const QuicIpAddress& ip,
     QuicWallTime now,
     CachedNetworkParameters* cached_network_params) {
@@ -70,7 +70,7 @@ HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
 
 HandshakeFailureReason
 QuicCryptoServerConfigPeer::ValidateSingleSourceAddressToken(
-    quiche::QuicheStringPiece token,
+    absl::string_view token,
     const QuicIpAddress& ip,
     QuicWallTime now) {
   SourceAddressTokens tokens;

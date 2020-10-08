@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
@@ -36,7 +37,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -249,7 +249,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
     size_t packet_size);
 
 // Compute SHA-1 hash of the supplied std::string.
-std::string Sha1Hash(quiche::QuicheStringPiece data);
+std::string Sha1Hash(absl::string_view data);
 
 // Delete |frame| and return true.
 bool ClearControlFrame(const QuicFrame& frame);
@@ -304,9 +304,9 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               OnRetryPacket,
               (QuicConnectionId original_connection_id,
                QuicConnectionId new_connection_id,
-               quiche::QuicheStringPiece retry_token,
-               quiche::QuicheStringPiece retry_integrity_tag,
-               quiche::QuicheStringPiece retry_without_tag),
+               absl::string_view retry_token,
+               absl::string_view retry_integrity_tag,
+               absl::string_view retry_without_tag),
               (override));
   // The constructor sets this up to return true by default.
   MOCK_METHOD(bool,
@@ -439,10 +439,9 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/,
-                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
-                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
-  }
+                     absl::string_view /*retry_token*/,
+                     absl::string_view /*retry_integrity_tag*/,
+                     absl::string_view /*retry_without_tag*/) override {}
   bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
@@ -506,10 +505,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, OnRstStream, (const QuicRstStreamFrame& frame), (override));
   MOCK_METHOD(void, OnGoAway, (const QuicGoAwayFrame& frame), (override));
-  MOCK_METHOD(void,
-              OnMessageReceived,
-              (quiche::QuicheStringPiece message),
-              (override));
+  MOCK_METHOD(void, OnMessageReceived, (absl::string_view message), (override));
   MOCK_METHOD(void, OnHandshakeDoneReceived, (), (override));
   MOCK_METHOD(void,
               OnConnectionClosed,
@@ -820,11 +816,11 @@ class MockQuicSession : public QuicSession {
               (QuicRstStreamErrorCode code, QuicStreamId stream_id),
               (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
-  MOCK_METHOD(std::vector<quiche::QuicheStringPiece>::const_iterator,
+  MOCK_METHOD(std::vector<absl::string_view>::const_iterator,
               SelectAlpn,
-              (const std::vector<quiche::QuicheStringPiece>&),
+              (const std::vector<absl::string_view>&),
               (const, override));
-  MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
+  MOCK_METHOD(void, OnAlpnSelected, (absl::string_view), (override));
 
   using QuicSession::ActivateStream;
 
@@ -1087,11 +1083,11 @@ class TestQuicSpdyServerSession : public QuicServerSessionBase {
               CreateOutgoingUnidirectionalStream,
               (),
               (override));
-  MOCK_METHOD(std::vector<quiche::QuicheStringPiece>::const_iterator,
+  MOCK_METHOD(std::vector<absl::string_view>::const_iterator,
               SelectAlpn,
-              (const std::vector<quiche::QuicheStringPiece>&),
+              (const std::vector<absl::string_view>&),
               (const, override));
-  MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
+  MOCK_METHOD(void, OnAlpnSelected, (absl::string_view), (override));
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
@@ -1174,7 +1170,7 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD(bool, ShouldCreateOutgoingBidirectionalStream, (), (override));
   MOCK_METHOD(bool, ShouldCreateOutgoingUnidirectionalStream, (), (override));
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
-  MOCK_METHOD(void, OnAlpnSelected, (quiche::QuicheStringPiece), (override));
+  MOCK_METHOD(void, OnAlpnSelected, (absl::string_view), (override));
   MOCK_METHOD(void, OnConfigNegotiated, (), (override));
 
   QuicCryptoClientStream* GetMutableCryptoStream() override;
@@ -1655,7 +1651,7 @@ QuicHeaderList AsHeaderList(const T& container) {
 }
 
 // Utility function that stores |str|'s data in |iov|.
-inline void MakeIOVector(quiche::QuicheStringPiece str, struct iovec* iov) {
+inline void MakeIOVector(absl::string_view str, struct iovec* iov) {
   iov->iov_base = const_cast<char*>(str.data());
   iov->iov_len = static_cast<size_t>(str.size());
 }
@@ -1685,12 +1681,12 @@ StreamType DetermineStreamType(QuicStreamId id,
 // Utility function that stores message_data in |storage| and returns a
 // QuicMemSliceSpan.
 QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
-                          quiche::QuicheStringPiece message_data,
+                          absl::string_view message_data,
                           QuicMemSliceStorage* storage);
 
 // Creates a MemSlice using a singleton trivial buffer allocator.  Performs a
 // copy.
-QuicMemSlice MemSliceFromString(quiche::QuicheStringPiece data);
+QuicMemSlice MemSliceFromString(absl::string_view data);
 
 // Used to compare ReceivedPacketInfo.
 MATCHER_P(ReceivedPacketInfoEquals, info, "") {
@@ -1756,27 +1752,27 @@ class TaggingEncrypter : public QuicEncrypter {
   ~TaggingEncrypter() override {}
 
   // QuicEncrypter interface.
-  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
+  bool SetKey(absl::string_view /*key*/) override { return true; }
 
-  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
+  bool SetNoncePrefix(absl::string_view /*nonce_prefix*/) override {
     return true;
   }
 
-  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
+  bool SetIV(absl::string_view /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetHeaderProtectionKey(absl::string_view /*key*/) override {
     return true;
   }
 
   bool EncryptPacket(uint64_t packet_number,
-                     quiche::QuicheStringPiece associated_data,
-                     quiche::QuicheStringPiece plaintext,
+                     absl::string_view associated_data,
+                     absl::string_view plaintext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
 
   std::string GenerateHeaderProtectionMask(
-      quiche::QuicheStringPiece /*sample*/) override {
+      absl::string_view /*sample*/) override {
     return std::string(5, 0);
   }
 
@@ -1792,12 +1788,10 @@ class TaggingEncrypter : public QuicEncrypter {
     return plaintext_size + kTagSize;
   }
 
-  quiche::QuicheStringPiece GetKey() const override {
-    return quiche::QuicheStringPiece();
-  }
+  absl::string_view GetKey() const override { return absl::string_view(); }
 
-  quiche::QuicheStringPiece GetNoncePrefix() const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetNoncePrefix() const override {
+    return absl::string_view();
   }
 
  private:
@@ -1815,19 +1809,19 @@ class TaggingDecrypter : public QuicDecrypter {
   ~TaggingDecrypter() override {}
 
   // QuicDecrypter interface
-  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
+  bool SetKey(absl::string_view /*key*/) override { return true; }
 
-  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
+  bool SetNoncePrefix(absl::string_view /*nonce_prefix*/) override {
     return true;
   }
 
-  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
+  bool SetIV(absl::string_view /*iv*/) override { return true; }
 
-  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetHeaderProtectionKey(absl::string_view /*key*/) override {
     return true;
   }
 
-  bool SetPreliminaryKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetPreliminaryKey(absl::string_view /*key*/) override {
     QUIC_BUG << "should not be called";
     return false;
   }
@@ -1837,8 +1831,8 @@ class TaggingDecrypter : public QuicDecrypter {
   }
 
   bool DecryptPacket(uint64_t packet_number,
-                     quiche::QuicheStringPiece associated_data,
-                     quiche::QuicheStringPiece ciphertext,
+                     absl::string_view associated_data,
+                     absl::string_view ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
@@ -1851,17 +1845,15 @@ class TaggingDecrypter : public QuicDecrypter {
   size_t GetKeySize() const override { return 0; }
   size_t GetNoncePrefixSize() const override { return 0; }
   size_t GetIVSize() const override { return 0; }
-  quiche::QuicheStringPiece GetKey() const override {
-    return quiche::QuicheStringPiece();
-  }
-  quiche::QuicheStringPiece GetNoncePrefix() const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetKey() const override { return absl::string_view(); }
+  absl::string_view GetNoncePrefix() const override {
+    return absl::string_view();
   }
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF0; }
 
  protected:
-  virtual uint8_t GetTag(quiche::QuicheStringPiece ciphertext) {
+  virtual uint8_t GetTag(absl::string_view ciphertext) {
     return ciphertext.data()[ciphertext.size() - 1];
   }
 
@@ -1870,7 +1862,7 @@ class TaggingDecrypter : public QuicDecrypter {
     kTagSize = 12,
   };
 
-  bool CheckTag(quiche::QuicheStringPiece ciphertext, uint8_t tag);
+  bool CheckTag(absl::string_view ciphertext, uint8_t tag);
 };
 
 class TestPacketWriter : public QuicPacketWriter {

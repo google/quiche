@@ -6,9 +6,9 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -52,7 +52,7 @@ FakeProofSource::ComputeSignatureOp::ComputeSignatureOp(
     const QuicSocketAddress& client_address,
     std::string hostname,
     uint16_t sig_alg,
-    quiche::QuicheStringPiece in,
+    absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback,
     ProofSource* delegate)
     : server_address_(server_address),
@@ -80,7 +80,7 @@ void FakeProofSource::GetProof(
     const std::string& hostname,
     const std::string& server_config,
     QuicTransportVersion transport_version,
-    quiche::QuicheStringPiece chlo_hash,
+    absl::string_view chlo_hash,
     std::unique_ptr<ProofSource::Callback> callback) {
   if (!active_) {
     delegate_->GetProof(server_address, client_address, hostname, server_config,
@@ -106,7 +106,7 @@ void FakeProofSource::ComputeTlsSignature(
     const QuicSocketAddress& client_address,
     const std::string& hostname,
     uint16_t signature_algorithm,
-    quiche::QuicheStringPiece in,
+    absl::string_view in,
     std::unique_ptr<ProofSource::SignatureCallback> callback) {
   QUIC_LOG(INFO) << "FakeProofSource::ComputeTlsSignature";
   if (!active_) {

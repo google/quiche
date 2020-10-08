@@ -6,11 +6,11 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,7 +36,7 @@ void SimpleDataProducer::SaveStreamData(QuicStreamId id,
 
 void SimpleDataProducer::SaveCryptoData(EncryptionLevel level,
                                         QuicStreamOffset offset,
-                                        quiche::QuicheStringPiece data) {
+                                        absl::string_view data) {
   auto key = std::make_pair(level, offset);
   crypto_buffer_map_[key] = data;
 }
@@ -65,7 +65,7 @@ bool SimpleDataProducer::WriteCryptoData(EncryptionLevel level,
     return false;
   }
   return writer->WriteStringPiece(
-      quiche::QuicheStringPiece(it->second.data(), data_length));
+      absl::string_view(it->second.data(), data_length));
 }
 
 }  // namespace test

@@ -116,7 +116,7 @@ QUIC_CONST_INIT const char kTestCertificateRaw[] = {
     '\xd3', '\xfb', '\xba', '\xaf', '\xd9', '\x61', '\x14', '\x3c', '\xe0',
     '\xa1', '\xa9', '\x51', '\x51', '\x0f', '\xad', '\x60'};
 
-QUIC_CONST_INIT const quiche::QuicheStringPiece kTestCertificate(
+QUIC_CONST_INIT const absl::string_view kTestCertificate(
     kTestCertificateRaw,
     sizeof(kTestCertificateRaw));
 
@@ -415,7 +415,7 @@ QUIC_CONST_INIT const char kTestCertificatePrivateKeyRaw[] = {
     '\x3e', '\x6b', '\x2e', '\xfa', '\x4f', '\x4d', '\xe6', '\xbe', '\xd3',
     '\x59'};
 
-QUIC_CONST_INIT const quiche::QuicheStringPiece kTestCertificatePrivateKey(
+QUIC_CONST_INIT const absl::string_view kTestCertificatePrivateKey(
     kTestCertificatePrivateKeyRaw,
     sizeof(kTestCertificatePrivateKeyRaw));
 
@@ -574,7 +574,7 @@ QUIC_CONST_INIT const char kWildcardCertificateRaw[] = {
     '\xf0', '\xb7', '\xbb', '\x58', '\x4c', '\x8f', '\x6a', '\x5d', '\x8e',
     '\x93', '\x5f', '\x35'};
 
-QUIC_CONST_INIT const quiche::QuicheStringPiece kWildcardCertificate(
+QUIC_CONST_INIT const absl::string_view kWildcardCertificate(
     kWildcardCertificateRaw,
     sizeof(kWildcardCertificateRaw));
 
@@ -716,7 +716,7 @@ QUIC_CONST_INIT const char kWildcardCertificatePrivateKeyRaw[] = {
     '\x47', '\xca', '\x21', '\x30', '\x65', '\xa4', '\xe5', '\xaa', '\x4e',
     '\x9c', '\xbc', '\xa5'};
 
-QUIC_CONST_INIT const quiche::QuicheStringPiece kWildcardCertificatePrivateKey(
+QUIC_CONST_INIT const absl::string_view kWildcardCertificatePrivateKey(
     kWildcardCertificatePrivateKeyRaw,
     sizeof(kWildcardCertificatePrivateKeyRaw));
 

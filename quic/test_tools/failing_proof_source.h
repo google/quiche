@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_FAILING_PROOF_SOURCE_H_
 #define QUICHE_QUIC_TEST_TOOLS_FAILING_PROOF_SOURCE_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -18,7 +18,7 @@ class FailingProofSource : public ProofSource {
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
-                quiche::QuicheStringPiece chlo_hash,
+                absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
 
   QuicReferenceCountedPointer<Chain> GetCertChain(
@@ -31,7 +31,7 @@ class FailingProofSource : public ProofSource {
       const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override;
 
   TicketCrypter* GetTicketCrypter() override { return nullptr; }

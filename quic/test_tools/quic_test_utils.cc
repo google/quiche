@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -36,7 +37,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 
 using testing::_;
@@ -202,7 +202,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
       header.length_length);
 }
 
-std::string Sha1Hash(quiche::QuicheStringPiece data) {
+std::string Sha1Hash(absl::string_view data) {
   char buffer[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
        reinterpret_cast<uint8_t*>(buffer));
@@ -991,7 +991,7 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   if (!QuicVersionUsesCryptoFrames(version.transport_version)) {
     QuicFrame frame(
         QuicStreamFrame(QuicUtils::GetCryptoStreamId(version.transport_version),
-                        false, 0, quiche::QuicheStringPiece(data)));
+                        false, 0, absl::string_view(data)));
     frames.push_back(frame);
   } else {
     QuicFrame frame(new QuicCryptoFrame(level, 0, data));
@@ -1102,8 +1102,7 @@ QuicEncryptedPacket* ConstructMisFramedEncryptedPacket(
     header.retry_token_length_length = VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
-  QuicFrame frame(
-      QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece(data)));
+  QuicFrame frame(QuicStreamFrame(1, false, 0, absl::string_view(data)));
   QuicFrames frames;
   frames.push_back(frame);
   QuicFramer framer({version}, QuicTime::Zero(), perspective,
@@ -1297,7 +1296,7 @@ StreamType DetermineStreamType(QuicStreamId id,
 }
 
 QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
-                          quiche::QuicheStringPiece message_data,
+                          absl::string_view message_data,
                           QuicMemSliceStorage* storage) {
   if (message_data.length() == 0) {
     *storage =
@@ -1310,20 +1309,19 @@ QuicMemSliceSpan MakeSpan(QuicBufferAllocator* allocator,
   return storage->ToSpan();
 }
 
-QuicMemSlice MemSliceFromString(quiche::QuicheStringPiece data) {
+QuicMemSlice MemSliceFromString(absl::string_view data) {
   static SimpleBufferAllocator* allocator = new SimpleBufferAllocator();
   QuicUniqueBufferPtr buffer = MakeUniqueBuffer(allocator, data.size());
   memcpy(buffer.get(), data.data(), data.size());
   return QuicMemSlice(std::move(buffer), data.size());
 }
 
-bool TaggingEncrypter::EncryptPacket(
-    uint64_t /*packet_number*/,
-    quiche::QuicheStringPiece /*associated_data*/,
-    quiche::QuicheStringPiece plaintext,
-    char* output,
-    size_t* output_length,
-    size_t max_output_length) {
+bool TaggingEncrypter::EncryptPacket(uint64_t /*packet_number*/,
+                                     absl::string_view /*associated_data*/,
+                                     absl::string_view plaintext,
+                                     char* output,
+                                     size_t* output_length,
+                                     size_t max_output_length) {
   const size_t len = plaintext.size() + kTagSize;
   if (max_output_length < len) {
     return false;
@@ -1336,13 +1334,12 @@ bool TaggingEncrypter::EncryptPacket(
   return true;
 }
 
-bool TaggingDecrypter::DecryptPacket(
-    uint64_t /*packet_number*/,
-    quiche::QuicheStringPiece /*associated_data*/,
-    quiche::QuicheStringPiece ciphertext,
-    char* output,
-    size_t* output_length,
-    size_t /*max_output_length*/) {
+bool TaggingDecrypter::DecryptPacket(uint64_t /*packet_number*/,
+                                     absl::string_view /*associated_data*/,
+                                     absl::string_view ciphertext,
+                                     char* output,
+                                     size_t* output_length,
+                                     size_t /*max_output_length*/) {
   if (ciphertext.size() < kTagSize) {
     return false;
   }
@@ -1354,8 +1351,7 @@ bool TaggingDecrypter::DecryptPacket(
   return true;
 }
 
-bool TaggingDecrypter::CheckTag(quiche::QuicheStringPiece ciphertext,
-                                uint8_t tag) {
+bool TaggingDecrypter::CheckTag(absl::string_view ciphertext, uint8_t tag) {
   for (size_t i = ciphertext.size() - kTagSize; i < ciphertext.size(); i++) {
     if (ciphertext.data()[i] != tag) {
       return false;

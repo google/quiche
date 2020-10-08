@@ -29,7 +29,7 @@ size_t TestTicketCrypter::MaxOverhead() {
   return QUICHE_ARRAYSIZE(kTicketPrefix);
 }
 
-std::vector<uint8_t> TestTicketCrypter::Encrypt(quiche::QuicheStringPiece in) {
+std::vector<uint8_t> TestTicketCrypter::Encrypt(absl::string_view in) {
   size_t prefix_len = QUICHE_ARRAYSIZE(kTicketPrefix);
   std::vector<uint8_t> out(prefix_len + in.size());
   memcpy(out.data(), kTicketPrefix, prefix_len);
@@ -37,7 +37,7 @@ std::vector<uint8_t> TestTicketCrypter::Encrypt(quiche::QuicheStringPiece in) {
   return out;
 }
 
-std::vector<uint8_t> TestTicketCrypter::Decrypt(quiche::QuicheStringPiece in) {
+std::vector<uint8_t> TestTicketCrypter::Decrypt(absl::string_view in) {
   size_t prefix_len = QUICHE_ARRAYSIZE(kTicketPrefix);
   if (fail_decrypt_ || in.size() < prefix_len ||
       memcmp(kTicketPrefix, in.data(), prefix_len) != 0) {
@@ -47,7 +47,7 @@ std::vector<uint8_t> TestTicketCrypter::Decrypt(quiche::QuicheStringPiece in) {
 }
 
 void TestTicketCrypter::Decrypt(
-    quiche::QuicheStringPiece in,
+    absl::string_view in,
     std::unique_ptr<ProofSource::DecryptCallback> callback) {
   auto decrypted_ticket = Decrypt(in);
   if (run_async_) {

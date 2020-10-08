@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -39,7 +39,7 @@ class FakeProofSource : public ProofSource {
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
-                quiche::QuicheStringPiece chlo_hash,
+                absl::string_view chlo_hash,
                 std::unique_ptr<ProofSource::Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
@@ -50,7 +50,7 @@ class FakeProofSource : public ProofSource {
       const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<ProofSource::SignatureCallback> callback) override;
   TicketCrypter* GetTicketCrypter() override;
 
@@ -107,7 +107,7 @@ class FakeProofSource : public ProofSource {
                        const QuicSocketAddress& client_address,
                        std::string hostname,
                        uint16_t sig_alg,
-                       quiche::QuicheStringPiece in,
+                       absl::string_view in,
                        std::unique_ptr<ProofSource::SignatureCallback> callback,
                        ProofSource* delegate);
     ~ComputeSignatureOp() override;

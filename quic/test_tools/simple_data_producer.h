@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMPLE_DATA_PRODUCER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_DATA_PRODUCER_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,7 +36,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
   void SaveCryptoData(EncryptionLevel level,
                       QuicStreamOffset offset,
-                      quiche::QuicheStringPiece data);
+                      absl::string_view data);
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -63,7 +63,7 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
   using CryptoBufferMap =
       QuicHashMap<std::pair<EncryptionLevel, QuicStreamOffset>,
-                  quiche::QuicheStringPiece,
+                  absl::string_view,
                   PairHash>;
 
   SimpleBufferAllocator allocator_;
