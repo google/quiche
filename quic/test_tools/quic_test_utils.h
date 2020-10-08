@@ -1865,6 +1865,23 @@ class TaggingDecrypter : public QuicDecrypter {
   bool CheckTag(absl::string_view ciphertext, uint8_t tag);
 };
 
+// StringTaggingDecrypter ensures that the final kTagSize bytes of the message
+// match the expected value.
+class StrictTaggingDecrypter : public TaggingDecrypter {
+ public:
+  explicit StrictTaggingDecrypter(uint8_t tag) : tag_(tag) {}
+  ~StrictTaggingDecrypter() override {}
+
+  // TaggingQuicDecrypter
+  uint8_t GetTag(absl::string_view /*ciphertext*/) override { return tag_; }
+
+  // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
+  uint32_t cipher_id() const override { return 0xFFFFFFF1; }
+
+ private:
+  const uint8_t tag_;
+};
+
 class TestPacketWriter : public QuicPacketWriter {
   struct PacketBuffer {
     QUIC_CACHELINE_ALIGNED char buffer[1500];

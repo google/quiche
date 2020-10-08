@@ -108,23 +108,6 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   }
 }
 
-// StringTaggingDecrypter ensures that the final kTagSize bytes of the message
-// match the expected value.
-class StrictTaggingDecrypter : public TaggingDecrypter {
- public:
-  explicit StrictTaggingDecrypter(uint8_t tag) : tag_(tag) {}
-  ~StrictTaggingDecrypter() override {}
-
-  // TaggingQuicDecrypter
-  uint8_t GetTag(absl::string_view /*ciphertext*/) override { return tag_; }
-
-  // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
-  uint32_t cipher_id() const override { return 0xFFFFFFF1; }
-
- private:
-  const uint8_t tag_;
-};
-
 class TestConnectionHelper : public QuicConnectionHelperInterface {
  public:
   TestConnectionHelper(MockClock* clock, MockRandom* random_generator)
