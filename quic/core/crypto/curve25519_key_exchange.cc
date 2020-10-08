@@ -8,11 +8,11 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -31,7 +31,7 @@ std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
 
 // static
 std::unique_ptr<Curve25519KeyExchange> Curve25519KeyExchange::New(
-    quiche::QuicheStringPiece private_key) {
+    absl::string_view private_key) {
   // We don't want to #include the BoringSSL headers in the public header file,
   // so we use literals for the sizes of private_key_ and public_key_. Here we
   // assert that those values are equal to the values from the BoringSSL
@@ -61,7 +61,7 @@ std::string Curve25519KeyExchange::NewPrivateKey(QuicRandom* rand) {
 }
 
 bool Curve25519KeyExchange::CalculateSharedKeySync(
-    quiche::QuicheStringPiece peer_public_value,
+    absl::string_view peer_public_value,
     std::string* shared_key) const {
   if (peer_public_value.size() != X25519_PUBLIC_VALUE_LEN) {
     return false;
@@ -77,9 +77,9 @@ bool Curve25519KeyExchange::CalculateSharedKeySync(
   return true;
 }
 
-quiche::QuicheStringPiece Curve25519KeyExchange::public_value() const {
-  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(public_key_),
-                                   sizeof(public_key_));
+absl::string_view Curve25519KeyExchange::public_value() const {
+  return absl::string_view(reinterpret_cast<const char*>(public_key_),
+                           sizeof(public_key_));
 }
 
 }  // namespace quic

@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -97,7 +97,7 @@ void CryptoHandshakeMessage::SetVersion(QuicTag tag,
 }
 
 void CryptoHandshakeMessage::SetStringPiece(QuicTag tag,
-                                            quiche::QuicheStringPiece value) {
+                                            absl::string_view value) {
   tag_value_map_[tag] = std::string(value);
 }
 
@@ -159,9 +159,8 @@ QuicErrorCode CryptoHandshakeMessage::GetVersionLabel(
   return QUIC_NO_ERROR;
 }
 
-bool CryptoHandshakeMessage::GetStringPiece(
-    QuicTag tag,
-    quiche::QuicheStringPiece* out) const {
+bool CryptoHandshakeMessage::GetStringPiece(QuicTag tag,
+                                            absl::string_view* out) const {
   auto it = tag_value_map_.find(tag);
   if (it == tag_value_map_.end()) {
     return false;
@@ -177,8 +176,8 @@ bool CryptoHandshakeMessage::HasStringPiece(QuicTag tag) const {
 QuicErrorCode CryptoHandshakeMessage::GetNthValue24(
     QuicTag tag,
     unsigned index,
-    quiche::QuicheStringPiece* out) const {
-  quiche::QuicheStringPiece value;
+    absl::string_view* out) const {
+  absl::string_view value;
   if (!GetStringPiece(tag, &value)) {
     return QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND;
   }
@@ -203,7 +202,7 @@ QuicErrorCode CryptoHandshakeMessage::GetNthValue24(
     }
 
     if (i == index) {
-      *out = quiche::QuicheStringPiece(value.data(), size);
+      *out = absl::string_view(value.data(), size);
       return QUIC_NO_ERROR;
     }
 

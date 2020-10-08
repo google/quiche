@@ -8,9 +8,9 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,16 +29,16 @@ class QUIC_EXPORT_PRIVATE Curve25519KeyExchange
   // New creates a new key-exchange object from a private key. If |private_key|
   // is invalid, nullptr is returned.
   static std::unique_ptr<Curve25519KeyExchange> New(
-      quiche::QuicheStringPiece private_key);
+      absl::string_view private_key);
 
   // NewPrivateKey returns a private key, generated from |rand|, suitable for
   // passing to |New|.
   static std::string NewPrivateKey(QuicRandom* rand);
 
   // SynchronousKeyExchange interface.
-  bool CalculateSharedKeySync(quiche::QuicheStringPiece peer_public_value,
+  bool CalculateSharedKeySync(absl::string_view peer_public_value,
                               std::string* shared_key) const override;
-  quiche::QuicheStringPiece public_value() const override;
+  absl::string_view public_value() const override;
   QuicTag type() const override { return kC255; }
 
  private:

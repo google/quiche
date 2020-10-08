@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -210,7 +210,7 @@ bool WriteTransportParameterLength(QuicDataWriter* writer,
 }
 
 bool WriteTransportParameterStringPiece(QuicDataWriter* writer,
-                                        quiche::QuicheStringPiece value,
+                                        absl::string_view value,
                                         ParsedQuicVersion version) {
   if (version.HasVarIntTransportParams()) {
     return writer->WriteStringPieceVarInt62(value);
@@ -240,10 +240,9 @@ bool ReadTransportParameterId(
   return true;
 }
 
-bool ReadTransportParameterLengthAndValue(
-    QuicDataReader* reader,
-    ParsedQuicVersion version,
-    quiche::QuicheStringPiece* out_value) {
+bool ReadTransportParameterLengthAndValue(QuicDataReader* reader,
+                                          ParsedQuicVersion version,
+                                          absl::string_view* out_value) {
   if (version.HasVarIntTransportParams()) {
     return reader->ReadStringPieceVarInt62(out_value);
   }
@@ -488,8 +487,7 @@ std::string TransportParameters::ToString() const {
     if (kv.second.length() <= kMaxPrintableLength) {
       rv += quiche::QuicheTextUtils::HexEncode(kv.second);
     } else {
-      quiche::QuicheStringPiece truncated(kv.second.data(),
-                                          kMaxPrintableLength);
+      absl::string_view truncated(kv.second.data(), kMaxPrintableLength);
       rv += quiche::QuicheStrCat(quiche::QuicheTextUtils::HexEncode(truncated),
                                  "...(length ", kv.second.length(), ")");
     }
@@ -813,9 +811,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(
-                original_destination_connection_id.data(),
-                original_destination_connection_id.length()),
+            absl::string_view(original_destination_connection_id.data(),
+                              original_destination_connection_id.length()),
             version)) {
       QUIC_BUG << "Failed to write original_destination_connection_id "
                << original_destination_connection_id << " for " << in;
@@ -836,7 +833,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             &writer, TransportParameters::kStatelessResetToken, version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(
+            absl::string_view(
                 reinterpret_cast<const char*>(in.stateless_reset_token.data()),
                 in.stateless_reset_token.size()),
             version)) {
@@ -919,8 +916,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(initial_source_connection_id.data(),
-                                      initial_source_connection_id.length()),
+            absl::string_view(initial_source_connection_id.data(),
+                              initial_source_connection_id.length()),
             version)) {
       QUIC_BUG << "Failed to write initial_source_connection_id "
                << initial_source_connection_id << " for " << in;
@@ -937,8 +934,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
             &writer, TransportParameters::kRetrySourceConnectionId, version) ||
         !WriteTransportParameterStringPiece(
             &writer,
-            quiche::QuicheStringPiece(retry_source_connection_id.data(),
-                                      retry_source_connection_id.length()),
+            absl::string_view(retry_source_connection_id.data(),
+                              retry_source_connection_id.length()),
             version)) {
       QUIC_BUG << "Failed to write retry_source_connection_id "
                << retry_source_connection_id << " for " << in;
@@ -1079,7 +1076,7 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     random->RandBytes(grease_contents, grease_length);
     if (!WriteTransportParameterId(&writer, grease_id, version) ||
         !WriteTransportParameterStringPiece(
-            &writer, quiche::QuicheStringPiece(grease_contents, grease_length),
+            &writer, absl::string_view(grease_contents, grease_length),
             version)) {
       QUIC_BUG << "Failed to write GREASE parameter "
                << TransportParameterIdToString(grease_id);
@@ -1141,7 +1138,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       *error_details = "Failed to parse transport parameter ID";
       return false;
     }
-    quiche::QuicheStringPiece value;
+    absl::string_view value;
     if (!ReadTransportParameterLengthAndValue(&reader, version, &value)) {
       *error_details =
           "Failed to read length and value of transport parameter " +
@@ -1183,7 +1180,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           *error_details = "Received a second stateless_reset_token";
           return false;
         }
-        quiche::QuicheStringPiece stateless_reset_token =
+        absl::string_view stateless_reset_token =
             value_reader.ReadRemainingPayload();
         if (stateless_reset_token.length() != kStatelessResetTokenLength) {
           *error_details = quiche::QuicheStrCat(

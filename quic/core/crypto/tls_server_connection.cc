@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -82,7 +82,7 @@ ssl_private_key_result_t TlsServerConnection::PrivateKeySign(SSL* ssl,
                                                              size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->PrivateKeySign(
       out, out_len, max_out, sig_alg,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(in), in_len));
+      absl::string_view(reinterpret_cast<const char*>(in), in_len));
 }
 
 // static
@@ -116,7 +116,7 @@ int TlsServerConnection::SessionTicketSeal(SSL* ssl,
                                            size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->SessionTicketSeal(
       out, out_len, max_out_len,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(in), in_len));
+      absl::string_view(reinterpret_cast<const char*>(in), in_len));
 }
 
 // static
@@ -129,7 +129,7 @@ enum ssl_ticket_aead_result_t TlsServerConnection::SessionTicketOpen(
     size_t in_len) {
   return ConnectionFromSsl(ssl)->delegate_->SessionTicketOpen(
       out, out_len, max_out_len,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(in), in_len));
+      absl::string_view(reinterpret_cast<const char*>(in), in_len));
 }
 
 }  // namespace quic

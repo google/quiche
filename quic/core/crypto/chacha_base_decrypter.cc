@@ -6,17 +6,16 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-bool ChaChaBaseDecrypter::SetHeaderProtectionKey(
-    quiche::QuicheStringPiece key) {
+bool ChaChaBaseDecrypter::SetHeaderProtectionKey(absl::string_view key) {
   if (key.size() != GetKeySize()) {
     QUIC_BUG << "Invalid key size for header protection";
     return false;
@@ -27,7 +26,7 @@ bool ChaChaBaseDecrypter::SetHeaderProtectionKey(
 
 std::string ChaChaBaseDecrypter::GenerateHeaderProtectionMask(
     QuicDataReader* sample_reader) {
-  quiche::QuicheStringPiece sample;
+  absl::string_view sample;
   if (!sample_reader->ReadStringPiece(&sample, 16)) {
     return std::string();
   }

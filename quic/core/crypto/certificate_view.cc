@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
@@ -26,7 +27,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
@@ -34,7 +34,6 @@
 namespace {
 
 using ::quiche::QuicheOptional;
-using ::quiche::QuicheStringPiece;
 using ::quiche::QuicheTextUtils;
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
@@ -106,7 +105,7 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
 namespace quic {
 
 QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
-                                                QuicheStringPiece payload) {
+                                                absl::string_view payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
     QUIC_BUG << "Invalid tag supplied for a DER timestamp";
     return QUICHE_NULLOPT;
@@ -139,15 +138,15 @@ QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
 }
 
 PemReadResult ReadNextPemMessage(std::istream* input) {
-  constexpr QuicheStringPiece kPemBegin = "-----BEGIN ";
-  constexpr QuicheStringPiece kPemEnd = "-----END ";
-  constexpr QuicheStringPiece kPemDashes = "-----";
+  constexpr absl::string_view kPemBegin = "-----BEGIN ";
+  constexpr absl::string_view kPemEnd = "-----END ";
+  constexpr absl::string_view kPemDashes = "-----";
 
   std::string line_buffer, encoded_message_contents, expected_end;
   bool pending_message = false;
   PemReadResult result;
   while (std::getline(*input, line_buffer)) {
-    QuicheStringPiece line(line_buffer);
+    absl::string_view line(line_buffer);
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&line);
 
     // Handle BEGIN lines.
@@ -184,7 +183,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
 }
 
 std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
-    QuicheStringPiece certificate) {
+    absl::string_view certificate) {
   std::unique_ptr<CertificateView> result(new CertificateView());
   CBS top = StringPieceToCbs(certificate);
 
@@ -348,7 +347,7 @@ bool CertificateView::ParseExtensions(CBS extensions) {
           return false;
         }
 
-        QuicheStringPiece alt_name = CbsToStringPiece(alt_name_cbs);
+        absl::string_view alt_name = CbsToStringPiece(alt_name_cbs);
         QuicIpAddress ip_address;
         // GeneralName ::= CHOICE {
         switch (alt_name_tag) {
@@ -417,8 +416,8 @@ bool CertificateView::ValidatePublicKeyParameters() {
   }
 }
 
-bool CertificateView::VerifySignature(QuicheStringPiece data,
-                                      QuicheStringPiece signature,
+bool CertificateView::VerifySignature(absl::string_view data,
+                                      absl::string_view signature,
                                       uint16_t signature_algorithm) const {
   if (PublicKeyTypeFromSignatureAlgorithm(signature_algorithm) !=
       PublicKeyTypeFromKey(public_key_.get())) {
@@ -448,7 +447,7 @@ bool CertificateView::VerifySignature(QuicheStringPiece data,
 }
 
 std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(
-    QuicheStringPiece private_key) {
+    absl::string_view private_key) {
   std::unique_ptr<CertificatePrivateKey> result(new CertificatePrivateKey());
   CBS private_key_cbs = StringPieceToCbs(private_key);
   result->private_key_.reset(EVP_parse_private_key(&private_key_cbs));
@@ -506,7 +505,7 @@ skip:
   return nullptr;
 }
 
-std::string CertificatePrivateKey::Sign(QuicheStringPiece input,
+std::string CertificatePrivateKey::Sign(absl::string_view input,
                                         uint16_t signature_algorithm) {
   if (!ValidForSignatureAlgorithm(signature_algorithm)) {
     QUIC_BUG << "Mismatch between the requested signature algorithm and the "

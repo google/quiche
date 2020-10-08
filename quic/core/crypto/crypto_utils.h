@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -101,11 +101,10 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // IETF QUIC Retry packets carry a retry integrity tag to detect packet
   // corruption and make it harder for an attacker to spoof. This function
   // checks whether a given retry packet is valid.
-  static bool ValidateRetryIntegrityTag(
-      ParsedQuicVersion version,
-      QuicConnectionId original_connection_id,
-      quiche::QuicheStringPiece retry_without_tag,
-      quiche::QuicheStringPiece integrity_tag);
+  static bool ValidateRetryIntegrityTag(ParsedQuicVersion version,
+                                        QuicConnectionId original_connection_id,
+                                        absl::string_view retry_without_tag,
+                                        absl::string_view integrity_tag);
 
   // Generates the connection nonce. The nonce is formed as:
   //   <4 bytes> current time
@@ -113,7 +112,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   //   <20 bytes> random
   static void GenerateNonce(QuicWallTime now,
                             QuicRandom* random_generator,
-                            quiche::QuicheStringPiece orbit,
+                            absl::string_view orbit,
                             std::string* nonce);
 
   // DeriveKeys populates |crypters->encrypter|, |crypters->decrypter|, and
@@ -136,11 +135,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // |SetDiversificationNonce| with a diversification nonce will be needed to
   // complete keying.
   static bool DeriveKeys(const ParsedQuicVersion& version,
-                         quiche::QuicheStringPiece premaster_secret,
+                         absl::string_view premaster_secret,
                          QuicTag aead,
-                         quiche::QuicheStringPiece client_nonce,
-                         quiche::QuicheStringPiece server_nonce,
-                         quiche::QuicheStringPiece pre_shared_key,
+                         absl::string_view client_nonce,
+                         absl::string_view server_nonce,
+                         absl::string_view pre_shared_key,
                          const std::string& hkdf_input,
                          Perspective perspective,
                          Diversification diversification,
@@ -151,15 +150,15 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
   // dependent on |subkey_secret|, |label|, and |context|. Returns false if the
   // parameters are invalid (e.g. |label| contains null bytes); returns true on
   // success.
-  static bool ExportKeyingMaterial(quiche::QuicheStringPiece subkey_secret,
-                                   quiche::QuicheStringPiece label,
-                                   quiche::QuicheStringPiece context,
+  static bool ExportKeyingMaterial(absl::string_view subkey_secret,
+                                   absl::string_view label,
+                                   absl::string_view context,
                                    size_t result_len,
                                    std::string* result);
 
   // Computes the FNV-1a hash of the provided DER-encoded cert for use in the
   // XLCT tag.
-  static uint64_t ComputeLeafCertHash(quiche::QuicheStringPiece cert);
+  static uint64_t ComputeLeafCertHash(absl::string_view cert);
 
   // Validates that |server_hello| is actually an SHLO message and that it is
   // not part of a downgrade attack.

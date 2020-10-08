@@ -7,9 +7,9 @@
 
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -53,7 +53,7 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     // the QUIC stack to write in a crypto frame. The data must be transmitted
     // at encryption level |level|.
     virtual void WriteMessage(EncryptionLevel level,
-                              quiche::QuicheStringPiece data) = 0;
+                              absl::string_view data) = 0;
 
     // FlushFlight is called to signal that the current flight of messages have
     // all been written (via calls to WriteMessage) and can be flushed to the

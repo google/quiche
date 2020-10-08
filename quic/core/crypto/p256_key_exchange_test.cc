@@ -8,8 +8,8 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -57,8 +57,8 @@ TEST_F(P256KeyExchangeTest, SharedKey) {
     ASSERT_TRUE(alice != nullptr);
     ASSERT_TRUE(bob != nullptr);
 
-    const quiche::QuicheStringPiece alice_public(alice->public_value());
-    const quiche::QuicheStringPiece bob_public(bob->public_value());
+    const absl::string_view alice_public(alice->public_value());
+    const absl::string_view bob_public(bob->public_value());
 
     std::string alice_shared, bob_shared;
     ASSERT_TRUE(alice->CalculateSharedKeySync(bob_public, &alice_shared));
@@ -84,8 +84,8 @@ TEST_F(P256KeyExchangeTest, AsyncSharedKey) {
     ASSERT_TRUE(alice != nullptr);
     ASSERT_TRUE(bob != nullptr);
 
-    const quiche::QuicheStringPiece alice_public(alice->public_value());
-    const quiche::QuicheStringPiece bob_public(bob->public_value());
+    const absl::string_view alice_public(alice->public_value());
+    const absl::string_view bob_public(bob->public_value());
 
     std::string alice_shared, bob_shared;
     TestCallbackResult alice_result;

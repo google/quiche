@@ -6,9 +6,9 @@
 
 #include <cstddef>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -17,17 +17,17 @@ namespace {
 class CommonCertSetsEmpty : public CommonCertSets {
  public:
   // CommonCertSets interface.
-  quiche::QuicheStringPiece GetCommonHashes() const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetCommonHashes() const override {
+    return absl::string_view();
   }
 
-  quiche::QuicheStringPiece GetCert(uint64_t /* hash */,
-                                    uint32_t /* index */) const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetCert(uint64_t /* hash */,
+                            uint32_t /* index */) const override {
+    return absl::string_view();
   }
 
-  bool MatchCert(quiche::QuicheStringPiece /* cert */,
-                 quiche::QuicheStringPiece /* common_set_hashes */,
+  bool MatchCert(absl::string_view /* cert */,
+                 absl::string_view /* common_set_hashes */,
                  uint64_t* /* out_hash */,
                  uint32_t* /* out_index */) const override {
     return false;

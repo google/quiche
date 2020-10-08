@@ -9,13 +9,13 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_proof.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -137,7 +137,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
                         const std::string& hostname,
                         const std::string& server_config,
                         QuicTransportVersion transport_version,
-                        quiche::QuicheStringPiece chlo_hash,
+                        absl::string_view chlo_hash,
                         std::unique_ptr<Callback> callback) = 0;
 
   // Returns the certificate chain for |hostname| in leaf-first order.
@@ -159,7 +159,7 @@ class QUIC_EXPORT_PRIVATE ProofSource {
       const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) = 0;
 
   class QUIC_EXPORT_PRIVATE DecryptCallback {
@@ -193,13 +193,13 @@ class QUIC_EXPORT_PRIVATE ProofSource {
     // returns the encrypted ticket. The resulting value must not be larger than
     // MaxOverhead bytes larger than |in|. If encryption fails, this method
     // returns an empty vector.
-    virtual std::vector<uint8_t> Encrypt(quiche::QuicheStringPiece in) = 0;
+    virtual std::vector<uint8_t> Encrypt(absl::string_view in) = 0;
 
     // Decrypt takes an encrypted ticket |in|, decrypts it, and calls
     // |callback->Run| with the decrypted ticket, which must not be larger than
     // |in|. If decryption fails, the callback is invoked with an empty
     // vector.
-    virtual void Decrypt(quiche::QuicheStringPiece in,
+    virtual void Decrypt(absl::string_view in,
                          std::unique_ptr<DecryptCallback> callback) = 0;
   };
 

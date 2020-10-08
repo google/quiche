@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   // Parses a single DER-encoded X.509 certificate.  Returns nullptr on parse
   // error.
   static std::unique_ptr<CertificateView> ParseSingleCertificate(
-      quiche::QuicheStringPiece certificate);
+      absl::string_view certificate);
 
   // Loads all PEM-encoded X.509 certificates found in the |input| stream
   // without parsing them.  Returns an empty vector if any parsing error occurs.
@@ -53,8 +53,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   QuicWallTime validity_end() const { return validity_end_; }
   const EVP_PKEY* public_key() const { return public_key_.get(); }
 
-  const std::vector<quiche::QuicheStringPiece>& subject_alt_name_domains()
-      const {
+  const std::vector<absl::string_view>& subject_alt_name_domains() const {
     return subject_alt_name_domains_;
   }
   const std::vector<QuicIpAddress>& subject_alt_name_ips() const {
@@ -62,8 +61,8 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   }
 
   // |signature_algorithm| is a TLS signature algorithm ID.
-  bool VerifySignature(quiche::QuicheStringPiece data,
-                       quiche::QuicheStringPiece signature,
+  bool VerifySignature(absl::string_view data,
+                       absl::string_view signature,
                        uint16_t signature_algorithm) const;
 
  private:
@@ -76,7 +75,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
   bssl::UniquePtr<EVP_PKEY> public_key_;
 
   // SubjectAltName, https://tools.ietf.org/html/rfc5280#section-4.2.1.6
-  std::vector<quiche::QuicheStringPiece> subject_alt_name_domains_;
+  std::vector<absl::string_view> subject_alt_name_domains_;
   std::vector<QuicIpAddress> subject_alt_name_ips_;
 
   // Called from ParseSingleCertificate().
@@ -93,7 +92,7 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 
   // Loads a DER-encoded PrivateKeyInfo structure (RFC 5958) as a private key.
   static std::unique_ptr<CertificatePrivateKey> LoadFromDer(
-      quiche::QuicheStringPiece private_key);
+      absl::string_view private_key);
 
   // Loads a private key from a PEM file formatted according to RFC 7468.  Also
   // supports legacy OpenSSL RSA key format ("BEGIN RSA PRIVATE KEY").
@@ -101,8 +100,7 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
       std::istream* input);
 
   // |signature_algorithm| is a TLS signature algorithm ID.
-  std::string Sign(quiche::QuicheStringPiece input,
-                   uint16_t signature_algorithm);
+  std::string Sign(absl::string_view input, uint16_t signature_algorithm);
 
   // Verifies that the private key in question matches the public key of the
   // certificate |view|.
@@ -124,7 +122,7 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 // testing.
 QUIC_EXPORT_PRIVATE quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
     unsigned tag,
-    quiche::QuicheStringPiece payload);
+    absl::string_view payload);
 
 }  // namespace quic
 

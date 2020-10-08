@@ -7,11 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
@@ -206,9 +206,9 @@ namespace test {
 // DecryptWithNonce wraps the |Decrypt| method of |decrypter| to allow passing
 // in an nonce and also to allocate the buffer needed for the plaintext.
 QuicData* DecryptWithNonce(Aes256GcmDecrypter* decrypter,
-                           quiche::QuicheStringPiece nonce,
-                           quiche::QuicheStringPiece associated_data,
-                           quiche::QuicheStringPiece ciphertext) {
+                           absl::string_view nonce,
+                           absl::string_view associated_data,
+                           absl::string_view ciphertext) {
   decrypter->SetIV(nonce);
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;
@@ -263,7 +263,7 @@ TEST_F(Aes256GcmDecrypterTest, Decrypt) {
           // This deliberately tests that the decrypter can
           // handle an AAD that is set to nullptr, as opposed
           // to a zero-length, non-nullptr pointer.
-          aad.length() ? aad : quiche::QuicheStringPiece(), ciphertext));
+          aad.length() ? aad : absl::string_view(), ciphertext));
       if (!decrypted) {
         EXPECT_FALSE(has_pt);
         continue;

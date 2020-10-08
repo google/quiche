@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
@@ -15,14 +16,13 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/test_certificates.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
 namespace {
 
 QuicReferenceCountedPointer<ProofSource::Chain> MakeChain(
-    quiche::QuicheStringPiece cert) {
+    absl::string_view cert) {
   return QuicReferenceCountedPointer<ProofSource::Chain>(
       new ProofSource::Chain(std::vector<std::string>{std::string(cert)}));
 }

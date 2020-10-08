@@ -12,10 +12,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_message_parser.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -43,10 +43,10 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
   ~CryptoFramer() override;
 
   // ParseMessage parses exactly one message from the given
-  // quiche::QuicheStringPiece. If there is an error, the message is truncated,
+  // absl::string_view. If there is an error, the message is truncated,
   // or the message has trailing garbage then nullptr will be returned.
   static std::unique_ptr<CryptoHandshakeMessage> ParseMessage(
-      quiche::QuicheStringPiece in);
+      absl::string_view in);
 
   // Set callbacks to be called from the framer.  A visitor must be set, or
   // else the framer will crash.  It is acceptable for the visitor to do
@@ -63,9 +63,8 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
   // false if there was an error, and true otherwise. ProcessInput optionally
   // takes an EncryptionLevel, but it is ignored. The variant with the
   // EncryptionLevel is provided to match the CryptoMessageParser interface.
-  bool ProcessInput(quiche::QuicheStringPiece input,
-                    EncryptionLevel level) override;
-  bool ProcessInput(quiche::QuicheStringPiece input);
+  bool ProcessInput(absl::string_view input, EncryptionLevel level) override;
+  bool ProcessInput(absl::string_view input);
 
   // Returns the number of bytes of buffered input data remaining to be
   // parsed.
@@ -96,7 +95,7 @@ class QUIC_EXPORT_PRIVATE CryptoFramer : public CryptoMessageParser {
 
   // Process does does the work of |ProcessInput|, but returns an error code,
   // doesn't set error_ and doesn't call |visitor_->OnError()|.
-  QuicErrorCode Process(quiche::QuicheStringPiece input);
+  QuicErrorCode Process(absl::string_view input);
 
   static bool WritePadTag(QuicDataWriter* writer,
                           size_t pad_length,

@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -151,7 +151,7 @@ int TlsConnection::WriteMessageCallback(SSL* ssl,
                                         size_t len) {
   ConnectionFromSsl(ssl)->delegate_->WriteMessage(
       QuicEncryptionLevel(level),
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(data), len));
+      absl::string_view(reinterpret_cast<const char*>(data), len));
   return 1;
 }
 

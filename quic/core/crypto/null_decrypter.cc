@@ -6,35 +6,35 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 NullDecrypter::NullDecrypter(Perspective perspective)
     : perspective_(perspective) {}
 
-bool NullDecrypter::SetKey(quiche::QuicheStringPiece key) {
+bool NullDecrypter::SetKey(absl::string_view key) {
   return key.empty();
 }
 
-bool NullDecrypter::SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) {
+bool NullDecrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullDecrypter::SetIV(quiche::QuicheStringPiece iv) {
+bool NullDecrypter::SetIV(absl::string_view iv) {
   return iv.empty();
 }
 
-bool NullDecrypter::SetHeaderProtectionKey(quiche::QuicheStringPiece key) {
+bool NullDecrypter::SetHeaderProtectionKey(absl::string_view key) {
   return key.empty();
 }
 
-bool NullDecrypter::SetPreliminaryKey(quiche::QuicheStringPiece /*key*/) {
+bool NullDecrypter::SetPreliminaryKey(absl::string_view /*key*/) {
   QUIC_BUG << "Should not be called";
   return false;
 }
@@ -46,8 +46,8 @@ bool NullDecrypter::SetDiversificationNonce(
 }
 
 bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
-                                  quiche::QuicheStringPiece associated_data,
-                                  quiche::QuicheStringPiece ciphertext,
+                                  absl::string_view associated_data,
+                                  absl::string_view ciphertext,
                                   char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {
@@ -59,7 +59,7 @@ bool NullDecrypter::DecryptPacket(uint64_t /*packet_number*/,
     return false;
   }
 
-  quiche::QuicheStringPiece plaintext = reader.ReadRemainingPayload();
+  absl::string_view plaintext = reader.ReadRemainingPayload();
   if (plaintext.length() > max_output_length) {
     QUIC_BUG << "Output buffer must be larger than the plaintext.";
     return false;
@@ -90,12 +90,12 @@ size_t NullDecrypter::GetIVSize() const {
   return 0;
 }
 
-quiche::QuicheStringPiece NullDecrypter::GetKey() const {
-  return quiche::QuicheStringPiece();
+absl::string_view NullDecrypter::GetKey() const {
+  return absl::string_view();
 }
 
-quiche::QuicheStringPiece NullDecrypter::GetNoncePrefix() const {
-  return quiche::QuicheStringPiece();
+absl::string_view NullDecrypter::GetNoncePrefix() const {
+  return absl::string_view();
 }
 
 uint32_t NullDecrypter::cipher_id() const {
@@ -112,9 +112,8 @@ bool NullDecrypter::ReadHash(QuicDataReader* reader, QuicUint128* hash) {
   return true;
 }
 
-QuicUint128 NullDecrypter::ComputeHash(
-    const quiche::QuicheStringPiece data1,
-    const quiche::QuicheStringPiece data2) const {
+QuicUint128 NullDecrypter::ComputeHash(const absl::string_view data1,
+                                       const absl::string_view data2) const {
   QuicUint128 correct_hash;
   if (perspective_ == Perspective::IS_CLIENT) {
     // Peer is a server.

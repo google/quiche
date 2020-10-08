@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,8 +36,8 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   // |associated_data|. If |output| overlaps with |plaintext| then
   // |plaintext| must be <= |output|.
   virtual bool EncryptPacket(uint64_t packet_number,
-                             quiche::QuicheStringPiece associated_data,
-                             quiche::QuicheStringPiece plaintext,
+                             absl::string_view associated_data,
+                             absl::string_view plaintext,
                              char* output,
                              size_t* output_length,
                              size_t max_output_length) = 0;
@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   // success, the mask will be at least 5 bytes long; on failure the string will
   // be empty.
   virtual std::string GenerateHeaderProtectionMask(
-      quiche::QuicheStringPiece sample) = 0;
+      absl::string_view sample) = 0;
 
   // Returns the maximum length of plaintext that can be encrypted
   // to ciphertext no larger than |ciphertext_size|.
@@ -58,8 +58,8 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   virtual size_t GetCiphertextSize(size_t plaintext_size) const = 0;
 
   // For use by unit tests only.
-  virtual quiche::QuicheStringPiece GetKey() const = 0;
-  virtual quiche::QuicheStringPiece GetNoncePrefix() const = 0;
+  virtual absl::string_view GetKey() const = 0;
+  virtual absl::string_view GetNoncePrefix() const = 0;
 };
 
 }  // namespace quic

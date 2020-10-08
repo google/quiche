@@ -4,13 +4,13 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/aes_base_encrypter.h"
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-bool AesBaseEncrypter::SetHeaderProtectionKey(quiche::QuicheStringPiece key) {
+bool AesBaseEncrypter::SetHeaderProtectionKey(absl::string_view key) {
   if (key.size() != GetKeySize()) {
     QUIC_BUG << "Invalid key size for header protection: " << key.size();
     return false;
@@ -24,7 +24,7 @@ bool AesBaseEncrypter::SetHeaderProtectionKey(quiche::QuicheStringPiece key) {
 }
 
 std::string AesBaseEncrypter::GenerateHeaderProtectionMask(
-    quiche::QuicheStringPiece sample) {
+    absl::string_view sample) {
   if (sample.size() != AES_BLOCK_SIZE) {
     return std::string();
   }

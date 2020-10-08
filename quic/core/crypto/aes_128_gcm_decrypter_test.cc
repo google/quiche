@@ -201,9 +201,9 @@ namespace test {
 // DecryptWithNonce wraps the |Decrypt| method of |decrypter| to allow passing
 // in an nonce and also to allocate the buffer needed for the plaintext.
 QuicData* DecryptWithNonce(Aes128GcmDecrypter* decrypter,
-                           quiche::QuicheStringPiece nonce,
-                           quiche::QuicheStringPiece associated_data,
-                           quiche::QuicheStringPiece ciphertext) {
+                           absl::string_view nonce,
+                           absl::string_view associated_data,
+                           absl::string_view ciphertext) {
   decrypter->SetIV(nonce);
   std::unique_ptr<char[]> output(new char[ciphertext.length()]);
   size_t output_length = 0;
@@ -258,7 +258,7 @@ TEST_F(Aes128GcmDecrypterTest, Decrypt) {
           // This deliberately tests that the decrypter can
           // handle an AAD that is set to nullptr, as opposed
           // to a zero-length, non-nullptr pointer.
-          aad.length() ? aad : quiche::QuicheStringPiece(), ciphertext));
+          aad.length() ? aad : absl::string_view(), ciphertext));
       if (!decrypted) {
         EXPECT_FALSE(has_pt);
         continue;

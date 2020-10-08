@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -29,15 +29,15 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   ~NullDecrypter() override {}
 
   // QuicDecrypter implementation
-  bool SetKey(quiche::QuicheStringPiece key) override;
-  bool SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) override;
-  bool SetIV(quiche::QuicheStringPiece iv) override;
-  bool SetHeaderProtectionKey(quiche::QuicheStringPiece key) override;
-  bool SetPreliminaryKey(quiche::QuicheStringPiece key) override;
+  bool SetKey(absl::string_view key) override;
+  bool SetNoncePrefix(absl::string_view nonce_prefix) override;
+  bool SetIV(absl::string_view iv) override;
+  bool SetHeaderProtectionKey(absl::string_view key) override;
+  bool SetPreliminaryKey(absl::string_view key) override;
   bool SetDiversificationNonce(const DiversificationNonce& nonce) override;
   bool DecryptPacket(uint64_t packet_number,
-                     quiche::QuicheStringPiece associated_data,
-                     quiche::QuicheStringPiece ciphertext,
+                     absl::string_view associated_data,
+                     absl::string_view ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t max_output_length) override;
@@ -46,15 +46,15 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   size_t GetKeySize() const override;
   size_t GetNoncePrefixSize() const override;
   size_t GetIVSize() const override;
-  quiche::QuicheStringPiece GetKey() const override;
-  quiche::QuicheStringPiece GetNoncePrefix() const override;
+  absl::string_view GetKey() const override;
+  absl::string_view GetNoncePrefix() const override;
 
   uint32_t cipher_id() const override;
 
  private:
   bool ReadHash(QuicDataReader* reader, QuicUint128* hash);
-  QuicUint128 ComputeHash(quiche::QuicheStringPiece data1,
-                          quiche::QuicheStringPiece data2) const;
+  QuicUint128 ComputeHash(absl::string_view data1,
+                          absl::string_view data2) const;
 
   Perspective perspective_;
 };

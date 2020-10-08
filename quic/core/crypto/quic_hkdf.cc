@@ -6,19 +6,19 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 const size_t kSHA256HashLength = 32;
 const size_t kMaxKeyMaterialSize = kSHA256HashLength * 256;
 
-QuicHKDF::QuicHKDF(quiche::QuicheStringPiece secret,
-                   quiche::QuicheStringPiece salt,
-                   quiche::QuicheStringPiece info,
+QuicHKDF::QuicHKDF(absl::string_view secret,
+                   absl::string_view salt,
+                   absl::string_view info,
                    size_t key_bytes_to_generate,
                    size_t iv_bytes_to_generate,
                    size_t subkey_secret_bytes_to_generate)
@@ -31,9 +31,9 @@ QuicHKDF::QuicHKDF(quiche::QuicheStringPiece secret,
                iv_bytes_to_generate,
                subkey_secret_bytes_to_generate) {}
 
-QuicHKDF::QuicHKDF(quiche::QuicheStringPiece secret,
-                   quiche::QuicheStringPiece salt,
-                   quiche::QuicheStringPiece info,
+QuicHKDF::QuicHKDF(absl::string_view secret,
+                   absl::string_view salt,
+                   absl::string_view info,
                    size_t client_key_bytes_to_generate,
                    size_t server_key_bytes_to_generate,
                    size_t client_iv_bytes_to_generate,
@@ -60,44 +60,44 @@ QuicHKDF::QuicHKDF(quiche::QuicheStringPiece secret,
 
   size_t j = 0;
   if (client_key_bytes_to_generate) {
-    client_write_key_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), client_key_bytes_to_generate);
+    client_write_key_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                          client_key_bytes_to_generate);
     j += client_key_bytes_to_generate;
   }
 
   if (server_key_bytes_to_generate) {
-    server_write_key_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), server_key_bytes_to_generate);
+    server_write_key_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                          server_key_bytes_to_generate);
     j += server_key_bytes_to_generate;
   }
 
   if (client_iv_bytes_to_generate) {
-    client_write_iv_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), client_iv_bytes_to_generate);
+    client_write_iv_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                         client_iv_bytes_to_generate);
     j += client_iv_bytes_to_generate;
   }
 
   if (server_iv_bytes_to_generate) {
-    server_write_iv_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), server_iv_bytes_to_generate);
+    server_write_iv_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                         server_iv_bytes_to_generate);
     j += server_iv_bytes_to_generate;
   }
 
   if (subkey_secret_bytes_to_generate) {
-    subkey_secret_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), subkey_secret_bytes_to_generate);
+    subkey_secret_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                       subkey_secret_bytes_to_generate);
     j += subkey_secret_bytes_to_generate;
   }
   // Repeat client and server key bytes for header protection keys.
   if (client_key_bytes_to_generate) {
-    client_hp_key_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), client_key_bytes_to_generate);
+    client_hp_key_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                       client_key_bytes_to_generate);
     j += client_key_bytes_to_generate;
   }
 
   if (server_key_bytes_to_generate) {
-    server_hp_key_ = quiche::QuicheStringPiece(
-        reinterpret_cast<char*>(&output_[j]), server_key_bytes_to_generate);
+    server_hp_key_ = absl::string_view(reinterpret_cast<char*>(&output_[j]),
+                                       server_key_bytes_to_generate);
     j += server_key_bytes_to_generate;
   }
 }

@@ -8,11 +8,11 @@
 #include <forward_list>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,7 +32,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
-                quiche::QuicheStringPiece chlo_hash,
+                absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
   QuicReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
@@ -43,7 +43,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
       const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override;
   TicketCrypter* GetTicketCrypter() override;
 

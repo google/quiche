@@ -9,8 +9,8 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "third_party/zlib/zlib.h"
 
 namespace quic {
@@ -175,11 +175,10 @@ struct CertEntry {
 // efficiently represent |certs| to a peer who has the common sets identified
 // by |client_common_set_hashes| and who has cached the certificates with the
 // 64-bit, FNV-1a hashes in |client_cached_cert_hashes|.
-std::vector<CertEntry> MatchCerts(
-    const std::vector<std::string>& certs,
-    quiche::QuicheStringPiece client_common_set_hashes,
-    quiche::QuicheStringPiece client_cached_cert_hashes,
-    const CommonCertSets* common_sets) {
+std::vector<CertEntry> MatchCerts(const std::vector<std::string>& certs,
+                                  absl::string_view client_common_set_hashes,
+                                  absl::string_view client_cached_cert_hashes,
+                                  const CommonCertSets* common_sets) {
   std::vector<CertEntry> entries;
   entries.reserve(certs.size());
 
@@ -330,12 +329,12 @@ std::vector<uint64_t> HashCerts(const std::vector<std::string>& certs) {
 // |in_out| and writes them to |out_entries|. CACHED and COMMON entries are
 // resolved using |cached_certs| and |common_sets| and written to |out_certs|.
 // |in_out| is updated to contain the trailing data.
-bool ParseEntries(quiche::QuicheStringPiece* in_out,
+bool ParseEntries(absl::string_view* in_out,
                   const std::vector<std::string>& cached_certs,
                   const CommonCertSets* common_sets,
                   std::vector<CertEntry>* out_entries,
                   std::vector<std::string>* out_certs) {
-  quiche::QuicheStringPiece in = *in_out;
+  absl::string_view in = *in_out;
   std::vector<uint64_t> cached_hashes;
 
   out_entries->clear();
@@ -394,7 +393,7 @@ bool ParseEntries(quiche::QuicheStringPiece* in_out,
         memcpy(&entry.index, in.data(), sizeof(uint32_t));
         in.remove_prefix(sizeof(uint32_t));
 
-        quiche::QuicheStringPiece cert =
+        absl::string_view cert =
             common_sets->GetCert(entry.set_hash, entry.index);
         if (cert.empty()) {
           return false;
@@ -452,8 +451,8 @@ class ScopedZLib {
 // static
 std::string CertCompressor::CompressChain(
     const std::vector<std::string>& certs,
-    quiche::QuicheStringPiece client_common_set_hashes,
-    quiche::QuicheStringPiece client_cached_cert_hashes,
+    absl::string_view client_common_set_hashes,
+    absl::string_view client_cached_cert_hashes,
     const CommonCertSets* common_sets) {
   const std::vector<CertEntry> entries = MatchCerts(
       certs, client_common_set_hashes, client_cached_cert_hashes, common_sets);
@@ -553,7 +552,7 @@ std::string CertCompressor::CompressChain(
 
 // static
 bool CertCompressor::DecompressChain(
-    quiche::QuicheStringPiece in,
+    absl::string_view in,
     const std::vector<std::string>& cached_certs,
     const CommonCertSets* common_sets,
     std::vector<std::string>* out_certs) {
@@ -564,7 +563,7 @@ bool CertCompressor::DecompressChain(
   DCHECK_EQ(entries.size(), out_certs->size());
 
   std::unique_ptr<uint8_t[]> uncompressed_data;
-  quiche::QuicheStringPiece uncompressed;
+  absl::string_view uncompressed;
 
   if (!in.empty()) {
     if (in.size() < sizeof(uint32_t)) {
@@ -609,7 +608,7 @@ bool CertCompressor::DecompressChain(
       return false;
     }
 
-    uncompressed = quiche::QuicheStringPiece(
+    uncompressed = absl::string_view(
         reinterpret_cast<char*>(uncompressed_data.get()), uncompressed_size);
   }
 

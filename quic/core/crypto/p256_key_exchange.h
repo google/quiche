@@ -8,10 +8,10 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -26,8 +26,7 @@ class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
 
   // New creates a new key-exchange object from a private key. If |private_key|
   // is invalid, nullptr is returned.
-  static std::unique_ptr<P256KeyExchange> New(
-      quiche::QuicheStringPiece private_key);
+  static std::unique_ptr<P256KeyExchange> New(absl::string_view private_key);
 
   // NewPrivateKey returns a private key, suitable for passing to |New|.
   // If |NewPrivateKey| can't generate a private key, it returns an empty
@@ -35,9 +34,9 @@ class QUIC_EXPORT_PRIVATE P256KeyExchange : public SynchronousKeyExchange {
   static std::string NewPrivateKey();
 
   // SynchronousKeyExchange interface.
-  bool CalculateSharedKeySync(quiche::QuicheStringPiece peer_public_value,
+  bool CalculateSharedKeySync(absl::string_view peer_public_value,
                               std::string* shared_key) const override;
-  quiche::QuicheStringPiece public_value() const override;
+  absl::string_view public_value() const override;
   QuicTag type() const override { return kP256; }
 
  private:

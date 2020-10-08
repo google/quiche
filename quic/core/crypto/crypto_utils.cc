@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
@@ -35,7 +36,6 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -105,12 +105,12 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
       HkdfExpandLabel(prf, pp_secret, "quic iv", crypter->GetIVSize());
   std::vector<uint8_t> pn =
       HkdfExpandLabel(prf, pp_secret, "quic hp", crypter->GetKeySize());
-  crypter->SetKey(quiche::QuicheStringPiece(reinterpret_cast<char*>(key.data()),
-                                            key.size()));
+  crypter->SetKey(
+      absl::string_view(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
-      quiche::QuicheStringPiece(reinterpret_cast<char*>(iv.data()), iv.size()));
+      absl::string_view(reinterpret_cast<char*>(iv.data()), iv.size()));
   crypter->SetHeaderProtectionKey(
-      quiche::QuicheStringPiece(reinterpret_cast<char*>(pn.data()), pn.size()));
+      absl::string_view(reinterpret_cast<char*>(pn.data()), pn.size()));
 }
 
 namespace {
@@ -214,8 +214,8 @@ const uint8_t kReservedForNegotiationRetryIntegrityNonce[] = {
     0x35, 0x9f, 0x16, 0xd1, 0xed, 0x80, 0x90, 0x8e, 0xec, 0x85, 0xc4, 0xd6};
 
 bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
-                                  quiche::QuicheStringPiece* key,
-                                  quiche::QuicheStringPiece* nonce) {
+                                  absl::string_view* key,
+                                  absl::string_view* nonce) {
   static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync with retry integrity keys");
   if (!version.HasRetryIntegrityTag()) {
@@ -223,42 +223,42 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
              << version;
     return false;
   } else if (version == ParsedQuicVersion::Draft29()) {
-    *key = quiche::QuicheStringPiece(
+    *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityKey),
         QUICHE_ARRAYSIZE(kDraft29RetryIntegrityKey));
-    *nonce = quiche::QuicheStringPiece(
+    *nonce = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kDraft29RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::Draft27()) {
-    *key = quiche::QuicheStringPiece(
+    *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft27RetryIntegrityKey),
         QUICHE_ARRAYSIZE(kDraft27RetryIntegrityKey));
-    *nonce = quiche::QuicheStringPiece(
+    *nonce = absl::string_view(
         reinterpret_cast<const char*>(kDraft27RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kDraft27RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::T051()) {
-    *key = quiche::QuicheStringPiece(
-        reinterpret_cast<const char*>(kT051RetryIntegrityKey),
-        QUICHE_ARRAYSIZE(kT051RetryIntegrityKey));
-    *nonce = quiche::QuicheStringPiece(
+    *key =
+        absl::string_view(reinterpret_cast<const char*>(kT051RetryIntegrityKey),
+                          QUICHE_ARRAYSIZE(kT051RetryIntegrityKey));
+    *nonce = absl::string_view(
         reinterpret_cast<const char*>(kT051RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kT051RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::T050()) {
-    *key = quiche::QuicheStringPiece(
-        reinterpret_cast<const char*>(kT050RetryIntegrityKey),
-        QUICHE_ARRAYSIZE(kT050RetryIntegrityKey));
-    *nonce = quiche::QuicheStringPiece(
+    *key =
+        absl::string_view(reinterpret_cast<const char*>(kT050RetryIntegrityKey),
+                          QUICHE_ARRAYSIZE(kT050RetryIntegrityKey));
+    *nonce = absl::string_view(
         reinterpret_cast<const char*>(kT050RetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kT050RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
-    *key = quiche::QuicheStringPiece(
+    *key = absl::string_view(
         reinterpret_cast<const char*>(kReservedForNegotiationRetryIntegrityKey),
         QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityKey));
-    *nonce = quiche::QuicheStringPiece(
+    *nonce = absl::string_view(
         reinterpret_cast<const char*>(
             kReservedForNegotiationRetryIntegrityNonce),
         QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityNonce));
@@ -329,8 +329,8 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
 bool CryptoUtils::ValidateRetryIntegrityTag(
     ParsedQuicVersion version,
     QuicConnectionId original_connection_id,
-    quiche::QuicheStringPiece retry_without_tag,
-    quiche::QuicheStringPiece integrity_tag) {
+    absl::string_view retry_without_tag,
+    absl::string_view integrity_tag) {
   unsigned char computed_integrity_tag[kRetryIntegrityTagLength];
   if (integrity_tag.length() != QUICHE_ARRAYSIZE(computed_integrity_tag)) {
     QUIC_BUG << "Invalid retry integrity tag length " << integrity_tag.length();
@@ -347,16 +347,16 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
     QUIC_BUG << "Failed to write retry without tag in retry pseudo packet";
     return false;
   }
-  quiche::QuicheStringPiece key;
-  quiche::QuicheStringPiece nonce;
+  absl::string_view key;
+  absl::string_view nonce;
   if (!RetryIntegrityKeysForVersion(version, &key, &nonce)) {
     // RetryIntegrityKeysForVersion already logs failures.
     return false;
   }
   Aes128GcmEncrypter crypter;
   crypter.SetKey(key);
-  quiche::QuicheStringPiece associated_data(writer.data(), writer.length());
-  quiche::QuicheStringPiece plaintext;  // Plaintext is empty.
+  absl::string_view associated_data(writer.data(), writer.length());
+  absl::string_view plaintext;  // Plaintext is empty.
   if (!crypter.Encrypt(nonce, associated_data, plaintext,
                        computed_integrity_tag)) {
     QUIC_BUG << "Failed to compute retry integrity tag";
@@ -373,7 +373,7 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
 // static
 void CryptoUtils::GenerateNonce(QuicWallTime now,
                                 QuicRandom* random_generator,
-                                quiche::QuicheStringPiece orbit,
+                                absl::string_view orbit,
                                 std::string* nonce) {
   // a 4-byte timestamp + 28 random bytes.
   nonce->reserve(kNonceSize);
@@ -399,11 +399,11 @@ void CryptoUtils::GenerateNonce(QuicWallTime now,
 
 // static
 bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
-                             quiche::QuicheStringPiece premaster_secret,
+                             absl::string_view premaster_secret,
                              QuicTag aead,
-                             quiche::QuicheStringPiece client_nonce,
-                             quiche::QuicheStringPiece server_nonce,
-                             quiche::QuicheStringPiece pre_shared_key,
+                             absl::string_view client_nonce,
+                             absl::string_view server_nonce,
+                             absl::string_view pre_shared_key,
                              const std::string& hkdf_input,
                              Perspective perspective,
                              Diversification diversification,
@@ -412,7 +412,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
   // If the connection is using PSK, concatenate it with the pre-master secret.
   std::unique_ptr<char[]> psk_premaster_secret;
   if (!pre_shared_key.empty()) {
-    const quiche::QuicheStringPiece label(kPreSharedKeyLabel);
+    const absl::string_view label(kPreSharedKeyLabel);
     const size_t psk_premaster_secret_size = label.size() + 1 +
                                              pre_shared_key.size() + 8 +
                                              premaster_secret.size() + 8;
@@ -430,8 +430,8 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
       return false;
     }
 
-    premaster_secret = quiche::QuicheStringPiece(psk_premaster_secret.get(),
-                                                 psk_premaster_secret_size);
+    premaster_secret = absl::string_view(psk_premaster_secret.get(),
+                                         psk_premaster_secret_size);
   }
 
   crypters->encrypter = QuicEncrypter::Create(version, aead);
@@ -445,7 +445,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
   size_t subkey_secret_bytes =
       subkey_secret == nullptr ? 0 : premaster_secret.length();
 
-  quiche::QuicheStringPiece nonce = client_nonce;
+  absl::string_view nonce = client_nonce;
   std::string nonce_storage;
   if (!server_nonce.empty()) {
     nonce_storage = std::string(client_nonce) + std::string(server_nonce);
@@ -542,9 +542,9 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
 }
 
 // static
-bool CryptoUtils::ExportKeyingMaterial(quiche::QuicheStringPiece subkey_secret,
-                                       quiche::QuicheStringPiece label,
-                                       quiche::QuicheStringPiece context,
+bool CryptoUtils::ExportKeyingMaterial(absl::string_view subkey_secret,
+                                       absl::string_view label,
+                                       absl::string_view context,
                                        size_t result_len,
                                        std::string* result) {
   for (size_t i = 0; i < label.length(); i++) {
@@ -564,14 +564,14 @@ bool CryptoUtils::ExportKeyingMaterial(quiche::QuicheStringPiece subkey_secret,
   info.append(reinterpret_cast<char*>(&context_length), sizeof(context_length));
   info.append(context.data(), context.length());
 
-  QuicHKDF hkdf(subkey_secret, quiche::QuicheStringPiece() /* no salt */, info,
+  QuicHKDF hkdf(subkey_secret, absl::string_view() /* no salt */, info,
                 result_len, 0 /* no fixed IV */, 0 /* no subkey secret */);
   *result = std::string(hkdf.client_write_key());
   return true;
 }
 
 // static
-uint64_t CryptoUtils::ComputeLeafCertHash(quiche::QuicheStringPiece cert) {
+uint64_t CryptoUtils::ComputeLeafCertHash(absl::string_view cert) {
   return QuicUtils::FNV1a_64_Hash(cert);
 }
 

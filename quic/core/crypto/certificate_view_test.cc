@@ -7,6 +7,7 @@
 #include <memory>
 #include <sstream>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/test_certificates.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 
 namespace quic {
@@ -43,9 +43,9 @@ TEST(CertificateViewTest, Parse) {
   ASSERT_TRUE(view != nullptr);
 
   EXPECT_THAT(view->subject_alt_name_domains(),
-              ElementsAre(quiche::QuicheStringPiece("www.example.org"),
-                          quiche::QuicheStringPiece("mail.example.org"),
-                          quiche::QuicheStringPiece("mail.example.com")));
+              ElementsAre(absl::string_view("www.example.org"),
+                          absl::string_view("mail.example.org"),
+                          absl::string_view("mail.example.com")));
   EXPECT_THAT(view->subject_alt_name_ips(),
               ElementsAre(QuicIpAddress::Loopback4()));
   EXPECT_EQ(EVP_PKEY_id(view->public_key()), EVP_PKEY_RSA);

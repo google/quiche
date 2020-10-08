@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/common_cert_set.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -127,7 +127,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     std::unique_ptr<CryptoHandshakeMessage> msg(
         config_.AddConfig(primary_config, clock_.WallNow()));
 
-    quiche::QuicheStringPiece orbit;
+    absl::string_view orbit;
     CHECK(msg->GetStringPiece(kORBT, &orbit));
     CHECK_EQ(sizeof(orbit_), orbit.size());
     memcpy(orbit_, orbit.data(), orbit.size());
@@ -156,15 +156,15 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
         SERVER_CONFIG_INCHOATE_HELLO_FAILURE};
     CheckRejectReasons(kRejectReasons, QUICHE_ARRAYSIZE(kRejectReasons));
 
-    quiche::QuicheStringPiece srct;
+    absl::string_view srct;
     ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &srct));
     srct_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(srct);
 
-    quiche::QuicheStringPiece scfg;
+    absl::string_view scfg;
     ASSERT_TRUE(out_.GetStringPiece(kSCFG, &scfg));
     server_config_ = CryptoFramer::ParseMessage(scfg);
 
-    quiche::QuicheStringPiece scid;
+    absl::string_view scid;
     ASSERT_TRUE(server_config_->GetStringPiece(kSCID, &scid));
     scid_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(scid);
 
@@ -211,7 +211,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
       EXPECT_EQ(CreateQuicVersionLabel(supported_versions_[i]), versions[i]);
     }
 
-    quiche::QuicheStringPiece address;
+    absl::string_view address;
     ASSERT_TRUE(server_hello.GetStringPiece(kCADR, &address));
     QuicSocketAddressCoder decoder;
     ASSERT_TRUE(decoder.Decode(address.data(), address.size()));
@@ -313,8 +313,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     std::string nonce;
     CryptoUtils::GenerateNonce(
         clock_.WallNow(), rand_,
-        quiche::QuicheStringPiece(reinterpret_cast<const char*>(orbit_),
-                                  sizeof(orbit_)),
+        absl::string_view(reinterpret_cast<const char*>(orbit_),
+                          sizeof(orbit_)),
         &nonce);
     return nonce;
   }
@@ -413,7 +413,7 @@ TEST_P(CryptoServerTest, DefaultCert) {
                                     kClientHelloMinimumSize);
 
   ShouldSucceed(msg);
-  quiche::QuicheStringPiece cert, proof, cert_sct;
+  absl::string_view cert, proof, cert_sct;
   EXPECT_TRUE(out_.GetStringPiece(kCertificateTag, &cert));
   EXPECT_TRUE(out_.GetStringPiece(kPROF, &proof));
   EXPECT_TRUE(out_.GetStringPiece(kCertificateSCTTag, &cert_sct));
@@ -442,7 +442,7 @@ TEST_P(CryptoServerTest, RejectTooLarge) {
   config_.set_chlo_multiplier(1);
 
   ShouldSucceed(msg);
-  quiche::QuicheStringPiece cert, proof, cert_sct;
+  absl::string_view cert, proof, cert_sct;
   EXPECT_FALSE(out_.GetStringPiece(kCertificateTag, &cert));
   EXPECT_FALSE(out_.GetStringPiece(kPROF, &proof));
   EXPECT_FALSE(out_.GetStringPiece(kCertificateSCTTag, &cert_sct));
@@ -469,7 +469,7 @@ TEST_P(CryptoServerTest, RejectNotTooLarge) {
   config_.set_chlo_multiplier(1);
 
   ShouldSucceed(msg);
-  quiche::QuicheStringPiece cert, proof, cert_sct;
+  absl::string_view cert, proof, cert_sct;
   EXPECT_TRUE(out_.GetStringPiece(kCertificateTag, &cert));
   EXPECT_TRUE(out_.GetStringPiece(kPROF, &proof));
   EXPECT_TRUE(out_.GetStringPiece(kCertificateSCTTag, &cert_sct));
@@ -496,7 +496,7 @@ TEST_P(CryptoServerTest, RejectTooLargeButValidSTK) {
   config_.set_chlo_multiplier(1);
 
   ShouldSucceed(msg);
-  quiche::QuicheStringPiece cert, proof, cert_sct;
+  absl::string_view cert, proof, cert_sct;
   EXPECT_TRUE(out_.GetStringPiece(kCertificateTag, &cert));
   EXPECT_TRUE(out_.GetStringPiece(kPROF, &proof));
   EXPECT_TRUE(out_.GetStringPiece(kCertificateSCTTag, &cert_sct));
@@ -780,13 +780,13 @@ TEST_P(CryptoServerTest, ProofForSuppliedServerConfig) {
       SOURCE_ADDRESS_TOKEN_DIFFERENT_IP_ADDRESS_FAILURE};
   CheckRejectReasons(kRejectReasons, QUICHE_ARRAYSIZE(kRejectReasons));
 
-  quiche::QuicheStringPiece cert, proof, scfg_str;
+  absl::string_view cert, proof, scfg_str;
   EXPECT_TRUE(out_.GetStringPiece(kCertificateTag, &cert));
   EXPECT_TRUE(out_.GetStringPiece(kPROF, &proof));
   EXPECT_TRUE(out_.GetStringPiece(kSCFG, &scfg_str));
   std::unique_ptr<CryptoHandshakeMessage> scfg(
       CryptoFramer::ParseMessage(scfg_str));
-  quiche::QuicheStringPiece scid;
+  absl::string_view scid;
   EXPECT_TRUE(scfg->GetStringPiece(kSCID, &scid));
   EXPECT_NE(scid, kOldConfigId);
 
@@ -886,7 +886,7 @@ TEST_P(CryptoServerTest, NonceInSHLO) {
   ShouldSucceed(msg);
   EXPECT_EQ(kSHLO, out_.tag());
 
-  quiche::QuicheStringPiece nonce;
+  absl::string_view nonce;
   EXPECT_TRUE(out_.GetStringPiece(kServerNonceTag, &nonce));
 }
 
@@ -922,7 +922,7 @@ TEST_P(CryptoServerTest, TwoRttServerDropCachedCerts) {
   ShouldSucceed(msg);
 
   // Decompress cert chain from server to individual certs.
-  quiche::QuicheStringPiece certs_compressed;
+  absl::string_view certs_compressed;
   ASSERT_TRUE(out_.GetStringPiece(kCertificateTag, &certs_compressed));
   ASSERT_NE(0u, certs_compressed.size());
   std::vector<std::string> certs;
@@ -942,7 +942,7 @@ TEST_P(CryptoServerTest, TwoRttServerDropCachedCerts) {
   ShouldSucceed(msg);
 
   // Server responds with inchoate REJ containing valid source-address token.
-  quiche::QuicheStringPiece srct;
+  absl::string_view srct;
   ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &srct));
 
   // Client now drops cached certs; sends CHLO with updated source-address
@@ -1003,7 +1003,7 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDVaries) {
   std::unique_ptr<CryptoHandshakeMessage> scfg_b(
       b.AddDefaultConfig(&rand_b, &clock, options));
 
-  quiche::QuicheStringPiece scid_a, scid_b;
+  absl::string_view scid_a, scid_b;
   EXPECT_TRUE(scfg_a->GetStringPiece(kSCID, &scid_a));
   EXPECT_TRUE(scfg_b->GetStringPiece(kSCID, &scid_b));
 
@@ -1021,7 +1021,7 @@ TEST_F(CryptoServerConfigGenerationTest, SCIDIsHashOfServerConfig) {
   std::unique_ptr<CryptoHandshakeMessage> scfg(
       a.AddDefaultConfig(&rand_a, &clock, options));
 
-  quiche::QuicheStringPiece scid;
+  absl::string_view scid;
   EXPECT_TRUE(scfg->GetStringPiece(kSCID, &scid));
   // Need to take a copy of |scid| has we're about to call |Erase|.
   const std::string scid_str(scid);

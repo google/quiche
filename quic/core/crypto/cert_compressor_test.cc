@@ -7,10 +7,10 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -21,7 +21,7 @@ class CertCompressorTest : public QuicTest {};
 TEST_F(CertCompressorTest, EmptyChain) {
   std::vector<std::string> chain;
   const std::string compressed = CertCompressor::CompressChain(
-      chain, quiche::QuicheStringPiece(), quiche::QuicheStringPiece(), nullptr);
+      chain, absl::string_view(), absl::string_view(), nullptr);
   EXPECT_EQ("00", quiche::QuicheTextUtils::HexEncode(compressed));
 
   std::vector<std::string> chain2, cached_certs;
@@ -34,7 +34,7 @@ TEST_F(CertCompressorTest, Compressed) {
   std::vector<std::string> chain;
   chain.push_back("testcert");
   const std::string compressed = CertCompressor::CompressChain(
-      chain, quiche::QuicheStringPiece(), quiche::QuicheStringPiece(), nullptr);
+      chain, absl::string_view(), absl::string_view(), nullptr);
   ASSERT_GE(compressed.size(), 2u);
   EXPECT_EQ("0100",
             quiche::QuicheTextUtils::HexEncode(compressed.substr(0, 2)));
@@ -54,9 +54,9 @@ TEST_F(CertCompressorTest, Common) {
       crypto_test_utils::MockCommonCertSets(chain[0], set_hash, 1));
   const std::string compressed = CertCompressor::CompressChain(
       chain,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(&set_hash),
-                                sizeof(set_hash)),
-      quiche::QuicheStringPiece(), common_sets.get());
+      absl::string_view(reinterpret_cast<const char*>(&set_hash),
+                        sizeof(set_hash)),
+      absl::string_view(), common_sets.get());
   EXPECT_EQ(
       "03"               /* common */
       "2a00000000000000" /* set hash 42 */
@@ -75,10 +75,9 @@ TEST_F(CertCompressorTest, Cached) {
   std::vector<std::string> chain;
   chain.push_back("testcert");
   uint64_t hash = QuicUtils::FNV1a_64_Hash(chain[0]);
-  quiche::QuicheStringPiece hash_bytes(reinterpret_cast<char*>(&hash),
-                                       sizeof(hash));
+  absl::string_view hash_bytes(reinterpret_cast<char*>(&hash), sizeof(hash));
   const std::string compressed = CertCompressor::CompressChain(
-      chain, quiche::QuicheStringPiece(), hash_bytes, nullptr);
+      chain, absl::string_view(), hash_bytes, nullptr);
 
   EXPECT_EQ("02" /* cached */ + quiche::QuicheTextUtils::HexEncode(hash_bytes) +
                 "00" /* end of list */,

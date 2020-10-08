@@ -7,9 +7,9 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -275,12 +275,11 @@ TEST_F(ChannelIDTest, VerifyKnownAnswerTest) {
     EXPECT_EQ(sizeof(signature) / 2, r_len);
     EXPECT_EQ(sizeof(signature) / 2, s_len);
 
-    EXPECT_EQ(
-        test_vector[i].result,
-        ChannelIDVerifier::VerifyRaw(
-            quiche::QuicheStringPiece(key, sizeof(key)),
-            quiche::QuicheStringPiece(msg, msg_len),
-            quiche::QuicheStringPiece(signature, sizeof(signature)), false));
+    EXPECT_EQ(test_vector[i].result,
+              ChannelIDVerifier::VerifyRaw(
+                  absl::string_view(key, sizeof(key)),
+                  absl::string_view(msg, msg_len),
+                  absl::string_view(signature, sizeof(signature)), false));
   }
 }
 

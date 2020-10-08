@@ -6,8 +6,8 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -193,44 +193,44 @@ static const unsigned char kGIACertificate3[] = {
 class CommonCertSetsTest : public QuicTest {};
 
 TEST_F(CommonCertSetsTest, FindGIA_2) {
-  quiche::QuicheStringPiece gia(reinterpret_cast<const char*>(kGIACertificate2),
-                                sizeof(kGIACertificate2));
+  absl::string_view gia(reinterpret_cast<const char*>(kGIACertificate2),
+                        sizeof(kGIACertificate2));
 
   const CommonCertSets* sets(CommonCertSets::GetInstanceQUIC());
   // Common Cert Set 2's hash.
   const uint64_t in_hash = UINT64_C(0xe81a92926081e801);
   uint64_t hash;
   uint32_t index;
-  ASSERT_TRUE(sets->MatchCert(
-      gia,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(&in_hash),
-                                sizeof(in_hash)),
-      &hash, &index));
+  ASSERT_TRUE(
+      sets->MatchCert(gia,
+                      absl::string_view(reinterpret_cast<const char*>(&in_hash),
+                                        sizeof(in_hash)),
+                      &hash, &index));
   EXPECT_EQ(in_hash, hash);
 
-  quiche::QuicheStringPiece gia_copy = sets->GetCert(hash, index);
+  absl::string_view gia_copy = sets->GetCert(hash, index);
   EXPECT_FALSE(gia_copy.empty());
   ASSERT_EQ(gia.size(), gia_copy.size());
   EXPECT_EQ(0, memcmp(gia.data(), gia_copy.data(), gia.size()));
 }
 
 TEST_F(CommonCertSetsTest, FindGIA_3) {
-  quiche::QuicheStringPiece gia(reinterpret_cast<const char*>(kGIACertificate3),
-                                sizeof(kGIACertificate3));
+  absl::string_view gia(reinterpret_cast<const char*>(kGIACertificate3),
+                        sizeof(kGIACertificate3));
 
   const CommonCertSets* sets(CommonCertSets::GetInstanceQUIC());
   // Common Cert Set 3's hash.
   const uint64_t in_hash = UINT64_C(0x918215a28680ed7e);
   uint64_t hash;
   uint32_t index;
-  ASSERT_TRUE(sets->MatchCert(
-      gia,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(&in_hash),
-                                sizeof(in_hash)),
-      &hash, &index));
+  ASSERT_TRUE(
+      sets->MatchCert(gia,
+                      absl::string_view(reinterpret_cast<const char*>(&in_hash),
+                                        sizeof(in_hash)),
+                      &hash, &index));
   EXPECT_EQ(in_hash, hash);
 
-  quiche::QuicheStringPiece gia_copy = sets->GetCert(hash, index);
+  absl::string_view gia_copy = sets->GetCert(hash, index);
   EXPECT_FALSE(gia_copy.empty());
   ASSERT_EQ(gia.size(), gia_copy.size());
   EXPECT_EQ(0, memcmp(gia.data(), gia_copy.data(), gia.size()));
@@ -238,15 +238,15 @@ TEST_F(CommonCertSetsTest, FindGIA_3) {
 
 TEST_F(CommonCertSetsTest, NonMatch) {
   const CommonCertSets* sets(CommonCertSets::GetInstanceQUIC());
-  quiche::QuicheStringPiece not_a_cert("hello");
+  absl::string_view not_a_cert("hello");
   const uint64_t in_hash = UINT64_C(0xc9fef74053f99f39);
   uint64_t hash;
   uint32_t index;
-  EXPECT_FALSE(sets->MatchCert(
-      not_a_cert,
-      quiche::QuicheStringPiece(reinterpret_cast<const char*>(&in_hash),
-                                sizeof(in_hash)),
-      &hash, &index));
+  EXPECT_FALSE(
+      sets->MatchCert(not_a_cert,
+                      absl::string_view(reinterpret_cast<const char*>(&in_hash),
+                                        sizeof(in_hash)),
+                      &hash, &index));
 }
 
 }  // namespace test

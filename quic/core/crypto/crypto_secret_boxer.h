@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -41,16 +41,16 @@ class QUIC_EXPORT_PRIVATE CryptoSecretBoxer {
   // returns the resulting ciphertext. Since an authenticator and nonce are
   // included, the result will be slightly larger than |plaintext|. The first
   // key in the vector supplied to |SetKeys| will be used.
-  std::string Box(QuicRandom* rand, quiche::QuicheStringPiece plaintext) const;
+  std::string Box(QuicRandom* rand, absl::string_view plaintext) const;
 
   // Unbox takes the result of a previous call to |Box| in |ciphertext| and
   // authenticates+decrypts it. If |ciphertext| cannot be decrypted with any of
   // the supplied keys, the function returns false. Otherwise, |out_storage| is
   // used to store the result and |out| is set to point into |out_storage| and
   // contains the original plaintext.
-  bool Unbox(quiche::QuicheStringPiece ciphertext,
+  bool Unbox(absl::string_view ciphertext,
              std::string* out_storage,
-             quiche::QuicheStringPiece* out) const;
+             absl::string_view* out) const;
 
  private:
   struct State;

@@ -8,9 +8,9 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -30,17 +30,17 @@ class QUIC_EXPORT_PRIVATE ChannelIDVerifier {
 
   // Verify returns true iff |signature| is a valid signature of |signed_data|
   // by |key|.
-  static bool Verify(quiche::QuicheStringPiece key,
-                     quiche::QuicheStringPiece signed_data,
-                     quiche::QuicheStringPiece signature);
+  static bool Verify(absl::string_view key,
+                     absl::string_view signed_data,
+                     absl::string_view signature);
 
   // FOR TESTING ONLY: VerifyRaw returns true iff |signature| is a valid
   // signature of |signed_data| by |key|. |is_channel_id_signature| indicates
   // whether |signature| is a ChannelID signature (with kContextStr prepended
   // to the data to be signed).
-  static bool VerifyRaw(quiche::QuicheStringPiece key,
-                        quiche::QuicheStringPiece signed_data,
-                        quiche::QuicheStringPiece signature,
+  static bool VerifyRaw(absl::string_view key,
+                        absl::string_view signed_data,
+                        absl::string_view signature,
                         bool is_channel_id_signature);
 };
 

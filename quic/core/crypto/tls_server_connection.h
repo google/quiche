@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -43,12 +43,11 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     // ssl_private_key_failure is returned. Otherwise, ssl_private_key_success
     // is returned with the signature put in |*out| and the length in
     // |*out_len|.
-    virtual ssl_private_key_result_t PrivateKeySign(
-        uint8_t* out,
-        size_t* out_len,
-        size_t max_out,
-        uint16_t sig_alg,
-        quiche::QuicheStringPiece in) = 0;
+    virtual ssl_private_key_result_t PrivateKeySign(uint8_t* out,
+                                                    size_t* out_len,
+                                                    size_t max_out,
+                                                    uint16_t sig_alg,
+                                                    absl::string_view in) = 0;
 
     // When PrivateKeySign returns ssl_private_key_retry, PrivateKeyComplete
     // will be called after the async sign operation has completed.
@@ -76,7 +75,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     virtual int SessionTicketSeal(uint8_t* out,
                                   size_t* out_len,
                                   size_t max_out_len,
-                                  quiche::QuicheStringPiece in) = 0;
+                                  absl::string_view in) = 0;
 
     // SessionTicketOpen is called when BoringSSL has an encrypted session
     // ticket |in| and wants the ticket decrypted. This decryption operation can
@@ -102,7 +101,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
         uint8_t* out,
         size_t* out_len,
         size_t max_out_len,
-        quiche::QuicheStringPiece in) = 0;
+        absl::string_view in) = 0;
 
     // Provides the delegate for callbacks that are shared between client and
     // server.

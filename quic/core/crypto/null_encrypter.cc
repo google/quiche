@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -15,25 +15,25 @@ const size_t kHashSizeShort = 12;  // size of uint128 serialized short
 NullEncrypter::NullEncrypter(Perspective perspective)
     : perspective_(perspective) {}
 
-bool NullEncrypter::SetKey(quiche::QuicheStringPiece key) {
+bool NullEncrypter::SetKey(absl::string_view key) {
   return key.empty();
 }
 
-bool NullEncrypter::SetNoncePrefix(quiche::QuicheStringPiece nonce_prefix) {
+bool NullEncrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
   return nonce_prefix.empty();
 }
 
-bool NullEncrypter::SetIV(quiche::QuicheStringPiece iv) {
+bool NullEncrypter::SetIV(absl::string_view iv) {
   return iv.empty();
 }
 
-bool NullEncrypter::SetHeaderProtectionKey(quiche::QuicheStringPiece key) {
+bool NullEncrypter::SetHeaderProtectionKey(absl::string_view key) {
   return key.empty();
 }
 
 bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
-                                  quiche::QuicheStringPiece associated_data,
-                                  quiche::QuicheStringPiece plaintext,
+                                  absl::string_view associated_data,
+                                  absl::string_view plaintext,
                                   char* output,
                                   size_t* output_length,
                                   size_t max_output_length) {
@@ -59,7 +59,7 @@ bool NullEncrypter::EncryptPacket(uint64_t /*packet_number*/,
 }
 
 std::string NullEncrypter::GenerateHeaderProtectionMask(
-    quiche::QuicheStringPiece /*sample*/) {
+    absl::string_view /*sample*/) {
   return std::string(5, 0);
 }
 
@@ -83,12 +83,12 @@ size_t NullEncrypter::GetCiphertextSize(size_t plaintext_size) const {
   return plaintext_size + GetHashLength();
 }
 
-quiche::QuicheStringPiece NullEncrypter::GetKey() const {
-  return quiche::QuicheStringPiece();
+absl::string_view NullEncrypter::GetKey() const {
+  return absl::string_view();
 }
 
-quiche::QuicheStringPiece NullEncrypter::GetNoncePrefix() const {
-  return quiche::QuicheStringPiece();
+absl::string_view NullEncrypter::GetNoncePrefix() const {
+  return absl::string_view();
 }
 
 size_t NullEncrypter::GetHashLength() const {

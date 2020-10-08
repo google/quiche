@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/tls1.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_decrypter.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -62,16 +62,15 @@ std::unique_ptr<QuicDecrypter> QuicDecrypter::CreateFromCipherSuite(
 }
 
 // static
-void QuicDecrypter::DiversifyPreliminaryKey(
-    quiche::QuicheStringPiece preliminary_key,
-    quiche::QuicheStringPiece nonce_prefix,
-    const DiversificationNonce& nonce,
-    size_t key_size,
-    size_t nonce_prefix_size,
-    std::string* out_key,
-    std::string* out_nonce_prefix) {
+void QuicDecrypter::DiversifyPreliminaryKey(absl::string_view preliminary_key,
+                                            absl::string_view nonce_prefix,
+                                            const DiversificationNonce& nonce,
+                                            size_t key_size,
+                                            size_t nonce_prefix_size,
+                                            std::string* out_key,
+                                            std::string* out_nonce_prefix) {
   QuicHKDF hkdf((std::string(preliminary_key)) + (std::string(nonce_prefix)),
-                quiche::QuicheStringPiece(nonce.data(), nonce.size()),
+                absl::string_view(nonce.data(), nonce.size()),
                 "QUIC key diversification", 0, key_size, 0, nonce_prefix_size,
                 0);
   *out_key = std::string(hkdf.server_write_key());

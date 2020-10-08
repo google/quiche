@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::StartsWith;
 
@@ -149,13 +149,13 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChlo) {
   QuicVersionLabel cver;
   EXPECT_THAT(msg.GetVersionLabel(kVER, &cver), IsQuicNoError());
   EXPECT_EQ(CreateQuicVersionLabel(QuicVersionMax()), cver);
-  quiche::QuicheStringPiece proof_nonce;
+  absl::string_view proof_nonce;
   EXPECT_TRUE(msg.GetStringPiece(kNONP, &proof_nonce));
   EXPECT_EQ(std::string(32, 'r'), proof_nonce);
-  quiche::QuicheStringPiece user_agent_id;
+  absl::string_view user_agent_id;
   EXPECT_TRUE(msg.GetStringPiece(kUAID, &user_agent_id));
   EXPECT_EQ("quic-tester", user_agent_id);
-  quiche::QuicheStringPiece alpn;
+  absl::string_view alpn;
   EXPECT_TRUE(msg.GetStringPiece(kALPN, &alpn));
   EXPECT_EQ("hq", alpn);
   EXPECT_EQ(msg.minimum_size(), 1u);
@@ -203,7 +203,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecure) {
   QuicTag pdmd;
   EXPECT_THAT(msg.GetUint32(kPDMD, &pdmd), IsQuicNoError());
   EXPECT_EQ(kX509, pdmd);
-  quiche::QuicheStringPiece scid;
+  absl::string_view scid;
   EXPECT_FALSE(msg.GetStringPiece(kSCID, &scid));
 }
 
@@ -229,7 +229,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecureWithSCIDNoEXPY) {
   config.FillInchoateClientHello(server_id, QuicVersionMax(), &state, &rand,
                                  /* demand_x509_proof= */ true, params, &msg);
 
-  quiche::QuicheStringPiece scid;
+  absl::string_view scid;
   EXPECT_TRUE(msg.GetStringPiece(kSCID, &scid));
   EXPECT_EQ("12345678", scid);
 }
@@ -255,7 +255,7 @@ TEST_F(QuicCryptoClientConfigTest, InchoateChloSecureWithSCID) {
   config.FillInchoateClientHello(server_id, QuicVersionMax(), &state, &rand,
                                  /* demand_x509_proof= */ true, params, &msg);
 
-  quiche::QuicheStringPiece scid;
+  absl::string_view scid;
   EXPECT_TRUE(msg.GetStringPiece(kSCID, &scid));
   EXPECT_EQ("12345678", scid);
 }
