@@ -15,7 +15,11 @@
 namespace quic {
 
 QpackInstructionEncoder::QpackInstructionEncoder()
-    : byte_(0), state_(State::kOpcode), instruction_(nullptr) {}
+    : use_huffman_(false),
+      string_length_(0),
+      byte_(0),
+      state_(State::kOpcode),
+      instruction_(nullptr) {}
 
 void QpackInstructionEncoder::Encode(
     const QpackInstructionWithValues& instruction_with_values,
@@ -49,7 +53,8 @@ void QpackInstructionEncoder::Encode(
                       instruction_with_values.value());
         break;
       case State::kWriteString:
-        DoWriteString(output);
+        DoWriteString(instruction_with_values.name(),
+                      instruction_with_values.value(), output);
         break;
     }
   } while (field_ != instruction_->fields.end());
@@ -110,7 +115,7 @@ void QpackInstructionEncoder::DoVarintEncode(uint64_t varint,
       integer_to_encode = varint2;
       break;
     default:
-      integer_to_encode = string_to_write_.size();
+      integer_to_encode = string_length_;
       break;
   }
 
@@ -133,28 +138,36 @@ void QpackInstructionEncoder::DoStartString(quiche::QuicheStringPiece name,
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  string_to_write_ =
+  quiche::QuicheStringPiece string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
-  size_t encoded_size = http2::HuffmanSize(string_to_write_);
+  string_length_ = string_to_write.size();
 
-  if (encoded_size < string_to_write_.size()) {
+  size_t encoded_size = http2::HuffmanSize(string_to_write);
+  use_huffman_ = encoded_size < string_length_;
+
+  if (use_huffman_) {
     DCHECK_EQ(0, byte_ & (1 << field_->param));
     byte_ |= (1 << field_->param);
 
-    huffman_encoded_string_.clear();
-    http2::HuffmanEncode(string_to_write_, encoded_size,
-                         &huffman_encoded_string_);
-    string_to_write_ = huffman_encoded_string_;
+    string_length_ = encoded_size;
   }
 
   state_ = State::kVarintEncode;
 }
 
-void QpackInstructionEncoder::DoWriteString(std::string* output) {
+void QpackInstructionEncoder::DoWriteString(quiche::QuicheStringPiece name,
+                                            quiche::QuicheStringPiece value,
+                                            std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  QuicStrAppend(output, string_to_write_);
+  quiche::QuicheStringPiece string_to_write =
+      (field_->type == QpackInstructionFieldType::kName) ? name : value;
+  if (use_huffman_) {
+    http2::HuffmanEncode(string_to_write, string_length_, output);
+  } else {
+    QuicStrAppend(output, string_to_write);
+  }
 
   ++field_;
   state_ = State::kStartField;
