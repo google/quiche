@@ -13,6 +13,7 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_spdy_server_base.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -81,7 +81,7 @@ class QuicServer : public QuicSpdyServerBase,
     crypto_config_.set_chlo_multiplier(multiplier);
   }
 
-  void SetPreSharedKey(quiche::QuicheStringPiece key) {
+  void SetPreSharedKey(absl::string_view key) {
     crypto_config_.set_pre_shared_key(key);
   }
 

@@ -6,12 +6,12 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -38,7 +38,7 @@ QuicTransportSimpleServerDispatcher::CreateQuicSession(
     QuicConnectionId server_connection_id,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
-    quiche::QuicheStringPiece /*alpn*/,
+    absl::string_view /*alpn*/,
     const ParsedQuicVersion& version) {
   auto connection = std::make_unique<QuicConnection>(
       server_connection_id, self_address, peer_address, helper(),

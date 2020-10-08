@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -28,7 +29,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -75,7 +75,7 @@ class TestStream : public QuicSimpleServerStream {
   const std::string& body() const { return body_; }
   int content_length() const { return content_length_; }
 
-  quiche::QuicheStringPiece GetHeader(quiche::QuicheStringPiece key) const {
+  absl::string_view GetHeader(absl::string_view key) const {
     auto it = request_headers_.find(key);
     DCHECK(it != request_headers_.end());
     return it->second;
@@ -629,8 +629,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
 
   spdy::SpdyHeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
-  header_list_.OnHeader("content-length",
-                        quiche::QuicheStringPiece("11\00012", 5));
+  header_list_.OnHeader("content-length", absl::string_view("11\00012", 5));
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
@@ -648,8 +647,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
 
   spdy::SpdyHeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
-  header_list_.OnHeader("content-length",
-                        quiche::QuicheStringPiece("\00012", 3));
+  header_list_.OnHeader("content-length", absl::string_view("\00012", 3));
 
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
   EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
@@ -665,8 +663,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
 TEST_P(QuicSimpleServerStreamTest, ValidMultipleContentLength) {
   spdy::SpdyHeaderBlock request_headers;
   // \000 is a way to write the null byte when followed by a literal digit.
-  header_list_.OnHeader("content-length",
-                        quiche::QuicheStringPiece("11\00011", 5));
+  header_list_.OnHeader("content-length", absl::string_view("11\00011", 5));
 
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
 
@@ -730,7 +727,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
       0x54, 0x54, 0x50, 0x2f,  // TTP/
       0x31, 0x2e, 0x31,        // 1.1
   };
-  quiche::QuicheStringPiece data(arr, QUICHE_ARRAYSIZE(arr));
+  absl::string_view data(arr, QUICHE_ARRAYSIZE(arr));
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
   stream_->OnStreamFrame(frame);

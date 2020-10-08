@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -227,7 +227,7 @@ class QuicClientBase {
 
   bool initialized() const { return initialized_; }
 
-  void SetPreSharedKey(quiche::QuicheStringPiece key) {
+  void SetPreSharedKey(absl::string_view key) {
     crypto_config_.set_pre_shared_key(key);
   }
 

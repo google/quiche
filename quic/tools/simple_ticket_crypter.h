@@ -24,13 +24,13 @@ class QUIC_NO_EXPORT SimpleTicketCrypter
   ~SimpleTicketCrypter() override;
 
   size_t MaxOverhead() override;
-  std::vector<uint8_t> Encrypt(quiche::QuicheStringPiece in) override;
+  std::vector<uint8_t> Encrypt(absl::string_view in) override;
   void Decrypt(
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<quic::ProofSource::DecryptCallback> callback) override;
 
  private:
-  std::vector<uint8_t> Decrypt(quiche::QuicheStringPiece in);
+  std::vector<uint8_t> Decrypt(absl::string_view in);
 
   void MaybeRotateKeys();
 

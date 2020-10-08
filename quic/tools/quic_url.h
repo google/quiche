@@ -7,9 +7,9 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -24,12 +24,11 @@ class QuicUrl {
   // NOTE: If |url| doesn't have a scheme, it will have an empty scheme
   // field. If that's not what you want, use the QuicUrlImpl(url,
   // default_scheme) form below.
-  explicit QuicUrl(quiche::QuicheStringPiece url);
+  explicit QuicUrl(absl::string_view url);
 
   // Constructs a QuicUrlImpl from |url|, assuming that the scheme for the URL
   // is |default_scheme| if there is no scheme specified in |url|.
-  QuicUrl(quiche::QuicheStringPiece url,
-          quiche::QuicheStringPiece default_scheme);
+  QuicUrl(absl::string_view url, absl::string_view default_scheme);
 
   // Returns false if the URL is not valid.
   bool IsValid() const;

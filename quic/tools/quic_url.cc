@@ -4,18 +4,16 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 static constexpr size_t kMaxHostNameLength = 256;
 
-QuicUrl::QuicUrl(quiche::QuicheStringPiece url)
-    : url_(static_cast<std::string>(url)) {}
+QuicUrl::QuicUrl(absl::string_view url) : url_(static_cast<std::string>(url)) {}
 
-QuicUrl::QuicUrl(quiche::QuicheStringPiece url,
-                 quiche::QuicheStringPiece default_scheme)
+QuicUrl::QuicUrl(absl::string_view url, absl::string_view default_scheme)
     : QuicUrl(url) {
   if (url_.has_scheme()) {
     return;

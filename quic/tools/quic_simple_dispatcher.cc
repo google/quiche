@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -52,7 +52,7 @@ std::unique_ptr<QuicSession> QuicSimpleDispatcher::CreateQuicSession(
     QuicConnectionId connection_id,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address,
-    quiche::QuicheStringPiece /*alpn*/,
+    absl::string_view /*alpn*/,
     const ParsedQuicVersion& version) {
   // The QuicServerSessionBase takes ownership of |connection| below.
   QuicConnection* connection =

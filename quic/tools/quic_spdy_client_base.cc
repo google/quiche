@@ -6,12 +6,12 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
@@ -25,7 +25,7 @@ void QuicSpdyClientBase::ClientQuicDataToResend::Resend() {
 
 QuicSpdyClientBase::QuicDataToResend::QuicDataToResend(
     std::unique_ptr<SpdyHeaderBlock> headers,
-    quiche::QuicheStringPiece body,
+    absl::string_view body,
     bool fin)
     : headers_(std::move(headers)), body_(body), fin_(fin) {}
 
@@ -114,7 +114,7 @@ std::unique_ptr<QuicSession> QuicSpdyClientBase::CreateQuicClientSession(
 }
 
 void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
-                                     quiche::QuicheStringPiece body,
+                                     absl::string_view body,
                                      bool fin) {
   if (GetQuicFlag(FLAGS_quic_client_convert_http_header_name_to_lowercase)) {
     QUIC_CODE_COUNT(quic_client_convert_http_header_name_to_lowercase);
@@ -130,7 +130,7 @@ void QuicSpdyClientBase::SendRequest(const SpdyHeaderBlock& headers,
 }
 
 void QuicSpdyClientBase::SendRequestInternal(SpdyHeaderBlock sanitized_headers,
-                                             quiche::QuicheStringPiece body,
+                                             absl::string_view body,
                                              bool fin) {
   QuicClientPushPromiseIndex::TryHandle* handle;
   QuicAsyncStatus rv =
@@ -154,7 +154,7 @@ void QuicSpdyClientBase::SendRequestInternal(SpdyHeaderBlock sanitized_headers,
 
 void QuicSpdyClientBase::SendRequestAndWaitForResponse(
     const SpdyHeaderBlock& headers,
-    quiche::QuicheStringPiece body,
+    absl::string_view body,
     bool fin) {
   SendRequest(headers, body, fin);
   while (WaitForEvents()) {
@@ -233,7 +233,7 @@ void QuicSpdyClientBase::ResendSavedData() {
 }
 
 void QuicSpdyClientBase::AddPromiseDataToResend(const SpdyHeaderBlock& headers,
-                                                quiche::QuicheStringPiece body,
+                                                absl::string_view body,
                                                 bool fin) {
   std::unique_ptr<SpdyHeaderBlock> new_headers(
       new SpdyHeaderBlock(headers.Clone()));

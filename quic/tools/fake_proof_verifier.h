@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TOOLS_FAKE_PROOF_VERIFIER_H_
 #define QUICHE_QUIC_TOOLS_FAKE_PROOF_VERIFIER_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -19,7 +19,7 @@ class FakeProofVerifier : public ProofVerifier {
       const uint16_t /*port*/,
       const std::string& /*server_config*/,
       QuicTransportVersion /*quic_version*/,
-      quiche::QuicheStringPiece /*chlo_hash*/,
+      absl::string_view /*chlo_hash*/,
       const std::vector<std::string>& /*certs*/,
       const std::string& /*cert_sct*/,
       const std::string& /*signature*/,

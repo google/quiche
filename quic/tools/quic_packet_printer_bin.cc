@@ -32,7 +32,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               quic_version,
@@ -65,9 +65,9 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   }
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/,
-                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
-                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
+                     absl::string_view /*retry_token*/,
+                     absl::string_view /*retry_integrity_tag*/,
+                     absl::string_view /*retry_without_tag*/) override {
     std::cerr << "OnRetryPacket\n";
   }
   bool OnUnauthenticatedPublicHeader(

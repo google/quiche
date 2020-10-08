@@ -38,8 +38,7 @@ size_t SimpleTicketCrypter::MaxOverhead() {
   return kEpochSize + kIVSize + kAuthTagSize;
 }
 
-std::vector<uint8_t> SimpleTicketCrypter::Encrypt(
-    quiche::QuicheStringPiece in) {
+std::vector<uint8_t> SimpleTicketCrypter::Encrypt(absl::string_view in) {
   MaybeRotateKeys();
   std::vector<uint8_t> out(in.size() + MaxOverhead());
   out[0] = key_epoch_;
@@ -56,8 +55,7 @@ std::vector<uint8_t> SimpleTicketCrypter::Encrypt(
   return out;
 }
 
-std::vector<uint8_t> SimpleTicketCrypter::Decrypt(
-    quiche::QuicheStringPiece in) {
+std::vector<uint8_t> SimpleTicketCrypter::Decrypt(absl::string_view in) {
   MaybeRotateKeys();
   if (in.size() < kMessageOffset) {
     return std::vector<uint8_t>();
@@ -83,7 +81,7 @@ std::vector<uint8_t> SimpleTicketCrypter::Decrypt(
 }
 
 void SimpleTicketCrypter::Decrypt(
-    quiche::QuicheStringPiece in,
+    absl::string_view in,
     std::unique_ptr<quic::ProofSource::DecryptCallback> callback) {
   callback->Run(Decrypt(in));
 }

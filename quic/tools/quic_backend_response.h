@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_BACKEND_RESPONSE_H_
 #define QUICHE_QUIC_TOOLS_QUIC_BACKEND_RESPONSE_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -53,9 +53,7 @@ class QuicBackendResponse {
   SpecialResponseType response_type() const { return response_type_; }
   const spdy::SpdyHeaderBlock& headers() const { return headers_; }
   const spdy::SpdyHeaderBlock& trailers() const { return trailers_; }
-  const quiche::QuicheStringPiece body() const {
-    return quiche::QuicheStringPiece(body_);
-  }
+  const absl::string_view body() const { return absl::string_view(body_); }
 
   void set_response_type(SpecialResponseType response_type) {
     response_type_ = response_type;
@@ -67,7 +65,7 @@ class QuicBackendResponse {
   void set_trailers(spdy::SpdyHeaderBlock trailers) {
     trailers_ = std::move(trailers);
   }
-  void set_body(quiche::QuicheStringPiece body) {
+  void set_body(absl::string_view body) {
     body_.assign(body.data(), body.size());
   }
 

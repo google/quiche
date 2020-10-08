@@ -226,7 +226,7 @@ bool QuicTransportSimpleServerSession::ProcessPath(const GURL& url) {
 }
 
 void QuicTransportSimpleServerSession::OnMessageReceived(
-    quiche::QuicheStringPiece message) {
+    absl::string_view message) {
   if (mode_ != ECHO) {
     return;
   }

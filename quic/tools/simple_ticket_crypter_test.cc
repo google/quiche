@@ -26,9 +26,8 @@ class DecryptCallback : public quic::ProofSource::DecryptCallback {
   std::vector<uint8_t>* out_;
 };
 
-quiche::QuicheStringPiece StringPiece(const std::vector<uint8_t>& in) {
-  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(in.data()),
-                                   in.size());
+absl::string_view StringPiece(const std::vector<uint8_t>& in) {
+  return absl::string_view(reinterpret_cast<const char*>(in.data()), in.size());
 }
 
 class SimpleTicketCrypterTest : public QuicTest {
@@ -81,7 +80,7 @@ TEST_F(SimpleTicketCrypterTest, DecryptionFailureWithModifiedCiphertext) {
 
 TEST_F(SimpleTicketCrypterTest, DecryptionFailureWithEmptyCiphertext) {
   std::vector<uint8_t> out_plaintext;
-  ticket_crypter_.Decrypt(quiche::QuicheStringPiece(),
+  ticket_crypter_.Decrypt(absl::string_view(),
                           std::make_unique<DecryptCallback>(&out_plaintext));
   EXPECT_TRUE(out_plaintext.empty());
 }

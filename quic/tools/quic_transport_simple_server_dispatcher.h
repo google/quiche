@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_TRANSPORT_SIMPLE_SERVER_DISPATCHER_H_
 #define QUICHE_QUIC_TOOLS_QUIC_TRANSPORT_SIMPLE_SERVER_DISPATCHER_H_
 
+#include "absl/strings/string_view.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -31,7 +31,7 @@ class QuicTransportSimpleServerDispatcher : public QuicDispatcher {
       QuicConnectionId server_connection_id,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
-      quiche::QuicheStringPiece alpn,
+      absl::string_view alpn,
       const ParsedQuicVersion& version) override;
 
   std::vector<url::Origin> accepted_origins_;

@@ -48,6 +48,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -58,13 +59,11 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace {
 
 using quic::QuicUrl;
-using quiche::QuicheStringPiece;
 using quiche::QuicheTextUtils;
 
 }  // namespace
@@ -334,12 +333,12 @@ int QuicToyClient::SendRequestsAndPrintResponses(
 
   // Append any additional headers supplied on the command line.
   const std::string headers = GetQuicFlag(FLAGS_headers);
-  for (QuicheStringPiece sp : QuicheTextUtils::Split(headers, ';')) {
+  for (absl::string_view sp : QuicheTextUtils::Split(headers, ';')) {
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&sp);
     if (sp.empty()) {
       continue;
     }
-    std::vector<QuicheStringPiece> kv = QuicheTextUtils::Split(sp, ':');
+    std::vector<absl::string_view> kv = QuicheTextUtils::Split(sp, ':');
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[0]);
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&kv[1]);
     header_block[kv[0]] = kv[1];

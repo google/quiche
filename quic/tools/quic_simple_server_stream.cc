@@ -7,6 +7,7 @@
 #include <list>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
@@ -323,7 +323,7 @@ void QuicSimpleServerStream::SendErrorResponse(int resp_code) {
 
 void QuicSimpleServerStream::SendIncompleteResponse(
     SpdyHeaderBlock response_headers,
-    quiche::QuicheStringPiece body) {
+    absl::string_view body) {
   QUIC_DLOG(INFO) << "Stream " << id() << " writing headers (fin = false) : "
                   << response_headers.DebugString();
   WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
@@ -337,14 +337,14 @@ void QuicSimpleServerStream::SendIncompleteResponse(
 
 void QuicSimpleServerStream::SendHeadersAndBody(
     SpdyHeaderBlock response_headers,
-    quiche::QuicheStringPiece body) {
+    absl::string_view body) {
   SendHeadersAndBodyAndTrailers(std::move(response_headers), body,
                                 SpdyHeaderBlock());
 }
 
 void QuicSimpleServerStream::SendHeadersAndBodyAndTrailers(
     SpdyHeaderBlock response_headers,
-    quiche::QuicheStringPiece body,
+    absl::string_view body,
     SpdyHeaderBlock response_trailers) {
   // Send the headers, with a FIN if there's nothing else to send.
   bool send_fin = (body.empty() && response_trailers.empty());
