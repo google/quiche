@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using testing::Eq;
@@ -27,7 +27,7 @@ class MockDelegate : public QpackDecoderStreamReceiver::Delegate {
   MOCK_METHOD(void, OnStreamCancellation, (QuicStreamId stream_id), (override));
   MOCK_METHOD(void,
               OnErrorDetected,
-              (quiche::QuicheStringPiece error_message),
+              (absl::string_view error_message),
               (override));
 };
 

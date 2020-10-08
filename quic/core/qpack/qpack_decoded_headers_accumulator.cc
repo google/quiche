@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoded_headers_accumulator.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -27,9 +27,8 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
   quic_header_list_.OnHeaderBlockStart();
 }
 
-void QpackDecodedHeadersAccumulator::OnHeaderDecoded(
-    quiche::QuicheStringPiece name,
-    quiche::QuicheStringPiece value) {
+void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
+                                                     absl::string_view value) {
   DCHECK(!error_detected_);
 
   uncompressed_header_bytes_without_overhead_ += name.size() + value.size();
@@ -64,7 +63,7 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
-    quiche::QuicheStringPiece error_message) {
+    absl::string_view error_message) {
   DCHECK(!error_detected_);
   DCHECK(!headers_decoded_);
 
@@ -73,7 +72,7 @@ void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
   visitor_->OnHeaderDecodingError(error_message);
 }
 
-void QpackDecodedHeadersAccumulator::Decode(quiche::QuicheStringPiece data) {
+void QpackDecodedHeadersAccumulator::Decode(absl::string_view data) {
   DCHECK(!error_detected_);
 
   compressed_header_bytes_ += data.size();

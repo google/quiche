@@ -8,9 +8,9 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -53,10 +53,9 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
   void DoStartField();
   void DoSBit(bool s_bit);
   void DoVarintEncode(uint64_t varint, uint64_t varint2, std::string* output);
-  void DoStartString(quiche::QuicheStringPiece name,
-                     quiche::QuicheStringPiece value);
-  void DoWriteString(quiche::QuicheStringPiece name,
-                     quiche::QuicheStringPiece value,
+  void DoStartString(absl::string_view name, absl::string_view value);
+  void DoWriteString(absl::string_view name,
+                     absl::string_view value,
                      std::string* output);
 
   // True if name or value should be Huffman encoded.

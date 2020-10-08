@@ -7,13 +7,13 @@
 #include <limits>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
@@ -151,7 +151,7 @@ TEST_F(QpackEncoderTest, DecoderStreamError) {
 
 TEST_F(QpackEncoderTest, SplitAlongNullCharacter) {
   spdy::SpdyHeaderBlock header_list;
-  header_list["foo"] = quiche::QuicheStringPiece("bar\0bar\0baz", 11);
+  header_list["foo"] = absl::string_view("bar\0bar\0baz", 11);
   std::string output = Encode(header_list);
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode("0000"            // prefix

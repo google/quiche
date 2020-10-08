@@ -7,13 +7,13 @@
 #include <algorithm>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -58,7 +58,7 @@ QpackInstructionWithValues
 QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
     bool is_static,
     uint64_t index,
-    quiche::QuicheStringPiece value,
+    absl::string_view value,
     QpackBlockingManager::IndexSet* referred_indices) {
   // Add |index| to |*referred_indices| only if entry is in the dynamic table.
   if (!is_static) {
@@ -70,8 +70,8 @@ QpackEncoder::EncodeLiteralHeaderFieldWithNameReference(
 
 // static
 QpackInstructionWithValues QpackEncoder::EncodeLiteralHeaderField(
-    quiche::QuicheStringPiece name,
-    quiche::QuicheStringPiece value) {
+    absl::string_view name,
+    absl::string_view value) {
   return QpackInstructionWithValues::LiteralHeaderField(name, value);
 }
 
@@ -110,8 +110,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
 
   for (const auto& header : ValueSplittingHeaderList(&header_list)) {
     // These strings are owned by |header_list|.
-    quiche::QuicheStringPiece name = header.first;
-    quiche::QuicheStringPiece value = header.second;
+    absl::string_view name = header.first;
+    absl::string_view value = header.second;
 
     bool is_static;
     uint64_t index;
@@ -435,7 +435,7 @@ void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
   blocking_manager_.OnStreamCancellation(stream_id);
 }
 
-void QpackEncoder::OnErrorDetected(quiche::QuicheStringPiece error_message) {
+void QpackEncoder::OnErrorDetected(absl::string_view error_message) {
   decoder_stream_error_delegate_->OnDecoderStreamError(error_message);
 }
 

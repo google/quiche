@@ -6,9 +6,9 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -70,7 +70,7 @@ void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,
 
 void QpackDecoder::OnInsertWithNameReference(bool is_static,
                                              uint64_t name_index,
-                                             quiche::QuicheStringPiece value) {
+                                             absl::string_view value) {
   if (is_static) {
     auto entry = header_table_.LookupEntry(/* is_static = */ true, name_index);
     if (!entry) {
@@ -109,9 +109,8 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   }
 }
 
-void QpackDecoder::OnInsertWithoutNameReference(
-    quiche::QuicheStringPiece name,
-    quiche::QuicheStringPiece value) {
+void QpackDecoder::OnInsertWithoutNameReference(absl::string_view name,
+                                                absl::string_view value) {
   const QpackEntry* entry = header_table_.InsertEntry(name, value);
   if (!entry) {
     encoder_stream_error_delegate_->OnEncoderStreamError(
@@ -149,7 +148,7 @@ void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
   }
 }
 
-void QpackDecoder::OnErrorDetected(quiche::QuicheStringPiece error_message) {
+void QpackDecoder::OnErrorDetected(absl::string_view error_message) {
   encoder_stream_error_delegate_->OnEncoderStreamError(error_message);
 }
 

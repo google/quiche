@@ -6,9 +6,9 @@
 
 #include <set>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,7 +32,7 @@ TEST(QpackStaticTableTest, Initialize) {
   EXPECT_EQ(QpackStaticTableVector().size(), static_index.size());
 
   auto static_name_index = table.GetStaticNameIndex();
-  std::set<quiche::QuicheStringPiece> names;
+  std::set<absl::string_view> names;
   for (auto entry : static_index) {
     names.insert(entry->name());
   }

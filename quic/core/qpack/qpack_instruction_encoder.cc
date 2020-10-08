@@ -6,12 +6,12 @@
 
 #include <limits>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -140,8 +140,8 @@ void QpackInstructionEncoder::DoVarintEncode(uint64_t varint,
   state_ = State::kWriteString;
 }
 
-void QpackInstructionEncoder::DoStartString(quiche::QuicheStringPiece name,
-                                            quiche::QuicheStringPiece value) {
+void QpackInstructionEncoder::DoStartString(absl::string_view name,
+                                            absl::string_view value) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 

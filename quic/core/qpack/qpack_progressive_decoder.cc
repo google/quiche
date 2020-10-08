@@ -8,11 +8,11 @@
 #include <limits>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -46,7 +46,7 @@ QpackProgressiveDecoder::~QpackProgressiveDecoder() {
   }
 }
 
-void QpackProgressiveDecoder::Decode(quiche::QuicheStringPiece data) {
+void QpackProgressiveDecoder::Decode(absl::string_view data) {
   DCHECK(decoding_);
 
   if (data.empty() || error_detected_) {
@@ -114,7 +114,7 @@ bool QpackProgressiveDecoder::OnInstructionDecoded(
   return DoLiteralHeaderFieldInstruction();
 }
 
-void QpackProgressiveDecoder::OnError(quiche::QuicheStringPiece error_message) {
+void QpackProgressiveDecoder::OnError(absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;

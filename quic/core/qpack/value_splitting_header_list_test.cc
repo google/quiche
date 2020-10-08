@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -17,7 +17,7 @@ using ::testing::Pair;
 
 TEST(ValueSplittingHeaderListTest, Comparison) {
   spdy::SpdyHeaderBlock block;
-  block["foo"] = quiche::QuicheStringPiece("bar\0baz", 7);
+  block["foo"] = absl::string_view("bar\0baz", 7);
   block["baz"] = "qux";
   block["cookie"] = "foo; bar";
 
@@ -85,7 +85,7 @@ TEST(ValueSplittingHeaderListTest, Empty) {
 TEST(ValueSplittingHeaderListTest, Split) {
   struct {
     const char* name;
-    quiche::QuicheStringPiece value;
+    absl::string_view value;
     std::vector<const char*> expected_values;
   } kTestData[]{
       // Empty value.
@@ -131,9 +131,9 @@ TEST(ValueSplittingHeaderListTest, Split) {
 
 TEST(ValueSplittingHeaderListTest, MultipleFields) {
   spdy::SpdyHeaderBlock block;
-  block["foo"] = quiche::QuicheStringPiece("bar\0baz\0", 8);
+  block["foo"] = absl::string_view("bar\0baz\0", 8);
   block["cookie"] = "foo; bar";
-  block["bar"] = quiche::QuicheStringPiece("qux\0foo", 7);
+  block["bar"] = absl::string_view("qux\0foo", 7);
 
   ValueSplittingHeaderList headers(&block);
   EXPECT_THAT(headers, ElementsAre(Pair("foo", "bar"), Pair("foo", "baz"),

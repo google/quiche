@@ -9,12 +9,12 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -32,8 +32,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
     // Called when a new header name-value pair is decoded.  Multiple values for
     // a given name will be emitted as multiple calls to OnHeader.
-    virtual void OnHeaderDecoded(quiche::QuicheStringPiece name,
-                                 quiche::QuicheStringPiece value) = 0;
+    virtual void OnHeaderDecoded(absl::string_view name,
+                                 absl::string_view value) = 0;
 
     // Called when the header block is completely decoded.
     // Indicates the total number of bytes in this block.
@@ -46,8 +46,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
     // Called when a decoding error has occurred.  No other methods will be
     // called afterwards.  Implementations are allowed to destroy
     // the QpackProgressiveDecoder instance synchronously.
-    virtual void OnDecodingErrorDetected(
-        quiche::QuicheStringPiece error_message) = 0;
+    virtual void OnDecodingErrorDetected(absl::string_view error_message) = 0;
   };
 
   // Interface for keeping track of blocked streams for the purpose of enforcing
@@ -90,7 +89,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   ~QpackProgressiveDecoder() override;
 
   // Provide a data fragment to decode.
-  void Decode(quiche::QuicheStringPiece data);
+  void Decode(absl::string_view data);
 
   // Signal that the entire header block has been received and passed in
   // through Decode().  No methods must be called afterwards.
@@ -98,7 +97,7 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(quiche::QuicheStringPiece error_message) override;
+  void OnError(absl::string_view error_message) override;
 
   // QpackHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;

@@ -6,11 +6,11 @@
 
 #include <algorithm>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
@@ -65,10 +65,7 @@ class MockDelegate : public QpackInstructionDecoder::Delegate {
               OnInstructionDecoded,
               (const QpackInstruction*),
               (override));
-  MOCK_METHOD(void,
-              OnError,
-              (quiche::QuicheStringPiece error_message),
-              (override));
+  MOCK_METHOD(void, OnError, (absl::string_view error_message), (override));
 };
 
 class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
@@ -83,10 +80,9 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
     // Destroy QpackInstructionDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
     ON_CALL(delegate_, OnError(_))
-        .WillByDefault(
-            Invoke([this](quiche::QuicheStringPiece /* error_message */) {
-              decoder_.reset();
-            }));
+        .WillByDefault(Invoke([this](absl::string_view /* error_message */) {
+          decoder_.reset();
+        }));
   }
 
   // Decode one full instruction with fragment sizes dictated by
@@ -95,7 +91,7 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
   // verifies that AtInstructionBoundary() returns true before and after the
   // instruction, and returns false while decoding is in progress.
   // Assumes that delegate methods destroy |decoder_| if they return false.
-  void DecodeInstruction(quiche::QuicheStringPiece data) {
+  void DecodeInstruction(absl::string_view data) {
     EXPECT_TRUE(decoder_->AtInstructionBoundary());
 
     FragmentSizeGenerator fragment_size_generator =

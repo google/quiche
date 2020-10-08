@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -45,8 +45,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
                                   bool header_list_size_limit_exceeded) = 0;
 
     // Called when an error has occurred.
-    virtual void OnHeaderDecodingError(
-        quiche::QuicheStringPiece error_message) = 0;
+    virtual void OnHeaderDecodingError(absl::string_view error_message) = 0;
   };
 
   QpackDecodedHeadersAccumulator(QuicStreamId id,
@@ -57,16 +56,15 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
 
   // QpackProgressiveDecoder::HeadersHandlerInterface implementation.
   // These methods should only be called by |decoder_|.
-  void OnHeaderDecoded(quiche::QuicheStringPiece name,
-                       quiche::QuicheStringPiece value) override;
+  void OnHeaderDecoded(absl::string_view name,
+                       absl::string_view value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(
-      quiche::QuicheStringPiece error_message) override;
+  void OnDecodingErrorDetected(absl::string_view error_message) override;
 
   // Decode payload data.
   // Must not be called if an error has been detected.
   // Must not be called after EndHeaderBlock().
-  void Decode(quiche::QuicheStringPiece data);
+  void Decode(absl::string_view data);
 
   // Signal end of HEADERS frame.
   // Must not be called if an error has been detected.

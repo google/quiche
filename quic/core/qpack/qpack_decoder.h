@@ -9,13 +9,13 @@
 #include <memory>
 #include <set>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -34,8 +34,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
    public:
     virtual ~EncoderStreamErrorDelegate() {}
 
-    virtual void OnEncoderStreamError(
-        quiche::QuicheStringPiece error_message) = 0;
+    virtual void OnEncoderStreamError(absl::string_view error_message) = 0;
   };
 
   QpackDecoder(uint64_t maximum_dynamic_table_capacity,
@@ -80,12 +79,12 @@ class QUIC_EXPORT_PRIVATE QpackDecoder
   // QpackEncoderStreamReceiver::Delegate implementation
   void OnInsertWithNameReference(bool is_static,
                                  uint64_t name_index,
-                                 quiche::QuicheStringPiece value) override;
-  void OnInsertWithoutNameReference(quiche::QuicheStringPiece name,
-                                    quiche::QuicheStringPiece value) override;
+                                 absl::string_view value) override;
+  void OnInsertWithoutNameReference(absl::string_view name,
+                                    absl::string_view value) override;
   void OnDuplicate(uint64_t index) override;
   void OnSetDynamicTableCapacity(uint64_t capacity) override;
-  void OnErrorDetected(quiche::QuicheStringPiece error_message) override;
+  void OnErrorDetected(absl::string_view error_message) override;
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {

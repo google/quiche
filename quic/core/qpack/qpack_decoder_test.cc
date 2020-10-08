@@ -6,11 +6,11 @@
 
 #include <algorithm>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
@@ -49,13 +49,12 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
     // Destroy QpackProgressiveDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
     ON_CALL(handler_, OnDecodingErrorDetected(_))
-        .WillByDefault(
-            Invoke([this](quiche::QuicheStringPiece /* error_message */) {
-              progressive_decoder_.reset();
-            }));
+        .WillByDefault(Invoke([this](absl::string_view /* error_message */) {
+          progressive_decoder_.reset();
+        }));
   }
 
-  void DecodeEncoderStreamData(quiche::QuicheStringPiece data) {
+  void DecodeEncoderStreamData(absl::string_view data) {
     qpack_decoder_.encoder_stream_receiver()->Decode(data);
   }
 
@@ -71,7 +70,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
 
   // Pass header block data to QpackProgressiveDecoder::Decode()
   // in fragments dictated by |fragment_mode_|.
-  void DecodeData(quiche::QuicheStringPiece data) {
+  void DecodeData(absl::string_view data) {
     auto fragment_size_generator =
         FragmentModeToFragmentSizeGenerator(fragment_mode_);
     while (progressive_decoder_ && !data.empty()) {
@@ -91,7 +90,7 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
   }
 
   // Decode an entire header block.
-  void DecodeHeaderBlock(quiche::QuicheStringPiece data) {
+  void DecodeHeaderBlock(absl::string_view data) {
     StartDecoding();
     DecodeData(data);
     EndDecoding();
@@ -170,8 +169,7 @@ TEST_P(QpackDecoderTest, SimpleLiteralEntry) {
 TEST_P(QpackDecoderTest, MultipleLiteralEntries) {
   EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foo"), Eq("bar")));
   std::string str(127, 'a');
-  EXPECT_CALL(handler_,
-              OnHeaderDecoded(Eq("foobaar"), quiche::QuicheStringPiece(str)));
+  EXPECT_CALL(handler_, OnHeaderDecoded(Eq("foobaar"), absl::string_view(str)));
   EXPECT_CALL(handler_, OnDecodingCompleted());
 
   DecodeHeaderBlock(quiche::QuicheTextUtils::HexDecode(
@@ -254,7 +252,7 @@ TEST_P(QpackDecoderTest, AlternatingHuffmanNonHuffman) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanNameDoesNotHaveEOSPrefix) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(quiche::QuicheStringPiece(
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
                             "Error in Huffman-encoded string.")));
 
   // 'y' ends in 0b0 on the most significant bit of the last byte.
@@ -264,7 +262,7 @@ TEST_P(QpackDecoderTest, HuffmanNameDoesNotHaveEOSPrefix) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanValueDoesNotHaveEOSPrefix) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(quiche::QuicheStringPiece(
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
                             "Error in Huffman-encoded string.")));
 
   // 'e' ends in 0b101, taking up the 3 most significant bits of the last byte.
@@ -274,7 +272,7 @@ TEST_P(QpackDecoderTest, HuffmanValueDoesNotHaveEOSPrefix) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanNameEOSPrefixTooLong) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(quiche::QuicheStringPiece(
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
                             "Error in Huffman-encoded string.")));
 
   // The trailing EOS prefix must be at most 7 bits long.  Appending one octet
@@ -285,7 +283,7 @@ TEST_P(QpackDecoderTest, HuffmanNameEOSPrefixTooLong) {
 }
 
 TEST_P(QpackDecoderTest, HuffmanValueEOSPrefixTooLong) {
-  EXPECT_CALL(handler_, OnDecodingErrorDetected(quiche::QuicheStringPiece(
+  EXPECT_CALL(handler_, OnDecodingErrorDetected(absl::string_view(
                             "Error in Huffman-encoded string.")));
 
   // The trailing EOS prefix must be at most 7 bits long.  Appending one octet

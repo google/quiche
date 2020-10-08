@@ -10,8 +10,8 @@
 #include <tuple>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -151,10 +151,10 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
   static QpackInstructionWithValues InsertWithNameReference(
       bool is_static,
       uint64_t name_index,
-      quiche::QuicheStringPiece value);
+      absl::string_view value);
   static QpackInstructionWithValues InsertWithoutNameReference(
-      quiche::QuicheStringPiece name,
-      quiche::QuicheStringPiece value);
+      absl::string_view name,
+      absl::string_view value);
   static QpackInstructionWithValues Duplicate(uint64_t index);
   static QpackInstructionWithValues SetDynamicTableCapacity(uint64_t capacity);
 
@@ -172,17 +172,16 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
   static QpackInstructionWithValues LiteralHeaderFieldNameReference(
       bool is_static,
       uint64_t index,
-      quiche::QuicheStringPiece value);
-  static QpackInstructionWithValues LiteralHeaderField(
-      quiche::QuicheStringPiece name,
-      quiche::QuicheStringPiece value);
+      absl::string_view value);
+  static QpackInstructionWithValues LiteralHeaderField(absl::string_view name,
+                                                       absl::string_view value);
 
   const QpackInstruction* instruction() const { return instruction_; }
   bool s_bit() const { return s_bit_; }
   uint64_t varint() const { return varint_; }
   uint64_t varint2() const { return varint2_; }
-  quiche::QuicheStringPiece name() const { return name_; }
-  quiche::QuicheStringPiece value() const { return value_; }
+  absl::string_view name() const { return name_; }
+  absl::string_view value() const { return value_; }
 
   // Used by QpackEncoder, because in the first pass it stores absolute indices,
   // which are converted into relative indices in the second pass after base is
@@ -199,8 +198,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionWithValues {
   bool s_bit_;
   uint64_t varint_;
   uint64_t varint2_;
-  quiche::QuicheStringPiece name_;
-  quiche::QuicheStringPiece value_;
+  absl::string_view name_;
+  absl::string_view value_;
 };
 
 }  // namespace quic

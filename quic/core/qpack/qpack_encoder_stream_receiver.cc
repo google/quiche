@@ -4,10 +4,10 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -18,7 +18,7 @@ QpackEncoderStreamReceiver::QpackEncoderStreamReceiver(Delegate* delegate)
   DCHECK(delegate_);
 }
 
-void QpackEncoderStreamReceiver::Decode(quiche::QuicheStringPiece data) {
+void QpackEncoderStreamReceiver::Decode(absl::string_view data) {
   if (data.empty() || error_detected_) {
     return;
   }
@@ -51,8 +51,7 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
   return true;
 }
 
-void QpackEncoderStreamReceiver::OnError(
-    quiche::QuicheStringPiece error_message) {
+void QpackEncoderStreamReceiver::OnError(absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;

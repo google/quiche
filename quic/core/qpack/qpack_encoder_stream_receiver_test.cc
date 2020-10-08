@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using testing::Eq;
@@ -21,19 +21,17 @@ class MockDelegate : public QpackEncoderStreamReceiver::Delegate {
 
   MOCK_METHOD(void,
               OnInsertWithNameReference,
-              (bool is_static,
-               uint64_t name_index,
-               quiche::QuicheStringPiece value),
+              (bool is_static, uint64_t name_index, absl::string_view value),
               (override));
   MOCK_METHOD(void,
               OnInsertWithoutNameReference,
-              (quiche::QuicheStringPiece name, quiche::QuicheStringPiece value),
+              (absl::string_view name, absl::string_view value),
               (override));
   MOCK_METHOD(void, OnDuplicate, (uint64_t index), (override));
   MOCK_METHOD(void, OnSetDynamicTableCapacity, (uint64_t capacity), (override));
   MOCK_METHOD(void,
               OnErrorDetected,
-              (quiche::QuicheStringPiece error_message),
+              (absl::string_view error_message),
               (override));
 };
 
@@ -42,7 +40,7 @@ class QpackEncoderStreamReceiverTest : public QuicTest {
   QpackEncoderStreamReceiverTest() : stream_(&delegate_) {}
   ~QpackEncoderStreamReceiverTest() override = default;
 
-  void Decode(quiche::QuicheStringPiece data) { stream_.Decode(data); }
+  void Decode(absl::string_view data) { stream_.Decode(data); }
   StrictMock<MockDelegate>* delegate() { return &delegate_; }
 
  private:

@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -37,12 +37,12 @@ class QpackInstructionWithValuesPeer {
   }
 
   static void set_name(QpackInstructionWithValues* instruction_with_values,
-                       quiche::QuicheStringPiece name) {
+                       absl::string_view name) {
     instruction_with_values->name_ = name;
   }
 
   static void set_value(QpackInstructionWithValues* instruction_with_values,
-                        quiche::QuicheStringPiece value) {
+                        absl::string_view value) {
     instruction_with_values->value_ = value;
   }
 };
@@ -62,10 +62,9 @@ class QpackInstructionEncoderTest : public QuicTest {
 
   // Compare substring appended to |output_| since last EncodedSegmentMatches()
   // call against hex-encoded argument.
-  bool EncodedSegmentMatches(
-      quiche::QuicheStringPiece hex_encoded_expected_substring) {
+  bool EncodedSegmentMatches(absl::string_view hex_encoded_expected_substring) {
     auto recently_encoded =
-        quiche::QuicheStringPiece(output_).substr(verified_position_);
+        absl::string_view(output_).substr(verified_position_);
     auto expected =
         quiche::QuicheTextUtils::HexDecode(hex_encoded_expected_substring);
     verified_position_ = output_.size();

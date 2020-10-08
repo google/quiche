@@ -5,10 +5,10 @@
 #include <cstddef>
 #include <iostream>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_offline_decoder.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 int main(int argc, char* argv[]) {
   const char* usage =
@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
   size_t i;
   size_t success_count = 0;
   for (i = 0; 2 * i < args.size(); ++i) {
-    const quiche::QuicheStringPiece input_filename(args[2 * i]);
-    const quiche::QuicheStringPiece expected_headers_filename(args[2 * i + 1]);
+    const absl::string_view input_filename(args[2 * i]);
+    const absl::string_view expected_headers_filename(args[2 * i + 1]);
 
     // Every file represents a different connection,
     // therefore every file needs a fresh decoding context.

@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_send_stream.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 QpackSendStream::QpackSendStream(QuicStreamId id,
@@ -27,7 +27,7 @@ bool QpackSendStream::OnStopSending(QuicRstStreamErrorCode /* code */) {
   return false;
 }
 
-void QpackSendStream::WriteStreamData(quiche::QuicheStringPiece data) {
+void QpackSendStream::WriteStreamData(absl::string_view data) {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendStreamType();
   WriteOrBufferData(data, false, nullptr);
@@ -38,8 +38,8 @@ void QpackSendStream::MaybeSendStreamType() {
     char type[sizeof(http3_stream_type_)];
     QuicDataWriter writer(QUICHE_ARRAYSIZE(type), type);
     writer.WriteVarInt62(http3_stream_type_);
-    WriteOrBufferData(quiche::QuicheStringPiece(writer.data(), writer.length()),
-                      false, nullptr);
+    WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
+                      nullptr);
     stream_type_sent_ = true;
   }
 }

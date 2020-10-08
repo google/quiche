@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QPACK_VALUE_SPLITTING_HEADER_LIST_H_
 #define QUICHE_QUIC_CORE_QPACK_VALUE_SPLITTING_HEADER_LIST_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -40,8 +40,8 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
 
     const spdy::SpdyHeaderBlock* const header_list_;
     spdy::SpdyHeaderBlock::const_iterator header_list_iterator_;
-    quiche::QuicheStringPiece::size_type value_start_;
-    quiche::QuicheStringPiece::size_type value_end_;
+    absl::string_view::size_type value_start_;
+    absl::string_view::size_type value_end_;
     value_type header_field_;
   };
 
