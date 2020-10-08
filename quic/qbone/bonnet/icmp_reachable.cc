@@ -6,12 +6,12 @@
 
 #include <netinet/ip6.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -128,7 +128,7 @@ bool IcmpReachable::OnEvent(int fd) {
   }
 
   QUIC_VLOG(2) << quiche::QuicheTextUtils::HexDump(
-      quiche::QuicheStringPiece(buffer, size));
+      absl::string_view(buffer, size));
 
   auto* header = reinterpret_cast<const icmp6_hdr*>(&buffer);
   QuicWriterMutexLock mu(&header_lock_);
@@ -168,7 +168,7 @@ int64 /* allow-non-std-int */ IcmpReachable::OnAlarm() {
 
   icmp_header_.icmp6_seq++;
   CreateIcmpPacket(src_.sin6_addr, dst_.sin6_addr, icmp_header_, "",
-                   [this](quiche::QuicheStringPiece packet) {
+                   [this](absl::string_view packet) {
                      QUIC_VLOG(2) << quiche::QuicheTextUtils::HexDump(packet);
 
                      ssize_t size = kernel_->sendto(
@@ -185,8 +185,7 @@ int64 /* allow-non-std-int */ IcmpReachable::OnAlarm() {
   return absl::ToUnixMicros(absl::Now() + timeout_);
 }
 
-quiche::QuicheStringPiece IcmpReachable::StatusName(
-    IcmpReachable::Status status) {
+absl::string_view IcmpReachable::StatusName(IcmpReachable::Status status) {
   switch (status) {
     case REACHABLE:
       return "REACHABLE";

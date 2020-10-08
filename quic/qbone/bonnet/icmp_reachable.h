@@ -7,11 +7,11 @@
 
 #include <netinet/icmp6.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 #include "net/third_party/quiche/src/quic/qbone/bonnet/icmp_reachable_interface.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/kernel_interface.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -80,7 +80,7 @@ class IcmpReachable : public IcmpReachableInterface {
   int64 /* allow-non-std-int */ OnAlarm()
       QUIC_LOCKS_EXCLUDED(header_lock_) override;
 
-  static quiche::QuicheStringPiece StatusName(Status status);
+  static absl::string_view StatusName(Status status);
 
  private:
   class EpollCallback : public QuicEpollCallbackInterface {
