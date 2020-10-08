@@ -19,7 +19,7 @@ QuicLegacyVersionEncapsulator::~QuicLegacyVersionEncapsulator() {}
 
 // static
 QuicByteCount QuicLegacyVersionEncapsulator::GetMinimumOverhead(
-    quiche::QuicheStringPiece sni) {
+    absl::string_view sni) {
   // The number 52 is the sum of:
   // - Flags (1 byte)
   // - Server Connection ID (8 bytes)
@@ -85,8 +85,8 @@ SerializedPacketFate QuicLegacyVersionEncapsulator::GetSerializedPacketFate(
 
 // static
 QuicPacketLength QuicLegacyVersionEncapsulator::Encapsulate(
-    quiche::QuicheStringPiece sni,
-    quiche::QuicheStringPiece inner_packet,
+    absl::string_view sni,
+    absl::string_view inner_packet,
     const QuicConnectionId& server_connection_id,
     QuicTime creation_time,
     QuicByteCount outer_max_packet_length,

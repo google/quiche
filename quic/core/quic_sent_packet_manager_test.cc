@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -68,7 +68,7 @@ class QuicSentPacketManagerTest : public QuicTest {
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
     packet.retransmittable_frames.push_back(
-        QuicFrame(QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece())));
+        QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), HANDSHAKE_RETRANSMISSION,
                           HAS_RETRANSMITTABLE_DATA, true);
@@ -252,8 +252,8 @@ class QuicSentPacketManagerTest : public QuicTest {
                             PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
                             false, false);
     if (retransmittable) {
-      packet.retransmittable_frames.push_back(QuicFrame(
-          QuicStreamFrame(kStreamId, false, 0, quiche::QuicheStringPiece())));
+      packet.retransmittable_frames.push_back(
+          QuicFrame(QuicStreamFrame(kStreamId, false, 0, absl::string_view())));
     }
     return packet;
   }
@@ -299,7 +299,7 @@ class QuicSentPacketManagerTest : public QuicTest {
                      kDefaultLength, HAS_RETRANSMITTABLE_DATA));
     SerializedPacket packet(CreatePacket(packet_number, false));
     packet.retransmittable_frames.push_back(
-        QuicFrame(QuicStreamFrame(1, false, 0, quiche::QuicheStringPiece())));
+        QuicFrame(QuicStreamFrame(1, false, 0, absl::string_view())));
     packet.has_crypto_handshake = IS_HANDSHAKE;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
                           HAS_RETRANSMITTABLE_DATA, true);
@@ -3091,7 +3091,7 @@ TEST_F(QuicSentPacketManagerTest, RtoNotInFlightPacket) {
   }
   QuicSentPacketManagerPeer::SetMaxTailLossProbes(&manager_, 2);
   // Send SHLO.
-  QuicStreamFrame crypto_frame(1, false, 0, quiche::QuicheStringPiece());
+  QuicStreamFrame crypto_frame(1, false, 0, absl::string_view());
   SendCryptoPacket(1);
   // Send data packet.
   SendDataPacket(2, ENCRYPTION_FORWARD_SECURE);

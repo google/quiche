@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_coalesced_packet.h"
@@ -28,7 +29,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -322,7 +322,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   void AddPendingPadding(QuicByteCount size);
 
   // Sets the retry token to be sent over the wire in IETF Initial packets.
-  void SetRetryToken(quiche::QuicheStringPiece retry_token);
+  void SetRetryToken(absl::string_view retry_token);
 
   // Consumes retransmittable control |frame|. Returns true if the frame is
   // successfully consumed. Returns false otherwise.
@@ -573,7 +573,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns the retry token to send over the wire, only sent in
   // v99 IETF Initial packets.
-  quiche::QuicheStringPiece GetRetryToken() const;
+  absl::string_view GetRetryToken() const;
 
   // Returns length of the length variable length integer to send over the
   // wire. Is non-zero for v99 IETF Initial, 0-RTT or Handshake packets.

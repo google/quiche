@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -94,12 +94,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                  uint8_t* out_len,
                  const uint8_t* in,
                  unsigned in_len) override;
-  ssl_private_key_result_t PrivateKeySign(
-      uint8_t* out,
-      size_t* out_len,
-      size_t max_out,
-      uint16_t sig_alg,
-      quiche::QuicheStringPiece in) override;
+  ssl_private_key_result_t PrivateKeySign(uint8_t* out,
+                                          size_t* out_len,
+                                          size_t max_out,
+                                          uint16_t sig_alg,
+                                          absl::string_view in) override;
   ssl_private_key_result_t PrivateKeyComplete(uint8_t* out,
                                               size_t* out_len,
                                               size_t max_out) override;
@@ -107,12 +106,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   int SessionTicketSeal(uint8_t* out,
                         size_t* out_len,
                         size_t max_out_len,
-                        quiche::QuicheStringPiece in) override;
-  ssl_ticket_aead_result_t SessionTicketOpen(
-      uint8_t* out,
-      size_t* out_len,
-      size_t max_out_len,
-      quiche::QuicheStringPiece in) override;
+                        absl::string_view in) override;
+  ssl_ticket_aead_result_t SessionTicketOpen(uint8_t* out,
+                                             size_t* out_len,
+                                             size_t max_out_len,
+                                             absl::string_view in) override;
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
  private:

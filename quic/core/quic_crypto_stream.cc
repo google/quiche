@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -108,8 +108,7 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
     EncryptionLevel level) {
   struct iovec iov;
   while (sequencer->GetReadableRegion(&iov)) {
-    quiche::QuicheStringPiece data(static_cast<char*>(iov.iov_base),
-                                   iov.iov_len);
+    absl::string_view data(static_cast<char*>(iov.iov_base), iov.iov_len);
     if (!crypto_message_parser()->ProcessInput(data, level)) {
       OnUnrecoverableError(crypto_message_parser()->error(),
                            crypto_message_parser()->error_detail());
@@ -126,8 +125,8 @@ void QuicCryptoStream::OnDataAvailableInSequencer(
   }
 }
 
-bool QuicCryptoStream::ExportKeyingMaterial(quiche::QuicheStringPiece label,
-                                            quiche::QuicheStringPiece context,
+bool QuicCryptoStream::ExportKeyingMaterial(absl::string_view label,
+                                            absl::string_view context,
                                             size_t result_len,
                                             std::string* result) const {
   if (!one_rtt_keys_available()) {
@@ -141,7 +140,7 @@ bool QuicCryptoStream::ExportKeyingMaterial(quiche::QuicheStringPiece label,
 }
 
 void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
-                                       quiche::QuicheStringPiece data) {
+                                       absl::string_view data) {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
     // The QUIC crypto handshake takes care of setting the appropriate
     // encryption level before writing data. Since that is the only handshake

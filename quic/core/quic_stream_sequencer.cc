@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -65,8 +65,8 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
   size_t bytes_written;
   std::string error_details;
   QuicErrorCode result = buffered_frames_.OnStreamData(
-      byte_offset, quiche::QuicheStringPiece(data_buffer, data_len),
-      &bytes_written, &error_details);
+      byte_offset, absl::string_view(data_buffer, data_len), &bytes_written,
+      &error_details);
   if (result != QUIC_NO_ERROR) {
     std::string details = quiche::QuicheStrCat("Stream ", stream_->id(), ": ",
                                                QuicErrorCodeToString(result),

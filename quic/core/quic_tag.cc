@@ -74,7 +74,7 @@ bool ContainsQuicTag(const QuicTagVector& tag_vector, QuicTag tag) {
          tag_vector.end();
 }
 
-QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string) {
+QuicTag ParseQuicTag(absl::string_view tag_string) {
   quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tag_string);
   std::string tag_bytes;
   if (tag_string.length() == 8) {
@@ -92,13 +92,13 @@ QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string) {
   return tag;
 }
 
-QuicTagVector ParseQuicTagVector(quiche::QuicheStringPiece tags_string) {
+QuicTagVector ParseQuicTagVector(absl::string_view tags_string) {
   QuicTagVector tag_vector;
   quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tags_string);
   if (!tags_string.empty()) {
-    std::vector<quiche::QuicheStringPiece> tag_strings =
+    std::vector<absl::string_view> tag_strings =
         quiche::QuicheTextUtils::Split(tags_string, ',');
-    for (quiche::QuicheStringPiece tag_string : tag_strings) {
+    for (absl::string_view tag_string : tag_strings) {
       tag_vector.push_back(ParseQuicTag(tag_string));
     }
   }

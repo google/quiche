@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -13,7 +14,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -68,7 +68,7 @@ bool QuicStreamSequencerBuffer::RetireBlock(size_t index) {
 
 QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     QuicStreamOffset starting_offset,
-    quiche::QuicheStringPiece data,
+    absl::string_view data,
     size_t* const bytes_buffered,
     std::string* error_details) {
   *bytes_buffered = 0;
@@ -135,7 +135,7 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
 }
 
 bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
-                                               quiche::QuicheStringPiece data,
+                                               absl::string_view data,
                                                size_t* bytes_copy,
                                                std::string* error_details) {
   *bytes_copy = 0;

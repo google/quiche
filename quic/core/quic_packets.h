@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_ack_listener_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -160,7 +160,7 @@ struct QUIC_EXPORT_PRIVATE QuicPacketHeader {
   // carried only by v99 IETF Initial packets.
   QuicVariableLengthIntegerLength retry_token_length_length;
   // Retry token, carried only by v99 IETF Initial packets.
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   // Length of the length variable length integer field,
   // carried only by v99 IETF Initial, 0-RTT and Handshake packets.
   QuicVariableLengthIntegerLength length_length;
@@ -211,15 +211,15 @@ class QUIC_EXPORT_PRIVATE QuicData {
   // Creates a QuicData from a buffer and length,
   // optionally taking ownership of the buffer.
   QuicData(const char* buffer, size_t length, bool owns_buffer);
-  // Creates a QuicData from a quiche::QuicheStringPiece. Does not own the
+  // Creates a QuicData from a absl::string_view. Does not own the
   // buffer.
-  QuicData(quiche::QuicheStringPiece data);
+  QuicData(absl::string_view data);
   QuicData(const QuicData&) = delete;
   QuicData& operator=(const QuicData&) = delete;
   virtual ~QuicData();
 
-  quiche::QuicheStringPiece AsStringPiece() const {
-    return quiche::QuicheStringPiece(data(), length());
+  absl::string_view AsStringPiece() const {
+    return absl::string_view(data(), length());
   }
 
   const char* data() const { return buffer_; }
@@ -252,8 +252,8 @@ class QUIC_EXPORT_PRIVATE QuicPacket : public QuicData {
   QuicPacket(const QuicPacket&) = delete;
   QuicPacket& operator=(const QuicPacket&) = delete;
 
-  quiche::QuicheStringPiece AssociatedData(QuicTransportVersion version) const;
-  quiche::QuicheStringPiece Plaintext(QuicTransportVersion version) const;
+  absl::string_view AssociatedData(QuicTransportVersion version) const;
+  absl::string_view Plaintext(QuicTransportVersion version) const;
 
   char* mutable_data() { return buffer_; }
 
@@ -277,9 +277,9 @@ class QUIC_EXPORT_PRIVATE QuicEncryptedPacket : public QuicData {
   // Creates a QuicEncryptedPacket from a buffer and length,
   // optionally taking ownership of the buffer.
   QuicEncryptedPacket(const char* buffer, size_t length, bool owns_buffer);
-  // Creates a QuicEncryptedPacket from a quiche::QuicheStringPiece.
+  // Creates a QuicEncryptedPacket from a absl::string_view.
   // Does not own the buffer.
-  QuicEncryptedPacket(quiche::QuicheStringPiece data);
+  QuicEncryptedPacket(absl::string_view data);
 
   QuicEncryptedPacket(const QuicEncryptedPacket&) = delete;
   QuicEncryptedPacket& operator=(const QuicEncryptedPacket&) = delete;

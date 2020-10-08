@@ -4,17 +4,17 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
-QuicDataReader::QuicDataReader(quiche::QuicheStringPiece data)
+QuicDataReader::QuicDataReader(absl::string_view data)
     : quiche::QuicheDataReader(data) {}
 
 QuicDataReader::QuicDataReader(const char* data, const size_t len)
@@ -165,8 +165,7 @@ bool QuicDataReader::ReadVarInt62(uint64_t* result) {
   return false;
 }
 
-bool QuicDataReader::ReadStringPieceVarInt62(
-    quiche::QuicheStringPiece* result) {
+bool QuicDataReader::ReadStringPieceVarInt62(absl::string_view* result) {
   uint64_t result_length;
   if (!ReadVarInt62(&result_length)) {
     return false;

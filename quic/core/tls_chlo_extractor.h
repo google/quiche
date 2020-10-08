@@ -67,10 +67,9 @@ class QUIC_NO_EXPORT TlsChloExtractor
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/,
-                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
-                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
-  }
+                     absl::string_view /*retry_token*/,
+                     absl::string_view /*retry_integrity_tag*/,
+                     absl::string_view /*retry_without_tag*/) override {}
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
     return true;

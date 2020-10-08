@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_rst_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
@@ -32,7 +33,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -295,8 +295,7 @@ TEST_P(QuicStreamTest, NoBlockingIfNoDataOrFin) {
   // Write no data and no fin.  If we consume nothing we should not be write
   // blocked.
   EXPECT_QUIC_BUG(
-      stream_->WriteOrBufferData(quiche::QuicheStringPiece(), false, nullptr),
-      "");
+      stream_->WriteOrBufferData(absl::string_view(), false, nullptr), "");
   EXPECT_FALSE(HasWriteBlockedStreams());
 }
 
@@ -310,8 +309,7 @@ TEST_P(QuicStreamTest, BlockIfOnlySomeDataConsumed) {
         return session_->ConsumeData(stream_->id(), 1u, 0u, NO_FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), false,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 2), false, nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
   EXPECT_EQ(1u, stream_->BufferedDataBytes());
@@ -329,8 +327,7 @@ TEST_P(QuicStreamTest, BlockIfFinNotConsumedWithData) {
         return session_->ConsumeData(stream_->id(), 2u, 0u, NO_FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 2), true, nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
 }
@@ -342,7 +339,7 @@ TEST_P(QuicStreamTest, BlockIfSoloFinNotConsumed) {
   // as the fin was not consumed.
   EXPECT_CALL(*session_, WritevData(kTestStreamId, _, _, _, _, _))
       .WillOnce(Return(QuicConsumedData(0, false)));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(), true, nullptr);
+  stream_->WriteOrBufferData(absl::string_view(), true, nullptr);
   ASSERT_EQ(1u, write_blocked_list_->NumBlockedStreams());
 }
 
@@ -354,8 +351,7 @@ TEST_P(QuicStreamTest, CloseOnPartialWrite) {
   // crash with an unknown stream.
   EXPECT_CALL(*session_, WritevData(kTestStreamId, _, _, _, _, _))
       .WillOnce(Invoke(this, &QuicStreamTest::CloseStreamOnWriteError));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), false,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 2), false, nullptr);
   ASSERT_EQ(0u, write_blocked_list_->NumBlockedStreams());
 }
 
@@ -452,8 +448,7 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
         return session_->ConsumeData(stream_->id(), 1u, 0u, NO_FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 1), false,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 1), false, nullptr);
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_FALSE(fin_sent());
   EXPECT_FALSE(rst_sent());
@@ -482,8 +477,7 @@ TEST_P(QuicStreamTest, RstNotSentIfFinSent) {
         return session_->ConsumeData(stream_->id(), 1u, 0u, FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 1), true,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 1), true, nullptr);
   EXPECT_TRUE(fin_sent());
   EXPECT_FALSE(rst_sent());
 
@@ -673,7 +667,7 @@ TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {
             current_connection_flow_control_offset);
   QuicStreamFrame zero_length_stream_frame_with_fin(
       stream_->id(), /*fin=*/true, kByteOffsetExceedingFlowControlWindow,
-      quiche::QuicheStringPiece());
+      absl::string_view());
   EXPECT_EQ(0, zero_length_stream_frame_with_fin.data_length);
 
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
@@ -746,8 +740,7 @@ TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {
         return session_->ConsumeData(stream_->id(), 2u, 0u, FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 2), true, nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
   EXPECT_EQ(1u, QuicSessionPeer::GetNumDrainingStreams(session_.get()));
@@ -764,8 +757,7 @@ TEST_P(QuicStreamTest, SetDrainingOutgoingIncoming) {
         return session_->ConsumeData(stream_->id(), 2u, 0u, FIN,
                                      NOT_RETRANSMISSION, QUICHE_NULLOPT);
       }));
-  stream_->WriteOrBufferData(quiche::QuicheStringPiece(kData1, 2), true,
-                             nullptr);
+  stream_->WriteOrBufferData(absl::string_view(kData1, 2), true, nullptr);
   EXPECT_TRUE(stream_->write_side_closed());
 
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));

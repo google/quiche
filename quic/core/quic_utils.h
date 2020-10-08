@@ -11,6 +11,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
@@ -21,7 +22,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -31,22 +31,22 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
 
   // Returns the 64 bit FNV1a hash of the data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static uint64_t FNV1a_64_Hash(quiche::QuicheStringPiece data);
+  static uint64_t FNV1a_64_Hash(absl::string_view data);
 
   // Returns the 128 bit FNV1a hash of the data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash(quiche::QuicheStringPiece data);
+  static QuicUint128 FNV1a_128_Hash(absl::string_view data);
 
   // Returns the 128 bit FNV1a hash of the two sequences of data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash_Two(quiche::QuicheStringPiece data1,
-                                        quiche::QuicheStringPiece data2);
+  static QuicUint128 FNV1a_128_Hash_Two(absl::string_view data1,
+                                        absl::string_view data2);
 
   // Returns the 128 bit FNV1a hash of the three sequences of data.  See
   // http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-  static QuicUint128 FNV1a_128_Hash_Three(quiche::QuicheStringPiece data1,
-                                          quiche::QuicheStringPiece data2,
-                                          quiche::QuicheStringPiece data3);
+  static QuicUint128 FNV1a_128_Hash_Three(absl::string_view data1,
+                                          absl::string_view data2,
+                                          absl::string_view data3);
 
   // SerializeUint128 writes the first 96 bits of |v| in little-endian form
   // to |out|.
@@ -80,7 +80,7 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
                            char* buffer);
 
   // Creates an iovec pointing to the same data as |data|.
-  static struct iovec MakeIovec(quiche::QuicheStringPiece data);
+  static struct iovec MakeIovec(absl::string_view data);
 
   // Returns the opposite Perspective of the |perspective| passed in.
   static constexpr Perspective InvertPerspective(Perspective perspective) {

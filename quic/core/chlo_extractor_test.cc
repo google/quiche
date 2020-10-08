@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/first_flight.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -33,7 +33,7 @@ class TestDelegate : public ChloExtractor::Delegate {
     version_ = version;
     connection_id_ = connection_id;
     chlo_ = chlo.DebugString();
-    quiche::QuicheStringPiece alpn_value;
+    absl::string_view alpn_value;
     if (chlo.GetStringPiece(kALPN, &alpn_value)) {
       alpn_ = std::string(alpn_value);
     }
@@ -55,7 +55,7 @@ class ChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
  public:
   ChloExtractorTest() : version_(GetParam()) {}
 
-  void MakePacket(quiche::QuicheStringPiece data,
+  void MakePacket(absl::string_view data,
                   bool munge_offset,
                   bool munge_stream_id) {
     QuicPacketHeader header;

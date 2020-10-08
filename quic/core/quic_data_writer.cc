@@ -7,13 +7,13 @@
 #include <algorithm>
 #include <limits>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -234,7 +234,7 @@ QuicVariableLengthIntegerLength QuicDataWriter::GetVarInt62Len(uint64_t value) {
 }
 
 bool QuicDataWriter::WriteStringPieceVarInt62(
-    const quiche::QuicheStringPiece& string_piece) {
+    const absl::string_view& string_piece) {
   if (!WriteVarInt62(string_piece.size())) {
     return false;
   }

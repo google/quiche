@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -32,7 +33,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/fake_proof_source.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_crypto_server_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 class QuicConnection;
@@ -96,7 +96,7 @@ class QuicCryptoServerStreamTest : public QuicTest {
         .Times(testing::AnyNumber());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
         .WillRepeatedly(
-            [this](const std::vector<quiche::QuicheStringPiece>& alpns) {
+            [this](const std::vector<absl::string_view>& alpns) {
               return std::find(
                   alpns.cbegin(), alpns.cend(),
                   AlpnForVersion(server_session_->connection()->version()));

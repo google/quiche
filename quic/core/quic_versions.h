@@ -26,10 +26,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -497,13 +497,13 @@ ParseQuicVersionLabel(QuicVersionLabel version_label);
 // ALPN such as "h3-29" or "h3-Q050". For PROTOCOL_QUIC_CRYPTO versions, also
 // supports parsing numbers such as "46".
 QUIC_EXPORT_PRIVATE ParsedQuicVersion
-ParseQuicVersionString(quiche::QuicheStringPiece version_string);
+ParseQuicVersionString(absl::string_view version_string);
 
 // Parses a comma-separated list of QUIC version strings. Supports parsing by
 // label, ALPN and numbers for PROTOCOL_QUIC_CRYPTO. Skips unknown versions.
 // For example: "h3-29,Q050,46".
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
-ParseQuicVersionVectorString(quiche::QuicheStringPiece versions_string);
+ParseQuicVersionVectorString(absl::string_view versions_string);
 
 // Constructs a QuicVersionLabel from the provided ParsedQuicVersion.
 QUIC_EXPORT_PRIVATE QuicVersionLabel

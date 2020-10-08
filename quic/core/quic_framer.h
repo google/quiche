@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -106,9 +106,9 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // the entire RETRY packet except the Retry Integrity Tag field.
   virtual void OnRetryPacket(QuicConnectionId original_connection_id,
                              QuicConnectionId new_connection_id,
-                             quiche::QuicheStringPiece retry_token,
-                             quiche::QuicheStringPiece retry_integrity_tag,
-                             quiche::QuicheStringPiece retry_without_tag) = 0;
+                             absl::string_view retry_token,
+                             absl::string_view retry_integrity_tag,
+                             absl::string_view retry_without_tag) = 0;
 
   // Called when all fields except packet number has been parsed, but has not
   // been authenticated. If it returns false, framing for this packet will
@@ -385,7 +385,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Returns the associated data from the encrypted packet |encrypted| as a
   // stringpiece.
-  static quiche::QuicheStringPiece GetAssociatedDataFromEncryptedPacket(
+  static absl::string_view GetAssociatedDataFromEncryptedPacket(
       QuicTransportVersion version,
       const QuicEncryptedPacket& encrypted,
       QuicConnectionIdLength destination_connection_id_length,
@@ -414,7 +414,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* source_connection_id,
       QuicLongHeaderType* long_packet_type,
       QuicVariableLengthIntegerLength* retry_token_length_length,
-      quiche::QuicheStringPiece* retry_token,
+      absl::string_view* retry_token,
       std::string* detailed_error);
 
   // Parses the unencrypted fields in |packet| and stores them in the other
@@ -432,7 +432,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
       QuicConnectionId* destination_connection_id,
       QuicConnectionId* source_connection_id,
       bool* retry_token_present,
-      quiche::QuicheStringPiece* retry_token,
+      absl::string_view* retry_token,
       std::string* detailed_error);
 
   // Serializes a packet containing |frames| into |buffer|.
@@ -808,8 +808,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                            bool no_message_length,
                            QuicMessageFrame* frame);
 
-  bool DecryptPayload(quiche::QuicheStringPiece encrypted,
-                      quiche::QuicheStringPiece associated_data,
+  bool DecryptPayload(absl::string_view encrypted,
+                      absl::string_view associated_data,
                       const QuicPacketHeader& header,
                       char* decrypted_buffer,
                       size_t buffer_length,

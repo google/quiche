@@ -135,7 +135,7 @@ class TestDispatcher : public QuicDispatcher {
               (QuicConnectionId connection_id,
                const QuicSocketAddress& self_address,
                const QuicSocketAddress& peer_address,
-               quiche::QuicheStringPiece alpn,
+               absl::string_view alpn,
                const quic::ParsedQuicVersion& version),
               (override));
 
@@ -605,7 +605,7 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
   bool retry_token_present;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       QuicEncryptedPacket(packets[0]->data(), packets[0]->length()),

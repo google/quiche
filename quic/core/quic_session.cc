@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
@@ -23,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using spdy::SpdyPriority;
 
@@ -343,7 +343,7 @@ void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
   transport_goaway_received_ = true;
 }
 
-void QuicSession::OnMessageReceived(quiche::QuicheStringPiece message) {
+void QuicSession::OnMessageReceived(absl::string_view message) {
   QUIC_DVLOG(1) << ENDPOINT << "Received message, length: " << message.length()
                 << ", " << message;
 }
@@ -2391,13 +2391,13 @@ size_t QuicSession::max_open_incoming_unidirectional_streams() const {
   return stream_id_manager_.max_open_incoming_streams();
 }
 
-std::vector<quiche::QuicheStringPiece>::const_iterator QuicSession::SelectAlpn(
-    const std::vector<quiche::QuicheStringPiece>& alpns) const {
+std::vector<absl::string_view>::const_iterator QuicSession::SelectAlpn(
+    const std::vector<absl::string_view>& alpns) const {
   const std::string alpn = AlpnForVersion(connection()->version());
   return std::find(alpns.cbegin(), alpns.cend(), alpn);
 }
 
-void QuicSession::OnAlpnSelected(quiche::QuicheStringPiece alpn) {
+void QuicSession::OnAlpnSelected(absl::string_view alpn) {
   QUIC_DLOG(INFO) << (perspective() == Perspective::IS_SERVER ? "Server: "
                                                               : "Client: ")
                   << "ALPN selected: " << alpn;

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -69,8 +69,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
                       const std::vector<uint8_t>& write_secret) override;
 
   // Override to drop initial keys if trying to write ENCRYPTION_HANDSHAKE data.
-  void WriteMessage(EncryptionLevel level,
-                    quiche::QuicheStringPiece data) override;
+  void WriteMessage(EncryptionLevel level, absl::string_view data) override;
 
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;

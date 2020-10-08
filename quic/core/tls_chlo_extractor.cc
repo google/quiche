@@ -6,6 +6,7 @@
 #include <cstring>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_crypto_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -280,14 +280,14 @@ void TlsChloExtractor::HandleParsedChlo(const SSL_CLIENT_HELLO* client_hello) {
   if (rv == 1) {
     QuicDataReader alpns_reader(reinterpret_cast<const char*>(alpn_data),
                                 alpn_len);
-    quiche::QuicheStringPiece alpns_payload;
+    absl::string_view alpns_payload;
     if (!alpns_reader.ReadStringPiece16(&alpns_payload)) {
       HandleUnrecoverableError("Failed to read alpns_payload");
       return;
     }
     QuicDataReader alpns_payload_reader(alpns_payload);
     while (!alpns_payload_reader.IsDoneReading()) {
-      quiche::QuicheStringPiece alpn_payload;
+      absl::string_view alpn_payload;
       if (!alpns_payload_reader.ReadStringPiece8(&alpn_payload)) {
         HandleUnrecoverableError("Failed to read alpn_payload");
         return;

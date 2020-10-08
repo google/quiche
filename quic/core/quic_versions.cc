@@ -328,8 +328,7 @@ ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
   return UnsupportedQuicVersion();
 }
 
-ParsedQuicVersion ParseQuicVersionString(
-    quiche::QuicheStringPiece version_string) {
+ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
   if (version_string.empty()) {
     return UnsupportedQuicVersion();
   }
@@ -374,11 +373,11 @@ ParsedQuicVersion ParseQuicVersionString(
 }
 
 ParsedQuicVersionVector ParseQuicVersionVectorString(
-    quiche::QuicheStringPiece versions_string) {
+    absl::string_view versions_string) {
   ParsedQuicVersionVector versions;
-  std::vector<quiche::QuicheStringPiece> version_strings =
+  std::vector<absl::string_view> version_strings =
       quiche::QuicheTextUtils::Split(versions_string, ',');
-  for (quiche::QuicheStringPiece version_string : version_strings) {
+  for (absl::string_view version_string : version_strings) {
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
         &version_string);
     ParsedQuicVersion version = ParseQuicVersionString(version_string);

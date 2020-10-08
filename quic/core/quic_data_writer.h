@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/quiche_data_writer.h"
 
 namespace quic {
@@ -69,7 +69,7 @@ class QUIC_EXPORT_PRIVATE QuicDataWriter : public quiche::QuicheDataWriter {
 
   // Writes a string piece as a consecutive length/content pair. The
   // length is VarInt62 encoded.
-  bool WriteStringPieceVarInt62(const quiche::QuicheStringPiece& string_piece);
+  bool WriteStringPieceVarInt62(const absl::string_view& string_piece);
 
   // Utility function to return the number of bytes needed to encode
   // the given value using IETF VarInt62 encoding. Returns the number

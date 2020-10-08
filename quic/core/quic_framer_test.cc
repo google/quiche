@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
@@ -92,17 +92,17 @@ const uint8_t kVarInt62EightBytes = 0xc0;
 class TestEncrypter : public QuicEncrypter {
  public:
   ~TestEncrypter() override {}
-  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
-  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
+  bool SetKey(absl::string_view /*key*/) override { return true; }
+  bool SetNoncePrefix(absl::string_view /*nonce_prefix*/) override {
     return true;
   }
-  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
-  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetIV(absl::string_view /*iv*/) override { return true; }
+  bool SetHeaderProtectionKey(absl::string_view /*key*/) override {
     return true;
   }
   bool EncryptPacket(uint64_t packet_number,
-                     quiche::QuicheStringPiece associated_data,
-                     quiche::QuicheStringPiece plaintext,
+                     absl::string_view associated_data,
+                     absl::string_view plaintext,
                      char* output,
                      size_t* output_length,
                      size_t /*max_output_length*/) override {
@@ -114,7 +114,7 @@ class TestEncrypter : public QuicEncrypter {
     return true;
   }
   std::string GenerateHeaderProtectionMask(
-      quiche::QuicheStringPiece /*sample*/) override {
+      absl::string_view /*sample*/) override {
     return std::string(5, 0);
   }
   size_t GetKeySize() const override { return 0; }
@@ -126,11 +126,9 @@ class TestEncrypter : public QuicEncrypter {
   size_t GetCiphertextSize(size_t plaintext_size) const override {
     return plaintext_size;
   }
-  quiche::QuicheStringPiece GetKey() const override {
-    return quiche::QuicheStringPiece();
-  }
-  quiche::QuicheStringPiece GetNoncePrefix() const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetKey() const override { return absl::string_view(); }
+  absl::string_view GetNoncePrefix() const override {
+    return absl::string_view();
   }
 
   QuicPacketNumber packet_number_;
@@ -141,15 +139,15 @@ class TestEncrypter : public QuicEncrypter {
 class TestDecrypter : public QuicDecrypter {
  public:
   ~TestDecrypter() override {}
-  bool SetKey(quiche::QuicheStringPiece /*key*/) override { return true; }
-  bool SetNoncePrefix(quiche::QuicheStringPiece /*nonce_prefix*/) override {
+  bool SetKey(absl::string_view /*key*/) override { return true; }
+  bool SetNoncePrefix(absl::string_view /*nonce_prefix*/) override {
     return true;
   }
-  bool SetIV(quiche::QuicheStringPiece /*iv*/) override { return true; }
-  bool SetHeaderProtectionKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetIV(absl::string_view /*iv*/) override { return true; }
+  bool SetHeaderProtectionKey(absl::string_view /*key*/) override {
     return true;
   }
-  bool SetPreliminaryKey(quiche::QuicheStringPiece /*key*/) override {
+  bool SetPreliminaryKey(absl::string_view /*key*/) override {
     QUIC_BUG << "should not be called";
     return false;
   }
@@ -157,8 +155,8 @@ class TestDecrypter : public QuicDecrypter {
     return true;
   }
   bool DecryptPacket(uint64_t packet_number,
-                     quiche::QuicheStringPiece associated_data,
-                     quiche::QuicheStringPiece ciphertext,
+                     absl::string_view associated_data,
+                     absl::string_view ciphertext,
                      char* output,
                      size_t* output_length,
                      size_t /*max_output_length*/) override {
@@ -176,11 +174,9 @@ class TestDecrypter : public QuicDecrypter {
   size_t GetKeySize() const override { return 0; }
   size_t GetNoncePrefixSize() const override { return 0; }
   size_t GetIVSize() const override { return 0; }
-  quiche::QuicheStringPiece GetKey() const override {
-    return quiche::QuicheStringPiece();
-  }
-  quiche::QuicheStringPiece GetNoncePrefix() const override {
-    return quiche::QuicheStringPiece();
+  absl::string_view GetKey() const override { return absl::string_view(); }
+  absl::string_view GetNoncePrefix() const override {
+    return absl::string_view();
   }
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF2; }
@@ -224,9 +220,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   void OnRetryPacket(QuicConnectionId original_connection_id,
                      QuicConnectionId new_connection_id,
-                     quiche::QuicheStringPiece retry_token,
-                     quiche::QuicheStringPiece retry_integrity_tag,
-                     quiche::QuicheStringPiece retry_without_tag) override {
+                     absl::string_view retry_token,
+                     absl::string_view retry_integrity_tag,
+                     absl::string_view retry_without_tag) override {
     on_retry_packet_called_ = true;
     retry_original_connection_id_ =
         std::make_unique<QuicConnectionId>(original_connection_id);
@@ -707,7 +703,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                       << " actual: " << decrypter_->packet_number_;
       return false;
     }
-    quiche::QuicheStringPiece associated_data =
+    absl::string_view associated_data =
         QuicFramer::GetAssociatedDataFromEncryptedPacket(
             framer_.transport_version(), encrypted,
             destination_connection_id_length, source_connection_id_length,
@@ -722,7 +718,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
                              decrypter_->associated_data_);
       return false;
     }
-    quiche::QuicheStringPiece ciphertext(
+    absl::string_view ciphertext(
         encrypted.AsStringPiece().substr(GetStartOfEncryptedData(
             framer_.transport_version(), destination_connection_id_length,
             source_connection_id_length, includes_version,
@@ -1070,7 +1066,7 @@ TEST_P(QuicFramerTest, PacketHeader) {
   QuicVersionLabel version_label;
   std::string detailed_error;
   bool retry_token_present, use_length_prefix;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -1135,7 +1131,7 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
   QuicVersionLabel version_label;
   std::string detailed_error;
   bool retry_token_present, use_length_prefix;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       *encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -1215,7 +1211,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   QuicVersionLabel version_label = 0;
   std::string detailed_error = "";
   bool retry_token_present, use_length_prefix;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
   const QuicErrorCode error_code = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -1305,7 +1301,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   QuicVariableLengthIntegerLength retry_token_length_length =
       VARIABLE_LENGTH_INTEGER_LENGTH_4;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error = "foobar";
 
   QuicDataReader reader(AsChars(p), p_length);
@@ -1328,7 +1324,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
   EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
-  EXPECT_EQ(quiche::QuicheStringPiece(), retry_token);
+  EXPECT_EQ(absl::string_view(), retry_token);
   if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
     EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
     EXPECT_EQ(HANDSHAKE, long_packet_type);
@@ -1375,7 +1371,7 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   QuicVariableLengthIntegerLength retry_token_length_length =
       VARIABLE_LENGTH_INTEGER_LENGTH_4;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error = "foobar";
 
   QuicDataReader reader(AsChars(p), p_length);
@@ -1395,7 +1391,7 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   EXPECT_EQ(FramerTestConnectionId(), destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
   EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
-  EXPECT_EQ(quiche::QuicheStringPiece(), retry_token);
+  EXPECT_EQ(absl::string_view(), retry_token);
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
 }
 
@@ -6167,7 +6163,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
   QuicStreamFrame stream_frame(kStreamId, true, kStreamOffset,
-                               quiche::QuicheStringPiece("hello world!"));
+                               absl::string_view("hello world!"));
   QuicPaddingFrame padding_frame(2);
   QuicFrames frames = {QuicFrame(padding_frame), QuicFrame(stream_frame),
                        QuicFrame(padding_frame)};
@@ -6510,7 +6506,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
   }
 
   QuicStreamFrame stream_frame(kStreamId, true, kStreamOffset,
-                               quiche::QuicheStringPiece("hello world!"));
+                               absl::string_view("hello world!"));
 
   QuicFrames frames = {QuicFrame(stream_frame)};
 
@@ -6609,7 +6605,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
   }
 
   QuicStreamFrame stream_frame(kStreamId, true, kStreamOffset,
-                               quiche::QuicheStringPiece("hello world!"));
+                               absl::string_view("hello world!"));
   QuicFrames frames = {QuicFrame(stream_frame)};
 
   // clang-format off
@@ -6742,7 +6738,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
   SimpleDataProducer data_producer;
   framer_.set_data_producer(&data_producer);
 
-  quiche::QuicheStringPiece crypto_frame_contents("hello world!");
+  absl::string_view crypto_frame_contents("hello world!");
   QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, kStreamOffset,
                                crypto_frame_contents.length());
   data_producer.SaveCryptoData(ENCRYPTION_INITIAL, kStreamOffset,
@@ -14029,7 +14025,7 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
   QuicConnectionId destination_connection_id = TestConnectionId(0x33);
   QuicConnectionId source_connection_id = TestConnectionId(0x34);
   bool retry_token_present = true;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error = "foobar";
 
   QuicErrorCode parse_result = QuicFramer::ParsePublicHeaderDispatcher(
@@ -14046,7 +14042,7 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacketOld) {
   EXPECT_EQ(probe_payload_connection_id, destination_connection_id);
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
   EXPECT_FALSE(retry_token_present);
-  EXPECT_EQ(quiche::QuicheStringPiece(), retry_token);
+  EXPECT_EQ(absl::string_view(), retry_token);
   EXPECT_EQ("", detailed_error);
 }
 
@@ -14181,7 +14177,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
   bool retry_token_present = true;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,
@@ -14260,7 +14256,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
   QuicConnectionId destination_connection_id = TestConnectionId(1);
   QuicConnectionId source_connection_id = TestConnectionId(2);
   bool retry_token_present = true;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error = "foobar";
   QuicErrorCode header_parse_result = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted, kQuicDefaultConnectionIdLength, &format, &long_packet_type,

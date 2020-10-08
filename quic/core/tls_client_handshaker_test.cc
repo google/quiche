@@ -52,7 +52,7 @@ class TestProofVerifier : public ProofVerifier {
       const uint16_t port,
       const std::string& server_config,
       QuicTransportVersion quic_version,
-      quiche::QuicheStringPiece chlo_hash,
+      absl::string_view chlo_hash,
       const std::vector<std::string>& certs,
       const std::string& cert_sct,
       const std::string& signature,
@@ -233,10 +233,9 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
     server_session_.reset(server_session);
     std::string alpn = AlpnForVersion(connection_->version());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
-        .WillRepeatedly(
-            [alpn](const std::vector<quiche::QuicheStringPiece>& alpns) {
-              return std::find(alpns.cbegin(), alpns.cend(), alpn);
-            });
+        .WillRepeatedly([alpn](const std::vector<absl::string_view>& alpns) {
+          return std::find(alpns.cbegin(), alpns.cend(), alpn);
+        });
   }
 
   MockQuicConnectionHelper server_helper_;
@@ -286,8 +285,8 @@ TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
       0, 0, 0,  // uint24 length
   };
   stream()->crypto_message_parser()->ProcessInput(
-      quiche::QuicheStringPiece(bogus_handshake_message,
-                                QUICHE_ARRAYSIZE(bogus_handshake_message)),
+      absl::string_view(bogus_handshake_message,
+                        QUICHE_ARRAYSIZE(bogus_handshake_message)),
       ENCRYPTION_INITIAL);
 
   EXPECT_FALSE(stream()->one_rtt_keys_available());
@@ -556,10 +555,9 @@ TEST_P(TlsClientHandshakerTest, ServerRequiresCustomALPN) {
   InitializeFakeServer();
   const std::string kTestAlpn = "An ALPN That Client Did Not Offer";
   EXPECT_CALL(*server_session_, SelectAlpn(_))
-      .WillOnce(
-          [kTestAlpn](const std::vector<quiche::QuicheStringPiece>& alpns) {
-            return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
-          });
+      .WillOnce([kTestAlpn](const std::vector<absl::string_view>& alpns) {
+        return std::find(alpns.cbegin(), alpns.cend(), kTestAlpn);
+      });
   EXPECT_CALL(*server_connection_,
               CloseConnection(QUIC_HANDSHAKE_FAILED,
                               "TLS handshake failure (ENCRYPTION_INITIAL) 120: "

@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
@@ -41,7 +42,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -887,12 +887,11 @@ void QuicConnection::OnVersionNegotiationPacket(
 }
 
 // Handles retry for client connection.
-void QuicConnection::OnRetryPacket(
-    QuicConnectionId original_connection_id,
-    QuicConnectionId new_connection_id,
-    quiche::QuicheStringPiece retry_token,
-    quiche::QuicheStringPiece retry_integrity_tag,
-    quiche::QuicheStringPiece retry_without_tag) {
+void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
+                                   QuicConnectionId new_connection_id,
+                                   absl::string_view retry_token,
+                                   absl::string_view retry_integrity_tag,
+                                   absl::string_view retry_without_tag) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
   if (version().HasRetryIntegrityTag()) {
     if (!CryptoUtils::ValidateRetryIntegrityTag(
@@ -1691,7 +1690,7 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
   }
   MaybeUpdateAckTimeout();
   visitor_->OnMessageReceived(
-      quiche::QuicheStringPiece(frame.data, frame.message_length));
+      absl::string_view(frame.data, frame.message_length));
   return connected_;
 }
 
@@ -2197,8 +2196,8 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   }
   QUIC_DVLOG(2) << ENDPOINT << "Received encrypted " << packet.length()
                 << " bytes:" << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                       packet.data(), packet.length()));
+                << quiche::QuicheTextUtils::HexDump(
+                       absl::string_view(packet.data(), packet.length()));
   QUIC_BUG_IF(current_packet_data_ != nullptr)
       << "ProcessUdpPacket must not be called while processing a packet.";
   if (debug_visitor_ != nullptr) {
@@ -2718,7 +2717,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(2) << ENDPOINT << packet->encryption_level << " packet number "
                 << packet_number << " of length " << encrypted_length << ": "
                 << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        packet->encrypted_buffer, encrypted_length));
 
   // Measure the RTT from before the write begins to avoid underestimating the
@@ -2817,8 +2816,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       QuicPacketLength encapsulated_length =
           QuicLegacyVersionEncapsulator::Encapsulate(
               legacy_version_encapsulation_sni_,
-              quiche::QuicheStringPiece(packet->encrypted_buffer,
-                                        packet->encrypted_length),
+              absl::string_view(packet->encrypted_buffer,
+                                packet->encrypted_length),
               server_connection_id_, framer_.creation_time(),
               GetLimitedMaxPacketSize(long_term_mtu_),
               const_cast<char*>(packet->encrypted_buffer));
@@ -2831,7 +2830,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
             << "Successfully performed Legacy Version Encapsulation on "
             << packet->encryption_level << " packet number " << packet_number
             << " of length " << encrypted_length << ": " << std::endl
-            << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+            << quiche::QuicheTextUtils::HexDump(absl::string_view(
                    packet->encrypted_buffer, encrypted_length));
       } else {
         QUIC_BUG << ENDPOINT
@@ -4134,9 +4133,9 @@ bool QuicConnection::SendGenericPathProbePacket(
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
                 << server_connection_id_ << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                       probing_packet->encrypted_buffer,
-                       probing_packet->encrypted_length));
+                << quiche::QuicheTextUtils::HexDump(
+                       absl::string_view(probing_packet->encrypted_buffer,
+                                         probing_packet->encrypted_length));
   WriteResult result = probing_writer->WritePacket(
       probing_packet->encrypted_buffer, probing_packet->encrypted_length,
       self_address().host(), peer_address, per_packet_options_);
@@ -4268,11 +4267,11 @@ bool QuicConnection::ack_frame_updated() const {
   return uber_received_packet_manager_.IsAckFrameUpdated();
 }
 
-quiche::QuicheStringPiece QuicConnection::GetCurrentPacket() {
+absl::string_view QuicConnection::GetCurrentPacket() {
   if (current_packet_data_ == nullptr) {
-    return quiche::QuicheStringPiece();
+    return absl::string_view();
   }
-  return quiche::QuicheStringPiece(current_packet_data_, last_size_);
+  return absl::string_view(current_packet_data_, last_size_);
 }
 
 bool QuicConnection::MaybeConsiderAsMemoryCorruption(

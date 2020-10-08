@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -15,13 +16,12 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test_mem_slice_vector.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
 namespace {
 
-struct iovec MakeIovec(quiche::QuicheStringPiece data) {
+struct iovec MakeIovec(absl::string_view data) {
   struct iovec iov = {const_cast<char*>(data.data()),
                       static_cast<size_t>(data.size())};
   return iov;
@@ -36,8 +36,8 @@ class QuicStreamSendBufferTest : public QuicTest {
     std::string data1(1536, 'a');
     std::string data2 = std::string(256, 'b') + std::string(256, 'c');
     struct iovec iov[2];
-    iov[0] = MakeIovec(quiche::QuicheStringPiece(data1));
-    iov[1] = MakeIovec(quiche::QuicheStringPiece(data2));
+    iov[0] = MakeIovec(absl::string_view(data1));
+    iov[1] = MakeIovec(absl::string_view(data2));
 
     QuicUniqueBufferPtr buffer1 = MakeUniqueBuffer(&allocator_, 1024);
     memset(buffer1.get(), 'c', 1024);
@@ -88,23 +88,23 @@ TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
   std::string copy4(768, 'd');
 
   ASSERT_TRUE(send_buffer_.WriteStreamData(0, 1024, &writer));
-  EXPECT_EQ(copy1, quiche::QuicheStringPiece(buf, 1024));
+  EXPECT_EQ(copy1, absl::string_view(buf, 1024));
   ASSERT_TRUE(send_buffer_.WriteStreamData(1024, 1024, &writer));
-  EXPECT_EQ(copy2, quiche::QuicheStringPiece(buf + 1024, 1024));
+  EXPECT_EQ(copy2, absl::string_view(buf + 1024, 1024));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1024, &writer));
-  EXPECT_EQ(copy3, quiche::QuicheStringPiece(buf + 2048, 1024));
+  EXPECT_EQ(copy3, absl::string_view(buf + 2048, 1024));
   ASSERT_TRUE(send_buffer_.WriteStreamData(3072, 768, &writer));
-  EXPECT_EQ(copy4, quiche::QuicheStringPiece(buf + 3072, 768));
+  EXPECT_EQ(copy4, absl::string_view(buf + 3072, 768));
 
   // Test data piece across boundries.
   QuicDataWriter writer2(4000, buf, quiche::HOST_BYTE_ORDER);
   std::string copy5 =
       std::string(536, 'a') + std::string(256, 'b') + std::string(232, 'c');
   ASSERT_TRUE(send_buffer_.WriteStreamData(1000, 1024, &writer2));
-  EXPECT_EQ(copy5, quiche::QuicheStringPiece(buf, 1024));
+  EXPECT_EQ(copy5, absl::string_view(buf, 1024));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2500, 1024, &writer2));
   std::string copy6 = std::string(572, 'c') + std::string(452, 'd');
-  EXPECT_EQ(copy6, quiche::QuicheStringPiece(buf + 1024, 1024));
+  EXPECT_EQ(copy6, absl::string_view(buf + 1024, 1024));
 
   // Invalid data copy.
   QuicDataWriter writer3(4000, buf, quiche::HOST_BYTE_ORDER);
@@ -129,21 +129,20 @@ TEST_F(QuicStreamSendBufferTest,
   // Write more than one slice.
   EXPECT_EQ(0, QuicStreamSendBufferPeer::write_index(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(0, 1024, &writer));
-  EXPECT_EQ(copy1, quiche::QuicheStringPiece(buf, 1024));
+  EXPECT_EQ(copy1, absl::string_view(buf, 1024));
   EXPECT_EQ(1, QuicStreamSendBufferPeer::write_index(&send_buffer_));
 
   // Retransmit the first frame and also send new data.
   ASSERT_TRUE(send_buffer_.WriteStreamData(0, 2048, &writer));
-  EXPECT_EQ(copy1 + copy2, quiche::QuicheStringPiece(buf + 1024, 2048));
+  EXPECT_EQ(copy1 + copy2, absl::string_view(buf + 1024, 2048));
 
   // Write new data.
   EXPECT_EQ(2048u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 50, &writer));
-  EXPECT_EQ(std::string(50, 'c'),
-            quiche::QuicheStringPiece(buf + 1024 + 2048, 50));
+  EXPECT_EQ(std::string(50, 'c'), absl::string_view(buf + 1024 + 2048, 50));
   EXPECT_EQ(3072u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
   ASSERT_TRUE(send_buffer_.WriteStreamData(2048, 1124, &writer));
-  EXPECT_EQ(copy3, quiche::QuicheStringPiece(buf + 1024 + 2048 + 50, 1124));
+  EXPECT_EQ(copy3, absl::string_view(buf + 1024 + 2048 + 50, 1124));
   EXPECT_EQ(3840u, QuicStreamSendBufferPeer::EndOffset(&send_buffer_));
 }
 

@@ -7,10 +7,10 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -286,8 +286,8 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
                 << message.DebugString();
   if (!QuicVersionUsesCryptoFrames(transport_version())) {
     const QuicData& data = message.GetSerialized();
-    WriteOrBufferData(quiche::QuicheStringPiece(data.data(), data.length()),
-                      false, nullptr);
+    WriteOrBufferData(absl::string_view(data.data(), data.length()), false,
+                      nullptr);
   } else {
     SendHandshakeMessage(message);
   }
@@ -418,7 +418,7 @@ void QuicCryptoServerStream::ProcessClientHello(
     return;
   }
 
-  quiche::QuicheStringPiece user_agent_id;
+  absl::string_view user_agent_id;
   message.GetStringPiece(quic::kUAID, &user_agent_id);
   if (!session()->user_agent_id().has_value() && !user_agent_id.empty()) {
     session()->SetUserAgentId(std::string(user_agent_id));
@@ -430,7 +430,7 @@ void QuicCryptoServerStream::ProcessClientHello(
 
   if (num_handshake_messages_ == 1) {
     // Client attempts zero RTT handshake by sending a non-inchoate CHLO.
-    quiche::QuicheStringPiece public_value;
+    absl::string_view public_value;
     zero_rtt_attempted_ = message.GetStringPiece(kPUBS, &public_value);
   }
 

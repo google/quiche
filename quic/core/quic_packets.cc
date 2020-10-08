@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -185,7 +185,7 @@ QuicPacketHeader::QuicPacketHeader()
       long_packet_type(INITIAL),
       possible_stateless_reset_token(0),
       retry_token_length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
-      retry_token(quiche::QuicheStringPiece()),
+      retry_token(absl::string_view()),
       length_length(VARIABLE_LENGTH_INTEGER_LENGTH_0),
       remaining_packet_length(0) {}
 
@@ -263,8 +263,8 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
   }
   if (header.nonce != nullptr) {
     os << ", diversification_nonce: "
-       << quiche::QuicheTextUtils::HexEncode(quiche::QuicheStringPiece(
-              header.nonce->data(), header.nonce->size()));
+       << quiche::QuicheTextUtils::HexEncode(
+              absl::string_view(header.nonce->data(), header.nonce->size()));
   }
   os << ", packet_number: " << header.packet_number << " }\n";
   return os;
@@ -276,7 +276,7 @@ QuicData::QuicData(const char* buffer, size_t length)
 QuicData::QuicData(const char* buffer, size_t length, bool owns_buffer)
     : buffer_(buffer), length_(length), owns_buffer_(owns_buffer) {}
 
-QuicData::QuicData(quiche::QuicheStringPiece packet_data)
+QuicData::QuicData(absl::string_view packet_data)
     : buffer_(packet_data.data()),
       length_(packet_data.length()),
       owns_buffer_(false) {}
@@ -335,7 +335,7 @@ QuicEncryptedPacket::QuicEncryptedPacket(const char* buffer,
                                          bool owns_buffer)
     : QuicData(buffer, length, owns_buffer) {}
 
-QuicEncryptedPacket::QuicEncryptedPacket(quiche::QuicheStringPiece data)
+QuicEncryptedPacket::QuicEncryptedPacket(absl::string_view data)
     : QuicData(data) {}
 
 std::unique_ptr<QuicEncryptedPacket> QuicEncryptedPacket::Clone() const {
@@ -426,9 +426,9 @@ std::ostream& operator<<(std::ostream& os, const QuicReceivedPacket& s) {
   return os;
 }
 
-quiche::QuicheStringPiece QuicPacket::AssociatedData(
+absl::string_view QuicPacket::AssociatedData(
     QuicTransportVersion version) const {
-  return quiche::QuicheStringPiece(
+  return absl::string_view(
       data(),
       GetStartOfEncryptedData(version, destination_connection_id_length_,
                               source_connection_id_length_, includes_version_,
@@ -437,14 +437,13 @@ quiche::QuicheStringPiece QuicPacket::AssociatedData(
                               retry_token_length_, length_length_));
 }
 
-quiche::QuicheStringPiece QuicPacket::Plaintext(
-    QuicTransportVersion version) const {
+absl::string_view QuicPacket::Plaintext(QuicTransportVersion version) const {
   const size_t start_of_encrypted_data = GetStartOfEncryptedData(
       version, destination_connection_id_length_, source_connection_id_length_,
       includes_version_, includes_diversification_nonce_, packet_number_length_,
       retry_token_length_length_, retry_token_length_, length_length_);
-  return quiche::QuicheStringPiece(data() + start_of_encrypted_data,
-                                   length() - start_of_encrypted_data);
+  return absl::string_view(data() + start_of_encrypted_data,
+                           length() - start_of_encrypted_data);
 }
 
 SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,

@@ -4,11 +4,11 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_legacy_version_encapsulator.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -43,7 +43,7 @@ class QuicLegacyVersionEncapsulatorTest
     ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
     QuicConnectionId destination_connection_id, source_connection_id;
     bool retry_token_present;
-    quiche::QuicheStringPiece retry_token;
+    absl::string_view retry_token;
     std::string detailed_error;
     const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
         QuicEncryptedPacket(outer_buffer_, encapsulated_length_),

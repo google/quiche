@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
@@ -11,7 +12,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -20,7 +20,7 @@ TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream, QuicSession* session)
 
 TlsHandshaker::~TlsHandshaker() {}
 
-bool TlsHandshaker::ProcessInput(quiche::QuicheStringPiece input,
+bool TlsHandshaker::ProcessInput(absl::string_view input,
                                  EncryptionLevel level) {
   if (parser_error_ != QUIC_NO_ERROR) {
     return false;
@@ -88,7 +88,7 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level,
-                                 quiche::QuicheStringPiece data) {
+                                 absl::string_view data) {
   stream_->WriteCryptoData(level, data);
 }
 

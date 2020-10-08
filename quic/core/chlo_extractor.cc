@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -39,10 +39,9 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
       const QuicVersionNegotiationPacket& /*packet*/) override {}
   void OnRetryPacket(QuicConnectionId /*original_connection_id*/,
                      QuicConnectionId /*new_connection_id*/,
-                     quiche::QuicheStringPiece /*retry_token*/,
-                     quiche::QuicheStringPiece /*retry_integrity_tag*/,
-                     quiche::QuicheStringPiece /*retry_without_tag*/) override {
-  }
+                     absl::string_view /*retry_token*/,
+                     absl::string_view /*retry_integrity_tag*/,
+                     absl::string_view /*retry_without_tag*/) override {}
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
@@ -89,7 +88,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
 
   // Shared implementation between OnStreamFrame and OnCryptoFrame.
-  bool OnHandshakeData(quiche::QuicheStringPiece data);
+  bool OnHandshakeData(absl::string_view data);
 
   bool found_chlo() { return found_chlo_; }
   bool chlo_contains_tags() { return chlo_contains_tags_; }
@@ -153,7 +152,7 @@ bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
     // CHLO will be sent in CRYPTO frames in v47 and above.
     return false;
   }
-  quiche::QuicheStringPiece data(frame.data_buffer, frame.data_length);
+  absl::string_view data(frame.data_buffer, frame.data_length);
   if (QuicUtils::IsCryptoStreamId(framer_->transport_version(),
                                   frame.stream_id) &&
       frame.offset == 0 && quiche::QuicheTextUtils::StartsWith(data, "CHLO")) {
@@ -167,14 +166,14 @@ bool ChloFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& frame) {
     // CHLO will be in stream frames before v47.
     return false;
   }
-  quiche::QuicheStringPiece data(frame.data_buffer, frame.data_length);
+  absl::string_view data(frame.data_buffer, frame.data_length);
   if (frame.offset == 0 && quiche::QuicheTextUtils::StartsWith(data, "CHLO")) {
     return OnHandshakeData(data);
   }
   return true;
 }
 
-bool ChloFramerVisitor::OnHandshakeData(quiche::QuicheStringPiece data) {
+bool ChloFramerVisitor::OnHandshakeData(absl::string_view data) {
   CryptoFramer crypto_framer;
   crypto_framer.set_visitor(this);
   if (!crypto_framer.ProcessInput(data)) {

@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_path_challenge_frame.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -1291,16 +1291,16 @@ QuicVariableLengthIntegerLength QuicPacketCreator::GetRetryTokenLengthLength()
   return VARIABLE_LENGTH_INTEGER_LENGTH_0;
 }
 
-quiche::QuicheStringPiece QuicPacketCreator::GetRetryToken() const {
+absl::string_view QuicPacketCreator::GetRetryToken() const {
   if (QuicVersionHasLongHeaderLengths(framer_->transport_version()) &&
       HasIetfLongHeader() &&
       EncryptionlevelToLongHeaderType(packet_.encryption_level) == INITIAL) {
     return retry_token_;
   }
-  return quiche::QuicheStringPiece();
+  return absl::string_view();
 }
 
-void QuicPacketCreator::SetRetryToken(quiche::QuicheStringPiece retry_token) {
+void QuicPacketCreator::SetRetryToken(absl::string_view retry_token) {
   retry_token_ = std::string(retry_token);
 }
 

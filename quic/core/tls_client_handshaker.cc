@@ -7,6 +7,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -189,7 +189,7 @@ bool TlsClientHandshaker::SetAlpn() {
       success && (SSL_set_alpn_protos(ssl(), alpn, alpn_writer.length()) == 0);
   if (!success) {
     QUIC_BUG << "Failed to set ALPN: "
-             << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+             << quiche::QuicheTextUtils::HexDump(absl::string_view(
                     alpn_writer.data(), alpn_writer.length()));
     return false;
   }
@@ -616,7 +616,7 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
 }
 
 void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
-                                       quiche::QuicheStringPiece data) {
+                                       absl::string_view data) {
   if (level == ENCRYPTION_HANDSHAKE &&
       state_ < STATE_ENCRYPTION_HANDSHAKE_DATA_SENT) {
     state_ = STATE_ENCRYPTION_HANDSHAKE_DATA_SENT;

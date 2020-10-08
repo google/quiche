@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -53,12 +53,12 @@ QUIC_EXPORT_PRIVATE std::string QuicTagToString(QuicTag tag);
 // corresponding QuicTag. Note that tags that are less than four characters
 // long are right-padded with zeroes. Tags that contain non-ASCII characters
 // are represented as 8-character-long hexadecimal strings.
-QUIC_EXPORT_PRIVATE QuicTag ParseQuicTag(quiche::QuicheStringPiece tag_string);
+QUIC_EXPORT_PRIVATE QuicTag ParseQuicTag(absl::string_view tag_string);
 
 // Utility function that converts a string of the form "ABCD,EFGH" to a vector
 // of the form {kABCD,kEFGH}. Note the caveats on ParseQuicTag.
 QUIC_EXPORT_PRIVATE QuicTagVector
-ParseQuicTagVector(quiche::QuicheStringPiece tags_string);
+ParseQuicTagVector(absl::string_view tags_string);
 
 }  // namespace quic
 

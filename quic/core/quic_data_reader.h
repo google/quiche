@@ -8,10 +8,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
 
 namespace quic {
@@ -34,7 +34,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader : public quiche::QuicheDataReader {
  public:
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.
-  explicit QuicDataReader(quiche::QuicheStringPiece data);
+  explicit QuicDataReader(absl::string_view data);
   // Constructs a reader using NETWORK_BYTE_ORDER endianness.
   // Caller must provide an underlying buffer to work on.
   QuicDataReader(const char* data, const size_t len);
@@ -85,7 +85,7 @@ class QUIC_EXPORT_PRIVATE QuicDataReader : public quiche::QuicheDataReader {
   //
   // Forwards the internal iterator on success.
   // Returns true on success, false otherwise.
-  bool ReadStringPieceVarInt62(quiche::QuicheStringPiece* result);
+  bool ReadStringPieceVarInt62(absl::string_view* result);
 };
 
 }  // namespace quic

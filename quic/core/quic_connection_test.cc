@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
@@ -42,7 +43,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -116,9 +116,7 @@ class StrictTaggingDecrypter : public TaggingDecrypter {
   ~StrictTaggingDecrypter() override {}
 
   // TaggingQuicDecrypter
-  uint8_t GetTag(quiche::QuicheStringPiece /*ciphertext*/) override {
-    return tag_;
-  }
+  uint8_t GetTag(absl::string_view /*ciphertext*/) override { return tag_; }
 
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF1; }
@@ -252,7 +250,7 @@ class TestConnection : public QuicConnection {
   }
 
   QuicConsumedData SendStreamDataWithString(QuicStreamId id,
-                                            quiche::QuicheStringPiece data,
+                                            absl::string_view data,
                                             QuicStreamOffset offset,
                                             StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
@@ -273,7 +271,7 @@ class TestConnection : public QuicConnection {
 
   QuicConsumedData SendApplicationDataAtLevel(EncryptionLevel encryption_level,
                                               QuicStreamId id,
-                                              quiche::QuicheStringPiece data,
+                                              absl::string_view data,
                                               QuicStreamOffset offset,
                                               StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
@@ -310,7 +308,7 @@ class TestConnection : public QuicConnection {
   // tests for some cases for this stream.
   QuicConsumedData SendCryptoStreamData() {
     QuicStreamOffset offset = 0;
-    quiche::QuicheStringPiece data("chlo");
+    absl::string_view data("chlo");
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
       return SendCryptoDataWithString(data, offset);
     }
@@ -326,12 +324,12 @@ class TestConnection : public QuicConnection {
     return QuicConsumedData(bytes_written, /*fin_consumed*/ false);
   }
 
-  QuicConsumedData SendCryptoDataWithString(quiche::QuicheStringPiece data,
+  QuicConsumedData SendCryptoDataWithString(absl::string_view data,
                                             QuicStreamOffset offset) {
     return SendCryptoDataWithString(data, offset, ENCRYPTION_INITIAL);
   }
 
-  QuicConsumedData SendCryptoDataWithString(quiche::QuicheStringPiece data,
+  QuicConsumedData SendCryptoDataWithString(absl::string_view data,
                                             QuicStreamOffset offset,
                                             EncryptionLevel encryption_level) {
     if (!QuicVersionUsesCryptoFrames(transport_version())) {
@@ -604,9 +602,9 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                     version()),
         creator_(QuicConnectionPeer::GetPacketCreator(&connection_)),
         manager_(QuicConnectionPeer::GetSentPacketManager(&connection_)),
-        frame1_(0, false, 0, quiche::QuicheStringPiece(data1)),
-        frame2_(0, false, 3, quiche::QuicheStringPiece(data2)),
-        crypto_frame_(ENCRYPTION_INITIAL, 0, quiche::QuicheStringPiece(data1)),
+        frame1_(0, false, 0, absl::string_view(data1)),
+        frame2_(0, false, 3, absl::string_view(data2)),
+        crypto_frame_(ENCRYPTION_INITIAL, 0, absl::string_view(data1)),
         packet_number_length_(PACKET_4BYTE_PACKET_NUMBER),
         connection_id_included_(CONNECTION_ID_PRESENT),
         notifier_(&connection_),
@@ -750,7 +748,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
     return QuicFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_.transport_version()), false,
-        0u, quiche::QuicheStringPiece()));
+        0u, absl::string_view()));
   }
 
   void ProcessFramePacket(QuicFrame frame) {
@@ -1006,7 +1004,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   }
 
   QuicByteCount SendStreamDataToPeer(QuicStreamId id,
-                                     quiche::QuicheStringPiece data,
+                                     absl::string_view data,
                                      QuicStreamOffset offset,
                                      StreamSendingState state,
                                      QuicPacketNumber* last_packet) {
@@ -1043,7 +1041,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void SendPing() { notifier_.WriteOrBufferPing(); }
 
-  MessageStatus SendMessage(quiche::QuicheStringPiece message) {
+  MessageStatus SendMessage(absl::string_view message) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
     return connection_.SendMessage(
@@ -3123,7 +3121,7 @@ TEST_P(QuicConnectionTest, FramePackingSendv) {
   QuicStreamFrame* frame = writer_->stream_frames()[0].get();
   EXPECT_EQ(stream_id, frame->stream_id);
   EXPECT_EQ("ABCDEF",
-            quiche::QuicheStringPiece(frame->data_buffer, frame->data_length));
+            absl::string_view(frame->data_buffer, frame->data_length));
 }
 
 TEST_P(QuicConnectionTest, FramePackingSendvQueued) {
@@ -8254,7 +8252,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
     connection_.SetFromConfig(config);
   }
   std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
-  quiche::QuicheStringPiece message_data(message);
+  absl::string_view message_data(message);
   QuicMemSliceStorage storage(nullptr, 0, nullptr, 0);
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
@@ -8267,7 +8265,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
               connection_.SendMessage(
                   1,
                   MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                           quiche::QuicheStringPiece(
+                           absl::string_view(
                                message_data.data(),
                                connection_.GetCurrentLargestMessagePayload()),
                            &storage),
@@ -8288,7 +8286,7 @@ TEST_P(QuicConnectionTest, SendMessage) {
             connection_.SendMessage(
                 3,
                 MakeSpan(connection_.helper()->GetStreamSendBufferAllocator(),
-                         quiche::QuicheStringPiece(
+                         absl::string_view(
                              message_data.data(),
                              connection_.GetCurrentLargestMessagePayload() + 1),
                          &storage),
@@ -10305,7 +10303,7 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
   frames.push_back(QuicFrame(QuicStreamFrame(
       QuicUtils::GetFirstBidirectionalStreamId(
           connection_.version().transport_version, Perspective::IS_CLIENT),
-      false, 0u, quiche::QuicheStringPiece())));
+      false, 0u, absl::string_view())));
   QuicAckFrame ack_frame = InitAckFrame(1);
   frames.push_back(QuicFrame(&ack_frame));
   // Receiving stream frame causes something to send.
@@ -11044,7 +11042,7 @@ TEST_P(QuicConnectionTest, DonotSendPing) {
   frames.push_back(QuicFrame(&ack_frame));
   frames.push_back(QuicFrame(QuicStreamFrame(
       GetNthClientInitiatedStreamId(0, connection_.transport_version()), true,
-      0u, quiche::QuicheStringPiece())));
+      0u, absl::string_view())));
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
@@ -11767,7 +11765,7 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
   frames1.push_back(QuicFrame(&crypto_frame_));
   QuicFrames frames2;
   QuicCryptoFrame crypto_frame(ENCRYPTION_HANDSHAKE, 0,
-                               quiche::QuicheStringPiece(data1));
+                               absl::string_view(data1));
   frames2.push_back(QuicFrame(&crypto_frame));
   ProcessCoalescedPacket(
       {{2, frames1, ENCRYPTION_INITIAL}, {3, frames2, ENCRYPTION_HANDSHAKE}});
@@ -11798,7 +11796,7 @@ TEST_P(QuicConnectionTest, OnZeroRttPacketAcked) {
 
   QuicFrames frames2;
   QuicCryptoFrame crypto_frame(ENCRYPTION_HANDSHAKE, 0,
-                               quiche::QuicheStringPiece(data1));
+                               absl::string_view(data1));
   frames2.push_back(QuicFrame(&crypto_frame));
   EXPECT_CALL(debug_visitor, OnZeroRttPacketAcked()).Times(0);
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);

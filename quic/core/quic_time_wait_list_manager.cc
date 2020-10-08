@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -239,7 +239,7 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
                 << (ietf_quic ? "" : "!") << "ietf_quic, "
                 << (use_length_prefix ? "" : "!")
                 << "use_length_prefix:" << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        version_packet->data(), version_packet->length()));
   SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
                                                    std::move(version_packet)),
@@ -263,9 +263,9 @@ void QuicTimeWaitListManager::SendPublicReset(
         BuildIetfStatelessResetPacket(connection_id);
     QUIC_DVLOG(2) << "Dispatcher sending IETF reset packet for "
                   << connection_id << std::endl
-                  << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                         ietf_reset_packet->data(),
-                         ietf_reset_packet->length()));
+                  << quiche::QuicheTextUtils::HexDump(
+                         absl::string_view(ietf_reset_packet->data(),
+                                           ietf_reset_packet->length()));
     SendOrQueuePacket(
         std::make_unique<QueuedPacket>(self_address, peer_address,
                                        std::move(ietf_reset_packet)),
@@ -283,7 +283,7 @@ void QuicTimeWaitListManager::SendPublicReset(
   std::unique_ptr<QuicEncryptedPacket> reset_packet = BuildPublicReset(packet);
   QUIC_DVLOG(2) << "Dispatcher sending reset packet for " << connection_id
                 << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
+                << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        reset_packet->data(), reset_packet->length()));
   SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
                                                    std::move(reset_packet)),

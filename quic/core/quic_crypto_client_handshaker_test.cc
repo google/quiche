@@ -6,10 +6,10 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config_proto.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -34,7 +34,7 @@ class InsecureProofVerifier : public ProofVerifier {
       const uint16_t /*port*/,
       const std::string& /*server_config*/,
       QuicTransportVersion /*transport_version*/,
-      quiche::QuicheStringPiece /*chlo_hash*/,
+      absl::string_view /*chlo_hash*/,
       const std::vector<std::string>& /*certs*/,
       const std::string& /*cert_sct*/,
       const std::string& /*signature*/,
@@ -74,7 +74,7 @@ class DummyProofSource : public ProofSource {
                 const std::string& hostname,
                 const std::string& /*server_config*/,
                 QuicTransportVersion /*transport_version*/,
-                quiche::QuicheStringPiece /*chlo_hash*/,
+                absl::string_view /*chlo_hash*/,
                 std::unique_ptr<Callback> callback) override {
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
         GetCertChain(server_address, client_address, hostname);
@@ -99,7 +99,7 @@ class DummyProofSource : public ProofSource {
       const QuicSocketAddress& /*client_address*/,
       const std::string& /*hostname*/,
       uint16_t /*signature_algorit*/,
-      quiche::QuicheStringPiece /*in*/,
+      absl::string_view /*in*/,
       std::unique_ptr<SignatureCallback> callback) override {
     callback->Run(true, "Dummy signature", /*details=*/nullptr);
   }

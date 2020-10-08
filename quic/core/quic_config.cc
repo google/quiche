@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
@@ -23,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -411,7 +411,7 @@ QuicErrorCode QuicFixedSocketAddress::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
-  quiche::QuicheStringPiece address;
+  absl::string_view address;
   if (!peer_hello.GetStringPiece(tag_, &address)) {
     if (presence_ == PRESENCE_REQUIRED) {
       *error_details = "Missing " + QuicTagToString(tag_);

@@ -7,8 +7,8 @@
 #include <cinttypes>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 

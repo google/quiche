@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_datagram_queue.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -11,7 +12,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -41,7 +41,7 @@ class QuicDatagramQueueTest : public QuicTest {
     session_.SetCryptoStream(new EstablishedCryptoStream(&session_));
   }
 
-  QuicMemSlice CreateMemSlice(quiche::QuicheStringPiece data) {
+  QuicMemSlice CreateMemSlice(absl::string_view data) {
     QuicUniqueBufferPtr buffer =
         MakeUniqueBuffer(helper_.GetStreamSendBufferAllocator(), data.size());
     memcpy(buffer.get(), data.data(), data.size());

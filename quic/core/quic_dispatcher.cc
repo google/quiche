@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -190,12 +190,12 @@ class ChloAlpnExtractor : public ChloExtractor::Delegate {
   void OnChlo(QuicTransportVersion version,
               QuicConnectionId /*server_connection_id*/,
               const CryptoHandshakeMessage& chlo) override {
-    quiche::QuicheStringPiece alpn_value;
+    absl::string_view alpn_value;
     if (chlo.GetStringPiece(kALPN, &alpn_value)) {
       alpn_ = std::string(alpn_value);
     }
     if (version == LegacyVersionForEncapsulation().transport_version) {
-      quiche::QuicheStringPiece qlve_value;
+      absl::string_view qlve_value;
       if (chlo.GetStringPiece(kQLVE, &qlve_value)) {
         legacy_version_encapsulation_inner_packet_ = std::string(qlve_value);
       }
@@ -231,7 +231,7 @@ bool MaybeHandleLegacyVersionEncapsulation(
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
   bool retry_token_present;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   std::string detailed_error;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       QuicEncryptedPacket(legacy_version_encapsulation_inner_packet.data(),
@@ -338,12 +338,12 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
                                    const QuicReceivedPacket& packet) {
   QUIC_DVLOG(2) << "Dispatcher received encrypted " << packet.length()
                 << " bytes:" << std::endl
-                << quiche::QuicheTextUtils::HexDump(quiche::QuicheStringPiece(
-                       packet.data(), packet.length()));
+                << quiche::QuicheTextUtils::HexDump(
+                       absl::string_view(packet.data(), packet.length()));
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
   bool retry_token_present;
-  quiche::QuicheStringPiece retry_token;
+  absl::string_view retry_token;
   const QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       packet, expected_server_connection_id_length_, &packet_info.form,
       &packet_info.long_packet_type, &packet_info.version_flag,

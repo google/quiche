@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/handshaker_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/legacy_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -34,7 +35,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -98,7 +98,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
-  void OnMessageReceived(quiche::QuicheStringPiece message) override;
+  void OnMessageReceived(absl::string_view message) override;
   void OnHandshakeDoneReceived() override;
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
@@ -449,12 +449,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Provided a list of ALPNs offered by the client, selects an ALPN from the
   // list, or alpns.end() if none of the ALPNs are acceptable.
-  virtual std::vector<quiche::QuicheStringPiece>::const_iterator SelectAlpn(
-      const std::vector<quiche::QuicheStringPiece>& alpns) const;
+  virtual std::vector<absl::string_view>::const_iterator SelectAlpn(
+      const std::vector<absl::string_view>& alpns) const;
 
   // Called when the ALPN of the connection is established for a connection that
   // uses TLS handshake.
-  virtual void OnAlpnSelected(quiche::QuicheStringPiece alpn);
+  virtual void OnAlpnSelected(absl::string_view alpn);
 
   // Called on clients by the crypto handshaker to provide application state
   // necessary for sending application data in 0-RTT. The state provided here is

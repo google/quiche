@@ -11,20 +11,20 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 namespace test {
 
-quiche::QuicheStringPiece IovecToStringPiece(iovec iov) {
-  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(iov.iov_base),
-                                   iov.iov_len);
+absl::string_view IovecToStringPiece(iovec iov) {
+  return absl::string_view(reinterpret_cast<const char*>(iov.iov_base),
+                           iov.iov_len);
 }
 
 char GetCharFromIOVecs(size_t offset, iovec iov[], size_t count) {
@@ -159,8 +159,8 @@ TEST_F(QuicStreamSequencerBufferTest, Move) {
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
   // Pass in an invalid source, expects to return error.
-  quiche::QuicheStringPiece source;
-  source = quiche::QuicheStringPiece(nullptr, 1024);
+  absl::string_view source;
+  source = absl::string_view(nullptr, 1024);
   EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
               IsError(QUIC_STREAM_SEQUENCER_INVALID_STATE));
   EXPECT_EQ(0u, error_details_.find(quiche::QuicheStrCat(
@@ -320,7 +320,7 @@ TEST_F(QuicStreamSequencerBufferTest, Readv100Bytes) {
   QUIC_LOG(ERROR) << error_details_;
   EXPECT_EQ(100u, read);
   EXPECT_EQ(100u, buffer_->BytesConsumed());
-  EXPECT_EQ(source, quiche::QuicheStringPiece(dest, read));
+  EXPECT_EQ(source, absl::string_view(dest, read));
   // The first block should be released as its data has been read out.
   EXPECT_EQ(nullptr, helper_->GetBlock(0));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -610,8 +610,7 @@ TEST_F(QuicStreamSequencerBufferTest, PeekSingleBlock) {
 
   // Peek at a different offset.
   EXPECT_TRUE(buffer_->PeekRegion(100, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source).substr(100),
-            IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source).substr(100), IovecToStringPiece(iov));
 
   // Peeking at or after FirstMissingByte() returns false.
   EXPECT_FALSE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
@@ -638,15 +637,15 @@ TEST_F(QuicStreamSequencerBufferTest, PeekTwoWritesInSingleBlock) {
   // Peek with an offset inside the first write.
   const QuicStreamOffset offset1 = 500;
   EXPECT_TRUE(buffer_->PeekRegion(offset1, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source1).substr(offset1),
+  EXPECT_EQ(absl::string_view(source1).substr(offset1),
             IovecToStringPiece(iov).substr(0, length1 - offset1));
-  EXPECT_EQ(quiche::QuicheStringPiece(source2),
+  EXPECT_EQ(absl::string_view(source2),
             IovecToStringPiece(iov).substr(length1 - offset1));
 
   // Peek with an offset inside the second write.
   const QuicStreamOffset offset2 = 1500;
   EXPECT_TRUE(buffer_->PeekRegion(offset2, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source2).substr(offset2 - length1),
+  EXPECT_EQ(absl::string_view(source2).substr(offset2 - length1),
             IovecToStringPiece(iov));
 
   // Peeking at or after FirstMissingByte() returns false.
@@ -671,19 +670,16 @@ TEST_F(QuicStreamSequencerBufferTest, PeekBufferWithMultipleBlocks) {
   EXPECT_TRUE(buffer_->PeekRegion(0, &iov));
   EXPECT_EQ(kBlockSizeBytes, iov.iov_len);
   EXPECT_EQ(source1, IovecToStringPiece(iov).substr(0, length1));
-  EXPECT_EQ(
-      quiche::QuicheStringPiece(source2).substr(0, kBlockSizeBytes - length1),
-      IovecToStringPiece(iov).substr(length1));
+  EXPECT_EQ(absl::string_view(source2).substr(0, kBlockSizeBytes - length1),
+            IovecToStringPiece(iov).substr(length1));
 
   EXPECT_TRUE(buffer_->PeekRegion(length1, &iov));
-  EXPECT_EQ(
-      quiche::QuicheStringPiece(source2).substr(0, kBlockSizeBytes - length1),
-      IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source2).substr(0, kBlockSizeBytes - length1),
+            IovecToStringPiece(iov));
 
   EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes, &iov));
-  EXPECT_EQ(
-      quiche::QuicheStringPiece(source2).substr(kBlockSizeBytes - length1),
-      IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source2).substr(kBlockSizeBytes - length1),
+            IovecToStringPiece(iov));
 
   // Peeking at or after FirstMissingByte() returns false.
   EXPECT_FALSE(buffer_->PeekRegion(length1 + length2, &iov));
@@ -706,12 +702,10 @@ TEST_F(QuicStreamSequencerBufferTest, PeekAfterConsumed) {
   EXPECT_FALSE(buffer_->PeekRegion(512, &iov));
 
   EXPECT_TRUE(buffer_->PeekRegion(1024, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source1).substr(1024),
-            IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source1).substr(1024), IovecToStringPiece(iov));
 
   EXPECT_TRUE(buffer_->PeekRegion(1500, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source1).substr(1500),
-            IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source1).substr(1500), IovecToStringPiece(iov));
 
   // Consume rest of block.
   EXPECT_TRUE(buffer_->MarkConsumed(kBlockSizeBytes - 1024));
@@ -725,8 +719,7 @@ TEST_F(QuicStreamSequencerBufferTest, PeekAfterConsumed) {
   EXPECT_EQ(source2, IovecToStringPiece(iov));
 
   EXPECT_TRUE(buffer_->PeekRegion(kBlockSizeBytes + 128, &iov));
-  EXPECT_EQ(quiche::QuicheStringPiece(source2).substr(128),
-            IovecToStringPiece(iov));
+  EXPECT_EQ(absl::string_view(source2).substr(128), IovecToStringPiece(iov));
 
   // Peeking into consumed data still fails.
   EXPECT_FALSE(buffer_->PeekRegion(0, &iov));
@@ -933,7 +926,7 @@ class QuicStreamSequencerBufferRandomIOTest
     for (size_t i = 0; i < num_to_write; ++i) {
       write_buf[i] = (offset + i) % 256;
     }
-    quiche::QuicheStringPiece string_piece_w(write_buf.get(), num_to_write);
+    absl::string_view string_piece_w(write_buf.get(), num_to_write);
     auto result = buffer_->OnStreamData(offset, string_piece_w, &written_,
                                         &error_details_);
     if (result == QUIC_NO_ERROR) {

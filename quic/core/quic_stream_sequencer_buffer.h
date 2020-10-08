@@ -28,11 +28,11 @@
 // Expected Use:
 //  QuicStreamSequencerBuffer buffer(2.5 * 8 * 1024);
 //  std::string source(1024, 'a');
-//  quiche::QuicheStringPiece string_piece(source.data(), source.size());
+//  absl::string_view string_piece(source.data(), source.size());
 //  size_t written = 0;
 //  buffer.OnStreamData(800, string_piece, GetEpollClockNow(), &written);
 //  source = std::string{800, 'b'};
-//  quiche::QuicheStringPiece string_piece1(source.data(), 800);
+//  absl::string_view string_piece1(source.data(), 800);
 //  // Try to write to [1, 801), but should fail due to overlapping,
 //  // res should be QUIC_INVALID_STREAM_DATA
 //  auto res = buffer.OnStreamData(1, string_piece1, &written));
@@ -64,12 +64,12 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -107,7 +107,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // successfully buffered, returns QUIC_NO_ERROR and stores the number of
   // bytes buffered in |bytes_buffered|. Returns an error otherwise.
   QuicErrorCode OnStreamData(QuicStreamOffset offset,
-                             quiche::QuicheStringPiece data,
+                             absl::string_view data,
                              size_t* bytes_buffered,
                              std::string* error_details);
 
@@ -168,7 +168,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Copies |data| to blocks_, sets |bytes_copy|. Returns true if the copy is
   // successful. Otherwise, sets |error_details| and returns false.
   bool CopyStreamData(QuicStreamOffset offset,
-                      quiche::QuicheStringPiece data,
+                      absl::string_view data,
                       size_t* bytes_copy,
                       std::string* error_details);
 

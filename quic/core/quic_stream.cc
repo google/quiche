@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using quiche::QuicheOptional;
 using spdy::SpdyPriority;
@@ -623,7 +623,7 @@ void QuicStream::SetPriority(const spdy::SpdyStreamPrecedence& precedence) {
 }
 
 void QuicStream::WriteOrBufferData(
-    quiche::QuicheStringPiece data,
+    absl::string_view data,
     bool fin,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
   if (data.empty() && !fin) {

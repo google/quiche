@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_TLS_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_TLS_HANDSHAKER_H_
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -36,8 +36,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   ~TlsHandshaker() override;
 
   // From CryptoMessageParser
-  bool ProcessInput(quiche::QuicheStringPiece input,
-                    EncryptionLevel level) override;
+  bool ProcessInput(absl::string_view input, EncryptionLevel level) override;
   size_t InputBytesRemaining() const override { return 0; }
   QuicErrorCode error() const override { return parser_error_; }
   const std::string& error_detail() const override {
@@ -88,8 +87,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // WriteMessage is called when there is |data| from the TLS stack ready for
   // the QUIC stack to write in a crypto frame. The data must be transmitted at
   // encryption level |level|.
-  void WriteMessage(EncryptionLevel level,
-                    quiche::QuicheStringPiece data) override;
+  void WriteMessage(EncryptionLevel level, absl::string_view data) override;
 
   // FlushFlight is called to signal that the current flight of
   // messages have all been written (via calls to WriteMessage) and can be

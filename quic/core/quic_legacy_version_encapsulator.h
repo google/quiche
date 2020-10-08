@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_LEGACY_VERSION_ENCAPSULATOR_H_
 #define QUICHE_QUIC_CORE_QUIC_LEGACY_VERSION_ENCAPSULATOR_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -27,8 +27,8 @@ class QUIC_EXPORT_PRIVATE QuicLegacyVersionEncapsulator
   // the contents of the encapsulated packet to |out|. |out| must point to a
   // valid memory buffer capable of holding kMaxOutgoingPacketSize bytes.
   static QuicPacketLength Encapsulate(
-      quiche::QuicheStringPiece sni,
-      quiche::QuicheStringPiece inner_packet,
+      absl::string_view sni,
+      absl::string_view inner_packet,
       const QuicConnectionId& server_connection_id,
       QuicTime creation_time,
       QuicByteCount outer_max_packet_length,
@@ -37,7 +37,7 @@ class QUIC_EXPORT_PRIVATE QuicLegacyVersionEncapsulator
   // Returns the number of bytes of minimum overhead caused by Legacy Version
   // Encapsulation, based on the length of the provided server name |sni|.
   // The overhead may be higher due to extra padding added.
-  static QuicByteCount GetMinimumOverhead(quiche::QuicheStringPiece sni);
+  static QuicByteCount GetMinimumOverhead(absl::string_view sni);
 
   // Overrides for QuicPacketCreator::DelegateInterface.
   QuicPacketBuffer GetPacketBuffer() override;
