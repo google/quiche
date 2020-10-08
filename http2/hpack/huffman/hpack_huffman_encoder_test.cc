@@ -115,6 +115,7 @@ TEST_P(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
   }
 }
 
+// Test that encoding appends to output without overwriting it.
 TEST_P(HuffmanEncoderTest, AppendToOutput) {
   size_t encoded_size = HuffmanSize("foo");
   std::string buffer;
@@ -123,14 +124,7 @@ TEST_P(HuffmanEncoderTest, AppendToOutput) {
 
   encoded_size = HuffmanSize("bar");
   Encode("bar", encoded_size, &buffer);
-
-  if (use_fast_encoder_) {
-    // HuffmanEncodeFast() appends to output allowing callers to eliminate copy.
-    EXPECT_EQ(Http2HexDecode("94e78c767f"), buffer);
-  } else {
-    // HuffmanEncode() clears output before encoding.
-    EXPECT_EQ(Http2HexDecode("8c767f"), buffer);
-  }
+  EXPECT_EQ(Http2HexDecode("94e78c767f"), buffer);
 }
 
 }  // namespace

@@ -141,6 +141,7 @@ void QpackInstructionEncoder::DoStartString(quiche::QuicheStringPiece name,
     DCHECK_EQ(0, byte_ & (1 << field_->param));
     byte_ |= (1 << field_->param);
 
+    huffman_encoded_string_.clear();
     http2::HuffmanEncode(string_to_write_, encoded_size,
                          &huffman_encoded_string_);
     string_to_write_ = huffman_encoded_string_;
