@@ -78,6 +78,9 @@ class QUIC_EXPORT_PRIVATE QpackInstructionEncoder {
 
   // Field currently being decoded.
   QpackInstructionFields::const_iterator field_;
+
+  // Latched value of gfe2_reloadable_flag_quic_use_fast_huffman_encoder.
+  const bool use_fast_huffman_encoder_;
 };
 
 }  // namespace quic

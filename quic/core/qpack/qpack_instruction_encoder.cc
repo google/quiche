@@ -8,6 +8,7 @@
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
@@ -19,7 +20,13 @@ QpackInstructionEncoder::QpackInstructionEncoder()
       string_length_(0),
       byte_(0),
       state_(State::kOpcode),
-      instruction_(nullptr) {}
+      instruction_(nullptr),
+      use_fast_huffman_encoder_(
+          GetQuicReloadableFlag(quic_use_fast_huffman_encoder)) {
+  if (use_fast_huffman_encoder_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_fast_huffman_encoder);
+  }
+}
 
 void QpackInstructionEncoder::Encode(
     const QpackInstructionWithValues& instruction_with_values,
@@ -164,7 +171,11 @@ void QpackInstructionEncoder::DoWriteString(quiche::QuicheStringPiece name,
   quiche::QuicheStringPiece string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   if (use_huffman_) {
-    http2::HuffmanEncode(string_to_write, string_length_, output);
+    if (use_fast_huffman_encoder_) {
+      http2::HuffmanEncodeFast(string_to_write, string_length_, output);
+    } else {
+      http2::HuffmanEncode(string_to_write, string_length_, output);
+    }
   } else {
     QuicStrAppend(output, string_to_write);
   }
