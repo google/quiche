@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/qbone/qbone_stream.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 ABSL_FLAG(int, qbone_stream_ttl_secs, 3, "The QBONE Stream TTL in seconds.");
 
@@ -24,8 +24,7 @@ QboneWriteOnlyStream::QboneWriteOnlyStream(QuicStreamId id,
       QuicTime::Delta::FromSeconds(GetQuicFlag(FLAGS_qbone_stream_ttl_secs)));
 }
 
-void QboneWriteOnlyStream::WritePacketToQuicStream(
-    quiche::QuicheStringPiece packet) {
+void QboneWriteOnlyStream::WritePacketToQuicStream(absl::string_view packet) {
   // Streams are one way and ephemeral. This function should only be
   // called once.
   WriteOrBufferData(packet, /* fin= */ true, nullptr);

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_session_base.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -89,14 +89,8 @@ class MockQuicSession : public QboneSessionBase {
     return nullptr;
   }
 
-  MOCK_METHOD(void,
-              ProcessPacketFromPeer,
-              (quiche::QuicheStringPiece),
-              (override));
-  MOCK_METHOD(void,
-              ProcessPacketFromNetwork,
-              (quiche::QuicheStringPiece),
-              (override));
+  MOCK_METHOD(void, ProcessPacketFromPeer, (absl::string_view), (override));
+  MOCK_METHOD(void, ProcessPacketFromNetwork, (absl::string_view), (override));
 
  private:
   // Whether data is written to write_buffer_.

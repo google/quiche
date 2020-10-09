@@ -8,9 +8,9 @@
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -52,8 +52,8 @@ class QbonePacketProcessor {
    public:
     virtual ~OutputInterface();
 
-    virtual void SendPacketToClient(quiche::QuicheStringPiece packet) = 0;
-    virtual void SendPacketToNetwork(quiche::QuicheStringPiece packet) = 0;
+    virtual void SendPacketToClient(absl::string_view packet) = 0;
+    virtual void SendPacketToNetwork(absl::string_view packet) = 0;
   };
 
   class StatsInterface {
@@ -94,8 +94,8 @@ class QbonePacketProcessor {
     // Note that |output| should not be used except in the DEFER case, as the
     // processor will perform the necessary writes itself.
     virtual ProcessingResult FilterPacket(Direction direction,
-                                          quiche::QuicheStringPiece full_packet,
-                                          quiche::QuicheStringPiece payload,
+                                          absl::string_view full_packet,
+                                          absl::string_view payload,
                                           icmp6_hdr* icmp_header,
                                           OutputInterface* output);
 
@@ -104,19 +104,17 @@ class QbonePacketProcessor {
     // for filtering from the |ipv6_header| argument.  All of those assume that
     // the header is of valid size, which is true for everything passed into
     // FilterPacket().
-    inline uint8_t TransportProtocolFromHeader(
-        quiche::QuicheStringPiece ipv6_header) {
+    inline uint8_t TransportProtocolFromHeader(absl::string_view ipv6_header) {
       return ipv6_header[6];
     }
-    inline QuicIpAddress SourceIpFromHeader(
-        quiche::QuicheStringPiece ipv6_header) {
+    inline QuicIpAddress SourceIpFromHeader(absl::string_view ipv6_header) {
       QuicIpAddress address;
       address.FromPackedString(&ipv6_header[8],
                                QuicIpAddress::kIPv6AddressSize);
       return address;
     }
     inline QuicIpAddress DestinationIpFromHeader(
-        quiche::QuicheStringPiece ipv6_header) {
+        absl::string_view ipv6_header) {
       QuicIpAddress address;
       address.FromPackedString(&ipv6_header[24],
                                QuicIpAddress::kIPv6AddressSize);
@@ -167,10 +165,10 @@ class QbonePacketProcessor {
                                               icmp6_hdr* icmp_header);
 
   void SendIcmpResponse(icmp6_hdr* icmp_header,
-                        quiche::QuicheStringPiece original_packet,
+                        absl::string_view original_packet,
                         Direction original_direction);
 
-  void SendTcpReset(quiche::QuicheStringPiece original_packet,
+  void SendTcpReset(absl::string_view original_packet,
                     Direction original_direction);
 
   inline bool IsValid() const { return client_ip_ != kInvalidIpAddress; }
@@ -194,8 +192,7 @@ class QbonePacketProcessor {
                                      char** transport_data,
                                      icmp6_hdr* icmp_header);
 
-  void SendResponse(Direction original_direction,
-                    quiche::QuicheStringPiece packet);
+  void SendResponse(Direction original_direction, absl::string_view packet);
 };
 
 }  // namespace quic

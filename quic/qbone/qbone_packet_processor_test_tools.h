@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_PACKET_PROCESSOR_TEST_TOOLS_H_
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_PROCESSOR_TEST_TOOLS_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -15,14 +15,8 @@ class MockPacketProcessorOutput : public QbonePacketProcessor::OutputInterface {
  public:
   MockPacketProcessorOutput() {}
 
-  MOCK_METHOD(void,
-              SendPacketToClient,
-              (quiche::QuicheStringPiece),
-              (override));
-  MOCK_METHOD(void,
-              SendPacketToNetwork,
-              (quiche::QuicheStringPiece),
-              (override));
+  MOCK_METHOD(void, SendPacketToClient, (absl::string_view), (override));
+  MOCK_METHOD(void, SendPacketToNetwork, (absl::string_view), (override));
 };
 
 class MockPacketProcessorStats : public QbonePacketProcessor::StatsInterface {

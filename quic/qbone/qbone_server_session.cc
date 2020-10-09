@@ -6,11 +6,11 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -20,7 +20,7 @@ bool QboneCryptoServerStreamHelper::CanAcceptClientHello(
     const QuicSocketAddress& peer_address,
     const QuicSocketAddress& self_address,
     std::string* error_details) const {
-  quiche::QuicheStringPiece alpn;
+  absl::string_view alpn;
   chlo.GetStringPiece(quic::kALPN, &alpn);
   if (alpn != QboneConstants::kQboneAlpn) {
     *error_details = "ALPN-indicated protocol is not qbone";
@@ -72,25 +72,23 @@ bool QboneServerSession::SendClientRequest(const QboneClientRequest& request) {
   return control_stream_->SendRequest(request);
 }
 
-void QboneServerSession::ProcessPacketFromNetwork(
-    quiche::QuicheStringPiece packet) {
+void QboneServerSession::ProcessPacketFromNetwork(absl::string_view packet) {
   std::string buffer = std::string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_NETWORK);
 }
 
-void QboneServerSession::ProcessPacketFromPeer(
-    quiche::QuicheStringPiece packet) {
+void QboneServerSession::ProcessPacketFromPeer(absl::string_view packet) {
   std::string buffer = std::string(packet);
   processor_.ProcessPacket(&buffer,
                            QbonePacketProcessor::Direction::FROM_OFF_NETWORK);
 }
 
-void QboneServerSession::SendPacketToClient(quiche::QuicheStringPiece packet) {
+void QboneServerSession::SendPacketToClient(absl::string_view packet) {
   SendPacketToPeer(packet);
 }
 
-void QboneServerSession::SendPacketToNetwork(quiche::QuicheStringPiece packet) {
+void QboneServerSession::SendPacketToNetwork(absl::string_view packet) {
   DCHECK(writer_ != nullptr);
   writer_->WritePacketToNetwork(packet.data(), packet.size());
 }

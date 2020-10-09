@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/proto/crypto_server_config_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -77,7 +77,7 @@ class IndirectionProofSource : public ProofSource {
                 const std::string& hostname,
                 const std::string& server_config,
                 QuicTransportVersion transport_version,
-                quiche::QuicheStringPiece chlo_hash,
+                absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override {
     if (!proof_source_) {
       QuicReferenceCountedPointer<ProofSource::Chain> chain =
@@ -107,7 +107,7 @@ class IndirectionProofSource : public ProofSource {
       const QuicSocketAddress& client_address,
       const std::string& hostname,
       uint16_t signature_algorithm,
-      quiche::QuicheStringPiece in,
+      absl::string_view in,
       std::unique_ptr<SignatureCallback> callback) override {
     if (!proof_source_) {
       callback->Run(/*ok=*/true, "Signature", /*details=*/nullptr);
@@ -141,7 +141,7 @@ class IndirectionProofVerifier : public ProofVerifier {
       const uint16_t port,
       const std::string& server_config,
       QuicTransportVersion transport_version,
-      quiche::QuicheStringPiece chlo_hash,
+      absl::string_view chlo_hash,
       const std::vector<std::string>& certs,
       const std::string& cert_sct,
       const std::string& signature,
@@ -416,7 +416,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
     std::string expected;
     CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
-                     [&expected](quiche::QuicheStringPiece icmp_packet) {
+                     [&expected](absl::string_view icmp_packet) {
                        expected = std::string(icmp_packet);
                      });
 

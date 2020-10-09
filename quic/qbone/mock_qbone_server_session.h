@@ -27,14 +27,8 @@ class MockQboneServerSession : public QboneServerSession {
 
   MOCK_METHOD(bool, SendClientRequest, (const QboneClientRequest&), (override));
 
-  MOCK_METHOD(void,
-              ProcessPacketFromNetwork,
-              (quiche::QuicheStringPiece),
-              (override));
-  MOCK_METHOD(void,
-              ProcessPacketFromPeer,
-              (quiche::QuicheStringPiece),
-              (override));
+  MOCK_METHOD(void, ProcessPacketFromNetwork, (absl::string_view), (override));
+  MOCK_METHOD(void, ProcessPacketFromPeer, (absl::string_view), (override));
 };
 
 }  // namespace quic

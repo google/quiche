@@ -9,6 +9,7 @@
 
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 ABSL_FLAG(
     bool,
@@ -79,7 +79,7 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
   if (frame.offset == 0 && frame.fin && frame.data_length > 0) {
     ++num_ephemeral_packets_;
     ProcessPacketFromPeer(
-        quiche::QuicheStringPiece(frame.data_buffer, frame.data_length));
+        absl::string_view(frame.data_buffer, frame.data_length));
     flow_controller()->AddBytesConsumed(frame.data_length);
     // TODO(b/147817422): Add a counter for how many streams were actually
     // closed here.
@@ -91,7 +91,7 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
   QuicSession::OnStreamFrame(frame);
 }
 
-void QboneSessionBase::OnMessageReceived(quiche::QuicheStringPiece message) {
+void QboneSessionBase::OnMessageReceived(absl::string_view message) {
   ++num_message_packets_;
   ProcessPacketFromPeer(message);
 }
@@ -136,7 +136,7 @@ QuicStream* QboneSessionBase::ActivateDataStream(
   return raw;
 }
 
-void QboneSessionBase::SendPacketToPeer(quiche::QuicheStringPiece packet) {
+void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
   if (crypto_stream_ == nullptr) {
     QUIC_BUG << "Attempting to send packet before encryption established";
     return;
@@ -162,7 +162,7 @@ void QboneSessionBase::SendPacketToPeer(quiche::QuicheStringPiece packet) {
             connection()->GetGuaranteedLargestMessagePayload();
 
         CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
-                         [this](quiche::QuicheStringPiece icmp_packet) {
+                         [this](absl::string_view icmp_packet) {
                            writer_->WritePacketToNetwork(icmp_packet.data(),
                                                          icmp_packet.size());
                          });

@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_CLIENT_H_
 #define QUICHE_QUIC_QBONE_QBONE_CLIENT_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_client_interface.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_client_session.h"
 #include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client_base.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client_epoll_network_helper.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 // A QboneClient encapsulates connecting to a server via an epoll server
@@ -34,7 +34,7 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
 
   // From QboneClientInterface. Accepts a given packet from the network and
   // sends the packet down to the QBONE connection.
-  void ProcessPacketFromNetwork(quiche::QuicheStringPiece packet) override;
+  void ProcessPacketFromNetwork(absl::string_view packet) override;
 
   bool EarlyDataAccepted() override;
   bool ReceivedInchoateReject() override;

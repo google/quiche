@@ -6,6 +6,7 @@
 
 #include "net/third_party/quiche/src/quic/qbone/qbone_client.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
 #include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
@@ -26,7 +27,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_server.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -125,7 +125,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
       QuicConnectionId id,
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,
-      quiche::QuicheStringPiece alpn,
+      absl::string_view alpn,
       const quic::ParsedQuicVersion& version) override {
     CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
