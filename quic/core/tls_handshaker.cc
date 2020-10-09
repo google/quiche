@@ -70,7 +70,8 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                                    const std::vector<uint8_t>& write_secret) {
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::SetKeyAndIV(Prf(cipher), write_secret, encrypter.get());
+  CryptoUtils::InitializeCrypterSecrets(Prf(cipher), write_secret,
+                                        encrypter.get());
   handshaker_delegate_->OnNewEncryptionKeyAvailable(level,
                                                     std::move(encrypter));
 }
@@ -80,7 +81,8 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const std::vector<uint8_t>& read_secret) {
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::SetKeyAndIV(Prf(cipher), read_secret, decrypter.get());
+  CryptoUtils::InitializeCrypterSecrets(Prf(cipher), read_secret,
+                                        decrypter.get());
   return handshaker_delegate_->OnNewDecryptionKeyAvailable(
       level, std::move(decrypter),
       /*set_alternative_decrypter=*/false,

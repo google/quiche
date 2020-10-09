@@ -74,14 +74,29 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
     DiversificationNonce* nonce_;
   };
 
-  // SetKeyAndIV derives the key and IV from the given packet protection secret
-  // |pp_secret| and sets those fields on the given QuicCrypter |*crypter|.
+  // InitializeCrypterSecrets derives the key and IV and header protection key
+  // from the given packet protection secret |pp_secret| and sets those fields
+  // on the given QuicCrypter |*crypter|.
   // This follows the derivation described in section 7.3 of RFC 8446, except
   // with the label prefix in HKDF-Expand-Label changed from "tls13 " to "quic "
   // as described in draft-ietf-quic-tls-14, section 5.1.
+  static void InitializeCrypterSecrets(const EVP_MD* prf,
+                                       const std::vector<uint8_t>& pp_secret,
+                                       QuicCrypter* crypter);
+
+  // Derives the key and IV from the packet protection secret and sets those
+  // fields on the given QuicCrypter |*crypter|, but does not set the header
+  // protection key. GenerateHeaderProtectionKey/SetHeaderProtectionKey must be
+  // called before using |crypter|.
   static void SetKeyAndIV(const EVP_MD* prf,
                           const std::vector<uint8_t>& pp_secret,
                           QuicCrypter* crypter);
+
+  // Derives the header protection key from the packet protection secret.
+  static std::vector<uint8_t> GenerateHeaderProtectionKey(
+      const EVP_MD* prf,
+      const std::vector<uint8_t>& pp_secret,
+      size_t out_len);
 
   // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
   // (to prevent network observers that are not aware of that QUIC version from

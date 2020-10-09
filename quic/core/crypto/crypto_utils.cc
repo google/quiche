@@ -96,6 +96,18 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
 
 }  // namespace
 
+void CryptoUtils::InitializeCrypterSecrets(
+    const EVP_MD* prf,
+    const std::vector<uint8_t>& pp_secret,
+    QuicCrypter* crypter) {
+  SetKeyAndIV(prf, pp_secret, crypter);
+  std::vector<uint8_t> header_protection_key =
+      GenerateHeaderProtectionKey(prf, pp_secret, crypter->GetKeySize());
+  crypter->SetHeaderProtectionKey(
+      absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
+                        header_protection_key.size()));
+}
+
 void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               const std::vector<uint8_t>& pp_secret,
                               QuicCrypter* crypter) {
@@ -103,14 +115,17 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
       HkdfExpandLabel(prf, pp_secret, "quic key", crypter->GetKeySize());
   std::vector<uint8_t> iv =
       HkdfExpandLabel(prf, pp_secret, "quic iv", crypter->GetIVSize());
-  std::vector<uint8_t> pn =
-      HkdfExpandLabel(prf, pp_secret, "quic hp", crypter->GetKeySize());
   crypter->SetKey(
       absl::string_view(reinterpret_cast<char*>(key.data()), key.size()));
   crypter->SetIV(
       absl::string_view(reinterpret_cast<char*>(iv.data()), iv.size()));
-  crypter->SetHeaderProtectionKey(
-      absl::string_view(reinterpret_cast<char*>(pn.data()), pn.size()));
+}
+
+std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
+    const EVP_MD* prf,
+    const std::vector<uint8_t>& pp_secret,
+    size_t out_len) {
+  return HkdfExpandLabel(prf, pp_secret, "quic hp", out_len);
 }
 
 namespace {
@@ -317,12 +332,12 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
   std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
       hash, handshake_secret, encryption_label, EVP_MD_size(hash));
   crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
-  SetKeyAndIV(hash, encryption_secret, crypters->encrypter.get());
+  InitializeCrypterSecrets(hash, encryption_secret, crypters->encrypter.get());
 
   std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
       hash, handshake_secret, decryption_label, EVP_MD_size(hash));
   crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
-  SetKeyAndIV(hash, decryption_secret, crypters->decrypter.get());
+  InitializeCrypterSecrets(hash, decryption_secret, crypters->decrypter.get());
 }
 
 // static
