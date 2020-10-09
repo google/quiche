@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_TESTVALUE_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_TESTVALUE_H_
 
+#include "absl/strings/string_view.h"
 #include "net/quic/platform/impl/quic_testvalue_impl.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -16,7 +16,7 @@ namespace quic {
 //
 // Note that this method does nothing in Chromium.
 template <class T>
-void AdjustTestValue(quiche::QuicheStringPiece label, T* var) {
+void AdjustTestValue(absl::string_view label, T* var) {
   AdjustTestValueImpl(label, var);
 }
 

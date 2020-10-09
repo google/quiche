@@ -3,18 +3,17 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 
 namespace quic {
 
 // static
-bool QuicHostnameUtils::IsValidSNI(quiche::QuicheStringPiece sni) {
+bool QuicHostnameUtils::IsValidSNI(absl::string_view sni) {
   return QuicHostnameUtilsImpl::IsValidSNI(sni);
 }
 
 // static
-std::string QuicHostnameUtils::NormalizeHostname(
-    quiche::QuicheStringPiece hostname) {
+std::string QuicHostnameUtils::NormalizeHostname(absl::string_view hostname) {
   return QuicHostnameUtilsImpl::NormalizeHostname(hostname);
 }
 

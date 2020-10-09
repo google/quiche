@@ -7,10 +7,10 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -22,7 +22,7 @@ class NoopDecoderStreamErrorDelegate
  public:
   ~NoopDecoderStreamErrorDelegate() override = default;
 
-  void OnDecoderStreamError(quiche::QuicheStringPiece error_message) override;
+  void OnDecoderStreamError(absl::string_view error_message) override;
 };
 
 // Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
@@ -33,7 +33,7 @@ class MockDecoderStreamErrorDelegate
 
   MOCK_METHOD(void,
               OnDecoderStreamError,
-              (quiche::QuicheStringPiece error_message),
+              (absl::string_view error_message),
               (override));
 };
 

@@ -7,10 +7,10 @@
 
 #include <list>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -29,12 +29,11 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
   // |expected_headers_filename|, and compare decoded header lists to expected
   // ones.  Returns true if there is an equal number of them and the
   // corresponding ones match, false otherwise.
-  bool DecodeAndVerifyOfflineData(
-      quiche::QuicheStringPiece input_filename,
-      quiche::QuicheStringPiece expected_headers_filename);
+  bool DecodeAndVerifyOfflineData(absl::string_view input_filename,
+                                  absl::string_view expected_headers_filename);
 
   // QpackDecoder::EncoderStreamErrorDelegate implementation:
-  void OnEncoderStreamError(quiche::QuicheStringPiece error_message) override;
+  void OnEncoderStreamError(absl::string_view error_message) override;
 
  private:
   // Data structure to hold TestHeadersHandler and QpackProgressiveDecoder until
@@ -48,24 +47,22 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
 
   // Parse decoder parameters from |input_filename| and set up |qpack_decoder_|
   // accordingly.
-  bool ParseInputFilename(quiche::QuicheStringPiece input_filename);
+  bool ParseInputFilename(absl::string_view input_filename);
 
   // Read encoded header blocks and encoder stream data from |input_filename|,
   // pass them to |qpack_decoder_| for decoding, and add decoded header lists to
   // |decoded_header_lists_|.
-  bool DecodeHeaderBlocksFromFile(quiche::QuicheStringPiece input_filename);
+  bool DecodeHeaderBlocksFromFile(absl::string_view input_filename);
 
   // Read expected header lists from |expected_headers_filename| and verify
   // decoded header lists in |decoded_header_lists_| against them.
-  bool VerifyDecodedHeaderLists(
-      quiche::QuicheStringPiece expected_headers_filename);
+  bool VerifyDecodedHeaderLists(absl::string_view expected_headers_filename);
 
   // Parse next header list from |*expected_headers_data| into
   // |*expected_header_list|, removing consumed data from the beginning of
   // |*expected_headers_data|.  Returns true on success, false if parsing fails.
-  bool ReadNextExpectedHeaderList(
-      quiche::QuicheStringPiece* expected_headers_data,
-      spdy::SpdyHeaderBlock* expected_header_list);
+  bool ReadNextExpectedHeaderList(absl::string_view* expected_headers_data,
+                                  spdy::SpdyHeaderBlock* expected_header_list);
 
   // Compare two header lists.  Allow for different orders of certain headers as
   // described at

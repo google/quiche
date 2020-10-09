@@ -5,22 +5,21 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_TEST_OUTPUT_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_TEST_OUTPUT_H_
 
+#include "absl/strings/string_view.h"
 #include "net/quic/platform/impl/quic_test_output_impl.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
 // Save |data| into ${QUIC_TEST_OUTPUT_DIR}/filename. If a file with the same
 // path already exists, overwrite it.
-inline void QuicSaveTestOutput(quiche::QuicheStringPiece filename,
-                               quiche::QuicheStringPiece data) {
+inline void QuicSaveTestOutput(absl::string_view filename,
+                               absl::string_view data) {
   QuicSaveTestOutputImpl(filename, data);
 }
 
 // Load the content of ${QUIC_TEST_OUTPUT_DIR}/filename into |*data|.
 // Return whether it is successfully loaded.
-inline bool QuicLoadTestOutput(quiche::QuicheStringPiece filename,
-                               std::string* data) {
+inline bool QuicLoadTestOutput(absl::string_view filename, std::string* data) {
   return QuicLoadTestOutputImpl(filename, data);
 }
 
@@ -31,8 +30,8 @@ inline bool QuicLoadTestOutput(quiche::QuicheStringPiece filename,
 // The |identifier| is a human-readable identifier that will be combined with
 // the name of the unit test and a timestamp.  |data| is the serialized
 // quic_trace.Trace protobuf that is being recorded into the file.
-inline void QuicRecordTrace(quiche::QuicheStringPiece identifier,
-                            quiche::QuicheStringPiece data) {
+inline void QuicRecordTrace(absl::string_view identifier,
+                            absl::string_view data) {
   QuicRecordTraceImpl(identifier, data);
 }
 

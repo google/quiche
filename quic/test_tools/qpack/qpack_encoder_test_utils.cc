@@ -4,14 +4,14 @@
 
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 
 namespace quic {
 namespace test {
 
 void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
-    quiche::QuicheStringPiece /*error_message*/) {}
+    absl::string_view /*error_message*/) {}
 
 }  // namespace test
 }  // namespace quic

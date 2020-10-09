@@ -7,11 +7,11 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 
 namespace quic {
@@ -23,7 +23,7 @@ class NoopEncoderStreamErrorDelegate
  public:
   ~NoopEncoderStreamErrorDelegate() override = default;
 
-  void OnEncoderStreamError(quiche::QuicheStringPiece error_message) override;
+  void OnEncoderStreamError(absl::string_view error_message) override;
 };
 
 // Mock QpackDecoder::EncoderStreamErrorDelegate implementation.
@@ -34,7 +34,7 @@ class MockEncoderStreamErrorDelegate
 
   MOCK_METHOD(void,
               OnEncoderStreamError,
-              (quiche::QuicheStringPiece error_message),
+              (absl::string_view error_message),
               (override));
 };
 
@@ -47,11 +47,10 @@ class TestHeadersHandler
   ~TestHeadersHandler() override = default;
 
   // HeadersHandlerInterface implementation:
-  void OnHeaderDecoded(quiche::QuicheStringPiece name,
-                       quiche::QuicheStringPiece value) override;
+  void OnHeaderDecoded(absl::string_view name,
+                       absl::string_view value) override;
   void OnDecodingCompleted() override;
-  void OnDecodingErrorDetected(
-      quiche::QuicheStringPiece error_message) override;
+  void OnDecodingErrorDetected(absl::string_view error_message) override;
 
   // Release decoded header list.  Must only be called if decoding is complete
   // and no errors have been detected.
@@ -78,12 +77,12 @@ class MockHeadersHandler
 
   MOCK_METHOD(void,
               OnHeaderDecoded,
-              (quiche::QuicheStringPiece name, quiche::QuicheStringPiece value),
+              (absl::string_view name, absl::string_view value),
               (override));
   MOCK_METHOD(void, OnDecodingCompleted, (), (override));
   MOCK_METHOD(void,
               OnDecodingErrorDetected,
-              (quiche::QuicheStringPiece error_message),
+              (absl::string_view error_message),
               (override));
 };
 
@@ -92,11 +91,10 @@ class NoOpHeadersHandler
  public:
   ~NoOpHeadersHandler() override = default;
 
-  void OnHeaderDecoded(quiche::QuicheStringPiece /*name*/,
-                       quiche::QuicheStringPiece /*value*/) override {}
+  void OnHeaderDecoded(absl::string_view /*name*/,
+                       absl::string_view /*value*/) override {}
   void OnDecodingCompleted() override {}
-  void OnDecodingErrorDetected(
-      quiche::QuicheStringPiece /*error_message*/) override {}
+  void OnDecodingErrorDetected(absl::string_view /*error_message*/) override {}
 };
 
 void QpackDecode(
@@ -106,7 +104,7 @@ void QpackDecode(
     QpackStreamSenderDelegate* decoder_stream_sender_delegate,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler,
     const FragmentSizeGenerator& fragment_size_generator,
-    quiche::QuicheStringPiece data);
+    absl::string_view data);
 
 }  // namespace test
 }  // namespace quic

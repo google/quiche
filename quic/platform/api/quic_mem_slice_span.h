@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_SPAN_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_SPAN_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_mem_slice_span_impl.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -39,8 +39,8 @@ class QUIC_EXPORT_PRIVATE QuicMemSliceSpan {
   }
 
   // Return data of the span at |index| by the form of a
-  // quiche::QuicheStringPiece.
-  quiche::QuicheStringPiece GetData(int index) { return impl_.GetData(index); }
+  // absl::string_view.
+  absl::string_view GetData(int index) { return impl_.GetData(index); }
 
   // Return the total length of the data inside the span.
   QuicByteCount total_length() { return impl_.total_length(); }
