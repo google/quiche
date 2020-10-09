@@ -1499,7 +1499,9 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 }
 
 // Regression test for b/168020146.
-TEST_P(EndToEndTest, MultipleZeroRtt) {
+// TODO(renjietang): Reenable this test in Chrome once the BoringSSL fix is
+// rolled in.
+TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleZeroRtt)) {
   ASSERT_TRUE(Initialize());
 
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
