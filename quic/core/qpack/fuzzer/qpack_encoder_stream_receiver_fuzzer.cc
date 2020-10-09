@@ -7,9 +7,9 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -24,14 +24,12 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
 
   void OnInsertWithNameReference(bool /*is_static*/,
                                  uint64_t /*name_index*/,
-                                 quiche::QuicheStringPiece /*value*/) override {
-  }
-  void OnInsertWithoutNameReference(
-      quiche::QuicheStringPiece /*name*/,
-      quiche::QuicheStringPiece /*value*/) override {}
+                                 absl::string_view /*value*/) override {}
+  void OnInsertWithoutNameReference(absl::string_view /*name*/,
+                                    absl::string_view /*value*/) override {}
   void OnDuplicate(uint64_t /*index*/) override {}
   void OnSetDynamicTableCapacity(uint64_t /*capacity*/) override {}
-  void OnErrorDetected(quiche::QuicheStringPiece /*error_message*/) override {
+  void OnErrorDetected(absl::string_view /*error_message*/) override {
     error_detected_ = true;
   }
 

@@ -8,8 +8,8 @@
 
 #include <cstdint>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -85,12 +85,12 @@ TEST(IcmpPacketTest, CreatedPacketMatchesReference) {
   icmp_header.icmp6_id = 0x82cb;
   icmp_header.icmp6_seq = 0x0100;
 
-  quiche::QuicheStringPiece message_body = quiche::QuicheStringPiece(
+  absl::string_view message_body = absl::string_view(
       reinterpret_cast<const char*>(kReferenceICMPMessageBody), 56);
-  quiche::QuicheStringPiece expected_packet = quiche::QuicheStringPiece(
+  absl::string_view expected_packet = absl::string_view(
       reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
   CreateIcmpPacket(src_addr, dst_addr, icmp_header, message_body,
-                   [&expected_packet](quiche::QuicheStringPiece packet) {
+                   [&expected_packet](absl::string_view packet) {
                      QUIC_LOG(INFO) << quiche::QuicheTextUtils::HexDump(packet);
                      ASSERT_EQ(packet, expected_packet);
                    });
@@ -114,12 +114,12 @@ TEST(IcmpPacketTest, NonZeroChecksumIsIgnored) {
   // Set the checksum to a bogus value
   icmp_header.icmp6_cksum = 0x1234;
 
-  quiche::QuicheStringPiece message_body = quiche::QuicheStringPiece(
+  absl::string_view message_body = absl::string_view(
       reinterpret_cast<const char*>(kReferenceICMPMessageBody), 56);
-  quiche::QuicheStringPiece expected_packet = quiche::QuicheStringPiece(
+  absl::string_view expected_packet = absl::string_view(
       reinterpret_cast<const char*>(kReferenceICMPPacket), 104);
   CreateIcmpPacket(src_addr, dst_addr, icmp_header, message_body,
-                   [&expected_packet](quiche::QuicheStringPiece packet) {
+                   [&expected_packet](absl::string_view packet) {
                      QUIC_LOG(INFO) << quiche::QuicheTextUtils::HexDump(packet);
                      ASSERT_EQ(packet, expected_packet);
                    });

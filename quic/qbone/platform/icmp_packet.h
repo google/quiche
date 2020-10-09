@@ -10,8 +10,8 @@
 
 #include <functional>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -21,8 +21,8 @@ namespace quic {
 void CreateIcmpPacket(in6_addr src,
                       in6_addr dst,
                       const icmp6_hdr& icmp_header,
-                      quiche::QuicheStringPiece body,
-                      const std::function<void(quiche::QuicheStringPiece)>& cb);
+                      absl::string_view body,
+                      const std::function<void(absl::string_view)>& cb);
 
 }  // namespace quic
 

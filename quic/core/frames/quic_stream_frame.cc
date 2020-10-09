@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -14,7 +14,7 @@ QuicStreamFrame::QuicStreamFrame() : QuicInlinedFrame(STREAM_FRAME) {}
 QuicStreamFrame::QuicStreamFrame(QuicStreamId stream_id,
                                  bool fin,
                                  QuicStreamOffset offset,
-                                 quiche::QuicheStringPiece data)
+                                 absl::string_view data)
     : QuicStreamFrame(stream_id, fin, offset, data.data(), data.length()) {}
 
 QuicStreamFrame::QuicStreamFrame(QuicStreamId stream_id,

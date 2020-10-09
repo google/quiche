@@ -6,9 +6,9 @@
 
 #include <netinet/ip6.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace {
@@ -36,12 +36,11 @@ struct IPv6PseudoHeader {
 
 }  // namespace
 
-void CreateIcmpPacket(
-    in6_addr src,
-    in6_addr dst,
-    const icmp6_hdr& icmp_header,
-    quiche::QuicheStringPiece body,
-    const std::function<void(quiche::QuicheStringPiece)>& cb) {
+void CreateIcmpPacket(in6_addr src,
+                      in6_addr dst,
+                      const icmp6_hdr& icmp_header,
+                      absl::string_view body,
+                      const std::function<void(absl::string_view)>& cb) {
   const size_t body_size = std::min(body.size(), kICMPv6BodyMaxSize);
   const size_t payload_size = kICMPv6HeaderSize + body_size;
 
@@ -82,7 +81,7 @@ void CreateIcmpPacket(
   const char* packet = reinterpret_cast<char*>(&icmp_packet);
   const size_t packet_size = offsetof(ICMPv6Packet, body) + body_size;
 
-  cb(quiche::QuicheStringPiece(packet, packet_size));
+  cb(absl::string_view(packet, packet_size));
 }
 
 }  // namespace quic

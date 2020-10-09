@@ -7,11 +7,11 @@
 #include <limits>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -30,8 +30,7 @@ class ErrorDelegate : public QpackDecoder::EncoderStreamErrorDelegate {
   ErrorDelegate(bool* error_detected) : error_detected_(error_detected) {}
   ~ErrorDelegate() override = default;
 
-  void OnEncoderStreamError(
-      quiche::QuicheStringPiece /*error_message*/) override {
+  void OnEncoderStreamError(absl::string_view /*error_message*/) override {
     *error_detected_ = true;
   }
 
@@ -51,8 +50,8 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
         error_detected_(error_detected) {}
   ~HeadersHandler() override = default;
 
-  void OnHeaderDecoded(quiche::QuicheStringPiece /*name*/,
-                       quiche::QuicheStringPiece /*value*/) override {}
+  void OnHeaderDecoded(absl::string_view /*name*/,
+                       absl::string_view /*value*/) override {}
 
   // Remove DecoderAndHandler from |*processing_decoders|.
   void OnDecodingCompleted() override {
@@ -61,8 +60,7 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
     CHECK_EQ(1u, result);
   }
 
-  void OnDecodingErrorDetected(
-      quiche::QuicheStringPiece /*error_message*/) override {
+  void OnDecodingErrorDetected(absl::string_view /*error_message*/) override {
     *error_detected_ = true;
   }
 

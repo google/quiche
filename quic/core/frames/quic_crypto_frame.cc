@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_crypto_frame.h"
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -16,7 +16,7 @@ QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
 
 QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
                                  QuicStreamOffset offset,
-                                 quiche::QuicheStringPiece data)
+                                 absl::string_view data)
     : QuicCryptoFrame(level, offset, data.data(), data.length()) {}
 
 QuicCryptoFrame::QuicCryptoFrame(EncryptionLevel level,
