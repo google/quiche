@@ -402,6 +402,24 @@ size_t QuicCryptoServerStream::BufferSizeLimitForLevel(
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);
 }
 
+bool QuicCryptoServerStream::KeyUpdateSupportedLocally() const {
+  return false;
+}
+
+std::unique_ptr<QuicDecrypter>
+QuicCryptoServerStream::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  // Key update is only defined in QUIC+TLS.
+  DCHECK(false);
+  return nullptr;
+}
+
+std::unique_ptr<QuicEncrypter>
+QuicCryptoServerStream::CreateCurrentOneRttEncrypter() {
+  // Key update is only defined in QUIC+TLS.
+  DCHECK(false);
+  return nullptr;
+}
+
 void QuicCryptoServerStream::ProcessClientHello(
     QuicReferenceCountedPointer<ValidateClientHelloResultCallback::Result>
         result,

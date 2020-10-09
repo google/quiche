@@ -128,6 +128,12 @@ std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
   return HkdfExpandLabel(prf, pp_secret, "quic hp", out_len);
 }
 
+std::vector<uint8_t> CryptoUtils::GenerateNextKeyPhaseSecret(
+    const EVP_MD* prf,
+    const std::vector<uint8_t>& current_secret) {
+  return HkdfExpandLabel(prf, current_secret, "quic ku", current_secret.size());
+}
+
 namespace {
 
 // Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-5.2

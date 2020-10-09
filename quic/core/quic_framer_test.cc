@@ -185,6 +185,31 @@ class TestDecrypter : public QuicDecrypter {
   std::string ciphertext_;
 };
 
+std::unique_ptr<QuicEncryptedPacket> EncryptPacketWithTagAndPhase(
+    const QuicPacket& packet,
+    uint8_t tag,
+    bool phase) {
+  std::string packet_data = std::string(packet.AsStringPiece());
+  if (phase) {
+    packet_data[0] |= FLAGS_KEY_PHASE_BIT;
+  } else {
+    packet_data[0] &= ~FLAGS_KEY_PHASE_BIT;
+  }
+
+  TaggingEncrypter crypter(tag);
+  const size_t packet_size = crypter.GetCiphertextSize(packet_data.size());
+  char* buffer = new char[packet_size];
+  size_t buf_len = 0;
+  if (!crypter.EncryptPacket(0, quiche::QuicheStringPiece(), packet_data,
+                             buffer, &buf_len, packet_size)) {
+    delete[] buffer;
+    return nullptr;
+  }
+
+  return std::make_unique<QuicEncryptedPacket>(buffer, buf_len,
+                                               /*owns_buffer=*/true);
+}
+
 class TestQuicVisitor : public QuicFramerVisitorInterface {
  public:
   TestQuicVisitor()
@@ -193,6 +218,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
         packet_count_(0),
         frame_count_(0),
         complete_packets_(0),
+        key_update_count_(0),
+        derive_next_key_count_(0),
+        decrypted_first_packet_in_key_phase_count_(0),
         accept_packet_(true),
         accept_public_header_(true) {}
 
@@ -547,6 +575,21 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
+  void OnKeyUpdate() override { key_update_count_++; }
+
+  void OnDecryptedFirstPacketInKeyPhase() override {
+    decrypted_first_packet_in_key_phase_count_++;
+  }
+
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override {
+    derive_next_key_count_++;
+    return std::make_unique<StrictTaggingDecrypter>(derive_next_key_count_);
+  }
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
+    return std::make_unique<TaggingEncrypter>(derive_next_key_count_);
+  }
+
   void set_framer(QuicFramer* framer) {
     framer_ = framer;
     transport_version_ = framer->transport_version();
@@ -558,6 +601,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   int packet_count_;
   int frame_count_;
   int complete_packets_;
+  int key_update_count_;
+  int derive_next_key_count_;
+  int decrypted_first_packet_in_key_phase_count_;
   bool accept_packet_;
   bool accept_public_header_;
 
@@ -14757,6 +14803,536 @@ TEST_P(QuicFramerTest, OverlyLargeAckDelay) {
   // Verify ack_delay_time is set correctly.
   EXPECT_EQ(QuicTime::Delta::Infinite(),
             visitor_.ack_frames_[0]->ack_delay_time);
+}
+
+TEST_P(QuicFramerTest, KeyUpdate) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  // Processed valid packet with phase=0, key=1: no key update.
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  // Processed valid packet with phase=1, key=2: key update should have
+  // occurred.
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  // Processed another valid packet with phase=1, key=2: no key update.
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process another key update.
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 2, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(2, visitor_.key_update_count_);
+  EXPECT_EQ(2, visitor_.derive_next_key_count_);
+  EXPECT_EQ(3, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  // Process packet N with phase 0.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+2 with phase 1.
+  header.packet_number = kPacketNumber + 2;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+1 with phase 0. (Receiving packet from previous phase
+  // after packet from new phase was received.)
+  header.packet_number = kPacketNumber + 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  // Process packet N with phase 0.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+2 with phase 1.
+  header.packet_number = kPacketNumber + 2;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Discard keys for previous key phase.
+  framer_.DiscardPreviousOneRttKeys();
+
+  // Process packet N+1 with phase 0. (Receiving packet from previous phase
+  // after packet from new phase was received.)
+  header.packet_number = kPacketNumber + 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should not decrypt and key update count should not change.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  // Process packet N with phase 0.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+2 with phase 1.
+  header.packet_number = kPacketNumber + 2;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+1 with phase 1. (Receiving packet from new phase out of
+  // order.)
+  header.packet_number = kPacketNumber + 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  // Processed valid packet with phase=0, key=1: no key update.
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 2, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet with phase=1 but key=3, should not process and should not cause key
+  // update, but next decrypter key should have been created to attempt to
+  // decode it.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet with phase=1 but key=1, should not process and should not cause key
+  // update.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet with phase=0 but key=2, should not process and should not cause key
+  // update.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 1, true));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Received a packet with key phase updated even though framer hasn't had key
+  // update enabled (SetNextOneRttCrypters never called). Should fail to
+  // process.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0, visitor_.derive_next_key_count_);
+  EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  EXPECT_TRUE(framer_.DoKeyUpdate());
+  // Key update count should be updated, but haven't received packet from peer
+  // with new key phase.
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  // Process packet N with phase 1.
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 1, true));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change and
+  // OnDecryptedFirstPacketInKeyPhase should have been called.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N-1 with phase 0. (Receiving packet from previous phase
+  // after packet from new phase was received.)
+  header.packet_number = kPacketNumber - 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+1 with phase 0 and key 1. This should not decrypt even
+  // though it's using the previous key, since the packet number is higher than
+  // a packet number received using the current key.
+  header.packet_number = kPacketNumber + 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should not decrypt and key update count should not change.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(2, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+}
+
+TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
+  if (!framer_.version().UsesTls()) {
+    // Key update is only used in QUIC+TLS.
+    return;
+  }
+  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
+  // instead of TestDecrypter.
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+
+  EXPECT_TRUE(framer_.DoKeyUpdate());
+  // Key update count should be updated, but haven't received packet
+  // from peer with new key phase.
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicFrames frames = {QuicFrame(QuicPaddingFrame())};
+
+  // Process packet N with phase 0. (Receiving packet from previous phase
+  // after locally initiated key update, but before any packet from new phase
+  // was received.)
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  std::unique_ptr<QuicPacket> data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted =
+      EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change and
+  // OnDecryptedFirstPacketInKeyPhase should not have been called since the
+  // packet was from the previous key phase.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+1 with phase 1.
+  header.packet_number = kPacketNumber + 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 1, true);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should decrypt and key update count should not change, but
+  // OnDecryptedFirstPacketInKeyPhase should have been called.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+
+  // Process packet N+2 with phase 0 and key 1. This should not decrypt even
+  // though it's using the previous key, since the packet number is higher than
+  // a packet number received using the current key.
+  header.packet_number = kPacketNumber + 2;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet should not decrypt and key update count should not change.
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(2, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
 
 }  // namespace

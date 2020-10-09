@@ -424,6 +424,16 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               OnAuthenticatedIetfStatelessResetPacket,
               (const QuicIetfStatelessResetPacket&),
               (override));
+  MOCK_METHOD(void, OnKeyUpdate, (), (override));
+  MOCK_METHOD(void, OnDecryptedFirstPacketInKeyPhase, (), (override));
+  MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter,
+              (),
+              (override));
+  MOCK_METHOD(std::unique_ptr<QuicEncrypter>,
+              CreateCurrentOneRttEncrypter,
+              (),
+              (override));
 };
 
 class NoOpFramerVisitor : public QuicFramerVisitorInterface {
@@ -483,6 +493,15 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
+  void OnKeyUpdate() override {}
+  void OnDecryptedFirstPacketInKeyPhase() override {}
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override {
+    return nullptr;
+  }
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
+    return nullptr;
+  }
 };
 
 class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
@@ -558,6 +577,14 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnPacketDecrypted, (EncryptionLevel), (override));
   MOCK_METHOD(void, OnOneRttPacketAcknowledged, (), (override));
   MOCK_METHOD(void, OnHandshakePacketSent, (), (override));
+  MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter,
+              (),
+              (override));
+  MOCK_METHOD(std::unique_ptr<QuicEncrypter>,
+              CreateCurrentOneRttEncrypter,
+              (),
+              (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -865,6 +892,14 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> /*application_state*/) override {}
+  bool KeyUpdateSupportedLocally() const override { return false; }
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override {
+    return nullptr;
+  }
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
+    return nullptr;
+  }
 
  private:
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;

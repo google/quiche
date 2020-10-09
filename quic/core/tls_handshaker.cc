@@ -68,10 +68,22 @@ const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
 void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
                                    const SSL_CIPHER* cipher,
                                    const std::vector<uint8_t>& write_secret) {
+  QUIC_DVLOG(1) << "SetWriteSecret level=" << level;
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::InitializeCrypterSecrets(Prf(cipher), write_secret,
-                                        encrypter.get());
+  const EVP_MD* prf = Prf(cipher);
+  CryptoUtils::SetKeyAndIV(prf, write_secret, encrypter.get());
+  std::vector<uint8_t> header_protection_key =
+      CryptoUtils::GenerateHeaderProtectionKey(prf, write_secret,
+                                               encrypter->GetKeySize());
+  encrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+      reinterpret_cast<char*>(header_protection_key.data()),
+      header_protection_key.size()));
+  if (level == ENCRYPTION_FORWARD_SECURE) {
+    DCHECK(latest_write_secret_.empty());
+    latest_write_secret_ = write_secret;
+    one_rtt_write_header_protection_key_ = header_protection_key;
+  }
   handshaker_delegate_->OnNewEncryptionKeyAvailable(level,
                                                     std::move(encrypter));
 }
@@ -79,14 +91,71 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
 bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
                                   const SSL_CIPHER* cipher,
                                   const std::vector<uint8_t>& read_secret) {
+  QUIC_DVLOG(1) << "SetReadSecret level=" << level;
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  CryptoUtils::InitializeCrypterSecrets(Prf(cipher), read_secret,
-                                        decrypter.get());
+  const EVP_MD* prf = Prf(cipher);
+  CryptoUtils::SetKeyAndIV(prf, read_secret, decrypter.get());
+  std::vector<uint8_t> header_protection_key =
+      CryptoUtils::GenerateHeaderProtectionKey(prf, read_secret,
+                                               decrypter->GetKeySize());
+  decrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+      reinterpret_cast<char*>(header_protection_key.data()),
+      header_protection_key.size()));
+  if (level == ENCRYPTION_FORWARD_SECURE) {
+    DCHECK(latest_read_secret_.empty());
+    latest_read_secret_ = read_secret;
+    one_rtt_read_header_protection_key_ = header_protection_key;
+  }
   return handshaker_delegate_->OnNewDecryptionKeyAvailable(
       level, std::move(decrypter),
       /*set_alternative_decrypter=*/false,
       /*latch_once_used=*/false);
+}
+
+std::unique_ptr<QuicDecrypter>
+TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  if (latest_read_secret_.empty() || latest_write_secret_.empty() ||
+      one_rtt_read_header_protection_key_.empty() ||
+      one_rtt_write_header_protection_key_.empty()) {
+    std::string error_details = "1-RTT secret(s) not set yet.";
+    QUIC_BUG << error_details;
+    CloseConnection(QUIC_INTERNAL_ERROR, error_details);
+    return nullptr;
+  }
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  const EVP_MD* prf = Prf(cipher);
+  latest_read_secret_ =
+      CryptoUtils::GenerateNextKeyPhaseSecret(prf, latest_read_secret_);
+  latest_write_secret_ =
+      CryptoUtils::GenerateNextKeyPhaseSecret(prf, latest_write_secret_);
+
+  std::unique_ptr<QuicDecrypter> decrypter =
+      QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
+  CryptoUtils::SetKeyAndIV(prf, latest_read_secret_, decrypter.get());
+  decrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+      reinterpret_cast<char*>(one_rtt_read_header_protection_key_.data()),
+      one_rtt_read_header_protection_key_.size()));
+
+  return decrypter;
+}
+
+std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
+  if (latest_write_secret_.empty() ||
+      one_rtt_write_header_protection_key_.empty()) {
+    std::string error_details = "1-RTT write secret not set yet.";
+    QUIC_BUG << error_details;
+    CloseConnection(QUIC_INTERNAL_ERROR, error_details);
+    return nullptr;
+  }
+  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  std::unique_ptr<QuicEncrypter> encrypter =
+      QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
+  CryptoUtils::SetKeyAndIV(Prf(cipher), latest_write_secret_, encrypter.get());
+  encrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+      reinterpret_cast<char*>(one_rtt_write_header_protection_key_.data()),
+      one_rtt_write_header_protection_key_.size()));
+  return encrypter;
 }
 
 void TlsHandshaker::WriteMessage(EncryptionLevel level,

@@ -52,6 +52,8 @@ enum class Feature {
   // Second row of features (anything else protocol-related)
   // We switched to a different port and the server migrated to it.
   kRebinding,
+  // One endpoint can update keys and its peer responds correctly.
+  kKeyUpdate,
 
   // Third row of features (H3 tests)
   // An H3 transaction succeeded.
@@ -81,6 +83,8 @@ char MatrixLetter(Feature f) {
       return 'Q';
     case Feature::kRebinding:
       return 'B';
+    case Feature::kKeyUpdate:
+      return 'U';
     case Feature::kHttp3:
       return '3';
     case Feature::kDynamicEntryReferenced:
@@ -107,7 +111,8 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
                       ParsedQuicVersion version,
                       bool test_version_negotiation,
                       bool attempt_rebind,
-                      bool attempt_multi_packet_chlo);
+                      bool attempt_multi_packet_chlo,
+                      bool attempt_key_update);
 
   // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
   // GET request to "/" on the hostname |authority|.
@@ -191,7 +196,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
                                              ParsedQuicVersion version,
                                              bool test_version_negotiation,
                                              bool attempt_rebind,
-                                             bool attempt_multi_packet_chlo) {
+                                             bool attempt_multi_packet_chlo,
+                                             bool attempt_key_update) {
   ParsedQuicVersionVector versions = {version};
   if (test_version_negotiation) {
     versions.insert(versions.begin(), QuicVersionReservedForNegotiation());
@@ -238,7 +244,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     // Failed to negotiate version, retry without version negotiation.
     AttemptRequest(addr, authority, server_id, version,
                    /*test_version_negotiation=*/false, attempt_rebind,
-                   attempt_multi_packet_chlo);
+                   attempt_multi_packet_chlo, attempt_key_update);
     return;
   }
   if (!client->session()->OneRttKeysAvailable()) {
@@ -246,7 +252,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
       // Failed to handshake with multi-packet client hello, retry without it.
       AttemptRequest(addr, authority, server_id, version,
                      test_version_negotiation, attempt_rebind,
-                     /*attempt_multi_packet_chlo=*/false);
+                     /*attempt_multi_packet_chlo=*/false, attempt_key_update);
       return;
     }
     return;
@@ -278,7 +284,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
           // Rebinding does not work, retry without attempting it.
           AttemptRequest(addr, authority, server_id, version,
                          test_version_negotiation, /*attempt_rebind=*/false,
-                         attempt_multi_packet_chlo);
+                         attempt_multi_packet_chlo, attempt_key_update);
           return;
         }
         InsertFeature(Feature::kRebinding);
@@ -288,6 +294,27 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
         }
       } else {
         QUIC_LOG(ERROR) << "Failed to change ephemeral port";
+      }
+    }
+
+    if (attempt_key_update) {
+      if (connection->IsKeyUpdateAllowed()) {
+        if (connection->InitiateKeyUpdate()) {
+          client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
+          if (!client->connected()) {
+            // Key update does not work, retry without attempting it.
+            AttemptRequest(addr, authority, server_id, version,
+                           test_version_negotiation, attempt_rebind,
+                           attempt_multi_packet_chlo,
+                           /*attempt_key_update=*/false);
+            return;
+          }
+          InsertFeature(Feature::kKeyUpdate);
+        } else {
+          QUIC_LOG(ERROR) << "Failed to initiate key update";
+        }
+      } else {
+        QUIC_LOG(ERROR) << "Key update not allowed";
       }
     }
   }
@@ -368,7 +395,8 @@ std::set<Feature> ServerSupport(std::string dns_host,
   runner.AttemptRequest(addr, authority, server_id, version,
                         /*test_version_negotiation=*/true,
                         /*attempt_rebind=*/true,
-                        /*attempt_multi_packet_chlo=*/true);
+                        /*attempt_multi_packet_chlo=*/true,
+                        /*attempt_key_update=*/true);
 
   return runner.features();
 }

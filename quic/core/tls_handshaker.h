@@ -48,6 +48,8 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   CryptoMessageParser* crypto_message_parser() { return this; }
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const;
   ssl_early_data_reason_t EarlyDataReason() const;
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter();
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter();
 
  protected:
   virtual void AdvanceHandshake() = 0;
@@ -104,6 +106,14 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
 
   QuicErrorCode parser_error_ = QUIC_NO_ERROR;
   std::string parser_error_detail_;
+
+  // The most recently derived 1-RTT read and write secrets, which are updated
+  // on each key update.
+  std::vector<uint8_t> latest_read_secret_;
+  std::vector<uint8_t> latest_write_secret_;
+  // 1-RTT header protection keys, which are not changed during key update.
+  std::vector<uint8_t> one_rtt_read_header_protection_key_;
+  std::vector<uint8_t> one_rtt_write_header_protection_key_;
 };
 
 }  // namespace quic

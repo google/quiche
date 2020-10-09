@@ -191,6 +191,15 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
   virtual void OnHandshakePacketSent() = 0;
+
+  // Called to generate a decrypter for the next key phase. Each call should
+  // generate the key for phase n+1.
+  virtual std::unique_ptr<QuicDecrypter>
+  AdvanceKeysAndCreateCurrentOneRttDecrypter() = 0;
+
+  // Called to generate an encrypter for the same key phase of the last
+  // decrypter returned by AdvanceKeysAndCreateCurrentOneRttDecrypter().
+  virtual std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -628,6 +637,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override;
+  void OnKeyUpdate() override;
+  void OnDecryptedFirstPacketInKeyPhase() override;
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override;
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
 
   // QuicPacketCreator::DelegateInterface
   bool ShouldGeneratePacket(HasRetransmittableData retransmittable,
@@ -787,6 +801,16 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void InstallDecrypter(EncryptionLevel level,
                         std::unique_ptr<QuicDecrypter> decrypter);
   void RemoveDecrypter(EncryptionLevel level);
+
+  // Discard keys for the previous key phase.
+  void DiscardPreviousOneRttKeys();
+
+  // Returns true if it is currently allowed to initiate a key update.
+  bool IsKeyUpdateAllowed() const;
+
+  // Increment the key phase. It is a bug to call this when IsKeyUpdateAllowed()
+  // is false. Returns false on error.
+  bool InitiateKeyUpdate();
 
   const QuicDecrypter* decrypter() const;
   const QuicDecrypter* alternative_decrypter() const;
@@ -1493,6 +1517,14 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // started.
   QuicPacketNumber highest_packet_sent_before_effective_peer_migration_;
 
+  // True if Key Update is supported on this connection.
+  bool support_key_update_for_connection_;
+
+  // Tracks the lowest packet sent in the current key phase. Will be
+  // uninitialized before the first one-RTT packet has been sent or after a
+  // key update but before the first packet has been sent.
+  QuicPacketNumber lowest_packet_sent_in_current_key_phase_;
+
   // True if the last packet has gotten far enough in the framer to be
   // decrypted.
   bool last_packet_decrypted_;
@@ -1587,6 +1619,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that fires to process undecryptable packets when new decyrption
   // keys are available.
   QuicArenaScopedPtr<QuicAlarm> process_undecryptable_packets_alarm_;
+  // An alarm that fires to discard keys for the previous key phase some time
+  // after a key update has completed.
+  QuicArenaScopedPtr<QuicAlarm> discard_previous_one_rtt_keys_alarm_;
   // Neither visitor is owned by this class.
   QuicConnectionVisitorInterface* visitor_;
   QuicConnectionDebugVisitor* debug_visitor_;

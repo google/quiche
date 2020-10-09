@@ -412,6 +412,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       process_timestamps_(false),
       creation_time_(creation_time),
       last_timestamp_(QuicTime::Delta::Zero()),
+      support_key_update_for_connection_(false),
+      current_key_phase_bit_(false),
       first_sending_packet_number_(FirstSendingPacketNumber()),
       data_producer_(nullptr),
       infer_packet_header_type_from_version_(perspective ==
@@ -2136,7 +2138,7 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
         PacketNumberLengthToOnWireValue(header.packet_number_length));
   } else {
     type = static_cast<uint8_t>(
-        FLAGS_FIXED_BIT |
+        FLAGS_FIXED_BIT | (current_key_phase_bit_ ? FLAGS_KEY_PHASE_BIT : 0) |
         PacketNumberLengthToOnWireValue(header.packet_number_length));
   }
   return writer->WriteUInt8(type);
@@ -4235,6 +4237,41 @@ void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
   decrypter_[level] = nullptr;
 }
 
+void QuicFramer::SetKeyUpdateSupportForConnection(bool enabled) {
+  QUIC_DVLOG(1) << ENDPOINT << "SetKeyUpdateSupportForConnection: " << enabled;
+  support_key_update_for_connection_ = enabled;
+}
+
+void QuicFramer::DiscardPreviousOneRttKeys() {
+  DCHECK(support_key_update_for_connection_);
+  QUIC_DVLOG(1) << ENDPOINT << "Discarding previous set of 1-RTT keys";
+  previous_decrypter_ = nullptr;
+}
+
+bool QuicFramer::DoKeyUpdate() {
+  DCHECK(support_key_update_for_connection_);
+  if (!next_decrypter_) {
+    // If key update is locally initiated, next decrypter might not be created
+    // yet.
+    next_decrypter_ = visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
+  }
+  std::unique_ptr<QuicEncrypter> next_encrypter =
+      visitor_->CreateCurrentOneRttEncrypter();
+  if (!next_decrypter_ || !next_encrypter) {
+    QUIC_BUG << "Failed to create next crypters";
+    return false;
+  }
+  current_key_phase_bit_ = !current_key_phase_bit_;
+  QUIC_DLOG(INFO) << ENDPOINT << "DoKeyUpdate: new current_key_phase_bit_="
+                  << current_key_phase_bit_;
+  current_key_phase_first_received_packet_number_.Clear();
+  previous_decrypter_ = std::move(decrypter_[ENCRYPTION_FORWARD_SECURE]);
+  decrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_decrypter_);
+  encrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_encrypter);
+  visitor_->OnKeyUpdate();
+  return true;
+}
+
 const QuicDecrypter* QuicFramer::GetDecrypter(EncryptionLevel level) const {
   DCHECK(version_.KnowsWhichDecrypterToUse());
   return decrypter_[level].get();
@@ -4616,6 +4653,9 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
   EncryptionLevel level = decrypter_level_;
   QuicDecrypter* decrypter = decrypter_[level].get();
   QuicDecrypter* alternative_decrypter = nullptr;
+  bool key_phase_parsed = false;
+  bool key_phase;
+  bool attempt_key_update = false;
   if (version().KnowsWhichDecrypterToUse()) {
     if (header.form == GOOGLE_QUIC_PACKET) {
       QUIC_BUG << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
@@ -4634,6 +4674,45 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
     if (level == ENCRYPTION_ZERO_RTT &&
         perspective_ == Perspective::IS_CLIENT && header.nonce != nullptr) {
       decrypter->SetDiversificationNonce(*header.nonce);
+    }
+    if (support_key_update_for_connection_ &&
+        header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+      DCHECK(version().UsesTls());
+      DCHECK_EQ(level, ENCRYPTION_FORWARD_SECURE);
+      key_phase = (header.type_byte & FLAGS_KEY_PHASE_BIT) != 0;
+      key_phase_parsed = true;
+      QUIC_DVLOG(1) << ENDPOINT << "packet " << header.packet_number
+                    << " received key_phase=" << key_phase
+                    << " current_key_phase_bit_=" << current_key_phase_bit_;
+      if (key_phase != current_key_phase_bit_) {
+        if (current_key_phase_first_received_packet_number_.IsInitialized() &&
+            header.packet_number >
+                current_key_phase_first_received_packet_number_) {
+          if (!next_decrypter_) {
+            next_decrypter_ =
+                visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
+            if (!next_decrypter_) {
+              QUIC_BUG << "Failed to create next_decrypter";
+              return false;
+            }
+          }
+          QUIC_DVLOG(1) << ENDPOINT << "packet " << header.packet_number
+                        << " attempt_key_update=true";
+          attempt_key_update = true;
+          decrypter = next_decrypter_.get();
+        } else {
+          if (previous_decrypter_) {
+            QUIC_DVLOG(1) << ENDPOINT
+                          << "trying previous_decrypter_ for packet "
+                          << header.packet_number;
+            decrypter = previous_decrypter_.get();
+          } else {
+            QUIC_DVLOG(1) << ENDPOINT << "dropping packet "
+                          << header.packet_number << " with old key phase";
+            return false;
+          }
+        }
+      }
     }
   } else if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
     if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {
@@ -4655,6 +4734,27 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
   if (success) {
     visitor_->OnDecryptedPacket(level);
     *decrypted_level = level;
+    if (attempt_key_update) {
+      if (!DoKeyUpdate()) {
+        set_detailed_error("Key update failed due to internal error");
+        return RaiseError(QUIC_INTERNAL_ERROR);
+      }
+      DCHECK_EQ(current_key_phase_bit_, key_phase);
+    }
+    if (key_phase_parsed &&
+        !current_key_phase_first_received_packet_number_.IsInitialized() &&
+        key_phase == current_key_phase_bit_) {
+      // Set packet number for current key phase if it hasn't been initialized
+      // yet. This is set outside of attempt_key_update since the key update
+      // may have been initiated locally, and in that case we don't know yet
+      // which packet number from the remote side to use until we receive a
+      // packet with that phase.
+      QUIC_DVLOG(1) << ENDPOINT
+                    << "current_key_phase_first_received_packet_number_ = "
+                    << header.packet_number;
+      current_key_phase_first_received_packet_number_ = header.packet_number;
+      visitor_->OnDecryptedFirstPacketInKeyPhase();
+    }
   } else if (alternative_decrypter != nullptr) {
     if (header.nonce != nullptr) {
       DCHECK_EQ(perspective_, Perspective::IS_CLIENT);

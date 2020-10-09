@@ -109,6 +109,20 @@ size_t QuicCryptoClientStream::BufferSizeLimitForLevel(
   return handshaker_->BufferSizeLimitForLevel(level);
 }
 
+bool QuicCryptoClientStream::KeyUpdateSupportedLocally() const {
+  return handshaker_->KeyUpdateSupportedLocally();
+}
+
+std::unique_ptr<QuicDecrypter>
+QuicCryptoClientStream::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  return handshaker_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
+}
+
+std::unique_ptr<QuicEncrypter>
+QuicCryptoClientStream::CreateCurrentOneRttEncrypter() {
+  return handshaker_->CreateCurrentOneRttEncrypter();
+}
+
 std::string QuicCryptoClientStream::chlo_hash() const {
   return handshaker_->chlo_hash();
 }

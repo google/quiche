@@ -170,6 +170,24 @@ class ProcessUndecryptablePacketsAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnection* connection_;
 };
 
+class DiscardPreviousOneRttKeysAlarmDelegate : public QuicAlarm::Delegate {
+ public:
+  explicit DiscardPreviousOneRttKeysAlarmDelegate(QuicConnection* connection)
+      : connection_(connection) {}
+  DiscardPreviousOneRttKeysAlarmDelegate(
+      const DiscardPreviousOneRttKeysAlarmDelegate&) = delete;
+  DiscardPreviousOneRttKeysAlarmDelegate& operator=(
+      const DiscardPreviousOneRttKeysAlarmDelegate&) = delete;
+
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    connection_->DiscardPreviousOneRttKeys();
+  }
+
+ private:
+  QuicConnection* connection_;
+};
+
 // When the clearer goes out of scope, the coalesced packet gets cleared.
 class ScopedCoalescedPacketClearer {
  public:
@@ -245,6 +263,7 @@ QuicConnection::QuicConnection(
       peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
+      support_key_update_for_connection_(false),
       last_packet_decrypted_(false),
       last_size_(0),
       current_packet_data_(nullptr),
@@ -279,6 +298,9 @@ QuicConnection::QuicConnection(
           &arena_)),
       process_undecryptable_packets_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<ProcessUndecryptablePacketsAlarmDelegate>(this),
+          &arena_)),
+      discard_previous_one_rtt_keys_alarm_(alarm_factory_->CreateAlarm(
+          arena_.New<DiscardPreviousOneRttKeysAlarmDelegate>(this),
           &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
@@ -554,6 +576,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
+    support_key_update_for_connection_ =
+        config.KeyUpdateSupportedForConnection();
+    framer_.SetKeyUpdateSupportForConnection(
+        support_key_update_for_connection_);
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());
@@ -1889,6 +1915,43 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
                                ConnectionCloseSource::FROM_PEER);
 }
 
+void QuicConnection::OnKeyUpdate() {
+  DCHECK(support_key_update_for_connection_);
+  QUIC_DLOG(INFO) << ENDPOINT << "Key phase updated";
+
+  lowest_packet_sent_in_current_key_phase_.Clear();
+  stats_.key_update_count++;
+
+  // If another key update triggers while the previous
+  // discard_previous_one_rtt_keys_alarm_ hasn't fired yet, cancel it since the
+  // old keys would already be discarded.
+  discard_previous_one_rtt_keys_alarm_->Cancel();
+}
+
+void QuicConnection::OnDecryptedFirstPacketInKeyPhase() {
+  QUIC_DLOG(INFO) << ENDPOINT << "OnDecryptedFirstPacketInKeyPhase";
+  // An endpoint SHOULD retain old read keys for no more than three times the
+  // PTO after having received a packet protected using the new keys. After this
+  // period, old read keys and their corresponding secrets SHOULD be discarded.
+  //
+  // Note that this will cause an unnecessary
+  // discard_previous_one_rtt_keys_alarm_ on the first packet in the 1RTT
+  // encryption level, but this is harmless.
+  discard_previous_one_rtt_keys_alarm_->Set(
+      clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay() * 3);
+}
+
+std::unique_ptr<QuicDecrypter>
+QuicConnection::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  QUIC_DLOG(INFO) << ENDPOINT << "AdvanceKeysAndCreateCurrentOneRttDecrypter";
+  return visitor_->AdvanceKeysAndCreateCurrentOneRttDecrypter();
+}
+
+std::unique_ptr<QuicEncrypter> QuicConnection::CreateCurrentOneRttEncrypter() {
+  QUIC_DLOG(INFO) << ENDPOINT << "CreateCurrentOneRttEncrypter";
+  return visitor_->CreateCurrentOneRttEncrypter();
+}
+
 void QuicConnection::ClearLastFrames() {
   should_last_packet_instigate_acks_ = false;
 }
@@ -2984,6 +3047,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     handshake_packet_sent_ = true;
   }
 
+  if (packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
+      !lowest_packet_sent_in_current_key_phase_.IsInitialized()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "lowest_packet_sent_in_current_key_phase_ = "
+                    << packet_number;
+    lowest_packet_sent_in_current_key_phase_ = packet_number;
+  }
+
   if (in_flight || !retransmission_alarm_->IsSet()) {
     SetRetransmissionAlarm();
   }
@@ -3451,6 +3521,26 @@ void QuicConnection::RemoveDecrypter(EncryptionLevel level) {
   framer_.RemoveDecrypter(level);
 }
 
+void QuicConnection::DiscardPreviousOneRttKeys() {
+  framer_.DiscardPreviousOneRttKeys();
+}
+
+bool QuicConnection::IsKeyUpdateAllowed() const {
+  return support_key_update_for_connection_ &&
+         GetLargestAckedPacket().IsInitialized() &&
+         lowest_packet_sent_in_current_key_phase_.IsInitialized() &&
+         GetLargestAckedPacket() >= lowest_packet_sent_in_current_key_phase_;
+}
+
+bool QuicConnection::InitiateKeyUpdate() {
+  QUIC_DLOG(INFO) << ENDPOINT << "InitiateKeyUpdate";
+  if (!IsKeyUpdateAllowed()) {
+    QUIC_BUG << "key update not allowed";
+    return false;
+  }
+  return framer_.DoKeyUpdate();
+}
+
 const QuicDecrypter* QuicConnection::decrypter() const {
   return framer_.decrypter();
 }
@@ -3735,6 +3825,7 @@ void QuicConnection::CancelAllAlarms() {
   send_alarm_->Cancel();
   mtu_discovery_alarm_->Cancel();
   process_undecryptable_packets_alarm_->Cancel();
+  discard_previous_one_rtt_keys_alarm_->Cancel();
   blackhole_detector_.StopDetection();
   idle_network_detector_.StopDetection();
 }

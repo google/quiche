@@ -220,6 +220,16 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         std::make_unique<QuicIetfStatelessResetPacket>(packet);
   }
 
+  void OnKeyUpdate() override {}
+  void OnDecryptedFirstPacketInKeyPhase() override {}
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override {
+    return nullptr;
+  }
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
+    return nullptr;
+  }
+
   const QuicPacketHeader& header() const { return header_; }
   const std::vector<QuicAckFrame>& ack_frames() const { return ack_frames_; }
   const std::vector<QuicConnectionCloseFrame>& connection_close_frames() const {

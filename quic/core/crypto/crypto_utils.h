@@ -98,6 +98,11 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       const std::vector<uint8_t>& pp_secret,
       size_t out_len);
 
+  // Given a secret for key phase n, return the secret for phase n+1.
+  static std::vector<uint8_t> GenerateNextKeyPhaseSecret(
+      const EVP_MD* prf,
+      const std::vector<uint8_t>& current_secret);
+
   // IETF QUIC encrypts ENCRYPTION_INITIAL messages with a version-specific key
   // (to prevent network observers that are not aware of that QUIC version from
   // making decisions based on the TLS handshake). This packet protection secret

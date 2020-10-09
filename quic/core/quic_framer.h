@@ -237,6 +237,25 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
 
   // Called when an IETF StreamsBlocked frame has been parsed.
   virtual bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) = 0;
+
+  // Called when a Key Phase Update has been initiated. This is called for both
+  // locally and peer initiated key updates. If the key update was locally
+  // initiated, this does not indicate the peer has received the key update yet.
+  virtual void OnKeyUpdate() = 0;
+
+  // Called on the first decrypted packet in each key phase (including the
+  // first key phase.)
+  virtual void OnDecryptedFirstPacketInKeyPhase() = 0;
+
+  // Called when the framer needs to generate a decrypter for the next key
+  // phase. Each call should generate the key for phase n+1.
+  virtual std::unique_ptr<QuicDecrypter>
+  AdvanceKeysAndCreateCurrentOneRttDecrypter() = 0;
+
+  // Called when the framer needs to generate an encrypter. The key corresponds
+  // to the key phase of the last decrypter returned by
+  // AdvanceKeysAndCreateCurrentOneRttDecrypter().
+  virtual std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() = 0;
 };
 
 // Class for parsing and constructing QUIC packets.  It has a
@@ -518,6 +537,13 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void InstallDecrypter(EncryptionLevel level,
                         std::unique_ptr<QuicDecrypter> decrypter);
   void RemoveDecrypter(EncryptionLevel level);
+
+  // Enables key update support.
+  void SetKeyUpdateSupportForConnection(bool enabled);
+  // Discard the decrypter for the previous key phase.
+  void DiscardPreviousOneRttKeys();
+  // Update the key phase.
+  bool DoKeyUpdate();
 
   const QuicDecrypter* GetDecrypter(EncryptionLevel level) const;
   const QuicDecrypter* decrypter() const;
@@ -1058,6 +1084,23 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   QuicTime creation_time_;
   // The last timestamp received if process_timestamps_ is true.
   QuicTime::Delta last_timestamp_;
+
+  // Whether IETF QUIC Key Update is supported on this connection.
+  bool support_key_update_for_connection_;
+  // The value of the current key phase bit, which is toggled when the keys are
+  // changed.
+  bool current_key_phase_bit_;
+  // Tracks the first packet received in the current key phase. Will be
+  // uninitialized before the first one-RTT packet has been received or after a
+  // locally initiated key update but before the first packet from the peer in
+  // the new key phase is received.
+  QuicPacketNumber current_key_phase_first_received_packet_number_;
+  // Decrypter for the previous key phase. Will be null if in the first key
+  // phase or previous keys have been discarded.
+  std::unique_ptr<QuicDecrypter> previous_decrypter_;
+  // Decrypter for the next key phase. May be null if next keys haven't been
+  // generated yet.
+  std::unique_ptr<QuicDecrypter> next_decrypter_;
 
   // If this is a framer of a connection, this is the packet number of first
   // sending packet. If this is a framer of a framer of dispatcher, this is the

@@ -151,6 +151,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // buffered at each encryption level.
     virtual size_t BufferSizeLimitForLevel(EncryptionLevel level) const = 0;
 
+    // Returns whether the implementation supports key update.
+    virtual bool KeyUpdateSupportedLocally() const = 0;
+
+    // Called to generate a decrypter for the next key phase. Each call should
+    // generate the key for phase n+1.
+    virtual std::unique_ptr<QuicDecrypter>
+    AdvanceKeysAndCreateCurrentOneRttDecrypter() = 0;
+
+    // Called to generate an encrypter for the same key phase of the last
+    // decrypter returned by AdvanceKeysAndCreateCurrentOneRttDecrypter().
+    virtual std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() = 0;
+
     // Returns current handshake state.
     virtual HandshakeState GetHandshakeState() const = 0;
 
@@ -228,6 +240,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;
   size_t BufferSizeLimitForLevel(EncryptionLevel level) const override;
+  bool KeyUpdateSupportedLocally() const override;
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override;
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
 
   std::string chlo_hash() const;
 

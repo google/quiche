@@ -82,6 +82,11 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
+  void OnKeyUpdate() override;
+  void OnDecryptedFirstPacketInKeyPhase() override;
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override;
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
 
   // CryptoFramerVisitorInterface implementation.
   void OnError(CryptoFramer* framer) override;
@@ -308,6 +313,20 @@ bool ChloFramerVisitor::OnMaxStreamsFrame(
 bool ChloFramerVisitor::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& /*frame*/) {
   return true;
+}
+
+void ChloFramerVisitor::OnKeyUpdate() {}
+
+void ChloFramerVisitor::OnDecryptedFirstPacketInKeyPhase() {}
+
+std::unique_ptr<QuicDecrypter>
+ChloFramerVisitor::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  return nullptr;
+}
+
+std::unique_ptr<QuicEncrypter>
+ChloFramerVisitor::CreateCurrentOneRttEncrypter() {
+  return nullptr;
 }
 
 void ChloFramerVisitor::OnError(CryptoFramer* /*framer*/) {}

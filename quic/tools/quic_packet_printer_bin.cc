@@ -220,6 +220,19 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
       const QuicIetfStatelessResetPacket& /*packet*/) override {
     std::cerr << "OnAuthenticatedIetfStatelessResetPacket\n";
   }
+  void OnKeyUpdate() override { std::cerr << "OnKeyUpdate\n"; }
+  void OnDecryptedFirstPacketInKeyPhase() override {
+    std::cerr << "OnDecryptedFirstPacketInKeyPhase\n";
+  }
+  std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
+      override {
+    std::cerr << "AdvanceKeysAndCreateCurrentOneRttDecrypter\n";
+    return nullptr;
+  }
+  std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
+    std::cerr << "CreateCurrentOneRttEncrypter\n";
+    return nullptr;
+  }
 
  private:
   QuicFramer* framer_;  // Unowned.

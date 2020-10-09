@@ -151,6 +151,12 @@ QuicAlarm* QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(
 }
 
 // static
+QuicAlarm* QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
+    QuicConnection* connection) {
+  return connection->discard_previous_one_rtt_keys_alarm_.get();
+}
+
+// static
 QuicPacketWriter* QuicConnectionPeer::GetWriter(QuicConnection* connection) {
   return connection->writer_;
 }

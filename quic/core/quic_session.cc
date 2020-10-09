@@ -137,6 +137,11 @@ void QuicSession::Initialize() {
     connection_->OnSuccessfulVersionNegotiation();
   }
 
+  if (GetQuicReloadableFlag(quic_key_update_supported) &&
+      GetMutableCryptoStream()->KeyUpdateSupportedLocally()) {
+    config_.SetKeyUpdateSupportedLocally();
+  }
+
   if (QuicVersionUsesCryptoFrames(transport_version())) {
     return;
   }
@@ -274,6 +279,15 @@ void QuicSession::OnOneRttPacketAcknowledged() {
 
 void QuicSession::OnHandshakePacketSent() {
   GetMutableCryptoStream()->OnHandshakePacketSent();
+}
+
+std::unique_ptr<QuicDecrypter>
+QuicSession::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
+  return GetMutableCryptoStream()->AdvanceKeysAndCreateCurrentOneRttDecrypter();
+}
+
+std::unique_ptr<QuicEncrypter> QuicSession::CreateCurrentOneRttEncrypter() {
+  return GetMutableCryptoStream()->CreateCurrentOneRttEncrypter();
 }
 
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {

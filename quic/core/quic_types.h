@@ -602,8 +602,8 @@ QUIC_EXPORT_PRIVATE std::string QuicLongHeaderTypeToString(
     QuicLongHeaderType type);
 
 enum QuicPacketHeaderTypeFlags : uint8_t {
-  // Bit 2: Reserved for experimentation for short header.
-  FLAGS_EXPERIMENTATION_BIT = 1 << 2,
+  // Bit 2: Key phase bit for IETF QUIC short header packets.
+  FLAGS_KEY_PHASE_BIT = 1 << 2,
   // Bit 3: Google QUIC Demultiplexing bit, the short header always sets this
   // bit to 0, allowing to distinguish Google QUIC packets from short header
   // packets.

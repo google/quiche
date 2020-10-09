@@ -387,6 +387,11 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   bool HandshakeDoneSupported() const;
   bool PeerSupportsHandshakeDone() const;
 
+  // Key update support.
+  void SetKeyUpdateSupportedLocally();
+  bool KeyUpdateSupportedForConnection() const;
+  bool KeyUpdateSupportedLocally() const;
+
   // IPv6 alternate server address.
   void SetIPv6AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv6);
@@ -579,6 +584,13 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Whether handshake done is supported. Only used in T050.
   // Uses the support_handshake_done transport parameter in IETF QUIC.
   QuicFixedUint32 support_handshake_done_;
+
+  // Whether key update is supported by the peer. Uses key_update_not_yet
+  // supported transport parameter in IETF QUIC.
+  bool key_update_supported_remotely_;
+
+  // Whether key update is supported locally.
+  bool key_update_supported_locally_;
 
   // Alternate server addresses the client could connect to.
   // Uses the preferred_address transport parameter in IETF QUIC.

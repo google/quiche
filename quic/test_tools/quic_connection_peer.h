@@ -82,6 +82,8 @@ class QuicConnectionPeer {
   static QuicAlarm* GetMtuDiscoveryAlarm(QuicConnection* connection);
   static QuicAlarm* GetProcessUndecryptablePacketsAlarm(
       QuicConnection* connection);
+  static QuicAlarm* GetDiscardPreviousOneRttKeysAlarm(
+      QuicConnection* connection);
 
   static QuicPacketWriter* GetWriter(QuicConnection* connection);
   // If |owns_writer| is true, takes ownership of |writer|.

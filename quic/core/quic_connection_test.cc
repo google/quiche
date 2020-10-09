@@ -421,6 +421,11 @@ class TestConnection : public QuicConnection {
         QuicConnectionPeer::GetProcessUndecryptablePacketsAlarm(this));
   }
 
+  TestAlarmFactory::TestAlarm* GetDiscardPreviousOneRttKeysAlarm() {
+    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
+        QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
+  }
+
   TestAlarmFactory::TestAlarm* GetBlackholeDetectorAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
         QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
@@ -11799,6 +11804,150 @@ TEST_P(QuicConnectionTest, OnZeroRttPacketAcked) {
   frames4.push_back(QuicFrame(&ack_frame3));
   EXPECT_CALL(debug_visitor, OnZeroRttPacketAcked()).Times(0);
   ProcessCoalescedPacket({{4, frames4, ENCRYPTION_FORWARD_SECURE}});
+}
+
+TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  TransportParameters params;
+  params.key_update_not_yet_supported = false;
+  QuicConfig config;
+  std::string error_details;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  config.SetKeyUpdateSupportedLocally();
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  MockFramerVisitor peer_framer_visitor_;
+  peer_framer_.set_visitor(&peer_framer_visitor_);
+
+  use_tagging_decrypter();
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypter>(0x01));
+  connection_.OnHandshakeComplete();
+
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0x01));
+
+  // Key update should still not be allowed, since no packet has been acked
+  // from the current key phase.
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  // Send packet 1.
+  QuicPacketNumber last_packet;
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(1u), last_packet);
+
+  // Key update should still not be allowed, even though a packet was sent in
+  // the current key phase it hasn't been acked yet.
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  // Receive ack for packet 1.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  ProcessAckPacket(&frame1);
+
+  // OnDecryptedFirstPacketInKeyPhase is called even on the first key phase,
+  // so discard_previous_keys_alarm_ should be set now.
+  EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+
+  // Key update should now be allowed.
+  EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x02); });
+  EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
+    return std::make_unique<TaggingEncrypter>(0x02);
+  });
+  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+  // discard_previous_keys_alarm_ should not be set until a packet from the new
+  // key phase has been received. (The alarm that was set above should be
+  // cleared if it hasn't fired before the next key update happened.)
+  EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+
+  // Pretend that peer accepts the key update.
+  EXPECT_CALL(peer_framer_visitor_,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x02); });
+  EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
+      .WillOnce([]() { return std::make_unique<TaggingEncrypter>(0x02); });
+  peer_framer_.SetKeyUpdateSupportForConnection(true);
+  peer_framer_.DoKeyUpdate();
+
+  // Another key update should not be allowed yet.
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  // Send packet 2.
+  SendStreamDataToPeer(2, "bar", 0, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(2u), last_packet);
+  // Receive ack for packet 2.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame2 = InitAckFrame(2);
+  ProcessAckPacket(&frame2);
+  EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+
+  // Key update should be allowed again now that a packet has been acked from
+  // the current key phase.
+  EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x03); });
+  EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
+    return std::make_unique<TaggingEncrypter>(0x03);
+  });
+  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+
+  // Pretend that peer accepts the key update.
+  EXPECT_CALL(peer_framer_visitor_,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x03); });
+  EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
+      .WillOnce([]() { return std::make_unique<TaggingEncrypter>(0x03); });
+  peer_framer_.DoKeyUpdate();
+
+  // Another key update should not be allowed yet.
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  // Send packet 3.
+  SendStreamDataToPeer(3, "baz", 0, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(3u), last_packet);
+
+  // Another key update should not be allowed yet.
+  EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+
+  // Receive ack for packet 3.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame3 = InitAckFrame(3);
+  ProcessAckPacket(&frame3);
+  EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+
+  // Key update should be allowed now.
+  EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x04); });
+  EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
+    return std::make_unique<TaggingEncrypter>(0x04);
+  });
+  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+  EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
 }
 
 }  // namespace
