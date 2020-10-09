@@ -6,7 +6,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -46,7 +46,7 @@ TEST_F(QuicheStrCatTest, Basics) {
 
   std::string strs[] = {"Hello", "Cruel", "World"};
 
-  QuicheStringPiece pieces[] = {"Hello", "Cruel", "World"};
+  absl::string_view pieces[] = {"Hello", "Cruel", "World"};
 
   const char* c_strs[] = {"Hello", "Cruel", "World"};
 

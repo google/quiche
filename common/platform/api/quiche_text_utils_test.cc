@@ -48,7 +48,7 @@ TEST_F(QuicheTextUtilsTest, RemoveLeadingAndTrailingWhitespace) {
 
   for (auto* input : {"text", " text", "  text", "text ", "text  ", " text ",
                       "  text  ", "\r\n\ttext", "text\n\r\t"}) {
-    quiche::QuicheStringPiece piece(input);
+    absl::string_view piece(input);
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&piece);
     EXPECT_EQ("text", piece);
   }
@@ -214,16 +214,16 @@ TEST_F(QuicheTextUtilsTest, ContainsUpperCase) {
 }
 
 TEST_F(QuicheTextUtilsTest, Split) {
-  EXPECT_EQ(std::vector<quiche::QuicheStringPiece>({"a", "b", "c"}),
+  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
             quiche::QuicheTextUtils::Split("a,b,c", ','));
-  EXPECT_EQ(std::vector<quiche::QuicheStringPiece>({"a", "b", "c"}),
+  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
             quiche::QuicheTextUtils::Split("a:b:c", ':'));
-  EXPECT_EQ(std::vector<quiche::QuicheStringPiece>({"a:b:c"}),
+  EXPECT_EQ(std::vector<absl::string_view>({"a:b:c"}),
             quiche::QuicheTextUtils::Split("a:b:c", ','));
   // Leading and trailing whitespace is preserved.
-  EXPECT_EQ(std::vector<quiche::QuicheStringPiece>({"a", "b", "c"}),
+  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
             quiche::QuicheTextUtils::Split("a,b,c", ','));
-  EXPECT_EQ(std::vector<quiche::QuicheStringPiece>({" a", "b ", " c "}),
+  EXPECT_EQ(std::vector<absl::string_view>({" a", "b ", " c "}),
             quiche::QuicheTextUtils::Split(" a:b : c ", ':'));
 }
 

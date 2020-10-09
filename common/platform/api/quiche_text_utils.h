@@ -7,9 +7,9 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/quiche/common/platform/impl/quiche_text_utils_impl.h"
 
 namespace quiche {
@@ -18,55 +18,52 @@ namespace quiche {
 class QUICHE_EXPORT QuicheTextUtils {
  public:
   // Returns true if |data| starts with |prefix|, case sensitively.
-  static bool StartsWith(quiche::QuicheStringPiece data,
-                         quiche::QuicheStringPiece prefix) {
+  static bool StartsWith(absl::string_view data, absl::string_view prefix) {
     return quiche::QuicheTextUtilsImpl::StartsWith(data, prefix);
   }
 
   // Returns true if |data| ends with |suffix|, case sensitively.
-  static bool EndsWith(quiche::QuicheStringPiece data,
-                       quiche::QuicheStringPiece suffix) {
+  static bool EndsWith(absl::string_view data, absl::string_view suffix) {
     return quiche::QuicheTextUtilsImpl::EndsWith(data, suffix);
   }
 
   // Returns true if |data| ends with |suffix|, case insensitively.
-  static bool EndsWithIgnoreCase(quiche::QuicheStringPiece data,
-                                 quiche::QuicheStringPiece suffix) {
+  static bool EndsWithIgnoreCase(absl::string_view data,
+                                 absl::string_view suffix) {
     return quiche::QuicheTextUtilsImpl::EndsWithIgnoreCase(data, suffix);
   }
 
   // Returns a new string in which |data| has been converted to lower case.
-  static std::string ToLower(quiche::QuicheStringPiece data) {
+  static std::string ToLower(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::ToLower(data);
   }
 
   // Removes leading and trailing whitespace from |data|.
-  static void RemoveLeadingAndTrailingWhitespace(
-      quiche::QuicheStringPiece* data) {
+  static void RemoveLeadingAndTrailingWhitespace(absl::string_view* data) {
     quiche::QuicheTextUtilsImpl::RemoveLeadingAndTrailingWhitespace(data);
   }
 
   // Returns true if |in| represents a valid uint64, and stores that value in
   // |out|.
-  static bool StringToUint64(quiche::QuicheStringPiece in, uint64_t* out) {
+  static bool StringToUint64(absl::string_view in, uint64_t* out) {
     return quiche::QuicheTextUtilsImpl::StringToUint64(in, out);
   }
 
   // Returns true if |in| represents a valid int, and stores that value in
   // |out|.
-  static bool StringToInt(quiche::QuicheStringPiece in, int* out) {
+  static bool StringToInt(absl::string_view in, int* out) {
     return quiche::QuicheTextUtilsImpl::StringToInt(in, out);
   }
 
   // Returns true if |in| represents a valid uint32, and stores that value in
   // |out|.
-  static bool StringToUint32(quiche::QuicheStringPiece in, uint32_t* out) {
+  static bool StringToUint32(absl::string_view in, uint32_t* out) {
     return quiche::QuicheTextUtilsImpl::StringToUint32(in, out);
   }
 
   // Returns true if |in| represents a valid size_t, and stores that value in
   // |out|.
-  static bool StringToSizeT(quiche::QuicheStringPiece in, size_t* out) {
+  static bool StringToSizeT(absl::string_view in, size_t* out) {
     return quiche::QuicheTextUtilsImpl::StringToSizeT(in, out);
   }
 
@@ -79,13 +76,13 @@ class QUICHE_EXPORT QuicheTextUtils {
   // hexadecimal representation.
   // Return value: 2*|length| characters of ASCII string.
   static std::string HexEncode(const char* data, size_t length) {
-    return HexEncode(quiche::QuicheStringPiece(data, length));
+    return HexEncode(absl::string_view(data, length));
   }
 
   // This converts |data.length()| bytes of binary to a
   // 2*|data.length()|-character hexadecimal representation.
   // Return value: 2*|data.length()| characters of ASCII string.
-  static std::string HexEncode(quiche::QuicheStringPiece data) {
+  static std::string HexEncode(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::HexEncode(data);
   }
 
@@ -97,7 +94,7 @@ class QUICHE_EXPORT QuicheTextUtils {
 
   // Converts |data| from a hexadecimal ASCII string to a binary string
   // that is |data.length()/2| bytes long.
-  static std::string HexDecode(quiche::QuicheStringPiece data) {
+  static std::string HexDecode(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::HexDecode(data);
   }
 
@@ -110,7 +107,7 @@ class QUICHE_EXPORT QuicheTextUtils {
 
   // Decodes a base64-encoded |input|.  Returns nullopt when the input is
   // invalid.
-  static QuicheOptional<std::string> Base64Decode(QuicheStringPiece input) {
+  static QuicheOptional<std::string> Base64Decode(absl::string_view input) {
     return quiche::QuicheTextUtilsImpl::Base64Decode(input);
   }
 
@@ -119,24 +116,23 @@ class QUICHE_EXPORT QuicheTextUtils {
   // printed as '.' in the ASCII output.
   // For example, given the input "Hello, QUIC!\01\02\03\04", returns:
   // "0x0000:  4865 6c6c 6f2c 2051 5549 4321 0102 0304  Hello,.QUIC!...."
-  static std::string HexDump(quiche::QuicheStringPiece binary_data) {
+  static std::string HexDump(absl::string_view binary_data) {
     return quiche::QuicheTextUtilsImpl::HexDump(binary_data);
   }
 
   // Returns true if |data| contains any uppercase characters.
-  static bool ContainsUpperCase(quiche::QuicheStringPiece data) {
+  static bool ContainsUpperCase(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::ContainsUpperCase(data);
   }
 
   // Returns true if |data| contains only decimal digits.
-  static bool IsAllDigits(quiche::QuicheStringPiece data) {
+  static bool IsAllDigits(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::IsAllDigits(data);
   }
 
   // Splits |data| into a vector of pieces delimited by |delim|.
-  static std::vector<quiche::QuicheStringPiece> Split(
-      quiche::QuicheStringPiece data,
-      char delim) {
+  static std::vector<absl::string_view> Split(absl::string_view data,
+                                              char delim) {
     return quiche::QuicheTextUtilsImpl::Split(data, delim);
   }
 };

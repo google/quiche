@@ -10,10 +10,10 @@
 #include <cstring>
 #include <limits>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quiche {
 
@@ -54,8 +54,8 @@ class QUICHE_EXPORT_PRIVATE QuicheDataWriter {
   // correct byte order.
   bool WriteBytesToUInt64(size_t num_bytes, uint64_t value);
 
-  bool WriteStringPiece(quiche::QuicheStringPiece val);
-  bool WriteStringPiece16(quiche::QuicheStringPiece val);
+  bool WriteStringPiece(absl::string_view val);
+  bool WriteStringPiece16(absl::string_view val);
   bool WriteBytes(const void* data, size_t data_len);
   bool WriteRepeatedByte(uint8_t byte, size_t count);
   // Fills the remaining buffer with null characters.

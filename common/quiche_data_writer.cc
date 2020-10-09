@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <limits>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quiche {
 
@@ -65,7 +65,7 @@ bool QuicheDataWriter::WriteBytesToUInt64(size_t num_bytes, uint64_t value) {
                     num_bytes);
 }
 
-bool QuicheDataWriter::WriteStringPiece16(quiche::QuicheStringPiece val) {
+bool QuicheDataWriter::WriteStringPiece16(absl::string_view val) {
   if (val.size() > std::numeric_limits<uint16_t>::max()) {
     return false;
   }
@@ -75,7 +75,7 @@ bool QuicheDataWriter::WriteStringPiece16(quiche::QuicheStringPiece val) {
   return WriteBytes(val.data(), val.size());
 }
 
-bool QuicheDataWriter::WriteStringPiece(quiche::QuicheStringPiece val) {
+bool QuicheDataWriter::WriteStringPiece(absl::string_view val) {
   return WriteBytes(val.data(), val.size());
 }
 
