@@ -7,13 +7,13 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -39,7 +39,7 @@ void NormalizeFingerprint(CertificateFingerprint& fingerprint) {
 
 constexpr char CertificateFingerprint::kSha256[];
 
-std::string ComputeSha256Fingerprint(quiche::QuicheStringPiece input) {
+std::string ComputeSha256Fingerprint(absl::string_view input) {
   std::vector<uint8_t> raw_hash;
   raw_hash.resize(SHA256_DIGEST_LENGTH);
   SHA256(reinterpret_cast<const uint8_t*>(input.data()), input.size(),
@@ -114,7 +114,7 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyProof(
     const uint16_t /*port*/,
     const std::string& /*server_config*/,
     QuicTransportVersion /*transport_version*/,
-    quiche::QuicheStringPiece /*chlo_hash*/,
+    absl::string_view /*chlo_hash*/,
     const std::vector<std::string>& /*certs*/,
     const std::string& /*cert_sct*/,
     const std::string& /*signature*/,
@@ -185,7 +185,7 @@ WebTransportFingerprintProofVerifier::CreateDefaultContext() {
 }
 
 bool WebTransportFingerprintProofVerifier::HasKnownFingerprint(
-    quiche::QuicheStringPiece der_certificate) {
+    absl::string_view der_certificate) {
   // https://wicg.github.io/web-transport/#verify-a-certificate-fingerprint
   const std::string fingerprint = ComputeSha256Fingerprint(der_certificate);
   for (const CertificateFingerprint& reference : fingerprints_) {

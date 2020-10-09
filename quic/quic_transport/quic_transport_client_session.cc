@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
@@ -22,7 +23,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -53,8 +53,7 @@ QuicTransportClientSession::QuicTransportClientSession(
       /*proof_handler=*/this, /*has_application_state = */ true);
 }
 
-void QuicTransportClientSession::OnAlpnSelected(
-    quiche::QuicheStringPiece alpn) {
+void QuicTransportClientSession::OnAlpnSelected(absl::string_view alpn) {
   // Defense in-depth: ensure the ALPN selected is the desired one.
   if (alpn != QuicTransportAlpn()) {
     QUIC_BUG << "QuicTransport negotiated non-QuicTransport ALPN: " << alpn;
@@ -237,8 +236,7 @@ void QuicTransportClientSession::SendClientIndication() {
   visitor_->OnSessionReady();
 }
 
-void QuicTransportClientSession::OnMessageReceived(
-    quiche::QuicheStringPiece message) {
+void QuicTransportClientSession::OnMessageReceived(absl::string_view message) {
   visitor_->OnDatagramReceived(message);
 }
 

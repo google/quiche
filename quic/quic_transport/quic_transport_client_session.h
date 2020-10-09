@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -49,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     virtual void OnIncomingUnidirectionalStreamAvailable() = 0;
 
     // Notifies the visitor when a new datagram has been received.
-    virtual void OnDatagramReceived(quiche::QuicheStringPiece datagram) = 0;
+    virtual void OnDatagramReceived(absl::string_view datagram) = 0;
 
     // Notifies the visitor that a new outgoing stream can now be created.
     virtual void OnCanCreateNewOutgoingBidirectionalStream() = 0;
@@ -68,7 +68,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({QuicTransportAlpn()});
   }
-  void OnAlpnSelected(quiche::QuicheStringPiece alpn) override;
+  void OnAlpnSelected(absl::string_view alpn) override;
   bool alpn_received() const { return alpn_received_; }
 
   void CryptoConnect() { crypto_stream_->CryptoConnect(); }
@@ -97,7 +97,7 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
 
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnTlsHandshakeComplete() override;
-  void OnMessageReceived(quiche::QuicheStringPiece message) override;
+  void OnMessageReceived(absl::string_view message) override;
 
   // Return the earliest incoming stream that has been received by the session
   // but has not been accepted.  Returns nullptr if there are no incoming

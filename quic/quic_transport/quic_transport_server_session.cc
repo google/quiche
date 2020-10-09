@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "url/url_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_stream.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -109,7 +109,7 @@ bool QuicTransportServerSession::ClientIndicationParser::Parse() {
       return false;
     }
 
-    quiche::QuicheStringPiece value;
+    absl::string_view value;
     if (!reader_.ReadStringPiece16(&value)) {
       ParseError(quiche::QuicheStrCat("Failed to read value for key ", key));
       return false;
@@ -160,7 +160,7 @@ bool QuicTransportServerSession::ClientIndicationParser::Parse() {
 }
 
 bool QuicTransportServerSession::ClientIndicationParser::ProcessPath(
-    quiche::QuicheStringPiece path) {
+    absl::string_view path) {
   if (path.empty() || path[0] != '/') {
     // https://tools.ietf.org/html/draft-vvv-webtransport-quic-01#section-3.2.2
     Error("Path must begin with a '/'");
@@ -193,13 +193,13 @@ void QuicTransportServerSession::ClientIndicationParser::Error(
 }
 
 void QuicTransportServerSession::ClientIndicationParser::ParseError(
-    quiche::QuicheStringPiece error_message) {
+    absl::string_view error_message) {
   Error(quiche::QuicheStrCat("Failed to parse the client indication stream: ",
                              error_message, reader_.DebugString()));
 }
 
 void QuicTransportServerSession::ProcessClientIndication(
-    quiche::QuicheStringPiece indication) {
+    absl::string_view indication) {
   ClientIndicationParser parser(this, indication);
   if (!parser.Parse()) {
     return;

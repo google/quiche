@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -51,8 +51,7 @@ class QuicTransportStreamTest : public QuicTest {
     stream_->set_visitor(std::move(visitor));
   }
 
-  void ReceiveStreamData(quiche::QuicheStringPiece data,
-                         QuicStreamOffset offset) {
+  void ReceiveStreamData(absl::string_view data, QuicStreamOffset offset) {
     QuicStreamFrame frame(0, false, offset, data);
     stream_->OnStreamFrame(frame);
   }

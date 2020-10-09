@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_compressed_certs_cache.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -88,7 +88,7 @@ class QuicTransportServerSessionTest : public QuicTest {
         QuicServerId("test.example.com", 443), options, QuicTransportAlpn());
   }
 
-  void ReceiveIndication(quiche::QuicheStringPiece indication) {
+  void ReceiveIndication(absl::string_view indication) {
     QUIC_LOG(INFO) << "Receiving indication: "
                    << quiche::QuicheTextUtils::HexDump(indication);
     constexpr size_t kChunkSize = 1024;
@@ -101,10 +101,10 @@ class QuicTransportServerSessionTest : public QuicTest {
     }
     session_->OnStreamFrame(QuicStreamFrame(ClientIndicationStream(),
                                             /*fin=*/true, indication.size(),
-                                            quiche::QuicheStringPiece()));
+                                            absl::string_view()));
   }
 
-  void ReceiveIndicationWithPath(quiche::QuicheStringPiece path) {
+  void ReceiveIndicationWithPath(absl::string_view path) {
     constexpr char kTestOriginClientIndicationPrefix[] =
         "\0\0"                      // key (0x0000, origin)
         "\0\x18"                    // length
@@ -149,14 +149,14 @@ TEST_F(QuicTransportServerSessionTest, PiecewiseClientIndication) {
   for (; i < sizeof(kTestOriginClientIndication) - 2; i++) {
     QuicStreamFrame frame(
         ClientIndicationStream(), false, i,
-        quiche::QuicheStringPiece(&kTestOriginClientIndication[i], 1));
+        absl::string_view(&kTestOriginClientIndication[i], 1));
     session_->OnStreamFrame(frame);
   }
 
   EXPECT_CALL(visitor_, CheckOrigin(_)).WillOnce(Return(true));
   QuicStreamFrame last_frame(
       ClientIndicationStream(), true, i,
-      quiche::QuicheStringPiece(&kTestOriginClientIndication[i], 1));
+      absl::string_view(&kTestOriginClientIndication[i], 1));
   session_->OnStreamFrame(last_frame);
   EXPECT_TRUE(session_->IsSessionReady());
 }
@@ -170,7 +170,7 @@ TEST_F(QuicTransportServerSessionTest, OriginRejected) {
   EXPECT_FALSE(session_->IsSessionReady());
 }
 
-std::string MakeUnknownField(quiche::QuicheStringPiece payload) {
+std::string MakeUnknownField(absl::string_view payload) {
   std::string buffer;
   buffer.resize(payload.size() + 4);
   QuicDataWriter writer(buffer.size(), &buffer[0]);

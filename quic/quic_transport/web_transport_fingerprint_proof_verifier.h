@@ -7,10 +7,10 @@
 
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 
@@ -30,7 +30,7 @@ struct QUIC_EXPORT_PRIVATE CertificateFingerprint {
 // Computes a SHA-256 fingerprint of the specified input formatted in the same
 // format as CertificateFingerprint::fingerprint would contain.
 QUIC_EXPORT_PRIVATE std::string ComputeSha256Fingerprint(
-    quiche::QuicheStringPiece input);
+    absl::string_view input);
 
 // WebTransportFingerprintProofVerifier verifies the server leaf certificate
 // against a supplied list of certificate fingerprints following the procedure
@@ -83,7 +83,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
       const uint16_t port,
       const std::string& server_config,
       QuicTransportVersion transport_version,
-      quiche::QuicheStringPiece chlo_hash,
+      absl::string_view chlo_hash,
       const std::vector<std::string>& certs,
       const std::string& cert_sct,
       const std::string& signature,
@@ -104,7 +104,7 @@ class QUIC_EXPORT_PRIVATE WebTransportFingerprintProofVerifier
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override;
 
  private:
-  bool HasKnownFingerprint(quiche::QuicheStringPiece der_certificate);
+  bool HasKnownFingerprint(absl::string_view der_certificate);
   bool HasValidExpiry(const CertificateView& certificate);
   bool IsWithinValidityPeriod(const CertificateView& certificate);
 

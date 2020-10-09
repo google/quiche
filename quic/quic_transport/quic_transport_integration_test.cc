@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace quic {
 namespace test {
@@ -377,7 +377,7 @@ TEST_F(QuicTransportIntegrationTest, EchoALotOfDatagrams) {
   size_t received = 0;
   EXPECT_CALL(*client_->visitor(), OnDatagramReceived(_))
       .WillRepeatedly(
-          [&received](quiche::QuicheStringPiece /*datagram*/) { received++; });
+          [&received](absl::string_view /*datagram*/) { received++; });
   ASSERT_TRUE(simulator_.RunUntilOrTimeout(
       [this]() { return client_->session()->datagram_queue()->empty(); },
       3 * kServerBandwidth.TransferTime(1000 * kMaxOutgoingPacketSize)));
