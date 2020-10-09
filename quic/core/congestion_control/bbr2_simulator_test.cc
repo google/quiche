@@ -589,10 +589,18 @@ TEST_F(Bbr2DefaultTopologyTest, Drain) {
   ASSERT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
   EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * (1 / 2.885f),
                    sender_->PacingRate(0), 0.01f);
-  // BBR uses CWND gain of 2.88 during STARTUP, hence it will fill the buffer
-  // with approximately 1.88 BDPs.  Here, we use 1.5 to give some margin for
-  // error.
-  EXPECT_GE(queue->bytes_queued(), 1.5 * params.BDP());
+
+  if (GetQuicReloadableFlag(quic_bbr2_flip_bbq2)) {
+    // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer
+    // with approximately 1 BDP.  Here, we use 0.95 to give some margin for
+    // error.
+    EXPECT_GE(queue->bytes_queued(), 0.95 * params.BDP());
+  } else {
+    // BBR uses CWND gain of 2.88 during STARTUP, hence it will fill the buffer
+    // with approximately 1.88 BDPs.  Here, we use 1.5 to give some margin for
+    // error.
+    EXPECT_GE(queue->bytes_queued(), 1.5 * params.BDP());
+  }
 
   // Observe increased RTT due to bufferbloat.
   const QuicTime::Delta queueing_delay =

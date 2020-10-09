@@ -100,8 +100,8 @@ const QuicTag kBBR9 = TAG('B', 'B', 'R', '9');   // DEPRECATED
 const QuicTag kBBRS = TAG('B', 'B', 'R', 'S');   // DEPRECATED
 const QuicTag kBBQ1 = TAG('B', 'B', 'Q', '1');   // BBR with lower 2.77 STARTUP
                                                  // pacing and CWND gain.
-const QuicTag kBBQ2 = TAG('B', 'B', 'Q', '2');   // BBR with lower 2.0 STARTUP
-                                                 // CWND gain.
+const QuicTag kBBQ2 = TAG('B', 'B', 'Q', '2');   // BBRv2 with 2.885 STARTUP and
+                                                 // DRAIN CWND gain.
 const QuicTag kBBQ3 = TAG('B', 'B', 'Q', '3');   // BBR with ack aggregation
                                                  // compensation in STARTUP.
 const QuicTag kBBQ5 = TAG('B', 'B', 'Q', '5');   // Expire ack aggregation upon

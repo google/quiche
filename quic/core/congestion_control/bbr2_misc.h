@@ -76,8 +76,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    */
 
   // The gain for both CWND and PacingRate at startup.
+  float startup_cwnd_gain =
+      GetQuicReloadableFlag(quic_bbr2_flip_bbq2) ? 2.0 : 2.885;
   // TODO(wub): Maybe change to the newly derived value of 2.773 (4 * ln(2)).
-  float startup_cwnd_gain = 2.885;
   float startup_pacing_gain = 2.885;
 
   // Full bandwidth is declared if the total bandwidth growth is less than
@@ -94,7 +95,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   /*
    * DRAIN parameters.
    */
-  float drain_cwnd_gain = 2.885;
+  float drain_cwnd_gain =
+      GetQuicReloadableFlag(quic_bbr2_flip_bbq2) ? 2.0 : 2.885;
   float drain_pacing_gain = 1.0 / 2.885;
 
   /*

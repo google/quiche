@@ -142,9 +142,14 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
 void Bbr2Sender::ApplyConnectionOptions(
     const QuicTagVector& connection_options) {
   if (ContainsQuicTag(connection_options, kBBQ2)) {
-    // 2 is the lower, derived gain for CWND.
-    params_.startup_cwnd_gain = 2;
-    params_.drain_cwnd_gain = 2;
+    if (GetQuicReloadableFlag(quic_bbr2_flip_bbq2)) {
+      params_.startup_cwnd_gain = 2.885;
+      params_.drain_cwnd_gain = 2.885;
+    } else {
+      // 2 is the lower, derived gain for CWND.
+      params_.startup_cwnd_gain = 2;
+      params_.drain_cwnd_gain = 2;
+    }
   }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
