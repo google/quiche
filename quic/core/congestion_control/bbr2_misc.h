@@ -394,9 +394,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool IsCongestionWindowLimited(
       const Bbr2CongestionEvent& congestion_event) const;
 
-  // TODO(wub): Replace this by a new version which takes two thresholds, one
-  // is the number of loss events, the other is the percentage of bytes lost.
-  bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event) const;
+  // Return true if the number of loss events exceeds max_loss_events and
+  // fraction of bytes lost exceed the loss threshold.
+  bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event,
+                         int64_t max_loss_events) const;
 
   QuicPacketNumber last_sent_packet() const {
     return round_trip_counter_.last_sent_packet();

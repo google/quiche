@@ -199,10 +199,8 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
     return NOT_ADAPTED_INVALID_SAMPLE;
   }
 
-  const bool has_enough_loss_events =
-      model_->loss_events_in_round() >= Params().probe_bw_full_loss_count;
-
-  if (has_enough_loss_events && model_->IsInflightTooHigh(congestion_event)) {
+  if (model_->IsInflightTooHigh(congestion_event,
+                                Params().probe_bw_full_loss_count)) {
     if (cycle_.is_sample_from_probing) {
       cycle_.is_sample_from_probing = false;
 

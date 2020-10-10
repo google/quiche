@@ -93,8 +93,6 @@ void Bbr2StartupMode::CheckExcessiveLosses(
     return;
   }
 
-  const int64_t loss_events_in_round = model_->loss_events_in_round();
-
   // TODO(wub): In TCP, loss based exit only happens at end of a loss round, in
   // QUIC we use the end of the normal round here. It is possible to exit after
   // any congestion event, using information of the "rolling round".
@@ -102,19 +100,13 @@ void Bbr2StartupMode::CheckExcessiveLosses(
     return;
   }
 
-  QUIC_DVLOG(3)
-      << sender_
-      << " CheckExcessiveLosses at end of round. loss_events_in_round:"
-      << loss_events_in_round
-      << ", threshold:" << Params().startup_full_loss_count << "  @ "
-      << congestion_event.event_time;
-
   // At the end of a round trip. Check if loss is too high in this round.
-  if (loss_events_in_round >= Params().startup_full_loss_count &&
-      model_->IsInflightTooHigh(congestion_event)) {
+  if (model_->IsInflightTooHigh(congestion_event,
+                                Params().startup_full_loss_count)) {
     const QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
     QUIC_DVLOG(3) << sender_
                   << " Exiting STARTUP due to loss. inflight_hi:" << bdp;
+    // TODO(ianswett): Add a shared method to set inflight_hi in the model.
     model_->set_inflight_hi(bdp);
 
     full_bandwidth_reached_ = true;
