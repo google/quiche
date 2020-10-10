@@ -1517,7 +1517,7 @@ void TestPacketWriter::FreePacketBuffer(const char* buffer) {
 
 bool WriteServerVersionNegotiationProbeResponse(
     char* packet_bytes,
-    QuicByteCount* packet_length_out,
+    size_t* packet_length_out,
     const char* source_connection_id_bytes,
     uint8_t source_connection_id_length) {
   if (packet_bytes == nullptr) {
@@ -1552,7 +1552,7 @@ bool WriteServerVersionNegotiationProbeResponse(
 
 bool ParseClientVersionNegotiationProbePacket(
     const char* packet_bytes,
-    QuicByteCount packet_length,
+    size_t packet_length,
     char* destination_connection_id_bytes,
     uint8_t* destination_connection_id_length_out) {
   if (packet_bytes == nullptr) {

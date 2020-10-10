@@ -2153,7 +2153,7 @@ class TestPacketWriter : public QuicPacketWriter {
 // WriteClientVersionNegotiationProbePacket.
 bool ParseClientVersionNegotiationProbePacket(
     const char* packet_bytes,
-    QuicByteCount packet_length,
+    size_t packet_length,
     char* destination_connection_id_bytes,
     uint8_t* destination_connection_id_length_out);
 
@@ -2167,7 +2167,7 @@ bool ParseClientVersionNegotiationProbePacket(
 // bytes of memory.
 bool WriteServerVersionNegotiationProbeResponse(
     char* packet_bytes,
-    QuicByteCount* packet_length_out,
+    size_t* packet_length_out,
     const char* source_connection_id_bytes,
     uint8_t source_connection_id_length);
 
