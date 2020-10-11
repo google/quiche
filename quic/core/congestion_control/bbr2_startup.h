@@ -58,7 +58,12 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
  private:
   const Bbr2Params& Params() const;
 
-  void CheckFullBandwidthReached(const Bbr2CongestionEvent& congestion_event);
+  // Check bandwidth growth in the past round. Must be called at the end of a
+  // round.
+  // Return true if the bandwidth growed as expected.
+  // Return false otherwise, if enough rounds have elapsed without expected
+  // growth, also sets |full_bandwidth_reached_| to true.
+  bool CheckBandwidthGrowth(const Bbr2CongestionEvent& congestion_event);
 
   void CheckExcessiveLosses(const Bbr2CongestionEvent& congestion_event);
 
