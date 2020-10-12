@@ -1392,7 +1392,57 @@ TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTest) {
   // clang-format off
   static const unsigned char packet[1200] = {
     // Android UDP network conformance test packet as it was after this change:
+    // https://android-review.googlesource.com/c/platform/cts/+/1454515
+    0xc0,  // long header
+    0xaa, 0xda, 0xca, 0xca,  // reserved-space version number
+    0x08,  // destination connection ID length
+    0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,  // 8-byte connection ID
+    0x00,  // source connection ID length
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
+                                sizeof(packet), false);
+  std::unique_ptr<QuicReceivedPacket> received_packet(
+      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
+  ASSERT_EQ(1u, saving_writer->packets()->size());
+
+  // The Android UDP network conformance test directly checks that these bytes
+  // of the response match the connection ID that was sent.
+  ASSERT_GE((*(saving_writer->packets()))[0]->length(), 15u);
+  quiche::test::CompareCharArraysWithHexError(
+      "response connection ID", &(*(saving_writer->packets()))[0]->data()[7], 8,
+      reinterpret_cast<const char*>(&packet[6]), 8);
+}
+
+TEST_P(QuicDispatcherTestOneVersion, AndroidConformanceTestOld) {
+  // WARNING: this test covers an old Android Conformance Test that has now been
+  // changed, but it'll take time for the change to propagate through the
+  // Android ecosystem. The Android team has asked us to keep this test
+  // supported until at least 2021-03-31. After that date, and when we drop
+  // support for sending QUIC version negotiation packets using the legacy
+  // Google QUIC format (Q001-Q043), then we can delete this test.
+  // TODO(dschinazi) delete this test after 2021-03-31
+  SavingWriter* saving_writer = new SavingWriter();
+  // dispatcher_ takes ownership of saving_writer.
+  QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
+
+  QuicTimeWaitListManager* time_wait_list_manager = new QuicTimeWaitListManager(
+      saving_writer, dispatcher_.get(), mock_helper_.GetClock(),
+      &mock_alarm_factory_);
+  // dispatcher_ takes ownership of time_wait_list_manager.
+  QuicDispatcherPeer::SetTimeWaitListManager(dispatcher_.get(),
+                                             time_wait_list_manager);
+  // clang-format off
+  static const unsigned char packet[1200] = {
+    // Android UDP network conformance test packet as it was after this change:
     // https://android-review.googlesource.com/c/platform/cts/+/1104285
+    // but before this change:
+    // https://android-review.googlesource.com/c/platform/cts/+/1454515
     0x0d,  // public flags: version, 8-byte connection ID, 1-byte packet number
     0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,  // 8-byte connection ID
     0xaa, 0xda, 0xca, 0xaa,  // reserved-space version number
