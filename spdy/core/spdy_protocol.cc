@@ -281,7 +281,7 @@ SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(
 
 SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() = default;
 
-SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, quiche::QuicheStringPiece data)
+SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, absl::string_view data)
     : SpdyFrameWithFinIR(stream_id),
       data_(nullptr),
       data_len_(0),
@@ -291,7 +291,7 @@ SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, quiche::QuicheStringPiece data)
 }
 
 SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, const char* data)
-    : SpdyDataIR(stream_id, quiche::QuicheStringPiece(data)) {}
+    : SpdyDataIR(stream_id, absl::string_view(data)) {}
 
 SpdyDataIR::SpdyDataIR(SpdyStreamId stream_id, std::string data)
     : SpdyFrameWithFinIR(stream_id),
@@ -377,7 +377,7 @@ size_t SpdyPingIR::size() const {
 
 SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                            SpdyErrorCode error_code,
-                           quiche::QuicheStringPiece description)
+                           absl::string_view description)
     : description_(description) {
   set_last_good_stream_id(last_good_stream_id);
   set_error_code(error_code);
@@ -388,7 +388,7 @@ SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                            const char* description)
     : SpdyGoAwayIR(last_good_stream_id,
                    error_code,
-                   quiche::QuicheStringPiece(description)) {}
+                   absl::string_view(description)) {}
 
 SpdyGoAwayIR::SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                            SpdyErrorCode error_code,

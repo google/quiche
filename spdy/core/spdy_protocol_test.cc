@@ -226,8 +226,8 @@ TEST(SpdyStreamPrecedenceTest, Equals) {
 
 TEST(SpdyDataIRTest, Construct) {
   // Confirm that it makes a string of zero length from a
-  // QuicheStringPiece(nullptr).
-  quiche::QuicheStringPiece s1;
+  // absl::string_view(nullptr).
+  absl::string_view s1;
   SpdyDataIR d1(/* stream_id = */ 1, s1);
   EXPECT_EQ(0u, d1.data_len());
   EXPECT_NE(nullptr, d1.data());
@@ -235,8 +235,8 @@ TEST(SpdyDataIRTest, Construct) {
   // Confirms makes a copy of char array.
   const char s2[] = "something";
   SpdyDataIR d2(/* stream_id = */ 2, s2);
-  EXPECT_EQ(quiche::QuicheStringPiece(d2.data(), d2.data_len()), s2);
-  EXPECT_NE(quiche::QuicheStringPiece(d1.data(), d1.data_len()), s2);
+  EXPECT_EQ(absl::string_view(d2.data(), d2.data_len()), s2);
+  EXPECT_NE(absl::string_view(d1.data(), d1.data_len()), s2);
   EXPECT_EQ((int)d1.data_len(), d1.flow_control_window_consumed());
 
   // Confirm copies a const string.
@@ -249,20 +249,18 @@ TEST(SpdyDataIRTest, Construct) {
   std::string bar = "bar";
   SpdyDataIR d4(/* stream_id = */ 4, bar);
   EXPECT_EQ("bar", bar);
-  EXPECT_EQ("bar", quiche::QuicheStringPiece(d4.data(), d4.data_len()));
+  EXPECT_EQ("bar", absl::string_view(d4.data(), d4.data_len()));
 
   // Confirm moves an rvalue reference. Note that the test string "baz" is too
   // short to trigger the move optimization, and instead a copy occurs.
   std::string baz = "the quick brown fox";
   SpdyDataIR d5(/* stream_id = */ 5, std::move(baz));
   EXPECT_EQ("", baz);
-  EXPECT_EQ(quiche::QuicheStringPiece(d5.data(), d5.data_len()),
-            "the quick brown fox");
+  EXPECT_EQ(absl::string_view(d5.data(), d5.data_len()), "the quick brown fox");
 
   // Confirms makes a copy of string literal.
   SpdyDataIR d7(/* stream_id = */ 7, "something else");
-  EXPECT_EQ(quiche::QuicheStringPiece(d7.data(), d7.data_len()),
-            "something else");
+  EXPECT_EQ(absl::string_view(d7.data(), d7.data_len()), "something else");
 
   SpdyDataIR d8(/* stream_id = */ 8, "shawarma");
   d8.set_padding_len(20);

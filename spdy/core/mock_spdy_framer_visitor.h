@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
@@ -90,7 +90,7 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
       void,
       OnAltSvc,
       (SpdyStreamId stream_id,
-       quiche::QuicheStringPiece origin,
+       absl::string_view origin,
        const SpdyAltSvcWireFormat::AlternativeServiceVector& altsvc_vector),
       (override));
   MOCK_METHOD(void,

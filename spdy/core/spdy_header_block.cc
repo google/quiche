@@ -27,21 +27,20 @@ const size_t kInitialMapBuckets = 11;
 const char kCookieKey[] = "cookie";
 const char kNullSeparator = 0;
 
-quiche::QuicheStringPiece SeparatorForKey(quiche::QuicheStringPiece key) {
+absl::string_view SeparatorForKey(absl::string_view key) {
   if (key == kCookieKey) {
-    static quiche::QuicheStringPiece cookie_separator = "; ";
+    static absl::string_view cookie_separator = "; ";
     return cookie_separator;
   } else {
-    return quiche::QuicheStringPiece(&kNullSeparator, 1);
+    return absl::string_view(&kNullSeparator, 1);
   }
 }
 
 }  // namespace
 
-SpdyHeaderBlock::HeaderValue::HeaderValue(
-    SpdyHeaderStorage* storage,
-    quiche::QuicheStringPiece key,
-    quiche::QuicheStringPiece initial_value)
+SpdyHeaderBlock::HeaderValue::HeaderValue(SpdyHeaderStorage* storage,
+                                          absl::string_view key,
+                                          absl::string_view initial_value)
     : storage_(storage),
       fragments_({initial_value}),
       pair_({key, {}}),
@@ -71,10 +70,9 @@ void SpdyHeaderBlock::HeaderValue::set_storage(SpdyHeaderStorage* storage) {
 
 SpdyHeaderBlock::HeaderValue::~HeaderValue() = default;
 
-quiche::QuicheStringPiece SpdyHeaderBlock::HeaderValue::ConsolidatedValue()
-    const {
+absl::string_view SpdyHeaderBlock::HeaderValue::ConsolidatedValue() const {
   if (fragments_.empty()) {
-    return quiche::QuicheStringPiece();
+    return absl::string_view();
   }
   if (fragments_.size() > 1) {
     fragments_ = {
@@ -83,12 +81,12 @@ quiche::QuicheStringPiece SpdyHeaderBlock::HeaderValue::ConsolidatedValue()
   return fragments_[0];
 }
 
-void SpdyHeaderBlock::HeaderValue::Append(quiche::QuicheStringPiece fragment) {
+void SpdyHeaderBlock::HeaderValue::Append(absl::string_view fragment) {
   size_ += (fragment.size() + separator_size_);
   fragments_.push_back(fragment);
 }
 
-const std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>&
+const std::pair<absl::string_view, absl::string_view>&
 SpdyHeaderBlock::HeaderValue::as_pair() const {
   pair_.second = ConsolidatedValue();
   return pair_;
@@ -103,7 +101,7 @@ SpdyHeaderBlock::iterator::~iterator() = default;
 SpdyHeaderBlock::ValueProxy::ValueProxy(
     SpdyHeaderBlock* block,
     SpdyHeaderBlock::MapType::iterator lookup_result,
-    const quiche::QuicheStringPiece key,
+    const absl::string_view key,
     size_t* spdy_header_block_value_size)
     : block_(block),
       lookup_result_(lookup_result),
@@ -142,7 +140,7 @@ SpdyHeaderBlock::ValueProxy::~ValueProxy() {
 }
 
 SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
-    quiche::QuicheStringPiece value) {
+    absl::string_view value) {
   *spdy_header_block_value_size_ += value.size();
   SpdyHeaderStorage* storage = &block_->storage_;
   if (lookup_result_ == block_->map_.end()) {
@@ -160,8 +158,7 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
   return *this;
 }
 
-bool SpdyHeaderBlock::ValueProxy::operator==(
-    quiche::QuicheStringPiece value) const {
+bool SpdyHeaderBlock::ValueProxy::operator==(absl::string_view value) const {
   if (lookup_result_ == block_->map_.end()) {
     return false;
   } else {
@@ -232,7 +229,7 @@ std::string SpdyHeaderBlock::DebugString() const {
   return output;
 }
 
-void SpdyHeaderBlock::erase(quiche::QuicheStringPiece key) {
+void SpdyHeaderBlock::erase(absl::string_view key) {
   auto iter = map_.find(key);
   if (iter != map_.end()) {
     SPDY_DVLOG(1) << "Erasing header with name: " << key;
@@ -268,13 +265,13 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
 }
 
 SpdyHeaderBlock::ValueProxy SpdyHeaderBlock::operator[](
-    const quiche::QuicheStringPiece key) {
+    const absl::string_view key) {
   SPDY_DVLOG(2) << "Operator[] saw key: " << key;
-  quiche::QuicheStringPiece out_key;
+  absl::string_view out_key;
   auto iter = map_.find(key);
   if (iter == map_.end()) {
     // We write the key first, to assure that the ValueProxy has a
-    // reference to a valid QuicheStringPiece in its operator=.
+    // reference to a valid absl::string_view in its operator=.
     out_key = WriteKey(key);
     SPDY_DVLOG(2) << "Key written as: " << std::hex
                   << static_cast<const void*>(key.data()) << ", " << std::dec
@@ -285,9 +282,8 @@ SpdyHeaderBlock::ValueProxy SpdyHeaderBlock::operator[](
   return ValueProxy(this, iter, out_key, &value_size_);
 }
 
-void SpdyHeaderBlock::AppendValueOrAddHeader(
-    const quiche::QuicheStringPiece key,
-    const quiche::QuicheStringPiece value) {
+void SpdyHeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
+                                             const absl::string_view value) {
   value_size_ += value.size();
 
   auto iter = map_.find(key);
@@ -309,15 +305,14 @@ size_t SpdyHeaderBlock::EstimateMemoryUsage() const {
   return SpdyEstimateMemoryUsage(storage_);
 }
 
-void SpdyHeaderBlock::AppendHeader(const quiche::QuicheStringPiece key,
-                                   const quiche::QuicheStringPiece value) {
+void SpdyHeaderBlock::AppendHeader(const absl::string_view key,
+                                   const absl::string_view value) {
   auto backed_key = WriteKey(key);
   map_.emplace(std::make_pair(
       backed_key, HeaderValue(&storage_, backed_key, storage_.Write(value))));
 }
 
-quiche::QuicheStringPiece SpdyHeaderBlock::WriteKey(
-    const quiche::QuicheStringPiece key) {
+absl::string_view SpdyHeaderBlock::WriteKey(const absl::string_view key) {
   key_size_ += key.size();
   return storage_.Write(key);
 }

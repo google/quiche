@@ -13,8 +13,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_storage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
@@ -39,9 +39,9 @@ class ValueProxyPeer;
 // names and values. This data structure preserves insertion order.
 //
 // Under the hood, this data structure uses large, contiguous blocks of memory
-// to store names and values. Lookups may be performed with QuicheStringPiece
-// keys, and values are returned as QuicheStringPieces (via ValueProxy, below).
-// Value QuicheStringPieces are valid as long as the SpdyHeaderBlock exists;
+// to store names and values. Lookups may be performed with absl::string_view
+// keys, and values are returned as absl::string_views (via ValueProxy, below).
+// Value absl::string_views are valid as long as the SpdyHeaderBlock exists;
 // allocated memory is never freed until SpdyHeaderBlock's destruction.
 //
 // This implementation does not make much of an effort to minimize wasted space.
@@ -53,8 +53,8 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   class QUICHE_EXPORT_PRIVATE HeaderValue {
    public:
     HeaderValue(SpdyHeaderStorage* storage,
-                quiche::QuicheStringPiece key,
-                quiche::QuicheStringPiece initial_value);
+                absl::string_view key,
+                absl::string_view initial_value);
 
     // Moves are allowed.
     HeaderValue(HeaderValue&& other);
@@ -69,11 +69,10 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
     ~HeaderValue();
 
     // Consumes at most |fragment.size()| bytes of memory.
-    void Append(quiche::QuicheStringPiece fragment);
+    void Append(absl::string_view fragment);
 
-    quiche::QuicheStringPiece value() const { return as_pair().second; }
-    const std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>&
-    as_pair() const;
+    absl::string_view value() const { return as_pair().second; }
+    const std::pair<absl::string_view, absl::string_view>& as_pair() const;
 
     // Size estimate including separators. Used when keys are erased from
     // SpdyHeaderBlock.
@@ -82,37 +81,34 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
    private:
     // May allocate a large contiguous region of memory to hold the concatenated
     // fragments and separators.
-    quiche::QuicheStringPiece ConsolidatedValue() const;
+    absl::string_view ConsolidatedValue() const;
 
     mutable SpdyHeaderStorage* storage_;
-    mutable std::vector<quiche::QuicheStringPiece> fragments_;
+    mutable std::vector<absl::string_view> fragments_;
     // The first element is the key; the second is the consolidated value.
-    mutable std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
-        pair_;
+    mutable std::pair<absl::string_view, absl::string_view> pair_;
     size_t size_ = 0;
     size_t separator_size_ = 0;
   };
 
-  typedef SpdyLinkedHashMap<quiche::QuicheStringPiece,
+  typedef SpdyLinkedHashMap<absl::string_view,
                             HeaderValue,
                             SpdyStringPieceCaseHash,
                             SpdyStringPieceCaseEq>
       MapType;
 
  public:
-  typedef std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
-      value_type;
+  typedef std::pair<absl::string_view, absl::string_view> value_type;
 
-  // Provides iteration over a sequence of std::pair<QuicheStringPiece,
-  // QuicheStringPiece>, even though the underlying MapType::value_type is
+  // Provides iteration over a sequence of std::pair<absl::string_view,
+  // absl::string_view>, even though the underlying MapType::value_type is
   // different. Dereferencing the iterator will result in memory allocation for
   // multi-value headers.
   class QUICHE_EXPORT_PRIVATE iterator {
    public:
     // The following type definitions fulfill the requirements for iterator
     // implementations.
-    typedef std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>
-        value_type;
+    typedef std::pair<absl::string_view, absl::string_view> value_type;
     typedef value_type& reference;
     typedef value_type* pointer;
     typedef std::forward_iterator_tag iterator_category;
@@ -184,13 +180,11 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   const_iterator end() const { return wrap_const_iterator(map_.end()); }
   bool empty() const { return map_.empty(); }
   size_t size() const { return map_.size(); }
-  iterator find(quiche::QuicheStringPiece key) {
-    return wrap_iterator(map_.find(key));
-  }
-  const_iterator find(quiche::QuicheStringPiece key) const {
+  iterator find(absl::string_view key) { return wrap_iterator(map_.find(key)); }
+  const_iterator find(absl::string_view key) const {
     return wrap_const_iterator(map_.find(key));
   }
-  void erase(quiche::QuicheStringPiece key);
+  void erase(absl::string_view key);
 
   // Clears both our MapType member and the memory used to hold headers.
   void clear();
@@ -205,8 +199,8 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   // existing header value, NUL ("\0") separated unless the key is cookie, in
   // which case the separator is "; ".
   // If there is no such key, a new header with the key and value is added.
-  void AppendValueOrAddHeader(const quiche::QuicheStringPiece key,
-                              const quiche::QuicheStringPiece value);
+  void AppendValueOrAddHeader(const absl::string_view key,
+                              const absl::string_view value);
 
   // This object provides automatic conversions that allow SpdyHeaderBlock to be
   // nearly a drop-in replacement for
@@ -225,10 +219,10 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
     ValueProxy& operator=(const ValueProxy& other) = delete;
 
     // Assignment modifies the underlying SpdyHeaderBlock.
-    ValueProxy& operator=(quiche::QuicheStringPiece value);
+    ValueProxy& operator=(absl::string_view value);
 
-    // Provides easy comparison against QuicheStringPiece.
-    bool operator==(quiche::QuicheStringPiece value) const;
+    // Provides easy comparison against absl::string_view.
+    bool operator==(absl::string_view value) const;
 
     std::string as_string() const;
 
@@ -238,19 +232,18 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
 
     ValueProxy(SpdyHeaderBlock* block,
                SpdyHeaderBlock::MapType::iterator lookup_result,
-               const quiche::QuicheStringPiece key,
+               const absl::string_view key,
                size_t* spdy_header_block_value_size);
 
     SpdyHeaderBlock* block_;
     SpdyHeaderBlock::MapType::iterator lookup_result_;
-    quiche::QuicheStringPiece key_;
+    absl::string_view key_;
     size_t* spdy_header_block_value_size_;
     bool valid_;
   };
 
   // Allows either lookup or mutation of the value associated with a key.
-  SPDY_MUST_USE_RESULT ValueProxy
-  operator[](const quiche::QuicheStringPiece key);
+  SPDY_MUST_USE_RESULT ValueProxy operator[](const absl::string_view key);
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;
@@ -285,12 +278,11 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
 #endif  // SPDY_HEADER_DEBUG
   }
 
-  void AppendHeader(const quiche::QuicheStringPiece key,
-                    const quiche::QuicheStringPiece value);
-  quiche::QuicheStringPiece WriteKey(const quiche::QuicheStringPiece key);
+  void AppendHeader(const absl::string_view key, const absl::string_view value);
+  absl::string_view WriteKey(const absl::string_view key);
   size_t bytes_allocated() const;
 
-  // QuicheStringPieces held by |map_| point to memory owned by |storage_|.
+  // absl::string_views held by |map_| point to memory owned by |storage_|.
   MapType map_;
   SpdyHeaderStorage storage_;
 

@@ -14,31 +14,29 @@ namespace test {
 // Expose all private methods of class SpdyAltSvcWireFormat.
 class SpdyAltSvcWireFormatPeer {
  public:
-  static void SkipWhiteSpace(quiche::QuicheStringPiece::const_iterator* c,
-                             quiche::QuicheStringPiece::const_iterator end) {
+  static void SkipWhiteSpace(absl::string_view::const_iterator* c,
+                             absl::string_view::const_iterator end) {
     SpdyAltSvcWireFormat::SkipWhiteSpace(c, end);
   }
-  static bool PercentDecode(quiche::QuicheStringPiece::const_iterator c,
-                            quiche::QuicheStringPiece::const_iterator end,
+  static bool PercentDecode(absl::string_view::const_iterator c,
+                            absl::string_view::const_iterator end,
                             std::string* output) {
     return SpdyAltSvcWireFormat::PercentDecode(c, end, output);
   }
-  static bool ParseAltAuthority(quiche::QuicheStringPiece::const_iterator c,
-                                quiche::QuicheStringPiece::const_iterator end,
+  static bool ParseAltAuthority(absl::string_view::const_iterator c,
+                                absl::string_view::const_iterator end,
                                 std::string* host,
                                 uint16_t* port) {
     return SpdyAltSvcWireFormat::ParseAltAuthority(c, end, host, port);
   }
-  static bool ParsePositiveInteger16(
-      quiche::QuicheStringPiece::const_iterator c,
-      quiche::QuicheStringPiece::const_iterator end,
-      uint16_t* max_age) {
+  static bool ParsePositiveInteger16(absl::string_view::const_iterator c,
+                                     absl::string_view::const_iterator end,
+                                     uint16_t* max_age) {
     return SpdyAltSvcWireFormat::ParsePositiveInteger16(c, end, max_age);
   }
-  static bool ParsePositiveInteger32(
-      quiche::QuicheStringPiece::const_iterator c,
-      quiche::QuicheStringPiece::const_iterator end,
-      uint32_t* max_age) {
+  static bool ParsePositiveInteger32(absl::string_view::const_iterator c,
+                                     absl::string_view::const_iterator end,
+                                     uint32_t* max_age) {
     return SpdyAltSvcWireFormat::ParsePositiveInteger32(c, end, max_age);
   }
 };
@@ -389,8 +387,8 @@ TEST(SpdyAltSvcWireFormatTest, ParseTruncatedHeaderFieldValue) {
 
 // Test SkipWhiteSpace().
 TEST(SpdyAltSvcWireFormatTest, SkipWhiteSpace) {
-  quiche::QuicheStringPiece input("a \tb  ");
-  quiche::QuicheStringPiece::const_iterator c = input.begin();
+  absl::string_view input("a \tb  ");
+  absl::string_view::const_iterator c = input.begin();
   test::SpdyAltSvcWireFormatPeer::SkipWhiteSpace(&c, input.end());
   ASSERT_EQ(input.begin(), c);
   ++c;
@@ -403,19 +401,19 @@ TEST(SpdyAltSvcWireFormatTest, SkipWhiteSpace) {
 
 // Test PercentDecode() on valid input.
 TEST(SpdyAltSvcWireFormatTest, PercentDecodeValid) {
-  quiche::QuicheStringPiece input("");
+  absl::string_view input("");
   std::string output;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
       input.begin(), input.end(), &output));
   EXPECT_EQ("", output);
 
-  input = quiche::QuicheStringPiece("foo");
+  input = absl::string_view("foo");
   output.clear();
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
       input.begin(), input.end(), &output));
   EXPECT_EQ("foo", output);
 
-  input = quiche::QuicheStringPiece("%2ca%5Cb");
+  input = absl::string_view("%2ca%5Cb");
   output.clear();
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
       input.begin(), input.end(), &output));
@@ -426,7 +424,7 @@ TEST(SpdyAltSvcWireFormatTest, PercentDecodeValid) {
 TEST(SpdyAltSvcWireFormatTest, PercentDecodeInvalid) {
   const char* invalid_input_array[] = {"a%", "a%x", "a%b", "%J22", "%9z"};
   for (const char* invalid_input : invalid_input_array) {
-    quiche::QuicheStringPiece input(invalid_input);
+    absl::string_view input(invalid_input);
     std::string output;
     EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::PercentDecode(
         input.begin(), input.end(), &output))
@@ -436,7 +434,7 @@ TEST(SpdyAltSvcWireFormatTest, PercentDecodeInvalid) {
 
 // Test ParseAltAuthority() on valid input.
 TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityValid) {
-  quiche::QuicheStringPiece input(":42");
+  absl::string_view input(":42");
   std::string host;
   uint16_t port;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
@@ -444,13 +442,13 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityValid) {
   EXPECT_TRUE(host.empty());
   EXPECT_EQ(42, port);
 
-  input = quiche::QuicheStringPiece("foo:137");
+  input = absl::string_view("foo:137");
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
   EXPECT_EQ("foo", host);
   EXPECT_EQ(137, port);
 
-  input = quiche::QuicheStringPiece("[2003:8:0:16::509d:9615]:443");
+  input = absl::string_view("[2003:8:0:16::509d:9615]:443");
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
       input.begin(), input.end(), &host, &port));
   EXPECT_EQ("[2003:8:0:16::509d:9615]", host);
@@ -477,7 +475,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityInvalid) {
                                        "[2003:8:0:16::509d:9615:443",
                                        "2003:8:0:16::509d:9615]:443"};
   for (const char* invalid_input : invalid_input_array) {
-    quiche::QuicheStringPiece input(invalid_input);
+    absl::string_view input(invalid_input);
     std::string host;
     uint16_t port;
     EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::ParseAltAuthority(
@@ -488,13 +486,13 @@ TEST(SpdyAltSvcWireFormatTest, ParseAltAuthorityInvalid) {
 
 // Test ParseInteger() on valid input.
 TEST(SpdyAltSvcWireFormatTest, ParseIntegerValid) {
-  quiche::QuicheStringPiece input("3");
+  absl::string_view input("3");
   uint16_t value;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value));
   EXPECT_EQ(3, value);
 
-  input = quiche::QuicheStringPiece("1337");
+  input = absl::string_view("1337");
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value));
   EXPECT_EQ(1337, value);
@@ -505,7 +503,7 @@ TEST(SpdyAltSvcWireFormatTest, ParseIntegerValid) {
 TEST(SpdyAltSvcWireFormatTest, ParseIntegerInvalid) {
   const char* invalid_input_array[] = {"", " ", "a", "0", "00", "1 ", "12b"};
   for (const char* invalid_input : invalid_input_array) {
-    quiche::QuicheStringPiece input(invalid_input);
+    absl::string_view input(invalid_input);
     uint16_t value;
     EXPECT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
         input.begin(), input.end(), &value))
@@ -516,39 +514,39 @@ TEST(SpdyAltSvcWireFormatTest, ParseIntegerInvalid) {
 // Test ParseIntegerValid() around overflow limit.
 TEST(SpdyAltSvcWireFormatTest, ParseIntegerOverflow) {
   // Largest possible uint16_t value.
-  quiche::QuicheStringPiece input("65535");
+  absl::string_view input("65535");
   uint16_t value16;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
   EXPECT_EQ(65535, value16);
 
   // Overflow uint16_t, ParsePositiveInteger16() should return false.
-  input = quiche::QuicheStringPiece("65536");
+  input = absl::string_view("65536");
   ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
 
   // However, even if overflow is not checked for, 65536 overflows to 0, which
   // returns false anyway.  Check for a larger number which overflows to 1.
-  input = quiche::QuicheStringPiece("65537");
+  input = absl::string_view("65537");
   ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger16(
       input.begin(), input.end(), &value16));
 
   // Largest possible uint32_t value.
-  input = quiche::QuicheStringPiece("4294967295");
+  input = absl::string_view("4294967295");
   uint32_t value32;
   ASSERT_TRUE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
   EXPECT_EQ(4294967295, value32);
 
   // Overflow uint32_t, ParsePositiveInteger32() should return false.
-  input = quiche::QuicheStringPiece("4294967296");
+  input = absl::string_view("4294967296");
   ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
 
   // However, even if overflow is not checked for, 4294967296 overflows to 0,
   // which returns false anyway.  Check for a larger number which overflows to
   // 1.
-  input = quiche::QuicheStringPiece("4294967297");
+  input = absl::string_view("4294967297");
   ASSERT_FALSE(test::SpdyAltSvcWireFormatPeer::ParsePositiveInteger32(
       input.begin(), input.end(), &value32));
 }

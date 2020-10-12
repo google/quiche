@@ -17,14 +17,13 @@ namespace test {
 
 class ValueProxyPeer {
  public:
-  static quiche::QuicheStringPiece key(SpdyHeaderBlock::ValueProxy* p) {
+  static absl::string_view key(SpdyHeaderBlock::ValueProxy* p) {
     return p->key_;
   }
 };
 
-std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece> Pair(
-    quiche::QuicheStringPiece k,
-    quiche::QuicheStringPiece v) {
+std::pair<absl::string_view, absl::string_view> Pair(absl::string_view k,
+                                                     absl::string_view v) {
   return std::make_pair(k, v);
 }
 
@@ -42,19 +41,19 @@ TEST(SpdyHeaderBlockTest, EmptyBlock) {
 
 TEST(SpdyHeaderBlockTest, KeyMemoryReclaimedOnLookup) {
   SpdyHeaderBlock block;
-  quiche::QuicheStringPiece copied_key1;
+  absl::string_view copied_key1;
   {
     auto proxy1 = block["some key name"];
     copied_key1 = ValueProxyPeer::key(&proxy1);
   }
-  quiche::QuicheStringPiece copied_key2;
+  absl::string_view copied_key2;
   {
     auto proxy2 = block["some other key name"];
     copied_key2 = ValueProxyPeer::key(&proxy2);
   }
   // Because proxy1 was never used to modify the block, the memory used for the
   // key could be reclaimed and used for the second call to operator[].
-  // Therefore, we expect the pointers of the two QuicheStringPieces to be
+  // Therefore, we expect the pointers of the two absl::string_views to be
   // equal.
   EXPECT_EQ(copied_key1.data(), copied_key2.data());
 
@@ -199,19 +198,19 @@ TEST(SpdyHeaderBlockTest, CompareValueToStringPiece) {
   block.AppendValueOrAddHeader("foo", "bar");
   const auto& val = block["foo"];
   const char expected[] = "foo\0bar";
-  EXPECT_TRUE(quiche::QuicheStringPiece(expected, 7) == val);
-  EXPECT_TRUE(val == quiche::QuicheStringPiece(expected, 7));
-  EXPECT_FALSE(quiche::QuicheStringPiece(expected, 3) == val);
-  EXPECT_FALSE(val == quiche::QuicheStringPiece(expected, 3));
+  EXPECT_TRUE(absl::string_view(expected, 7) == val);
+  EXPECT_TRUE(val == absl::string_view(expected, 7));
+  EXPECT_FALSE(absl::string_view(expected, 3) == val);
+  EXPECT_FALSE(val == absl::string_view(expected, 3));
   const char not_expected[] = "foo\0barextra";
-  EXPECT_FALSE(quiche::QuicheStringPiece(not_expected, 12) == val);
-  EXPECT_FALSE(val == quiche::QuicheStringPiece(not_expected, 12));
+  EXPECT_FALSE(absl::string_view(not_expected, 12) == val);
+  EXPECT_FALSE(val == absl::string_view(not_expected, 12));
 
   const auto& val2 = block["foo2"];
-  EXPECT_FALSE(quiche::QuicheStringPiece(expected, 7) == val2);
-  EXPECT_FALSE(val2 == quiche::QuicheStringPiece(expected, 7));
-  EXPECT_FALSE(quiche::QuicheStringPiece("") == val2);
-  EXPECT_FALSE(val2 == quiche::QuicheStringPiece(""));
+  EXPECT_FALSE(absl::string_view(expected, 7) == val2);
+  EXPECT_FALSE(val2 == absl::string_view(expected, 7));
+  EXPECT_FALSE(absl::string_view("") == val2);
+  EXPECT_FALSE(val2 == absl::string_view(""));
 }
 
 // This test demonstrates that the SpdyHeaderBlock data structure does not place

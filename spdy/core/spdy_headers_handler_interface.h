@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace spdy {
 
@@ -25,8 +25,7 @@ class QUICHE_EXPORT_PRIVATE SpdyHeadersHandlerInterface {
 
   // A callback method which notifies on a header key value pair. Multiple
   // values for a given key will be emitted as multiple calls to OnHeader.
-  virtual void OnHeader(quiche::QuicheStringPiece key,
-                        quiche::QuicheStringPiece value) = 0;
+  virtual void OnHeader(absl::string_view key, absl::string_view value) = 0;
 
   // A callback method which notifies when the parser finishes handling a
   // header block (i.e. the containing frame has the END_HEADERS flag set).

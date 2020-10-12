@@ -9,8 +9,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
@@ -100,7 +100,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameBuilder {
     return (WriteBytes(&upper, sizeof(upper)) &&
             WriteBytes(&lower, sizeof(lower)));
   }
-  bool WriteStringPiece32(const quiche::QuicheStringPiece value);
+  bool WriteStringPiece32(const absl::string_view value);
   bool WriteBytes(const void* data, uint32_t data_len);
 
  private:

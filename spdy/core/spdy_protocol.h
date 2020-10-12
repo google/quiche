@@ -19,8 +19,8 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
@@ -497,8 +497,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
     // Deep copy.
     header_block_ = std::move(header_block);
   }
-  void SetHeader(quiche::QuicheStringPiece name,
-                 quiche::QuicheStringPiece value) {
+  void SetHeader(absl::string_view name, absl::string_view value) {
     header_block_[name] = value;
   }
 
@@ -516,7 +515,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
 class QUICHE_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
  public:
   // Performs a deep copy on data.
-  SpdyDataIR(SpdyStreamId stream_id, quiche::QuicheStringPiece data);
+  SpdyDataIR(SpdyStreamId stream_id, absl::string_view data);
 
   // Performs a deep copy on data.
   SpdyDataIR(SpdyStreamId stream_id, const char* data);
@@ -547,14 +546,14 @@ class QUICHE_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
   }
 
   // Deep-copy of data (keep private copy).
-  void SetDataDeep(quiche::QuicheStringPiece data) {
+  void SetDataDeep(absl::string_view data) {
     data_store_ = std::make_unique<std::string>(data.data(), data.size());
     data_ = data_store_->data();
     data_len_ = data.size();
   }
 
   // Shallow-copy of data (do not keep private copy).
-  void SetDataShallow(quiche::QuicheStringPiece data) {
+  void SetDataShallow(absl::string_view data) {
     data_store_.reset();
     data_ = data.data();
     data_len_ = data.size();
@@ -660,7 +659,7 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
   // this SpdyGoAwayIR.
   SpdyGoAwayIR(SpdyStreamId last_good_stream_id,
                SpdyErrorCode error_code,
-               quiche::QuicheStringPiece description);
+               absl::string_view description);
 
   // References description, doesn't copy it, so description must outlast
   // this SpdyGoAwayIR.
@@ -689,7 +688,7 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
     error_code_ = error_code;
   }
 
-  const quiche::QuicheStringPiece& description() const { return description_; }
+  const absl::string_view& description() const { return description_; }
 
   void Visit(SpdyFrameVisitor* visitor) const override;
 
@@ -701,7 +700,7 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
   SpdyStreamId last_good_stream_id_;
   SpdyErrorCode error_code_;
   const std::string description_store_;
-  const quiche::QuicheStringPiece description_;
+  const absl::string_view description_;
 };
 
 class QUICHE_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {

@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <string>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -17,7 +17,7 @@
 
 namespace spdy {
 
-inline bool operator==(quiche::QuicheStringPiece x,
+inline bool operator==(absl::string_view x,
                        const SpdyHeaderBlock::ValueProxy& y) {
   return y.operator==(x);
 }
@@ -49,8 +49,7 @@ class TestHeadersHandler : public SpdyHeadersHandlerInterface {
 
   void OnHeaderBlockStart() override;
 
-  void OnHeader(quiche::QuicheStringPiece name,
-                quiche::QuicheStringPiece value) override;
+  void OnHeader(absl::string_view name, absl::string_view value) override;
 
   void OnHeaderBlockEnd(size_t header_bytes_parsed,
                         size_t compressed_header_bytes_parsed) override;

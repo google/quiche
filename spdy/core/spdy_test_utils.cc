@@ -104,8 +104,8 @@ void TestHeadersHandler::OnHeaderBlockStart() {
   block_.clear();
 }
 
-void TestHeadersHandler::OnHeader(quiche::QuicheStringPiece name,
-                                  quiche::QuicheStringPiece value) {
+void TestHeadersHandler::OnHeader(absl::string_view name,
+                                  absl::string_view value) {
   block_.AppendValueOrAddHeader(name, value);
 }
 

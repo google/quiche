@@ -67,7 +67,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece16) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_TRUE(frame_reader.ReadStringPiece16(&stringpiece_val));
   EXPECT_FALSE(frame_reader.IsDoneReading());
   EXPECT_EQ(0, stringpiece_val.compare("Hi"));
@@ -90,7 +90,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece32) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_TRUE(frame_reader.ReadStringPiece32(&stringpiece_val));
   EXPECT_FALSE(frame_reader.IsDoneReading());
   EXPECT_EQ(0, stringpiece_val.compare("foo"));
@@ -142,7 +142,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece16WithBufferTooSmall) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_FALSE(frame_reader.ReadStringPiece16(&stringpiece_val));
 
   // Also make sure that trying to read a uint16_t, which technically could
@@ -161,7 +161,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece16WithBufferWayTooSmall) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_FALSE(frame_reader.ReadStringPiece16(&stringpiece_val));
 
   // Also make sure that trying to read a uint16_t, which technically could
@@ -181,7 +181,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece32WithBufferTooSmall) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_FALSE(frame_reader.ReadStringPiece32(&stringpiece_val));
 
   // Also make sure that trying to read a uint16_t, which technically could
@@ -200,7 +200,7 @@ TEST(SpdyFrameReaderTest, ReadStringPiece32WithBufferWayTooSmall) {
   SpdyFrameReader frame_reader(kFrameData, QUICHE_ARRAYSIZE(kFrameData));
   EXPECT_FALSE(frame_reader.IsDoneReading());
 
-  quiche::QuicheStringPiece stringpiece_val;
+  absl::string_view stringpiece_val;
   EXPECT_FALSE(frame_reader.ReadStringPiece32(&stringpiece_val));
 
   // Also make sure that trying to read a uint16_t, which technically could
@@ -222,12 +222,12 @@ TEST(SpdyFrameReaderTest, ReadBytes) {
   char dest1[3] = {};
   EXPECT_TRUE(frame_reader.ReadBytes(&dest1, QUICHE_ARRAYSIZE(dest1)));
   EXPECT_FALSE(frame_reader.IsDoneReading());
-  EXPECT_EQ("foo", quiche::QuicheStringPiece(dest1, QUICHE_ARRAYSIZE(dest1)));
+  EXPECT_EQ("foo", absl::string_view(dest1, QUICHE_ARRAYSIZE(dest1)));
 
   char dest2[2] = {};
   EXPECT_TRUE(frame_reader.ReadBytes(&dest2, QUICHE_ARRAYSIZE(dest2)));
   EXPECT_TRUE(frame_reader.IsDoneReading());
-  EXPECT_EQ("Hi", quiche::QuicheStringPiece(dest2, QUICHE_ARRAYSIZE(dest2)));
+  EXPECT_EQ("Hi", absl::string_view(dest2, QUICHE_ARRAYSIZE(dest2)));
 }
 
 TEST(SpdyFrameReaderTest, ReadBytesWithBufferTooSmall) {

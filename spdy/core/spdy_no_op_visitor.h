@@ -11,7 +11,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
@@ -61,7 +61,7 @@ class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
                      bool /*end*/) override {}
   void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
   void OnAltSvc(SpdyStreamId /*stream_id*/,
-                quiche::QuicheStringPiece /*origin*/,
+                absl::string_view /*origin*/,
                 const SpdyAltSvcWireFormat::AlternativeServiceVector&
                 /*altsvc_vector*/) override {}
   void OnPriority(SpdyStreamId /*stream_id*/,
@@ -82,8 +82,8 @@ class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
 
   // SpdyHeadersHandlerInterface methods:
   void OnHeaderBlockStart() override {}
-  void OnHeader(quiche::QuicheStringPiece /*key*/,
-                quiche::QuicheStringPiece /*value*/) override {}
+  void OnHeader(absl::string_view /*key*/,
+                absl::string_view /*value*/) override {}
   void OnHeaderBlockEnd(size_t /* uncompressed_header_bytes */,
                         size_t /* compressed_header_bytes */) override {}
 };

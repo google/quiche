@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
@@ -27,7 +27,7 @@ TEST(SpdySimpleArenaTest, Memdup) {
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
   EXPECT_NE(c, kTestString);
-  EXPECT_EQ(quiche::QuicheStringPiece(c, length), kTestString);
+  EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
 TEST(SpdySimpleArenaTest, MemdupLargeString) {
@@ -36,7 +36,7 @@ TEST(SpdySimpleArenaTest, MemdupLargeString) {
   char* c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
   EXPECT_NE(c, kTestString);
-  EXPECT_EQ(quiche::QuicheStringPiece(c, length), kTestString);
+  EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
 TEST(SpdySimpleArenaTest, MultipleBlocks) {
@@ -44,9 +44,9 @@ TEST(SpdySimpleArenaTest, MultipleBlocks) {
   std::vector<std::string> strings = {
       "One decently long string.", "Another string.",
       "A third string that will surely go in a different block."};
-  std::vector<quiche::QuicheStringPiece> copies;
+  std::vector<absl::string_view> copies;
   for (const std::string& s : strings) {
-    quiche::QuicheStringPiece sp(arena.Memdup(s.data(), s.size()), s.size());
+    absl::string_view sp(arena.Memdup(s.data(), s.size()), s.size());
     copies.push_back(sp);
   }
   EXPECT_EQ(strings.size(), copies.size());
@@ -63,7 +63,7 @@ TEST(SpdySimpleArenaTest, UseAfterReset) {
   c = arena.Memdup(kTestString, length);
   EXPECT_NE(nullptr, c);
   EXPECT_NE(c, kTestString);
-  EXPECT_EQ(quiche::QuicheStringPiece(c, length), kTestString);
+  EXPECT_EQ(absl::string_view(c, length), kTestString);
 }
 
 TEST(SpdySimpleArenaTest, Free) {
@@ -102,7 +102,7 @@ TEST(SpdySimpleArenaTest, Alloc) {
   EXPECT_EQ(c1 + length, c2);
   EXPECT_EQ(c2 + 2 * length, c3);
   EXPECT_EQ(c3 + 3 * length, c4);
-  EXPECT_EQ(quiche::QuicheStringPiece(c4, length), kTestString);
+  EXPECT_EQ(absl::string_view(c4, length), kTestString);
 }
 
 TEST(SpdySimpleArenaTest, Realloc) {
@@ -113,28 +113,28 @@ TEST(SpdySimpleArenaTest, Realloc) {
   char* c2 = arena.Realloc(c1, length, 2 * length);
   EXPECT_TRUE(c1);
   EXPECT_EQ(c1, c2);
-  EXPECT_EQ(quiche::QuicheStringPiece(c1, length), kTestString);
+  EXPECT_EQ(absl::string_view(c1, length), kTestString);
   // Multiple reallocs.
   char* c3 = arena.Memdup(kTestString, length);
   EXPECT_EQ(c2 + 2 * length, c3);
-  EXPECT_EQ(quiche::QuicheStringPiece(c3, length), kTestString);
+  EXPECT_EQ(absl::string_view(c3, length), kTestString);
   char* c4 = arena.Realloc(c3, length, 2 * length);
   EXPECT_EQ(c3, c4);
-  EXPECT_EQ(quiche::QuicheStringPiece(c4, length), kTestString);
+  EXPECT_EQ(absl::string_view(c4, length), kTestString);
   char* c5 = arena.Realloc(c4, 2 * length, 3 * length);
   EXPECT_EQ(c4, c5);
-  EXPECT_EQ(quiche::QuicheStringPiece(c5, length), kTestString);
+  EXPECT_EQ(absl::string_view(c5, length), kTestString);
   char* c6 = arena.Memdup(kTestString, length);
   EXPECT_EQ(c5 + 3 * length, c6);
-  EXPECT_EQ(quiche::QuicheStringPiece(c6, length), kTestString);
+  EXPECT_EQ(absl::string_view(c6, length), kTestString);
   // Realloc that does not fit in the remainder of the first block.
   char* c7 = arena.Realloc(c6, length, kDefaultBlockSize);
-  EXPECT_EQ(quiche::QuicheStringPiece(c7, length), kTestString);
+  EXPECT_EQ(absl::string_view(c7, length), kTestString);
   arena.Free(c7, kDefaultBlockSize);
   char* c8 = arena.Memdup(kTestString, length);
   EXPECT_NE(c6, c7);
   EXPECT_EQ(c7, c8);
-  EXPECT_EQ(quiche::QuicheStringPiece(c8, length), kTestString);
+  EXPECT_EQ(absl::string_view(c8, length), kTestString);
 }
 
 }  // namespace
