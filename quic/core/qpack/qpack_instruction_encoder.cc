@@ -145,7 +145,7 @@ void QpackInstructionEncoder::DoStartString(absl::string_view name,
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  quiche::QuicheStringPiece string_to_write =
+  absl::string_view string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   string_length_ = string_to_write.size();
 
@@ -162,13 +162,13 @@ void QpackInstructionEncoder::DoStartString(absl::string_view name,
   state_ = State::kVarintEncode;
 }
 
-void QpackInstructionEncoder::DoWriteString(quiche::QuicheStringPiece name,
-                                            quiche::QuicheStringPiece value,
+void QpackInstructionEncoder::DoWriteString(absl::string_view name,
+                                            absl::string_view value,
                                             std::string* output) {
   DCHECK(field_->type == QpackInstructionFieldType::kName ||
          field_->type == QpackInstructionFieldType::kValue);
 
-  quiche::QuicheStringPiece string_to_write =
+  absl::string_view string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   if (use_huffman_) {
     if (use_fast_huffman_encoder_) {

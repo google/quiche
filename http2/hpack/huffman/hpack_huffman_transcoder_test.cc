@@ -6,13 +6,13 @@
 
 #include <stddef.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
@@ -52,10 +52,10 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
 
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
     input_bytes_seen_ += b->Remaining();
-    quiche::QuicheStringPiece sp(b->cursor(), b->Remaining());
+    absl::string_view sp(b->cursor(), b->Remaining());
     if (decoder_.Decode(sp, &output_buffer_)) {
       b->AdvanceCursor(b->Remaining());
-      // Successfully decoded (or buffered) the bytes in QuicheStringPiece.
+      // Successfully decoded (or buffered) the bytes in absl::string_view.
       EXPECT_LE(input_bytes_seen_, input_bytes_expected_);
       // Have we reached the end of the encoded string?
       if (input_bytes_expected_ == input_bytes_seen_) {
@@ -71,8 +71,8 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
   }
 
   AssertionResult TranscodeAndValidateSeveralWays(
-      quiche::QuicheStringPiece plain,
-      quiche::QuicheStringPiece expected_huffman) {
+      absl::string_view plain,
+      absl::string_view expected_huffman) {
     size_t encoded_size = HuffmanSize(plain);
     std::string encoded;
     HuffmanEncode(plain, encoded_size, &encoded);
@@ -92,8 +92,7 @@ class HpackHuffmanTranscoderTest : public RandomDecoderTest {
                                         ValidateDoneAndEmpty(validator));
   }
 
-  AssertionResult TranscodeAndValidateSeveralWays(
-      quiche::QuicheStringPiece plain) {
+  AssertionResult TranscodeAndValidateSeveralWays(absl::string_view plain) {
     return TranscodeAndValidateSeveralWays(plain, "");
   }
 

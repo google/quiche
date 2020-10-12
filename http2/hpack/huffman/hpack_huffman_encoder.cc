@@ -9,7 +9,7 @@
 
 namespace http2 {
 
-size_t HuffmanSize(quiche::QuicheStringPiece plain) {
+size_t HuffmanSize(absl::string_view plain) {
   size_t bits = 0;
   for (const uint8_t c : plain) {
     bits += HuffmanSpecTables::kCodeLengths[c];
@@ -17,7 +17,7 @@ size_t HuffmanSize(quiche::QuicheStringPiece plain) {
   return (bits + 7) / 8;
 }
 
-void HuffmanEncode(quiche::QuicheStringPiece plain,
+void HuffmanEncode(absl::string_view plain,
                    size_t encoded_size,
                    std::string* huffman) {
   DCHECK(huffman != nullptr);
@@ -65,7 +65,7 @@ void HuffmanEncode(quiche::QuicheStringPiece plain,
   }
 }
 
-void HuffmanEncodeFast(quiche::QuicheStringPiece input,
+void HuffmanEncodeFast(absl::string_view input,
                        size_t encoded_size,
                        std::string* output) {
   const size_t original_size = output->size();

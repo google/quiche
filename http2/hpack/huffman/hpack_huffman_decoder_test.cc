@@ -36,7 +36,7 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
-  quiche::QuicheStringPiece sp(s);
+  absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -85,7 +85,7 @@ TEST(HuffmanBitBufferTest, ConsumeBits) {
   s.push_back('\x11');
   s.push_back('\x22');
   s.push_back('\x33');
-  quiche::QuicheStringPiece sp(s);
+  absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -117,7 +117,7 @@ TEST(HuffmanBitBufferTest, AppendBytesUnaligned) {
   s.push_back('\xbb');
   s.push_back('\xcc');
   s.push_back('\xdd');
-  quiche::QuicheStringPiece sp(s);
+  absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
   sp.remove_prefix(bb.AppendBytes(sp));
@@ -161,10 +161,10 @@ class HpackHuffmanDecoderTest : public RandomDecoderTest {
 
   DecodeStatus ResumeDecoding(DecodeBuffer* b) override {
     input_bytes_seen_ += b->Remaining();
-    quiche::QuicheStringPiece sp(b->cursor(), b->Remaining());
+    absl::string_view sp(b->cursor(), b->Remaining());
     if (decoder_.Decode(sp, &output_buffer_)) {
       b->AdvanceCursor(b->Remaining());
-      // Successfully decoded (or buffered) the bytes in QuicheStringPiece.
+      // Successfully decoded (or buffered) the bytes in absl::string_view.
       EXPECT_LE(input_bytes_seen_, input_bytes_expected_);
       // Have we reached the end of the encoded string?
       if (input_bytes_expected_ == input_bytes_seen_) {
