@@ -206,6 +206,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
     return sequencer_.ignore_read_data() || read_side_closed_;
   }
   bool write_side_closed() const { return write_side_closed_; }
+  bool read_side_closed() const { return read_side_closed_; }
 
   bool IsZombie() const {
     return read_side_closed_ && write_side_closed_ && IsWaitingForAcks();
