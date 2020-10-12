@@ -1128,10 +1128,20 @@ bool QuicConnection::HasPendingAcks() const {
 void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
-  if (EnforceAntiAmplificationLimit() &&
-      last_decrypted_packet_level_ >= ENCRYPTION_HANDSHAKE) {
-    // Address is validated by successfully processing a HANDSHAKE packet.
-    address_validated_ = true;
+  if (EnforceAntiAmplificationLimit()) {
+    bool address_validated =
+        last_decrypted_packet_level_ >= ENCRYPTION_HANDSHAKE;
+    if (GetQuicReloadableFlag(quic_fix_address_validation)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_address_validation);
+      address_validated =
+          (last_decrypted_packet_level_ == ENCRYPTION_HANDSHAKE ||
+           last_decrypted_packet_level_ == ENCRYPTION_FORWARD_SECURE);
+    }
+    if (address_validated) {
+      // Address is validated by successfully processing a HANDSHAKE or 1-RTT
+      // packet.
+      address_validated_ = true;
+    }
   }
   idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
 
