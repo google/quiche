@@ -183,6 +183,10 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
   // Instead, use params() to get read-only access.
   Bbr2Params params_;
 
+  // Max congestion window when adjusting network parameters.
+  QuicByteCount max_cwnd_when_network_parameters_adjusted_ =
+      kMaxInitialCongestionWindow * kDefaultTCPMSS;
+
   Bbr2NetworkModel model_;
 
   const QuicByteCount initial_cwnd_;

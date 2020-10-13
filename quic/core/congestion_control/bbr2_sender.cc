@@ -135,6 +135,11 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_use_tcp_inflight_hi_headroom);
     params_.inflight_hi_headroom = 0.15;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd) &&
+      config.HasClientRequestedIndependentOption(kICW1, perspective)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_max_bootstrap_cwnd, 1, 4);
+    max_cwnd_when_network_parameters_adjusted_ = 100 * kDefaultTCPMSS;
+  }
 
   ApplyConnectionOptions(config.ClientRequestedIndependentOptions(perspective));
 }
@@ -184,7 +189,22 @@ void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
 
     QuicBandwidth effective_bandwidth =
         std::max(params.bandwidth, model_.BandwidthEstimate());
-    cwnd_ = cwnd_limits().ApplyLimits(model_.BDP(effective_bandwidth));
+    if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
+      if (params.max_initial_congestion_window > 0) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_max_bootstrap_cwnd, 2,
+                                     4);
+        max_cwnd_when_network_parameters_adjusted_ =
+            params.max_initial_congestion_window * kDefaultTCPMSS;
+      } else {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_max_bootstrap_cwnd, 3,
+                                     4);
+      }
+      cwnd_ = cwnd_limits().ApplyLimits(
+          std::min(max_cwnd_when_network_parameters_adjusted_,
+                   model_.BDP(effective_bandwidth)));
+    } else {
+      cwnd_ = cwnd_limits().ApplyLimits(model_.BDP(effective_bandwidth));
+    }
 
     if (!params.allow_cwnd_to_decrease) {
       cwnd_ = std::max(cwnd_, prior_cwnd);

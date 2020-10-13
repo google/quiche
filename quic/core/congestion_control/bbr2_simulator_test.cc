@@ -1025,6 +1025,87 @@ TEST_F(Bbr2DefaultTopologyTest, AdjustNetworkParameters) {
   DriveOutOfStartup(params);
 }
 
+TEST_F(Bbr2DefaultTopologyTest,
+       200InitialCongestionWindowWithNetworkParameterAdjusted) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  sender_endpoint_.AddBytesToTransfer(1 * 1024 * 1024);
+
+  // Wait until an ACK comes back.
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return !sender_->ExportDebugState().min_rtt.IsZero(); },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Bootstrap cwnd by a overly large bandwidth sample.
+  sender_connection()->AdjustNetworkParameters(
+      SendAlgorithmInterface::NetworkParams(1024 * params.BottleneckBandwidth(),
+                                            QuicTime::Delta::Zero(), false));
+
+  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
+    // Verify cwnd is capped at 200.
+    EXPECT_EQ(200 * kDefaultTCPMSS,
+              sender_->ExportDebugState().congestion_window);
+    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
+  }
+}
+
+TEST_F(Bbr2DefaultTopologyTest,
+       100InitialCongestionWindowFromNetworkParameter) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  sender_endpoint_.AddBytesToTransfer(1 * 1024 * 1024);
+  // Wait until an ACK comes back.
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return !sender_->ExportDebugState().min_rtt.IsZero(); },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Bootstrap cwnd by a overly large bandwidth sample.
+  SendAlgorithmInterface::NetworkParams network_params(
+      1024 * params.BottleneckBandwidth(), QuicTime::Delta::Zero(), false);
+  network_params.max_initial_congestion_window = 100;
+  sender_connection()->AdjustNetworkParameters(network_params);
+
+  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
+    // Verify cwnd is capped at 100.
+    EXPECT_EQ(100 * kDefaultTCPMSS,
+              sender_->ExportDebugState().congestion_window);
+    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
+  }
+}
+
+TEST_F(Bbr2DefaultTopologyTest,
+       100InitialCongestionWindowWithNetworkParameterAdjusted) {
+  SetConnectionOption(kICW1);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  sender_endpoint_.AddBytesToTransfer(1 * 1024 * 1024);
+  // Wait until an ACK comes back.
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(5);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return !sender_->ExportDebugState().min_rtt.IsZero(); },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+
+  // Bootstrap cwnd by a overly large bandwidth sample.
+  sender_connection()->AdjustNetworkParameters(
+      SendAlgorithmInterface::NetworkParams(1024 * params.BottleneckBandwidth(),
+                                            QuicTime::Delta::Zero(), false));
+
+  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
+    // Verify cwnd is capped at 100.
+    EXPECT_EQ(100 * kDefaultTCPMSS,
+              sender_->ExportDebugState().congestion_window);
+    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
+  }
+}
+
 // All Bbr2MultiSenderTests uses the following network topology:
 //
 //   Sender 0  (A Bbr2Sender)
