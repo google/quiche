@@ -15,15 +15,15 @@
 #include <iosfwd>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
 class QUICHE_EXPORT_PRIVATE HpackString {
  public:
   explicit HpackString(const char* data);
-  explicit HpackString(quiche::QuicheStringPiece str);
+  explicit HpackString(absl::string_view str);
   explicit HpackString(std::string str);
   HpackString(const HpackString& other);
 
@@ -34,31 +34,30 @@ class QUICHE_EXPORT_PRIVATE HpackString {
 
   size_t size() const { return str_.size(); }
   const std::string& ToString() const { return str_; }
-  quiche::QuicheStringPiece ToStringPiece() const;
+  absl::string_view ToStringPiece() const;
 
   bool operator==(const HpackString& other) const;
 
-  bool operator==(quiche::QuicheStringPiece str) const;
+  bool operator==(absl::string_view str) const;
 
  private:
   std::string str_;
 };
 
-QUICHE_EXPORT_PRIVATE bool operator==(quiche::QuicheStringPiece a,
+QUICHE_EXPORT_PRIVATE bool operator==(absl::string_view a,
                                       const HpackString& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(quiche::QuicheStringPiece a,
-                                      const HpackString& b);
-QUICHE_EXPORT_PRIVATE bool operator!=(const HpackString& a,
+QUICHE_EXPORT_PRIVATE bool operator!=(absl::string_view a,
                                       const HpackString& b);
 QUICHE_EXPORT_PRIVATE bool operator!=(const HpackString& a,
-                                      quiche::QuicheStringPiece b);
+                                      const HpackString& b);
+QUICHE_EXPORT_PRIVATE bool operator!=(const HpackString& a,
+                                      absl::string_view b);
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
                                                const HpackString& v);
 
 struct QUICHE_EXPORT_PRIVATE HpackStringPair {
   HpackStringPair(const HpackString& name, const HpackString& value);
-  HpackStringPair(quiche::QuicheStringPiece name,
-                  quiche::QuicheStringPiece value);
+  HpackStringPair(absl::string_view name, absl::string_view value);
   ~HpackStringPair();
 
   // Returns the size of a header entry with this name and value, per the RFC:

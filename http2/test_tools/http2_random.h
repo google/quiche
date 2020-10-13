@@ -11,7 +11,7 @@
 #include <random>
 #include <string>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 
 namespace http2 {
 namespace test {
@@ -28,7 +28,7 @@ class Http2Random {
 
   // Reproducible random number generation: by using the same key, the same
   // sequence of results is obtained.
-  explicit Http2Random(quiche::QuicheStringPiece key);
+  explicit Http2Random(absl::string_view key);
   std::string Key() const;
 
   void FillRandom(void* buffer, size_t buffer_size);
@@ -67,8 +67,7 @@ class Http2Random {
 
   // Return a random string consisting of the characters from the specified
   // alphabet.
-  std::string RandStringWithAlphabet(int length,
-                                     quiche::QuicheStringPiece alphabet);
+  std::string RandStringWithAlphabet(int length, absl::string_view alphabet);
 
   // STL UniformRandomNumberGenerator implementation.
   using result_type = uint64_t;
