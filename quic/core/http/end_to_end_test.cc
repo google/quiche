@@ -3920,21 +3920,17 @@ TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));
 }
 
+// A single large header value causes a different error than the total size of
+// headers exceeding a smaller limit, tested at EndToEndTest.LargeHeaders.
 TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
   ASSERT_TRUE(Initialize());
-  if (version_.UsesTls() && !version_.UsesHttp3()) {
-    // In T050, it took relatively long time for HPACK to compress the header
-    // while server will detect blackhole on NST message.
-    // TODO(b/157248143): remove this when the HPACK compression issue is
-    // understood.
-    return;
-  }
+
   SpdyHeaderBlock headers;
   headers[":method"] = "GET";
   headers[":path"] = "/foo";
   headers[":scheme"] = "https";
   headers[":authority"] = server_hostname_;
-  headers["key"] = std::string(64 * 1024 * 1024, 'a');
+  headers["key"] = std::string(2 * 1024 * 1024, 'a');
 
   client_->SendMessage(headers, "");
   client_->WaitForResponse();
