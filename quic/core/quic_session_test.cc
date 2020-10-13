@@ -3031,24 +3031,21 @@ TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
       .Times(1)
       .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
-  session_.SendRstStream(read_only, QUIC_STREAM_CANCELLED, 0,
-                         /*send_rst_only = */ false);
+  session_.ResetStream(read_only, QUIC_STREAM_CANCELLED);
 
   QuicStreamId write_only = GetNthServerInitiatedUnidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(1)
       .WillOnce(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(write_only, _));
-  session_.SendRstStream(write_only, QUIC_STREAM_CANCELLED, 0,
-                         /*send_rst_only = */ false);
+  session_.ResetStream(write_only, QUIC_STREAM_CANCELLED);
 
   QuicStreamId bidirectional = GetNthClientInitiatedBidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
       .WillRepeatedly(Invoke(&ClearControlFrame));
   EXPECT_CALL(*connection_, OnStreamReset(bidirectional, _));
-  session_.SendRstStream(bidirectional, QUIC_STREAM_CANCELLED, 0,
-                         /*send_rst_only = */ false);
+  session_.ResetStream(bidirectional, QUIC_STREAM_CANCELLED);
 }
 
 TEST_P(QuicSessionTestServer, DecryptionKeyAvailableBeforeEncryptionKey) {

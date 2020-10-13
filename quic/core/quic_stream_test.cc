@@ -72,6 +72,7 @@ class TestStream : public QuicStream {
   using QuicStream::CanWriteNewDataAfterData;
   using QuicStream::CloseWriteSide;
   using QuicStream::fin_buffered;
+  using QuicStream::MaybeSendStopSending;
   using QuicStream::OnClose;
   using QuicStream::WriteMemSlices;
   using QuicStream::WriteOrBufferData;
@@ -112,8 +113,15 @@ class QuicStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     // session_ now owns stream_.
     session_->ActivateStream(QuicWrapUnique(stream_));
     // Ignore resetting when session_ is terminated.
-    EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _, _))
-        .Times(AnyNumber());
+    if (!session_->split_up_send_rst()) {
+      EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _, _))
+          .Times(AnyNumber());
+    } else {
+      EXPECT_CALL(*session_, MaybeSendStopSendingFrame(kTestStreamId, _))
+          .Times(AnyNumber());
+      EXPECT_CALL(*session_, MaybeSendRstStreamFrame(kTestStreamId, _, _))
+          .Times(AnyNumber());
+    }
     write_blocked_list_ =
         QuicSessionPeer::GetWriteBlockedStreams(session_.get());
   }
@@ -421,13 +429,21 @@ TEST_P(QuicStreamTest, WriteOrBufferDataReachStreamLimit) {
 TEST_P(QuicStreamTest, ConnectionCloseAfterStreamClose) {
   Initialize();
 
-  QuicStreamPeer::CloseReadSide(stream_);
-  stream_->CloseWriteSide();
-  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
+  QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
+                               QUIC_STREAM_CANCELLED, 1234);
+  stream_->OnStreamReset(rst_frame);
+  if (VersionHasIetfQuicFrames(session_->transport_version())) {
+    // Create and inject a STOP SENDING frame to complete the close
+    // of the stream. This is only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
+                                      QUIC_STREAM_CANCELLED);
+    session_->OnStopSendingFrame(stop_sending);
+  }
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
   EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
   stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
                               ConnectionCloseSource::FROM_SELF);
-  EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
+  EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_STREAM_CANCELLED));
   EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
 }
 
@@ -452,9 +468,21 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
   EXPECT_FALSE(rst_sent());
 
   // Now close the stream, and expect that we send a RST.
-  EXPECT_CALL(*session_, SendRstStream(_, _, _, _));
-  QuicStreamPeer::CloseReadSide(stream_);
-  stream_->CloseWriteSide();
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _, _));
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(kTestStreamId, _, _));
+  }
+  QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
+                               QUIC_STREAM_CANCELLED, 1234);
+  stream_->OnStreamReset(rst_frame);
+  if (VersionHasIetfQuicFrames(session_->transport_version())) {
+    // Create and inject a STOP SENDING frame to complete the close
+    // of the stream. This is only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
+                                      QUIC_STREAM_CANCELLED);
+    session_->OnStopSendingFrame(stop_sending);
+  }
   EXPECT_FALSE(session_->HasUnackedStreamData());
   EXPECT_FALSE(fin_sent());
   EXPECT_TRUE(rst_sent());
@@ -497,8 +525,12 @@ TEST_P(QuicStreamTest, OnlySendOneRst) {
   EXPECT_FALSE(rst_sent());
 
   // Reset the stream.
-  const int expected_resets = 1;
-  EXPECT_CALL(*session_, SendRstStream(_, _, _, _)).Times(expected_resets);
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_, SendRstStream(kTestStreamId, _, _, _)).Times(1);
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(kTestStreamId, _, _))
+        .Times(1);
+  }
   stream_->Reset(QUIC_STREAM_CANCELLED);
   EXPECT_FALSE(fin_sent());
   EXPECT_TRUE(rst_sent());
@@ -639,8 +671,6 @@ TEST_P(QuicStreamTest, InvalidFinalByteOffsetFromRst) {
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _));
   stream_->OnStreamReset(rst_frame);
   EXPECT_TRUE(stream_->HasReceivedFinalOffset());
-  QuicStreamPeer::CloseReadSide(stream_);
-  stream_->CloseWriteSide();
 }
 
 TEST_P(QuicStreamTest, FinalByteOffsetFromZeroLengthStreamFrame) {
@@ -910,7 +940,11 @@ TEST_P(QuicStreamTest, CancelStream) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Cancel stream.
-  stream_->Reset(QUIC_STREAM_NO_ERROR);
+  if (session_->split_up_send_rst()) {
+    stream_->MaybeSendStopSending(QUIC_STREAM_NO_ERROR);
+  } else {
+    stream_->Reset(QUIC_STREAM_NO_ERROR);
+  }
   // stream still waits for acks as the error code is QUIC_STREAM_NO_ERROR, and
   // data is going to be retransmitted.
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -920,12 +954,21 @@ TEST_P(QuicStreamTest, CancelStream) {
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(AtLeast(1))
       .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9, _))
-      .WillOnce(InvokeWithoutArgs([this]() {
-        session_->ReallySendRstStream(stream_->id(), QUIC_STREAM_CANCELLED,
-                                      stream_->stream_bytes_written(), false);
-      }));
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_,
+                SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9, _))
+        .WillOnce(InvokeWithoutArgs([this]() {
+          session_->ReallySendRstStream(stream_->id(), QUIC_STREAM_CANCELLED,
+                                        stream_->stream_bytes_written(), false);
+        }));
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _))
+        .WillOnce(InvokeWithoutArgs([this]() {
+          session_->ReallyMaybeSendRstStreamFrame(
+              stream_->id(), QUIC_STREAM_CANCELLED,
+              stream_->stream_bytes_written());
+        }));
+  }
 
   stream_->Reset(QUIC_STREAM_CANCELLED);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -956,8 +999,14 @@ TEST_P(QuicStreamTest, RstFrameReceivedStreamNotFinishSending) {
   // RST_STREAM received.
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 9);
-  EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
+
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_,
+                SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
+                               stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9));
+  }
   stream_->OnStreamReset(rst_frame);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Stream stops waiting for acks as it does not finish sending and rst is
@@ -1000,8 +1049,14 @@ TEST_P(QuicStreamTest, ConnectionClosed) {
   stream_->WriteOrBufferData(kData1, false, nullptr);
   EXPECT_TRUE(stream_->IsWaitingForAcks());
   EXPECT_TRUE(session_->HasUnackedStreamData());
-  EXPECT_CALL(*session_,
-              SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_,
+                SendRstStream(stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9, _));
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
+                               stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, 9));
+  }
+  QuicConnectionPeer::SetConnectionClose(connection_);
   stream_->OnConnectionClosed(QUIC_INTERNAL_ERROR,
                               ConnectionCloseSource::FROM_SELF);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1525,8 +1580,19 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresRetransmitLostData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
-      .Times(1);
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
+        .Times(1);
+  } else {
+    if (session_->version().UsesHttp3()) {
+      EXPECT_CALL(*session_,
+                  MaybeSendStopSendingFrame(_, QUIC_STREAM_TTL_EXPIRED))
+          .Times(1);
+    }
+    EXPECT_CALL(*session_,
+                MaybeSendRstStreamFrame(_, QUIC_STREAM_TTL_EXPIRED, _))
+        .Times(1);
+  }
   stream_->OnCanWrite();
 }
 
@@ -1544,8 +1610,19 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
-      .Times(1);
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_, SendRstStream(_, QUIC_STREAM_TTL_EXPIRED, _, _))
+        .Times(1);
+  } else {
+    if (session_->version().UsesHttp3()) {
+      EXPECT_CALL(*session_,
+                  MaybeSendStopSendingFrame(_, QUIC_STREAM_TTL_EXPIRED))
+          .Times(1);
+    }
+    EXPECT_CALL(*session_,
+                MaybeSendRstStreamFrame(_, QUIC_STREAM_TTL_EXPIRED, _))
+        .Times(1);
+  }
   stream_->RetransmitStreamData(0, 100, false, PTO_RETRANSMISSION);
 }
 

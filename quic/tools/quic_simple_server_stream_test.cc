@@ -12,6 +12,7 @@
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -157,6 +158,16 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                QuicRstStreamErrorCode error,
                QuicStreamOffset bytes_written,
                bool send_rst_only),
+              (override));
+  MOCK_METHOD(void,
+              MaybeSendRstStreamFrame,
+              (QuicStreamId stream_id,
+               QuicRstStreamErrorCode error,
+               QuicStreamOffset bytes_written),
+              (override));
+  MOCK_METHOD(void,
+              MaybeSendStopSendingFrame,
+              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
               (override));
   // Matchers cannot be used on non-copyable types like SpdyHeaderBlock.
   void PromisePushResources(
@@ -341,7 +352,18 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(1);
+  if (!session_.split_up_send_rst()) {
+    EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _))
+        .Times(1);
+  } else {
+    if (session_.version().UsesHttp3()) {
+      EXPECT_CALL(session_, MaybeSendStopSendingFrame(_, QUIC_STREAM_NO_ERROR))
+          .Times(1);
+    } else {
+      EXPECT_CALL(session_, MaybeSendRstStreamFrame(_, QUIC_STREAM_NO_ERROR, _))
+          .Times(1);
+    }
+  }
   stream_->StopReading();
 }
 
@@ -469,8 +491,16 @@ TEST_P(QuicSimpleServerStreamTest, SendPushResponseWith404Response) {
                                     std::move(response_headers_), body);
 
   InSequence s;
-  EXPECT_CALL(session_, SendRstStream(promised_stream->id(),
-                                      QUIC_STREAM_CANCELLED, 0, _));
+  if (!session_.split_up_send_rst()) {
+    EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_CANCELLED, 0, _));
+  } else {
+    if (session_.version().UsesHttp3()) {
+      EXPECT_CALL(session_, MaybeSendStopSendingFrame(promised_stream->id(),
+                                                      QUIC_STREAM_CANCELLED));
+    }
+    EXPECT_CALL(session_, MaybeSendRstStreamFrame(promised_stream->id(),
+                                                  QUIC_STREAM_CANCELLED, 0));
+  }
 
   promised_stream->DoSendResponse();
 }
@@ -674,7 +704,6 @@ TEST_P(QuicSimpleServerStreamTest, ValidMultipleContentLength) {
 
 TEST_P(QuicSimpleServerStreamTest,
        DoNotSendQuicRstStreamNoErrorWithRstReceived) {
-  InSequence s;
   EXPECT_FALSE(stream_->reading_stopped());
 
   EXPECT_CALL(session_, SendRstStream(_, QUIC_STREAM_NO_ERROR, _, _)).Times(0);
@@ -687,16 +716,33 @@ TEST_P(QuicSimpleServerStreamTest,
     EXPECT_CALL(session_, WritevData(qpack_decoder_stream->id(), _, _, _, _, _))
         .Times(AnyNumber());
   }
-  EXPECT_CALL(session_, SendRstStream(_, QUIC_RST_ACKNOWLEDGEMENT, _, _))
-      .Times(1);
+
+  if (!session_.split_up_send_rst()) {
+    EXPECT_CALL(session_, SendRstStream(_,
+                                        session_.version().UsesHttp3()
+                                            ? QUIC_STREAM_CANCELLED
+                                            : QUIC_RST_ACKNOWLEDGEMENT,
+                                        _, _))
+        .Times(1);
+  } else {
+    EXPECT_CALL(session_,
+                MaybeSendRstStreamFrame(_,
+                                        session_.version().UsesHttp3()
+                                            ? QUIC_STREAM_CANCELLED
+                                            : QUIC_RST_ACKNOWLEDGEMENT,
+                                        _))
+        .Times(1);
+  }
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
   if (VersionHasIetfQuicFrames(connection_->transport_version())) {
-    // For V99 receiving a RST_STREAM causes a 1-way close; the test requires
-    // a full close. A CloseWriteSide closes the other half of the stream.
-    // Everything should then work properly.
-    stream_->CloseWriteSide();
+    EXPECT_CALL(session_owner_, OnStopSendingReceived(_));
+    // Create and inject a STOP SENDING frame to complete the close
+    // of the stream. This is only needed for version 99/IETF QUIC.
+    QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
+                                      QUIC_STREAM_CANCELLED);
+    session_.OnStopSendingFrame(stop_sending);
   }
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->write_side_closed());

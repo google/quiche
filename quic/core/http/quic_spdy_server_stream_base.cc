@@ -28,7 +28,11 @@ void QuicSpdyServerStreamBase::CloseWriteSide() {
     DCHECK(fin_sent() || !session()->connection()->connected());
     // Tell the peer to stop sending further data.
     QUIC_DVLOG(1) << " Server: Send QUIC_STREAM_NO_ERROR on stream " << id();
-    Reset(QUIC_STREAM_NO_ERROR);
+    if (session()->split_up_send_rst()) {
+      MaybeSendStopSending(QUIC_STREAM_NO_ERROR);
+    } else {
+      Reset(QUIC_STREAM_NO_ERROR);
+    }
   }
 
   QuicSpdyStream::CloseWriteSide();
@@ -40,7 +44,11 @@ void QuicSpdyServerStreamBase::StopReading() {
     DCHECK(fin_sent());
     // Tell the peer to stop sending further data.
     QUIC_DVLOG(1) << " Server: Send QUIC_STREAM_NO_ERROR on stream " << id();
-    Reset(QUIC_STREAM_NO_ERROR);
+    if (session()->split_up_send_rst()) {
+      MaybeSendStopSending(QUIC_STREAM_NO_ERROR);
+    } else {
+      Reset(QUIC_STREAM_NO_ERROR);
+    }
   }
   QuicSpdyStream::StopReading();
 }

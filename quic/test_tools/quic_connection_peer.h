@@ -159,6 +159,8 @@ class QuicConnectionPeer {
   static const QuicCircularDeque<
       std::pair<QuicPathFrameBuffer, QuicSocketAddress>>&
   pending_path_challenge_payloads(QuicConnection* connection);
+
+  static void SetConnectionClose(QuicConnection* connection);
 };
 
 }  // namespace test

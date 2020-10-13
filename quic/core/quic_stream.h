@@ -403,6 +403,12 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // empty.
   void SetFinSent();
 
+  // Send STOP_SENDING if it hasn't been sent yet.
+  void MaybeSendStopSending(QuicRstStreamErrorCode error);
+
+  // Send RESET_STREAM if it hasn't been sent yet.
+  void MaybeSendRstStream(QuicRstStreamErrorCode error);
+
   // Close the write side of the socket.  Further writes will fail.
   // Can be called by the subclass or internally.
   // Does not send a FIN.  May cause the stream to be closed.
@@ -508,6 +514,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // True if this stream has received a RST_STREAM frame.
   bool rst_received_;
+
+  // True if the stream has sent STOP_SENDING to the session.
+  bool stop_sending_sent_;
 
   absl::optional<QuicFlowController> flow_controller_;
 

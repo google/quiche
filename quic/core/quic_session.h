@@ -34,6 +34,7 @@
 #include "net/third_party/quiche/src/quic/core/uber_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -216,6 +217,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called by stream to send RST_STREAM (and STOP_SENDING in IETF QUIC).
   // if |send_rst_only|, STOP_SENDING will not be sent for IETF QUIC.
+  // TODO(b/170233449): Delete this method when flag quic_split_up_send_rst is
+  // deprecated.
   virtual void SendRstStream(QuicStreamId id,
                              QuicRstStreamErrorCode error,
                              QuicStreamOffset bytes_written,
@@ -331,6 +334,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicConnectionId connection_id() const {
     return connection_->connection_id();
   }
+
+  bool split_up_send_rst() const { return split_up_send_rst_; }
 
   // Returns the number of currently open streams, excluding static streams, and
   // never counting unfinished streams.
@@ -472,6 +477,16 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual bool ResumeApplicationState(ApplicationState* /*cached_state*/) {
     return true;
   }
+
+  // Does actual work of sending RESET_STREAM, if the stream type allows.
+  // Also informs the connection so that pending stream frames can be flushed.
+  virtual void MaybeSendRstStreamFrame(QuicStreamId id,
+                                       QuicRstStreamErrorCode error,
+                                       QuicStreamOffset bytes_written);
+
+  // Sends a STOP_SENDING frame if the stream type allows.
+  virtual void MaybeSendStopSendingFrame(QuicStreamId id,
+                                         QuicRstStreamErrorCode error);
 
   const absl::optional<std::string> user_agent_id() const {
     return user_agent_id_;
@@ -715,14 +730,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // stream.
   void PendingStreamOnRstStream(const QuicRstStreamFrame& frame);
 
-  // Does actual work of sending RESET_STREAM, if the stream type allows.
-  void MaybeSendRstStreamFrame(QuicStreamId id,
-                               QuicRstStreamErrorCode error,
-                               QuicStreamOffset bytes_written);
-
-  // Sends a STOP_SENDING frame if the stream type allows.
-  void MaybeSendStopSendingFrame(QuicStreamId id, QuicRstStreamErrorCode error);
-
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
   QuicHashMap<QuicStreamId, QuicStreamOffset>
@@ -835,6 +842,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
+
+  const bool split_up_send_rst_ = GetQuicReloadableFlag(quic_split_up_send_rst);
 };
 
 }  // namespace quic

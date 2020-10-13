@@ -342,6 +342,7 @@ QuicStream::QuicStream(QuicStreamId id,
       fin_received_(fin_received),
       rst_sent_(false),
       rst_received_(false),
+      stop_sending_sent_(false),
       flow_controller_(std::move(flow_controller)),
       connection_flow_controller_(connection_flow_controller),
       stream_contributes_to_connection_flow_control_(true),
@@ -504,10 +505,15 @@ bool QuicStream::OnStopSending(QuicRstStreamErrorCode code) {
 
   stream_error_ = code;
 
-  session()->SendRstStream(id(), code, stream_bytes_written(),
-                           /*send_rst_only = */ true);
-  rst_sent_ = true;
-  CloseWriteSide();
+  if (session()->split_up_send_rst()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 1, 3);
+    MaybeSendRstStream(code);
+  } else {
+    session()->SendRstStream(id(), code, stream_bytes_written(),
+                             /*send_rst_only = */ true);
+    rst_sent_ = true;
+    CloseWriteSide();
+  }
   return true;
 }
 
@@ -593,15 +599,23 @@ void QuicStream::SetFinSent() {
 
 void QuicStream::Reset(QuicRstStreamErrorCode error) {
   stream_error_ = error;
-  session()->SendRstStream(id(), error, stream_bytes_written(),
-                           /*send_rst_only = */ false);
-  rst_sent_ = true;
+  if (session()->split_up_send_rst()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 2, 3);
+    MaybeSendStopSending(error);
+    MaybeSendRstStream(error);
+  } else {
+    session()->SendRstStream(id(), error, stream_bytes_written(),
+                             /*send_rst_only = */ false);
+    rst_sent_ = true;
+  }
   if (read_side_closed_ && write_side_closed_ && !IsWaitingForAcks()) {
     session()->MaybeCloseZombieStream(id_);
     return;
   }
-  CloseReadSide();
-  CloseWriteSide();
+  if (!session()->split_up_send_rst()) {
+    CloseReadSide();
+    CloseWriteSide();
+  }
 }
 
 void QuicStream::OnUnrecoverableError(QuicErrorCode error,
@@ -812,6 +826,44 @@ void QuicStream::CloseWriteSide() {
   }
 }
 
+void QuicStream::MaybeSendStopSending(QuicRstStreamErrorCode error) {
+  DCHECK(session()->split_up_send_rst());
+  if (stop_sending_sent_) {
+    return;
+  }
+
+  if (!session()->version().UsesHttp3() && error != QUIC_STREAM_NO_ERROR) {
+    // In gQUIC, RST with error closes both read and write side.
+    return;
+  }
+
+  if (session()->version().UsesHttp3()) {
+    session()->MaybeSendStopSendingFrame(id(), error);
+  } else {
+    DCHECK_EQ(QUIC_STREAM_NO_ERROR, error);
+    session()->MaybeSendRstStreamFrame(id(), QUIC_STREAM_NO_ERROR,
+                                       stream_bytes_written());
+  }
+  stop_sending_sent_ = true;
+  CloseReadSide();
+}
+
+void QuicStream::MaybeSendRstStream(QuicRstStreamErrorCode error) {
+  DCHECK(session()->split_up_send_rst());
+  if (rst_sent_) {
+    return;
+  }
+
+  if (!session()->version().UsesHttp3()) {
+    QUIC_BUG_IF(error == QUIC_STREAM_NO_ERROR);
+    stop_sending_sent_ = true;
+    CloseReadSide();
+  }
+  session()->MaybeSendRstStreamFrame(id(), error, stream_bytes_written());
+  rst_sent_ = true;
+  CloseWriteSide();
+}
+
 bool QuicStream::HasBufferedData() const {
   DCHECK_GE(send_buffer_.stream_offset(), stream_bytes_written());
   return send_buffer_.stream_offset() > stream_bytes_written();
@@ -834,14 +886,25 @@ void QuicStream::OnClose() {
   DCHECK(read_side_closed_ && write_side_closed_);
 
   if (!fin_sent_ && !rst_sent_) {
-    // For flow control accounting, tell the peer how many bytes have been
-    // written on this stream before termination. Done here if needed, using a
-    // RST_STREAM frame.
-    QUIC_DLOG(INFO) << ENDPOINT << "Sending RST_STREAM in OnClose: " << id();
-    session_->SendRstStream(id(), QUIC_RST_ACKNOWLEDGEMENT,
-                            stream_bytes_written(), /*send_rst_only = */ false);
-    session_->MaybeCloseZombieStream(id_);
-    rst_sent_ = true;
+    if (!session()->split_up_send_rst()) {
+      // For flow control accounting, tell the peer how many bytes have been
+      // written on this stream before termination. Done here if needed, using a
+      // RST_STREAM frame.
+      QUIC_DLOG(INFO) << ENDPOINT << "Sending RST_STREAM in OnClose: " << id();
+      session_->SendRstStream(id(), QUIC_RST_ACKNOWLEDGEMENT,
+                              stream_bytes_written(),
+                              /*send_rst_only = */ false);
+      session_->MaybeCloseZombieStream(id_);
+      rst_sent_ = true;
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 3, 3);
+      QUIC_BUG_IF(session()->connection()->connected() &&
+                  session()->version().UsesHttp3())
+          << "The stream should've already sent RST in response to "
+             "STOP_SENDING";
+      MaybeSendRstStream(QUIC_RST_ACKNOWLEDGEMENT);
+      session_->MaybeCloseZombieStream(id_);
+    }
   }
 
   if (!flow_controller_.has_value() ||

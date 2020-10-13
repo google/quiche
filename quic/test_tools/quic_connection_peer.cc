@@ -384,5 +384,9 @@ QuicConnectionPeer::pending_path_challenge_payloads(
   return connection->pending_path_challenge_payloads_;
 }
 
+void QuicConnectionPeer::SetConnectionClose(QuicConnection* connection) {
+  connection->connected_ = false;
+}
+
 }  // namespace test
 }  // namespace quic

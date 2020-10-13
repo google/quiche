@@ -804,15 +804,26 @@ void QuicSession::SendRstStream(QuicStreamId id,
                                 QuicRstStreamErrorCode error,
                                 QuicStreamOffset bytes_written,
                                 bool send_rst_only) {
-  if (connection()->connected()) {
-    QuicConnection::ScopedPacketFlusher flusher(connection());
-    MaybeSendRstStreamFrame(id, error, bytes_written);
-    if (!send_rst_only) {
-      MaybeSendStopSendingFrame(id, error);
-    }
-
-    connection_->OnStreamReset(id, error);
+  DCHECK(!split_up_send_rst());
+  if (!connection()->connected()) {
+    return;
   }
+
+  QuicConnection::ScopedPacketFlusher flusher(connection());
+  if (!VersionHasIetfQuicFrames(transport_version()) ||
+      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
+                               version()) != READ_UNIDIRECTIONAL) {
+    control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
+  }
+  if (!send_rst_only) {
+    if (VersionHasIetfQuicFrames(transport_version()) &&
+        QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
+                                 version()) != WRITE_UNIDIRECTIONAL) {
+      control_frame_manager_.WriteOrBufferStopSending(error, id);
+    }
+  }
+
+  connection_->OnStreamReset(id, error);
 }
 
 void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
@@ -829,23 +840,37 @@ void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
     return;
   }
 
-  SendRstStream(id, error, 0, /*send_rst_only = */ false);
+  if (split_up_send_rst()) {
+    QuicConnection::ScopedPacketFlusher flusher(connection());
+    MaybeSendStopSendingFrame(id, error);
+    MaybeSendRstStreamFrame(id, error, 0);
+  } else {
+    SendRstStream(id, error, 0, /*send_rst_only = */ false);
+  }
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
                                           QuicRstStreamErrorCode error,
                                           QuicStreamOffset bytes_written) {
-  DCHECK(connection()->connected());
+  DCHECK(split_up_send_rst());
+  if (!connection()->connected()) {
+    return;
+  }
   if (!VersionHasIetfQuicFrames(transport_version()) ||
       QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
                                version()) != READ_UNIDIRECTIONAL) {
     control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
   }
+
+  connection_->OnStreamReset(id, error);
 }
 
 void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
                                             QuicRstStreamErrorCode error) {
-  DCHECK(connection()->connected());
+  DCHECK(split_up_send_rst());
+  if (!connection()->connected()) {
+    return;
+  }
   if (VersionHasIetfQuicFrames(transport_version()) &&
       QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
                                version()) != WRITE_UNIDIRECTIONAL) {

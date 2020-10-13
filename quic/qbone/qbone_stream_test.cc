@@ -65,6 +65,16 @@ class MockQuicSession : public QboneSessionBase {
               SendRstStream,
               (QuicStreamId, QuicRstStreamErrorCode, QuicStreamOffset, bool),
               (override));
+  MOCK_METHOD(void,
+              MaybeSendRstStreamFrame,
+              (QuicStreamId stream_id,
+               QuicRstStreamErrorCode error,
+               QuicStreamOffset bytes_written),
+              (override));
+  MOCK_METHOD(void,
+              MaybeSendStopSendingFrame,
+              (QuicStreamId stream_id, QuicRstStreamErrorCode error),
+              (override));
 
   // Sets whether data is written to buffer, or else if this is write blocked.
   void set_writable(bool writable) { writable_ = writable; }
@@ -237,8 +247,15 @@ TEST_F(QboneReadOnlyStreamTest, ReadBufferedTooLarge) {
   CreateReliableQuicStream();
   std::string packet = "0123456789";
   int iterations = (QboneConstants::kMaxQbonePacketBytes / packet.size()) + 2;
-  EXPECT_CALL(*session_,
-              SendRstStream(kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _, _));
+  if (!session_->split_up_send_rst()) {
+    EXPECT_CALL(*session_,
+                SendRstStream(kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _, _));
+  } else {
+    EXPECT_CALL(*session_, MaybeSendStopSendingFrame(
+                               kStreamId, QUIC_BAD_APPLICATION_PAYLOAD));
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
+                               kStreamId, QUIC_BAD_APPLICATION_PAYLOAD, _));
+  }
   for (int i = 0; i < iterations; ++i) {
     QuicStreamFrame frame(kStreamId, i == (iterations - 1), i * packet.size(),
                           packet);
