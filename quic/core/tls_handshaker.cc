@@ -76,9 +76,9 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
   std::vector<uint8_t> header_protection_key =
       CryptoUtils::GenerateHeaderProtectionKey(prf, write_secret,
                                                encrypter->GetKeySize());
-  encrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
-      reinterpret_cast<char*>(header_protection_key.data()),
-      header_protection_key.size()));
+  encrypter->SetHeaderProtectionKey(
+      absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
+                        header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
     DCHECK(latest_write_secret_.empty());
     latest_write_secret_ = write_secret;
@@ -99,9 +99,9 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
   std::vector<uint8_t> header_protection_key =
       CryptoUtils::GenerateHeaderProtectionKey(prf, read_secret,
                                                decrypter->GetKeySize());
-  decrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
-      reinterpret_cast<char*>(header_protection_key.data()),
-      header_protection_key.size()));
+  decrypter->SetHeaderProtectionKey(
+      absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
+                        header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
     DCHECK(latest_read_secret_.empty());
     latest_read_secret_ = read_secret;
@@ -133,7 +133,7 @@ TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   std::unique_ptr<QuicDecrypter> decrypter =
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   CryptoUtils::SetKeyAndIV(prf, latest_read_secret_, decrypter.get());
-  decrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+  decrypter->SetHeaderProtectionKey(absl::string_view(
       reinterpret_cast<char*>(one_rtt_read_header_protection_key_.data()),
       one_rtt_read_header_protection_key_.size()));
 
@@ -152,7 +152,7 @@ std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   CryptoUtils::SetKeyAndIV(Prf(cipher), latest_write_secret_, encrypter.get());
-  encrypter->SetHeaderProtectionKey(quiche::QuicheStringPiece(
+  encrypter->SetHeaderProtectionKey(absl::string_view(
       reinterpret_cast<char*>(one_rtt_write_header_protection_key_.data()),
       one_rtt_write_header_protection_key_.size()));
   return encrypter;
