@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 
 // Parses HPACK examples in the format seen in the HPACK specification,
 // RFC 7541. For example:
@@ -24,7 +24,7 @@
 namespace http2 {
 namespace test {
 
-std::string HpackExampleToStringOrDie(quiche::QuicheStringPiece example);
+std::string HpackExampleToStringOrDie(absl::string_view example);
 
 }  // namespace test
 }  // namespace http2

@@ -30,12 +30,12 @@ Http2FrameBuilder::Http2FrameBuilder(const Http2FrameHeader& v) {
   Append(v);
 }
 
-void Http2FrameBuilder::Append(quiche::QuicheStringPiece s) {
+void Http2FrameBuilder::Append(absl::string_view s) {
   Http2StrAppend(&buffer_, s);
 }
 
 void Http2FrameBuilder::AppendBytes(const void* data, uint32_t num_bytes) {
-  Append(quiche::QuicheStringPiece(static_cast<const char*>(data), num_bytes));
+  Append(absl::string_view(static_cast<const char*>(data), num_bytes));
 }
 
 void Http2FrameBuilder::AppendZeroes(size_t num_zero_bytes) {
@@ -143,7 +143,7 @@ void Http2FrameBuilder::Append(const Http2AltSvcFields& v) {
 
 // Methods for changing existing buffer contents.
 
-void Http2FrameBuilder::WriteAt(quiche::QuicheStringPiece s, size_t offset) {
+void Http2FrameBuilder::WriteAt(absl::string_view s, size_t offset) {
   ASSERT_LE(offset, buffer_.size());
   size_t len = offset + s.size();
   if (len > buffer_.size()) {
@@ -157,8 +157,7 @@ void Http2FrameBuilder::WriteAt(quiche::QuicheStringPiece s, size_t offset) {
 void Http2FrameBuilder::WriteBytesAt(const void* data,
                                      uint32_t num_bytes,
                                      size_t offset) {
-  WriteAt(quiche::QuicheStringPiece(static_cast<const char*>(data), num_bytes),
-          offset);
+  WriteAt(absl::string_view(static_cast<const char*>(data), num_bytes), offset);
 }
 
 void Http2FrameBuilder::WriteUInt24At(uint32_t value, size_t offset) {

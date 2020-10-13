@@ -15,8 +15,7 @@ namespace http2 {
 namespace test {
 namespace {
 
-void HpackExampleToStringOrDie(quiche::QuicheStringPiece example,
-                               std::string* output) {
+void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
   while (!example.empty()) {
     const char c0 = example[0];
     if (isxdigit(c0)) {
@@ -34,7 +33,7 @@ void HpackExampleToStringOrDie(quiche::QuicheStringPiece example,
     if (!example.empty() && example[0] == '|') {
       // Start of a comment. Skip to end of line or of input.
       auto pos = example.find('\n');
-      if (pos == quiche::QuicheStringPiece::npos) {
+      if (pos == absl::string_view::npos) {
         // End of input.
         break;
       }
@@ -50,7 +49,7 @@ void HpackExampleToStringOrDie(quiche::QuicheStringPiece example,
 
 }  // namespace
 
-std::string HpackExampleToStringOrDie(quiche::QuicheStringPiece example) {
+std::string HpackExampleToStringOrDie(absl::string_view example) {
   std::string output;
   HpackExampleToStringOrDie(example, &output);
   return output;
