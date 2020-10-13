@@ -40,12 +40,12 @@ class HpackEncoderPeer {
   bool compression_enabled() const { return encoder_->enable_compression_; }
   HpackHeaderTable* table() { return &encoder_->header_table_; }
   HpackHeaderTablePeer table_peer() { return HpackHeaderTablePeer(table()); }
-  void EmitString(quiche::QuicheStringPiece str) { encoder_->EmitString(str); }
+  void EmitString(absl::string_view str) { encoder_->EmitString(str); }
   void TakeString(std::string* out) {
     encoder_->output_stream_.TakeString(out);
   }
-  static void CookieToCrumbs(quiche::QuicheStringPiece cookie,
-                             std::vector<quiche::QuicheStringPiece>* out) {
+  static void CookieToCrumbs(absl::string_view cookie,
+                             std::vector<absl::string_view>* out) {
     Representations tmp;
     HpackEncoder::CookieToCrumbs(std::make_pair("", cookie), &tmp);
 
@@ -54,9 +54,8 @@ class HpackEncoderPeer {
       out->push_back(tmp[i].second);
     }
   }
-  static void DecomposeRepresentation(
-      quiche::QuicheStringPiece value,
-      std::vector<quiche::QuicheStringPiece>* out) {
+  static void DecomposeRepresentation(absl::string_view value,
+                                      std::vector<absl::string_view>* out) {
     Representations tmp;
     HpackEncoder::DecomposeRepresentation(std::make_pair("foobar", value),
                                           &tmp);
@@ -150,12 +149,11 @@ class HpackEncoderTest
     peer_.table()->SetMaxSize(peer_.table()->size());
   }
 
-  void SaveHeaders(quiche::QuicheStringPiece name,
-                   quiche::QuicheStringPiece value) {
-    quiche::QuicheStringPiece n(
-        headers_storage_.Memdup(name.data(), name.size()), name.size());
-    quiche::QuicheStringPiece v(
-        headers_storage_.Memdup(value.data(), value.size()), value.size());
+  void SaveHeaders(absl::string_view name, absl::string_view value) {
+    absl::string_view n(headers_storage_.Memdup(name.data(), name.size()),
+                        name.size());
+    absl::string_view v(headers_storage_.Memdup(value.data(), value.size()),
+                        value.size());
     headers_observed_.push_back(std::make_pair(n, v));
   }
 
@@ -164,32 +162,31 @@ class HpackEncoderTest
     expected_.AppendUint32(index);
   }
   void ExpectIndexedLiteral(const HpackEntry* key_entry,
-                            quiche::QuicheStringPiece value) {
+                            absl::string_view value) {
     expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
     expected_.AppendUint32(IndexOf(key_entry));
     ExpectString(&expected_, value);
   }
-  void ExpectIndexedLiteral(quiche::QuicheStringPiece name,
-                            quiche::QuicheStringPiece value) {
+  void ExpectIndexedLiteral(absl::string_view name, absl::string_view value) {
     expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
     expected_.AppendUint32(0);
     ExpectString(&expected_, name);
     ExpectString(&expected_, value);
   }
-  void ExpectNonIndexedLiteral(quiche::QuicheStringPiece name,
-                               quiche::QuicheStringPiece value) {
+  void ExpectNonIndexedLiteral(absl::string_view name,
+                               absl::string_view value) {
     expected_.AppendPrefix(kLiteralNoIndexOpcode);
     expected_.AppendUint32(0);
     ExpectString(&expected_, name);
     ExpectString(&expected_, value);
   }
   void ExpectNonIndexedLiteralWithNameIndex(const HpackEntry* key_entry,
-                                            quiche::QuicheStringPiece value) {
+                                            absl::string_view value) {
     expected_.AppendPrefix(kLiteralNoIndexOpcode);
     expected_.AppendUint32(IndexOf(key_entry));
     ExpectString(&expected_, value);
   }
-  void ExpectString(HpackOutputStream* stream, quiche::QuicheStringPiece str) {
+  void ExpectString(HpackOutputStream* stream, absl::string_view str) {
     const HpackHuffmanTable& huffman_table = ObtainHpackHuffmanTable();
     size_t encoded_size =
         peer_.compression_enabled()
@@ -261,7 +258,7 @@ class HpackEncoderTest
   const HpackEntry* cookie_c_;
 
   SpdySimpleArena headers_storage_;
-  std::vector<std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>>
+  std::vector<std::pair<absl::string_view, absl::string_view>>
       headers_observed_;
 
   HpackOutputStream expected_;
@@ -278,16 +275,15 @@ INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
 
 TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
   encoder_.SetHeaderListener(
-      [this](quiche::QuicheStringPiece name, quiche::QuicheStringPiece value) {
+      [this](absl::string_view name, absl::string_view value) {
         this->SaveHeaders(name, value);
       });
-  const std::vector<
-      std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>>
+  const std::vector<std::pair<absl::string_view, absl::string_view>>
       header_list = {{"cookie", "val1; val2;val3"},
                      {":path", "/home"},
                      {"accept", "text/html, text/plain,application/xml"},
                      {"cookie", "val4"},
-                     {"withnul", quiche::QuicheStringPiece("one\0two", 7)}};
+                     {"withnul", absl::string_view("one\0two", 7)}};
   ExpectNonIndexedLiteralWithNameIndex(peer_.table()->GetByName(":path"),
                                        "/home");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val1");
@@ -296,7 +292,7 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
   ExpectIndexedLiteral(peer_.table()->GetByName("accept"),
                        "text/html, text/plain,application/xml");
   ExpectIndexedLiteral(peer_.table()->GetByName("cookie"), "val4");
-  ExpectIndexedLiteral("withnul", quiche::QuicheStringPiece("one\0two", 7));
+  ExpectIndexedLiteral("withnul", absl::string_view("one\0two", 7));
 
   CompareWithExpectedEncoding(header_list);
   EXPECT_THAT(
@@ -305,7 +301,7 @@ TEST_P(HpackEncoderTestWithDefaultStrategy, EncodeRepresentations) {
                   Pair("cookie", "val2"), Pair("cookie", "val3"),
                   Pair("accept", "text/html, text/plain,application/xml"),
                   Pair("cookie", "val4"),
-                  Pair("withnul", quiche::QuicheStringPiece("one\0two", 7))));
+                  Pair("withnul", absl::string_view("one\0two", 7))));
 }
 
 INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
@@ -317,7 +313,7 @@ INSTANTIATE_TEST_SUITE_P(HpackEncoderTests,
 
 TEST_P(HpackEncoderTest, SingleDynamicIndex) {
   encoder_.SetHeaderListener(
-      [this](quiche::QuicheStringPiece name, quiche::QuicheStringPiece value) {
+      [this](absl::string_view name, absl::string_view value) {
         this->SaveHeaders(name, value);
       });
 
@@ -438,7 +434,7 @@ TEST_P(HpackEncoderTest, StringsDynamicallySelectHuffmanCoding) {
 
 TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   encoder_.SetHeaderListener(
-      [this](quiche::QuicheStringPiece name, quiche::QuicheStringPiece value) {
+      [this](absl::string_view name, absl::string_view value) {
         this->SaveHeaders(name, value);
       });
   encoder_.DisableCompression();
@@ -466,11 +462,10 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
   if (strategy_ == kRepresentations) {
     EXPECT_THAT(
         headers_observed_,
-        ElementsAre(
-            Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
-            Pair("cookie", "baz=bing"),
-            Pair("hello", quiche::QuicheStringPiece("goodbye\0aloha", 13)),
-            Pair("multivalue", "value1, value2")));
+        ElementsAre(Pair(":path", "/index.html"), Pair("cookie", "foo=bar"),
+                    Pair("cookie", "baz=bing"),
+                    Pair("hello", absl::string_view("goodbye\0aloha", 13)),
+                    Pair("multivalue", "value1, value2")));
   } else {
     EXPECT_THAT(
         headers_observed_,
@@ -483,7 +478,7 @@ TEST_P(HpackEncoderTest, EncodingWithoutCompression) {
 
 TEST_P(HpackEncoderTest, MultipleEncodingPasses) {
   encoder_.SetHeaderListener(
-      [this](quiche::QuicheStringPiece name, quiche::QuicheStringPiece value) {
+      [this](absl::string_view name, absl::string_view value) {
         this->SaveHeaders(name, value);
       });
 
@@ -580,7 +575,7 @@ TEST_P(HpackEncoderTest, PseudoHeadersFirst) {
 
 TEST_P(HpackEncoderTest, CookieToCrumbs) {
   test::HpackEncoderPeer peer(nullptr);
-  std::vector<quiche::QuicheStringPiece> out;
+  std::vector<absl::string_view> out;
 
   // Leading and trailing whitespace is consumed. A space after ';' is consumed.
   // All other spaces remain. ';' at beginning and end of string produce empty
@@ -614,7 +609,7 @@ TEST_P(HpackEncoderTest, CookieToCrumbs) {
 
 TEST_P(HpackEncoderTest, DecomposeRepresentation) {
   test::HpackEncoderPeer peer(nullptr);
-  std::vector<quiche::QuicheStringPiece> out;
+  std::vector<absl::string_view> out;
 
   peer.DecomposeRepresentation("", &out);
   EXPECT_THAT(out, ElementsAre(""));
@@ -622,19 +617,16 @@ TEST_P(HpackEncoderTest, DecomposeRepresentation) {
   peer.DecomposeRepresentation("foobar", &out);
   EXPECT_THAT(out, ElementsAre("foobar"));
 
-  peer.DecomposeRepresentation(quiche::QuicheStringPiece("foo\0bar", 7), &out);
+  peer.DecomposeRepresentation(absl::string_view("foo\0bar", 7), &out);
   EXPECT_THAT(out, ElementsAre("foo", "bar"));
 
-  peer.DecomposeRepresentation(quiche::QuicheStringPiece("\0foo\0bar", 8),
-                               &out);
+  peer.DecomposeRepresentation(absl::string_view("\0foo\0bar", 8), &out);
   EXPECT_THAT(out, ElementsAre("", "foo", "bar"));
 
-  peer.DecomposeRepresentation(quiche::QuicheStringPiece("foo\0bar\0", 8),
-                               &out);
+  peer.DecomposeRepresentation(absl::string_view("foo\0bar\0", 8), &out);
   EXPECT_THAT(out, ElementsAre("foo", "bar", ""));
 
-  peer.DecomposeRepresentation(quiche::QuicheStringPiece("\0foo\0bar\0", 9),
-                               &out);
+  peer.DecomposeRepresentation(absl::string_view("\0foo\0bar\0", 9), &out);
   EXPECT_THAT(out, ElementsAre("", "foo", "bar", ""));
 }
 

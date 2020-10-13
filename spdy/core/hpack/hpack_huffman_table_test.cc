@@ -42,7 +42,7 @@ class GenericHuffmanTableTest : public QuicheTest {
  protected:
   GenericHuffmanTableTest() : table_(), peer_(table_) {}
 
-  std::string EncodeString(quiche::QuicheStringPiece input) {
+  std::string EncodeString(absl::string_view input) {
     std::string result;
     HpackOutputStream output_stream;
     table_.EncodeString(input, &output_stream);
@@ -171,12 +171,10 @@ TEST_F(GenericHuffmanTableTest, ValidateInternalsWithSmallCode) {
   EXPECT_EQ(0b10011000, peer_.pad_bits());
 
   char input_storage[] = {2, 3, 2, 7, 4};
-  quiche::QuicheStringPiece input(input_storage,
-                                  QUICHE_ARRAYSIZE(input_storage));
+  absl::string_view input(input_storage, QUICHE_ARRAYSIZE(input_storage));
   // By symbol: (2) 00 (3) 010 (2) 00 (7) 10010 (4) 10000 (6 as pad) 1001100.
   char expect_storage[] = {0b00010001, 0b00101000, 0b01001100};
-  quiche::QuicheStringPiece expect(expect_storage,
-                                   QUICHE_ARRAYSIZE(expect_storage));
+  absl::string_view expect(expect_storage, QUICHE_ARRAYSIZE(expect_storage));
   EXPECT_EQ(expect, EncodeString(input));
 }
 
@@ -258,7 +256,7 @@ TEST_F(HpackHuffmanTableTest, RoundTripIndividualSymbols) {
   for (size_t i = 0; i != 256; i++) {
     char c = static_cast<char>(i);
     char storage[3] = {c, c, c};
-    quiche::QuicheStringPiece input(storage, QUICHE_ARRAYSIZE(storage));
+    absl::string_view input(storage, QUICHE_ARRAYSIZE(storage));
     std::string buffer_in = EncodeString(input);
     std::string buffer_out;
     DecodeString(buffer_in, &buffer_out);
@@ -272,7 +270,7 @@ TEST_F(HpackHuffmanTableTest, RoundTripSymbolSequence) {
     storage[i] = static_cast<char>(i);
     storage[511 - i] = static_cast<char>(i);
   }
-  quiche::QuicheStringPiece input(storage, QUICHE_ARRAYSIZE(storage));
+  absl::string_view input(storage, QUICHE_ARRAYSIZE(storage));
   std::string buffer_in = EncodeString(input);
   std::string buffer_out;
   DecodeString(buffer_in, &buffer_out);

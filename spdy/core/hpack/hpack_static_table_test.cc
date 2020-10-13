@@ -7,7 +7,7 @@
 #include <set>
 #include <vector>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 
@@ -39,7 +39,7 @@ TEST_F(HpackStaticTableTest, Initialize) {
 
   HpackHeaderTable::NameToEntryMap static_name_index =
       table_.GetStaticNameIndex();
-  std::set<quiche::QuicheStringPiece> names;
+  std::set<absl::string_view> names;
   for (auto* entry : static_index) {
     names.insert(entry->name());
   }

@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
@@ -24,8 +24,8 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
   for (const HpackStaticEntry* it = static_entry_table;
        it != static_entry_table + static_entry_count; ++it) {
     static_entries_.push_back(
-        HpackEntry(quiche::QuicheStringPiece(it->name, it->name_len),
-                   quiche::QuicheStringPiece(it->value, it->value_len),
+        HpackEntry(absl::string_view(it->name, it->name_len),
+                   absl::string_view(it->value, it->value_len),
                    true,  // is_static
                    total_insertions));
     HpackEntry* entry = &static_entries_.back();

@@ -10,6 +10,7 @@
 #include <deque>
 #include <memory>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
@@ -67,7 +68,7 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
     bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const;
   };
   using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;
-  using NameToEntryMap = SpdyHashMap<quiche::QuicheStringPiece,
+  using NameToEntryMap = SpdyHashMap<absl::string_view,
                                      const HpackEntry*,
                                      quiche::QuicheStringPieceHash>;
 
@@ -89,11 +90,11 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   const HpackEntry* GetByIndex(size_t index);
 
   // Returns the lowest-value entry having |name|, or NULL.
-  const HpackEntry* GetByName(quiche::QuicheStringPiece name);
+  const HpackEntry* GetByName(absl::string_view name);
 
   // Returns the lowest-index matching entry, or NULL.
-  const HpackEntry* GetByNameAndValue(quiche::QuicheStringPiece name,
-                                      quiche::QuicheStringPiece value);
+  const HpackEntry* GetByNameAndValue(absl::string_view name,
+                                      absl::string_view value);
 
   // Returns the index of an entry within this header table.
   size_t IndexOf(const HpackEntry* entry) const;
@@ -109,8 +110,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // Determine the set of entries which would be evicted by the insertion
   // of |name| & |value| into the table, as per section 4.4. No eviction
   // actually occurs. The set is returned via range [begin_out, end_out).
-  void EvictionSet(quiche::QuicheStringPiece name,
-                   quiche::QuicheStringPiece value,
+  void EvictionSet(absl::string_view name,
+                   absl::string_view value,
                    EntryTable::iterator* begin_out,
                    EntryTable::iterator* end_out);
 
@@ -118,8 +119,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   // and |value| must not be owned by an entry which could be evicted. The
   // added HpackEntry is returned, or NULL is returned if all entries were
   // evicted and the empty table is of insufficent size for the representation.
-  const HpackEntry* TryAddEntry(quiche::QuicheStringPiece name,
-                                quiche::QuicheStringPiece value);
+  const HpackEntry* TryAddEntry(absl::string_view name,
+                                absl::string_view value);
 
   void DebugLogTableState() const SPDY_UNUSED;
 
@@ -132,8 +133,8 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
 
  private:
   // Returns number of evictions required to enter |name| & |value|.
-  size_t EvictionCountForEntry(quiche::QuicheStringPiece name,
-                               quiche::QuicheStringPiece value) const;
+  size_t EvictionCountForEntry(absl::string_view name,
+                               absl::string_view value) const;
 
   // Returns number of evictions required to reclaim |reclaim_size| table size.
   size_t EvictionCountToReclaim(size_t reclaim_size) const;

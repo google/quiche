@@ -14,8 +14,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
@@ -33,19 +33,18 @@ class HpackEncoderPeer;
 
 class QUICHE_EXPORT_PRIVATE HpackEncoder {
  public:
-  using Representation =
-      std::pair<quiche::QuicheStringPiece, quiche::QuicheStringPiece>;
+  using Representation = std::pair<absl::string_view, absl::string_view>;
   using Representations = std::vector<Representation>;
 
   // Callers may provide a HeaderListener to be informed of header name-value
   // pairs processed by this encoder.
   using HeaderListener =
-      std::function<void(quiche::QuicheStringPiece, quiche::QuicheStringPiece)>;
+      std::function<void(absl::string_view, absl::string_view)>;
 
   // An indexing policy should return true if the provided header name-value
   // pair should be inserted into the HPACK dynamic table.
   using IndexingPolicy =
-      std::function<bool(quiche::QuicheStringPiece, quiche::QuicheStringPiece)>;
+      std::function<bool(absl::string_view, absl::string_view)>;
 
   HpackEncoder();
   HpackEncoder(const HpackEncoder&) = delete;
@@ -125,7 +124,7 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   void EmitLiteral(const Representation& representation);
 
   // Emits a Huffman or identity string (whichever is smaller).
-  void EmitString(quiche::QuicheStringPiece str);
+  void EmitString(absl::string_view str);
 
   // Emits the current dynamic table size if the table size was recently
   // updated and we have not yet emitted it (Section 6.3).
