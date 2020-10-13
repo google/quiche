@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 #define QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -29,7 +29,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
 
   // Attempts to send a single datagram from the queue.  Returns the result of
   // SendMessage(), or nullopt if there were no unexpired datagrams to send.
-  quiche::QuicheOptional<MessageStatus> TrySendingNextDatagram();
+  absl::optional<MessageStatus> TrySendingNextDatagram();
 
   // Sends all of the unexpired datagrams until either the connection becomes
   // write-blocked or the queue is empty.  Returns the number of datagrams sent.

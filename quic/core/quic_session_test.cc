@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -39,7 +40,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::kV3HighestPriority;
@@ -304,13 +304,12 @@ class TestSession : public QuicSession {
     return GetNumActiveStreams() > 0;
   }
 
-  QuicConsumedData WritevData(
-      QuicStreamId id,
-      size_t write_length,
-      QuicStreamOffset offset,
-      StreamSendingState state,
-      TransmissionType type,
-      quiche::QuicheOptional<EncryptionLevel> level) override {
+  QuicConsumedData WritevData(QuicStreamId id,
+                              size_t write_length,
+                              QuicStreamOffset offset,
+                              StreamSendingState state,
+                              TransmissionType type,
+                              absl::optional<EncryptionLevel> level) override {
     bool fin = state != NO_FIN;
     QuicConsumedData consumed(write_length, fin);
     if (!writev_consumes_all_data_) {
@@ -341,7 +340,7 @@ class TestSession : public QuicSession {
     MakeIOVector("not empty", &iov);
     QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
     QuicConsumedData consumed =
-        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION, QUICHE_NULLOPT);
+        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION, absl::nullopt);
     QuicStreamPeer::SendBuffer(stream).OnStreamDataConsumed(
         consumed.bytes_consumed);
     return consumed;
@@ -358,7 +357,7 @@ class TestSession : public QuicSession {
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
     return WritevData(stream->id(), bytes, 0, FIN, NOT_RETRANSMISSION,
-                      QUICHE_NULLOPT);
+                      absl::nullopt);
   }
 
   bool UsesPendingStreams() const override { return uses_pending_streams_; }

@@ -10,6 +10,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
@@ -27,7 +28,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
 namespace quic {
@@ -564,7 +564,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   //   after encryption is established, the push ID in the most recently sent
   //   MAX_PUSH_ID frame.
   // Once set, never goes back to unset.
-  quiche::QuicheOptional<PushId> max_push_id_;
+  absl::optional<PushId> max_push_id_;
 
   // Not owned by the session.
   Http3DebugVisitor* debug_visitor_;
@@ -589,10 +589,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // The identifier in the most recently received GOAWAY frame.  Unset if no
   // GOAWAY frame has been received yet.
-  quiche::QuicheOptional<uint64_t> last_received_http3_goaway_id_;
+  absl::optional<uint64_t> last_received_http3_goaway_id_;
   // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
   // frame has been sent yet.
-  quiche::QuicheOptional<uint64_t> last_sent_http3_goaway_id_;
+  absl::optional<uint64_t> last_sent_http3_goaway_id_;
 
   // Only used by a client, only with IETF QUIC.  True if a MAX_PUSH_ID frame
   // has been sent, in which case |max_push_id_| has the value sent in the most

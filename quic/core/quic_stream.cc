@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -17,10 +18,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
-using quiche::QuicheOptional;
 using spdy::SpdyPriority;
 
 namespace quic {
@@ -281,7 +280,7 @@ QuicStream::QuicStream(PendingStream* pending,
 
 namespace {
 
-QuicheOptional<QuicFlowController> FlowController(QuicStreamId id,
+absl::optional<QuicFlowController> FlowController(QuicStreamId id,
                                                   QuicSession* session,
                                                   StreamType type) {
   if (type == CRYPTO) {
@@ -289,7 +288,7 @@ QuicheOptional<QuicFlowController> FlowController(QuicStreamId id,
     // it is using crypto frames instead of stream frames. The QuicCryptoStream
     // doesn't have any flow control in that case, so we don't create a
     // QuicFlowController for it.
-    return QuicheOptional<QuicFlowController>();
+    return absl::nullopt;
   }
   return QuicFlowController(
       session, id,
@@ -324,7 +323,7 @@ QuicStream::QuicStream(QuicStreamId id,
                        StreamType type,
                        uint64_t stream_bytes_read,
                        bool fin_received,
-                       QuicheOptional<QuicFlowController> flow_controller,
+                       absl::optional<QuicFlowController> flow_controller,
                        QuicFlowController* connection_flow_controller)
     : sequencer_(std::move(sequencer)),
       id_(id),
@@ -1073,7 +1072,7 @@ bool QuicStream::RetransmitStreamData(QuicStreamOffset offset,
                            stream_bytes_written());
     consumed = stream_delegate_->WritevData(
         id_, retransmission_length, retransmission_offset,
-        can_bundle_fin ? FIN : NO_FIN, type, QUICHE_NULLOPT);
+        can_bundle_fin ? FIN : NO_FIN, type, absl::nullopt);
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                   << " is forced to retransmit stream data ["
                   << retransmission_offset << ", "
@@ -1095,7 +1094,7 @@ bool QuicStream::RetransmitStreamData(QuicStreamOffset offset,
     QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                   << " retransmits fin only frame.";
     consumed = stream_delegate_->WritevData(id_, 0, stream_bytes_written(), FIN,
-                                            type, QUICHE_NULLOPT);
+                                            type, absl::nullopt);
     if (!consumed.fin_consumed) {
       return false;
     }
@@ -1173,7 +1172,7 @@ void QuicStream::WriteBufferedData() {
   }
   QuicConsumedData consumed_data =
       stream_delegate_->WritevData(id(), write_length, stream_bytes_written(),
-                                   state, NOT_RETRANSMISSION, QUICHE_NULLOPT);
+                                   state, NOT_RETRANSMISSION, absl::nullopt);
 
   OnStreamDataConsumed(consumed_data.bytes_consumed);
 
@@ -1249,7 +1248,7 @@ void QuicStream::WritePendingRetransmission() {
                     << " retransmits fin only frame.";
       consumed =
           stream_delegate_->WritevData(id_, 0, stream_bytes_written(), FIN,
-                                       LOSS_RETRANSMISSION, QUICHE_NULLOPT);
+                                       LOSS_RETRANSMISSION, absl::nullopt);
       fin_lost_ = !consumed.fin_consumed;
       if (fin_lost_) {
         // Connection is write blocked.
@@ -1264,7 +1263,7 @@ void QuicStream::WritePendingRetransmission() {
           (pending.offset + pending.length == stream_bytes_written());
       consumed = stream_delegate_->WritevData(
           id_, pending.length, pending.offset, can_bundle_fin ? FIN : NO_FIN,
-          LOSS_RETRANSMISSION, QUICHE_NULLOPT);
+          LOSS_RETRANSMISSION, absl::nullopt);
       QUIC_DVLOG(1) << ENDPOINT << "stream " << id_
                     << " tries to retransmit stream data [" << pending.offset
                     << ", " << pending.offset + pending.length

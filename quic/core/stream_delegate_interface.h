@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_STREAM_DELEGATE_INTERFACE_H_
 
 #include <cstddef>
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
 namespace quic {
@@ -32,7 +32,7 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
       QuicStreamOffset offset,
       StreamSendingState state,
       TransmissionType type,
-      quiche::QuicheOptional<EncryptionLevel> level) = 0;
+      absl::optional<EncryptionLevel> level) = 0;
   // Called to write crypto data.
   virtual size_t SendCryptoData(EncryptionLevel level,
                                 size_t write_length,

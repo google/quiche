@@ -202,7 +202,7 @@ TEST_P(TransportParametersTest, Comparator) {
   // Test comparison on connection IDs.
   orig_params.initial_source_connection_id =
       CreateFakeInitialSourceConnectionId();
-  new_params.initial_source_connection_id = QUICHE_NULLOPT;
+  new_params.initial_source_connection_id = absl::nullopt;
   EXPECT_NE(orig_params, new_params);
   EXPECT_FALSE(orig_params == new_params);
   EXPECT_TRUE(orig_params != new_params);

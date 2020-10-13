@@ -506,10 +506,9 @@ AssertionResult FrameParts::InPaddedFrame() {
   return AssertionSuccess();
 }
 
-AssertionResult FrameParts::AppendString(
-    absl::string_view source,
-    std::string* target,
-    quiche::QuicheOptional<size_t>* opt_length) {
+AssertionResult FrameParts::AppendString(absl::string_view source,
+                                         std::string* target,
+                                         absl::optional<size_t>* opt_length) {
   target->append(source.data(), source.size());
   if (opt_length != nullptr) {
     VERIFY_TRUE(*opt_length) << "Length is not set yet\n" << *this;

@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -19,26 +19,24 @@ TEST(QuicheTimeUtilsTest, Basic) {
             QuicheUtcDateTimeToUnixSeconds(2006, 7, 15, 12, 34, 56));
   EXPECT_EQ(1591130001, QuicheUtcDateTimeToUnixSeconds(2020, 6, 2, 20, 33, 21));
 
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 2, 29, 0, 0, 1));
-  EXPECT_NE(QUICHE_NULLOPT,
+  EXPECT_NE(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1972, 2, 29, 0, 0, 1));
 }
 
 TEST(QuicheTimeUtilsTest, Bounds) {
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 32, 0, 0, 1));
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 4, 31, 0, 0, 1));
-  EXPECT_EQ(QUICHE_NULLOPT,
-            QuicheUtcDateTimeToUnixSeconds(1970, 1, 0, 0, 0, 1));
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt, QuicheUtcDateTimeToUnixSeconds(1970, 1, 0, 0, 0, 1));
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 13, 1, 0, 0, 1));
-  EXPECT_EQ(QUICHE_NULLOPT,
-            QuicheUtcDateTimeToUnixSeconds(1970, 0, 1, 0, 0, 1));
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt, QuicheUtcDateTimeToUnixSeconds(1970, 0, 1, 0, 0, 1));
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 1, 24, 0, 0));
-  EXPECT_EQ(QUICHE_NULLOPT,
+  EXPECT_EQ(absl::nullopt,
             QuicheUtcDateTimeToUnixSeconds(1970, 1, 1, 0, 60, 0));
 }
 
@@ -46,7 +44,7 @@ TEST(QuicheTimeUtilsTest, LeapSecond) {
   EXPECT_EQ(QuicheUtcDateTimeToUnixSeconds(2015, 6, 30, 23, 59, 60),
             QuicheUtcDateTimeToUnixSeconds(2015, 7, 1, 0, 0, 0));
   EXPECT_EQ(QuicheUtcDateTimeToUnixSeconds(2015, 6, 30, 25, 59, 60),
-            QUICHE_NULLOPT);
+            absl::nullopt);
 }
 
 }  // namespace

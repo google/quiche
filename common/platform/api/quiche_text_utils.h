@@ -8,8 +8,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/quiche/common/platform/impl/quiche_text_utils_impl.h"
 
 namespace quiche {
@@ -107,7 +107,7 @@ class QUICHE_EXPORT QuicheTextUtils {
 
   // Decodes a base64-encoded |input|.  Returns nullopt when the input is
   // invalid.
-  static QuicheOptional<std::string> Base64Decode(absl::string_view input) {
+  static absl::optional<std::string> Base64Decode(absl::string_view input) {
     return quiche::QuicheTextUtilsImpl::Base64Decode(input);
   }
 

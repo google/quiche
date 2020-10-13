@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -133,7 +133,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // The value of the Destination Connection ID field from the first
   // Initial packet sent by the client.
-  quiche::QuicheOptional<QuicConnectionId> original_destination_connection_id;
+  absl::optional<QuicConnectionId> original_destination_connection_id;
 
   // Maximum idle timeout expressed in milliseconds.
   IntegerParameter max_idle_timeout_ms;
@@ -187,11 +187,11 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
-  quiche::QuicheOptional<QuicConnectionId> initial_source_connection_id;
+  absl::optional<QuicConnectionId> initial_source_connection_id;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
-  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id;
+  absl::optional<QuicConnectionId> retry_source_connection_id;
 
   // Indicates support for the DATAGRAM frame and the maximum frame size that
   // the sender accepts. See draft-ietf-quic-datagram.
@@ -202,10 +202,10 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   IntegerParameter initial_round_trip_time_us;
 
   // Google-specific connection options.
-  quiche::QuicheOptional<QuicTagVector> google_connection_options;
+  absl::optional<QuicTagVector> google_connection_options;
 
   // Google-specific user agent identifier.
-  quiche::QuicheOptional<std::string> user_agent_id;
+  absl::optional<std::string> user_agent_id;
 
   // Google-specific handshake done support. This is only used for T050.
   bool support_handshake_done;

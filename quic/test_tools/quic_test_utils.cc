@@ -629,7 +629,7 @@ QuicConsumedData MockQuicSession::ConsumeData(
     QuicStreamOffset offset,
     StreamSendingState state,
     TransmissionType /*type*/,
-    quiche::QuicheOptional<EncryptionLevel> /*level*/) {
+    absl::optional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);
@@ -718,7 +718,7 @@ QuicConsumedData MockQuicSpdySession::ConsumeData(
     QuicStreamOffset offset,
     StreamSendingState state,
     TransmissionType /*type*/,
-    quiche::QuicheOptional<EncryptionLevel> /*level*/) {
+    absl::optional<EncryptionLevel> /*level*/) {
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);

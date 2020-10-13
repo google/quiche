@@ -138,7 +138,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       [&writer, this](QuicStreamId /*id*/, size_t write_length,
                       QuicStreamOffset offset, StreamSendingState /*state*/,
                       TransmissionType /*type*/,
-                      quiche::QuicheOptional<EncryptionLevel> /*level*/) {
+                      absl::optional<EncryptionLevel> /*level*/) {
         send_control_stream_->WriteStreamData(offset, write_length, &writer);
         return QuicConsumedData(/* bytes_consumed = */ write_length,
                                 /* fin_consumed = */ false);

@@ -1408,7 +1408,7 @@ bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
     QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
                   << " from unset";
   }
-  quiche::QuicheOptional<PushId> old_max_push_id = max_push_id_;
+  absl::optional<PushId> old_max_push_id = max_push_id_;
   max_push_id_ = max_push_id;
 
   if (!old_max_push_id.has_value() || max_push_id > old_max_push_id.value()) {

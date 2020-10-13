@@ -62,16 +62,15 @@ class GeneralLossAlgorithmTest : public QuicTest {
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
     return VerifyLosses(largest_newly_acked, packets_acked, losses_expected,
-                        quiche::QuicheOptional<QuicPacketCount>(),
-                        quiche::QuicheOptional<QuicPacketCount>());
+                        absl::nullopt, absl::nullopt);
   }
 
   void VerifyLosses(
       uint64_t largest_newly_acked,
       const AckedPacketVector& packets_acked,
       const std::vector<uint64_t>& losses_expected,
-      quiche::QuicheOptional<QuicPacketCount> max_sequence_reordering_expected,
-      quiche::QuicheOptional<QuicPacketCount>
+      absl::optional<QuicPacketCount> max_sequence_reordering_expected,
+      absl::optional<QuicPacketCount>
           num_borderline_time_reorderings_expected) {
     unacked_packets_.MaybeUpdateLargestAckedOfPacketNumberSpace(
         APPLICATION_DATA, QuicPacketNumber(largest_newly_acked));

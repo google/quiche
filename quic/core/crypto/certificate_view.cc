@@ -10,6 +10,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
@@ -33,7 +33,6 @@
 
 namespace {
 
-using ::quiche::QuicheOptional;
 using ::quiche::QuicheTextUtils;
 
 // The literals below were encoded using `ascii2der | xxd -i`.  The comments
@@ -104,11 +103,11 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
 
 namespace quic {
 
-QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
+absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
                                                 absl::string_view payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
     QUIC_BUG << "Invalid tag supplied for a DER timestamp";
-    return QUICHE_NULLOPT;
+    return absl::nullopt;
   }
 
   const size_t year_length = tag == CBS_ASN1_GENERALIZEDTIME ? 4 : 2;
@@ -120,7 +119,7 @@ QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
       !reader.ReadDecimal64(2, &second) ||
       reader.ReadRemainingPayload() != "Z") {
     QUIC_DLOG(WARNING) << "Failed to parse the DER timestamp";
-    return QUICHE_NULLOPT;
+    return absl::nullopt;
   }
 
   if (tag == CBS_ASN1_UTCTIME) {
@@ -128,11 +127,11 @@ QuicheOptional<quic::QuicWallTime> ParseDerTime(unsigned tag,
     year += (year >= 50) ? 1900 : 2000;
   }
 
-  const QuicheOptional<int64_t> unix_time =
+  const absl::optional<int64_t> unix_time =
       quiche::QuicheUtcDateTimeToUnixSeconds(year, month, day, hour, minute,
                                              second);
   if (!unix_time.has_value() || *unix_time < 0) {
-    return QUICHE_NULLOPT;
+    return absl::nullopt;
   }
   return QuicWallTime::FromUNIXSeconds(*unix_time);
 }
@@ -162,7 +161,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
 
     // Handle END lines.
     if (pending_message && line == expected_end) {
-      QuicheOptional<std::string> data =
+      absl::optional<std::string> data =
           QuicheTextUtils::Base64Decode(encoded_message_contents);
       if (data.has_value()) {
         result.status = PemReadResult::kOk;
@@ -265,9 +264,9 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
     QUIC_DLOG(WARNING) << "Failed to extract the validity dates";
     return nullptr;
   }
-  QuicheOptional<QuicWallTime> not_before_parsed =
+  absl::optional<QuicWallTime> not_before_parsed =
       ParseDerTime(not_before_tag, CbsToStringPiece(not_before));
-  QuicheOptional<QuicWallTime> not_after_parsed =
+  absl::optional<QuicWallTime> not_after_parsed =
       ParseDerTime(not_after_tag, CbsToStringPiece(not_after));
   if (!not_before_parsed.has_value() || !not_after_parsed.has_value()) {
     QUIC_DLOG(WARNING) << "Failed to parse validity dates";

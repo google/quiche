@@ -441,7 +441,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
       .WillOnce(InvokeWithoutArgs([this]() {
         return session_.ConsumeData(
             QuicUtils::GetCryptoStreamId(connection_->transport_version()), 150,
-            1350, NO_FIN, HANDSHAKE_RETRANSMISSION, QUICHE_NULLOPT);
+            1350, NO_FIN, HANDSHAKE_RETRANSMISSION, absl::nullopt);
       }));
 
   EXPECT_FALSE(stream_->RetransmitStreamData(1350, 1350, false,

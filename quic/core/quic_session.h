@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/handshaker_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/legacy_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -34,7 +35,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -291,13 +291,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // indicating if the fin bit was consumed.  This does not indicate the data
   // has been sent on the wire: it may have been turned into a packet and queued
   // if the socket was unexpectedly blocked.
-  QuicConsumedData WritevData(
-      QuicStreamId id,
-      size_t write_length,
-      QuicStreamOffset offset,
-      StreamSendingState state,
-      TransmissionType type,
-      quiche::QuicheOptional<EncryptionLevel> level) override;
+  QuicConsumedData WritevData(QuicStreamId id,
+                              size_t write_length,
+                              QuicStreamOffset offset,
+                              StreamSendingState state,
+                              TransmissionType type,
+                              absl::optional<EncryptionLevel> level) override;
 
   size_t SendCryptoData(EncryptionLevel level,
                         size_t write_length,
@@ -474,7 +473,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return true;
   }
 
-  const quiche::QuicheOptional<std::string> user_agent_id() const {
+  const absl::optional<std::string> user_agent_id() const {
     return user_agent_id_;
   }
 
@@ -817,7 +816,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // list may be a superset of the connection framer's supported versions.
   ParsedQuicVersionVector supported_versions_;
 
-  quiche::QuicheOptional<std::string> user_agent_id_;
+  absl::optional<std::string> user_agent_id_;
 
   // If true, write_blocked_streams_ uses HTTP2 (tree-style) priority write
   // scheduler.

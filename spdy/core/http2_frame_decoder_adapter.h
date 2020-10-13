@@ -12,9 +12,9 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
@@ -269,7 +269,7 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   // Amount of trailing padding. Currently used just as an indicator of whether
   // OnPadLength has been called.
-  quiche::QuicheOptional<size_t> opt_pad_length_;
+  absl::optional<size_t> opt_pad_length_;
 
   // Temporary buffers for the AltSvc fields.
   std::string alt_svc_origin_;

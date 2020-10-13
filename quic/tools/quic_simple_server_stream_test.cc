@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -28,7 +29,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -137,7 +137,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                QuicStreamOffset offset,
                StreamSendingState state,
                TransmissionType type,
-               quiche::QuicheOptional<EncryptionLevel> level),
+               absl::optional<EncryptionLevel> level),
               (override));
   MOCK_METHOD(void,
               OnStreamHeaderList,
@@ -180,13 +180,12 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
 
   using QuicSession::ActivateStream;
 
-  QuicConsumedData ConsumeData(
-      QuicStreamId id,
-      size_t write_length,
-      QuicStreamOffset offset,
-      StreamSendingState state,
-      TransmissionType /*type*/,
-      quiche::QuicheOptional<EncryptionLevel> /*level*/) {
+  QuicConsumedData ConsumeData(QuicStreamId id,
+                               size_t write_length,
+                               QuicStreamOffset offset,
+                               StreamSendingState state,
+                               TransmissionType /*type*/,
+                               absl::optional<EncryptionLevel> /*level*/) {
     if (write_length > 0) {
       auto buf = std::make_unique<char[]>(write_length);
       QuicStream* stream = GetOrCreateStream(id);

@@ -9,13 +9,13 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -533,7 +533,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Note that received_max_idle_timeout_ is only populated if we receive the
   // peer's value, which isn't guaranteed in IETF QUIC as sending is optional.
   QuicTime::Delta max_idle_timeout_to_send_;
-  quiche::QuicheOptional<QuicTime::Delta> received_max_idle_timeout_;
+  absl::optional<QuicTime::Delta> received_max_idle_timeout_;
   // Maximum number of dynamic streams that a Google QUIC connection
   // can support or the maximum number of bidirectional streams that
   // an IETF QUIC connection can support.
@@ -640,24 +640,20 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Initial packet sent by the client.
   // Uses the original_destination_connection_id transport parameter in
   // IETF QUIC.
-  quiche::QuicheOptional<QuicConnectionId>
-      original_destination_connection_id_to_send_;
-  quiche::QuicheOptional<QuicConnectionId>
-      received_original_destination_connection_id_;
+  absl::optional<QuicConnectionId> original_destination_connection_id_to_send_;
+  absl::optional<QuicConnectionId> received_original_destination_connection_id_;
 
   // The value that the endpoint included in the Source Connection ID field of
   // the first Initial packet it sent.
   // Uses the initial_source_connection_id transport parameter in IETF QUIC.
-  quiche::QuicheOptional<QuicConnectionId>
-      initial_source_connection_id_to_send_;
-  quiche::QuicheOptional<QuicConnectionId>
-      received_initial_source_connection_id_;
+  absl::optional<QuicConnectionId> initial_source_connection_id_to_send_;
+  absl::optional<QuicConnectionId> received_initial_source_connection_id_;
 
   // The value that the server included in the Source Connection ID field of a
   // Retry packet it sent.
   // Uses the retry_source_connection_id transport parameter in IETF QUIC.
-  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id_to_send_;
-  quiche::QuicheOptional<QuicConnectionId> received_retry_source_connection_id_;
+  absl::optional<QuicConnectionId> retry_source_connection_id_to_send_;
+  absl::optional<QuicConnectionId> received_retry_source_connection_id_;
 
   // Custom transport parameters that can be sent and received in the TLS
   // handshake.

@@ -719,7 +719,7 @@ QuicConsumedData QuicSession::WritevData(
     QuicStreamOffset offset,
     StreamSendingState state,
     TransmissionType type,
-    quiche::QuicheOptional<EncryptionLevel> level) {
+    absl::optional<EncryptionLevel> level) {
   DCHECK(connection_->connected())
       << ENDPOINT << "Try to write stream data when connection is closed.";
   if (!IsEncryptionEstablished() &&

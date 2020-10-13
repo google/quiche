@@ -826,7 +826,7 @@ class MockQuicSession : public QuicSession {
                QuicStreamOffset offset,
                StreamSendingState state,
                TransmissionType type,
-               quiche::QuicheOptional<EncryptionLevel> level),
+               absl::optional<EncryptionLevel> level),
               (override));
 
   MOCK_METHOD(void,
@@ -858,7 +858,7 @@ class MockQuicSession : public QuicSession {
                                QuicStreamOffset offset,
                                StreamSendingState state,
                                TransmissionType type,
-                               quiche::QuicheOptional<EncryptionLevel> level);
+                               absl::optional<EncryptionLevel> level);
 
   void ReallySendRstStream(QuicStreamId id,
                            QuicRstStreamErrorCode error,
@@ -958,7 +958,7 @@ class MockQuicSpdySession : public QuicSpdySession {
                QuicStreamOffset offset,
                StreamSendingState state,
                TransmissionType type,
-               quiche::QuicheOptional<EncryptionLevel> level),
+               absl::optional<EncryptionLevel> level),
               (override));
   MOCK_METHOD(void,
               SendRstStream,
@@ -1004,7 +1004,7 @@ class MockQuicSpdySession : public QuicSpdySession {
                                QuicStreamOffset offset,
                                StreamSendingState state,
                                TransmissionType type,
-                               quiche::QuicheOptional<EncryptionLevel> level);
+                               absl::optional<EncryptionLevel> level);
 
   using QuicSession::ActivateStream;
 

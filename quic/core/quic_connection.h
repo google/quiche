@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
@@ -51,7 +52,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
@@ -1771,11 +1771,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // |server_connection_id_| with the value from that packet and save off the
   // original value of |server_connection_id_| into
   // |original_destination_connection_id_| for validation.
-  quiche::QuicheOptional<QuicConnectionId> original_destination_connection_id_;
+  absl::optional<QuicConnectionId> original_destination_connection_id_;
 
   // After we receive a RETRY packet, |retry_source_connection_id_| contains
   // the source connection ID from that packet.
-  quiche::QuicheOptional<QuicConnectionId> retry_source_connection_id_;
+  absl::optional<QuicConnectionId> retry_source_connection_id_;
 
   // Indicates whether received RETRY packets should be dropped.
   bool drop_incoming_retry_packets_;

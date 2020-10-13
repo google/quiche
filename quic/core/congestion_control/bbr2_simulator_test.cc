@@ -6,6 +6,7 @@
 #include <sstream>
 #include <utility>
 
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_misc.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
@@ -27,7 +28,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
 #include "net/third_party/quiche/src/quic/test_tools/simulator/traffic_policer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::AllOf;
@@ -91,7 +91,7 @@ class DefaultTopologyParams {
   // Network switch queue capacity, in number of BDPs.
   float switch_queue_capacity_in_bdp = 2;
 
-  quiche::QuicheOptional<TrafficPolicerParams> sender_policer_params;
+  absl::optional<TrafficPolicerParams> sender_policer_params;
 
   QuicBandwidth BottleneckBandwidth() const {
     return std::min(local_link.bandwidth, test_link.bandwidth);

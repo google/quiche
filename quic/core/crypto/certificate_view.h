@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 
@@ -120,7 +120,7 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
-QUIC_EXPORT_PRIVATE quiche::QuicheOptional<quic::QuicWallTime> ParseDerTime(
+QUIC_EXPORT_PRIVATE absl::optional<quic::QuicWallTime> ParseDerTime(
     unsigned tag,
     absl::string_view payload);
 

@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/mock_clock.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_unacked_packet_map_peer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_optional.h"
 
 namespace quic {
 namespace test {
@@ -69,14 +69,14 @@ class UberLossAlgorithmTest : public QuicTest {
                     const AckedPacketVector& packets_acked,
                     const std::vector<uint64_t>& losses_expected) {
     return VerifyLosses(largest_newly_acked, packets_acked, losses_expected,
-                        quiche::QuicheOptional<QuicPacketCount>());
+                        absl::nullopt);
   }
 
-  void VerifyLosses(uint64_t largest_newly_acked,
-                    const AckedPacketVector& packets_acked,
-                    const std::vector<uint64_t>& losses_expected,
-                    quiche::QuicheOptional<QuicPacketCount>
-                        max_sequence_reordering_expected) {
+  void VerifyLosses(
+      uint64_t largest_newly_acked,
+      const AckedPacketVector& packets_acked,
+      const std::vector<uint64_t>& losses_expected,
+      absl::optional<QuicPacketCount> max_sequence_reordering_expected) {
     LostPacketVector lost_packets;
     LossDetectionInterface::DetectionStats stats = loss_algorithm_.DetectLosses(
         *unacked_packets_, clock_.Now(), rtt_stats_,
