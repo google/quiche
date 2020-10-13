@@ -1585,7 +1585,7 @@ bool ParseClientVersionNegotiationProbePacket(
   QuicVersionLabel version_label;
   ParsedQuicVersion parsed_version = ParsedQuicVersion::Unsupported();
   QuicConnectionId destination_connection_id, source_connection_id;
-  absl::string_view retry_token;
+  quiche::QuicheStringPiece retry_token;
   std::string detailed_error;
   QuicErrorCode error = QuicFramer::ParsePublicHeaderDispatcher(
       encrypted_packet,

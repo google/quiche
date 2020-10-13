@@ -8,11 +8,11 @@
 
 #include <stddef.h>
 
-#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionFailure;
@@ -31,7 +31,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
         suffix_(Http2HexDecode(::testing::get<1>(GetParam()))),
         prefix_length_(0) {}
 
-  void DecodeExpectSuccess(absl::string_view data,
+  void DecodeExpectSuccess(quiche::QuicheStringPiece data,
                            uint32_t prefix_length,
                            uint64_t expected_value) {
     Validator validator = [expected_value, this](
@@ -52,7 +52,8 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
     EXPECT_EQ(expected_value, decoder_.value());
   }
 
-  void DecodeExpectError(absl::string_view data, uint32_t prefix_length) {
+  void DecodeExpectError(quiche::QuicheStringPiece data,
+                         uint32_t prefix_length) {
     Validator validator = [](const DecodeBuffer& /*db*/,
                              DecodeStatus status) -> AssertionResult {
       VERIFY_EQ(DecodeStatus::kDecodeError, status);
@@ -63,7 +64,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
   }
 
  private:
-  AssertionResult Decode(absl::string_view data,
+  AssertionResult Decode(quiche::QuicheStringPiece data,
                          uint32_t prefix_length,
                          const Validator validator) {
     prefix_length_ = prefix_length;
