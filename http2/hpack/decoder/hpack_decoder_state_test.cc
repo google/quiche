@@ -9,12 +9,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
@@ -40,8 +40,10 @@ class MockHpackDecoderListener : public HpackDecoderListener {
   MOCK_METHOD2(OnHeader,
                void(const HpackString& name, const HpackString& value));
   MOCK_METHOD0(OnHeaderListEnd, void());
-  MOCK_METHOD1(OnHeaderErrorDetected,
-               void(quiche::QuicheStringPiece error_message));
+  MOCK_METHOD(void,
+              OnHeaderErrorDetected,
+              (absl::string_view error_message),
+              (override));
 };
 
 enum StringBacking { STATIC, UNBUFFERED, BUFFERED };

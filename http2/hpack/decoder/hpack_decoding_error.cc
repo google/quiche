@@ -7,7 +7,7 @@
 namespace http2 {
 
 // static
-quiche::QuicheStringPiece HpackDecodingErrorToString(HpackDecodingError error) {
+absl::string_view HpackDecodingErrorToString(HpackDecodingError error) {
   switch (error) {
     case HpackDecodingError::kOk:
       return "No error detected";

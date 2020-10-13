@@ -70,7 +70,7 @@ void HpackWholeEntryBuffer::OnNameStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnNameData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnNameData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(quiche::QuicheStringPiece(data, len));
+                 << Http2HexDump(absl::string_view(data, len));
   DCHECK_EQ(maybe_name_index_, 0u);
   if (!error_detected_ && !name_.OnData(data, len)) {
     ReportError(HpackDecodingError::kNameHuffmanError, "");
@@ -107,7 +107,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
 void HpackWholeEntryBuffer::OnValueData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackWholeEntryBuffer::OnValueData: len=" << len
                  << " data:\n"
-                 << Http2HexDump(quiche::QuicheStringPiece(data, len));
+                 << Http2HexDump(absl::string_view(data, len));
   if (!error_detected_ && !value_.OnData(data, len)) {
     ReportError(HpackDecodingError::kValueHuffmanError, "");
     HTTP2_CODE_COUNT_N(decompress_failure_3, 22, 23);

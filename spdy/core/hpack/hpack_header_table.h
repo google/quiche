@@ -10,9 +10,9 @@
 #include <deque>
 #include <memory>
 
+#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
@@ -70,7 +70,7 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   using UnorderedEntrySet = SpdyHashSet<HpackEntry*, EntryHasher, EntriesEq>;
   using NameToEntryMap = SpdyHashMap<absl::string_view,
                                      const HpackEntry*,
-                                     quiche::QuicheStringPieceHash>;
+                                     absl::Hash<absl::string_view>>;
 
   HpackHeaderTable();
   HpackHeaderTable(const HpackHeaderTable&) = delete;

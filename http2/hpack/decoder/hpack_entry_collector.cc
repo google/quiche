@@ -166,7 +166,7 @@ AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
     HpackEntryType expected_type,
     size_t expected_index,
     bool expected_value_huffman,
-    quiche::QuicheStringPiece expected_value) const {
+    absl::string_view expected_value) const {
   VERIFY_TRUE(started_);
   VERIFY_TRUE(ended_);
   VERIFY_EQ(expected_type, header_type_);
@@ -179,9 +179,9 @@ AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
 AssertionResult HpackEntryCollector::ValidateLiteralNameValueHeader(
     HpackEntryType expected_type,
     bool expected_name_huffman,
-    quiche::QuicheStringPiece expected_name,
+    absl::string_view expected_name,
     bool expected_value_huffman,
-    quiche::QuicheStringPiece expected_value) const {
+    absl::string_view expected_value) const {
   VERIFY_TRUE(started_);
   VERIFY_TRUE(ended_);
   VERIFY_EQ(expected_type, header_type_);

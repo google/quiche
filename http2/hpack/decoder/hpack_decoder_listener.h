@@ -8,10 +8,10 @@
 #ifndef QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODER_LISTENER_H_
 #define QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODER_LISTENER_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -37,8 +37,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderListener {
 
   // OnHeaderErrorDetected is called if an error is detected while decoding.
   // error_message may be used in a GOAWAY frame as the Opaque Data.
-  virtual void OnHeaderErrorDetected(
-      quiche::QuicheStringPiece error_message) = 0;
+  virtual void OnHeaderErrorDetected(absl::string_view error_message) = 0;
 };
 
 // A no-op implementation of HpackDecoderListener, useful for ignoring
@@ -52,7 +51,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderNoOpListener
   void OnHeaderListStart() override;
   void OnHeader(const HpackString& name, const HpackString& value) override;
   void OnHeaderListEnd() override;
-  void OnHeaderErrorDetected(quiche::QuicheStringPiece error_message) override;
+  void OnHeaderErrorDetected(absl::string_view error_message) override;
 
   // Returns a listener that ignores all the calls.
   static HpackDecoderNoOpListener* NoOpListener();

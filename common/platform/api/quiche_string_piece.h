@@ -5,15 +5,12 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_STRING_PIECE_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_STRING_PIECE_H_
 
+#include "absl/strings/string_view.h"
 #include "net/quiche/common/platform/impl/quiche_string_piece_impl.h"
 
 namespace quiche {
 
-using QuicheStringPiece = QuicheStringPieceImpl;
-
-using QuicheStringPieceHash = QuicheStringPieceHashImpl;
-
-inline size_t QuicheHashStringPair(QuicheStringPiece a, QuicheStringPiece b) {
+inline size_t QuicheHashStringPair(absl::string_view a, absl::string_view b) {
   return QuicheHashStringPairImpl(a, b);
 }
 

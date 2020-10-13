@@ -15,11 +15,11 @@
 #include <iosfwd>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_collector.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -85,16 +85,16 @@ class HpackEntryCollector : public HpackEntryDecoderListener {
       HpackEntryType expected_type,
       size_t expected_index,
       bool expected_value_huffman,
-      quiche::QuicheStringPiece expected_value) const;
+      absl::string_view expected_value) const;
 
   // Returns success if collected a Header with an literal name and literal
   // value.
   ::testing::AssertionResult ValidateLiteralNameValueHeader(
       HpackEntryType expected_type,
       bool expected_name_huffman,
-      quiche::QuicheStringPiece expected_name,
+      absl::string_view expected_name,
       bool expected_value_huffman,
-      quiche::QuicheStringPiece expected_value) const;
+      absl::string_view expected_value) const;
 
   // Returns success if collected a Dynamic Table Size Update,
   // with the specified size.

@@ -17,7 +17,7 @@ void HpackDecoderNoOpListener::OnHeader(const HpackString& /*name*/,
                                         const HpackString& /*value*/) {}
 void HpackDecoderNoOpListener::OnHeaderListEnd() {}
 void HpackDecoderNoOpListener::OnHeaderErrorDetected(
-    quiche::QuicheStringPiece /*error_message*/) {}
+    absl::string_view /*error_message*/) {}
 
 // static
 HpackDecoderNoOpListener* HpackDecoderNoOpListener::NoOpListener() {

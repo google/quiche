@@ -112,7 +112,7 @@ AssertionResult HpackBlockCollector::ValidateSoleLiteralValueHeader(
     HpackEntryType expected_type,
     size_t expected_index,
     bool expected_value_huffman,
-    quiche::QuicheStringPiece expected_value) const {
+    absl::string_view expected_value) const {
   VERIFY_TRUE(pending_entry_.IsClear());
   VERIFY_EQ(1u, entries_.size());
   VERIFY_TRUE(entries_.front().ValidateLiteralValueHeader(
@@ -122,9 +122,9 @@ AssertionResult HpackBlockCollector::ValidateSoleLiteralValueHeader(
 AssertionResult HpackBlockCollector::ValidateSoleLiteralNameValueHeader(
     HpackEntryType expected_type,
     bool expected_name_huffman,
-    quiche::QuicheStringPiece expected_name,
+    absl::string_view expected_name,
     bool expected_value_huffman,
-    quiche::QuicheStringPiece expected_value) const {
+    absl::string_view expected_value) const {
   VERIFY_TRUE(pending_entry_.IsClear());
   VERIFY_EQ(1u, entries_.size());
   VERIFY_TRUE(entries_.front().ValidateLiteralNameValueHeader(

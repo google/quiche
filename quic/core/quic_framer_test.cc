@@ -200,8 +200,8 @@ std::unique_ptr<QuicEncryptedPacket> EncryptPacketWithTagAndPhase(
   const size_t packet_size = crypter.GetCiphertextSize(packet_data.size());
   char* buffer = new char[packet_size];
   size_t buf_len = 0;
-  if (!crypter.EncryptPacket(0, quiche::QuicheStringPiece(), packet_data,
-                             buffer, &buf_len, packet_size)) {
+  if (!crypter.EncryptPacket(0, absl::string_view(), packet_data, buffer,
+                             &buf_len, packet_size)) {
     delete[] buffer;
     return nullptr;
   }

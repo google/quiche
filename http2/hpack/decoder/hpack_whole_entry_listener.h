@@ -11,11 +11,11 @@
 
 #include <stddef.h>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoding_error.h"
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 

@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 using ::testing::AssertionFailure;
 using ::testing::AssertionResult;
@@ -93,7 +93,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   // Fully decodes the Structure at the start of data, and confirms it matches
   // *expected (if provided).
   AssertionResult DecodeLeadingStructure(const S* expected,
-                                         quiche::QuicheStringPiece data) {
+                                         absl::string_view data) {
     VERIFY_LE(S::EncodedSize(), data.size());
     DecodeBuffer original(data);
 
@@ -145,7 +145,7 @@ class Http2StructureDecoderTest : public RandomDecoderTest {
   template <size_t N>
   AssertionResult DecodeLeadingStructure(const char (&data)[N]) {
     VERIFY_AND_RETURN_SUCCESS(
-        DecodeLeadingStructure(nullptr, quiche::QuicheStringPiece(data, N)));
+        DecodeLeadingStructure(nullptr, absl::string_view(data, N)));
   }
 
   template <size_t N>

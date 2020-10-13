@@ -14,9 +14,9 @@
 #include <ostream>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -32,7 +32,7 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
   HpackDecoderStringBuffer& operator=(const HpackDecoderStringBuffer&) = delete;
 
   void Reset();
-  void Set(quiche::QuicheStringPiece value, bool is_static);
+  void Set(absl::string_view value, bool is_static);
 
   // Note that for Huffman encoded strings the length of the string after
   // decoding may be larger (expected), the same or even smaller; the latter
@@ -47,14 +47,14 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
   // Accessors for the completely collected string (i.e. Set or OnEnd has just
   // been called, and no reset of the state has occurred).
 
-  // Returns a QuicheStringPiece pointing to the backing store for the string,
+  // Returns a string_view pointing to the backing store for the string,
   // either the internal buffer or the original transport buffer (e.g. for a
   // literal value that wasn't Huffman encoded, and that wasn't split across
   // transport buffers).
-  quiche::QuicheStringPiece str() const;
+  absl::string_view str() const;
 
   // Same as str() if state_ is COMPLETE. Otherwise, returns empty string piece.
-  quiche::QuicheStringPiece GetStringIfComplete() const;
+  absl::string_view GetStringIfComplete() const;
 
   // Returns the completely collected string by value, using std::move in an
   // effort to avoid unnecessary copies. ReleaseString() must not be called
@@ -75,10 +75,10 @@ class QUICHE_EXPORT_PRIVATE HpackDecoderStringBuffer {
   // (e.g. if Huffman encoded, buffer_ is storage for the decoded string).
   std::string buffer_;
 
-  // The QuicheStringPiece to be returned by HpackDecoderStringBuffer::str(). If
+  // The string_view to be returned by HpackDecoderStringBuffer::str(). If
   // a string has been collected, but not buffered, value_ points to that
   // string.
-  quiche::QuicheStringPiece value_;
+  absl::string_view value_;
 
   // The decoder to use if the string is Huffman encoded.
   HpackHuffmanDecoder decoder_;

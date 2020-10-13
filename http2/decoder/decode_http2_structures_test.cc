@@ -11,6 +11,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
 #include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
@@ -29,9 +29,8 @@ namespace test {
 namespace {
 
 template <typename T, size_t N>
-quiche::QuicheStringPiece ToStringPiece(T (&data)[N]) {
-  return quiche::QuicheStringPiece(reinterpret_cast<const char*>(data),
-                                   N * sizeof(T));
+absl::string_view ToStringPiece(T (&data)[N]) {
+  return absl::string_view(reinterpret_cast<const char*>(data), N * sizeof(T));
 }
 
 template <class S>
@@ -54,8 +53,7 @@ class StructureDecoderTest : public QuicheTest {
 
   // Fully decodes the Structure at the start of data, and confirms it matches
   // *expected (if provided).
-  void DecodeLeadingStructure(const S* expected,
-                              quiche::QuicheStringPiece data) {
+  void DecodeLeadingStructure(const S* expected, absl::string_view data) {
     ASSERT_LE(S::EncodedSize(), data.size());
     DecodeBuffer db(data);
     Randomize(&structure_);
@@ -68,7 +66,7 @@ class StructureDecoderTest : public QuicheTest {
 
   template <size_t N>
   void DecodeLeadingStructure(const char (&data)[N]) {
-    DecodeLeadingStructure(nullptr, quiche::QuicheStringPiece(data, N));
+    DecodeLeadingStructure(nullptr, absl::string_view(data, N));
   }
 
   // Encode the structure |in_s| into bytes, then decode the bytes
@@ -294,7 +292,7 @@ TEST_F(PingFieldsDecoderTest, DecodesLiteral) {
     };
     DecodeLeadingStructure(kData);
     if (!HasFailure()) {
-      EXPECT_EQ(quiche::QuicheStringPiece(kData, 8),
+      EXPECT_EQ(absl::string_view(kData, 8),
                 ToStringPiece(structure_.opaque_bytes));
     }
   }
@@ -305,7 +303,7 @@ TEST_F(PingFieldsDecoderTest, DecodesLiteral) {
     };
     DecodeLeadingStructure(kData);
     if (!HasFailure()) {
-      EXPECT_EQ(quiche::QuicheStringPiece(kData, 8),
+      EXPECT_EQ(absl::string_view(kData, 8),
                 ToStringPiece(structure_.opaque_bytes));
     }
   }
@@ -315,7 +313,7 @@ TEST_F(PingFieldsDecoderTest, DecodesLiteral) {
     };
     DecodeLeadingStructure(kData);
     if (!HasFailure()) {
-      EXPECT_EQ(quiche::QuicheStringPiece(kData, 8),
+      EXPECT_EQ(absl::string_view(kData, 8),
                 ToStringPiece(structure_.opaque_bytes));
     }
   }

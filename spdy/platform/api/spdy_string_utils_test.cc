@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace spdy {
@@ -22,7 +22,7 @@ TEST(SpdyStringUtilsTest, SpdyStrAppend) {
   // Single string-like argument.
   const char kFoo[] = "foo";
   const std::string string_foo(kFoo);
-  const quiche::QuicheStringPiece stringpiece_foo(string_foo);
+  const absl::string_view stringpiece_foo(string_foo);
   SpdyStrAppend(&output, kFoo);
   EXPECT_EQ("foo", output);
   SpdyStrAppend(&output, string_foo);
@@ -38,7 +38,7 @@ TEST(SpdyStringUtilsTest, SpdyStrAppend) {
 
   // Two string-like arguments.
   const char kBar[] = "bar";
-  const quiche::QuicheStringPiece stringpiece_bar(kBar);
+  const absl::string_view stringpiece_bar(kBar);
   const std::string string_bar(kBar);
   SpdyStrAppend(&output, kFoo, kBar);
   EXPECT_EQ("foobar", output);

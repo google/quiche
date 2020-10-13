@@ -46,7 +46,7 @@ class HpackDecoderStringBufferTest : public QuicheTest {
 };
 
 TEST_F(HpackDecoderStringBufferTest, SetStatic) {
-  quiche::QuicheStringPiece data("static string");
+  absl::string_view data("static string");
 
   EXPECT_EQ(state(), State::RESET);
   EXPECT_TRUE(VerifyLogHasSubstrs({"state=RESET"}));
@@ -71,7 +71,7 @@ TEST_F(HpackDecoderStringBufferTest, SetStatic) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
-  quiche::QuicheStringPiece data("some text.");
+  absl::string_view data("some text.");
 
   HTTP2_LOG(INFO) << buf_;
   EXPECT_EQ(state(), State::RESET);
@@ -93,7 +93,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
       {"state=COMPLETE", "backing=UNBUFFERED", "value: some text."}));
 
   // We expect that the string buffer points to the passed in
-  // QuicheStringPiece's backing store.
+  // string_view's backing store.
   EXPECT_EQ(data.data(), buf_.str().data());
 
   // Now force it to buffer the string, after which it will still have the same
@@ -109,9 +109,9 @@ TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
-  quiche::QuicheStringPiece data("some text.");
-  quiche::QuicheStringPiece part1 = data.substr(0, 1);
-  quiche::QuicheStringPiece part2 = data.substr(1);
+  absl::string_view data("some text.");
+  absl::string_view part1 = data.substr(0, 1);
+  absl::string_view part2 = data.substr(1);
 
   EXPECT_EQ(state(), State::RESET);
   buf_.OnStart(/*huffman_encoded*/ false, data.size());
@@ -137,7 +137,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
   EXPECT_EQ(buf_.BufferedLength(), data.size());
   HTTP2_LOG(INFO) << buf_;
 
-  quiche::QuicheStringPiece buffered = buf_.str();
+  absl::string_view buffered = buf_.str();
   EXPECT_EQ(data, buffered);
   EXPECT_NE(data.data(), buffered.data());
 
@@ -152,7 +152,7 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
 
 TEST_F(HpackDecoderStringBufferTest, HuffmanWhole) {
   std::string encoded = Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff");
-  quiche::QuicheStringPiece decoded("www.example.com");
+  absl::string_view decoded("www.example.com");
 
   EXPECT_EQ(state(), State::RESET);
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());
@@ -179,7 +179,7 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
   std::string encoded = Http2HexDecode("f1e3c2e5f23a6ba0ab90f4ff");
   std::string part1 = encoded.substr(0, 5);
   std::string part2 = encoded.substr(5);
-  quiche::QuicheStringPiece decoded("www.example.com");
+  absl::string_view decoded("www.example.com");
 
   EXPECT_EQ(state(), State::RESET);
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());

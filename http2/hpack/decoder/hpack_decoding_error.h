@@ -5,8 +5,8 @@
 #ifndef QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODING_ERROR_H_
 #define QUICHE_HTTP2_HPACK_DECODER_HPACK_DECODING_ERROR_H_
 
+#include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_string_piece.h"
 
 namespace http2 {
 
@@ -43,7 +43,7 @@ enum class HpackDecodingError {
   kCompressedHeaderSizeExceedsLimit,
 };
 
-QUICHE_EXPORT_PRIVATE quiche::QuicheStringPiece HpackDecodingErrorToString(
+QUICHE_EXPORT_PRIVATE absl::string_view HpackDecodingErrorToString(
     HpackDecodingError error);
 
 }  // namespace http2

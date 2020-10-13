@@ -60,8 +60,7 @@ void HpackDecoderStringBuffer::Reset() {
   state_ = State::RESET;
 }
 
-void HpackDecoderStringBuffer::Set(quiche::QuicheStringPiece value,
-                                   bool is_static) {
+void HpackDecoderStringBuffer::Set(absl::string_view value, bool is_static) {
   HTTP2_DVLOG(2) << "HpackDecoderStringBuffer::Set";
   DCHECK_EQ(state_, State::RESET);
   value_ = value;
@@ -101,7 +100,7 @@ void HpackDecoderStringBuffer::OnStart(bool huffman_encoded, size_t len) {
     backing_ = Backing::RESET;
     // OnData is not called for empty (zero length) strings, so make sure that
     // value_ is cleared.
-    value_ = quiche::QuicheStringPiece();
+    value_ = absl::string_view();
   }
 }
 
@@ -114,7 +113,7 @@ bool HpackDecoderStringBuffer::OnData(const char* data, size_t len) {
 
   if (is_huffman_encoded_) {
     DCHECK_EQ(backing_, Backing::BUFFERED);
-    return decoder_.Decode(quiche::QuicheStringPiece(data, len), &buffer_);
+    return decoder_.Decode(absl::string_view(data, len), &buffer_);
   }
 
   if (backing_ == Backing::RESET) {
@@ -122,7 +121,7 @@ bool HpackDecoderStringBuffer::OnData(const char* data, size_t len) {
     // don't copy the string. If we later find that the HPACK entry is split
     // across input buffers, then we'll copy the string into buffer_.
     if (remaining_len_ == 0) {
-      value_ = quiche::QuicheStringPiece(data, len);
+      value_ = absl::string_view(data, len);
       backing_ = Backing::UNBUFFERED;
       return true;
     }
@@ -188,14 +187,13 @@ size_t HpackDecoderStringBuffer::BufferedLength() const {
   return IsBuffered() ? buffer_.size() : 0;
 }
 
-quiche::QuicheStringPiece HpackDecoderStringBuffer::str() const {
+absl::string_view HpackDecoderStringBuffer::str() const {
   HTTP2_DVLOG(3) << "HpackDecoderStringBuffer::str";
   DCHECK_EQ(state_, State::COMPLETE);
   return value_;
 }
 
-quiche::QuicheStringPiece HpackDecoderStringBuffer::GetStringIfComplete()
-    const {
+absl::string_view HpackDecoderStringBuffer::GetStringIfComplete() const {
   if (state_ != State::COMPLETE) {
     return {};
   }
