@@ -4878,6 +4878,11 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
       [this]() {
         QuicConnection* server_connection = GetServerConnection();
         if (server_connection != nullptr) {
+          if (!server_connection->IsKeyUpdateAllowed()) {
+            // Server may not have received ack from client yet for the current
+            // key phase, wait a bit and try again.
+            return false;
+          }
           EXPECT_TRUE(server_connection->InitiateKeyUpdate());
         } else {
           ADD_FAILURE() << "Missing server connection";
@@ -4896,6 +4901,9 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
       [this]() {
         QuicConnection* server_connection = GetServerConnection();
         if (server_connection != nullptr) {
+          if (!server_connection->IsKeyUpdateAllowed()) {
+            return false;
+          }
           EXPECT_TRUE(server_connection->InitiateKeyUpdate());
         } else {
           ADD_FAILURE() << "Missing server connection";
@@ -4943,6 +4951,11 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
       [this]() {
         QuicConnection* server_connection = GetServerConnection();
         if (server_connection != nullptr) {
+          if (!server_connection->IsKeyUpdateAllowed()) {
+            // Server may not have received ack from client yet for the current
+            // key phase, wait a bit and try again.
+            return false;
+          }
           EXPECT_TRUE(server_connection->InitiateKeyUpdate());
         } else {
           ADD_FAILURE() << "Missing server connection";
@@ -4964,6 +4977,9 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
       [this]() {
         QuicConnection* server_connection = GetServerConnection();
         if (server_connection != nullptr) {
+          if (!server_connection->IsKeyUpdateAllowed()) {
+            return false;
+          }
           EXPECT_TRUE(server_connection->InitiateKeyUpdate());
         } else {
           ADD_FAILURE() << "Missing server connection";
