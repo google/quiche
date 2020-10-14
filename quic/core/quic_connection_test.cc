@@ -18,8 +18,10 @@
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -6453,6 +6455,9 @@ TEST_P(QuicConnectionTest, WriteBlockedAfterClientSendsConnectivityProbe) {
 
 TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
   PathProbeTestInit(Perspective::IS_SERVER);
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
 
   // Block next write so that sending connectivity probe will encounter a
   // blocked write when send a connectivity probe to the peer.
@@ -6463,8 +6468,16 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(1), _, _))
       .Times(1);
-  connection_.SendConnectivityProbingPacket(writer_.get(),
-                                            connection_.peer_address());
+  if (connection_.send_path_response() &&
+      VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
+    QuicPathFrameBuffer payload;
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SendPathChallenge(&payload, connection_.self_address(),
+                                  connection_.peer_address(), writer_.get());
+  } else {
+    connection_.SendConnectivityProbingPacket(writer_.get(),
+                                              connection_.peer_address());
+  }
 }
 
 TEST_P(QuicConnectionTest, WriterErrorWhenClientSendsConnectivityProbe) {
@@ -11208,6 +11221,178 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
   ProcessDataPacketAtLevel(1000, false, ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(connection_.connected());
+}
+
+TEST_P(QuicConnectionTest, SendPathChallenge) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSourceAddress(QuicIpAddress::Any6(), 12345);
+  EXPECT_NE(kNewSourceAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(
+            0, memcmp(payload.data(),
+                      &(new_writer.path_challenge_frames().front().data_buffer),
+                      sizeof(payload)));
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSourceAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+                                connection_.peer_address(), &new_writer);
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+}
+
+TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSourceAddress(QuicIpAddress::Any6(), 12345);
+  EXPECT_NE(kNewSourceAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  new_writer.BlockOnNextWrite();
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(0);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(Invoke([&]() {
+        // Even though the socket is blocked, the PATH_CHALLENGE should still be
+        // treated as sent.
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(
+            0, memcmp(payload.data(),
+                      &(new_writer.path_challenge_frames().front().data_buffer),
+                      sizeof(payload)));
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSourceAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+                                connection_.peer_address(), &new_writer);
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+
+  new_writer.SetWritable();
+  // Write event on the default socket shouldn't make any difference.
+  connection_.OnCanWrite();
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  EXPECT_EQ(1u, new_writer.packets_write_attempts());
+}
+
+TEST_P(QuicConnectionTest, SendPathChallengeWithDefaultSocketBlocked) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_SERVER);
+  if (version().SupportsAntiAmplificationLimit()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+  const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any6(), 12345);
+  writer_->BlockOnNextWrite();
+  QuicPathFrameBuffer payload;
+  // 1st time is after writer returns WRITE_STATUS_BLOCKED. 2nd time is in
+  // ShouldGeneratePacket();
+  EXPECT_CALL(visitor_, OnWriteBlocked()).Times(2u);
+  // This packet isn't sent actually, instead it is buffered in the connection.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+        EXPECT_EQ(
+            0, memcmp(payload.data(),
+                      &(writer_->path_challenge_frames().front().data_buffer),
+                      sizeof(payload)));
+        EXPECT_EQ(1u, writer_->padding_frames().size());
+        EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
+      }));
+  connection_.SendPathChallenge(&payload, connection_.self_address(),
+                                kNewPeerAddress, writer_.get());
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+
+  memset(payload.data(), 0, sizeof(payload));
+  // Try again with the new socket blocked from the beginning. The 2nd
+  // PATH_CHALLENGE shouldn't be serialized, but be dropped.
+  connection_.SendPathChallenge(&payload, connection_.self_address(),
+                                kNewPeerAddress, writer_.get());
+  // No more write attempt should be made.
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+
+  writer_->SetWritable();
+  // OnCanWrite() should actually write out the 1st PATH_CHALLENGE packet
+  // buffered earlier, thus incrementing the write counter.
+  connection_.OnCanWrite();
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+}
+
+// Tests that write error on the alternate socket should be ignored.
+TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSourceAddress(QuicIpAddress::Any6(), 12345);
+  EXPECT_NE(kNewSourceAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  new_writer.SetShouldWriteFail();
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(0);
+
+  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+                                connection_.peer_address(), &new_writer);
+  // Regardless of the write error, the PATH_CHALLENGE should still be
+  // treated as sent.
+  EXPECT_EQ(1u, new_writer.packets_write_attempts());
+  EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+  EXPECT_EQ(0, memcmp(payload.data(),
+                      &(new_writer.path_challenge_frames().front().data_buffer),
+                      sizeof(payload)));
+  EXPECT_EQ(1u, new_writer.padding_frames().size());
+  EXPECT_EQ(kNewSourceAddress.host(), new_writer.last_write_source_address());
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  EXPECT_TRUE(connection_.connected());
+}
+
+// Tests that write error while sending PATH_CHALLANGE from the default socket
+// should close the connection.
+TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  writer_->SetShouldWriteFail();
+  QuicPathFrameBuffer payload;
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .WillOnce(
+          Invoke([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
+            EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
+          }));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0u);
+  {
+    // Add a flusher to force flush, otherwise the frames will remain in the
+    // packet creator.
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
+    connection_.SendPathChallenge(&payload, connection_.self_address(),
+                                  connection_.peer_address(), writer_.get());
+  }
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_EQ(1u, writer_->path_challenge_frames().size());
+  EXPECT_EQ(0, memcmp(payload.data(),
+                      &(writer_->path_challenge_frames().front().data_buffer),
+                      sizeof(payload)));
+  EXPECT_EQ(1u, writer_->padding_frames().size());
+  EXPECT_EQ(connection_.peer_address(), writer_->last_write_peer_address());
+  EXPECT_FALSE(connection_.connected());
 }
 
 // Check that if there are two PATH_CHALLENGE frames in the packet, the latter

@@ -1079,6 +1079,17 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // false.
   bool MaybeTestLiveness();
 
+  // Send PATH_CHALLENGE using the given path information. If |writer| is the
+  // default writer, PATH_CHALLENGE can be bundled with other frames, and the
+  // containing packet can be buffered if the writer is blocked. Otherwise,
+  // PATH_CHALLENGE will be written in an individual packet and it will be
+  // dropped if write fails. |data_buffer| will be populated with the payload
+  // for future validation.
+  void SendPathChallenge(QuicPathFrameBuffer* data_buffer,
+                         const QuicSocketAddress& self_address,
+                         const QuicSocketAddress& peer_address,
+                         QuicPacketWriter* writer);
+
   bool can_receive_ack_frequency_frame() const {
     return can_receive_ack_frequency_frame_;
   }
@@ -1461,6 +1472,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Send PING at encryption level.
   void SendPingAtLevel(EncryptionLevel level);
 
+  // Write the given packet with |self_address| and |peer_address| using
+  // |writer|.
+  bool WritePacketUsingWriter(std::unique_ptr<SerializedPacket> packet,
+                              QuicPacketWriter* writer,
+                              const QuicSocketAddress& self_address,
+                              const QuicSocketAddress& peer_address,
+                              bool measure_rtt);
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify

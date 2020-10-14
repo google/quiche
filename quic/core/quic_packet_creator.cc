@@ -2123,11 +2123,39 @@ void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {
   packet_.encryption_level = level;
 }
 
+void QuicPacketCreator::AddPathChallengeFrame(QuicPathFrameBuffer* payload) {
+  // Write a PATH_CHALLENGE frame, which has a random 8-byte payload.
+  random_->RandBytes(payload->data(), payload->size());
+  auto path_challenge_frame = new QuicPathChallengeFrame(0, *payload);
+  QuicFrame frame(path_challenge_frame);
+  if (AddPaddedFrameWithRetry(frame)) {
+    return;
+  }
+  // Fail silently if the probing packet cannot be written, path validation
+  // initiator will retry sending automatically.
+  // TODO(danzh) This will consume retry budget, if it causes performance
+  // regression, consider to notify the caller about the sending failure and let
+  // the caller to decide if it worth retrying.
+  QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_CHALLENGE now";
+  delete path_challenge_frame;
+}
+
 bool QuicPacketCreator::AddPathResponseFrame(
     const QuicPathFrameBuffer& data_buffer) {
   auto path_response =
       new QuicPathResponseFrame(kInvalidControlFrameId, data_buffer);
   QuicFrame frame(path_response);
+  if (AddPaddedFrameWithRetry(frame)) {
+    return true;
+  }
+
+  QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_RESPONSE now";
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 5, 5);
+  delete path_response;
+  return false;
+}
+
+bool QuicPacketCreator::AddPaddedFrameWithRetry(const QuicFrame& frame) {
   if (HasPendingFrames()) {
     if (AddPaddedSavedFrame(frame, NOT_RETRANSMISSION)) {
       // Frame is queued.
@@ -2138,14 +2166,12 @@ bool QuicPacketCreator::AddPathResponseFrame(
   DCHECK(!HasPendingFrames());
   if (!delegate_->ShouldGeneratePacket(NO_RETRANSMITTABLE_DATA,
                                        NOT_HANDSHAKE)) {
-    QUIC_DVLOG(1) << ENDPOINT << "Can't send PATH_RESPONSE now";
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 5, 5);
-    delete path_response;
     return false;
   }
   bool success = AddPaddedSavedFrame(frame, NOT_RETRANSMISSION);
   QUIC_BUG_IF(!success);
   return true;
 }
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

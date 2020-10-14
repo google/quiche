@@ -28,6 +28,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_legacy_version_encapsulator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -4227,24 +4228,32 @@ bool QuicConnection::SendGenericPathProbePacket(
       transmitted_connectivity_probe_payload_ = nullptr;
     }
   }
-
   DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  return WritePacketUsingWriter(std::move(probing_packet), probing_writer,
+                                self_address(), peer_address,
+                                /*measure_rtt=*/true);
+}
 
+bool QuicConnection::WritePacketUsingWriter(
+    std::unique_ptr<SerializedPacket> packet,
+    QuicPacketWriter* writer,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address,
+    bool measure_rtt) {
   const QuicTime packet_send_time = clock_->Now();
   QUIC_DVLOG(2) << ENDPOINT
                 << "Sending path probe packet for server connection ID "
                 << server_connection_id_ << std::endl
-                << quiche::QuicheTextUtils::HexDump(
-                       absl::string_view(probing_packet->encrypted_buffer,
-                                         probing_packet->encrypted_length));
-  WriteResult result = probing_writer->WritePacket(
-      probing_packet->encrypted_buffer, probing_packet->encrypted_length,
-      self_address().host(), peer_address, per_packet_options_);
+                << quiche::QuicheTextUtils::HexDump(absl::string_view(
+                       packet->encrypted_buffer, packet->encrypted_length));
+  WriteResult result = writer->WritePacket(
+      packet->encrypted_buffer, packet->encrypted_length, self_address.host(),
+      peer_address, per_packet_options_);
 
   // If using a batch writer and the probing packet is buffered, flush it.
-  if (probing_writer->IsBatchMode() && result.status == WRITE_STATUS_OK &&
+  if (writer->IsBatchMode() && result.status == WRITE_STATUS_OK &&
       result.bytes_written == 0) {
-    result = probing_writer->Flush();
+    result = writer->Flush();
   }
 
   if (IsWriteError(result.status)) {
@@ -4257,14 +4266,14 @@ bool QuicConnection::SendGenericPathProbePacket(
 
   if (!sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
       debug_visitor_ != nullptr) {
-    debug_visitor_->OnPacketSent(
-        *probing_packet, probing_packet->transmission_type, packet_send_time);
+    debug_visitor_->OnPacketSent(*packet, packet->transmission_type,
+                                 packet_send_time);
   }
 
   // Send in currrent path. Call OnPacketSent regardless of the write result.
-  sent_packet_manager_.OnPacketSent(
-      probing_packet.get(), packet_send_time, probing_packet->transmission_type,
-      NO_RETRANSMITTABLE_DATA, /*measure_rtt=*/true);
+  sent_packet_manager_.OnPacketSent(packet.get(), packet_send_time,
+                                    packet->transmission_type,
+                                    NO_RETRANSMITTABLE_DATA, measure_rtt);
 
   if (sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
       debug_visitor_ != nullptr) {
@@ -4274,18 +4283,18 @@ bool QuicConnection::SendGenericPathProbePacket(
       QUIC_BUG << "Unacked map is empty right after packet is sent";
     } else {
       debug_visitor_->OnPacketSent(
-          probing_packet->packet_number, probing_packet->encrypted_length,
-          probing_packet->has_crypto_handshake,
-          probing_packet->transmission_type, probing_packet->encryption_level,
+          packet->packet_number, packet->encrypted_length,
+          packet->has_crypto_handshake, packet->transmission_type,
+          packet->encryption_level,
           sent_packet_manager_.unacked_packets()
               .rbegin()
               ->retransmittable_frames,
-          probing_packet->nonretransmittable_frames, packet_send_time);
+          packet->nonretransmittable_frames, packet_send_time);
     }
   }
 
   if (IsWriteBlockedStatus(result.status)) {
-    if (probing_writer == writer_) {
+    if (writer == writer_) {
       // Visitor should not be write blocked if the probing writer is not the
       // default packet writer.
       visitor_->OnWriteBlocked();
@@ -5194,6 +5203,26 @@ bool QuicConnection::ShouldDetectBlackhole() const {
     return false;
   }
   return num_rtos_for_blackhole_detection_ > 0;
+}
+
+void QuicConnection::SendPathChallenge(QuicPathFrameBuffer* data_buffer,
+                                       const QuicSocketAddress& self_address,
+                                       const QuicSocketAddress& peer_address,
+                                       QuicPacketWriter* writer) {
+  if (writer == writer_) {
+    // It's on current path, add the PATH_CHALLENGE the same way as other
+    // frames.
+    QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
+                                                        peer_address);
+    packet_creator_.AddPathChallengeFrame(data_buffer);
+    return;
+  }
+  std::unique_ptr<SerializedPacket> probing_packet =
+      packet_creator_.SerializePathChallengeConnectivityProbingPacket(
+          data_buffer);
+  DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
+                         peer_address, /*measure_rtt=*/false);
 }
 
 bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,

@@ -258,6 +258,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Add PATH_RESPONSE to current packet, flush before or afterwards if needed.
   bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
 
+  // Add PATH_CHALLENGE to current packet, flush before or afterwards if needed.
+  // This is a best effort adding. It may fail becasue of delegate state, but
+  // it's okay because of path validation retry mechanism.
+  void AddPathChallengeFrame(QuicPathFrameBuffer* payload);
+
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
 
@@ -595,6 +600,11 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
 
   // Returns true and close connection if it attempts to send unencrypted data.
   bool AttemptingToSendUnencryptedStreamData();
+
+  // Add the given frame to the current packet with full padding. If the current
+  // packet doesn't have enough space, flush once and try again. Return false if
+  // fail to add.
+  bool AddPaddedFrameWithRetry(const QuicFrame& frame);
 
   // Does not own these delegates or the framer.
   DelegateInterface* delegate_;

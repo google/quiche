@@ -2121,6 +2121,10 @@ class TestPacketWriter : public QuicPacketWriter {
 
   SimpleQuicFramer* framer() { return &framer_; }
 
+  const QuicIpAddress& last_write_source_address() const {
+    return last_write_source_address_;
+  }
+
   const QuicSocketAddress& last_write_peer_address() const {
     return last_write_peer_address_;
   }
@@ -2164,7 +2168,8 @@ class TestPacketWriter : public QuicPacketWriter {
   QuicHashMap<char*, PacketBuffer*> packet_buffer_pool_index_;
   // Indices in packet_buffer_pool_ that are not allocated.
   std::list<PacketBuffer*> packet_buffer_free_list_;
-  // The peer address passed into WritePacket().
+  // The soruce/peer address passed into WritePacket().
+  QuicIpAddress last_write_source_address_;
   QuicSocketAddress last_write_peer_address_;
 };
 
