@@ -92,6 +92,10 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   int64_t startup_full_loss_count =
       GetQuicFlag(FLAGS_quic_bbr2_default_startup_full_loss_count);
 
+  // If true, always exit STARTUP on loss, even if bandwidth exceeds threshold.
+  // If false, exit STARTUP on loss only if bandwidth is below threshold.
+  bool always_exit_startup_on_excess_loss = true;
+
   /*
    * DRAIN parameters.
    */

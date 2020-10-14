@@ -44,11 +44,13 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
     const LostPacketVector& /*lost_packets*/,
     const Bbr2CongestionEvent& congestion_event) {
   if (!full_bandwidth_reached_ && congestion_event.end_of_round_trip) {
-    if (!congestion_event.last_sample_is_app_limited) {
-      CheckBandwidthGrowth(congestion_event);
-    }
+    // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exits
+    // upon excessive losses, if enough bandwidth growth is observed.
+    bool has_enough_bw_growth = CheckBandwidthGrowth(congestion_event);
 
-    CheckExcessiveLosses(congestion_event);
+    if (Params().always_exit_startup_on_excess_loss || !has_enough_bw_growth) {
+      CheckExcessiveLosses(congestion_event);
+    }
   }
 
   model_->set_pacing_gain(Params().startup_pacing_gain);
@@ -62,7 +64,11 @@ bool Bbr2StartupMode::CheckBandwidthGrowth(
     const Bbr2CongestionEvent& congestion_event) {
   DCHECK(!full_bandwidth_reached_);
   DCHECK(congestion_event.end_of_round_trip);
-  DCHECK(!congestion_event.last_sample_is_app_limited);
+  if (congestion_event.last_sample_is_app_limited) {
+    // Return true such that when Params().always_exit_startup_on_excess_loss is
+    // false, we'll not check excess loss, which is the behavior of QUIC BBRv1.
+    return true;
+  }
 
   QuicBandwidth threshold =
       full_bandwidth_baseline_ * Params().startup_full_bw_threshold;

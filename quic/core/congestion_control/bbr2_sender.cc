@@ -11,6 +11,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_misc.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
+#include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -155,6 +156,12 @@ void Bbr2Sender::ApplyConnectionOptions(
       params_.startup_cwnd_gain = 2;
       params_.drain_cwnd_gain = 2;
     }
+  }
+  if (GetQuicReloadableFlag(quic_bbr2_no_exit_startup_on_loss_with_bw_growth) &&
+      ContainsQuicTag(connection_options, kB2NE)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_bbr2_no_exit_startup_on_loss_with_bw_growth);
+    params_.always_exit_startup_on_excess_loss = false;
   }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();

@@ -118,6 +118,9 @@ const QuicTag kIW50 = TAG('I', 'W', '5', '0');   // Force ICWND to 50
 const QuicTag kB2ON = TAG('B', '2', 'O', 'N');   // Enable BBRv2
 const QuicTag kB2NA = TAG('B', '2', 'N', 'A');   // For BBRv2, do not add ack
                                                  // height to queueing threshold
+const QuicTag kB2NE = TAG('B', '2', 'N', 'E');   // For BBRv2, do not exit
+                                                 // STARTUP if there's enough
+                                                 // bandwidth growth
 const QuicTag kB2RP = TAG('B', '2', 'R', 'P');   // For BBRv2, run PROBE_RTT on
                                                  // the regular schedule
 const QuicTag kB2CL = TAG('B', '2', 'C', 'L');   // For BBRv2, allow PROBE_BW
