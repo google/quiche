@@ -59,11 +59,6 @@ inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
 // losses.
 static const uint32_t kConservativeUnpacedBurst = 2;
 
-// TODO(haoyuewang) Unify this constant and kAckDecimationDelay in
-// quic_received_packet_manager.cc.
-// Ack delay as (RTT >> kAckDelayShift).
-static const int kAckDelayShift = 2;
-
 }  // namespace
 
 #define ENDPOINT                                                         \
@@ -731,7 +726,7 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   QUIC_RELOADABLE_FLAG_COUNT(quic_can_send_ack_frequency);
   frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt >> kAckDelayShift;
+  frame.max_ack_delay = rtt * kAckDecimationDelay;
   frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
 
   return frame;

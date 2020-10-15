@@ -26,8 +26,6 @@ namespace {
 // against an ack loss
 const size_t kMaxPacketsAfterNewMissing = 4;
 
-// One quarter RTT delay when doing ack decimation.
-const float kAckDecimationDelay = 0.25;
 // One eighth RTT delay when doing ack decimation.
 const float kShortAckDecimationDelay = 0.125;
 }  // namespace

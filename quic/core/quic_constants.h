@@ -265,6 +265,8 @@ const QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
 // This intends to avoid the beginning of slow start, when CWNDs may be
 // rapidly increasing.
 const QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
+// One quarter RTT delay when doing ack decimation.
+const float kAckDecimationDelay = 0.25;
 
 // The default alarm granularity assumed by QUIC code.
 const QuicTime::Delta kAlarmGranularity = QuicTime::Delta::FromMilliseconds(1);
