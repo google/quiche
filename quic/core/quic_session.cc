@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
@@ -2001,6 +2002,10 @@ void QuicSession::OnAckNeedsRetransmittableFrame() {
 
 void QuicSession::SendPing() {
   control_frame_manager_.WritePing();
+}
+
+void QuicSession::SendAckFrequency(const QuicAckFrequencyFrame& frame) {
+  control_frame_manager_.WriteOrBufferAckFrequency(frame);
 }
 
 bool QuicSession::IsConnectionFlowControlBlocked() const {

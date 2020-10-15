@@ -243,16 +243,19 @@ TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
   manager_->OnCanWrite();
 
   // Send AckFrequencyFrame as frame 6.
-  QuicAckFrequencyFrame ack_frequency = {6, 6, 10,
-                                         QuicTime::Delta::FromMilliseconds(24)};
-  manager_->WriteOrBufferAckFrequency(10,
-                                      QuicTime::Delta::FromMilliseconds(24));
+  QuicAckFrequencyFrame frame_to_send;
+  frame_to_send.packet_tolerance = 10;
+  frame_to_send.max_ack_delay = QuicTime::Delta::FromMilliseconds(24);
+  manager_->WriteOrBufferAckFrequency(frame_to_send);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .WillOnce(Invoke(&ClearControlFrame));
   manager_->OnCanWrite();
 
   // Ack AckFrequencyFrame.
-  EXPECT_TRUE(manager_->OnControlFrameAcked(QuicFrame(&ack_frequency)));
+  QuicAckFrequencyFrame expected_ack_frequency = {
+      6, 6, 10, QuicTime::Delta::FromMilliseconds(24)};
+  EXPECT_TRUE(
+      manager_->OnControlFrameAcked(QuicFrame(&expected_ack_frequency)));
 }
 
 TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {

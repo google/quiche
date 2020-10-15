@@ -99,6 +99,12 @@ void QuicConfigPeer::SetReceivedMaxPacketSize(QuicConfig* config,
 }
 
 // static
+void QuicConfigPeer::SetReceivedMinAckDelayMs(QuicConfig* config,
+                                              uint32_t min_ack_delay_ms) {
+  config->min_ack_delay_ms_.SetReceivedValue(min_ack_delay_ms);
+}
+
+// static
 void QuicConfigPeer::SetNegotiated(QuicConfig* config, bool negotiated) {
   config->negotiated_ = negotiated;
 }

@@ -29,6 +29,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_alarm.h"
@@ -157,6 +158,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
 
   // Called when a ping needs to be sent.
   virtual void SendPing() = 0;
+
+  // Called when an AckFrequency frame need to be sent.
+  virtual void SendAckFrequency(const QuicAckFrequencyFrame& frame) = 0;
 
   // Called to ask if the visitor wants to schedule write resumption as it both
   // has pending data to write, and is able to write (e.g. based on flow control
@@ -1869,6 +1873,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicate whether any ENCRYPTION_HANDSHAKE packet has been sent.
   bool handshake_packet_sent_ = false;
+
+  // Indicate whether AckFrequency frame has been sent.
+  bool ack_frequency_sent_ = false;
 
   const bool fix_missing_initial_keys_ =
       GetQuicReloadableFlag(quic_fix_missing_initial_keys2);

@@ -5,13 +5,17 @@
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <string>
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -54,6 +58,11 @@ inline bool ShouldForceRetransmission(TransmissionType transmission_type) {
 // to arrive earlier, and overly large burst token could cause incast packet
 // losses.
 static const uint32_t kConservativeUnpacedBurst = 2;
+
+// TODO(haoyuewang) Unify this constant and kAckDecimationDelay in
+// quic_received_packet_manager.cc.
+// Ack delay as (RTT >> kAckDelayShift).
+static const int kAckDelayShift = 2;
 
 }  // namespace
 
@@ -139,6 +148,13 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasReceivedMaxAckDelayMs()) {
     peer_max_ack_delay_ =
         QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
+  }
+  if (GetQuicReloadableFlag(quic_can_send_ack_frequency) &&
+      perspective == Perspective::IS_SERVER) {
+    if (config.HasReceivedMinAckDelayMs()) {
+      peer_min_ack_delay_ =
+          QuicTime::Delta::FromMilliseconds(config.ReceivedMinAckDelayMs());
+    }
   }
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {
     rtt_stats_.set_ignore_max_ack_delay(true);
@@ -698,6 +714,27 @@ void QuicSentPacketManager::MarkPacketHandled(QuicPacketNumber packet_number,
   unacked_packets_.RemoveFromInFlight(info);
   unacked_packets_.RemoveRetransmittability(info);
   info->state = ACKED;
+}
+
+bool QuicSentPacketManager::CanSendAckFrequency() const {
+  return !peer_min_ack_delay_.IsInfinite() && handshake_finished_;
+}
+
+QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
+    const {
+  QuicAckFrequencyFrame frame;
+  if (!CanSendAckFrequency()) {
+    QUIC_BUG << "New AckFrequencyFrame is created while it shouldn't.";
+    return frame;
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT(quic_can_send_ack_frequency);
+  frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
+  auto rtt = rtt_stats_.MinOrInitialRtt();
+  frame.max_ack_delay = rtt >> kAckDelayShift;
+  frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
+
+  return frame;
 }
 
 bool QuicSentPacketManager::OnPacketSent(

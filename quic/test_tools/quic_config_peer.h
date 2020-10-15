@@ -60,6 +60,9 @@ class QuicConfigPeer {
   static void SetReceivedMaxPacketSize(QuicConfig* config,
                                        uint32_t max_udp_payload_size);
 
+  static void SetReceivedMinAckDelayMs(QuicConfig* config,
+                                       uint32_t min_ack_delay_ms);
+
   static void SetNegotiated(QuicConfig* config, bool negotiated);
 
   static void SetReceivedOriginalConnectionId(

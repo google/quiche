@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -4417,6 +4418,33 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
 
   EXPECT_TRUE(message_frame->message_data.empty());
   EXPECT_EQ(message_frame->message_length, 0);
+}
+
+TEST_F(QuicSentPacketManagerTest, SendAckFrequencyFrame) {
+  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMinAckDelayMs(&config, /*min_ack_delay_ms=*/1);
+  manager_.SetFromConfig(config);
+  manager_.SetHandshakeConfirmed();
+
+  // Set up RTTs.
+  auto* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(8),
+                       /*ack_delay=*/QuicTime::Delta::Zero(),
+                       /*now=*/QuicTime::Zero());
+  // Make sure srtt and min_rtt are different.
+  rtt_stats->UpdateRtt(
+      QuicTime::Delta::FromMilliseconds(16),
+      /*ack_delay=*/QuicTime::Delta::Zero(),
+      /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
+
+  auto frame = manager_.GetUpdatedAckFrequencyFrame();
+  EXPECT_EQ(frame.max_ack_delay,
+            std::max(rtt_stats->min_rtt() * 0.25,
+                     QuicTime::Delta::FromMilliseconds(1u)));
+  EXPECT_EQ(frame.packet_tolerance, 10u);
 }
 
 }  // namespace

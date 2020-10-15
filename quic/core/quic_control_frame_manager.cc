@@ -120,13 +120,16 @@ void QuicControlFrameManager::WriteOrBufferHandshakeDone() {
 }
 
 void QuicControlFrameManager::WriteOrBufferAckFrequency(
-    uint64_t packet_tolerance,
-    QuicTime::Delta max_ack_delay) {
+    const QuicAckFrequencyFrame& ack_frequency_frame) {
   QUIC_DVLOG(1) << "Writing ACK_FREQUENCY frame";
   QuicControlFrameId control_frame_id = ++last_control_frame_id_;
-  WriteOrBufferQuicFrame(QuicFrame(new QuicAckFrequencyFrame(
-      control_frame_id,
-      /*sequence_number=*/control_frame_id, packet_tolerance, max_ack_delay)));
+  // Using the control_frame_id for sequence_number here leaves gaps in
+  // sequence_number.
+  WriteOrBufferQuicFrame(
+      QuicFrame(new QuicAckFrequencyFrame(control_frame_id,
+                                          /*sequence_number=*/control_frame_id,
+                                          ack_frequency_frame.packet_tolerance,
+                                          ack_frequency_frame.max_ack_delay)));
 }
 
 void QuicControlFrameManager::WritePing() {

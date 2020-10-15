@@ -560,6 +560,10 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, OnAckNeedsRetransmittableFrame, (), (override));
   MOCK_METHOD(void, SendPing, (), (override));
+  MOCK_METHOD(void,
+              SendAckFrequency,
+              (const QuicAckFrequencyFrame& frame),
+              (override));
   MOCK_METHOD(bool, AllowSelfAddressChange, (), (const, override));
   MOCK_METHOD(HandshakeState, GetHandshakeState, (), (const, override));
   MOCK_METHOD(bool,

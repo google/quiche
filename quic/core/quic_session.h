@@ -16,6 +16,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/handshaker_delegate_interface.h"
 #include "net/third_party/quiche/src/quic/core/legacy_quic_stream_id_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -123,6 +124,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Adds a connection level WINDOW_UPDATE frame.
   void OnAckNeedsRetransmittableFrame() override;
   void SendPing() override;
+  void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;
   bool WillingAndAbleToWrite() const override;
   std::string GetStreamsInfoForLogging() const override;
   void OnPathDegrading() override;

@@ -2631,6 +2631,15 @@ bool QuicConnection::ShouldGeneratePacket(
 }
 
 const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
+  if (!ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency()) {
+    if (packet_creator_.NextSendingPacketNumber() >=
+        FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation) {
+      ack_frequency_sent_ = true;
+      auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
+      visitor_->SendAckFrequency(frame);
+    }
+  }
+
   QuicFrames frames;
   const bool has_pending_ack =
       uber_received_packet_manager_

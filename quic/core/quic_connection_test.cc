@@ -12135,6 +12135,47 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMinAckDelayMs(&config, /*min_ack_delay_ms=*/1);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  connection_.OnHandshakeComplete();
+
+  writer_->SetWritable();
+  QuicPacketCreatorPeer::SetPacketNumber(creator_, 99);
+  // Send packet 100
+  SendStreamDataToPeer(/*id=*/1, "foo", /*offset=*/0, NO_FIN, nullptr);
+
+  QuicAckFrequencyFrame captured_frame;
+  EXPECT_CALL(visitor_, SendAckFrequency(_))
+      .WillOnce(Invoke([&captured_frame](const QuicAckFrequencyFrame& frame) {
+        captured_frame = frame;
+      }));
+  // Send packet 101.
+  SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
+
+  EXPECT_EQ(captured_frame.packet_tolerance, 10u);
+  EXPECT_EQ(captured_frame.max_ack_delay,
+            QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+
+  // Sending packet 102 does not trigger sending another AckFrequencyFrame.
+  SendStreamDataToPeer(/*id=*/1, "baz", /*offset=*/6, NO_FIN, nullptr);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

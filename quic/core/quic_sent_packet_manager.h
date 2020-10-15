@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_sustained_bandwidth_recorder.h"
+#include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
@@ -196,6 +197,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
                     TransmissionType transmission_type,
                     HasRetransmittableData has_retransmittable_data,
                     bool measure_rtt);
+
+  bool CanSendAckFrequency() const;
+
+  QuicAckFrequencyFrame GetUpdatedAckFrequencyFrame() const;
 
   // Called when the retransmission timer expires and returns the retransmission
   // mode.
@@ -649,6 +654,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // same as local_max_ack_delay_, may be changed via transport parameter
   // negotiation or subsequently by AckFrequencyFrame.
   QuicTime::Delta peer_max_ack_delay_;
+
+  // Peer sends min_ack_delay in TransportParameter to advertise its support for
+  // AckFrequencyFrame.
+  QuicTime::Delta peer_min_ack_delay_ = QuicTime::Delta::Infinite();
 
   // The history of outstanding max_ack_delays sent to peer. Outstanding means
   // a max_ack_delay is sent as part of the last acked AckFrequencyFrame or
