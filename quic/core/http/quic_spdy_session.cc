@@ -1359,6 +1359,13 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   }
 }
 
+void QuicSpdySession::BeforeConnectionCloseSent() {
+  if (GetQuicReloadableFlag(quic_send_goaway_with_connection_close) &&
+      VersionUsesHttp3(transport_version()) && IsEncryptionEstablished()) {
+    SendHttp3GoAway();
+  }
+}
+
 void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
   if (unidirectional && VersionUsesHttp3(transport_version())) {
     MaybeInitializeHttp3UnidirectionalStreams();

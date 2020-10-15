@@ -1479,6 +1479,9 @@ TEST_P(QuicConnectionTest, SelfAddressChangeAtServer) {
   host.FromString("1.1.1.1");
   QuicSocketAddress self_address(host, 123);
   EXPECT_CALL(visitor_, AllowSelfAddressChange()).WillOnce(Return(false));
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address, kPeerAddress,
                                   ENCRYPTION_INITIAL);
@@ -7401,6 +7404,9 @@ TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
   frame1_.data_buffer = data->data();
   frame1_.data_length = data->length();
 
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  }
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   ForceProcessFramePacket(QuicFrame(frame1_));
@@ -7657,6 +7663,9 @@ TEST_P(QuicConnectionTest, DoNotPadServerInitialConnectionClose) {
   }
   set_perspective(Perspective::IS_SERVER);
 
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   const QuicErrorCode kQuicErrorCode = QUIC_INTERNAL_ERROR;
   connection_.CloseConnection(
@@ -9823,6 +9832,9 @@ TEST_P(QuicConnectionTest, ServerReceivedHandshakeDone) {
   }
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(visitor_, OnHandshakeDoneReceived()).Times(0);
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   QuicFrames frames;
@@ -11008,6 +11020,9 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
 
+  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+    EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  }
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);

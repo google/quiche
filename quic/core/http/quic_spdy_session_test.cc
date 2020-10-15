@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
@@ -3059,6 +3060,63 @@ TEST_P(QuicSpdySessionTestServer, IgnoreCancelPush) {
                         absl::string_view(buffer.get(), frame_length));
   EXPECT_CALL(debug_visitor, OnCancelPushFrameReceived(_));
   session_.OnStreamFrame(data3);
+}
+
+TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  CompleteHandshake();
+
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+
+  // Create stream by receiving some data (CreateIncomingStream() would not
+  // update the session's largest peer created stream ID).
+  const size_t headers_payload_length = 10;
+  std::unique_ptr<char[]> headers_buffer;
+  QuicByteCount headers_frame_header_length =
+      HttpEncoder::SerializeHeadersFrameHeader(headers_payload_length,
+                                               &headers_buffer);
+  absl::string_view headers_frame_header(headers_buffer.get(),
+                                         headers_frame_header_length);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_id, headers_payload_length));
+  session_.OnStreamFrame(
+      QuicStreamFrame(stream_id, false, 0, headers_frame_header));
+
+  EXPECT_EQ(stream_id, QuicSessionPeer::GetLargestPeerCreatedStreamId(
+                           &session_, /*unidirectional = */ false));
+
+  if (GetQuicReloadableFlag(quic_send_goaway_with_connection_close)) {
+    if (GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
+      // Stream with stream_id is already received and potentially processed,
+      // therefore a GOAWAY frame is sent with the next stream ID.
+      EXPECT_CALL(debug_visitor,
+                  OnGoAwayFrameSent(stream_id + QuicUtils::StreamIdDelta(
+                                                    transport_version())));
+    } else {
+      // GOAWAY frame stream id is incorrect, ignore.
+      EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
+    }
+  }
+
+  // Close connection.
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+      .WillRepeatedly(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_NO_ERROR, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(QUIC_NO_ERROR, _))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::ReallySendConnectionClosePacket));
+  connection_->CloseConnection(
+      QUIC_NO_ERROR, "closing connection",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
 TEST_P(QuicSpdySessionTestClient, SendInitialMaxPushIdIfSet) {

@@ -140,6 +140,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
+  void BeforeConnectionCloseSent() override {}
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

@@ -101,6 +101,7 @@ class QuicEndpoint : public QuicEndpointBase,
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override {
     return nullptr;
   }
+  void BeforeConnectionCloseSent() override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

@@ -204,6 +204,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called to generate an encrypter for the same key phase of the last
   // decrypter returned by AdvanceKeysAndCreateCurrentOneRttDecrypter().
   virtual std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() = 0;
+
+  // Called when connection is being closed right before a CONNECTION_CLOSE
+  // frame is serialized, but only on the server and only if forward secure
+  // encryption has already been established.
+  virtual void BeforeConnectionCloseSent() = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

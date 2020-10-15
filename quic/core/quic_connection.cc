@@ -3787,6 +3787,11 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
       packet_creator_.FlushAckFrame(frames);
     }
 
+    if (level == ENCRYPTION_FORWARD_SECURE &&
+        perspective_ == Perspective::IS_SERVER) {
+      visitor_->BeforeConnectionCloseSent();
+    }
+
     auto* frame =
         new QuicConnectionCloseFrame(transport_version(), error, details,
                                      framer_.current_received_frame_type());

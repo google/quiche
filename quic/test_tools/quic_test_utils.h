@@ -589,6 +589,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               CreateCurrentOneRttEncrypter,
               (),
               (override));
+  MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -731,6 +732,11 @@ class MockQuicConnection : public QuicConnection {
       const std::string& details,
       ConnectionCloseBehavior connection_close_behavior) {
     QuicConnection::CloseConnection(error, details, connection_close_behavior);
+  }
+
+  void ReallySendConnectionClosePacket(QuicErrorCode error,
+                                       const std::string& details) {
+    QuicConnection::SendConnectionClosePacket(error, details);
   }
 
   void ReallyProcessUdpPacket(const QuicSocketAddress& self_address,
