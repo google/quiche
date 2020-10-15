@@ -659,6 +659,9 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // AckFrequencyFrame.
   QuicTime::Delta peer_min_ack_delay_ = QuicTime::Delta::Infinite();
 
+  // Use smoothed RTT for computing max_ack_delay in AckFrequency frame.
+  bool use_smoothed_rtt_in_ack_delay_ = false;
+
   // The history of outstanding max_ack_delays sent to peer. Outstanding means
   // a max_ack_delay is sent as part of the last acked AckFrequencyFrame or
   // an unacked AckFrequencyFrame after that.

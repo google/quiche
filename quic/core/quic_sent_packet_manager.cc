@@ -150,6 +150,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
       peer_min_ack_delay_ =
           QuicTime::Delta::FromMilliseconds(config.ReceivedMinAckDelayMs());
     }
+    if (config.HasClientSentConnectionOption(kAFF1, perspective)) {
+      use_smoothed_rtt_in_ack_delay_ = true;
+    }
   }
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {
     rtt_stats_.set_ignore_max_ack_delay(true);
@@ -725,7 +728,8 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
 
   QUIC_RELOADABLE_FLAG_COUNT(quic_can_send_ack_frequency);
   frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
-  auto rtt = rtt_stats_.MinOrInitialRtt();
+  auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
+                                            : rtt_stats_.MinOrInitialRtt();
   frame.max_ack_delay = rtt * kAckDecimationDelay;
   frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
 

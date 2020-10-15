@@ -4420,7 +4420,7 @@ TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
   EXPECT_EQ(message_frame->message_length, 0);
 }
 
-TEST_F(QuicSentPacketManagerTest, SendAckFrequencyFrame) {
+TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
   SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
@@ -4445,6 +4445,35 @@ TEST_F(QuicSentPacketManagerTest, SendAckFrequencyFrame) {
             std::max(rtt_stats->min_rtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
   EXPECT_EQ(frame.packet_tolerance, 10u);
+}
+
+TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
+  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMinAckDelayMs(&config, /*min_ack_delay_ms=*/1);
+  QuicTagVector quic_tag_vector;
+  quic_tag_vector.push_back(kAFF1);  // SRTT enabling tag.
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, quic_tag_vector);
+  manager_.SetFromConfig(config);
+  manager_.SetHandshakeConfirmed();
+
+  // Set up RTTs.
+  auto* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(8),
+                       /*ack_delay=*/QuicTime::Delta::Zero(),
+                       /*now=*/QuicTime::Zero());
+  // Make sure srtt and min_rtt are different.
+  rtt_stats->UpdateRtt(
+      QuicTime::Delta::FromMilliseconds(16),
+      /*ack_delay=*/QuicTime::Delta::Zero(),
+      /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
+
+  auto frame = manager_.GetUpdatedAckFrequencyFrame();
+  EXPECT_EQ(frame.max_ack_delay,
+            std::max(rtt_stats->SmoothedOrInitialRtt() * 0.25,
+                     QuicTime::Delta::FromMilliseconds(1u)));
 }
 
 }  // namespace
