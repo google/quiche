@@ -35,4 +35,13 @@ std::string AesBaseEncrypter::GenerateHeaderProtectionMask(
   return out;
 }
 
+QuicPacketCount AesBaseEncrypter::GetConfidentialityLimit() const {
+  // For AEAD_AES_128_GCM and AEAD_AES_256_GCM, the confidentiality limit is
+  // 2^25 encrypted packets.
+  // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-limits-on-aead-usage
+  static_assert(kMaxOutgoingPacketSize < 16384,
+                "This key limit requires limits on encryption payload sizes");
+  return 33554432U;
+}
+
 }  // namespace quic

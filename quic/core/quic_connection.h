@@ -1252,6 +1252,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // writer is write blocked.
   bool WritePacket(SerializedPacket* packet);
 
+  // Enforce AEAD Confidentiality limits by iniating key update or closing
+  // connection if too many packets have been encrypted with the current key.
+  // Returns true if the connection was closed. Should not be called for
+  // termination packets.
+  bool MaybeHandleAeadConfidentialityLimits(const SerializedPacket& packet);
+
   // Flush packets buffered in the writer, if any.
   void FlushPackets();
 
@@ -1551,6 +1557,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // uninitialized before the first one-RTT packet has been sent or after a
   // key update but before the first packet has been sent.
   QuicPacketNumber lowest_packet_sent_in_current_key_phase_;
+
+  // Honor the AEAD confidentiality and integrity limits by initiating key
+  // update (if allowed) and/or closing the connection, as necessary.
+  bool enable_aead_limits_;
 
   // True if the last packet has gotten far enough in the framer to be
   // decrypted.

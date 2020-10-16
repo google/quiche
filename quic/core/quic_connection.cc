@@ -265,6 +265,8 @@ QuicConnection::QuicConnection(
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
       support_key_update_for_connection_(false),
+      enable_aead_limits_(GetQuicReloadableFlag(quic_enable_aead_limits) &&
+                          version().UsesTls()),
       last_packet_decrypted_(false),
       last_size_(0),
       current_packet_data_(nullptr),
@@ -3067,11 +3069,17 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     handshake_packet_sent_ = true;
   }
 
-  if (packet->encryption_level == ENCRYPTION_FORWARD_SECURE &&
-      !lowest_packet_sent_in_current_key_phase_.IsInitialized()) {
-    QUIC_DLOG(INFO) << ENDPOINT << "lowest_packet_sent_in_current_key_phase_ = "
-                    << packet_number;
-    lowest_packet_sent_in_current_key_phase_ = packet_number;
+  if (packet->encryption_level == ENCRYPTION_FORWARD_SECURE) {
+    if (!lowest_packet_sent_in_current_key_phase_.IsInitialized()) {
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "lowest_packet_sent_in_current_key_phase_ = "
+                      << packet_number;
+      lowest_packet_sent_in_current_key_phase_ = packet_number;
+    }
+    if (!is_termination_packet &&
+        MaybeHandleAeadConfidentialityLimits(*packet)) {
+      return true;
+    }
   }
 
   if (in_flight || !retransmission_alarm_->IsSet()) {
@@ -3093,6 +3101,110 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   return true;
+}
+
+bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
+    const SerializedPacket& packet) {
+  if (!enable_aead_limits_) {
+    return false;
+  }
+
+  if (packet.encryption_level != ENCRYPTION_FORWARD_SECURE) {
+    QUIC_BUG
+        << "MaybeHandleAeadConfidentialityLimits called on non 1-RTT packet";
+    return false;
+  }
+  if (!lowest_packet_sent_in_current_key_phase_.IsInitialized()) {
+    QUIC_BUG << "lowest_packet_sent_in_current_key_phase_ must be initialized "
+                "before calling MaybeHandleAeadConfidentialityLimits";
+    return false;
+  }
+
+  // Calculate the number of packets encrypted from the packet number, which is
+  // simpler than keeping another counter. The packet number space may be
+  // sparse, so this might overcount, but doing a key update earlier than
+  // necessary would only improve security and has negligible cost.
+  if (packet.packet_number < lowest_packet_sent_in_current_key_phase_) {
+    const std::string error_details = quiche::QuicheStrCat(
+        "packet_number(", packet.packet_number.ToString(),
+        ") < lowest_packet_sent_in_current_key_phase_ (",
+        lowest_packet_sent_in_current_key_phase_.ToString(), ")");
+    QUIC_BUG << error_details;
+    CloseConnection(QUIC_INTERNAL_ERROR, error_details,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return true;
+  }
+  const QuicPacketCount num_packets_encrypted_in_current_key_phase =
+      packet.packet_number - lowest_packet_sent_in_current_key_phase_ + 1;
+
+  const QuicPacketCount confidentiality_limit =
+      framer_.GetOneRttEncrypterConfidentialityLimit();
+
+  // Attempt to initiate a key update before reaching the AEAD
+  // confidentiality limit when the number of packets sent in the current
+  // key phase gets within |kKeyUpdateConfidentialityLimitOffset| packets of
+  // the limit, unless overridden by
+  // FLAGS_quic_key_update_confidentiality_limit.
+  constexpr QuicPacketCount kKeyUpdateConfidentialityLimitOffset = 1000;
+  QuicPacketCount key_update_limit = 0;
+  if (confidentiality_limit > kKeyUpdateConfidentialityLimitOffset) {
+    key_update_limit =
+        confidentiality_limit - kKeyUpdateConfidentialityLimitOffset;
+  }
+  const QuicPacketCount key_update_limit_override =
+      GetQuicFlag(FLAGS_quic_key_update_confidentiality_limit);
+  if (key_update_limit_override) {
+    key_update_limit = key_update_limit_override;
+  }
+
+  QUIC_DVLOG(2) << ENDPOINT << "Checking AEAD confidentiality limits: "
+                << "num_packets_encrypted_in_current_key_phase="
+                << num_packets_encrypted_in_current_key_phase
+                << " key_update_limit=" << key_update_limit
+                << " confidentiality_limit=" << confidentiality_limit
+                << " IsKeyUpdateAllowed()=" << IsKeyUpdateAllowed();
+
+  if (num_packets_encrypted_in_current_key_phase >= confidentiality_limit) {
+    // Reached the confidentiality limit without initiating a key update,
+    // must close the connection.
+    const std::string error_details = quiche::QuicheStrCat(
+        "encrypter confidentiality limit reached: "
+        "num_packets_encrypted_in_current_key_phase=",
+        num_packets_encrypted_in_current_key_phase,
+        " key_update_limit=", key_update_limit,
+        " confidentiality_limit=", confidentiality_limit,
+        " IsKeyUpdateAllowed()=", IsKeyUpdateAllowed());
+    CloseConnection(QUIC_AEAD_LIMIT_REACHED, error_details,
+                    ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return true;
+  }
+
+  if (IsKeyUpdateAllowed() &&
+      num_packets_encrypted_in_current_key_phase >= key_update_limit) {
+    // Approaching the confidentiality limit, initiate key update so that
+    // the next set of keys will be ready for the next packet before the
+    // limit is reached.
+    if (key_update_limit_override) {
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "reached FLAGS_quic_key_update_confidentiality_limit, "
+                         "initiating key update: "
+                      << "num_packets_encrypted_in_current_key_phase="
+                      << num_packets_encrypted_in_current_key_phase
+                      << " key_update_limit=" << key_update_limit
+                      << " confidentiality_limit=" << confidentiality_limit;
+    } else {
+      QUIC_DLOG(INFO) << ENDPOINT
+                      << "approaching AEAD confidentiality limit, "
+                         "initiating key update: "
+                      << "num_packets_encrypted_in_current_key_phase="
+                      << num_packets_encrypted_in_current_key_phase
+                      << " key_update_limit=" << key_update_limit
+                      << " confidentiality_limit=" << confidentiality_limit;
+    }
+    InitiateKeyUpdate();
+  }
+
+  return false;
 }
 
 void QuicConnection::FlushPackets() {

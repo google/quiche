@@ -27,6 +27,8 @@ class QUIC_EXPORT_PRIVATE ChaCha20Poly1305TlsEncrypter
   ChaCha20Poly1305TlsEncrypter& operator=(const ChaCha20Poly1305TlsEncrypter&) =
       delete;
   ~ChaCha20Poly1305TlsEncrypter() override;
+
+  QuicPacketCount GetConfidentialityLimit() const override;
 };
 
 }  // namespace quic

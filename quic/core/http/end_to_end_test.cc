@@ -5003,6 +5003,53 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
+  SetQuicReloadableFlag(quic_enable_aead_limits, true);
+  SetQuicReloadableFlag(quic_key_update_supported, true);
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 4U);
+
+  if (!version_.UsesTls()) {
+    // Key Update is only supported in TLS handshake.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  ASSERT_TRUE(Initialize());
+
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  EXPECT_EQ(0u, client_connection->GetStats().key_update_count);
+
+  server_thread_->WaitUntil(
+      [this]() {
+        QuicConnection* server_connection = GetServerConnection();
+        if (server_connection != nullptr) {
+          EXPECT_EQ(0u, server_connection->GetStats().key_update_count);
+        } else {
+          ADD_FAILURE() << "Missing server connection";
+        }
+        return true;
+      },
+      QuicTime::Delta::FromSeconds(5));
+
+  SendSynchronousFooRequestAndCheckResponse();
+  SendSynchronousFooRequestAndCheckResponse();
+  SendSynchronousFooRequestAndCheckResponse();
+  // Don't know exactly how many packets will be sent in each request/response,
+  // so just test that at least one key update occurred.
+  EXPECT_LE(1u, client_connection->GetStats().key_update_count);
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection) {
+    QuicConnectionStats server_stats = server_connection->GetStats();
+    EXPECT_LE(1u, server_stats.key_update_count);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

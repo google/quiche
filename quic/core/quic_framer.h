@@ -585,6 +585,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // to ciphertext no larger than |ciphertext_size|.
   size_t GetMaxPlaintextSize(size_t ciphertext_size);
 
+  // Returns the maximum number of packets that can be safely encrypted with
+  // the active AEAD. 1-RTT keys must be set before calling this method.
+  QuicPacketCount GetOneRttEncrypterConfidentialityLimit() const;
+
   const std::string& detailed_error() { return detailed_error_; }
 
   // The minimum packet number length required to represent |packet_number|.

@@ -4639,6 +4639,14 @@ size_t QuicFramer::GetMaxPlaintextSize(size_t ciphertext_size) {
   return min_plaintext_size;
 }
 
+QuicPacketCount QuicFramer::GetOneRttEncrypterConfidentialityLimit() const {
+  if (!encrypter_[ENCRYPTION_FORWARD_SECURE]) {
+    QUIC_BUG << "1-RTT encrypter not set";
+    return 0;
+  }
+  return encrypter_[ENCRYPTION_FORWARD_SECURE]->GetConfidentialityLimit();
+}
+
 bool QuicFramer::DecryptPayload(absl::string_view encrypted,
                                 absl::string_view associated_data,
                                 const QuicPacketHeader& header,

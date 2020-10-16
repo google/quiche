@@ -83,6 +83,10 @@ size_t NullEncrypter::GetCiphertextSize(size_t plaintext_size) const {
   return plaintext_size + GetHashLength();
 }
 
+QuicPacketCount NullEncrypter::GetConfidentialityLimit() const {
+  return std::numeric_limits<QuicPacketCount>::max();
+}
+
 absl::string_view NullEncrypter::GetKey() const {
   return absl::string_view();
 }

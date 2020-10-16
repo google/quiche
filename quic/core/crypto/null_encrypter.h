@@ -41,6 +41,7 @@ class QUIC_EXPORT_PRIVATE NullEncrypter : public QuicEncrypter {
   size_t GetIVSize() const override;
   size_t GetMaxPlaintextSize(size_t ciphertext_size) const override;
   size_t GetCiphertextSize(size_t plaintext_size) const override;
+  QuicPacketCount GetConfidentialityLimit() const override;
   absl::string_view GetKey() const override;
   absl::string_view GetNoncePrefix() const override;
 

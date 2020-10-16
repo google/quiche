@@ -1859,6 +1859,10 @@ class TaggingEncrypter : public QuicEncrypter {
     return plaintext_size + kTagSize;
   }
 
+  QuicPacketCount GetConfidentialityLimit() const override {
+    return std::numeric_limits<QuicPacketCount>::max();
+  }
+
   absl::string_view GetKey() const override { return absl::string_view(); }
 
   absl::string_view GetNoncePrefix() const override {

@@ -500,8 +500,15 @@ enum QuicErrorCode {
   // Try to write data without the right write keys.
   QUIC_MISSING_WRITE_KEYS = 170,
 
+  // An endpoint detected errors in performing key updates.
+  QUIC_KEY_UPDATE_ERROR = 172,
+
+  // An endpoint has reached the confidentiality or integrity limit for the
+  // AEAD algorithm used by the given connection.
+  QUIC_AEAD_LIMIT_REACHED = 173,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 172,
+  QUIC_LAST_ERROR = 174,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -533,6 +540,8 @@ enum QuicIetfTransportErrorCodes : uint64_t {
   PROTOCOL_VIOLATION = 0xA,
   INVALID_TOKEN = 0xB,
   CRYPTO_BUFFER_EXCEEDED = 0xD,
+  KEY_UPDATE_ERROR = 0xE,
+  AEAD_LIMIT_REACHED = 0xF,
   CRYPTO_ERROR_FIRST = 0x100,
   CRYPTO_ERROR_LAST = 0x1FF,
 };

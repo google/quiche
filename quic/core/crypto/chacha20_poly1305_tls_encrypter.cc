@@ -27,4 +27,11 @@ ChaCha20Poly1305TlsEncrypter::ChaCha20Poly1305TlsEncrypter()
 
 ChaCha20Poly1305TlsEncrypter::~ChaCha20Poly1305TlsEncrypter() {}
 
+QuicPacketCount ChaCha20Poly1305TlsEncrypter::GetConfidentialityLimit() const {
+  // For AEAD_CHACHA20_POLY1305, the confidentiality limit is greater than the
+  // number of possible packets (2^62) and so can be disregarded.
+  // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-limits-on-aead-usage
+  return std::numeric_limits<QuicPacketCount>::max();
+}
+
 }  // namespace quic

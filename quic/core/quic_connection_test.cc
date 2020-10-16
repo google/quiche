@@ -110,6 +110,24 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
   }
 }
 
+// A NullEncrypterWithConfidentialityLimit is a NullEncrypter that allows
+// specifying the confidentiality limit on the maximum number of packets that
+// may be encrypted per key phase in TLS+QUIC.
+class NullEncrypterWithConfidentialityLimit : public NullEncrypter {
+ public:
+  NullEncrypterWithConfidentialityLimit(Perspective perspective,
+                                        QuicPacketCount confidentiality_limit)
+      : NullEncrypter(perspective),
+        confidentiality_limit_(confidentiality_limit) {}
+
+  QuicPacketCount GetConfidentialityLimit() const override {
+    return confidentiality_limit_;
+  }
+
+ private:
+  QuicPacketCount confidentiality_limit_;
+};
+
 class TestConnectionHelper : public QuicConnectionHelperInterface {
  public:
   TestConnectionHelper(MockClock* clock, MockRandom* random_generator)
@@ -12041,6 +12059,8 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
                            std::make_unique<TaggingEncrypter>(0x01));
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
                std::make_unique<StrictTaggingDecrypter>(0x01));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
 
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
@@ -12148,6 +12168,288 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   });
   EXPECT_TRUE(connection_.InitiateKeyUpdate());
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 3U);
+
+  std::string error_details;
+  TransportParameters params;
+  // Key update is enabled.
+  params.key_update_not_yet_supported = false;
+  QuicConfig config;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  config.SetKeyUpdateSupportedLocally();
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  MockFramerVisitor peer_framer_visitor_;
+  peer_framer_.set_visitor(&peer_framer_visitor_);
+
+  use_tagging_decrypter();
+
+  uint8_t current_tag = 0x01;
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(current_tag));
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypter>(current_tag));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+
+  peer_framer_.SetKeyUpdateSupportForConnection(true);
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(current_tag));
+
+  const QuicConnectionStats& stats = connection_.GetStats();
+
+  for (int packet_num = 1; packet_num <= 8; ++packet_num) {
+    if (packet_num == 3 || packet_num == 6) {
+      current_tag++;
+      EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
+          .WillOnce([current_tag]() {
+            return std::make_unique<StrictTaggingDecrypter>(current_tag);
+          });
+      EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter())
+          .WillOnce([current_tag]() {
+            return std::make_unique<TaggingEncrypter>(current_tag);
+          });
+    }
+    // Send packet.
+    QuicPacketNumber last_packet;
+    SendStreamDataToPeer(packet_num, "foo", 0, NO_FIN, &last_packet);
+    EXPECT_EQ(QuicPacketNumber(packet_num), last_packet);
+    if (packet_num >= 6) {
+      EXPECT_EQ(2U, stats.key_update_count);
+    } else if (packet_num >= 3) {
+      EXPECT_EQ(1U, stats.key_update_count);
+    } else {
+      EXPECT_EQ(0U, stats.key_update_count);
+    }
+
+    if (packet_num == 4 || packet_num == 7) {
+      // Pretend that peer accepts the key update.
+      EXPECT_CALL(peer_framer_visitor_,
+                  AdvanceKeysAndCreateCurrentOneRttDecrypter())
+          .WillOnce([current_tag]() {
+            return std::make_unique<StrictTaggingDecrypter>(current_tag);
+          });
+      EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
+          .WillOnce([current_tag]() {
+            return std::make_unique<TaggingEncrypter>(current_tag);
+          });
+      peer_framer_.DoKeyUpdate();
+    }
+    // Receive ack for packet.
+    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+    QuicAckFrame frame1 = InitAckFrame(packet_num);
+    ProcessAckPacket(&frame1);
+  }
+}
+
+TEST_P(QuicConnectionTest,
+       CloseConnectionOnConfidentialityLimitKeyUpdateNotAllowed) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+  // Set key update confidentiality limit to 1 packet.
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
+  // Use confidentiality limit for connection close of 3 packets.
+  constexpr size_t kConfidentialityLimit = 3U;
+
+  std::string error_details;
+  TransportParameters params;
+  // Key update is enabled.
+  params.key_update_not_yet_supported = false;
+  QuicConfig config;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  config.SetKeyUpdateSupportedLocally();
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypterWithConfidentialityLimit>(
+          Perspective::IS_CLIENT, kConfidentialityLimit));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+
+  QuicPacketNumber last_packet;
+  // Send 3 packets without receiving acks for any of them. Key update will not
+  // be allowed, so the confidentiality limit should be reached, forcing the
+  // connection to be closed.
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_FALSE(connection_.connected());
+  const QuicConnectionStats& stats = connection_.GetStats();
+  EXPECT_EQ(0U, stats.key_update_count);
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest,
+       CloseConnectionOnConfidentialityLimitKeyUpdateNotSupportedByPeer) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+  // Set key update confidentiality limit to 1 packet.
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
+  // Use confidentiality limit for connection close of 3 packets.
+  constexpr size_t kConfidentialityLimit = 3U;
+
+  std::string error_details;
+  TransportParameters params;
+  // Key update not enabled for this connection as peer doesn't support it.
+  params.key_update_not_yet_supported = true;
+  QuicConfig config;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  // Key update is supported locally.
+  config.SetKeyUpdateSupportedLocally();
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypterWithConfidentialityLimit>(
+          Perspective::IS_CLIENT, kConfidentialityLimit));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+
+  QuicPacketNumber last_packet;
+  // Send 3 packets and receive acks for them. Since key update is not enabled
+  // the confidentiality limit should be reached, forcing the connection to be
+  // closed.
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  // Receive ack for packet.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  ProcessAckPacket(&frame1);
+
+  SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  // Receive ack for packet.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame2 = InitAckFrame(2);
+  ProcessAckPacket(&frame2);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_FALSE(connection_.connected());
+  const QuicConnectionStats& stats = connection_.GetStats();
+  EXPECT_EQ(0U, stats.key_update_count);
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest,
+       CloseConnectionOnConfidentialityLimitKeyUpdateNotEnabledLocally) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+  // Set key update confidentiality limit to 1 packet.
+  SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
+  // Use confidentiality limit for connection close of 3 packets.
+  constexpr size_t kConfidentialityLimit = 3U;
+
+  std::string error_details;
+  TransportParameters params;
+  // Key update is supported by peer but not locally
+  // (config.SetKeyUpdateSupportedLocally is not called.)
+  params.key_update_not_yet_supported = false;
+  QuicConfig config;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<NullEncrypterWithConfidentialityLimit>(
+          Perspective::IS_CLIENT, kConfidentialityLimit));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+
+  QuicPacketNumber last_packet;
+  // Send 3 packets and receive acks for them. Since key update is not enabled
+  // the confidentiality limit should be reached, forcing the connection to be
+  // closed.
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  // Receive ack for packet.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  ProcessAckPacket(&frame1);
+
+  SendStreamDataToPeer(2, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_TRUE(connection_.connected());
+  // Receive ack for packet.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame2 = InitAckFrame(2);
+  ProcessAckPacket(&frame2);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  SendStreamDataToPeer(3, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_FALSE(connection_.connected());
+  const QuicConnectionStats& stats = connection_.GetStats();
+  EXPECT_EQ(0U, stats.key_update_count);
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
 }
 
 TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {

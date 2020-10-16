@@ -233,6 +233,8 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED);
     RETURN_STRING_LITERAL(QUIC_SILENT_IDLE_TIMEOUT);
     RETURN_STRING_LITERAL(QUIC_MISSING_WRITE_KEYS);
+    RETURN_STRING_LITERAL(QUIC_KEY_UPDATE_ERROR);
+    RETURN_STRING_LITERAL(QUIC_AEAD_LIMIT_REACHED);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -271,6 +273,8 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     RETURN_STRING_LITERAL(PROTOCOL_VIOLATION);
     RETURN_STRING_LITERAL(INVALID_TOKEN);
     RETURN_STRING_LITERAL(CRYPTO_BUFFER_EXCEEDED);
+    RETURN_STRING_LITERAL(KEY_UPDATE_ERROR);
+    RETURN_STRING_LITERAL(AEAD_LIMIT_REACHED);
     // CRYPTO_ERROR is handled in the if before this switch, these cases do not
     // change behavior and are only here to make the compiler happy.
     case CRYPTO_ERROR_FIRST:
@@ -634,6 +638,10 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(PROTOCOL_VIOLATION)};
     case QUIC_MISSING_WRITE_KEYS:
       return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
+    case QUIC_KEY_UPDATE_ERROR:
+      return {true, static_cast<uint64_t>(KEY_UPDATE_ERROR)};
+    case QUIC_AEAD_LIMIT_REACHED:
+      return {true, static_cast<uint64_t>(AEAD_LIMIT_REACHED)};
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }

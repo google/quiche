@@ -53,6 +53,10 @@ TEST_F(QuicErrorCodesTest, QuicIetfTransportErrorCodeString) {
   EXPECT_EQ("INVALID_TOKEN", QuicIetfTransportErrorCodeString(INVALID_TOKEN));
   EXPECT_EQ("CRYPTO_BUFFER_EXCEEDED",
             QuicIetfTransportErrorCodeString(CRYPTO_BUFFER_EXCEEDED));
+  EXPECT_EQ("KEY_UPDATE_ERROR",
+            QuicIetfTransportErrorCodeString(KEY_UPDATE_ERROR));
+  EXPECT_EQ("AEAD_LIMIT_REACHED",
+            QuicIetfTransportErrorCodeString(AEAD_LIMIT_REACHED));
 
   EXPECT_EQ("Unknown(1024)",
             QuicIetfTransportErrorCodeString(
@@ -74,7 +78,7 @@ TEST_F(QuicErrorCodesTest, QuicErrorCodeToTransportErrorCode) {
     if (ietf_error_code.is_transport_close) {
       QuicIetfTransportErrorCodes transport_error_code =
           static_cast<QuicIetfTransportErrorCodes>(ietf_error_code.error_code);
-      bool is_valid_transport_error_code = transport_error_code <= 0x0d;
+      bool is_valid_transport_error_code = transport_error_code <= 0x0f;
       EXPECT_TRUE(is_valid_transport_error_code) << internal_error_code_string;
     } else {
       // Non-transport errors are application errors, either HTTP/3 or QPACK.

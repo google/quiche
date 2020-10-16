@@ -57,6 +57,10 @@ class QUIC_EXPORT_PRIVATE QuicEncrypter : public QuicCrypter {
   // to plaintext of size |plaintext_size|.
   virtual size_t GetCiphertextSize(size_t plaintext_size) const = 0;
 
+  // Returns the maximum number of packets that can be safely encrypted with
+  // this encrypter.
+  virtual QuicPacketCount GetConfidentialityLimit() const = 0;
+
   // For use by unit tests only.
   virtual absl::string_view GetKey() const = 0;
   virtual absl::string_view GetNoncePrefix() const = 0;

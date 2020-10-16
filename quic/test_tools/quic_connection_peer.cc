@@ -297,6 +297,12 @@ void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
 }
 
 // static
+void QuicConnectionPeer::SetEnableAeadLimits(QuicConnection* connection,
+                                             bool enabled) {
+  connection->enable_aead_limits_ = enabled;
+}
+
+// static
 void QuicConnectionPeer::SendConnectionClosePacket(QuicConnection* connection,
                                                    QuicErrorCode error,
                                                    const std::string& details) {

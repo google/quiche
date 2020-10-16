@@ -126,6 +126,9 @@ class TestEncrypter : public QuicEncrypter {
   size_t GetCiphertextSize(size_t plaintext_size) const override {
     return plaintext_size;
   }
+  QuicPacketCount GetConfidentialityLimit() const override {
+    return std::numeric_limits<QuicPacketCount>::max();
+  }
   absl::string_view GetKey() const override { return absl::string_view(); }
   absl::string_view GetNoncePrefix() const override {
     return absl::string_view();
