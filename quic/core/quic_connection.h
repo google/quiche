@@ -1605,6 +1605,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // When > 0, close the QUIC connection after this number of RTOs.
   size_t num_rtos_for_blackhole_detection_;
 
+  // Statistics for this session.
+  QuicConnectionStats stats_;
+
   UberReceivedPacketManager uber_received_packet_manager_;
 
   // Indicates how many consecutive times an ack has arrived which indicates
@@ -1654,9 +1657,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicConnectionDebugVisitor* debug_visitor_;
 
   QuicPacketCreator packet_creator_;
-
-  // Statistics for this session.
-  QuicConnectionStats stats_;
 
   // The time that a packet is received for this connection. Initialized to
   // connection creation time.
