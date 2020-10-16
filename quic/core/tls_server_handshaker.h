@@ -89,6 +89,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // Called when a new message is received on the crypto stream and is available
   // for the TLS stack to read.
   void AdvanceHandshake() override;
+
+  // Called when a potentially async operation is done and the done callback
+  // needs to advance the handshake.
+  void AdvanceHandshakeFromCallback();
   void CloseConnection(QuicErrorCode error,
                        const std::string& reason_phrase) override;
 

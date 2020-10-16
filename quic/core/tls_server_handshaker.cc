@@ -12,6 +12,8 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_hostname_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
@@ -38,7 +40,7 @@ void TlsServerHandshaker::SignatureCallback::Run(
   handshaker_->state_ = STATE_SIGNATURE_COMPLETE;
   handshaker_->signature_callback_ = nullptr;
   if (last_state == STATE_SIGNATURE_PENDING) {
-    handshaker_->AdvanceHandshake();
+    handshaker_->AdvanceHandshakeFromCallback();
   }
 }
 
@@ -68,7 +70,7 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
   // messages. We need to have it resume processing handshake messages by
   // calling AdvanceHandshake.
   if (handshaker_->state_ == STATE_TICKET_DECRYPTION_PENDING) {
-    handshaker_->AdvanceHandshake();
+    handshaker_->AdvanceHandshakeFromCallback();
   }
   // The TicketDecrypter took ownership of this callback when Decrypt was
   // called. Once the callback returns, it will be deleted. Remove the
@@ -271,6 +273,17 @@ void TlsServerHandshaker::AdvanceHandshake() {
     ERR_print_errors_fp(stderr);
     CloseConnection(QUIC_HANDSHAKE_FAILED,
                     "Server observed TLS handshake failure");
+  }
+}
+
+void TlsServerHandshaker::AdvanceHandshakeFromCallback() {
+  AdvanceHandshake();
+  if (GetQuicReloadableFlag(
+          quic_process_undecryptable_packets_after_async_decrypt_callback) &&
+      state_ != STATE_CONNECTION_CLOSED) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_process_undecryptable_packets_after_async_decrypt_callback);
+    handshaker_delegate()->OnHandshakeCallbackDone();
   }
 }
 

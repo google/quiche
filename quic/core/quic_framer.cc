@@ -1415,6 +1415,13 @@ QuicFramer::BuildIetfVersionNegotiationPacket(
 }
 
 bool QuicFramer::ProcessPacket(const QuicEncryptedPacket& packet) {
+  is_processing_packet_ = true;
+  bool result = ProcessPacketInternal(packet);
+  is_processing_packet_ = false;
+  return result;
+}
+
+bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
   QuicDataReader reader(packet.data(), packet.length());
 
   bool packet_has_ietf_packet_header = false;

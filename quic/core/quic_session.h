@@ -276,6 +276,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicErrorCode ProcessTransportParameters(const TransportParameters& params,
                                            bool is_resumption,
                                            std::string* error_details) override;
+  void OnHandshakeCallbackDone() override;
 
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,

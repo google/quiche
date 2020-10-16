@@ -71,6 +71,9 @@ class QUIC_EXPORT_PRIVATE HandshakerDelegateInterface {
       const TransportParameters& params,
       bool is_resumption,
       std::string* error_details) = 0;
+
+  // Called at the end of an handshake operation callback.
+  virtual void OnHandshakeCallbackDone() = 0;
 };
 
 }  // namespace quic

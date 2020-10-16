@@ -1109,6 +1109,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool check_keys_before_writing() const { return check_keys_before_writing_; }
 
+  bool is_processing_packet() const { return framer_.is_processing_packet(); }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();

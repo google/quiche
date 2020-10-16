@@ -319,6 +319,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // ignored.
   bool ProcessPacket(const QuicEncryptedPacket& packet);
 
+  // Whether we are in the middle of a call to this->ProcessPacket.
+  bool is_processing_packet() const { return is_processing_packet_; }
+
   // Largest size in bytes of all stream frame fields without the payload.
   static size_t GetMinStreamFrameSize(QuicTransportVersion version,
                                       QuicStreamId stream_id,
@@ -1042,6 +1045,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                               QuicIetfFrameType type,
                               QuicStreamId* id);
 
+  bool ProcessPacketInternal(const QuicEncryptedPacket& packet);
+
   std::string detailed_error_;
   QuicFramerVisitorInterface* visitor_;
   QuicErrorCode error_;
@@ -1114,6 +1119,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // If not null, framer asks data_producer_ to write stream frame data. Not
   // owned. TODO(fayang): Consider add data producer to framer's constructor.
   QuicStreamFrameDataProducer* data_producer_;
+
+  // Whether we are in the middle of a call to this->ProcessPacket.
+  bool is_processing_packet_ = false;
 
   // If true, framer infers packet header type (IETF/GQUIC) from version_.
   // Otherwise, framer infers packet header type from first byte of a received

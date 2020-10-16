@@ -1675,6 +1675,16 @@ QuicErrorCode QuicSession::ProcessTransportParameters(
                                             error_details);
 }
 
+void QuicSession::OnHandshakeCallbackDone() {
+  if (!connection_->connected()) {
+    return;
+  }
+
+  if (!connection()->is_processing_packet()) {
+    connection()->MaybeProcessUndecryptablePackets();
+  }
+}
+
 void QuicSession::OnCryptoHandshakeMessageSent(
     const CryptoHandshakeMessage& /*message*/) {}
 
