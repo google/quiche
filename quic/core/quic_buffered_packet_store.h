@@ -166,7 +166,7 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
 
   // Return true if add an extra packet will go beyond allowed max connection
   // limit. The limit for non-CHLO packet and CHLO packet is different.
-  bool ShouldBufferPacket(bool is_chlo);
+  bool ShouldNotBufferPacket(bool is_chlo);
 
   // A map to store packet queues with creation time for each connection.
   BufferedPacketMap undecryptable_packets_;
