@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
 #include "net/third_party/quiche/src/http2/http2_constants.h"
 #include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_alt_svc_wire_format.h"
@@ -28,7 +29,6 @@
 #include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
@@ -67,7 +67,7 @@ SpdyFrameType ToSpdyFrameType(Http2FrameType type) {
 uint64_t ToSpdyPingId(const Http2PingFields& ping) {
   uint64_t v;
   std::memcpy(&v, ping.opaque_bytes, Http2PingFields::EncodedSize());
-  return spdy::SpdyNetToHost64(v);
+  return quiche::QuicheEndian::NetToHost64(v);
 }
 
 // Overwrites the fields of the header with invalid values, for the purpose

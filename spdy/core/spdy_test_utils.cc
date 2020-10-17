@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
 namespace spdy {
@@ -95,7 +95,7 @@ void SetFrameFlags(SpdySerializedFrame* frame, uint8_t flags) {
 void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
   CHECK_GT(1u << 14, length);
   {
-    int32_t wire_length = SpdyHostToNet32(length);
+    int32_t wire_length = quiche::QuicheEndian::HostToNet32(length);
     memcpy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);
   }
 }

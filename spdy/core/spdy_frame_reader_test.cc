@@ -8,15 +8,15 @@
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace spdy {
 
 TEST(SpdyFrameReaderTest, ReadUInt16) {
   // Frame data in network byte order.
   const uint16_t kFrameData[] = {
-      SpdyHostToNet16(1),
-      SpdyHostToNet16(1 << 15),
+      quiche::QuicheEndian::HostToNet16(1),
+      quiche::QuicheEndian::HostToNet16(1 << 15),
   };
 
   SpdyFrameReader frame_reader(reinterpret_cast<const char*>(kFrameData),
@@ -36,8 +36,8 @@ TEST(SpdyFrameReaderTest, ReadUInt16) {
 TEST(SpdyFrameReaderTest, ReadUInt32) {
   // Frame data in network byte order.
   const uint32_t kFrameData[] = {
-      SpdyHostToNet32(1),
-      SpdyHostToNet32(0x80000000),
+      quiche::QuicheEndian::HostToNet32(1),
+      quiche::QuicheEndian::HostToNet32(0x80000000),
   };
 
   SpdyFrameReader frame_reader(reinterpret_cast<const char*>(kFrameData),

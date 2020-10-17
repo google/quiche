@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
 
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_endianness_util.h"
 
 namespace spdy {
 
@@ -36,7 +36,8 @@ bool SpdyFrameReader::ReadUInt16(uint16_t* result) {
   }
 
   // Read into result.
-  *result = SpdyNetToHost16(*(reinterpret_cast<const uint16_t*>(data_ + ofs_)));
+  *result = quiche::QuicheEndian::NetToHost16(
+      *(reinterpret_cast<const uint16_t*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 2;
@@ -52,7 +53,8 @@ bool SpdyFrameReader::ReadUInt32(uint32_t* result) {
   }
 
   // Read into result.
-  *result = SpdyNetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
+  *result = quiche::QuicheEndian::NetToHost32(
+      *(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
 
   // Iterate.
   ofs_ += 4;
@@ -68,10 +70,10 @@ bool SpdyFrameReader::ReadUInt64(uint64_t* result) {
   }
 
   // Read into result. Network byte order is big-endian.
-  uint64_t upper =
-      SpdyNetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
-  uint64_t lower =
-      SpdyNetToHost32(*(reinterpret_cast<const uint32_t*>(data_ + ofs_ + 4)));
+  uint64_t upper = quiche::QuicheEndian::NetToHost32(
+      *(reinterpret_cast<const uint32_t*>(data_ + ofs_)));
+  uint64_t lower = quiche::QuicheEndian::NetToHost32(
+      *(reinterpret_cast<const uint32_t*>(data_ + ofs_ + 4)));
   *result = (upper << 32) + lower;
 
   // Iterate.
@@ -101,7 +103,7 @@ bool SpdyFrameReader::ReadUInt24(uint32_t* result) {
   // Read into result.
   *result = 0;
   memcpy(reinterpret_cast<char*>(result) + 1, data_ + ofs_, 3);
-  *result = SpdyNetToHost32(*result);
+  *result = quiche::QuicheEndian::NetToHost32(*result);
 
   // Iterate.
   ofs_ += 3;
