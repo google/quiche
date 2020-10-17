@@ -42,7 +42,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     // No more data is processed afterwards.
     // Implementations are allowed to destroy the QpackInstructionDecoder
     // instance synchronously.
-    virtual void OnError(absl::string_view error_message) = 0;
+    virtual void OnInstructionDecodingError(
+        absl::string_view error_message) = 0;
   };
 
   // Both |*language| and |*delegate| must outlive this object.
@@ -53,7 +54,8 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
 
   // Provide a data fragment to decode.  Must not be called after an error has
   // occurred.  Must not be called with empty |data|.  Return true on success,
-  // false on error (in which case Delegate::OnError() is called synchronously).
+  // false on error (in which case Delegate::OnInstructionDecodingError() is
+  // called synchronously).
   bool Decode(absl::string_view data);
 
   // Returns true if no decoding has taken place yet or if the last instruction
@@ -107,7 +109,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   // Returns a pointer to an element of |*language_|.
   const QpackInstruction* LookupOpcode(uint8_t byte) const;
 
-  // Stops decoding and calls Delegate::OnError().
+  // Stops decoding and calls Delegate::OnInstructionDecodingError().
   void OnError(absl::string_view error_message);
 
   // Describes the language used for decoding.

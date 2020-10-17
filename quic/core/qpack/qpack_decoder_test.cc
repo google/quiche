@@ -441,7 +441,8 @@ TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorEntryTooLarge) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Error inserting literal entry.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                                   Eq("Error inserting literal entry.")));
 
   // Set dynamic table capacity to 34.
   DecodeEncoderStreamData(quiche::QuicheTextUtils::HexDecode("3f03"));
@@ -451,7 +452,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorEntryTooLarge) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidStaticTableEntry) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Invalid static table entry.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                                   Eq("Invalid static table entry.")));
 
   // Address invalid static table entry index 99.
   DecodeEncoderStreamData(quiche::QuicheTextUtils::HexDecode("ff2400"));
@@ -459,7 +461,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidStaticTableEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Invalid relative index.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                                   Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(quiche::QuicheTextUtils::HexDecode(
       "3fe107"          // Set dynamic table capacity to 1024.
@@ -471,7 +474,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Invalid relative index.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                                   Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(quiche::QuicheTextUtils::HexDecode(
       "3fe107"          // Set dynamic table capacity to 1024.
@@ -483,7 +487,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorTooLargeInteger) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(Eq("Encoded integer too large.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                                   Eq("Encoded integer too large.")));
 
   DecodeEncoderStreamData(
       quiche::QuicheTextUtils::HexDecode("3fffffffffffffffffffff"));
@@ -589,7 +594,8 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
 TEST_P(QpackDecoderTest, TableCapacityMustNotExceedMaximum) {
   EXPECT_CALL(
       encoder_stream_error_delegate_,
-      OnEncoderStreamError(Eq("Error updating dynamic table capacity.")));
+      OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR,
+                           Eq("Error updating dynamic table capacity.")));
 
   // Try to update dynamic table capacity to 2048, which exceeds the maximum.
   DecodeEncoderStreamData(quiche::QuicheTextUtils::HexDecode("3fe10f"));

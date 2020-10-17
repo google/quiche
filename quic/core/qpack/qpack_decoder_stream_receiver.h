@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_receiver.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
@@ -34,7 +35,8 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
     // 5.3.3 Stream Cancellation
     virtual void OnStreamCancellation(QuicStreamId stream_id) = 0;
     // Decoding error
-    virtual void OnErrorDetected(absl::string_view error_message) = 0;
+    virtual void OnErrorDetected(QuicErrorCode error_code,
+                                 absl::string_view error_message) = 0;
   };
 
   explicit QpackDecoderStreamReceiver(Delegate* delegate);
@@ -51,7 +53,7 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(absl::string_view error_message) override;
+  void OnInstructionDecodingError(absl::string_view error_message) override;
 
  private:
   QpackInstructionDecoder instruction_decoder_;

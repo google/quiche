@@ -29,7 +29,8 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
                                     absl::string_view /*value*/) override {}
   void OnDuplicate(uint64_t /*index*/) override {}
   void OnSetDynamicTableCapacity(uint64_t /*capacity*/) override {}
-  void OnErrorDetected(absl::string_view /*error_message*/) override {
+  void OnErrorDetected(QuicErrorCode /*error_code*/,
+                       absl::string_view /*error_message*/) override {
     error_detected_ = true;
   }
 

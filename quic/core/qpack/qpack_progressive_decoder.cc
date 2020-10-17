@@ -89,6 +89,14 @@ void QpackProgressiveDecoder::EndHeaderBlock() {
   }
 }
 
+void QpackProgressiveDecoder::OnError(absl::string_view error_message) {
+  DCHECK(!error_detected_);
+
+  error_detected_ = true;
+  // Might destroy |this|.
+  handler_->OnDecodingErrorDetected(error_message);
+}
+
 bool QpackProgressiveDecoder::OnInstructionDecoded(
     const QpackInstruction* instruction) {
   if (instruction == QpackPrefixInstruction()) {
@@ -114,12 +122,9 @@ bool QpackProgressiveDecoder::OnInstructionDecoded(
   return DoLiteralHeaderFieldInstruction();
 }
 
-void QpackProgressiveDecoder::OnError(absl::string_view error_message) {
-  DCHECK(!error_detected_);
-
-  error_detected_ = true;
-  // Might destroy |this|.
-  handler_->OnDecodingErrorDetected(error_message);
+void QpackProgressiveDecoder::OnInstructionDecodingError(
+    absl::string_view error_message) {
+  OnError(error_message);
 }
 
 void QpackProgressiveDecoder::OnInsertCountReachedThreshold() {

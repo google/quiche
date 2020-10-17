@@ -95,9 +95,12 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
   // through Decode().  No methods must be called afterwards.
   void EndHeaderBlock();
 
+  // Called on error.
+  void OnError(absl::string_view error_message);
+
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(absl::string_view error_message) override;
+  void OnInstructionDecodingError(absl::string_view error_message) override;
 
   // QpackHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;

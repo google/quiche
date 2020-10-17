@@ -11,6 +11,7 @@ namespace quic {
 namespace test {
 
 void NoopDecoderStreamErrorDelegate::OnDecoderStreamError(
+    QuicErrorCode /*error_code*/,
     absl::string_view /*error_message*/) {}
 
 }  // namespace test

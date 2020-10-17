@@ -9,6 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
@@ -33,7 +34,8 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
                                   absl::string_view expected_headers_filename);
 
   // QpackDecoder::EncoderStreamErrorDelegate implementation:
-  void OnEncoderStreamError(absl::string_view error_message) override;
+  void OnEncoderStreamError(QuicErrorCode error_code,
+                            absl::string_view error_message) override;
 
  private:
   // Data structure to hold TestHeadersHandler and QpackProgressiveDecoder until

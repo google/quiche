@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_decoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_receiver.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -38,7 +39,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
     // 5.2.4. Set Dynamic Table Capacity
     virtual void OnSetDynamicTableCapacity(uint64_t capacity) = 0;
     // Decoding error
-    virtual void OnErrorDetected(absl::string_view error_message) = 0;
+    virtual void OnErrorDetected(QuicErrorCode error_code,
+                                 absl::string_view error_message) = 0;
   };
 
   explicit QpackEncoderStreamReceiver(Delegate* delegate);
@@ -56,7 +58,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoderStreamReceiver
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnError(absl::string_view error_message) override;
+  void OnInstructionDecodingError(absl::string_view error_message) override;
 
  private:
   QpackInstructionDecoder instruction_decoder_;

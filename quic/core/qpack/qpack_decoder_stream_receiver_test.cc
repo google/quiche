@@ -27,7 +27,7 @@ class MockDelegate : public QpackDecoderStreamReceiver::Delegate {
   MOCK_METHOD(void, OnStreamCancellation, (QuicStreamId stream_id), (override));
   MOCK_METHOD(void,
               OnErrorDetected,
-              (absl::string_view error_message),
+              (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };
 
@@ -53,7 +53,8 @@ TEST_F(QpackDecoderStreamReceiverTest, InsertCountIncrement) {
   EXPECT_CALL(delegate_, OnInsertCountIncrement(200));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("3f8901"));
 
-  EXPECT_CALL(delegate_, OnErrorDetected(Eq("Encoded integer too large.")));
+  EXPECT_CALL(delegate_, OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+                                         Eq("Encoded integer too large.")));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("3fffffffffffffffffffff"));
 }
 
@@ -70,7 +71,8 @@ TEST_F(QpackDecoderStreamReceiverTest, HeaderAcknowledgement) {
   EXPECT_CALL(delegate_, OnHeaderAcknowledgement(503));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("fff802"));
 
-  EXPECT_CALL(delegate_, OnErrorDetected(Eq("Encoded integer too large.")));
+  EXPECT_CALL(delegate_, OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+                                         Eq("Encoded integer too large.")));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
@@ -87,7 +89,8 @@ TEST_F(QpackDecoderStreamReceiverTest, StreamCancellation) {
   EXPECT_CALL(delegate_, OnStreamCancellation(110));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("7f2f"));
 
-  EXPECT_CALL(delegate_, OnErrorDetected(Eq("Encoded integer too large.")));
+  EXPECT_CALL(delegate_, OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+                                         Eq("Encoded integer too large.")));
   stream_.Decode(quiche::QuicheTextUtils::HexDecode("7fffffffffffffffffffff"));
 }
 

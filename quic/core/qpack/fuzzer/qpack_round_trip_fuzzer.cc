@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
@@ -64,8 +65,9 @@ class EncodingEndpoint {
    public:
     ~CrashingDecoderStreamErrorDelegate() override = default;
 
-    void OnDecoderStreamError(absl::string_view error_message) override {
-      CHECK(false) << error_message;
+    void OnDecoderStreamError(QuicErrorCode error_code,
+                              absl::string_view error_message) override {
+      CHECK(false) << QuicErrorCodeToString(error_code) << " " << error_message;
     }
   };
 
@@ -377,8 +379,9 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
    public:
     ~CrashingEncoderStreamErrorDelegate() override = default;
 
-    void OnEncoderStreamError(absl::string_view error_message) override {
-      CHECK(false) << error_message;
+    void OnEncoderStreamError(QuicErrorCode error_code,
+                              absl::string_view error_message) override {
+      CHECK(false) << QuicErrorCodeToString(error_code) << " " << error_message;
     }
   };
 

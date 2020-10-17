@@ -154,10 +154,12 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   void Initialize() override;
 
   // QpackEncoder::DecoderStreamErrorDelegate implementation.
-  void OnDecoderStreamError(absl::string_view error_message) override;
+  void OnDecoderStreamError(QuicErrorCode error_code,
+                            absl::string_view error_message) override;
 
   // QpackDecoder::EncoderStreamErrorDelegate implementation.
-  void OnEncoderStreamError(absl::string_view error_message) override;
+  void OnEncoderStreamError(QuicErrorCode error_code,
+                            absl::string_view error_message) override;
 
   // Called by |headers_stream_| when headers with a priority have been
   // received for a stream.  This method will only be called for server streams.

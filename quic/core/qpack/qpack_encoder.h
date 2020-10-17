@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
@@ -45,7 +46,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
    public:
     virtual ~DecoderStreamErrorDelegate() {}
 
-    virtual void OnDecoderStreamError(absl::string_view error_message) = 0;
+    virtual void OnDecoderStreamError(QuicErrorCode error_code,
+                                      absl::string_view error_message) = 0;
   };
 
   QpackEncoder(DecoderStreamErrorDelegate* decoder_stream_error_delegate);
@@ -82,7 +84,8 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   void OnInsertCountIncrement(uint64_t increment) override;
   void OnHeaderAcknowledgement(QuicStreamId stream_id) override;
   void OnStreamCancellation(QuicStreamId stream_id) override;
-  void OnErrorDetected(absl::string_view error_message) override;
+  void OnErrorDetected(QuicErrorCode error_code,
+                       absl::string_view error_message) override;
 
   // delegate must be set if dynamic table capacity is not zero.
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {

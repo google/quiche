@@ -30,7 +30,8 @@ class ErrorDelegate : public QpackDecoder::EncoderStreamErrorDelegate {
   ErrorDelegate(bool* error_detected) : error_detected_(error_detected) {}
   ~ErrorDelegate() override = default;
 
-  void OnEncoderStreamError(absl::string_view /*error_message*/) override {
+  void OnEncoderStreamError(QuicErrorCode /*error_code*/,
+                            absl::string_view /*error_message*/) override {
     *error_detected_ = true;
   }
 

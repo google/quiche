@@ -67,8 +67,10 @@ bool QpackOfflineDecoder::DecodeAndVerifyOfflineData(
 }
 
 void QpackOfflineDecoder::OnEncoderStreamError(
+    QuicErrorCode error_code,
     absl::string_view error_message) {
-  QUIC_LOG(ERROR) << "Encoder stream error: " << error_message;
+  QUIC_LOG(ERROR) << "Encoder stream error: "
+                  << QuicErrorCodeToString(error_code) << " " << error_message;
   encoder_stream_error_detected_ = true;
 }
 

@@ -15,6 +15,7 @@ namespace quic {
 namespace test {
 
 void NoopEncoderStreamErrorDelegate::OnEncoderStreamError(
+    QuicErrorCode /* error_code */,
     absl::string_view /*error_message*/) {}
 
 TestHeadersHandler::TestHeadersHandler()

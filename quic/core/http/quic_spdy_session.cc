@@ -476,19 +476,21 @@ void QuicSpdySession::FillSettingsFrame() {
       max_inbound_header_list_size_;
 }
 
-void QuicSpdySession::OnDecoderStreamError(absl::string_view error_message) {
+void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
+                                           absl::string_view error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
-      QUIC_QPACK_DECODER_STREAM_ERROR,
+      error_code,
       quiche::QuicheStrCat("Decoder stream error: ", error_message));
 }
 
-void QuicSpdySession::OnEncoderStreamError(absl::string_view error_message) {
+void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
+                                           absl::string_view error_message) {
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
-      QUIC_QPACK_ENCODER_STREAM_ERROR,
+      error_code,
       quiche::QuicheStrCat("Encoder stream error: ", error_message));
 }
 

@@ -22,7 +22,8 @@ class NoopDecoderStreamErrorDelegate
  public:
   ~NoopDecoderStreamErrorDelegate() override = default;
 
-  void OnDecoderStreamError(absl::string_view error_message) override;
+  void OnDecoderStreamError(QuicErrorCode error_code,
+                            absl::string_view error_message) override;
 };
 
 // Mock QpackEncoder::DecoderStreamErrorDelegate implementation.
@@ -33,7 +34,7 @@ class MockDecoderStreamErrorDelegate
 
   MOCK_METHOD(void,
               OnDecoderStreamError,
-              (absl::string_view error_message),
+              (QuicErrorCode error_code, absl::string_view error_message),
               (override));
 };
 

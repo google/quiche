@@ -326,7 +326,7 @@ void QpackInstructionDecoder::OnError(absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
-  delegate_->OnError(error_message);
+  delegate_->OnInstructionDecodingError(error_message);
 }
 
 }  // namespace quic

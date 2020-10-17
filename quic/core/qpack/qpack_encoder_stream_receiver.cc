@@ -51,11 +51,12 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
   return true;
 }
 
-void QpackEncoderStreamReceiver::OnError(absl::string_view error_message) {
+void QpackEncoderStreamReceiver::OnInstructionDecodingError(
+    absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
-  delegate_->OnErrorDetected(error_message);
+  delegate_->OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR, error_message);
 }
 
 }  // namespace quic

@@ -403,29 +403,32 @@ bool QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
 
 void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
   if (increment == 0) {
-    decoder_stream_error_delegate_->OnDecoderStreamError(
-        "Invalid increment value 0.");
+    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+                    "Invalid increment value 0.");
     return;
   }
 
   if (!blocking_manager_.OnInsertCountIncrement(increment)) {
-    decoder_stream_error_delegate_->OnDecoderStreamError(
-        "Insert Count Increment instruction causes overflow.");
+    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+                    "Insert Count Increment instruction causes overflow.");
   }
 
   if (blocking_manager_.known_received_count() >
       header_table_.inserted_entry_count()) {
-    decoder_stream_error_delegate_->OnDecoderStreamError(quiche::QuicheStrCat(
-        "Increment value ", increment, " raises known received count to ",
-        blocking_manager_.known_received_count(),
-        " exceeding inserted entry count ",
-        header_table_.inserted_entry_count()));
+    OnErrorDetected(
+        QUIC_QPACK_DECODER_STREAM_ERROR,
+        quiche::QuicheStrCat("Increment value ", increment,
+                             " raises known received count to ",
+                             blocking_manager_.known_received_count(),
+                             " exceeding inserted entry count ",
+                             header_table_.inserted_entry_count()));
   }
 }
 
 void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId stream_id) {
   if (!blocking_manager_.OnHeaderAcknowledgement(stream_id)) {
-    decoder_stream_error_delegate_->OnDecoderStreamError(
+    OnErrorDetected(
+        QUIC_QPACK_DECODER_STREAM_ERROR,
         quiche::QuicheStrCat("Header Acknowledgement received for stream ",
                              stream_id, " with no outstanding header blocks."));
   }
@@ -435,8 +438,10 @@ void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
   blocking_manager_.OnStreamCancellation(stream_id);
 }
 
-void QpackEncoder::OnErrorDetected(absl::string_view error_message) {
-  decoder_stream_error_delegate_->OnDecoderStreamError(error_message);
+void QpackEncoder::OnErrorDetected(QuicErrorCode /* error_code */,
+                                   absl::string_view error_message) {
+  decoder_stream_error_delegate_->OnDecoderStreamError(
+      QUIC_QPACK_DECODER_STREAM_ERROR, error_message);
 }
 
 }  // namespace quic
