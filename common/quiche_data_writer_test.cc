@@ -9,10 +9,10 @@
 
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 namespace quiche {

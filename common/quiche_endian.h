@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_ENDIAN_H_
-#define QUICHE_COMMON_PLATFORM_API_QUICHE_ENDIAN_H_
+#ifndef QUICHE_COMMON_QUICHE_ENDIAN_H_
+#define QUICHE_COMMON_QUICHE_ENDIAN_H_
 
 #include <algorithm>
 #include <cstdint>
@@ -60,4 +60,4 @@ class QUICHE_EXPORT_PRIVATE QuicheEndian {
 
 }  // namespace quiche
 
-#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_ENDIAN_H_
+#endif  // QUICHE_COMMON_QUICHE_ENDIAN_H_

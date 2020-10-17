@@ -8,7 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
 namespace {

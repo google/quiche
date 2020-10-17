@@ -11,8 +11,8 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
 #include "net/third_party/quiche/src/common/quiche_data_writer.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
 

@@ -21,7 +21,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
 namespace {

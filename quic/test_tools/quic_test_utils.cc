@@ -36,7 +36,7 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_endian.h"
+#include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 
 using testing::_;
