@@ -299,7 +299,8 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
 
     if (attempt_key_update) {
       if (connection->IsKeyUpdateAllowed()) {
-        if (connection->InitiateKeyUpdate()) {
+        if (connection->InitiateKeyUpdate(
+                KeyUpdateReason::kLocalForInteropRunner)) {
           client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
           if (!client->connected()) {
             // Key update does not work, retry without attempting it.

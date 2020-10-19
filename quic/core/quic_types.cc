@@ -363,6 +363,29 @@ std::ostream& operator<<(std::ostream& os, AddressChangeType type) {
   return os;
 }
 
+std::string KeyUpdateReasonString(KeyUpdateReason reason) {
+#define RETURN_REASON_LITERAL(x) \
+  case KeyUpdateReason::x:       \
+    return #x
+  switch (reason) {
+    RETURN_REASON_LITERAL(kInvalid);
+    RETURN_REASON_LITERAL(kRemote);
+    RETURN_REASON_LITERAL(kLocalForTests);
+    RETURN_REASON_LITERAL(kLocalForInteropRunner);
+    RETURN_REASON_LITERAL(kLocalAeadConfidentialityLimit);
+    RETURN_REASON_LITERAL(kLocalKeyUpdateLimitOverride);
+    default:
+      return quiche::QuicheStrCat("Unknown(", static_cast<int>(reason), ")");
+      break;
+  }
+#undef RETURN_REASON_LITERAL
+}
+
+std::ostream& operator<<(std::ostream& os, const KeyUpdateReason reason) {
+  os << KeyUpdateReasonString(reason);
+  return os;
+}
+
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 
 }  // namespace quic

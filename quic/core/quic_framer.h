@@ -241,7 +241,7 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called when a Key Phase Update has been initiated. This is called for both
   // locally and peer initiated key updates. If the key update was locally
   // initiated, this does not indicate the peer has received the key update yet.
-  virtual void OnKeyUpdate() = 0;
+  virtual void OnKeyUpdate(KeyUpdateReason reason) = 0;
 
   // Called on the first decrypted packet in each key phase (including the
   // first key phase.)
@@ -546,7 +546,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Discard the decrypter for the previous key phase.
   void DiscardPreviousOneRttKeys();
   // Update the key phase.
-  bool DoKeyUpdate();
+  bool DoKeyUpdate(KeyUpdateReason reason);
 
   const QuicDecrypter* GetDecrypter(EncryptionLevel level) const;
   const QuicDecrypter* decrypter() const;

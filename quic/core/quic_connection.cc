@@ -1932,9 +1932,9 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
                                ConnectionCloseSource::FROM_PEER);
 }
 
-void QuicConnection::OnKeyUpdate() {
+void QuicConnection::OnKeyUpdate(KeyUpdateReason reason) {
   DCHECK(support_key_update_for_connection_);
-  QUIC_DLOG(INFO) << ENDPOINT << "Key phase updated";
+  QUIC_DLOG(INFO) << ENDPOINT << "Key phase updated for " << reason;
 
   lowest_packet_sent_in_current_key_phase_.Clear();
   stats_.key_update_count++;
@@ -3189,6 +3189,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
     // Approaching the confidentiality limit, initiate key update so that
     // the next set of keys will be ready for the next packet before the
     // limit is reached.
+    KeyUpdateReason reason = KeyUpdateReason::kLocalAeadConfidentialityLimit;
     if (key_update_limit_override) {
       QUIC_DLOG(INFO) << ENDPOINT
                       << "reached FLAGS_quic_key_update_confidentiality_limit, "
@@ -3197,6 +3198,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
                       << num_packets_encrypted_in_current_key_phase
                       << " key_update_limit=" << key_update_limit
                       << " confidentiality_limit=" << confidentiality_limit;
+      reason = KeyUpdateReason::kLocalKeyUpdateLimitOverride;
     } else {
       QUIC_DLOG(INFO) << ENDPOINT
                       << "approaching AEAD confidentiality limit, "
@@ -3206,7 +3208,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
                       << " key_update_limit=" << key_update_limit
                       << " confidentiality_limit=" << confidentiality_limit;
     }
-    InitiateKeyUpdate();
+    InitiateKeyUpdate(reason);
   }
 
   return false;
@@ -3683,13 +3685,13 @@ bool QuicConnection::IsKeyUpdateAllowed() const {
          GetLargestAckedPacket() >= lowest_packet_sent_in_current_key_phase_;
 }
 
-bool QuicConnection::InitiateKeyUpdate() {
+bool QuicConnection::InitiateKeyUpdate(KeyUpdateReason reason) {
   QUIC_DLOG(INFO) << ENDPOINT << "InitiateKeyUpdate";
   if (!IsKeyUpdateAllowed()) {
     QUIC_BUG << "key update not allowed";
     return false;
   }
-  return framer_.DoKeyUpdate();
+  return framer_.DoKeyUpdate(reason);
 }
 
 const QuicDecrypter* QuicConnection::decrypter() const {

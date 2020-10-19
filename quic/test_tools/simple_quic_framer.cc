@@ -220,7 +220,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
         std::make_unique<QuicIetfStatelessResetPacket>(packet);
   }
 
-  void OnKeyUpdate() override {}
+  void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {

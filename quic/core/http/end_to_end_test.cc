@@ -4833,14 +4833,16 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
   ASSERT_TRUE(client_connection);
   EXPECT_EQ(0u, client_connection->GetStats().key_update_count);
 
-  EXPECT_TRUE(client_connection->InitiateKeyUpdate());
+  EXPECT_TRUE(
+      client_connection->InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(1u, client_connection->GetStats().key_update_count);
 
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(1u, client_connection->GetStats().key_update_count);
 
-  EXPECT_TRUE(client_connection->InitiateKeyUpdate());
+  EXPECT_TRUE(
+      client_connection->InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(2u, client_connection->GetStats().key_update_count);
 
@@ -4883,7 +4885,8 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
             // key phase, wait a bit and try again.
             return false;
           }
-          EXPECT_TRUE(server_connection->InitiateKeyUpdate());
+          EXPECT_TRUE(server_connection->InitiateKeyUpdate(
+              KeyUpdateReason::kLocalForTests));
         } else {
           ADD_FAILURE() << "Missing server connection";
         }
@@ -4904,7 +4907,8 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
           if (!server_connection->IsKeyUpdateAllowed()) {
             return false;
           }
-          EXPECT_TRUE(server_connection->InitiateKeyUpdate());
+          EXPECT_TRUE(server_connection->InitiateKeyUpdate(
+              KeyUpdateReason::kLocalForTests));
         } else {
           ADD_FAILURE() << "Missing server connection";
         }
@@ -4956,7 +4960,8 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
             // key phase, wait a bit and try again.
             return false;
           }
-          EXPECT_TRUE(server_connection->InitiateKeyUpdate());
+          EXPECT_TRUE(server_connection->InitiateKeyUpdate(
+              KeyUpdateReason::kLocalForTests));
         } else {
           ADD_FAILURE() << "Missing server connection";
         }
@@ -4965,7 +4970,8 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
       QuicTime::Delta::FromSeconds(5));
   QuicConnection* client_connection = GetClientConnection();
   ASSERT_TRUE(client_connection);
-  EXPECT_TRUE(client_connection->InitiateKeyUpdate());
+  EXPECT_TRUE(
+      client_connection->InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
 
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(1u, client_connection->GetStats().key_update_count);
@@ -4980,14 +4986,16 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
           if (!server_connection->IsKeyUpdateAllowed()) {
             return false;
           }
-          EXPECT_TRUE(server_connection->InitiateKeyUpdate());
+          EXPECT_TRUE(server_connection->InitiateKeyUpdate(
+              KeyUpdateReason::kLocalForTests));
         } else {
           ADD_FAILURE() << "Missing server connection";
         }
         return true;
       },
       QuicTime::Delta::FromSeconds(5));
-  EXPECT_TRUE(client_connection->InitiateKeyUpdate());
+  EXPECT_TRUE(
+      client_connection->InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
 
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(2u, client_connection->GetStats().key_update_count);

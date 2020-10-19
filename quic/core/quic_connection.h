@@ -646,7 +646,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool IsValidStatelessResetToken(QuicUint128 token) const override;
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& packet) override;
-  void OnKeyUpdate() override;
+  void OnKeyUpdate(KeyUpdateReason reason) override;
   void OnDecryptedFirstPacketInKeyPhase() override;
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override;
@@ -819,7 +819,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Increment the key phase. It is a bug to call this when IsKeyUpdateAllowed()
   // is false. Returns false on error.
-  bool InitiateKeyUpdate();
+  bool InitiateKeyUpdate(KeyUpdateReason reason);
 
   const QuicDecrypter* decrypter() const;
   const QuicDecrypter* alternative_decrypter() const;

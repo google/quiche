@@ -12096,7 +12096,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x02);
   });
-  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+  EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   // discard_previous_keys_alarm_ should not be set until a packet from the new
   // key phase has been received. (The alarm that was set above should be
   // cleared if it hasn't fired before the next key update happened.)
@@ -12110,7 +12110,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
       .WillOnce([]() { return std::make_unique<TaggingEncrypter>(0x02); });
   peer_framer_.SetKeyUpdateSupportForConnection(true);
-  peer_framer_.DoKeyUpdate();
+  peer_framer_.DoKeyUpdate(KeyUpdateReason::kRemote);
 
   // Another key update should not be allowed yet.
   EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
@@ -12132,7 +12132,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x03);
   });
-  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+  EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
 
   // Pretend that peer accepts the key update.
   EXPECT_CALL(peer_framer_visitor_,
@@ -12141,7 +12141,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
           []() { return std::make_unique<StrictTaggingDecrypter>(0x03); });
   EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
       .WillOnce([]() { return std::make_unique<TaggingEncrypter>(0x03); });
-  peer_framer_.DoKeyUpdate();
+  peer_framer_.DoKeyUpdate(KeyUpdateReason::kRemote);
 
   // Another key update should not be allowed yet.
   EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
@@ -12166,7 +12166,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x04);
   });
-  EXPECT_TRUE(connection_.InitiateKeyUpdate());
+  EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
 }
 
@@ -12254,7 +12254,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
           .WillOnce([current_tag]() {
             return std::make_unique<TaggingEncrypter>(current_tag);
           });
-      peer_framer_.DoKeyUpdate();
+      peer_framer_.DoKeyUpdate(KeyUpdateReason::kRemote);
     }
     // Receive ack for packet.
     EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));

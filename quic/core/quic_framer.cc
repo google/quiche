@@ -4255,7 +4255,7 @@ void QuicFramer::DiscardPreviousOneRttKeys() {
   previous_decrypter_ = nullptr;
 }
 
-bool QuicFramer::DoKeyUpdate() {
+bool QuicFramer::DoKeyUpdate(KeyUpdateReason reason) {
   DCHECK(support_key_update_for_connection_);
   if (!next_decrypter_) {
     // If key update is locally initiated, next decrypter might not be created
@@ -4275,7 +4275,7 @@ bool QuicFramer::DoKeyUpdate() {
   previous_decrypter_ = std::move(decrypter_[ENCRYPTION_FORWARD_SECURE]);
   decrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_decrypter_);
   encrypter_[ENCRYPTION_FORWARD_SECURE] = std::move(next_encrypter);
-  visitor_->OnKeyUpdate();
+  visitor_->OnKeyUpdate(reason);
   return true;
 }
 
@@ -4750,7 +4750,7 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
     visitor_->OnDecryptedPacket(level);
     *decrypted_level = level;
     if (attempt_key_update) {
-      if (!DoKeyUpdate()) {
+      if (!DoKeyUpdate(KeyUpdateReason::kRemote)) {
         set_detailed_error("Key update failed due to internal error");
         return RaiseError(QUIC_INTERNAL_ERROR);
       }

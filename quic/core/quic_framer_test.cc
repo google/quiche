@@ -221,7 +221,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
         packet_count_(0),
         frame_count_(0),
         complete_packets_(0),
-        key_update_count_(0),
         derive_next_key_count_(0),
         decrypted_first_packet_in_key_phase_count_(0),
         accept_packet_(true),
@@ -578,7 +577,9 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
-  void OnKeyUpdate() override { key_update_count_++; }
+  void OnKeyUpdate(KeyUpdateReason reason) override {
+    key_update_reasons_.push_back(reason);
+  }
 
   void OnDecryptedFirstPacketInKeyPhase() override {
     decrypted_first_packet_in_key_phase_count_++;
@@ -598,13 +599,15 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     transport_version_ = framer->transport_version();
   }
 
+  size_t key_update_count() const { return key_update_reasons_.size(); }
+
   // Counters from the visitor_ callbacks.
   int error_count_;
   int version_mismatch_;
   int packet_count_;
   int frame_count_;
   int complete_packets_;
-  int key_update_count_;
+  std::vector<KeyUpdateReason> key_update_reasons_;
   int derive_next_key_count_;
   int decrypted_first_packet_in_key_phase_count_;
   bool accept_packet_;
@@ -14838,7 +14841,7 @@ TEST_P(QuicFramerTest, KeyUpdate) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   // Processed valid packet with phase=0, key=1: no key update.
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14852,7 +14855,8 @@ TEST_P(QuicFramerTest, KeyUpdate) {
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   // Processed valid packet with phase=1, key=2: key update should have
   // occurred.
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  ASSERT_EQ(1u, visitor_.key_update_count());
+  EXPECT_EQ(KeyUpdateReason::kRemote, visitor_.key_update_reasons_[0]);
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14865,7 +14869,7 @@ TEST_P(QuicFramerTest, KeyUpdate) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   // Processed another valid packet with phase=1, key=2: no key update.
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14878,7 +14882,8 @@ TEST_P(QuicFramerTest, KeyUpdate) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(2, visitor_.key_update_count_);
+  ASSERT_EQ(2u, visitor_.key_update_count());
+  EXPECT_EQ(KeyUpdateReason::kRemote, visitor_.key_update_reasons_[1]);
   EXPECT_EQ(2, visitor_.derive_next_key_count_);
   EXPECT_EQ(3, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -14912,7 +14917,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14925,7 +14930,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14940,7 +14945,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should decrypt and key update count should not change.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -14974,7 +14979,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -14987,7 +14992,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15005,7 +15010,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should not decrypt and key update count should not change.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -15039,7 +15044,7 @@ TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15052,7 +15057,7 @@ TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
   ASSERT_TRUE(encrypted);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15067,7 +15072,7 @@ TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should decrypt and key update count should not change.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(2, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -15102,7 +15107,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   // Processed valid packet with phase=0, key=1: no key update.
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15117,7 +15122,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   // update, but next decrypter key should have been created to attempt to
   // decode it.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15131,7 +15136,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   // Packet with phase=1 but key=1, should not process and should not cause key
   // update.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15145,7 +15150,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   // Packet with phase=0 but key=2, should not process and should not cause key
   // update.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -15181,7 +15186,7 @@ TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {
   // update enabled (SetNextOneRttCrypters never called). Should fail to
   // process.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(0, visitor_.key_update_count_);
+  EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -15198,10 +15203,11 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
 
-  EXPECT_TRUE(framer_.DoKeyUpdate());
+  EXPECT_TRUE(framer_.DoKeyUpdate(KeyUpdateReason::kLocalForTests));
   // Key update count should be updated, but haven't received packet from peer
   // with new key phase.
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  ASSERT_EQ(1u, visitor_.key_update_count());
+  EXPECT_EQ(KeyUpdateReason::kLocalForTests, visitor_.key_update_reasons_[0]);
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15225,7 +15231,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
   // Packet should decrypt and key update count should not change and
   // OnDecryptedFirstPacketInKeyPhase should have been called.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15240,7 +15246,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should decrypt and key update count should not change.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15256,7 +15262,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should not decrypt and key update count should not change.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(2, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 }
@@ -15273,10 +15279,10 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
 
-  EXPECT_TRUE(framer_.DoKeyUpdate());
+  EXPECT_TRUE(framer_.DoKeyUpdate(KeyUpdateReason::kLocalForTests));
   // Key update count should be updated, but haven't received packet
   // from peer with new key phase.
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15302,7 +15308,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
   // OnDecryptedFirstPacketInKeyPhase should not have been called since the
   // packet was from the previous key phase.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(0, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15317,7 +15323,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
   // Packet should decrypt and key update count should not change, but
   // OnDecryptedFirstPacketInKeyPhase should have been called.
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 
@@ -15333,7 +15339,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
   // Packet should not decrypt and key update count should not change.
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
-  EXPECT_EQ(1, visitor_.key_update_count_);
+  EXPECT_EQ(1u, visitor_.key_update_count());
   EXPECT_EQ(2, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
 }

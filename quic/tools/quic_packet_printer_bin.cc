@@ -220,7 +220,9 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
       const QuicIetfStatelessResetPacket& /*packet*/) override {
     std::cerr << "OnAuthenticatedIetfStatelessResetPacket\n";
   }
-  void OnKeyUpdate() override { std::cerr << "OnKeyUpdate\n"; }
+  void OnKeyUpdate(KeyUpdateReason reason) override {
+    std::cerr << "OnKeyUpdate: " << reason << "\n";
+  }
   void OnDecryptedFirstPacketInKeyPhase() override {
     std::cerr << "OnDecryptedFirstPacketInKeyPhase\n";
   }

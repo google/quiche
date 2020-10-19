@@ -160,7 +160,7 @@ class QUIC_NO_EXPORT TlsChloExtractor
   }
   void OnAuthenticatedIetfStatelessResetPacket(
       const QuicIetfStatelessResetPacket& /*packet*/) override {}
-  void OnKeyUpdate() override {}
+  void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
   std::unique_ptr<QuicDecrypter> AdvanceKeysAndCreateCurrentOneRttDecrypter()
       override {

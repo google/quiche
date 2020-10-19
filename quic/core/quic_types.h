@@ -798,6 +798,21 @@ struct QUIC_NO_EXPORT QuicOwnedPacketBuffer : public QuicPacketBuffer {
   }
 };
 
+// These values must remain stable as they are uploaded to UMA histograms.
+enum class KeyUpdateReason {
+  kInvalid = 0,
+  kRemote = 1,
+  kLocalForTests = 2,
+  kLocalForInteropRunner = 3,
+  kLocalAeadConfidentialityLimit = 4,
+  kLocalKeyUpdateLimitOverride = 5,
+};
+
+QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                             const KeyUpdateReason reason);
+
+QUIC_EXPORT_PRIVATE std::string KeyUpdateReasonString(KeyUpdateReason reason);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_
