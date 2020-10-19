@@ -167,6 +167,8 @@ const QuicTag kAFFE = TAG('A', 'F', 'F', 'E');   // Enable client receiving
                                                  // AckFrequencyFrame.
 const QuicTag kAFF1 = TAG('A', 'F', 'F', '1');   // Use SRTT in building
                                                  // AckFrequencyFrame.
+const QuicTag kAFF2 = TAG('A', 'F', 'F', '2');   // Send AckFrequencyFrame upon
+                                                 // handshake completion.
 const QuicTag kSSLR = TAG('S', 'S', 'L', 'R');   // Slow Start Large Reduction.
 const QuicTag kNPRR = TAG('N', 'P', 'R', 'R');   // Pace at unity instead of PRR
 const QuicTag k2RTO = TAG('2', 'R', 'T', 'O');   // Close connection on 2 RTOs

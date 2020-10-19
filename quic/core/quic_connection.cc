@@ -592,6 +592,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   sent_packet_manager_.SetFromConfig(config);
+  if (perspective_ == Perspective::IS_SERVER &&
+      config.HasClientSentConnectionOption(kAFF2, perspective_)) {
+    send_ack_frequency_on_handshake_completion_ = true;
+  }
   if (config.HasReceivedBytesForConnectionId() &&
       can_truncate_connection_ids_) {
     packet_creator_.SetServerConnectionIdLength(
@@ -2636,6 +2640,7 @@ const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
   if (!ack_frequency_sent_ && sent_packet_manager_.CanSendAckFrequency()) {
     if (packet_creator_.NextSendingPacketNumber() >=
         FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
       ack_frequency_sent_ = true;
       auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
       visitor_->SendAckFrequency(frame);
@@ -3402,6 +3407,20 @@ void QuicConnection::OnPathMtuIncreased(QuicPacketLength packet_size) {
 
 void QuicConnection::OnHandshakeComplete() {
   sent_packet_manager_.SetHandshakeConfirmed();
+  if (send_ack_frequency_on_handshake_completion_ &&
+      sent_packet_manager_.CanSendAckFrequency()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 2, 3);
+    auto ack_frequency_frame =
+        sent_packet_manager_.GetUpdatedAckFrequencyFrame();
+    // This AckFrequencyFrame is meant to only update the max_ack_delay. Set
+    // packet tolerance to the default value for now.
+    ack_frequency_frame.packet_tolerance =
+        kDefaultRetransmittablePacketsBeforeAck;
+    visitor_->SendAckFrequency(ack_frequency_frame);
+    if (!connected_) {
+      return;
+    }
+  }
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
   if (default_enable_5rto_blackhole_detection_) {

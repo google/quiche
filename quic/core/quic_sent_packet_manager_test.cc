@@ -4431,12 +4431,12 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
 
   // Set up RTTs.
   auto* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
-  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(8),
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(80),
                        /*ack_delay=*/QuicTime::Delta::Zero(),
                        /*now=*/QuicTime::Zero());
   // Make sure srtt and min_rtt are different.
   rtt_stats->UpdateRtt(
-      QuicTime::Delta::FromMilliseconds(16),
+      QuicTime::Delta::FromMilliseconds(160),
       /*ack_delay=*/QuicTime::Delta::Zero(),
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 
@@ -4461,12 +4461,12 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
 
   // Set up RTTs.
   auto* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
-  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(8),
+  rtt_stats->UpdateRtt(QuicTime::Delta::FromMilliseconds(80),
                        /*ack_delay=*/QuicTime::Delta::Zero(),
                        /*now=*/QuicTime::Zero());
   // Make sure srtt and min_rtt are different.
   rtt_stats->UpdateRtt(
-      QuicTime::Delta::FromMilliseconds(16),
+      QuicTime::Delta::FromMilliseconds(160),
       /*ack_delay=*/QuicTime::Delta::Zero(),
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 

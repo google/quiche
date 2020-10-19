@@ -1891,6 +1891,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicate whether any ENCRYPTION_HANDSHAKE packet has been sent.
   bool handshake_packet_sent_ = false;
 
+  // Indicate whether to send an AckFrequencyFrame upon handshake completion.
+  // The AckFrequencyFrame sent will updates client's max_ack_delay, which if
+  // chosen properly can reduce the CPU and bandwidth usage for ACK frames.
+  bool send_ack_frequency_on_handshake_completion_ = false;
+
   // Indicate whether AckFrequency frame has been sent.
   bool ack_frequency_sent_ = false;
 

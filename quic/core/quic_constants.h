@@ -120,7 +120,7 @@ const int64_t kDefaultDelayedAckTimeMs = 25;
 
 // Default minimum delayed ack time, in ms (used only for sender control of ack
 // frequency).
-const uint32_t kDefaultMinAckDelayTimeMs = 1;
+const uint32_t kDefaultMinAckDelayTimeMs = 5;
 
 // Default shift of the ACK delay in the IETF QUIC ACK frame.
 const uint32_t kDefaultAckDelayExponent = 3;

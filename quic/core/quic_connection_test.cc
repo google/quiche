@@ -12493,6 +12493,41 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   SendStreamDataToPeer(/*id=*/1, "baz", /*offset=*/6, NO_FIN, nullptr);
 }
 
+TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
+  set_perspective(Perspective::IS_SERVER);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _))
+      .Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AnyNumber());
+
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMinAckDelayMs(&config, /*min_ack_delay_ms=*/1);
+  QuicTagVector quic_tag_vector;
+  // Enable sending AckFrequency upon handshake completion.
+  quic_tag_vector.push_back(kAFF2);
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, quic_tag_vector);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  QuicConnectionPeer::SetAddressValidated(&connection_);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+
+  QuicAckFrequencyFrame captured_frame;
+  EXPECT_CALL(visitor_, SendAckFrequency(_))
+      .WillOnce(Invoke([&captured_frame](const QuicAckFrequencyFrame& frame) {
+        captured_frame = frame;
+      }));
+
+  connection_.OnHandshakeComplete();
+
+  EXPECT_EQ(captured_frame.packet_tolerance, 2u);
+  EXPECT_EQ(captured_frame.max_ack_delay,
+            QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

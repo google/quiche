@@ -726,13 +726,17 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     return frame;
   }
 
-  QUIC_RELOADABLE_FLAG_COUNT(quic_can_send_ack_frequency);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
   frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
   frame.max_ack_delay = rtt * kAckDecimationDelay;
   frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
-
+  // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
+  // 5 ms on the client side.
+  frame.max_ack_delay =
+      std::max(frame.max_ack_delay,
+               QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
   return frame;
 }
 
