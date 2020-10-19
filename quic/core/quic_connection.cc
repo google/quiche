@@ -1943,6 +1943,8 @@ void QuicConnection::OnKeyUpdate(KeyUpdateReason reason) {
   // discard_previous_one_rtt_keys_alarm_ hasn't fired yet, cancel it since the
   // old keys would already be discarded.
   discard_previous_one_rtt_keys_alarm_->Cancel();
+
+  visitor_->OnKeyUpdate(reason);
 }
 
 void QuicConnection::OnDecryptedFirstPacketInKeyPhase() {

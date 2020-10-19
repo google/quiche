@@ -581,6 +581,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnPacketDecrypted, (EncryptionLevel), (override));
   MOCK_METHOD(void, OnOneRttPacketAcknowledged, (), (override));
   MOCK_METHOD(void, OnHandshakePacketSent, (), (override));
+  MOCK_METHOD(void, OnKeyUpdate, (KeyUpdateReason), (override));
   MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
               AdvanceKeysAndCreateCurrentOneRttDecrypter,
               (),

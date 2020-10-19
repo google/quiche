@@ -196,6 +196,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when a packet of ENCRYPTION_HANDSHAKE gets sent.
   virtual void OnHandshakePacketSent() = 0;
 
+  // Called when a key update has occurred.
+  virtual void OnKeyUpdate(KeyUpdateReason reason) = 0;
+
   // Called to generate a decrypter for the next key phase. Each call should
   // generate the key for phase n+1.
   virtual std::unique_ptr<QuicDecrypter>

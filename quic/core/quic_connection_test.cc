@@ -12096,6 +12096,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x02);
   });
+  EXPECT_CALL(visitor_, OnKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   // discard_previous_keys_alarm_ should not be set until a packet from the new
   // key phase has been received. (The alarm that was set above should be
@@ -12132,6 +12133,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x03);
   });
+  EXPECT_CALL(visitor_, OnKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
 
   // Pretend that peer accepts the key update.
@@ -12166,6 +12168,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
     return std::make_unique<TaggingEncrypter>(0x04);
   });
+  EXPECT_CALL(visitor_, OnKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
 }
@@ -12230,6 +12233,8 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
           .WillOnce([current_tag]() {
             return std::make_unique<TaggingEncrypter>(current_tag);
           });
+      EXPECT_CALL(visitor_,
+                  OnKeyUpdate(KeyUpdateReason::kLocalKeyUpdateLimitOverride));
     }
     // Send packet.
     QuicPacketNumber last_packet;
