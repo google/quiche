@@ -350,9 +350,6 @@ class QUIC_NO_EXPORT QuicIntervalSet {
     return *this;
   }
 
-  // Swap this QuicIntervalSet with *other. This is a constant-time operation.
-  void Swap(QuicIntervalSet<T>* other) { intervals_.swap(other->intervals_); }
-
   friend bool operator==(const QuicIntervalSet& a, const QuicIntervalSet& b) {
     return a.Size() == b.Size() &&
            std::equal(a.begin(), a.end(), b.begin(), NonemptyIntervalEq());
@@ -437,9 +434,6 @@ auto operator<<(std::ostream& out, const QuicIntervalSet<T>& seq)
 
   return out;
 }
-
-template <typename T>
-void swap(QuicIntervalSet<T>& x, QuicIntervalSet<T>& y);
 
 //==============================================================================
 // Implementation details: Clients can stop reading here.
@@ -916,11 +910,6 @@ bool QuicIntervalSet<T>::Valid() const {
     prev = it;
   }
   return true;
-}
-
-template <typename T>
-void swap(QuicIntervalSet<T>& x, QuicIntervalSet<T>& y) {
-  x.Swap(&y);
 }
 
 // This comparator orders intervals first by ascending min() and then by

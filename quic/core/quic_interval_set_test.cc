@@ -971,10 +971,10 @@ TEST_F(QuicIntervalSetTest, Swap) {
   a.Add(300, 400);
   b.Add(100, 200);
   b.Add(500, 600);
-  a.Swap(&b);
+  std::swap(a, b);
   EXPECT_TRUE(Check(a, 2, 100, 200, 500, 600));
   EXPECT_TRUE(Check(b, 1, 300, 400));
-  swap(a, b);
+  std::swap(a, b);
   EXPECT_TRUE(Check(a, 1, 300, 400));
   EXPECT_TRUE(Check(b, 2, 100, 200, 500, 600));
 }
