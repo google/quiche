@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 
@@ -45,7 +45,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   // Send the stream type on so the peer knows about this stream.
   char data[sizeof(kControlStream)];
-  QuicDataWriter writer(QUICHE_ARRAYSIZE(data), data);
+  QuicDataWriter writer(ABSL_ARRAYSIZE(data), data);
   writer.WriteVarInt62(kControlStream);
   WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
                     nullptr);

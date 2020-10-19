@@ -7,8 +7,8 @@
 #include <memory>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 using spdy::SpdyHeaderBlock;
 
@@ -157,11 +157,11 @@ TEST_F(PushPromiseUrlTest, GetPushPromiseUrl) {
       {"[::ffff:192.168", 0},
       {"]/", 0},
       {"//", 0}};
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(input_headers); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(input_headers); ++i) {
     bool should_accept = (input_headers[i].second & SCHEME);
-    for (size_t j = 0; j < QUICHE_ARRAYSIZE(input_headers); ++j) {
+    for (size_t j = 0; j < ABSL_ARRAYSIZE(input_headers); ++j) {
       bool should_accept_2 = should_accept && (input_headers[j].second & AUTH);
-      for (size_t k = 0; k < QUICHE_ARRAYSIZE(input_headers); ++k) {
+      for (size_t k = 0; k < ABSL_ARRAYSIZE(input_headers); ++k) {
         // |should_accept_3| indicates whether or not GetPushPromiseUrl() is
         // expected to accept this input combination.
         bool should_accept_3 =

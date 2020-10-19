@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -42,7 +43,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
@@ -2271,7 +2271,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, QUICHE_ARRAYSIZE(input));
+  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2323,7 +2323,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
 
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, QUICHE_ARRAYSIZE(input));
+  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2364,7 +2364,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   char input[] = {0x41, 0x00,      // type (256)
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, QUICHE_ARRAYSIZE(input));
+  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2943,7 +2943,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
       {kQpackEncoderStream, "RESET_STREAM received for QPACK receive stream"},
       {kQpackDecoderStream, "RESET_STREAM received for QPACK receive stream"},
   };
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
     QuicStreamId stream_id =
         GetNthClientInitiatedUnidirectionalStreamId(transport_version(), i + 1);
     const QuicByteCount data_length = 1;

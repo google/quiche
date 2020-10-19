@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
@@ -23,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_storage.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
@@ -263,7 +263,7 @@ size_t QuicSpdyStream::WriteHeaders(
   if (VersionUsesHttp3(transport_version()) && type() == WRITE_UNIDIRECTIONAL &&
       send_buffer().stream_offset() == 0) {
     char data[sizeof(kServerPushStream)];
-    QuicDataWriter writer(QUICHE_ARRAYSIZE(data), data);
+    QuicDataWriter writer(ABSL_ARRAYSIZE(data), data);
     writer.WriteVarInt62(kServerPushStream);
 
     // Similar to frame headers, stream type byte shouldn't be exposed to upper

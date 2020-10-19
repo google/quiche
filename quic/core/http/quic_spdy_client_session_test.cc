@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -37,7 +38,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::SpdyHeaderBlock;
@@ -280,7 +280,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   // Verify that no data may be send on existing streams.
   char data[] = "hello world";
   EXPECT_QUIC_BUG(
-      session_->WritevData(stream->id(), QUICHE_ARRAYSIZE(data), 0, NO_FIN,
+      session_->WritevData(stream->id(), ABSL_ARRAYSIZE(data), 0, NO_FIN,
                            NOT_RETRANSMISSION, absl::nullopt),
       "Client: Try to send data of stream");
 }

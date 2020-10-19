@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3HighestPriority;
@@ -190,7 +190,7 @@ class TestStream : public QuicSpdyStream {
     char buffer[2048];
     struct iovec vec;
     vec.iov_base = buffer;
-    vec.iov_len = QUICHE_ARRAYSIZE(buffer);
+    vec.iov_len = ABSL_ARRAYSIZE(buffer);
     size_t bytes_read = Readv(&vec, 1);
     data_ += std::string(buffer, bytes_read);
   }
@@ -797,10 +797,10 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyReadv) {
   stream_->ConsumeHeaderList();
 
   char buffer[2048];
-  ASSERT_LT(data.length(), QUICHE_ARRAYSIZE(buffer));
+  ASSERT_LT(data.length(), ABSL_ARRAYSIZE(buffer));
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = QUICHE_ARRAYSIZE(buffer);
+  vec.iov_len = ABSL_ARRAYSIZE(buffer);
 
   size_t bytes_read = stream_->Readv(&vec, 1);
   QuicStreamPeer::CloseReadSide(stream_);
@@ -822,9 +822,9 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndLargeBodySmallReadv) {
   char buffer2[2048];
   struct iovec vec[2];
   vec[0].iov_base = buffer;
-  vec[0].iov_len = QUICHE_ARRAYSIZE(buffer);
+  vec[0].iov_len = ABSL_ARRAYSIZE(buffer);
   vec[1].iov_base = buffer2;
-  vec[1].iov_len = QUICHE_ARRAYSIZE(buffer2);
+  vec[1].iov_len = ABSL_ARRAYSIZE(buffer2);
   size_t bytes_read = stream_->Readv(vec, 2);
   EXPECT_EQ(2048u * 2, bytes_read);
   EXPECT_EQ(body.substr(0, 2048), std::string(buffer, 2048));
@@ -889,7 +889,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyIncrementalReadv) {
   char buffer[1];
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = QUICHE_ARRAYSIZE(buffer);
+  vec.iov_len = ABSL_ARRAYSIZE(buffer);
 
   for (size_t i = 0; i < body.length(); ++i) {
     size_t bytes_read = stream_->Readv(&vec, 1);
@@ -914,9 +914,9 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
   char buffer2[1];
   struct iovec vec[2];
   vec[0].iov_base = buffer1;
-  vec[0].iov_len = QUICHE_ARRAYSIZE(buffer1);
+  vec[0].iov_len = ABSL_ARRAYSIZE(buffer1);
   vec[1].iov_base = buffer2;
-  vec[1].iov_len = QUICHE_ARRAYSIZE(buffer2);
+  vec[1].iov_len = ABSL_ARRAYSIZE(buffer2);
 
   for (size_t i = 0; i < body.length(); i += 2) {
     size_t bytes_read = stream_->Readv(vec, 2);
@@ -2067,7 +2067,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   char buffer[2048];
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = QUICHE_ARRAYSIZE(buffer);
+  vec.iov_len = ABSL_ARRAYSIZE(buffer);
   size_t bytes_read = stream_->Readv(&vec, 1);
   EXPECT_EQ(kDataFramePayload, absl::string_view(buffer, bytes_read));
 
