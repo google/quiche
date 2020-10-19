@@ -7,7 +7,6 @@
 
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
@@ -780,13 +779,6 @@ QuicRstStreamErrorCode IetfResetStreamErrorCodeToRstStreamErrorCode(
       return QUIC_STREAM_DECODER_STREAM_ERROR;
   }
   return QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE;
-}
-
-void RecordFailToSerializePacketLocation(
-    QuicFailToSerializePacketLocation location) {
-  QUIC_CLIENT_HISTOGRAM_ENUM("QuicSession.FailToSerializePacketLocation",
-                             location, kMaxFailLocationValue,
-                             "The reason why a packet fails to serialize");
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

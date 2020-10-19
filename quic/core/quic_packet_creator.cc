@@ -607,7 +607,6 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   size_t length_field_offset = 0;
   if (!framer_->AppendPacketHeader(header, &writer, &length_field_offset)) {
     QUIC_BUG << "AppendPacketHeader failed";
-    RecordFailToSerializePacketLocation(kQuicFailToAppendPacketHeaderFastPath);
     return;
   }
 
@@ -649,12 +648,10 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
   bool omit_frame_length = !needs_padding;
   if (!framer_->AppendTypeByte(QuicFrame(frame), omit_frame_length, &writer)) {
     QUIC_BUG << "AppendTypeByte failed";
-    RecordFailToSerializePacketLocation(kQuicFailToAppendTypeFastPath);
     return;
   }
   if (!framer_->AppendStreamFrame(frame, omit_frame_length, &writer)) {
     QUIC_BUG << "AppendStreamFrame failed";
-    RecordFailToSerializePacketLocation(kQuicFailToAppendStreamFrameFastPath);
     return;
   }
   if (needs_padding &&
@@ -662,14 +659,11 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
       !writer.WritePaddingBytes(MinPlaintextPacketSize(framer_->version()) -
                                 plaintext_bytes_written)) {
     QUIC_BUG << "Unable to add padding bytes";
-    RecordFailToSerializePacketLocation(kQuicFailToAddPaddingFastPath);
     return;
   }
 
   if (!framer_->WriteIetfLongHeaderLength(header, &writer, length_field_offset,
                                           packet_.encryption_level)) {
-    RecordFailToSerializePacketLocation(
-        kQuicFailToWriteIetfLongHeaderLengthFastPath);
     return;
   }
 
@@ -684,7 +678,6 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
       writer.length(), kMaxOutgoingPacketSize, encrypted_buffer);
   if (encrypted_length == 0) {
     QUIC_BUG << "Failed to encrypt packet number " << header.packet_number;
-    RecordFailToSerializePacketLocation(kQuicFailToEncryptPacketFastPath);
     return;
   }
   // TODO(ianswett): Optimize the storage so RetransmitableFrames can be
@@ -769,7 +762,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                         size_t encrypted_buffer_len) {
   if (close_connection_on_serialization_failure_ &&
       packet_.encrypted_buffer != nullptr) {
-    RecordFailToSerializePacketLocation(kQuicSerializePacketNonEmptyBuffer);
     const std::string error_details =
         "Packet's encrypted buffer is not empty before serialization";
     QUIC_BUG << error_details;
@@ -813,22 +805,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
              << QuicFramesToString(queued_frames_)
              << " at missing encryption_level " << packet_.encryption_level
              << " using " << framer_->version();
-    switch (packet_.encryption_level) {
-      case ENCRYPTION_INITIAL:
-        RecordFailToSerializePacketLocation(kQuicMissingInitialKey);
-        break;
-      case ENCRYPTION_HANDSHAKE:
-        RecordFailToSerializePacketLocation(kQuicMissingHandshakeKey);
-        break;
-      case ENCRYPTION_ZERO_RTT:
-        RecordFailToSerializePacketLocation(kQuicMissingZeroRttKey);
-        break;
-      case ENCRYPTION_FORWARD_SECURE:
-        RecordFailToSerializePacketLocation(kQuicMissingOneRttKey);
-        break;
-      default:
-        break;
-    }
     return false;
   }
 
@@ -847,42 +823,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
              << latched_hard_max_packet_length_
              << ", max_packet_length_: " << max_packet_length_
              << ", header: " << header;
-    switch (packet_.encryption_level) {
-      case ENCRYPTION_INITIAL:
-        if (QuicUtils::ContainsFrameType(queued_frames_, PADDING_FRAME)) {
-          RecordFailToSerializePacketLocation(
-              kQuicFailToBuildPacketWithPaddingInitial);
-        } else {
-          RecordFailToSerializePacketLocation(kQuicFailToBuildPacketInitial);
-        }
-        break;
-      case ENCRYPTION_HANDSHAKE:
-        if (QuicUtils::ContainsFrameType(queued_frames_, PADDING_FRAME)) {
-          RecordFailToSerializePacketLocation(
-              kQuicFailToBuildPacketWithPaddingHandshake);
-        } else {
-          RecordFailToSerializePacketLocation(kQuicFailToBuildPacketHandshake);
-        }
-        break;
-      case ENCRYPTION_ZERO_RTT:
-        if (QuicUtils::ContainsFrameType(queued_frames_, PADDING_FRAME)) {
-          RecordFailToSerializePacketLocation(
-              kQuicFailToBuildPacketWithPaddingZeroRtt);
-        } else {
-          RecordFailToSerializePacketLocation(kQuicFailToBuildPacketZeroRtt);
-        }
-        break;
-      case ENCRYPTION_FORWARD_SECURE:
-        if (QuicUtils::ContainsFrameType(queued_frames_, PADDING_FRAME)) {
-          RecordFailToSerializePacketLocation(
-              kQuicFailToBuildPacketWithPaddingOneRtt);
-        } else {
-          RecordFailToSerializePacketLocation(kQuicFailToBuildPacketOneRtt);
-        }
-        break;
-      default:
-        break;
-    }
     return false;
   }
 
@@ -904,22 +844,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
       encrypted_buffer_len, encrypted_buffer.buffer);
   if (encrypted_length == 0) {
     QUIC_BUG << "Failed to encrypt packet number " << packet_.packet_number;
-    switch (packet_.encryption_level) {
-      case ENCRYPTION_INITIAL:
-        RecordFailToSerializePacketLocation(kQuicFailToEncryptInitial);
-        break;
-      case ENCRYPTION_HANDSHAKE:
-        RecordFailToSerializePacketLocation(kQuicFailToEncryptHandshake);
-        break;
-      case ENCRYPTION_ZERO_RTT:
-        RecordFailToSerializePacketLocation(kQuicFailToEncryptZeroRtt);
-        break;
-      case ENCRYPTION_FORWARD_SECURE:
-        RecordFailToSerializePacketLocation(kQuicFailToEncryptOneRtt);
-        break;
-      default:
-        break;
-    }
     return false;
   }
 
