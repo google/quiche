@@ -36,4 +36,17 @@ std::string AesBaseDecrypter::GenerateHeaderProtectionMask(
   return out;
 }
 
+QuicPacketCount AesBaseDecrypter::GetIntegrityLimit() const {
+  // For AEAD_AES_128_GCM ... endpoints that do not attempt to remove
+  // protection from packets larger than 2^11 bytes can attempt to remove
+  // protection from at most 2^57 packets.
+  // For AEAD_AES_256_GCM [the limit] is substantially larger than the limit for
+  // AEAD_AES_128_GCM. However, this document recommends that the same limit be
+  // applied to both functions as either limit is acceptably large.
+  // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-integrity-limit
+  static_assert(kMaxIncomingPacketSize <= 2048,
+                "This key limit requires limits on decryption payload sizes");
+  return 144115188075855872U;
+}
+
 }  // namespace quic

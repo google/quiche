@@ -73,6 +73,10 @@ class QUIC_EXPORT_PRIVATE QuicDecrypter : public QuicCrypter {
   // selector'.
   virtual uint32_t cipher_id() const = 0;
 
+  // Returns the maximum number of packets that can safely fail decryption with
+  // this decrypter.
+  virtual QuicPacketCount GetIntegrityLimit() const = 0;
+
   // For use by unit tests only.
   virtual absl::string_view GetKey() const = 0;
   virtual absl::string_view GetNoncePrefix() const = 0;

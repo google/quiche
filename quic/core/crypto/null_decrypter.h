@@ -50,6 +50,7 @@ class QUIC_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
   absl::string_view GetNoncePrefix() const override;
 
   uint32_t cipher_id() const override;
+  QuicPacketCount GetIntegrityLimit() const override;
 
  private:
   bool ReadHash(QuicDataReader* reader, QuicUint128* hash);

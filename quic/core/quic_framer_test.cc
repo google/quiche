@@ -183,6 +183,9 @@ class TestDecrypter : public QuicDecrypter {
   }
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF2; }
+  QuicPacketCount GetIntegrityLimit() const override {
+    return std::numeric_limits<QuicPacketCount>::max();
+  }
   QuicPacketNumber packet_number_;
   std::string associated_data_;
   std::string ciphertext_;

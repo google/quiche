@@ -34,4 +34,12 @@ uint32_t ChaCha20Poly1305TlsDecrypter::cipher_id() const {
   return TLS1_CK_CHACHA20_POLY1305_SHA256;
 }
 
+QuicPacketCount ChaCha20Poly1305TlsDecrypter::GetIntegrityLimit() const {
+  // For AEAD_CHACHA20_POLY1305, the integrity limit is 2^36 invalid packets.
+  // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-limits-on-aead-usage
+  static_assert(kMaxIncomingPacketSize < 16384,
+                "This key limit requires limits on decryption payload sizes");
+  return 68719476736U;
+}
+
 }  // namespace quic

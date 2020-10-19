@@ -102,6 +102,10 @@ uint32_t NullDecrypter::cipher_id() const {
   return 0;
 }
 
+QuicPacketCount NullDecrypter::GetIntegrityLimit() const {
+  return std::numeric_limits<QuicPacketCount>::max();
+}
+
 bool NullDecrypter::ReadHash(QuicDataReader* reader, QuicUint128* hash) {
   uint64_t lo;
   uint32_t hi;

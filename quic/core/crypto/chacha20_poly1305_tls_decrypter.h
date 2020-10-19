@@ -31,6 +31,7 @@ class QUIC_EXPORT_PRIVATE ChaCha20Poly1305TlsDecrypter
   ~ChaCha20Poly1305TlsDecrypter() override;
 
   uint32_t cipher_id() const override;
+  QuicPacketCount GetIntegrityLimit() const override;
 };
 
 }  // namespace quic

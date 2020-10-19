@@ -21,6 +21,7 @@ class QUIC_EXPORT_PRIVATE AesBaseDecrypter : public AeadBaseDecrypter {
   bool SetHeaderProtectionKey(absl::string_view key) override;
   std::string GenerateHeaderProtectionMask(
       QuicDataReader* sample_reader) override;
+  QuicPacketCount GetIntegrityLimit() const override;
 
  private:
   // The key used for packet number encryption.

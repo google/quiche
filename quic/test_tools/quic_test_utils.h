@@ -1927,6 +1927,9 @@ class TaggingDecrypter : public QuicDecrypter {
   }
   // Use a distinct value starting with 0xFFFFFF, which is never used by TLS.
   uint32_t cipher_id() const override { return 0xFFFFFFF0; }
+  QuicPacketCount GetIntegrityLimit() const override {
+    return std::numeric_limits<QuicPacketCount>::max();
+  }
 
  protected:
   virtual uint8_t GetTag(absl::string_view ciphertext) {

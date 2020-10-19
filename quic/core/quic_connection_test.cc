@@ -128,6 +128,20 @@ class NullEncrypterWithConfidentialityLimit : public NullEncrypter {
   QuicPacketCount confidentiality_limit_;
 };
 
+class StrictTaggingDecrypterWithIntegrityLimit : public StrictTaggingDecrypter {
+ public:
+  StrictTaggingDecrypterWithIntegrityLimit(uint8_t tag,
+                                           QuicPacketCount integrity_limit)
+      : StrictTaggingDecrypter(tag), integrity_limit_(integrity_limit) {}
+
+  QuicPacketCount GetIntegrityLimit() const override {
+    return integrity_limit_;
+  }
+
+ private:
+  QuicPacketCount integrity_limit_;
+};
+
 class TestConnectionHelper : public QuicConnectionHelperInterface {
  public:
   TestConnectionHelper(MockClock* clock, MockRandom* random_generator)
@@ -12454,6 +12468,252 @@ TEST_P(QuicConnectionTest,
   EXPECT_FALSE(connection_.connected());
   const QuicConnectionStats& stats = connection_.GetStats();
   EXPECT_EQ(0U, stats.key_update_count);
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitDuringHandshake) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+
+  constexpr uint8_t correct_tag = 0x01;
+  constexpr uint8_t wrong_tag = 0xFE;
+  constexpr QuicPacketCount kIntegrityLimit = 3;
+
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   correct_tag, kIntegrityLimit));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(correct_tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(wrong_tag));
+  for (uint64_t i = 1; i <= kIntegrityLimit; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    if (i == kIntegrityLimit) {
+      EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+      EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
+    }
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+  }
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAfterHandshake) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+
+  constexpr uint8_t correct_tag = 0x01;
+  constexpr uint8_t wrong_tag = 0xFE;
+  constexpr QuicPacketCount kIntegrityLimit = 3;
+
+  use_tagging_decrypter();
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   correct_tag, kIntegrityLimit));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(correct_tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(wrong_tag));
+  for (uint64_t i = 1; i <= kIntegrityLimit; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    if (i == kIntegrityLimit) {
+      EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+    }
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  }
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest,
+       CloseConnectionOnIntegrityLimitAcrossEncryptionLevels) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+
+  constexpr uint8_t correct_tag = 0x01;
+  constexpr uint8_t wrong_tag = 0xFE;
+  constexpr QuicPacketCount kIntegrityLimit = 4;
+
+  use_tagging_decrypter();
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   correct_tag, kIntegrityLimit));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(correct_tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(wrong_tag));
+  for (uint64_t i = 1; i <= 2; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+  }
+
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   correct_tag, kIntegrityLimit));
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(correct_tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.RemoveEncrypter(ENCRYPTION_HANDSHAKE);
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(wrong_tag));
+  for (uint64_t i = 3; i <= kIntegrityLimit; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    if (i == kIntegrityLimit) {
+      EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+    }
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  }
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
+}
+
+TEST_P(QuicConnectionTest, IntegrityLimitDoesNotApplyWithoutDecryptionKey) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+
+  constexpr uint8_t correct_tag = 0x01;
+  constexpr uint8_t wrong_tag = 0xFE;
+  constexpr QuicPacketCount kIntegrityLimit = 3;
+
+  use_tagging_decrypter();
+  SetDecrypter(ENCRYPTION_HANDSHAKE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   correct_tag, kIntegrityLimit));
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(correct_tag));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(wrong_tag));
+  for (uint64_t i = 1; i <= kIntegrityLimit * 2; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  }
+  EXPECT_TRUE(connection_.connected());
+}
+
+TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  constexpr QuicPacketCount kIntegrityLimit = 4;
+
+  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
+  TransportParameters params;
+  params.key_update_not_yet_supported = false;
+  QuicConfig config;
+  std::string error_details;
+  EXPECT_THAT(config.ProcessTransportParameters(
+                  params, /* is_resumption = */ false, &error_details),
+              IsQuicNoError());
+  config.SetKeyUpdateSupportedLocally();
+  QuicConfigPeer::SetNegotiated(&config, true);
+  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+    QuicConfigPeer::SetReceivedOriginalConnectionId(
+        &config, connection_.connection_id());
+    QuicConfigPeer::SetReceivedInitialSourceConnectionId(
+        &config, connection_.connection_id());
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+
+  MockFramerVisitor peer_framer_visitor_;
+  peer_framer_.set_visitor(&peer_framer_visitor_);
+
+  use_tagging_decrypter();
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  SetDecrypter(ENCRYPTION_FORWARD_SECURE,
+               std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+                   0x01, kIntegrityLimit));
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0xFF));
+  for (uint64_t i = 1; i <= 2; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  }
+
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0x01));
+  // Send packet 1.
+  QuicPacketNumber last_packet;
+  SendStreamDataToPeer(1, "foo", 0, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(1u), last_packet);
+  // Receive ack for packet 1.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame1 = InitAckFrame(1);
+  ProcessAckPacket(&frame1);
+  // Key update should now be allowed, initiate it.
+  EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce([kIntegrityLimit]() {
+        return std::make_unique<StrictTaggingDecrypterWithIntegrityLimit>(
+            0x02, kIntegrityLimit);
+      });
+  EXPECT_CALL(visitor_, CreateCurrentOneRttEncrypter()).WillOnce([]() {
+    return std::make_unique<TaggingEncrypter>(0x02);
+  });
+  EXPECT_CALL(visitor_, OnKeyUpdate(KeyUpdateReason::kLocalForTests));
+  EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
+
+  // Pretend that peer accepts the key update.
+  EXPECT_CALL(peer_framer_visitor_,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter())
+      .WillOnce(
+          []() { return std::make_unique<StrictTaggingDecrypter>(0x02); });
+  EXPECT_CALL(peer_framer_visitor_, CreateCurrentOneRttEncrypter())
+      .WillOnce([]() { return std::make_unique<TaggingEncrypter>(0x02); });
+  peer_framer_.SetKeyUpdateSupportForConnection(true);
+  peer_framer_.DoKeyUpdate(KeyUpdateReason::kLocalForTests);
+
+  // Send packet 2.
+  SendStreamDataToPeer(2, "bar", 0, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(2u), last_packet);
+  // Receive ack for packet 2.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame2 = InitAckFrame(2);
+  ProcessAckPacket(&frame2);
+
+  // Do two more undecryptable packets. Integrity limit should be reached.
+  peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
+                            std::make_unique<TaggingEncrypter>(0xFF));
+  for (uint64_t i = 3; i <= kIntegrityLimit; ++i) {
+    EXPECT_TRUE(connection_.connected());
+    if (i == kIntegrityLimit) {
+      EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+    }
+    ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  }
+  EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
 }
 
