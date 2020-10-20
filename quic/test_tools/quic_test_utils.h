@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_path_validator.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
@@ -1625,6 +1626,33 @@ class MockSessionNotifier : public SessionNotifierInterface {
   MOCK_METHOD(bool, IsFrameOutstanding, (const QuicFrame&), (const, override));
   MOCK_METHOD(bool, HasUnackedCryptoData, (), (const, override));
   MOCK_METHOD(bool, HasUnackedStreamData, (), (const, override));
+};
+
+class MockQuicPathValidationContext : public QuicPathValidationContext {
+ public:
+  MockQuicPathValidationContext(const QuicSocketAddress& self_address,
+                                const QuicSocketAddress& peer_address,
+                                QuicPacketWriter* writer)
+      : QuicPathValidationContext(self_address, peer_address),
+        writer_(writer) {}
+  QuicPacketWriter* WriterToUse() override { return writer_; }
+
+ private:
+  QuicPacketWriter* writer_;
+};
+
+class MockQuicPathValidationResultDelegate
+    : public QuicPathValidator::ResultDelegate {
+ public:
+  MOCK_METHOD(void,
+              OnPathValidationSuccess,
+              (std::unique_ptr<QuicPathValidationContext>),
+              (override));
+
+  MOCK_METHOD(void,
+              OnPathValidationFailure,
+              (std::unique_ptr<QuicPathValidationContext>),
+              (override));
 };
 
 class QuicCryptoClientStreamPeer {
