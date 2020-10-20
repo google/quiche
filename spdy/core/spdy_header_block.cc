@@ -38,23 +38,23 @@ absl::string_view SeparatorForKey(absl::string_view key) {
 
 }  // namespace
 
-SpdyHeaderBlock::HeaderValue::HeaderValue(SpdyHeaderStorage* storage,
-                                          absl::string_view key,
-                                          absl::string_view initial_value)
+Http2HeaderBlock::HeaderValue::HeaderValue(SpdyHeaderStorage* storage,
+                                           absl::string_view key,
+                                           absl::string_view initial_value)
     : storage_(storage),
       fragments_({initial_value}),
       pair_({key, {}}),
       size_(initial_value.size()),
       separator_size_(SeparatorForKey(key).size()) {}
 
-SpdyHeaderBlock::HeaderValue::HeaderValue(HeaderValue&& other)
+Http2HeaderBlock::HeaderValue::HeaderValue(HeaderValue&& other)
     : storage_(other.storage_),
       fragments_(std::move(other.fragments_)),
       pair_(std::move(other.pair_)),
       size_(other.size_),
       separator_size_(other.separator_size_) {}
 
-SpdyHeaderBlock::HeaderValue& SpdyHeaderBlock::HeaderValue::operator=(
+Http2HeaderBlock::HeaderValue& Http2HeaderBlock::HeaderValue::operator=(
     HeaderValue&& other) {
   storage_ = other.storage_;
   fragments_ = std::move(other.fragments_);
@@ -64,13 +64,13 @@ SpdyHeaderBlock::HeaderValue& SpdyHeaderBlock::HeaderValue::operator=(
   return *this;
 }
 
-void SpdyHeaderBlock::HeaderValue::set_storage(SpdyHeaderStorage* storage) {
+void Http2HeaderBlock::HeaderValue::set_storage(SpdyHeaderStorage* storage) {
   storage_ = storage;
 }
 
-SpdyHeaderBlock::HeaderValue::~HeaderValue() = default;
+Http2HeaderBlock::HeaderValue::~HeaderValue() = default;
 
-absl::string_view SpdyHeaderBlock::HeaderValue::ConsolidatedValue() const {
+absl::string_view Http2HeaderBlock::HeaderValue::ConsolidatedValue() const {
   if (fragments_.empty()) {
     return absl::string_view();
   }
@@ -81,26 +81,26 @@ absl::string_view SpdyHeaderBlock::HeaderValue::ConsolidatedValue() const {
   return fragments_[0];
 }
 
-void SpdyHeaderBlock::HeaderValue::Append(absl::string_view fragment) {
+void Http2HeaderBlock::HeaderValue::Append(absl::string_view fragment) {
   size_ += (fragment.size() + separator_size_);
   fragments_.push_back(fragment);
 }
 
 const std::pair<absl::string_view, absl::string_view>&
-SpdyHeaderBlock::HeaderValue::as_pair() const {
+Http2HeaderBlock::HeaderValue::as_pair() const {
   pair_.second = ConsolidatedValue();
   return pair_;
 }
 
-SpdyHeaderBlock::iterator::iterator(MapType::const_iterator it) : it_(it) {}
+Http2HeaderBlock::iterator::iterator(MapType::const_iterator it) : it_(it) {}
 
-SpdyHeaderBlock::iterator::iterator(const iterator& other) = default;
+Http2HeaderBlock::iterator::iterator(const iterator& other) = default;
 
-SpdyHeaderBlock::iterator::~iterator() = default;
+Http2HeaderBlock::iterator::~iterator() = default;
 
-SpdyHeaderBlock::ValueProxy::ValueProxy(
-    SpdyHeaderBlock* block,
-    SpdyHeaderBlock::MapType::iterator lookup_result,
+Http2HeaderBlock::ValueProxy::ValueProxy(
+    Http2HeaderBlock* block,
+    Http2HeaderBlock::MapType::iterator lookup_result,
     const absl::string_view key,
     size_t* spdy_header_block_value_size)
     : block_(block),
@@ -109,7 +109,7 @@ SpdyHeaderBlock::ValueProxy::ValueProxy(
       spdy_header_block_value_size_(spdy_header_block_value_size),
       valid_(true) {}
 
-SpdyHeaderBlock::ValueProxy::ValueProxy(ValueProxy&& other)
+Http2HeaderBlock::ValueProxy::ValueProxy(ValueProxy&& other)
     : block_(other.block_),
       lookup_result_(other.lookup_result_),
       key_(other.key_),
@@ -118,8 +118,8 @@ SpdyHeaderBlock::ValueProxy::ValueProxy(ValueProxy&& other)
   other.valid_ = false;
 }
 
-SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
-    SpdyHeaderBlock::ValueProxy&& other) {
+Http2HeaderBlock::ValueProxy& Http2HeaderBlock::ValueProxy::operator=(
+    Http2HeaderBlock::ValueProxy&& other) {
   block_ = other.block_;
   lookup_result_ = other.lookup_result_;
   key_ = other.key_;
@@ -129,17 +129,17 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
   return *this;
 }
 
-SpdyHeaderBlock::ValueProxy::~ValueProxy() {
+Http2HeaderBlock::ValueProxy::~ValueProxy() {
   // If the ValueProxy is destroyed while lookup_result_ == block_->end(),
   // the assignment operator was never used, and the block's SpdyHeaderStorage
   // can reclaim the memory used by the key. This makes lookup-only access to
-  // SpdyHeaderBlock through operator[] memory-neutral.
+  // Http2HeaderBlock through operator[] memory-neutral.
   if (valid_ && lookup_result_ == block_->map_.end()) {
     block_->storage_.Rewind(key_);
   }
 }
 
-SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
+Http2HeaderBlock::ValueProxy& Http2HeaderBlock::ValueProxy::operator=(
     absl::string_view value) {
   *spdy_header_block_value_size_ += value.size();
   SpdyHeaderStorage* storage = &block_->storage_;
@@ -158,7 +158,7 @@ SpdyHeaderBlock::ValueProxy& SpdyHeaderBlock::ValueProxy::operator=(
   return *this;
 }
 
-bool SpdyHeaderBlock::ValueProxy::operator==(absl::string_view value) const {
+bool Http2HeaderBlock::ValueProxy::operator==(absl::string_view value) const {
   if (lookup_result_ == block_->map_.end()) {
     return false;
   } else {
@@ -166,7 +166,7 @@ bool SpdyHeaderBlock::ValueProxy::operator==(absl::string_view value) const {
   }
 }
 
-std::string SpdyHeaderBlock::ValueProxy::as_string() const {
+std::string Http2HeaderBlock::ValueProxy::as_string() const {
   if (lookup_result_ == block_->map_.end()) {
     return "";
   } else {
@@ -174,9 +174,9 @@ std::string SpdyHeaderBlock::ValueProxy::as_string() const {
   }
 }
 
-SpdyHeaderBlock::SpdyHeaderBlock() : map_(kInitialMapBuckets) {}
+Http2HeaderBlock::Http2HeaderBlock() : map_(kInitialMapBuckets) {}
 
-SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
+Http2HeaderBlock::Http2HeaderBlock(Http2HeaderBlock&& other)
     : map_(kInitialMapBuckets) {
   map_.swap(other.map_);
   storage_ = std::move(other.storage_);
@@ -187,9 +187,9 @@ SpdyHeaderBlock::SpdyHeaderBlock(SpdyHeaderBlock&& other)
   value_size_ = other.value_size_;
 }
 
-SpdyHeaderBlock::~SpdyHeaderBlock() = default;
+Http2HeaderBlock::~Http2HeaderBlock() = default;
 
-SpdyHeaderBlock& SpdyHeaderBlock::operator=(SpdyHeaderBlock&& other) {
+Http2HeaderBlock& Http2HeaderBlock::operator=(Http2HeaderBlock&& other) {
   map_.swap(other.map_);
   storage_ = std::move(other.storage_);
   for (auto& p : map_) {
@@ -200,23 +200,23 @@ SpdyHeaderBlock& SpdyHeaderBlock::operator=(SpdyHeaderBlock&& other) {
   return *this;
 }
 
-SpdyHeaderBlock SpdyHeaderBlock::Clone() const {
-  SpdyHeaderBlock copy;
+Http2HeaderBlock Http2HeaderBlock::Clone() const {
+  Http2HeaderBlock copy;
   for (const auto& p : *this) {
     copy.AppendHeader(p.first, p.second);
   }
   return copy;
 }
 
-bool SpdyHeaderBlock::operator==(const SpdyHeaderBlock& other) const {
+bool Http2HeaderBlock::operator==(const Http2HeaderBlock& other) const {
   return size() == other.size() && std::equal(begin(), end(), other.begin());
 }
 
-bool SpdyHeaderBlock::operator!=(const SpdyHeaderBlock& other) const {
+bool Http2HeaderBlock::operator!=(const Http2HeaderBlock& other) const {
   return !(operator==(other));
 }
 
-std::string SpdyHeaderBlock::DebugString() const {
+std::string Http2HeaderBlock::DebugString() const {
   if (empty()) {
     return "{}";
   }
@@ -229,7 +229,7 @@ std::string SpdyHeaderBlock::DebugString() const {
   return output;
 }
 
-void SpdyHeaderBlock::erase(absl::string_view key) {
+void Http2HeaderBlock::erase(absl::string_view key) {
   auto iter = map_.find(key);
   if (iter != map_.end()) {
     SPDY_DVLOG(1) << "Erasing header with name: " << key;
@@ -239,14 +239,14 @@ void SpdyHeaderBlock::erase(absl::string_view key) {
   }
 }
 
-void SpdyHeaderBlock::clear() {
+void Http2HeaderBlock::clear() {
   key_size_ = 0;
   value_size_ = 0;
   map_.clear();
   storage_.Clear();
 }
 
-void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
+void Http2HeaderBlock::insert(const Http2HeaderBlock::value_type& value) {
   // TODO(birenroy): Write new value in place of old value, if it fits.
   value_size_ += value.second.size();
 
@@ -264,7 +264,7 @@ void SpdyHeaderBlock::insert(const SpdyHeaderBlock::value_type& value) {
   }
 }
 
-SpdyHeaderBlock::ValueProxy SpdyHeaderBlock::operator[](
+Http2HeaderBlock::ValueProxy Http2HeaderBlock::operator[](
     const absl::string_view key) {
   SPDY_DVLOG(2) << "Operator[] saw key: " << key;
   absl::string_view out_key;
@@ -282,8 +282,8 @@ SpdyHeaderBlock::ValueProxy SpdyHeaderBlock::operator[](
   return ValueProxy(this, iter, out_key, &value_size_);
 }
 
-void SpdyHeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
-                                             const absl::string_view value) {
+void Http2HeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
+                                              const absl::string_view value) {
   value_size_ += value.size();
 
   auto iter = map_.find(key);
@@ -299,25 +299,25 @@ void SpdyHeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
   iter->second.Append(storage_.Write(value));
 }
 
-size_t SpdyHeaderBlock::EstimateMemoryUsage() const {
+size_t Http2HeaderBlock::EstimateMemoryUsage() const {
   // TODO(xunjieli): https://crbug.com/669108. Also include |map_| when EMU()
   // supports linked_hash_map.
   return SpdyEstimateMemoryUsage(storage_);
 }
 
-void SpdyHeaderBlock::AppendHeader(const absl::string_view key,
-                                   const absl::string_view value) {
+void Http2HeaderBlock::AppendHeader(const absl::string_view key,
+                                    const absl::string_view value) {
   auto backed_key = WriteKey(key);
   map_.emplace(std::make_pair(
       backed_key, HeaderValue(&storage_, backed_key, storage_.Write(value))));
 }
 
-absl::string_view SpdyHeaderBlock::WriteKey(const absl::string_view key) {
+absl::string_view Http2HeaderBlock::WriteKey(const absl::string_view key) {
   key_size_ += key.size();
   return storage_.Write(key);
 }
 
-size_t SpdyHeaderBlock::bytes_allocated() const {
+size_t Http2HeaderBlock::bytes_allocated() const {
   return storage_.bytes_allocated();
 }
 

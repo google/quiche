@@ -41,12 +41,12 @@ class ValueProxyPeer;
 // Under the hood, this data structure uses large, contiguous blocks of memory
 // to store names and values. Lookups may be performed with absl::string_view
 // keys, and values are returned as absl::string_views (via ValueProxy, below).
-// Value absl::string_views are valid as long as the SpdyHeaderBlock exists;
-// allocated memory is never freed until SpdyHeaderBlock's destruction.
+// Value absl::string_views are valid as long as the Http2HeaderBlock exists;
+// allocated memory is never freed until Http2HeaderBlock's destruction.
 //
 // This implementation does not make much of an effort to minimize wasted space.
-// It's expected that keys are rarely deleted from a SpdyHeaderBlock.
-class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
+// It's expected that keys are rarely deleted from a Http2HeaderBlock.
+class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
  private:
   // Stores a list of value fragments that can be joined later with a
   // key-dependent separator.
@@ -75,7 +75,7 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
     const std::pair<absl::string_view, absl::string_view>& as_pair() const;
 
     // Size estimate including separators. Used when keys are erased from
-    // SpdyHeaderBlock.
+    // Http2HeaderBlock.
     size_t SizeEstimate() const { return size_; }
 
    private:
@@ -158,17 +158,17 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   };
   typedef iterator const_iterator;
 
-  SpdyHeaderBlock();
-  SpdyHeaderBlock(const SpdyHeaderBlock& other) = delete;
-  SpdyHeaderBlock(SpdyHeaderBlock&& other);
-  ~SpdyHeaderBlock();
+  Http2HeaderBlock();
+  Http2HeaderBlock(const Http2HeaderBlock& other) = delete;
+  Http2HeaderBlock(Http2HeaderBlock&& other);
+  ~Http2HeaderBlock();
 
-  SpdyHeaderBlock& operator=(const SpdyHeaderBlock& other) = delete;
-  SpdyHeaderBlock& operator=(SpdyHeaderBlock&& other);
-  SpdyHeaderBlock Clone() const;
+  Http2HeaderBlock& operator=(const Http2HeaderBlock& other) = delete;
+  Http2HeaderBlock& operator=(Http2HeaderBlock&& other);
+  Http2HeaderBlock Clone() const;
 
-  bool operator==(const SpdyHeaderBlock& other) const;
-  bool operator!=(const SpdyHeaderBlock& other) const;
+  bool operator==(const Http2HeaderBlock& other) const;
+  bool operator!=(const Http2HeaderBlock& other) const;
 
   // Provides a human readable multi-line representation of the stored header
   // keys and values.
@@ -202,8 +202,8 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   void AppendValueOrAddHeader(const absl::string_view key,
                               const absl::string_view value);
 
-  // This object provides automatic conversions that allow SpdyHeaderBlock to be
-  // nearly a drop-in replacement for
+  // This object provides automatic conversions that allow Http2HeaderBlock to
+  // be nearly a drop-in replacement for
   // SpdyLinkedHashMap<std::string, std::string>.
   // It reads data from or writes data to a SpdyHeaderStorage.
   class QUICHE_EXPORT_PRIVATE ValueProxy {
@@ -218,7 +218,7 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
     ValueProxy(const ValueProxy& other) = delete;
     ValueProxy& operator=(const ValueProxy& other) = delete;
 
-    // Assignment modifies the underlying SpdyHeaderBlock.
+    // Assignment modifies the underlying Http2HeaderBlock.
     ValueProxy& operator=(absl::string_view value);
 
     // Provides easy comparison against absl::string_view.
@@ -227,16 +227,16 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
     std::string as_string() const;
 
    private:
-    friend class SpdyHeaderBlock;
+    friend class Http2HeaderBlock;
     friend class test::ValueProxyPeer;
 
-    ValueProxy(SpdyHeaderBlock* block,
-               SpdyHeaderBlock::MapType::iterator lookup_result,
+    ValueProxy(Http2HeaderBlock* block,
+               Http2HeaderBlock::MapType::iterator lookup_result,
                const absl::string_view key,
                size_t* spdy_header_block_value_size);
 
-    SpdyHeaderBlock* block_;
-    SpdyHeaderBlock::MapType::iterator lookup_result_;
+    Http2HeaderBlock* block_;
+    Http2HeaderBlock::MapType::iterator lookup_result_;
     absl::string_view key_;
     size_t* spdy_header_block_value_size_;
     bool valid_;
@@ -289,6 +289,9 @@ class QUICHE_EXPORT_PRIVATE SpdyHeaderBlock {
   size_t key_size_ = 0;
   size_t value_size_ = 0;
 };
+
+// TODO(b/156770486): Remove this alias when the rename is complete.
+using SpdyHeaderBlock = Http2HeaderBlock;
 
 }  // namespace spdy
 
