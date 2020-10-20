@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
@@ -20,7 +21,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_prefetch.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_uint128.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
@@ -563,7 +563,7 @@ QuicConnectionId QuicUtils::CreateZeroConnectionId(
   if (!VersionAllowsVariableLengthConnectionIds(version)) {
     char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     return QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                            QUICHE_ARRAYSIZE(connection_id_bytes));
+                            ABSL_ARRAYSIZE(connection_id_bytes));
   }
   return EmptyQuicConnectionId();
 }

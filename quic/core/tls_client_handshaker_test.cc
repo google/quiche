@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
@@ -286,7 +286,7 @@ TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   };
   stream()->crypto_message_parser()->ProcessInput(
       absl::string_view(bogus_handshake_message,
-                        QUICHE_ARRAYSIZE(bogus_handshake_message)),
+                        ABSL_ARRAYSIZE(bogus_handshake_message)),
       ENCRYPTION_INITIAL);
 
   EXPECT_FALSE(stream()->one_rtt_keys_available());

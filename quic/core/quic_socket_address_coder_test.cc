@@ -6,8 +6,8 @@
 
 #include <string>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -111,7 +111,7 @@ TEST_F(QuicSocketAddressCoderTest, EncodeAndDecode) {
       {"::1", 65534},
   };
 
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(test_case); i++) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(test_case); i++) {
     QuicIpAddress ip;
     ASSERT_TRUE(ip.FromString(test_case[i].ip_literal));
     QuicSocketAddressCoder encoder(QuicSocketAddress(ip, test_case[i].port));

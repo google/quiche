@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
@@ -43,7 +44,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::_;
@@ -9988,10 +9988,10 @@ void QuicConnectionTest::TestClientRetryHandling(
   size_t retry_packet_length;
   if (version() == ParsedQuicVersion::Draft29()) {
     retry_packet = retry_packet29;
-    retry_packet_length = QUICHE_ARRAYSIZE(retry_packet29);
+    retry_packet_length = ABSL_ARRAYSIZE(retry_packet29);
   } else if (version() == ParsedQuicVersion::Draft27()) {
     retry_packet = retry_packet27;
-    retry_packet_length = QUICHE_ARRAYSIZE(retry_packet27);
+    retry_packet_length = ABSL_ARRAYSIZE(retry_packet27);
   } else {
     // TODO(dschinazi) generate retry packets for all versions once we have
     // server-side support for generating these programmatically.
@@ -10006,12 +10006,11 @@ void QuicConnectionTest::TestClientRetryHandling(
 
   QuicConnectionId original_connection_id(
       original_connection_id_bytes,
-      QUICHE_ARRAYSIZE(original_connection_id_bytes));
+      ABSL_ARRAYSIZE(original_connection_id_bytes));
   QuicConnectionId new_connection_id(new_connection_id_bytes,
-                                     QUICHE_ARRAYSIZE(new_connection_id_bytes));
+                                     ABSL_ARRAYSIZE(new_connection_id_bytes));
 
-  std::string retry_token(retry_token_bytes,
-                          QUICHE_ARRAYSIZE(retry_token_bytes));
+  std::string retry_token(retry_token_bytes, ABSL_ARRAYSIZE(retry_token_bytes));
 
   if (invalid_retry_tag) {
     // Flip the last bit of the retry packet to prevent the integrity tag

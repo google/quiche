@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -44,7 +45,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -1492,10 +1492,10 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
     QUIC_CACHELINE_ALIGNED char buffer[kMaxIncomingPacketSize];
     if (packet_has_ietf_packet_header) {
       rv = ProcessIetfDataPacket(&reader, &header, packet, buffer,
-                                 QUICHE_ARRAYSIZE(buffer));
+                                 ABSL_ARRAYSIZE(buffer));
     } else {
       rv = ProcessDataPacket(&reader, &header, packet, buffer,
-                             QUICHE_ARRAYSIZE(buffer));
+                             ABSL_ARRAYSIZE(buffer));
     }
   } else {
     std::unique_ptr<char[]> large_buffer(new char[packet.length()]);
@@ -4512,7 +4512,7 @@ bool QuicFramer::RemoveHeaderProtection(QuicDataReader* reader,
       static_cast<QuicPacketNumberLength>((header->type_byte & 0x03) + 1);
 
   char pn_buffer[IETF_MAX_PACKET_NUMBER_LENGTH] = {};
-  QuicDataWriter pn_writer(QUICHE_ARRAYSIZE(pn_buffer), pn_buffer);
+  QuicDataWriter pn_writer(ABSL_ARRAYSIZE(pn_buffer), pn_buffer);
 
   // Read the (protected) packet number from the reader and unmask the packet
   // number.

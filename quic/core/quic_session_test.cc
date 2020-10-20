@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -39,7 +40,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::kV3HighestPriority;
@@ -2743,8 +2743,8 @@ TEST_P(QuicSessionTestServer, WriteMemSlicesOnReadUnidirectionalStream) {
       .Times(1);
   char data[1024];
   std::vector<std::pair<char*, size_t>> buffers;
-  buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
-  buffers.push_back(std::make_pair(data, QUICHE_ARRAYSIZE(data)));
+  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
+  buffers.push_back(std::make_pair(data, ABSL_ARRAYSIZE(data)));
   QuicTestMemSliceVector vector(buffers);
   stream4->WriteMemSlices(vector.span(), false);
 }

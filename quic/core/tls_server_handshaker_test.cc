@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
@@ -23,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
 #include "net/third_party/quiche/src/quic/test_tools/test_ticket_crypter.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 class QuicConnection;
@@ -296,7 +296,7 @@ TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
   };
   server_stream()->crypto_message_parser()->ProcessInput(
       absl::string_view(bogus_handshake_message,
-                        QUICHE_ARRAYSIZE(bogus_handshake_message)),
+                        ABSL_ARRAYSIZE(bogus_handshake_message)),
       ENCRYPTION_INITIAL);
 
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());

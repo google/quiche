@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -36,7 +37,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_time_wait_list_manager_peer.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
@@ -1088,7 +1088,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 28, /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(
@@ -1105,7 +1105,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 25, /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(
@@ -1122,7 +1122,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '9', /*destination connection ID length*/ 0x08};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(
@@ -1139,7 +1139,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '8', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(
@@ -1156,7 +1156,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '7', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(
@@ -1173,7 +1173,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
-  QuicReceivedPacket received_packet(packet, QUICHE_ARRAYSIZE(packet),
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(

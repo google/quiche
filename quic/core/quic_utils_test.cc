@@ -6,12 +6,12 @@
 
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -257,10 +257,10 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);
   EXPECT_EQ(connection_id.length(), sizeof(uint64_t));
   char connection_id_bytes[sizeof(uint64_t)];
-  random.RandBytes(connection_id_bytes, QUICHE_ARRAYSIZE(connection_id_bytes));
+  random.RandBytes(connection_id_bytes, ABSL_ARRAYSIZE(connection_id_bytes));
   EXPECT_EQ(connection_id,
             QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                             QUICHE_ARRAYSIZE(connection_id_bytes)));
+                             ABSL_ARRAYSIZE(connection_id_bytes)));
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));
@@ -276,10 +276,10 @@ TEST_F(QuicUtilsTest, RandomConnectionIdVariableLength) {
       QuicUtils::CreateRandomConnectionId(connection_id_length, &random);
   EXPECT_EQ(connection_id.length(), connection_id_length);
   char connection_id_bytes[connection_id_length];
-  random.RandBytes(connection_id_bytes, QUICHE_ARRAYSIZE(connection_id_bytes));
+  random.RandBytes(connection_id_bytes, ABSL_ARRAYSIZE(connection_id_bytes));
   EXPECT_EQ(connection_id,
             QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                             QUICHE_ARRAYSIZE(connection_id_bytes)));
+                             ABSL_ARRAYSIZE(connection_id_bytes)));
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));
