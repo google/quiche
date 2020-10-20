@@ -11,8 +11,8 @@
 #include <new>
 #include <utility>
 
+#include "absl/memory/memory.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_ptr_util.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
@@ -413,12 +413,12 @@ std::unique_ptr<SpdyFrameSequence> SpdyFramer::CreateIterator(
   switch (frame_ir->frame_type()) {
     case SpdyFrameType::HEADERS: {
       return std::make_unique<SpdyHeaderFrameIterator>(
-          framer, quiche::QuicheWrapUnique(
+          framer, absl::WrapUnique(
                       static_cast<const SpdyHeadersIR*>(frame_ir.release())));
     }
     case SpdyFrameType::PUSH_PROMISE: {
       return std::make_unique<SpdyPushPromiseFrameIterator>(
-          framer, quiche::QuicheWrapUnique(
+          framer, absl::WrapUnique(
                       static_cast<const SpdyPushPromiseIR*>(frame_ir.release())));
     }
     case SpdyFrameType::DATA: {
