@@ -471,6 +471,10 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void TestTlsMultiPacketClientHello(bool add_reordering);
 
+  void TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
+      const QuicConnectionId& server_connection_id,
+      const QuicConnectionId& client_connection_id);
+
   ParsedQuicVersion version_;
   MockQuicConnectionHelper mock_helper_;
   MockAlarmFactory mock_alarm_factory_;
@@ -1054,7 +1058,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithZeroPort) {
 }
 
 TEST_P(QuicDispatcherTestAllVersions,
-       ProcessPacketWithInvalidShortInitialConnectionId) {
+       DropPacketWithKnownVersionAndInvalidShortInitialConnectionId) {
   if (!version_.AllowsVariableLengthConnectionIds()) {
     return;
   }
@@ -1063,12 +1067,57 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
 
   // dispatcher_ should drop this packet.
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, client_address, _, _))
-      .Times(0);
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _, _))
       .Times(0);
   ProcessFirstFlight(client_address, EmptyQuicConnectionId());
+}
+
+void QuicDispatcherTestBase::
+    TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
+        const QuicConnectionId& server_connection_id,
+        const QuicConnectionId& client_connection_id) {
+  SetQuicReloadableFlag(quic_send_version_negotiation_for_short_connection_ids,
+                        true);
+  CreateTimeWaitListManager();
+
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(
+                  server_connection_id, client_connection_id,
+                  /*ietf_quic=*/true,
+                  /*use_length_prefix=*/true, _, _, client_address, _))
+      .Times(1);
+  ProcessFirstFlight(ParsedQuicVersion::ReservedForNegotiation(),
+                     client_address, server_connection_id,
+                     client_connection_id);
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
+       VersionNegotiationForUnknownVersionInvalidShortInitialConnectionId) {
+  TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
+      EmptyQuicConnectionId(), EmptyQuicConnectionId());
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
+       VersionNegotiationForUnknownVersionInvalidShortInitialConnectionId2) {
+  char server_connection_id_bytes[3] = {1, 2, 3};
+  QuicConnectionId server_connection_id(server_connection_id_bytes,
+                                        sizeof(server_connection_id_bytes));
+  TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
+      server_connection_id, EmptyQuicConnectionId());
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
+       VersionNegotiationForUnknownVersionInvalidShortInitialConnectionId3) {
+  char client_connection_id_bytes[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+  QuicConnectionId client_connection_id(client_connection_id_bytes,
+                                        sizeof(client_connection_id_bytes));
+  TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
+      EmptyQuicConnectionId(), client_connection_id);
 }
 
 TEST_P(QuicDispatcherTestOneVersion, VersionsChangeInFlight) {

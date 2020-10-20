@@ -1572,11 +1572,6 @@ bool ParseClientVersionNegotiationProbePacket(
     QUIC_BUG << "Invalid destination_connection_id_length_out";
     return false;
   }
-  if (*destination_connection_id_length_out <
-      kQuicMinimumInitialConnectionIdLength) {
-    QUIC_BUG << "Invalid *destination_connection_id_length_out";
-    return false;
-  }
 
   QuicEncryptedPacket encrypted_packet(packet_bytes, packet_length);
   PacketHeaderFormat format;
@@ -1599,12 +1594,6 @@ bool ParseClientVersionNegotiationProbePacket(
   }
   if (!version_present) {
     QUIC_BUG << "Packet is not a long header";
-    return false;
-  }
-  if (destination_connection_id.length() <
-      kQuicMinimumInitialConnectionIdLength) {
-    QUIC_BUG << "Invalid destination_connection_id length "
-             << static_cast<int>(destination_connection_id.length());
     return false;
   }
   if (*destination_connection_id_length_out <
