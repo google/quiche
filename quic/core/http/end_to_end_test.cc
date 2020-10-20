@@ -1442,7 +1442,8 @@ TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
             client_->SendCustomSynchronousRequest(headers, body));
 }
 
-TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
+// TODO(crbug.com/1140295): Re-enable this test.
+TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(LargePostZeroRTTFailure)) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1540,7 +1541,9 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(MultipleZeroRtt)) {
   client_->Disconnect();
 }
 
-TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
+// TODO(crbug.com/1140295): Re-enable this test.
+TEST_P(EndToEndTest,
+       QUIC_TEST_DISABLED_IN_CHROME(SynchronousRequestZeroRTTFailure)) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1588,7 +1591,9 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   VerifyCleanConnection(false);
 }
 
-TEST_P(EndToEndTest, LargePostSynchronousRequest) {
+// TODO(crbug.com/1140295): Re-enable this test.
+TEST_P(EndToEndTest,
+       QUIC_TEST_DISABLED_IN_CHROME(LargePostSynchronousRequest)) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
@@ -1707,7 +1712,10 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
 }
 
 // Regression test for b/166836136.
-TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
+// TODO(crbug.com/1140295): Re-enable this test.
+TEST_P(EndToEndTest,
+       QUIC_TEST_DISABLED_IN_CHROME(
+           RetransmissionAfterZeroRTTRejectBeforeOneRtt)) {
   if (!version_.UsesTls()) {
     // This test is TLS specific.
     ASSERT_TRUE(Initialize());
