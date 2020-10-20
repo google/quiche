@@ -6,10 +6,10 @@
 
 #include <string>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
@@ -50,7 +50,7 @@ TEST_F(CryptoUtilsTest, TestExportKeyingMaterial) {
        "c9a46ed0757bd1812f1f21b4d41e62125fec8364a21db7"},
   };
 
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(test_vector); i++) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(test_vector); i++) {
     // Decode the test vector.
     std::string subkey_secret =
         quiche::QuicheTextUtils::HexDecode(test_vector[i].subkey_secret);

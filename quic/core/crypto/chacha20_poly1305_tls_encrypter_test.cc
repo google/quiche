@@ -7,12 +7,12 @@
 #include <memory>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_tls_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
@@ -105,12 +105,12 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   size_t len;
   ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
                                       encrypted, &len,
-                                      QUICHE_ARRAYSIZE(encrypted)));
+                                      ABSL_ARRAYSIZE(encrypted)));
   absl::string_view ciphertext(encrypted, len);
   char decrypted[1024];
   ASSERT_TRUE(decrypter.DecryptPacket(packet_number, associated_data,
                                       ciphertext, decrypted, &len,
-                                      QUICHE_ARRAYSIZE(decrypted)));
+                                      ABSL_ARRAYSIZE(decrypted)));
 }
 
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {

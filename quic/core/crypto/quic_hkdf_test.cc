@@ -6,8 +6,8 @@
 
 #include <string>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -67,7 +67,7 @@ static const HKDFInput kHKDFInputs[] = {
 class QuicHKDFTest : public QuicTest {};
 
 TEST_F(QuicHKDFTest, HKDF) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kHKDFInputs); i++) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kHKDFInputs); i++) {
     const HKDFInput& test(kHKDFInputs[i]);
     SCOPED_TRACE(i);
 

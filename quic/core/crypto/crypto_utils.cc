@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
@@ -33,7 +34,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
@@ -74,7 +74,7 @@ std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
       !CBB_add_u8_length_prefixed(quic_hkdf_label.get(), &inner_label) ||
       !CBB_add_bytes(&inner_label,
                      reinterpret_cast<const uint8_t*>(label_prefix),
-                     QUICHE_ARRAYSIZE(label_prefix) - 1) ||
+                     ABSL_ARRAYSIZE(label_prefix) - 1) ||
       !CBB_add_bytes(&inner_label,
                      reinterpret_cast<const uint8_t*>(label.data()),
                      label.size()) ||
@@ -172,26 +172,26 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
   static_assert(SupportedVersions().size() == 7u,
                 "Supported versions out of sync with initial encryption salts");
   if (version == ParsedQuicVersion::Draft29()) {
-    *out_len = QUICHE_ARRAYSIZE(kDraft29InitialSalt);
+    *out_len = ABSL_ARRAYSIZE(kDraft29InitialSalt);
     return kDraft29InitialSalt;
   } else if (version == ParsedQuicVersion::Draft27()) {
-    *out_len = QUICHE_ARRAYSIZE(kDraft27InitialSalt);
+    *out_len = ABSL_ARRAYSIZE(kDraft27InitialSalt);
     return kDraft27InitialSalt;
   } else if (version == ParsedQuicVersion::T051()) {
-    *out_len = QUICHE_ARRAYSIZE(kT051Salt);
+    *out_len = ABSL_ARRAYSIZE(kT051Salt);
     return kT051Salt;
   } else if (version == ParsedQuicVersion::T050()) {
-    *out_len = QUICHE_ARRAYSIZE(kT050Salt);
+    *out_len = ABSL_ARRAYSIZE(kT050Salt);
     return kT050Salt;
   } else if (version == ParsedQuicVersion::Q050()) {
-    *out_len = QUICHE_ARRAYSIZE(kQ050Salt);
+    *out_len = ABSL_ARRAYSIZE(kQ050Salt);
     return kQ050Salt;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
-    *out_len = QUICHE_ARRAYSIZE(kReservedForNegotiationSalt);
+    *out_len = ABSL_ARRAYSIZE(kReservedForNegotiationSalt);
     return kReservedForNegotiationSalt;
   }
   QUIC_BUG << "No initial obfuscation salt for version " << version;
-  *out_len = QUICHE_ARRAYSIZE(kDraft27InitialSalt);
+  *out_len = ABSL_ARRAYSIZE(kDraft27InitialSalt);
   return kDraft27InitialSalt;
 }
 
@@ -246,43 +246,43 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
   } else if (version == ParsedQuicVersion::Draft29()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityKey),
-        QUICHE_ARRAYSIZE(kDraft29RetryIntegrityKey));
+        ABSL_ARRAYSIZE(kDraft29RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityNonce),
-        QUICHE_ARRAYSIZE(kDraft29RetryIntegrityNonce));
+        ABSL_ARRAYSIZE(kDraft29RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::Draft27()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft27RetryIntegrityKey),
-        QUICHE_ARRAYSIZE(kDraft27RetryIntegrityKey));
+        ABSL_ARRAYSIZE(kDraft27RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kDraft27RetryIntegrityNonce),
-        QUICHE_ARRAYSIZE(kDraft27RetryIntegrityNonce));
+        ABSL_ARRAYSIZE(kDraft27RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::T051()) {
     *key =
         absl::string_view(reinterpret_cast<const char*>(kT051RetryIntegrityKey),
-                          QUICHE_ARRAYSIZE(kT051RetryIntegrityKey));
+                          ABSL_ARRAYSIZE(kT051RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kT051RetryIntegrityNonce),
-        QUICHE_ARRAYSIZE(kT051RetryIntegrityNonce));
+        ABSL_ARRAYSIZE(kT051RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::T050()) {
     *key =
         absl::string_view(reinterpret_cast<const char*>(kT050RetryIntegrityKey),
-                          QUICHE_ARRAYSIZE(kT050RetryIntegrityKey));
+                          ABSL_ARRAYSIZE(kT050RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kT050RetryIntegrityNonce),
-        QUICHE_ARRAYSIZE(kT050RetryIntegrityNonce));
+        ABSL_ARRAYSIZE(kT050RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kReservedForNegotiationRetryIntegrityKey),
-        QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityKey));
+        ABSL_ARRAYSIZE(kReservedForNegotiationRetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(
             kReservedForNegotiationRetryIntegrityNonce),
-        QUICHE_ARRAYSIZE(kReservedForNegotiationRetryIntegrityNonce));
+        ABSL_ARRAYSIZE(kReservedForNegotiationRetryIntegrityNonce));
     return true;
   }
   QUIC_BUG << "Attempted to get retry integrity keys for version " << version;
@@ -353,12 +353,12 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
     absl::string_view retry_without_tag,
     absl::string_view integrity_tag) {
   unsigned char computed_integrity_tag[kRetryIntegrityTagLength];
-  if (integrity_tag.length() != QUICHE_ARRAYSIZE(computed_integrity_tag)) {
+  if (integrity_tag.length() != ABSL_ARRAYSIZE(computed_integrity_tag)) {
     QUIC_BUG << "Invalid retry integrity tag length " << integrity_tag.length();
     return false;
   }
   char retry_pseudo_packet[kMaxIncomingPacketSize + 256];
-  QuicDataWriter writer(QUICHE_ARRAYSIZE(retry_pseudo_packet),
+  QuicDataWriter writer(ABSL_ARRAYSIZE(retry_pseudo_packet),
                         retry_pseudo_packet);
   if (!writer.WriteLengthPrefixedConnectionId(original_connection_id)) {
     QUIC_BUG << "Failed to write original connection ID in retry pseudo packet";
@@ -384,7 +384,7 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
     return false;
   }
   if (CRYPTO_memcmp(computed_integrity_tag, integrity_tag.data(),
-                    QUICHE_ARRAYSIZE(computed_integrity_tag)) != 0) {
+                    ABSL_ARRAYSIZE(computed_integrity_tag)) != 0) {
     QUIC_DLOG(ERROR) << "Failed to validate retry integrity tag";
     return false;
   }

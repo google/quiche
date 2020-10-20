@@ -7,6 +7,7 @@
 #include <cstring>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -627,10 +627,10 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParams);
-  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParams);
+  size_t client_params_length = ABSL_ARRAYSIZE(kClientParams);
   if (!version_.HasVarIntTransportParams()) {
     client_params = reinterpret_cast<const uint8_t*>(kClientParamsOld);
-    client_params_length = QUICHE_ARRAYSIZE(kClientParamsOld);
+    client_params_length = ABSL_ARRAYSIZE(kClientParamsOld);
   }
   TransportParameters new_params;
   std::string error_details;
@@ -724,11 +724,11 @@ TEST_P(TransportParametersTest,
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsWithFullToken);
-  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithFullToken);
+  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsWithFullToken);
   if (!version_.HasVarIntTransportParams()) {
     client_params =
         reinterpret_cast<const uint8_t*>(kClientParamsWithFullTokenOld);
-    client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithFullTokenOld);
+    client_params_length = ABSL_ARRAYSIZE(kClientParamsWithFullTokenOld);
   }
   TransportParameters out_params;
   std::string error_details;
@@ -779,11 +779,11 @@ TEST_P(TransportParametersTest,
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsWithEmptyToken);
-  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithEmptyToken);
+  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsWithEmptyToken);
   if (!version_.HasVarIntTransportParams()) {
     client_params =
         reinterpret_cast<const uint8_t*>(kClientParamsWithEmptyTokenOld);
-    client_params_length = QUICHE_ARRAYSIZE(kClientParamsWithEmptyTokenOld);
+    client_params_length = ABSL_ARRAYSIZE(kClientParamsWithEmptyTokenOld);
   }
   TransportParameters out_params;
   std::string error_details;
@@ -828,10 +828,10 @@ TEST_P(TransportParametersTest, ParseClientParametersRepeated) {
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsRepeated);
-  size_t client_params_length = QUICHE_ARRAYSIZE(kClientParamsRepeated);
+  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsRepeated);
   if (!version_.HasVarIntTransportParams()) {
     client_params = reinterpret_cast<const uint8_t*>(kClientParamsRepeatedOld);
-    client_params_length = QUICHE_ARRAYSIZE(kClientParamsRepeatedOld);
+    client_params_length = ABSL_ARRAYSIZE(kClientParamsRepeatedOld);
   }
   TransportParameters out_params;
   std::string error_details;
@@ -1049,10 +1049,10 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   // clang-format on
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParams);
-  size_t server_params_length = QUICHE_ARRAYSIZE(kServerParams);
+  size_t server_params_length = ABSL_ARRAYSIZE(kServerParams);
   if (!version_.HasVarIntTransportParams()) {
     server_params = reinterpret_cast<const uint8_t*>(kServerParamsOld);
-    server_params_length = QUICHE_ARRAYSIZE(kServerParamsOld);
+    server_params_length = ABSL_ARRAYSIZE(kServerParamsOld);
   }
   TransportParameters new_params;
   std::string error_details;
@@ -1158,10 +1158,10 @@ TEST_P(TransportParametersTest, ParseServerParametersRepeated) {
   // clang-format on
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParamsRepeated);
-  size_t server_params_length = QUICHE_ARRAYSIZE(kServerParamsRepeated);
+  size_t server_params_length = ABSL_ARRAYSIZE(kServerParamsRepeated);
   if (!version_.HasVarIntTransportParams()) {
     server_params = reinterpret_cast<const uint8_t*>(kServerParamsRepeatedOld);
-    server_params_length = QUICHE_ARRAYSIZE(kServerParamsRepeatedOld);
+    server_params_length = ABSL_ARRAYSIZE(kServerParamsRepeatedOld);
   }
   TransportParameters out_params;
   std::string error_details;
@@ -1207,12 +1207,12 @@ TEST_P(TransportParametersTest,
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParamsEmptyOriginalConnectionId);
   size_t server_params_length =
-      QUICHE_ARRAYSIZE(kServerParamsEmptyOriginalConnectionId);
+      ABSL_ARRAYSIZE(kServerParamsEmptyOriginalConnectionId);
   if (!version_.HasVarIntTransportParams()) {
     server_params = reinterpret_cast<const uint8_t*>(
         kServerParamsEmptyOriginalConnectionIdOld);
     server_params_length =
-        QUICHE_ARRAYSIZE(kServerParamsEmptyOriginalConnectionIdOld);
+        ABSL_ARRAYSIZE(kServerParamsEmptyOriginalConnectionIdOld);
   }
   TransportParameters out_params;
   std::string error_details;

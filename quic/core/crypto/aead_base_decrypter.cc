@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/err.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 
@@ -34,7 +34,7 @@ void DLogOpenSslErrors() {
 #else
   while (uint32_t error = ERR_get_error()) {
     char buf[120];
-    ERR_error_string_n(error, buf, QUICHE_ARRAYSIZE(buf));
+    ERR_error_string_n(error, buf, ABSL_ARRAYSIZE(buf));
     QUIC_DLOG(ERROR) << "OpenSSL error: " << buf;
   }
 #endif

@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
@@ -32,7 +33,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -454,9 +454,9 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
   }
 
   char proof_nonce[32];
-  rand->RandBytes(proof_nonce, QUICHE_ARRAYSIZE(proof_nonce));
+  rand->RandBytes(proof_nonce, ABSL_ARRAYSIZE(proof_nonce));
   out->SetStringPiece(
-      kNONP, absl::string_view(proof_nonce, QUICHE_ARRAYSIZE(proof_nonce)));
+      kNONP, absl::string_view(proof_nonce, ABSL_ARRAYSIZE(proof_nonce)));
 
   out->SetVector(kPDMD, QuicTagVector{kX509});
 

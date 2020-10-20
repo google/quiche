@@ -6,9 +6,9 @@
 
 #include <cstddef>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 
@@ -81,11 +81,11 @@ class CommonCertSetsQUIC : public CommonCertSets {
   // CommonCertSets interface.
   absl::string_view GetCommonHashes() const override {
     return absl::string_view(reinterpret_cast<const char*>(kSetHashes),
-                             sizeof(uint64_t) * QUICHE_ARRAYSIZE(kSetHashes));
+                             sizeof(uint64_t) * ABSL_ARRAYSIZE(kSetHashes));
   }
 
   absl::string_view GetCert(uint64_t hash, uint32_t index) const override {
-    for (size_t i = 0; i < QUICHE_ARRAYSIZE(kSets); i++) {
+    for (size_t i = 0; i < ABSL_ARRAYSIZE(kSets); i++) {
       if (kSets[i].hash == hash) {
         if (index < kSets[i].num_certs) {
           return absl::string_view(
@@ -112,7 +112,7 @@ class CommonCertSetsQUIC : public CommonCertSets {
       memcpy(&hash, common_set_hashes.data() + i * sizeof(uint64_t),
              sizeof(uint64_t));
 
-      for (size_t j = 0; j < QUICHE_ARRAYSIZE(kSets); j++) {
+      for (size_t j = 0; j < ABSL_ARRAYSIZE(kSets); j++) {
         if (kSets[j].hash != hash) {
           continue;
         }
