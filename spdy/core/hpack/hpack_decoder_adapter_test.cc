@@ -13,11 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_state.h"
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
 #include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
 #include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
@@ -614,7 +614,7 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
   // name.
   const char input[] = "\x04\x0c/sample/path\x00\x06:path2\x0e/sample/path/2";
   const SpdyHeaderBlock& header_set = DecodeBlockExpectingSuccess(
-      absl::string_view(input, QUICHE_ARRAYSIZE(input) - 1));
+      absl::string_view(input, ABSL_ARRAYSIZE(input) - 1));
 
   SpdyHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";
@@ -627,7 +627,7 @@ TEST_P(HpackDecoderAdapterTest, LiteralHeaderNoIndexing) {
 TEST_P(HpackDecoderAdapterTest, LiteralHeaderIncrementalIndexing) {
   const char input[] = "\x44\x0c/sample/path\x40\x06:path2\x0e/sample/path/2";
   const SpdyHeaderBlock& header_set = DecodeBlockExpectingSuccess(
-      absl::string_view(input, QUICHE_ARRAYSIZE(input) - 1));
+      absl::string_view(input, ABSL_ARRAYSIZE(input) - 1));
 
   SpdyHeaderBlock expected_header_set;
   expected_header_set[":path"] = "/sample/path";

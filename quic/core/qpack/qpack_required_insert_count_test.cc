@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -50,7 +50,7 @@ struct {
     {600, 100, 500}};
 
 TEST(QpackRequiredInsertCountTest, QpackDecodeRequiredInsertCount) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
     const uint64_t required_insert_count = kTestData[i].required_insert_count;
     const uint64_t max_entries = kTestData[i].max_entries;
     const uint64_t total_number_of_inserts =
@@ -109,7 +109,7 @@ struct {
     {601, 100, 500}};
 
 TEST(QpackRequiredInsertCountTest, DecodeRequiredInsertCountError) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kInvalidTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kInvalidTestData); ++i) {
     uint64_t decoded_required_insert_count = 0;
     EXPECT_FALSE(QpackDecodeRequiredInsertCount(
         kInvalidTestData[i].encoded_required_insert_count,

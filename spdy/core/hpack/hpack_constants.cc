@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_static_table.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
@@ -290,7 +290,7 @@ const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector() {
 // The "constructor" for a HpackStaticEntry that computes the lengths at
 // compile time.
 #define STATIC_ENTRY(name, value) \
-  { name, QUICHE_ARRAYSIZE(name) - 1, value, QUICHE_ARRAYSIZE(value) - 1 }
+  { name, ABSL_ARRAYSIZE(name) - 1, value, ABSL_ARRAYSIZE(value) - 1 }
 
 const std::vector<HpackStaticEntry>& HpackStaticTableVector() {
   static const auto* kHpackStaticTable = new std::vector<HpackStaticEntry>{

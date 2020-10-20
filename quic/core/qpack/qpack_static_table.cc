@@ -4,15 +4,15 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 
 // The "constructor" for a QpackStaticEntry that computes the lengths at
 // compile time.
 #define STATIC_ENTRY(name, value) \
-  { name, QUICHE_ARRAYSIZE(name) - 1, value, QUICHE_ARRAYSIZE(value) - 1 }
+  { name, ABSL_ARRAYSIZE(name) - 1, value, ABSL_ARRAYSIZE(value) - 1 }
 
 const std::vector<QpackStaticEntry>& QpackStaticTableVector() {
   static const auto* kQpackStaticTable = new std::vector<QpackStaticEntry>{

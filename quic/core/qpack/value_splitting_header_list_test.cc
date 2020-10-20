@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 namespace quic {
 namespace test {
@@ -113,7 +113,7 @@ TEST(ValueSplittingHeaderListTest, Split) {
       {"cookie", "; foobar; ", {"", "foobar", ""}},
   };
 
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
     spdy::SpdyHeaderBlock block;
     block[kTestData[i].name] = kTestData[i].value;
 
