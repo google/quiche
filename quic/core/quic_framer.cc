@@ -4247,6 +4247,9 @@ void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
 void QuicFramer::SetKeyUpdateSupportForConnection(bool enabled) {
   QUIC_DVLOG(1) << ENDPOINT << "SetKeyUpdateSupportForConnection: " << enabled;
   support_key_update_for_connection_ = enabled;
+  if (enabled) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_key_update_supported);
+  }
 }
 
 void QuicFramer::DiscardPreviousOneRttKeys() {

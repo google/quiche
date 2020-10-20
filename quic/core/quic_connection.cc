@@ -359,6 +359,9 @@ QuicConnection::QuicConnection(
   if (fix_missing_connected_checks_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_connected_checks);
   }
+  if (enable_aead_limits_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_aead_limits);
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
                   << " and version: " << ParsedQuicVersionToString(version());
