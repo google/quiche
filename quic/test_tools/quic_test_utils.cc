@@ -1531,12 +1531,11 @@ bool WriteServerVersionNegotiationProbeResponse(
   }
   QuicConnectionId source_connection_id(source_connection_id_bytes,
                                         source_connection_id_length);
-  const bool use_length_prefix =
-      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
   std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
       QuicFramer::BuildVersionNegotiationPacket(
           source_connection_id, EmptyQuicConnectionId(),
-          /*ietf_quic=*/true, use_length_prefix, ParsedQuicVersionVector{});
+          /*ietf_quic=*/true, /*use_length_prefix=*/true,
+          ParsedQuicVersionVector{});
   if (!encrypted_packet) {
     QUIC_BUG << "Failed to create version negotiation packet";
     return false;

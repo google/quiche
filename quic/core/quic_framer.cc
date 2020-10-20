@@ -6676,9 +6676,6 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     QUIC_BUG << "Invalid connection_id_length";
     return false;
   }
-  const bool use_length_prefix =
-      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
-  const uint8_t last_version_byte = use_length_prefix ? 0xda : 0xba;
   // clang-format off
   const unsigned char packet_start_bytes[] = {
     // IETF long header with fixed bit set, type initial, all-0 encrypted bits.
@@ -6686,7 +6683,7 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
     // Version, part of the IETF space reserved for negotiation.
     // This intentionally differs from QuicVersionReservedForNegotiation()
     // to allow differentiating them over the wire.
-    0xca, 0xba, 0xda, last_version_byte,
+    0xca, 0xba, 0xda, 0xda,
   };
   // clang-format on
   static_assert(sizeof(packet_start_bytes) == 5, "bad packet_start_bytes size");
@@ -6699,8 +6696,8 @@ bool QuicFramer::WriteClientVersionNegotiationProbePacket(
   QuicConnectionId destination_connection_id(destination_connection_id_bytes,
                                              destination_connection_id_length);
   if (!AppendIetfConnectionIds(
-          /*version_flag=*/true, use_length_prefix, destination_connection_id,
-          EmptyQuicConnectionId(), &writer)) {
+          /*version_flag=*/true, /*use_length_prefix=*/true,
+          destination_connection_id, EmptyQuicConnectionId(), &writer)) {
     QUIC_BUG << "Failed to write connection IDs";
     return false;
   }
@@ -6784,40 +6781,15 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     *detailed_error = "Packet is not a version negotiation packet";
     return false;
   }
-  const bool use_length_prefix =
-      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
+
   QuicConnectionId destination_connection_id, source_connection_id;
-  if (use_length_prefix) {
-    if (!reader.ReadLengthPrefixedConnectionId(&destination_connection_id)) {
-      *detailed_error = "Failed to read destination connection ID";
-      return false;
-    }
-    if (!reader.ReadLengthPrefixedConnectionId(&source_connection_id)) {
-      *detailed_error = "Failed to read source connection ID";
-      return false;
-    }
-  } else {
-    uint8_t expected_server_connection_id_length = 0,
-            destination_connection_id_length = 0,
-            source_connection_id_length = 0;
-    if (!ProcessAndValidateIetfConnectionIdLength(
-            &reader, UnsupportedQuicVersion(), Perspective::IS_CLIENT,
-            /*should_update_expected_server_connection_id_length=*/true,
-            &expected_server_connection_id_length,
-            &destination_connection_id_length, &source_connection_id_length,
-            detailed_error)) {
-      return false;
-    }
-    if (!reader.ReadConnectionId(&destination_connection_id,
-                                 destination_connection_id_length)) {
-      *detailed_error = "Failed to read destination connection ID";
-      return false;
-    }
-    if (!reader.ReadConnectionId(&source_connection_id,
-                                 source_connection_id_length)) {
-      *detailed_error = "Failed to read source connection ID";
-      return false;
-    }
+  if (!reader.ReadLengthPrefixedConnectionId(&destination_connection_id)) {
+    *detailed_error = "Failed to read destination connection ID";
+    return false;
+  }
+  if (!reader.ReadLengthPrefixedConnectionId(&source_connection_id)) {
+    *detailed_error = "Failed to read source connection ID";
+    return false;
   }
 
   if (destination_connection_id.length() != 0) {

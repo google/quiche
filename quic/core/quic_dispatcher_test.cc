@@ -1206,37 +1206,7 @@ static_assert(quic::SupportedVersions().size() == 7u,
               "Please add new RejectDeprecatedVersion tests above this assert "
               "when deprecating versions");
 
-TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeOld) {
-  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  CreateTimeWaitListManager();
-  char packet[1200];
-  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
-                                            0x6c, 0x7a, 0x20, 0x21};
-  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
-      packet, sizeof(packet), destination_connection_id_bytes,
-      sizeof(destination_connection_id_bytes)));
-  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
-  std::unique_ptr<QuicReceivedPacket> received_packet(
-      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
-  QuicConnectionId client_connection_id = EmptyQuicConnectionId();
-  QuicConnectionId server_connection_id(
-      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
-  bool ietf_quic = true;
-  bool use_length_prefix =
-      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(server_connection_id, client_connection_id,
-                                   ietf_quic, use_length_prefix, _, _, _, _))
-      .Times(1);
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
-
-  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
-}
-
 TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbe) {
-  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
   char packet[1200];
@@ -1251,13 +1221,10 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbe) {
   QuicConnectionId client_connection_id = EmptyQuicConnectionId();
   QuicConnectionId server_connection_id(
       destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
-  bool ietf_quic = true;
-  bool use_length_prefix =
-      GetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(server_connection_id, client_connection_id,
-                                   ietf_quic, use_length_prefix, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(
+                  server_connection_id, client_connection_id,
+                  /*ietf_quic=*/true, /*use_length_prefix=*/true, _, _, _, _))
       .Times(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
 
@@ -1288,53 +1255,7 @@ class SavingWriter : public QuicPacketWriterWrapper {
   std::vector<std::unique_ptr<QuicEncryptedPacket>> packets_;
 };
 
-TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEndOld) {
-  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, false);
-
-  SavingWriter* saving_writer = new SavingWriter();
-  // dispatcher_ takes ownership of saving_writer.
-  QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
-
-  QuicTimeWaitListManager* time_wait_list_manager = new QuicTimeWaitListManager(
-      saving_writer, dispatcher_.get(), mock_helper_.GetClock(),
-      &mock_alarm_factory_);
-  // dispatcher_ takes ownership of time_wait_list_manager.
-  QuicDispatcherPeer::SetTimeWaitListManager(dispatcher_.get(),
-                                             time_wait_list_manager);
-  char packet[1200] = {};
-  char destination_connection_id_bytes[] = {0x56, 0x4e, 0x20, 0x70,
-                                            0x6c, 0x7a, 0x20, 0x21};
-  EXPECT_TRUE(QuicFramer::WriteClientVersionNegotiationProbePacket(
-      packet, sizeof(packet), destination_connection_id_bytes,
-      sizeof(destination_connection_id_bytes)));
-  QuicEncryptedPacket encrypted(packet, sizeof(packet), false);
-  std::unique_ptr<QuicReceivedPacket> received_packet(
-      ConstructReceivedPacket(encrypted, mock_helper_.GetClock()->Now()));
-  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
-
-  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
-  dispatcher_->ProcessPacket(server_address_, client_address, *received_packet);
-  ASSERT_EQ(1u, saving_writer->packets()->size());
-
-  char source_connection_id_bytes[255] = {};
-  uint8_t source_connection_id_length = sizeof(source_connection_id_bytes);
-  std::string detailed_error = "foobar";
-  EXPECT_TRUE(QuicFramer::ParseServerVersionNegotiationProbeResponse(
-      (*(saving_writer->packets()))[0]->data(),
-      (*(saving_writer->packets()))[0]->length(), source_connection_id_bytes,
-      &source_connection_id_length, &detailed_error));
-  EXPECT_EQ("", detailed_error);
-
-  // The source connection ID of the probe response should match the
-  // destination connection ID of the probe request.
-  quiche::test::CompareCharArraysWithHexError(
-      "parsed probe", source_connection_id_bytes, source_connection_id_length,
-      destination_connection_id_bytes, sizeof(destination_connection_id_bytes));
-}
-
 TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbeEndToEnd) {
-  SetQuicFlag(FLAGS_quic_prober_uses_length_prefixed_connection_ids, true);
-
   SavingWriter* saving_writer = new SavingWriter();
   // dispatcher_ takes ownership of saving_writer.
   QuicDispatcherPeer::UseWriter(dispatcher_.get(), saving_writer);
