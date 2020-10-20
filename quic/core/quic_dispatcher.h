@@ -321,6 +321,11 @@ class QUIC_NO_EXPORT QuicDispatcher
       const QuicConnectionId& server_connection_id,
       const ParsedQuicVersion& version) const;
 
+  // Sends public/stateless reset packets with no version and unknown
+  // connection ID according to the packet's size.
+  virtual void MaybeResetPacketsWithNoVersion(
+      const quic::ReceivedPacketInfo& packet_info);
+
  private:
   friend class test::QuicDispatcherPeer;
 
@@ -335,10 +340,6 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   // Returns true if |version| is a supported protocol version.
   bool IsSupportedVersion(const ParsedQuicVersion version);
-
-  // Sends public/stateless reset packets with no version and unknown
-  // connection ID according to the packet's size.
-  void MaybeResetPacketsWithNoVersion(const ReceivedPacketInfo& packet_info);
 
   const QuicConfig* config_;
 
