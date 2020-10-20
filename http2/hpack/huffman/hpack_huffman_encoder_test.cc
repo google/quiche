@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -49,7 +49,7 @@ TEST_P(HuffmanEncoderTest, SpecRequestExamples) {
       Http2HexDecode("25a849e95bb8e8b4bf"),
       "custom-value",
   };
-  for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
     size_t encoded_size = HuffmanSize(plain_string);
@@ -80,7 +80,7 @@ TEST_P(HuffmanEncoderTest, SpecResponseExamples) {
     "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
   };
   // clang-format on
-  for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
     size_t encoded_size = HuffmanSize(plain_string);
@@ -103,10 +103,10 @@ TEST_P(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
   };
   // Modify last |test_table| entry to cover all codes.
   for (size_t i = 0; i != 256; ++i) {
-    test_table[QUICHE_ARRAYSIZE(test_table) - 1][i] = static_cast<char>(i);
+    test_table[ABSL_ARRAYSIZE(test_table) - 1][i] = static_cast<char>(i);
   }
 
-  for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); ++i) {
+  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); ++i) {
     const std::string& plain_string = test_table[i];
     size_t encoded_size = HuffmanSize(plain_string);
     std::string huffman_encoded;

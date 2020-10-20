@@ -8,11 +8,11 @@
 
 #include <stddef.h>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionFailure;
@@ -260,7 +260,7 @@ struct {
 };
 
 TEST_P(HpackVarintDecoderTest, Success) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kSuccessTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kSuccessTestData); ++i) {
     DecodeExpectSuccess(Http2HexDecode(kSuccessTestData[i].data),
                         kSuccessTestData[i].prefix_length,
                         kSuccessTestData[i].expected_value);
@@ -301,7 +301,7 @@ struct {
     {"ff80feffffffffffffff8100", 8}};
 
 TEST_P(HpackVarintDecoderTest, Error) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kErrorTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kErrorTestData); ++i) {
     DecodeExpectError(Http2HexDecode(kErrorTestData[i].data),
                       kErrorTestData[i].prefix_length);
   }

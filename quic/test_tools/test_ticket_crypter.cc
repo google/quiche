@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
+#include "absl/base/macros.h"
 
 namespace quic {
 namespace test {
@@ -26,11 +26,11 @@ constexpr char kTicketPrefix[] = "TEST TICKET";
 }  // namespace
 
 size_t TestTicketCrypter::MaxOverhead() {
-  return QUICHE_ARRAYSIZE(kTicketPrefix);
+  return ABSL_ARRAYSIZE(kTicketPrefix);
 }
 
 std::vector<uint8_t> TestTicketCrypter::Encrypt(absl::string_view in) {
-  size_t prefix_len = QUICHE_ARRAYSIZE(kTicketPrefix);
+  size_t prefix_len = ABSL_ARRAYSIZE(kTicketPrefix);
   std::vector<uint8_t> out(prefix_len + in.size());
   memcpy(out.data(), kTicketPrefix, prefix_len);
   memcpy(out.data() + prefix_len, in.data(), in.size());
@@ -38,7 +38,7 @@ std::vector<uint8_t> TestTicketCrypter::Encrypt(absl::string_view in) {
 }
 
 std::vector<uint8_t> TestTicketCrypter::Decrypt(absl::string_view in) {
-  size_t prefix_len = QUICHE_ARRAYSIZE(kTicketPrefix);
+  size_t prefix_len = ABSL_ARRAYSIZE(kTicketPrefix);
   if (fail_decrypt_ || in.size() < prefix_len ||
       memcmp(kTicketPrefix, in.data(), prefix_len) != 0) {
     return std::vector<uint8_t>();

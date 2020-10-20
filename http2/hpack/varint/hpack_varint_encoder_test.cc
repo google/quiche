@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
@@ -30,7 +30,7 @@ struct {
 
 // Encode integers that fit in the prefix.
 TEST(HpackVarintEncoderTest, Short) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kShortTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kShortTestData); ++i) {
     std::string output;
     HpackVarintEncoder::Encode(kShortTestData[i].high_bits,
                                kShortTestData[i].prefix_length,
@@ -103,7 +103,7 @@ struct {
 TEST(HpackVarintEncoderTest, Long) {
   // Test encoding byte by byte, also test encoding in
   // a single ResumeEncoding() call.
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kLongTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kLongTestData); ++i) {
     std::string expected_encoding =
         Http2HexDecode(kLongTestData[i].expected_encoding);
 
@@ -130,7 +130,7 @@ struct {
 // Make sure that the encoder outputs the last byte even when it is zero.  This
 // happens exactly when encoding  the value 2^prefix_length - 1.
 TEST(HpackVarintEncoderTest, LastByteIsZero) {
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(kLastByteIsZeroTestData); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(kLastByteIsZeroTestData); ++i) {
     std::string output;
     HpackVarintEncoder::Encode(kLastByteIsZeroTestData[i].high_bits,
                                kLastByteIsZeroTestData[i].prefix_length,

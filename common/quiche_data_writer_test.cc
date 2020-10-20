@@ -7,8 +7,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
@@ -332,24 +332,24 @@ TEST_P(QuicheDataWriterTest, WriteIntegers) {
 
 TEST_P(QuicheDataWriterTest, WriteBytes) {
   char bytes[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-  char buf[QUICHE_ARRAYSIZE(bytes)];
-  QuicheDataWriter writer(QUICHE_ARRAYSIZE(buf), buf, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteBytes(bytes, QUICHE_ARRAYSIZE(bytes)));
-  for (unsigned int i = 0; i < QUICHE_ARRAYSIZE(bytes); ++i) {
+  char buf[ABSL_ARRAYSIZE(bytes)];
+  QuicheDataWriter writer(ABSL_ARRAYSIZE(buf), buf, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteBytes(bytes, ABSL_ARRAYSIZE(bytes)));
+  for (unsigned int i = 0; i < ABSL_ARRAYSIZE(bytes); ++i) {
     EXPECT_EQ(bytes[i], buf[i]);
   }
 }
 
 TEST_P(QuicheDataWriterTest, Seek) {
   char buffer[3] = {};
-  QuicheDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+  QuicheDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
                           GetParam().endianness);
   EXPECT_TRUE(writer.WriteUInt8(42));
   EXPECT_TRUE(writer.Seek(1));
   EXPECT_TRUE(writer.WriteUInt8(3));
 
   char expected[] = {42, 0, 3};
-  for (size_t i = 0; i < QUICHE_ARRAYSIZE(expected); ++i) {
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(expected); ++i) {
     EXPECT_EQ(buffer[i], expected[i]);
   }
 }
@@ -359,7 +359,7 @@ TEST_P(QuicheDataWriterTest, SeekTooFarFails) {
 
   // Check that one can seek to the end of the writer, but not past.
   {
-    QuicheDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+    QuicheDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
                             GetParam().endianness);
     EXPECT_TRUE(writer.Seek(20));
     EXPECT_FALSE(writer.Seek(1));
@@ -367,14 +367,14 @@ TEST_P(QuicheDataWriterTest, SeekTooFarFails) {
 
   // Seeking several bytes past the end fails.
   {
-    QuicheDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+    QuicheDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
                             GetParam().endianness);
     EXPECT_FALSE(writer.Seek(100));
   }
 
   // Seeking so far that arithmetic overflow could occur also fails.
   {
-    QuicheDataWriter writer(QUICHE_ARRAYSIZE(buffer), buffer,
+    QuicheDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
                             GetParam().endianness);
     EXPECT_TRUE(writer.Seek(10));
     EXPECT_FALSE(writer.Seek(std::numeric_limits<size_t>::max()));

@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/chacha.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -35,7 +36,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 
@@ -206,7 +206,7 @@ std::string Sha1Hash(absl::string_view data) {
   char buffer[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
        reinterpret_cast<uint8_t*>(buffer));
-  return std::string(buffer, QUICHE_ARRAYSIZE(buffer));
+  return std::string(buffer, ABSL_ARRAYSIZE(buffer));
 }
 
 bool ClearControlFrame(const QuicFrame& frame) {

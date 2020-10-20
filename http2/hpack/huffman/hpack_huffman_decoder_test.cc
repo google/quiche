@@ -8,12 +8,12 @@
 
 #include <iostream>
 
+#include "absl/base/macros.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
 #include "net/third_party/quiche/src/http2/decoder/decode_status.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
 #include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
@@ -197,7 +197,7 @@ TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
       Http2HexDecode("25a849e95bb8e8b4bf"),
       "custom-value",
   };
-  for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
     std::string buffer;
@@ -228,7 +228,7 @@ TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
     "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
   };
   // clang-format on
-  for (size_t i = 0; i != QUICHE_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
     const std::string& huffman_encoded(test_table[i]);
     const std::string& plain_string(test_table[i + 1]);
     std::string buffer;

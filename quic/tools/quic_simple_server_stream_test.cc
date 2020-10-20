@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
@@ -29,7 +30,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_arraysize.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -772,7 +772,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
       0x54, 0x54, 0x50, 0x2f,  // TTP/
       0x31, 0x2e, 0x31,        // 1.1
   };
-  absl::string_view data(arr, QUICHE_ARRAYSIZE(arr));
+  absl::string_view data(arr, ABSL_ARRAYSIZE(arr));
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
   stream_->OnStreamFrame(frame);
