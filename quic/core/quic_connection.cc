@@ -285,6 +285,7 @@ QuicConnection::QuicConnection(
       ping_timeout_(QuicTime::Delta::FromSeconds(kPingTimeoutSecs)),
       initial_retransmittable_on_wire_timeout_(QuicTime::Delta::Infinite()),
       consecutive_retransmittable_on_wire_ping_count_(0),
+      retransmittable_on_wire_ping_count_(0),
       arena_(),
       ack_alarm_(alarm_factory_->CreateAlarm(arena_.New<AckAlarmDelegate>(this),
                                              &arena_)),
@@ -4054,7 +4055,9 @@ void QuicConnection::SetPingAlarm() {
     return;
   }
   if (initial_retransmittable_on_wire_timeout_.IsInfinite() ||
-      sent_packet_manager_.HasInFlightPackets()) {
+      sent_packet_manager_.HasInFlightPackets() ||
+      retransmittable_on_wire_ping_count_ >
+          GetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count)) {
     // Extend the ping alarm.
     ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
                         QuicTime::Delta::FromSeconds(1));
@@ -4090,6 +4093,7 @@ void QuicConnection::SetPingAlarm() {
     if (max_aggressive_retransmittable_on_wire_ping_count != 0) {
       consecutive_retransmittable_on_wire_ping_count_++;
     }
+    retransmittable_on_wire_ping_count_++;
     return;
   }
 

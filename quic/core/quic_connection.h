@@ -526,6 +526,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicConnectionStats& mutable_stats() { return stats_; }
 
+  int retransmittable_on_wire_ping_count() const {
+    return retransmittable_on_wire_ping_count_;
+  }
+
   // Returns statistics tracked for this connection.
   const QuicConnectionStats& GetStats();
 
@@ -1650,6 +1654,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Indicates how many retransmittable-on-wire pings have been emitted without
   // receiving any new data in between.
   int consecutive_retransmittable_on_wire_ping_count_;
+
+  // Indicates how many retransmittable-on-wire pings have been emitted.
+  int retransmittable_on_wire_ping_count_;
 
   // Arena to store class implementations within the QuicConnection.
   QuicConnectionArena arena_;
