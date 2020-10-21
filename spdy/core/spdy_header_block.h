@@ -23,7 +23,7 @@
 namespace spdy {
 
 namespace test {
-class SpdyHeaderBlockPeer;
+class Http2HeaderBlockPeer;
 class ValueProxyPeer;
 }  // namespace test
 
@@ -251,7 +251,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   size_t TotalBytesUsed() const { return key_size_ + value_size_; }
 
  private:
-  friend class test::SpdyHeaderBlockPeer;
+  friend class test::Http2HeaderBlockPeer;
 
   inline iterator wrap_iterator(MapType::const_iterator inner_iterator) const {
 #if SPDY_HEADER_DEBUG
