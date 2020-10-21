@@ -69,7 +69,8 @@ class QuicCryptoClientStreamTest : public QuicTest {
   void CompleteCryptoHandshake() {
     int proof_verify_details_calls = 1;
     if (stream()->handshake_protocol() != PROTOCOL_TLS1_3) {
-      EXPECT_CALL(*session_, OnProofValid(testing::_));
+      EXPECT_CALL(*session_, OnProofValid(testing::_))
+          .Times(testing::AtLeast(1));
       proof_verify_details_calls = 0;
     }
     EXPECT_CALL(*session_, OnProofVerifyDetailsAvailable(testing::_))
@@ -172,14 +173,13 @@ TEST_F(QuicCryptoClientStreamTest, ClientTurnedOffZeroRtt) {
 
   // Set connection option.
   QuicTagVector options;
-  options.push_back(kQNZR);
+  options.push_back(kQNZ2);
   session_->config()->SetClientConnectionOptions(options);
 
-  EXPECT_CALL(*session_, OnProofValid(testing::_));
-  stream()->CryptoConnect();
-  // Check that a client hello was sent.
-  ASSERT_EQ(1u, connection_->encrypted_packets_.size());
-  EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
+  CompleteCryptoHandshake();
+  // Check that two client hellos were sent, one inchoate and one normal.
+  EXPECT_EQ(2, stream()->num_sent_client_hellos());
+  EXPECT_FALSE(stream()->EarlyDataAccepted());
   EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_disabled);
 }
 

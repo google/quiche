@@ -317,7 +317,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     early_data_reason_ = ssl_early_data_no_session_offered;
     fill_inchoate_client_hello = true;
   } else if (session()->config()->HasClientRequestedIndependentOption(
-                 kQNZR, session()->perspective())) {
+                 kQNZ2, session()->perspective()) &&
+             num_client_hellos_ == 1) {
     early_data_reason_ = ssl_early_data_disabled;
     fill_inchoate_client_hello = true;
   }

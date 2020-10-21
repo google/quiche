@@ -2185,6 +2185,41 @@ TEST_P(EndToEndTest, ClientSuggestsIgnoredRTT) {
   server_thread_->Resume();
 }
 
+// Regression test for b/171378845
+TEST_P(EndToEndTest, ClientDisablesGQuicZeroRtt) {
+  if (version_.UsesTls()) {
+    // This feature is gQUIC only.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  QuicTagVector options;
+  options.push_back(kQNZ2);
+  client_config_.SetClientConnectionOptions(options);
+
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+
+  client_->Disconnect();
+
+  // Make sure that the request succeeds but 0-RTT was not used.
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+}
+
 TEST_P(EndToEndTest, MaxInitialRTT) {
   // Client tries to suggest twice the server's max initial rtt and the server
   // uses the max.

@@ -27,7 +27,8 @@ namespace quic {
 typedef std::string ServerConfigID;
 
 // The following tags have been deprecated and should not be reused:
-// "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL"
+// "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
+// "QNZR"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -369,7 +370,8 @@ const QuicTag kUAID = TAG('U', 'A', 'I', 'D');   // Client's User Agent ID.
 const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
 const QuicTag kQLVE = TAG('Q', 'L', 'V', 'E');   // Legacy Version
                                                  // Encapsulation.
-const QuicTag kQNZR = TAG('Q', 'N', 'Z', 'R');   // Turn off QUIC crypto 0-RTT.
+
+const QuicTag kQNZ2 = TAG('Q', 'N', 'Z', '2');   // Turn off QUIC crypto 0-RTT.
 
 const QuicTag kQNSP = TAG('Q', 'N', 'S', 'P');   // Turn off server push in
                                                  // gQUIC.
