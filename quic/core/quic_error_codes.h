@@ -391,8 +391,57 @@ enum QuicErrorCode {
 
   // Internal error codes for QPACK errors.
   QUIC_QPACK_DECOMPRESSION_FAILED = 126,
+
+  // Obsolete generic QPACK encoder and decoder stream error codes.
+  // (Obsoleted by gfe2_reloadable_flag_quic_granular_qpack_error_codes.)
   QUIC_QPACK_ENCODER_STREAM_ERROR = 127,
   QUIC_QPACK_DECODER_STREAM_ERROR = 128,
+
+  // QPACK encoder stream errors.
+
+  // Variable integer exceeding 2^64-1 received.
+  QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE = 174,
+  // String literal exceeding kStringLiteralLengthLimit in length received.
+  QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG = 175,
+  // String literal with invalid Huffman encoding received.
+  QUIC_QPACK_ENCODER_STREAM_HUFFMAN_ENCODING_ERROR = 176,
+  // Invalid static table index in Insert With Name Reference instruction.
+  QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY = 177,
+  // Error inserting entry with static name reference in Insert With Name
+  // Reference instruction due to entry size exceeding dynamic table capacity.
+  QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_STATIC = 178,
+  // Invalid relative index in Insert With Name Reference instruction.
+  QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX = 179,
+  // Dynamic entry not found in Insert With Name Reference instruction.
+  QUIC_QPACK_ENCODER_STREAM_INSERTION_DYNAMIC_ENTRY_NOT_FOUND = 180,
+  // Error inserting entry with dynamic name reference in Insert With Name
+  // Reference instruction due to entry size exceeding dynamic table capacity.
+  QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_DYNAMIC = 181,
+  // Error inserting entry in Insert With Literal Name instruction due to entry
+  // size exceeding dynamic table capacity.
+  QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL = 182,
+  // Invalid relative index in Duplicate instruction.
+  QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX = 183,
+  // Dynamic entry not found in Duplicate instruction.
+  QUIC_QPACK_ENCODER_STREAM_DUPLICATE_DYNAMIC_ENTRY_NOT_FOUND = 184,
+  // Error in Set Dynamic Table Capacity instruction due to new capacity
+  // exceeding maximum dynamic table capacity.
+  QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY = 185,
+
+  // QPACK decoder stream errors.
+
+  // Variable integer exceeding 2^64-1 received.
+  QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE = 186,
+  // Insert Count Increment instruction received with invalid 0 increment.
+  QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT = 187,
+  // Insert Count Increment instruction causes uint64_t overflow.
+  QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW = 188,
+  // Insert Count Increment instruction increases Known Received Count beyond
+  // inserted entry cound.
+  QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT = 189,
+  // Header Acknowledgement received for stream that has no outstanding header
+  // blocks.
+  QUIC_QPACK_DECODER_STREAM_INCORRECT_ACKNOWLEDGEMENT = 190,
 
   // Received stream data beyond close offset.
   QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET = 129,
@@ -508,7 +557,7 @@ enum QuicErrorCode {
   QUIC_AEAD_LIMIT_REACHED = 173,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 174,
+  QUIC_LAST_ERROR = 191,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

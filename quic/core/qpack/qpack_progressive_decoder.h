@@ -100,7 +100,8 @@ class QUIC_EXPORT_PRIVATE QpackProgressiveDecoder
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnInstructionDecodingError(absl::string_view error_message) override;
+  void OnInstructionDecodingError(QpackInstructionDecoder::ErrorCode error_code,
+                                  absl::string_view error_message) override;
 
   // QpackHeaderTable::Observer implementation.
   void OnInsertCountReachedThreshold() override;

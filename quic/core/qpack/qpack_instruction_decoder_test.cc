@@ -67,7 +67,8 @@ class MockDelegate : public QpackInstructionDecoder::Delegate {
               (override));
   MOCK_METHOD(void,
               OnInstructionDecodingError,
-              (absl::string_view error_message),
+              (QpackInstructionDecoder::ErrorCode error_code,
+               absl::string_view error_message),
               (override));
 };
 
@@ -82,7 +83,7 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
   void SetUp() override {
     // Destroy QpackInstructionDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
-    ON_CALL(delegate_, OnInstructionDecodingError(_))
+    ON_CALL(delegate_, OnInstructionDecodingError(_, _))
         .WillByDefault(InvokeWithoutArgs([this]() { decoder_.reset(); }));
   }
 
@@ -164,21 +165,27 @@ TEST_P(QpackInstructionDecoderTest, NameAndValue) {
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
-  EXPECT_CALL(delegate_, OnInstructionDecodingError(
-                             Eq("Error in Huffman-encoded string.")));
+  EXPECT_CALL(delegate_,
+              OnInstructionDecodingError(
+                  QpackInstructionDecoder::ErrorCode::HUFFMAN_ENCODING_ERROR,
+                  Eq("Error in Huffman-encoded string.")));
   DecodeInstruction(quiche::QuicheTextUtils::HexDecode("c1ff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
   EXPECT_CALL(delegate_,
-              OnInstructionDecodingError(Eq("Encoded integer too large.")));
+              OnInstructionDecodingError(
+                  QpackInstructionDecoder::ErrorCode::INTEGER_TOO_LARGE,
+                  Eq("Encoded integer too large.")));
   DecodeInstruction(
       quiche::QuicheTextUtils::HexDecode("ffffffffffffffffffffff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, StringLiteralTooLong) {
   EXPECT_CALL(delegate_,
-              OnInstructionDecodingError(Eq("String literal too long.")));
+              OnInstructionDecodingError(
+                  QpackInstructionDecoder::ErrorCode::STRING_LITERAL_TOO_LONG,
+                  Eq("String literal too long.")));
   DecodeInstruction(quiche::QuicheTextUtils::HexDecode("bfffff7f"));
 }
 

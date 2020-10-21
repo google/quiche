@@ -22,6 +22,12 @@ namespace quic {
 // fields that follow each instruction.
 class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
  public:
+  enum class ErrorCode {
+    INTEGER_TOO_LARGE,
+    STRING_LITERAL_TOO_LONG,
+    HUFFMAN_ENCODING_ERROR,
+  };
+
   // Delegate is notified each time an instruction is decoded or when an error
   // occurs.
   class QUIC_EXPORT_PRIVATE Delegate {
@@ -43,6 +49,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
     // Implementations are allowed to destroy the QpackInstructionDecoder
     // instance synchronously.
     virtual void OnInstructionDecodingError(
+        ErrorCode error_code,
         absl::string_view error_message) = 0;
   };
 
@@ -110,7 +117,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   const QpackInstruction* LookupOpcode(uint8_t byte) const;
 
   // Stops decoding and calls Delegate::OnInstructionDecodingError().
-  void OnError(absl::string_view error_message);
+  void OnError(ErrorCode error_code, absl::string_view error_message);
 
   // Describes the language used for decoding.
   const QpackLanguage* const language_;

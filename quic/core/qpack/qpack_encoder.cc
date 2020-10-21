@@ -12,6 +12,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
@@ -403,20 +404,20 @@ bool QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {
 
 void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
   if (increment == 0) {
-    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT,
                     "Invalid increment value 0.");
     return;
   }
 
   if (!blocking_manager_.OnInsertCountIncrement(increment)) {
-    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW,
                     "Insert Count Increment instruction causes overflow.");
   }
 
   if (blocking_manager_.known_received_count() >
       header_table_.inserted_entry_count()) {
     OnErrorDetected(
-        QUIC_QPACK_DECODER_STREAM_ERROR,
+        QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT,
         quiche::QuicheStrCat("Increment value ", increment,
                              " raises known received count to ",
                              blocking_manager_.known_received_count(),
@@ -428,7 +429,7 @@ void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
 void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId stream_id) {
   if (!blocking_manager_.OnHeaderAcknowledgement(stream_id)) {
     OnErrorDetected(
-        QUIC_QPACK_DECODER_STREAM_ERROR,
+        QUIC_QPACK_DECODER_STREAM_INCORRECT_ACKNOWLEDGEMENT,
         quiche::QuicheStrCat("Header Acknowledgement received for stream ",
                              stream_id, " with no outstanding header blocks."));
   }
@@ -438,10 +439,13 @@ void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
   blocking_manager_.OnStreamCancellation(stream_id);
 }
 
-void QpackEncoder::OnErrorDetected(QuicErrorCode /* error_code */,
+void QpackEncoder::OnErrorDetected(QuicErrorCode error_code,
                                    absl::string_view error_message) {
   decoder_stream_error_delegate_->OnDecoderStreamError(
-      QUIC_QPACK_DECODER_STREAM_ERROR, error_message);
+      GetQuicReloadableFlag(quic_granular_qpack_error_codes)
+          ? error_code
+          : QUIC_QPACK_DECODER_STREAM_ERROR,
+      error_message);
 }
 
 }  // namespace quic

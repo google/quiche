@@ -8,6 +8,7 @@
 
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -74,14 +75,14 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   if (is_static) {
     auto entry = header_table_.LookupEntry(/* is_static = */ true, name_index);
     if (!entry) {
-      OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+      OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY,
                       "Invalid static table entry.");
       return;
     }
 
     entry = header_table_.InsertEntry(entry->name(), value);
     if (!entry) {
-      OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+      OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_STATIC,
                       "Error inserting entry with name reference.");
     }
     return;
@@ -90,20 +91,21 @@ void QpackDecoder::OnInsertWithNameReference(bool is_static,
   uint64_t absolute_index;
   if (!QpackEncoderStreamRelativeIndexToAbsoluteIndex(
           name_index, header_table_.inserted_entry_count(), &absolute_index)) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR, "Invalid relative index.");
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX,
+                    "Invalid relative index.");
     return;
   }
 
   const QpackEntry* entry =
       header_table_.LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_INSERTION_DYNAMIC_ENTRY_NOT_FOUND,
                     "Dynamic table entry not found.");
     return;
   }
   entry = header_table_.InsertEntry(entry->name(), value);
   if (!entry) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_DYNAMIC,
                     "Error inserting entry with name reference.");
   }
 }
@@ -112,7 +114,7 @@ void QpackDecoder::OnInsertWithoutNameReference(absl::string_view name,
                                                 absl::string_view value) {
   const QpackEntry* entry = header_table_.InsertEntry(name, value);
   if (!entry) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL,
                     "Error inserting literal entry.");
   }
 }
@@ -121,35 +123,41 @@ void QpackDecoder::OnDuplicate(uint64_t index) {
   uint64_t absolute_index;
   if (!QpackEncoderStreamRelativeIndexToAbsoluteIndex(
           index, header_table_.inserted_entry_count(), &absolute_index)) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR, "Invalid relative index.");
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX,
+                    "Invalid relative index.");
     return;
   }
 
   const QpackEntry* entry =
       header_table_.LookupEntry(/* is_static = */ false, absolute_index);
   if (!entry) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_DUPLICATE_DYNAMIC_ENTRY_NOT_FOUND,
                     "Dynamic table entry not found.");
     return;
   }
   entry = header_table_.InsertEntry(entry->name(), entry->value());
   if (!entry) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
-                    "Error inserting duplicate entry.");
+    // InsertEntry() can only fail if entry is larger then dynamic table
+    // capacity, but that is impossible since entry was retrieved from the
+    // dynamic table.
+    OnErrorDetected(QUIC_INTERNAL_ERROR, "Error inserting duplicate entry.");
   }
 }
 
 void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
   if (!header_table_.SetDynamicTableCapacity(capacity)) {
-    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR,
+    OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY,
                     "Error updating dynamic table capacity.");
   }
 }
 
-void QpackDecoder::OnErrorDetected(QuicErrorCode /* error_code */,
+void QpackDecoder::OnErrorDetected(QuicErrorCode error_code,
                                    absl::string_view error_message) {
   encoder_stream_error_delegate_->OnEncoderStreamError(
-      QUIC_QPACK_ENCODER_STREAM_ERROR, error_message);
+      GetQuicReloadableFlag(quic_granular_qpack_error_codes)
+          ? error_code
+          : QUIC_QPACK_ENCODER_STREAM_ERROR,
+      error_message);
 }
 
 std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(

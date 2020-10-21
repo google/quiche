@@ -183,7 +183,7 @@ bool QpackInstructionDecoder::DoVarintStart(absl::string_view data,
       state_ = State::kVarintResume;
       return true;
     case http2::DecodeStatus::kDecodeError:
-      OnError("Encoded integer too large.");
+      OnError(ErrorCode::INTEGER_TOO_LARGE, "Encoded integer too large.");
       return false;
     default:
       QUIC_BUG << "Unknown decode status " << status;
@@ -212,7 +212,7 @@ bool QpackInstructionDecoder::DoVarintResume(absl::string_view data,
       DCHECK(buffer.Empty());
       return true;
     case http2::DecodeStatus::kDecodeError:
-      OnError("Encoded integer too large.");
+      OnError(ErrorCode::INTEGER_TOO_LARGE, "Encoded integer too large.");
       return false;
     default:
       QUIC_BUG << "Unknown decode status " << status;
@@ -244,7 +244,7 @@ bool QpackInstructionDecoder::DoVarintDone() {
 
   string_length_ = varint_decoder_.value();
   if (string_length_ > kStringLiteralLengthLimit) {
-    OnError("String literal too long.");
+    OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
     return false;
   }
 
@@ -298,7 +298,8 @@ bool QpackInstructionDecoder::DoReadStringDone() {
     std::string decoded_value;
     huffman_decoder_.Decode(*string, &decoded_value);
     if (!huffman_decoder_.InputProperlyTerminated()) {
-      OnError("Error in Huffman-encoded string.");
+      OnError(ErrorCode::HUFFMAN_ENCODING_ERROR,
+              "Error in Huffman-encoded string.");
       return false;
     }
     *string = std::move(decoded_value);
@@ -322,11 +323,12 @@ const QpackInstruction* QpackInstructionDecoder::LookupOpcode(
   return nullptr;
 }
 
-void QpackInstructionDecoder::OnError(absl::string_view error_message) {
+void QpackInstructionDecoder::OnError(ErrorCode error_code,
+                                      absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
-  delegate_->OnInstructionDecodingError(error_message);
+  delegate_->OnInstructionDecodingError(error_code, error_message);
 }
 
 }  // namespace quic

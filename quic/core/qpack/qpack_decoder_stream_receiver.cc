@@ -44,11 +44,19 @@ bool QpackDecoderStreamReceiver::OnInstructionDecoded(
 }
 
 void QpackDecoderStreamReceiver::OnInstructionDecodingError(
+    QpackInstructionDecoder::ErrorCode error_code,
     absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
-  delegate_->OnErrorDetected(QUIC_QPACK_DECODER_STREAM_ERROR, error_message);
+
+  // There is no string literals on the decoder stream,
+  // the only possible error is INTEGER_TOO_LARGE.
+  QuicErrorCode quic_error_code =
+      (error_code == QpackInstructionDecoder::ErrorCode::INTEGER_TOO_LARGE)
+          ? QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE
+          : QUIC_INTERNAL_ERROR;
+  delegate_->OnErrorDetected(quic_error_code, error_message);
 }
 
 }  // namespace quic

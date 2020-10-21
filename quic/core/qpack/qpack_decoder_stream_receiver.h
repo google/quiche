@@ -53,7 +53,8 @@ class QUIC_EXPORT_PRIVATE QpackDecoderStreamReceiver
 
   // QpackInstructionDecoder::Delegate implementation.
   bool OnInstructionDecoded(const QpackInstruction* instruction) override;
-  void OnInstructionDecodingError(absl::string_view error_message) override;
+  void OnInstructionDecodingError(QpackInstructionDecoder::ErrorCode error_code,
+                                  absl::string_view error_message) override;
 
  private:
   QpackInstructionDecoder instruction_decoder_;

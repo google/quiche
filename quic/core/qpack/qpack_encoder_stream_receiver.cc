@@ -52,11 +52,28 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
 }
 
 void QpackEncoderStreamReceiver::OnInstructionDecodingError(
+    QpackInstructionDecoder::ErrorCode error_code,
     absl::string_view error_message) {
   DCHECK(!error_detected_);
 
   error_detected_ = true;
-  delegate_->OnErrorDetected(QUIC_QPACK_ENCODER_STREAM_ERROR, error_message);
+
+  QuicErrorCode quic_error_code;
+  switch (error_code) {
+    case QpackInstructionDecoder::ErrorCode::INTEGER_TOO_LARGE:
+      quic_error_code = QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE;
+      break;
+    case QpackInstructionDecoder::ErrorCode::STRING_LITERAL_TOO_LONG:
+      quic_error_code = QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG;
+      break;
+    case QpackInstructionDecoder::ErrorCode::HUFFMAN_ENCODING_ERROR:
+      quic_error_code = QUIC_QPACK_ENCODER_STREAM_HUFFMAN_ENCODING_ERROR;
+      break;
+    default:
+      quic_error_code = QUIC_INTERNAL_ERROR;
+  }
+
+  delegate_->OnErrorDetected(quic_error_code, error_message);
 }
 
 }  // namespace quic

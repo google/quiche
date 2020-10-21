@@ -123,7 +123,11 @@ bool QpackProgressiveDecoder::OnInstructionDecoded(
 }
 
 void QpackProgressiveDecoder::OnInstructionDecodingError(
+    QpackInstructionDecoder::ErrorCode /* error_code */,
     absl::string_view error_message) {
+  // Ignore |error_code|, because header block decoding errors trigger a
+  // RESET_STREAM frame which cannot carry an error code more granular than
+  // QPACK_DECOMPRESSION_FAILED.
   OnError(error_message);
 }
 

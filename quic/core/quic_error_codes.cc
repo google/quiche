@@ -187,6 +187,27 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_QPACK_DECOMPRESSION_FAILED);
     RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_ERROR);
     RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_ERROR);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_HUFFMAN_ENCODING_ERROR);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_STATIC);
+    RETURN_STRING_LITERAL(
+        QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX);
+    RETURN_STRING_LITERAL(
+        QUIC_QPACK_ENCODER_STREAM_INSERTION_DYNAMIC_ENTRY_NOT_FOUND);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_DYNAMIC);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL);
+    RETURN_STRING_LITERAL(
+        QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX);
+    RETURN_STRING_LITERAL(
+        QUIC_QPACK_ENCODER_STREAM_DUPLICATE_DYNAMIC_ENTRY_NOT_FOUND);
+    RETURN_STRING_LITERAL(QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY);
+    RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE);
+    RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT);
+    RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW);
+    RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT);
+    RETURN_STRING_LITERAL(QUIC_QPACK_DECODER_STREAM_INCORRECT_ACKNOWLEDGEMENT);
     RETURN_STRING_LITERAL(QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET);
     RETURN_STRING_LITERAL(QUIC_STREAM_MULTIPLE_OFFSET);
     RETURN_STRING_LITERAL(QUIC_HTTP_FRAME_TOO_LARGE);
@@ -541,6 +562,57 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {false, static_cast<uint64_t>(
                          QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
     case QUIC_QPACK_DECODER_STREAM_ERROR:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_STRING_LITERAL_TOO_LONG:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_HUFFMAN_ENCODING_ERROR:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_STATIC:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_INSERTION_DYNAMIC_ENTRY_NOT_FOUND:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_DYNAMIC:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_DUPLICATE_DYNAMIC_ENTRY_NOT_FOUND:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::ENCODER_STREAM_ERROR)};
+    case QUIC_QPACK_DECODER_STREAM_INTEGER_TOO_LARGE:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
+    case QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
+    case QUIC_QPACK_DECODER_STREAM_INCREMENT_OVERFLOW:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
+    case QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT:
+      return {false, static_cast<uint64_t>(
+                         QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
+    case QUIC_QPACK_DECODER_STREAM_INCORRECT_ACKNOWLEDGEMENT:
       return {false, static_cast<uint64_t>(
                          QuicHttpQpackErrorCode::DECODER_STREAM_ERROR)};
     case QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET:
