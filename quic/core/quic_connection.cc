@@ -737,7 +737,7 @@ bool QuicConnection::MaybeTestLiveness() {
   }
   const QuicTime now = clock_->ApproximateNow();
   if (now > idle_network_deadline) {
-    QUIC_BUG << "Idle network deadline has passed";
+    QUIC_DLOG(WARNING) << "Idle network deadline has passed";
     return false;
   }
   const QuicTime::Delta timeout = idle_network_deadline - now;
