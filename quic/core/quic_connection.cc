@@ -5113,7 +5113,8 @@ void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
                 << " supports multiple packet number spaces";
   framer_.EnableMultiplePacketNumberSpacesSupport();
   sent_packet_manager_.EnableMultiplePacketNumberSpacesSupport();
-  uber_received_packet_manager_.EnableMultiplePacketNumberSpacesSupport();
+  uber_received_packet_manager_.EnableMultiplePacketNumberSpacesSupport(
+      perspective_);
 }
 
 bool QuicConnection::SupportsMultiplePacketNumberSpaces() const {

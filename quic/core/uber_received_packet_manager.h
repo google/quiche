@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE UberReceivedPacketManager {
   void ResetAckStates(EncryptionLevel encryption_level);
 
   // Called to enable multiple packet number support.
-  void EnableMultiplePacketNumberSpacesSupport();
+  void EnableMultiplePacketNumberSpacesSupport(Perspective perspective);
 
   // Returns true if ACK frame has been updated since GetUpdatedAckFrame was
   // last called.

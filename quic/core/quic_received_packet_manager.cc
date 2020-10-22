@@ -264,8 +264,11 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  MaybeUpdateAckTimeoutTo(
-      now + GetMaxAckDelay(last_received_packet_number, *rtt_stats));
+  QuicTime updated_ack_time =
+      now + GetMaxAckDelay(last_received_packet_number, *rtt_stats);
+  if (!ack_timeout_.IsInitialized() || ack_timeout_ > updated_ack_time) {
+    ack_timeout_ = updated_ack_time;
+  }
 }
 
 void QuicReceivedPacketManager::ResetAckStates() {
@@ -273,12 +276,6 @@ void QuicReceivedPacketManager::ResetAckStates() {
   ack_timeout_ = QuicTime::Zero();
   num_retransmittable_packets_received_since_last_ack_sent_ = 0;
   last_sent_largest_acked_ = LargestAcked(ack_frame_);
-}
-
-void QuicReceivedPacketManager::MaybeUpdateAckTimeoutTo(QuicTime time) {
-  if (!ack_timeout_.IsInitialized() || ack_timeout_ > time) {
-    ack_timeout_ = time;
-  }
 }
 
 bool QuicReceivedPacketManager::HasMissingPackets() const {

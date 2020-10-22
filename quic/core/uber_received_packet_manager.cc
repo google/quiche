@@ -98,9 +98,15 @@ void UberReceivedPacketManager::ResetAckStates(
   }
   received_packet_managers_[QuicUtils::GetPacketNumberSpace(encryption_level)]
       .ResetAckStates();
+  if (encryption_level == ENCRYPTION_INITIAL) {
+    // After one Initial ACK is sent, the others should be sent 'immediately'.
+    received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
+        kAlarmGranularity);
+  }
 }
 
-void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport() {
+void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport(
+    Perspective perspective) {
   if (supports_multiple_packet_number_spaces_) {
     QUIC_BUG << "Multiple packet number spaces has already been enabled";
     return;
@@ -112,8 +118,15 @@ void UberReceivedPacketManager::EnableMultiplePacketNumberSpacesSupport() {
   }
   // In IETF QUIC, the peer is expected to acknowledge packets in Initial and
   // Handshake packets with minimal delay.
-  received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
-      kAlarmGranularity);
+  if (!GetQuicReloadableFlag(quic_delay_initial_ack) ||
+      perspective == Perspective::IS_CLIENT) {
+    // Delay the first server ACK, because server ACKs are padded to
+    // full size and count towards the amplification limit.
+    received_packet_managers_[INITIAL_DATA].set_local_max_ack_delay(
+        kAlarmGranularity);
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_delay_initial_ack);
+  }
   received_packet_managers_[HANDSHAKE_DATA].set_local_max_ack_delay(
       kAlarmGranularity);
 

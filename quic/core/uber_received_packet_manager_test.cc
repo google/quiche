@@ -439,7 +439,7 @@ TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
 
 TEST_F(UberReceivedPacketManagerTest,
        DontWaitForPacketsBeforeMultiplePacketNumberSpaces) {
-  manager_->EnableMultiplePacketNumberSpacesSupport();
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
   EXPECT_FALSE(
       manager_->GetLargestObserved(ENCRYPTION_HANDSHAKE).IsInitialized());
   EXPECT_FALSE(
@@ -469,9 +469,41 @@ TEST_F(UberReceivedPacketManagerTest,
 }
 
 TEST_F(UberReceivedPacketManagerTest, AckSendingDifferentPacketNumberSpaces) {
-  manager_->EnableMultiplePacketNumberSpacesSupport();
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
   EXPECT_FALSE(HasPendingAck());
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
+
+  RecordPacketReceipt(ENCRYPTION_INITIAL, 3);
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_INITIAL, 3);
+  EXPECT_TRUE(HasPendingAck());
+  // Delayed ack is scheduled.
+  if (GetQuicReloadableFlag(quic_delay_initial_ack)) {
+    CheckAckTimeout(clock_.ApproximateNow() +
+                    QuicTime::Delta::FromMilliseconds(25));
+    // Send delayed handshake data ACK.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(25));
+  } else {
+    CheckAckTimeout(clock_.ApproximateNow() +
+                    QuicTime::Delta::FromMilliseconds(1));
+    // Send delayed handshake data ACK.
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+  EXPECT_FALSE(HasPendingAck());
+
+  // Second delayed ack should have a shorter delay.
+  RecordPacketReceipt(ENCRYPTION_INITIAL, 4);
+  EXPECT_TRUE(manager_->IsAckFrameUpdated());
+  MaybeUpdateAckTimeout(kInstigateAck, ENCRYPTION_INITIAL, 4);
+  EXPECT_TRUE(HasPendingAck());
+  // Delayed ack is scheduled.
+  CheckAckTimeout(clock_.ApproximateNow() +
+                  QuicTime::Delta::FromMilliseconds(1));
+  // Send delayed handshake data ACK.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
+  CheckAckTimeout(clock_.ApproximateNow());
+  EXPECT_FALSE(HasPendingAck());
 
   RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 3);
   EXPECT_TRUE(manager_->IsAckFrameUpdated());
