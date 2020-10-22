@@ -1450,6 +1450,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if network blackhole should be detected.
   bool ShouldDetectBlackhole() const;
 
+  // Returns retransmission deadline.
+  QuicTime GetRetransmissionDeadline() const;
+
   // Validate connection IDs used during the handshake. Closes the connection
   // on validation failure.
   bool ValidateConfigConnectionIds(const QuicConfig& config);

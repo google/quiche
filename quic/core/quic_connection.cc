@@ -3744,6 +3744,9 @@ void QuicConnection::QueueUndecryptablePacket(
   }
   QUIC_DVLOG(1) << ENDPOINT << "Queueing undecryptable packet.";
   undecryptable_packets_.emplace_back(packet, decryption_level);
+  if (perspective_ == Perspective::IS_CLIENT) {
+    SetRetransmissionAlarm();
+  }
 }
 
 void QuicConnection::MaybeProcessUndecryptablePackets() {
@@ -3830,6 +3833,9 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       }
     }
     undecryptable_packets_.clear();
+  }
+  if (perspective_ == Perspective::IS_CLIENT) {
+    SetRetransmissionAlarm();
   }
 }
 
@@ -4123,8 +4129,7 @@ void QuicConnection::SetRetransmissionAlarm() {
     return;
   }
 
-  retransmission_alarm_->Update(sent_packet_manager_.GetRetransmissionTime(),
-                                kAlarmGranularity);
+  retransmission_alarm_->Update(GetRetransmissionDeadline(), kAlarmGranularity);
 }
 
 void QuicConnection::MaybeSetMtuAlarm(QuicPacketNumber sent_packet_number) {
@@ -5383,6 +5388,20 @@ bool QuicConnection::ShouldDetectBlackhole() const {
     return false;
   }
   return num_rtos_for_blackhole_detection_ > 0;
+}
+
+QuicTime QuicConnection::GetRetransmissionDeadline() const {
+  if (perspective_ == Perspective::IS_CLIENT &&
+      SupportsMultiplePacketNumberSpaces() && !IsHandshakeConfirmed() &&
+      stats_.pto_count == 0 &&
+      !framer_.HasDecrypterOfEncryptionLevel(ENCRYPTION_HANDSHAKE) &&
+      !undecryptable_packets_.empty()) {
+    // Retransmits ClientHello quickly when a Handshake or 1-RTT packet is
+    // received prior to having Handshake keys. Adding kAlarmGranulary will
+    // avoid spurious retransmissions in the case of small-scale reordering.
+    return clock_->ApproximateNow() + kAlarmGranularity;
+  }
+  return sent_packet_manager_.GetRetransmissionTime();
 }
 
 void QuicConnection::SendPathChallenge(QuicPathFrameBuffer* data_buffer,

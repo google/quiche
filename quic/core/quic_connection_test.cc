@@ -12861,6 +12861,67 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
             QuicTime::Delta::FromMilliseconds(kDefaultDelayedAckTimeMs));
 }
 
+TEST_P(QuicConnectionTest, FastRecoveryOfLostServerHello) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  connection_.SendCryptoStreamData();
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
+
+  // Assume ServerHello gets lost.
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x02));
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_HANDSHAKE);
+  ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+  // Shorten PTO for fast recovery from lost ServerHello.
+  EXPECT_EQ(clock_.ApproximateNow() + kAlarmGranularity,
+            connection_.GetRetransmissionAlarm()->deadline());
+}
+
+TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(visitor_, OnCryptoFrame(_))
+      .WillRepeatedly(Invoke([=](const QuicCryptoFrame& frame) {
+        if (frame.level == ENCRYPTION_INITIAL) {
+          // Install handshake read keys.
+          SetDecrypter(ENCRYPTION_HANDSHAKE,
+                       std::make_unique<StrictTaggingDecrypter>(0x02));
+          connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                                   std::make_unique<TaggingEncrypter>(0x02));
+          connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+        }
+      }));
+
+  use_tagging_decrypter();
+  connection_.SetEncrypter(ENCRYPTION_INITIAL,
+                           std::make_unique<TaggingEncrypter>(0x01));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
+  connection_.SendCryptoStreamData();
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(20));
+
+  // Assume ServerHello gets reordered.
+  peer_framer_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                            std::make_unique<TaggingEncrypter>(0x02));
+  ProcessCryptoPacketAtLevel(2, ENCRYPTION_HANDSHAKE);
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  // Verify fast recovery is not enabled.
+  EXPECT_EQ(connection_.sent_packet_manager().GetRetransmissionTime(),
+            connection_.GetRetransmissionAlarm()->deadline());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
