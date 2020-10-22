@@ -40,7 +40,7 @@ class MockEncoderStreamErrorDelegate
 };
 
 // HeadersHandlerInterface implementation that collects decoded headers
-// into a SpdyHeaderBlock.
+// into a Http2HeaderBlock.
 class TestHeadersHandler
     : public QpackProgressiveDecoder::HeadersHandlerInterface {
  public:
@@ -55,14 +55,14 @@ class TestHeadersHandler
 
   // Release decoded header list.  Must only be called if decoding is complete
   // and no errors have been detected.
-  spdy::SpdyHeaderBlock ReleaseHeaderList();
+  spdy::Http2HeaderBlock ReleaseHeaderList();
 
   bool decoding_completed() const;
   bool decoding_error_detected() const;
   const std::string& error_message() const;
 
  private:
-  spdy::SpdyHeaderBlock header_list_;
+  spdy::Http2HeaderBlock header_list_;
   bool decoding_completed_;
   bool decoding_error_detected_;
   std::string error_message_;

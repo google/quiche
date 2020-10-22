@@ -54,7 +54,7 @@ class EncodingEndpoint {
   }
 
   std::string EncodeHeaderList(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock& header_list) {
+                               const spdy::Http2HeaderBlock& header_list) {
     return encoder_.EncodeHeaderList(stream_id, header_list, nullptr);
   }
 
@@ -439,8 +439,8 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
 };
 
 // Generate header list using fuzzer data.
-spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
-  spdy::SpdyHeaderBlock header_list;
+spdy::Http2HeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
+  spdy::Http2HeaderBlock header_list;
   uint8_t header_count = provider->ConsumeIntegral<uint8_t>();
   for (uint8_t header_index = 0; header_index < header_count; ++header_index) {
     if (provider->remaining_bytes() == 0) {
@@ -537,7 +537,7 @@ spdy::SpdyHeaderBlock GenerateHeaderList(QuicFuzzedDataProvider* provider) {
 }
 
 // Splits |*header_list| header values along '\0' or ';' separators.
-QuicHeaderList SplitHeaderList(const spdy::SpdyHeaderBlock& header_list) {
+QuicHeaderList SplitHeaderList(const spdy::Http2HeaderBlock& header_list) {
   QuicHeaderList split_header_list;
   split_header_list.OnHeaderBlockStart();
 
@@ -600,7 +600,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     const QuicStreamId stream_id = provider.ConsumeIntegral<uint8_t>();
 
     // Generate header list.
-    spdy::SpdyHeaderBlock header_list = GenerateHeaderList(&provider);
+    spdy::Http2HeaderBlock header_list = GenerateHeaderList(&provider);
 
     // Encode header list.
     std::string encoded_header_block =

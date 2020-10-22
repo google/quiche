@@ -64,13 +64,13 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
   // |*expected_header_list|, removing consumed data from the beginning of
   // |*expected_headers_data|.  Returns true on success, false if parsing fails.
   bool ReadNextExpectedHeaderList(absl::string_view* expected_headers_data,
-                                  spdy::SpdyHeaderBlock* expected_header_list);
+                                  spdy::Http2HeaderBlock* expected_header_list);
 
   // Compare two header lists.  Allow for different orders of certain headers as
   // described at
   // https://github.com/qpackers/qifs/blob/master/encoded/qpack-03/h2o/README.md.
-  bool CompareHeaderBlocks(spdy::SpdyHeaderBlock decoded_header_list,
-                           spdy::SpdyHeaderBlock expected_header_list);
+  bool CompareHeaderBlocks(spdy::Http2HeaderBlock decoded_header_list,
+                           spdy::Http2HeaderBlock expected_header_list);
 
   bool encoder_stream_error_detected_;
   test::NoopQpackStreamSenderDelegate decoder_stream_sender_delegate_;
@@ -80,7 +80,7 @@ class QpackOfflineDecoder : public QpackDecoder::EncoderStreamErrorDelegate {
   std::list<Decoder> decoders_;
 
   // Decoded header lists.
-  std::list<spdy::SpdyHeaderBlock> decoded_header_lists_;
+  std::list<spdy::Http2HeaderBlock> decoded_header_lists_;
 };
 
 }  // namespace quic

@@ -238,11 +238,11 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
   absl::string_view expected_headers_data(expected_headers_data_storage);
 
   while (!decoded_header_lists_.empty()) {
-    spdy::SpdyHeaderBlock decoded_header_list =
+    spdy::Http2HeaderBlock decoded_header_list =
         std::move(decoded_header_lists_.front());
     decoded_header_lists_.pop_front();
 
-    spdy::SpdyHeaderBlock expected_header_list;
+    spdy::Http2HeaderBlock expected_header_list;
     if (!ReadNextExpectedHeaderList(&expected_headers_data,
                                     &expected_header_list)) {
       QUIC_LOG(ERROR)
@@ -269,7 +269,7 @@ bool QpackOfflineDecoder::VerifyDecodedHeaderLists(
 
 bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
     absl::string_view* expected_headers_data,
-    spdy::SpdyHeaderBlock* expected_header_list) {
+    spdy::Http2HeaderBlock* expected_header_list) {
   while (true) {
     absl::string_view::size_type endline = expected_headers_data->find('\n');
 
@@ -300,8 +300,8 @@ bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
 }
 
 bool QpackOfflineDecoder::CompareHeaderBlocks(
-    spdy::SpdyHeaderBlock decoded_header_list,
-    spdy::SpdyHeaderBlock expected_header_list) {
+    spdy::Http2HeaderBlock decoded_header_list,
+    spdy::Http2HeaderBlock expected_header_list) {
   if (decoded_header_list == expected_header_list) {
     return true;
   }
@@ -312,7 +312,8 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
   // Remove such headers one by one if they match.
   const char* kContentLength = "content-length";
   const char* kPseudoHeaderPrefix = ":";
-  for (spdy::SpdyHeaderBlock::iterator decoded_it = decoded_header_list.begin();
+  for (spdy::Http2HeaderBlock::iterator decoded_it =
+           decoded_header_list.begin();
        decoded_it != decoded_header_list.end();) {
     const absl::string_view key = decoded_it->first;
     if (key != kContentLength &&
@@ -320,7 +321,7 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
       ++decoded_it;
       continue;
     }
-    spdy::SpdyHeaderBlock::iterator expected_it =
+    spdy::Http2HeaderBlock::iterator expected_it =
         expected_header_list.find(key);
     if (expected_it == expected_header_list.end() ||
         decoded_it->second != expected_it->second) {

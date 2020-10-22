@@ -45,7 +45,7 @@ void TestHeadersHandler::OnDecodingErrorDetected(
   error_message_.assign(error_message.data(), error_message.size());
 }
 
-spdy::SpdyHeaderBlock TestHeadersHandler::ReleaseHeaderList() {
+spdy::Http2HeaderBlock TestHeadersHandler::ReleaseHeaderList() {
   DCHECK(decoding_completed_);
   DCHECK(!decoding_error_detected_);
 
