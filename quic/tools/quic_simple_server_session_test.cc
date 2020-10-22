@@ -187,11 +187,11 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                 crypto_config,
                                 compressed_certs_cache,
                                 quic_simple_server_backend) {}
-  // Methods taking non-copyable types like SpdyHeaderBlock by value cannot be
+  // Methods taking non-copyable types like Http2HeaderBlock by value cannot be
   // mocked directly.
   void WritePushPromise(QuicStreamId original_stream_id,
                         QuicStreamId promised_stream_id,
-                        spdy::SpdyHeaderBlock headers) override {
+                        spdy::Http2HeaderBlock headers) override {
     return WritePushPromiseMock(original_stream_id, promised_stream_id,
                                 headers);
   }
@@ -199,7 +199,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
               WritePushPromiseMock,
               (QuicStreamId original_stream_id,
                QuicStreamId promised_stream_id,
-               const spdy::SpdyHeaderBlock& headers),
+               const spdy::Http2HeaderBlock& headers),
               ());
 
   MOCK_METHOD(void, SendBlocked, (QuicStreamId), (override));
@@ -676,7 +676,7 @@ class QuicSimpleServerSessionServerPushTest
     size_t body_size = 2 * kStreamFlowControlWindowSize;  // 64KB.
 
     std::string request_url = "mail.google.com/";
-    spdy::SpdyHeaderBlock request_headers;
+    spdy::Http2HeaderBlock request_headers;
     std::string resource_host = "www.google.com";
     std::string partial_push_resource_path = "/server_push_src";
     std::list<QuicBackendResponse::ServerPushInfo> push_resources;
@@ -708,7 +708,7 @@ class QuicSimpleServerSessionServerPushTest
 
       memory_cache_backend_.AddSimpleResponse(resource_host, path, 200, data);
       push_resources.push_back(QuicBackendResponse::ServerPushInfo(
-          resource_url, spdy::SpdyHeaderBlock(), QuicStream::kDefaultPriority,
+          resource_url, spdy::Http2HeaderBlock(), QuicStream::kDefaultPriority,
           body));
       // PUSH_PROMISED are sent for all the resources.
       EXPECT_CALL(*session_,

@@ -38,14 +38,14 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // stream id with its priority and the headers sent out in PUSH_PROMISE.
   struct PromisedStreamInfo {
    public:
-    PromisedStreamInfo(spdy::SpdyHeaderBlock request_headers,
+    PromisedStreamInfo(spdy::Http2HeaderBlock request_headers,
                        QuicStreamId stream_id,
                        const spdy::SpdyStreamPrecedence& precedence)
         : request_headers(std::move(request_headers)),
           stream_id(stream_id),
           precedence(precedence),
           is_cancelled(false) {}
-    spdy::SpdyHeaderBlock request_headers;
+    spdy::Http2HeaderBlock request_headers;
     QuicStreamId stream_id;
     spdy::SpdyStreamPrecedence precedence;
     bool is_cancelled;
@@ -77,7 +77,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
       const std::list<QuicBackendResponse::ServerPushInfo>& resources,
       QuicStreamId original_stream_id,
       const spdy::SpdyStreamPrecedence& original_precedence,
-      const spdy::SpdyHeaderBlock& original_request_headers);
+      const spdy::Http2HeaderBlock& original_request_headers);
 
   void OnCanCreateNewOutgoingStream(bool unidirectional) override;
 
@@ -113,15 +113,15 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   // :authority, :path, :method, :scheme, referer.
   // Copying the rest headers ensures they are the same as the original
   // request, especially cookies.
-  spdy::SpdyHeaderBlock SynthesizePushRequestHeaders(
+  spdy::Http2HeaderBlock SynthesizePushRequestHeaders(
       std::string request_url,
       QuicBackendResponse::ServerPushInfo resource,
-      const spdy::SpdyHeaderBlock& original_request_headers);
+      const spdy::Http2HeaderBlock& original_request_headers);
 
   // Send PUSH_PROMISE frame on headers stream.
   void SendPushPromise(QuicStreamId original_stream_id,
                        QuicStreamId promised_stream_id,
-                       spdy::SpdyHeaderBlock headers);
+                       spdy::Http2HeaderBlock headers);
 
   // Fetch response from cache for request headers enqueued into
   // promised_headers_and_streams_ and send them on dedicated stream until

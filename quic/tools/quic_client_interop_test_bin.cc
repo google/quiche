@@ -116,11 +116,11 @@ class QuicClientInteropRunner : QuicConnectionDebugVisitor {
 
   // Constructs a SpdyHeaderBlock containing the pseudo-headers needed to make a
   // GET request to "/" on the hostname |authority|.
-  spdy::SpdyHeaderBlock ConstructHeaderBlock(const std::string& authority);
+  spdy::Http2HeaderBlock ConstructHeaderBlock(const std::string& authority);
 
   // Sends an HTTP request represented by |header_block| using |client|.
   void SendRequest(QuicClient* client,
-                   const spdy::SpdyHeaderBlock& header_block);
+                   const spdy::Http2HeaderBlock& header_block);
 
   void OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     switch (frame.close_type) {
@@ -170,7 +170,7 @@ void QuicClientInteropRunner::AttemptResumption(QuicClient* client,
 
   bool zero_rtt_attempt = !client->session()->OneRttKeysAvailable();
 
-  spdy::SpdyHeaderBlock header_block = ConstructHeaderBlock(authority);
+  spdy::Http2HeaderBlock header_block = ConstructHeaderBlock(authority);
   SendRequest(client, header_block);
 
   if (!client->session()->OneRttKeysAvailable()) {
@@ -262,7 +262,7 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
     InsertFeature(Feature::kQuantum);
   }
 
-  spdy::SpdyHeaderBlock header_block = ConstructHeaderBlock(authority);
+  spdy::Http2HeaderBlock header_block = ConstructHeaderBlock(authority);
   SendRequest(client.get(), header_block);
 
   if (!client->connected()) {
@@ -330,10 +330,10 @@ void QuicClientInteropRunner::AttemptRequest(QuicSocketAddress addr,
   AttemptResumption(client.get(), authority);
 }
 
-spdy::SpdyHeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
+spdy::Http2HeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
     const std::string& authority) {
   // Construct and send a request.
-  spdy::SpdyHeaderBlock header_block;
+  spdy::Http2HeaderBlock header_block;
   header_block[":method"] = "GET";
   header_block[":scheme"] = "https";
   header_block[":authority"] = authority;
@@ -343,7 +343,7 @@ spdy::SpdyHeaderBlock QuicClientInteropRunner::ConstructHeaderBlock(
 
 void QuicClientInteropRunner::SendRequest(
     QuicClient* client,
-    const spdy::SpdyHeaderBlock& header_block) {
+    const spdy::Http2HeaderBlock& header_block) {
   client->set_store_response(true);
   client->SendRequestAndWaitForResponse(header_block, "", /*fin=*/true);
 

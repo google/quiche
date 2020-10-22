@@ -325,7 +325,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   }
 
   // Construct a GET or POST request for supplied URL.
-  spdy::SpdyHeaderBlock header_block;
+  spdy::Http2HeaderBlock header_block;
   header_block[":method"] = body.empty() ? "GET" : "POST";
   header_block[":scheme"] = url.scheme();
   header_block[":authority"] = url.HostPort();

@@ -46,7 +46,7 @@ class QuicSimpleServerBackend {
   // If the response has to be fetched over the network, the function
   // asynchronously calls |request_handler| with the HTTP response.
   virtual void FetchResponseFromBackend(
-      const spdy::SpdyHeaderBlock& request_headers,
+      const spdy::Http2HeaderBlock& request_headers,
       const std::string& request_body,
       RequestHandler* request_handler) = 0;
   // Clears the state of the backend  instance

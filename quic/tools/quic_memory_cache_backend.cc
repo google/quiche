@@ -14,8 +14,8 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
+using spdy::Http2HeaderBlock;
 using spdy::kV3LowestPriority;
-using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
@@ -168,7 +168,7 @@ void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
                                                absl::string_view path,
                                                int response_code,
                                                absl::string_view body) {
-  SpdyHeaderBlock response_headers;
+  Http2HeaderBlock response_headers;
   response_headers[":status"] =
       quiche::QuicheTextUtils::Uint64ToString(response_code);
   response_headers["content-length"] =
@@ -193,18 +193,18 @@ void QuicMemoryCacheBackend::AddDefaultResponse(QuicBackendResponse* response) {
 
 void QuicMemoryCacheBackend::AddResponse(absl::string_view host,
                                          absl::string_view path,
-                                         SpdyHeaderBlock response_headers,
+                                         Http2HeaderBlock response_headers,
                                          absl::string_view response_body) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body,
-                  SpdyHeaderBlock());
+                  Http2HeaderBlock());
 }
 
 void QuicMemoryCacheBackend::AddResponse(absl::string_view host,
                                          absl::string_view path,
-                                         SpdyHeaderBlock response_headers,
+                                         Http2HeaderBlock response_headers,
                                          absl::string_view response_body,
-                                         SpdyHeaderBlock response_trailers) {
+                                         Http2HeaderBlock response_trailers) {
   AddResponseImpl(host, path, QuicBackendResponse::REGULAR_RESPONSE,
                   std::move(response_headers), response_body,
                   std::move(response_trailers));
@@ -214,18 +214,18 @@ void QuicMemoryCacheBackend::AddSpecialResponse(
     absl::string_view host,
     absl::string_view path,
     SpecialResponseType response_type) {
-  AddResponseImpl(host, path, response_type, SpdyHeaderBlock(), "",
-                  SpdyHeaderBlock());
+  AddResponseImpl(host, path, response_type, Http2HeaderBlock(), "",
+                  Http2HeaderBlock());
 }
 
 void QuicMemoryCacheBackend::AddSpecialResponse(
     absl::string_view host,
     absl::string_view path,
-    spdy::SpdyHeaderBlock response_headers,
+    spdy::Http2HeaderBlock response_headers,
     absl::string_view response_body,
     SpecialResponseType response_type) {
   AddResponseImpl(host, path, response_type, std::move(response_headers),
-                  response_body, SpdyHeaderBlock());
+                  response_body, Http2HeaderBlock());
 }
 
 QuicMemoryCacheBackend::QuicMemoryCacheBackend() : cache_initialized_(false) {}
@@ -290,7 +290,7 @@ bool QuicMemoryCacheBackend::InitializeBackend(
 void QuicMemoryCacheBackend::GenerateDynamicResponses() {
   QuicWriterMutexLock lock(&response_mutex_);
   // Add a generate bytes response.
-  spdy::SpdyHeaderBlock response_headers;
+  spdy::Http2HeaderBlock response_headers;
   response_headers[":status"] = "200";
   generate_bytes_response_ = std::make_unique<QuicBackendResponse>();
   generate_bytes_response_->set_headers(std::move(response_headers));
@@ -303,7 +303,7 @@ bool QuicMemoryCacheBackend::IsBackendInitialized() const {
 }
 
 void QuicMemoryCacheBackend::FetchResponseFromBackend(
-    const SpdyHeaderBlock& request_headers,
+    const Http2HeaderBlock& request_headers,
     const std::string& /*request_body*/,
     QuicSimpleServerBackend::RequestHandler* quic_stream) {
   const QuicBackendResponse* quic_response = nullptr;
@@ -352,9 +352,9 @@ void QuicMemoryCacheBackend::AddResponseImpl(
     absl::string_view host,
     absl::string_view path,
     SpecialResponseType response_type,
-    SpdyHeaderBlock response_headers,
+    Http2HeaderBlock response_headers,
     absl::string_view response_body,
-    SpdyHeaderBlock response_trailers) {
+    Http2HeaderBlock response_trailers) {
   QuicWriterMutexLock lock(&response_mutex_);
 
   DCHECK(!host.empty()) << "Host must be populated, e.g. \"www.google.com\"";
