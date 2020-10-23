@@ -27,7 +27,7 @@ class CryptoHandshakeMessage;
 
 // Describes whether or not a given QuicTag is required or optional in the
 // handshake message.
-enum QuicConfigPresence {
+enum QuicConfigPresence : uint8_t {
   // This negotiable value can be absent from the handshake message. Default
   // value is selected as the negotiated value in such a case.
   PRESENCE_OPTIONAL,
@@ -91,10 +91,10 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint32 : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  uint32_t send_value_;
   bool has_send_value_;
-  uint32_t receive_value_;
   bool has_receive_value_;
+  uint32_t send_value_;
+  uint32_t receive_value_;
 };
 
 // Stores 62bit numbers from handshake messages that unilaterally shared by each
@@ -128,10 +128,10 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint62 : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  uint64_t send_value_;
   bool has_send_value_;
-  uint64_t receive_value_;
   bool has_receive_value_;
+  uint64_t send_value_;
+  uint64_t receive_value_;
 };
 
 // Stores uint128 from CHLO or SHLO messages that are not negotiated.
@@ -161,10 +161,10 @@ class QUIC_EXPORT_PRIVATE QuicFixedUint128 : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  QuicUint128 send_value_;
   bool has_send_value_;
-  QuicUint128 receive_value_;
   bool has_receive_value_;
+  QuicUint128 send_value_;
+  QuicUint128 receive_value_;
 };
 
 // Stores tag from CHLO or SHLO messages that are not negotiated.
@@ -197,10 +197,10 @@ class QUIC_EXPORT_PRIVATE QuicFixedTagVector : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  QuicTagVector send_values_;
   bool has_send_values_;
-  QuicTagVector receive_values_;
   bool has_receive_values_;
+  QuicTagVector send_values_;
+  QuicTagVector receive_values_;
 };
 
 // Stores QuicSocketAddress from CHLO or SHLO messages that are not negotiated.
@@ -228,10 +228,10 @@ class QUIC_EXPORT_PRIVATE QuicFixedSocketAddress : public QuicConfigValue {
                                  std::string* error_details) override;
 
  private:
-  QuicSocketAddress send_value_;
   bool has_send_value_;
-  QuicSocketAddress receive_value_;
   bool has_receive_value_;
+  QuicSocketAddress send_value_;
+  QuicSocketAddress receive_value_;
 };
 
 // QuicConfig contains non-crypto configuration options that are negotiated in
