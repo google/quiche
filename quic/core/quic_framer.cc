@@ -1307,6 +1307,15 @@ std::unique_ptr<QuicEncryptedPacket> QuicFramer::BuildVersionNegotiationPacket(
     bool ietf_quic,
     bool use_length_prefix,
     const ParsedQuicVersionVector& versions) {
+  QUIC_CODE_COUNT(quic_build_version_negotiation);
+  if (use_length_prefix) {
+    DCHECK(ietf_quic);
+    QUIC_CODE_COUNT(quic_build_version_negotiation_ietf);
+  } else if (ietf_quic) {
+    QUIC_CODE_COUNT(quic_build_version_negotiation_old_ietf);
+  } else {
+    QUIC_CODE_COUNT(quic_build_version_negotiation_old_gquic);
+  }
   ParsedQuicVersionVector wire_versions = versions;
   // Add a version reserved for negotiation as suggested by the
   // "Using Reserved Versions" section of draft-ietf-quic-transport.
