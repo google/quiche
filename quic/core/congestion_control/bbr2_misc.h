@@ -192,6 +192,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Can be enabled by connection optoin 'B2HI'.
   bool limit_inflight_hi_by_cwnd = false;
+
+  // Can be enabled by connection option 'B2SL'.
+  bool startup_loss_exit_use_max_delivered_for_inflight_hi = false;
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {
@@ -421,6 +424,10 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   int64_t loss_events_in_round() const { return loss_events_in_round_; }
 
+  QuicByteCount max_bytes_delivered_in_round() const {
+    return max_bytes_delivered_in_round_;
+  }
+
   QuicPacketNumber end_of_app_limited_phase() const {
     return bandwidth_sampler_.end_of_app_limited_phase();
   }
@@ -472,6 +479,12 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   QuicByteCount bytes_lost_in_round_ = 0;
   // Number of loss marking events in the current round.
   int64_t loss_events_in_round_ = 0;
+
+  // A max of bytes delivered among all congestion events in the current round.
+  // A congestions event's bytes delivered is the total bytes acked between time
+  // Ts and Ta, which is the time when the largest acked packet(within the
+  // congestion event) was sent and acked, respectively.
+  QuicByteCount max_bytes_delivered_in_round_ = 0;
 
   // Max bandwidth in the current round. Updated once per congestion event.
   QuicBandwidth bandwidth_latest_ = QuicBandwidth::Zero();

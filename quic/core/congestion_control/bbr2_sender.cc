@@ -163,6 +163,10 @@ void Bbr2Sender::ApplyConnectionOptions(
         quic_bbr2_no_exit_startup_on_loss_with_bw_growth);
     params_.always_exit_startup_on_excess_loss = false;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
+      ContainsQuicTag(connection_options, kB2SL)) {
+    params_.startup_loss_exit_use_max_delivered_for_inflight_hi = true;
+  }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
   }

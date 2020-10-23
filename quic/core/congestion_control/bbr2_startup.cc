@@ -107,11 +107,21 @@ void Bbr2StartupMode::CheckExcessiveLosses(
   // At the end of a round trip. Check if loss is too high in this round.
   if (model_->IsInflightTooHigh(congestion_event,
                                 Params().startup_full_loss_count)) {
-    const QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
-    QUIC_DVLOG(3) << sender_
-                  << " Exiting STARTUP due to loss. inflight_hi:" << bdp;
+    QuicByteCount new_inflight_hi = model_->BDP(model_->MaxBandwidth());
+    if (Params().startup_loss_exit_use_max_delivered_for_inflight_hi) {
+      if (new_inflight_hi < model_->max_bytes_delivered_in_round()) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(
+            quic_bbr2_startup_loss_exit_use_max_delivered, 1, 2);
+        new_inflight_hi = model_->max_bytes_delivered_in_round();
+      } else {
+        QUIC_RELOADABLE_FLAG_COUNT_N(
+            quic_bbr2_startup_loss_exit_use_max_delivered, 2, 2);
+      }
+    }
+    QUIC_DVLOG(3) << sender_ << " Exiting STARTUP due to loss. inflight_hi:"
+                  << new_inflight_hi;
     // TODO(ianswett): Add a shared method to set inflight_hi in the model.
-    model_->set_inflight_hi(bdp);
+    model_->set_inflight_hi(new_inflight_hi);
 
     full_bandwidth_reached_ = true;
     sender_->connection_stats_->bbr_exit_startup_due_to_loss = true;

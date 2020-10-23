@@ -148,6 +148,18 @@ void Bbr2NetworkModel::OnCongestionEventStart(
     loss_events_in_round_++;
   }
 
+  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
+      congestion_event->bytes_acked > 0 &&
+      congestion_event->last_packet_send_state.is_valid &&
+      total_bytes_acked() >
+          congestion_event->last_packet_send_state.total_bytes_acked) {
+    QuicByteCount bytes_delivered =
+        total_bytes_acked() -
+        congestion_event->last_packet_send_state.total_bytes_acked;
+    max_bytes_delivered_in_round_ =
+        std::max(max_bytes_delivered_in_round_, bytes_delivered);
+  }
+
   // |bandwidth_latest_| and |inflight_latest_| only increased within a round.
   if (sample.sample_max_bandwidth > bandwidth_latest_) {
     bandwidth_latest_ = sample.sample_max_bandwidth;
@@ -282,6 +294,9 @@ bool Bbr2NetworkModel::IsInflightTooHigh(
 void Bbr2NetworkModel::RestartRound() {
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
+  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered)) {
+    max_bytes_delivered_in_round_ = 0;
+  }
   round_trip_counter_.RestartRound();
 }
 
