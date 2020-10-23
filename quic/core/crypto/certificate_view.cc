@@ -106,7 +106,7 @@ namespace quic {
 absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
                                                 absl::string_view payload) {
   if (tag != CBS_ASN1_GENERALIZEDTIME && tag != CBS_ASN1_UTCTIME) {
-    QUIC_BUG << "Invalid tag supplied for a DER timestamp";
+    QUIC_DLOG(WARNING) << "Invalid tag supplied for a DER timestamp";
     return absl::nullopt;
   }
 
