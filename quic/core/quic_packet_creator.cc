@@ -859,21 +859,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   return true;
 }
 
-std::unique_ptr<QuicEncryptedPacket>
-QuicPacketCreator::SerializeVersionNegotiationPacket(
-    bool ietf_quic,
-    bool use_length_prefix,
-    const ParsedQuicVersionVector& supported_versions) {
-  DCHECK_EQ(Perspective::IS_SERVER, framer_->perspective());
-  std::unique_ptr<QuicEncryptedPacket> encrypted =
-      QuicFramer::BuildVersionNegotiationPacket(
-          server_connection_id_, client_connection_id_, ietf_quic,
-          use_length_prefix, supported_versions);
-  DCHECK(encrypted);
-  DCHECK_GE(max_packet_length_, encrypted->length());
-  return encrypted;
-}
-
 std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializeConnectivityProbingPacket() {
   QUIC_BUG_IF(VersionHasIetfQuicFrames(framer_->transport_version()))

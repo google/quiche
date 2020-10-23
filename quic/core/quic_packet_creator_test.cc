@@ -579,28 +579,6 @@ TEST_P(QuicPacketCreatorTest, NonCryptoStreamFramePacketNonPadding) {
   }
 }
 
-TEST_P(QuicPacketCreatorTest, SerializeVersionNegotiationPacket) {
-  QuicFramerPeer::SetPerspective(&client_framer_, Perspective::IS_SERVER);
-  ParsedQuicVersionVector versions;
-  versions.push_back(test::QuicVersionMax());
-  const bool ietf_quic =
-      VersionHasIetfInvariantHeader(creator_.transport_version());
-  const bool has_length_prefix =
-      GetParam().version.HasLengthPrefixedConnectionIds();
-  std::unique_ptr<QuicEncryptedPacket> encrypted(
-      creator_.SerializeVersionNegotiationPacket(ietf_quic, has_length_prefix,
-                                                 versions));
-
-  {
-    InSequence s;
-    EXPECT_CALL(framer_visitor_, OnPacket());
-    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
-    EXPECT_CALL(framer_visitor_, OnVersionNegotiationPacket(_));
-  }
-  QuicFramerPeer::SetPerspective(&client_framer_, Perspective::IS_CLIENT);
-  client_framer_.ProcessPacket(*encrypted);
-}
-
 // Test that the path challenge connectivity probing packet is serialized
 // correctly as a padded PATH CHALLENGE packet.
 TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
