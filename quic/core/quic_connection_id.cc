@@ -50,7 +50,12 @@ class QuicConnectionIdHasher {
 
 }  // namespace
 
-QuicConnectionId::QuicConnectionId() : QuicConnectionId(nullptr, 0) {}
+QuicConnectionId::QuicConnectionId() : QuicConnectionId(nullptr, 0) {
+  static_assert(offsetof(QuicConnectionId, padding_) ==
+                    offsetof(QuicConnectionId, length_),
+                "bad offset");
+  static_assert(sizeof(QuicConnectionId) <= 16, "bad size");
+}
 
 QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
   length_ = length;

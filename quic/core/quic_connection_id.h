@@ -99,7 +99,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
   bool operator<(const QuicConnectionId& v) const;
 
  private:
-  uint8_t length_;  // length of the connection ID, in bytes.
   // The connection ID is represented in network byte order.
   union {
     // If the connection ID fits in |data_short_|, it is stored in the
@@ -107,9 +106,16 @@ class QUIC_EXPORT_PRIVATE QuicConnectionId {
     // Otherwise it is stored in |data_long_| which is guaranteed to have a size
     // equal to |length_|.
     // A value of 11 was chosen because our commonly used connection ID length
-    // is 8 and with the length, the class is padded to 12 bytes anyway.
-    char data_short_[11];
-    char* data_long_;
+    // is 8 and with the length, the class is padded to at least 12 bytes
+    // anyway.
+    struct {
+      uint8_t padding_;  // Match length_ field of the other union member.
+      char data_short_[11];
+    };
+    struct {
+      uint8_t length_;  // length of the connection ID, in bytes.
+      char* data_long_;
+    };
   };
 };
 
