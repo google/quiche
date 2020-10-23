@@ -57,6 +57,7 @@ TEST_P(QuicConfigTest, SetDefaults) {
   EXPECT_FALSE(config_.HasReceivedMaxPacketSize());
   EXPECT_FALSE(config_.KeyUpdateSupportedForConnection());
   EXPECT_FALSE(config_.KeyUpdateSupportedLocally());
+  EXPECT_FALSE(config_.KeyUpdateSupportedRemotely());
 }
 
 TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
@@ -682,6 +683,7 @@ TEST_P(QuicConfigTest, KeyUpdateNotYetSupportedTransportParameterNorLocally) {
   }
   EXPECT_FALSE(config_.KeyUpdateSupportedForConnection());
   EXPECT_FALSE(config_.KeyUpdateSupportedLocally());
+  EXPECT_FALSE(config_.KeyUpdateSupportedRemotely());
   TransportParameters params;
   params.key_update_not_yet_supported = true;
   std::string error_details;
@@ -690,6 +692,7 @@ TEST_P(QuicConfigTest, KeyUpdateNotYetSupportedTransportParameterNorLocally) {
               IsQuicNoError());
   EXPECT_FALSE(config_.KeyUpdateSupportedForConnection());
   EXPECT_FALSE(config_.KeyUpdateSupportedLocally());
+  EXPECT_FALSE(config_.KeyUpdateSupportedRemotely());
 }
 
 TEST_P(QuicConfigTest, KeyUpdateNotYetSupportedTransportParameter) {
@@ -727,6 +730,7 @@ TEST_P(QuicConfigTest, KeyUpdateSupportedRemotelyButNotLocally) {
               IsQuicNoError());
   EXPECT_FALSE(config_.KeyUpdateSupportedForConnection());
   EXPECT_FALSE(config_.KeyUpdateSupportedLocally());
+  EXPECT_TRUE(config_.KeyUpdateSupportedRemotely());
 }
 
 TEST_P(QuicConfigTest, KeyUpdateSupported) {
@@ -746,6 +750,7 @@ TEST_P(QuicConfigTest, KeyUpdateSupported) {
               IsQuicNoError());
   EXPECT_TRUE(config_.KeyUpdateSupportedForConnection());
   EXPECT_TRUE(config_.KeyUpdateSupportedLocally());
+  EXPECT_TRUE(config_.KeyUpdateSupportedRemotely());
 }
 
 }  // namespace

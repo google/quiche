@@ -391,6 +391,7 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetKeyUpdateSupportedLocally();
   bool KeyUpdateSupportedForConnection() const;
   bool KeyUpdateSupportedLocally() const;
+  bool KeyUpdateSupportedRemotely() const;
 
   // IPv6 alternate server address.
   void SetIPv6AlternateServerAddressToSend(

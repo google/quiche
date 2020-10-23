@@ -870,11 +870,15 @@ void QuicConfig::SetKeyUpdateSupportedLocally() {
 }
 
 bool QuicConfig::KeyUpdateSupportedForConnection() const {
-  return key_update_supported_remotely_ && KeyUpdateSupportedLocally();
+  return KeyUpdateSupportedRemotely() && KeyUpdateSupportedLocally();
 }
 
 bool QuicConfig::KeyUpdateSupportedLocally() const {
   return key_update_supported_locally_;
+}
+
+bool QuicConfig::KeyUpdateSupportedRemotely() const {
+  return key_update_supported_remotely_;
 }
 
 void QuicConfig::SetIPv6AlternateServerAddressToSend(
