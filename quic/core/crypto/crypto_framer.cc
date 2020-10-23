@@ -7,12 +7,12 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
@@ -258,7 +258,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
       reader.ReadTag(&message_tag);
       message_.set_tag(message_tag);
       state_ = STATE_READING_NUM_ENTRIES;
-      QUIC_FALLTHROUGH_INTENDED;
+      ABSL_FALLTHROUGH_INTENDED;
     case STATE_READING_NUM_ENTRIES:
       if (reader.BytesRemaining() < kNumEntriesSize + sizeof(uint16_t)) {
         break;
@@ -274,7 +274,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
       tags_and_lengths_.reserve(num_entries_);
       state_ = STATE_READING_TAGS_AND_LENGTHS;
       values_len_ = 0;
-      QUIC_FALLTHROUGH_INTENDED;
+      ABSL_FALLTHROUGH_INTENDED;
     case STATE_READING_TAGS_AND_LENGTHS: {
       if (reader.BytesRemaining() <
           num_entries_ * (kQuicTagSize + kCryptoEndOffsetSize)) {
@@ -308,7 +308,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
       }
       values_len_ = last_end_offset;
       state_ = STATE_READING_VALUES;
-      QUIC_FALLTHROUGH_INTENDED;
+      ABSL_FALLTHROUGH_INTENDED;
     }
     case STATE_READING_VALUES:
       if (reader.BytesRemaining() < values_len_) {

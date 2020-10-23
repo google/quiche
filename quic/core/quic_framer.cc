@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -39,7 +40,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -945,7 +945,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         break;
       case MTU_DISCOVERY_FRAME:
         // MTU discovery frames are serialized as ping frames.
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case PING_FRAME:
         // Ping has no payload.
         break;
@@ -1091,7 +1091,7 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
         return 0;
       case MTU_DISCOVERY_FRAME:
         // MTU discovery frames are serialized as ping frames.
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case PING_FRAME:
         // Ping has no payload.
         break;
@@ -3004,7 +3004,7 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         continue;
       }
       case IETF_EXTENSION_MESSAGE_NO_LENGTH:
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case IETF_EXTENSION_MESSAGE: {
         QuicMessageFrame message_frame;
         if (!ProcessMessageFrame(reader,
@@ -3351,7 +3351,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           break;
         }
         case IETF_EXTENSION_MESSAGE_NO_LENGTH_V99:
-          QUIC_FALLTHROUGH_INTENDED;
+          ABSL_FALLTHROUGH_INTENDED;
         case IETF_EXTENSION_MESSAGE_V99: {
           QuicMessageFrame message_frame;
           if (!ProcessMessageFrame(

@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 
+#include "absl/base/attributes.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_pcc_sender.h"
@@ -46,7 +46,7 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
               : nullptr);
     case kPCC:
       // PCC is work has stalled, fall back to CUBIC instead.
-      QUIC_FALLTHROUGH_INTENDED;
+      ABSL_FALLTHROUGH_INTENDED;
     case kCubicBytes:
       return new TcpCubicSenderBytes(
           clock, rtt_stats, false /* don't use Reno */,

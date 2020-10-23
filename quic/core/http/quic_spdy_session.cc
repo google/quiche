@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
@@ -19,7 +20,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_fallthrough.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -1046,11 +1046,11 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         break;
       }
       case spdy::SETTINGS_ENABLE_PUSH:
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case spdy::SETTINGS_MAX_CONCURRENT_STREAMS:
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case spdy::SETTINGS_INITIAL_WINDOW_SIZE:
-        QUIC_FALLTHROUGH_INTENDED;
+        ABSL_FALLTHROUGH_INTENDED;
       case spdy::SETTINGS_MAX_FRAME_SIZE:
         if (reject_spdy_settings_) {
           CloseConnectionWithDetails(
