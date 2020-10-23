@@ -3715,6 +3715,12 @@ bool QuicConnection::IsKeyUpdateAllowed() const {
          GetLargestAckedPacket() >= lowest_packet_sent_in_current_key_phase_;
 }
 
+bool QuicConnection::HaveSentPacketsInCurrentKeyPhaseButNoneAcked() const {
+  return lowest_packet_sent_in_current_key_phase_.IsInitialized() &&
+         (!GetLargestAckedPacket().IsInitialized() ||
+          GetLargestAckedPacket() < lowest_packet_sent_in_current_key_phase_);
+}
+
 bool QuicConnection::InitiateKeyUpdate(KeyUpdateReason reason) {
   QUIC_DLOG(INFO) << ENDPOINT << "InitiateKeyUpdate";
   if (!IsKeyUpdateAllowed()) {

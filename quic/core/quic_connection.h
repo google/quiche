@@ -824,6 +824,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Returns true if it is currently allowed to initiate a key update.
   bool IsKeyUpdateAllowed() const;
 
+  // Returns true if packets have been sent in the current 1-RTT key phase but
+  // none of these packets have been acked.
+  bool HaveSentPacketsInCurrentKeyPhaseButNoneAcked() const;
+
   // Increment the key phase. It is a bug to call this when IsKeyUpdateAllowed()
   // is false. Returns false on error.
   bool InitiateKeyUpdate(KeyUpdateReason reason);

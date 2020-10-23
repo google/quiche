@@ -12151,6 +12151,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   // Key update should still not be allowed, since no packet has been acked
   // from the current key phase.
   EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Send packet 1.
   QuicPacketNumber last_packet;
@@ -12160,6 +12161,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   // Key update should still not be allowed, even though a packet was sent in
   // the current key phase it hasn't been acked yet.
   EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+  EXPECT_TRUE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
   // Receive ack for packet 1.
@@ -12170,6 +12172,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   // OnDecryptedFirstPacketInKeyPhase is called even on the first key phase,
   // so discard_previous_keys_alarm_ should be set now.
   EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Key update should now be allowed.
   EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
@@ -12184,6 +12187,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   // key phase has been received. (The alarm that was set above should be
   // cleared if it hasn't fired before the next key update happened.)
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Pretend that peer accepts the key update.
   EXPECT_CALL(peer_framer_visitor_,
@@ -12201,11 +12205,13 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   // Send packet 2.
   SendStreamDataToPeer(2, "bar", 0, NO_FIN, &last_packet);
   EXPECT_EQ(QuicPacketNumber(2u), last_packet);
+  EXPECT_TRUE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
   // Receive ack for packet 2.
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   QuicAckFrame frame2 = InitAckFrame(2);
   ProcessAckPacket(&frame2);
   EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Key update should be allowed again now that a packet has been acked from
   // the current key phase.
@@ -12236,12 +12242,14 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
 
   // Another key update should not be allowed yet.
   EXPECT_FALSE(connection_.IsKeyUpdateAllowed());
+  EXPECT_TRUE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Receive ack for packet 3.
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   QuicAckFrame frame3 = InitAckFrame(3);
   ProcessAckPacket(&frame3);
   EXPECT_TRUE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 
   // Key update should be allowed now.
   EXPECT_CALL(visitor_, AdvanceKeysAndCreateCurrentOneRttDecrypter())
@@ -12253,6 +12261,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
   EXPECT_CALL(visitor_, OnKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_TRUE(connection_.InitiateKeyUpdate(KeyUpdateReason::kLocalForTests));
   EXPECT_FALSE(connection_.GetDiscardPreviousOneRttKeysAlarm()->IsSet());
+  EXPECT_FALSE(connection_.HaveSentPacketsInCurrentKeyPhaseButNoneAcked());
 }
 
 TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
