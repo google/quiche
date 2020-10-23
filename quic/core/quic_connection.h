@@ -1583,10 +1583,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // update (if allowed) and/or closing the connection, as necessary.
   bool enable_aead_limits_;
 
-  // Counts the number of undecryptable packets received across all keys. Does
-  // not include packets where a decryption key for that level was absent.
-  QuicPacketCount num_failed_authentication_packets_received_;
-
   // True if the last packet has gotten far enough in the framer to be
   // decrypted.
   bool last_packet_decrypted_;

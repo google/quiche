@@ -12574,6 +12574,8 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitDuringHandshake) {
       EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(AnyNumber());
     }
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
@@ -12609,6 +12611,8 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAfterHandshake) {
       EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
     }
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
@@ -12638,6 +12642,8 @@ TEST_P(QuicConnectionTest,
   for (uint64_t i = 1; i <= 2; ++i) {
     EXPECT_TRUE(connection_.connected());
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_HANDSHAKE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
 
   SetDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -12659,6 +12665,8 @@ TEST_P(QuicConnectionTest,
       EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
     }
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
@@ -12682,12 +12690,15 @@ TEST_P(QuicConnectionTest, IntegrityLimitDoesNotApplyWithoutDecryptionKey) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(correct_tag));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+  connection_.RemoveDecrypter(ENCRYPTION_FORWARD_SECURE);
 
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<TaggingEncrypter>(wrong_tag));
   for (uint64_t i = 1; i <= kIntegrityLimit * 2; ++i) {
     EXPECT_TRUE(connection_.connected());
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(
+        0u, connection_.GetStats().num_failed_authentication_packets_received);
   }
   EXPECT_TRUE(connection_.connected());
 }
@@ -12738,6 +12749,8 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
   for (uint64_t i = 1; i <= 2; ++i) {
     EXPECT_TRUE(connection_.connected());
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
 
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
@@ -12780,6 +12793,9 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
   QuicAckFrame frame2 = InitAckFrame(2);
   ProcessAckPacket(&frame2);
 
+  EXPECT_EQ(2u,
+            connection_.GetStats().num_failed_authentication_packets_received);
+
   // Do two more undecryptable packets. Integrity limit should be reached.
   peer_framer_.SetEncrypter(ENCRYPTION_FORWARD_SECURE,
                             std::make_unique<TaggingEncrypter>(0xFF));
@@ -12789,6 +12805,8 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
       EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
     }
     ProcessDataPacketAtLevel(i, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(
+        i, connection_.GetStats().num_failed_authentication_packets_received);
   }
   EXPECT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);

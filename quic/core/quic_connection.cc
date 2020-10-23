@@ -267,7 +267,6 @@ QuicConnection::QuicConnection(
       support_key_update_for_connection_(false),
       enable_aead_limits_(GetQuicReloadableFlag(quic_enable_aead_limits) &&
                           version().UsesTls()),
-      num_failed_authentication_packets_received_(0),
       last_packet_decrypted_(false),
       last_size_(0),
       current_packet_data_(nullptr),
@@ -2217,21 +2216,22 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
   }
 
   if (has_decryption_key) {
-    num_failed_authentication_packets_received_++;
+    stats_.num_failed_authentication_packets_received++;
     if (enable_aead_limits_) {
       // Should always be non-null if has_decryption_key is true.
       DCHECK(framer_.GetDecrypter(decryption_level));
       const QuicPacketCount integrity_limit =
           framer_.GetDecrypter(decryption_level)->GetIntegrityLimit();
       QUIC_DVLOG(2) << ENDPOINT << "Checking AEAD integrity limits:"
-                    << " num_failed_authentication_packets_received_="
-                    << num_failed_authentication_packets_received_
+                    << " num_failed_authentication_packets_received="
+                    << stats_.num_failed_authentication_packets_received
                     << " integrity_limit=" << integrity_limit;
-      if (num_failed_authentication_packets_received_ >= integrity_limit) {
+      if (stats_.num_failed_authentication_packets_received >=
+          integrity_limit) {
         const std::string error_details = quiche::QuicheStrCat(
             "decrypter integrity limit reached:"
-            " num_failed_authentication_packets_received_=",
-            num_failed_authentication_packets_received_,
+            " num_failed_authentication_packets_received=",
+            stats_.num_failed_authentication_packets_received,
             " integrity_limit=", integrity_limit);
         CloseConnection(QUIC_AEAD_LIMIT_REACHED, error_details,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
