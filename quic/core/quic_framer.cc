@@ -414,6 +414,7 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       last_timestamp_(QuicTime::Delta::Zero()),
       support_key_update_for_connection_(false),
       current_key_phase_bit_(false),
+      potential_peer_key_update_attempt_count_(0),
       first_sending_packet_number_(FirstSendingPacketNumber()),
       data_producer_(nullptr),
       infer_packet_header_type_from_version_(perspective ==
@@ -4282,6 +4283,10 @@ bool QuicFramer::DoKeyUpdate(KeyUpdateReason reason) {
   return true;
 }
 
+QuicPacketCount QuicFramer::PotentialPeerKeyUpdateAttemptCount() const {
+  return potential_peer_key_update_attempt_count_;
+}
+
 const QuicDecrypter* QuicFramer::GetDecrypter(EncryptionLevel level) const {
   DCHECK(version_.KnowsWhichDecrypterToUse());
   return decrypter_[level].get();
@@ -4717,6 +4722,7 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
           QUIC_DVLOG(1) << ENDPOINT << "packet " << header.packet_number
                         << " attempt_key_update=true";
           attempt_key_update = true;
+          potential_peer_key_update_attempt_count_++;
           decrypter = next_decrypter_.get();
         } else {
           if (previous_decrypter_) {
@@ -4752,6 +4758,7 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
   if (success) {
     visitor_->OnDecryptedPacket(level);
     *decrypted_level = level;
+    potential_peer_key_update_attempt_count_ = 0;
     if (attempt_key_update) {
       if (!DoKeyUpdate(KeyUpdateReason::kRemote)) {
         set_detailed_error("Key update failed due to internal error");

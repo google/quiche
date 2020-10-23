@@ -828,6 +828,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // none of these packets have been acked.
   bool HaveSentPacketsInCurrentKeyPhaseButNoneAcked() const;
 
+  // Returns the count of packets received that appeared to attempt a key
+  // update but failed decryption that have been received since the last
+  // successfully decrypted packet.
+  QuicPacketCount PotentialPeerKeyUpdateAttemptCount() const;
+
   // Increment the key phase. It is a bug to call this when IsKeyUpdateAllowed()
   // is false. Returns false on error.
   bool InitiateKeyUpdate(KeyUpdateReason reason);

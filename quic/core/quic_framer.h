@@ -547,6 +547,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   void DiscardPreviousOneRttKeys();
   // Update the key phase.
   bool DoKeyUpdate(KeyUpdateReason reason);
+  // Returns the count of packets received that appeared to attempt a key
+  // update but failed decryption which have been received since the last
+  // successfully decrypted packet.
+  QuicPacketCount PotentialPeerKeyUpdateAttemptCount() const;
 
   const QuicDecrypter* GetDecrypter(EncryptionLevel level) const;
   const QuicDecrypter* decrypter() const;
@@ -1104,6 +1108,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // locally initiated key update but before the first packet from the peer in
   // the new key phase is received.
   QuicPacketNumber current_key_phase_first_received_packet_number_;
+  // Counts the number of packets received that might have been failed key
+  // update attempts. Reset to zero every time a packet is successfully
+  // decrypted.
+  QuicPacketCount potential_peer_key_update_attempt_count_;
   // Decrypter for the previous key phase. Will be null if in the first key
   // phase or previous keys have been discarded.
   std::unique_ptr<QuicDecrypter> previous_decrypter_;

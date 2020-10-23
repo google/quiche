@@ -14925,6 +14925,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(0, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+  EXPECT_EQ(0u, framer_.PotentialPeerKeyUpdateAttemptCount());
 
   header.packet_number += 1;
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -14940,6 +14941,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+  EXPECT_EQ(1u, framer_.PotentialPeerKeyUpdateAttemptCount());
 
   header.packet_number += 1;
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -14954,6 +14956,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+  EXPECT_EQ(2u, framer_.PotentialPeerKeyUpdateAttemptCount());
 
   header.packet_number += 1;
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -14968,6 +14971,22 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
   EXPECT_EQ(0u, visitor_.key_update_count());
   EXPECT_EQ(1, visitor_.derive_next_key_count_);
   EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+  EXPECT_EQ(2u, framer_.PotentialPeerKeyUpdateAttemptCount());
+
+  header.packet_number += 1;
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  data = BuildDataPacket(header, frames);
+  ASSERT_TRUE(data != nullptr);
+  encrypted = EncryptPacketWithTagAndPhase(*data, 0, false);
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  // Packet with phase=0 and key=0, should process and reset
+  // potential_peer_key_update_attempt_count_.
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_EQ(0u, visitor_.key_update_count());
+  EXPECT_EQ(1, visitor_.derive_next_key_count_);
+  EXPECT_EQ(1, visitor_.decrypted_first_packet_in_key_phase_count_);
+  EXPECT_EQ(0u, framer_.PotentialPeerKeyUpdateAttemptCount());
 }
 
 TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {

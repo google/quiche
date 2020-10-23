@@ -3721,6 +3721,10 @@ bool QuicConnection::HaveSentPacketsInCurrentKeyPhaseButNoneAcked() const {
           GetLargestAckedPacket() < lowest_packet_sent_in_current_key_phase_);
 }
 
+QuicPacketCount QuicConnection::PotentialPeerKeyUpdateAttemptCount() const {
+  return framer_.PotentialPeerKeyUpdateAttemptCount();
+}
+
 bool QuicConnection::InitiateKeyUpdate(KeyUpdateReason reason) {
   QUIC_DLOG(INFO) << ENDPOINT << "InitiateKeyUpdate";
   if (!IsKeyUpdateAllowed()) {
