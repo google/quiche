@@ -135,6 +135,10 @@ const QuicTag kB2SL = TAG('B', '2', 'S', 'L');   // When exiting STARTUP due to
                                                  // loss, set inflight_hi to the
                                                  // max of bdp and max bytes
                                                  // delivered in round.
+const QuicTag kB2H2 = TAG('B', '2', 'H', '2');   // When exiting PROBE_UP due to
+                                                 // loss, set inflight_hi to the
+                                                 // max of inflight@send and max
+                                                 // bytes delivered in round.
 const QuicTag kBSAO = TAG('B', 'S', 'A', 'O');   // Avoid Overestimation in
                                                  // Bandwidth Sampler with ack
                                                  // aggregation

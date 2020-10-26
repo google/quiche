@@ -445,6 +445,20 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 }
 
+TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBufferB2H2) {
+  SetConnectionOption(kB2H2);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(30));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.02f);
+  EXPECT_GE(sender_connection_stats().packets_lost, 0u);
+  EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+}
+
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
   SetConnectionOption(kBSAO);
   DefaultTopologyParams params;

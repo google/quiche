@@ -167,6 +167,10 @@ void Bbr2Sender::ApplyConnectionOptions(
       ContainsQuicTag(connection_options, kB2SL)) {
     params_.startup_loss_exit_use_max_delivered_for_inflight_hi = true;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
+      ContainsQuicTag(connection_options, kB2H2)) {
+    params_.limit_inflight_hi_by_max_delivered = true;
+  }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
   }
