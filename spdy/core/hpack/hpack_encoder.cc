@@ -210,6 +210,7 @@ void HpackEncoder::EmitString(absl::string_view str) {
     output_stream_.AppendPrefix(kStringLiteralHuffmanEncoded);
     output_stream_.AppendUint32(encoded_size);
     if (use_fast_huffman_encoder_) {
+      SPDY_CODE_COUNT(http2_use_fast_huffman_encoder);
       http2::HuffmanEncodeFast(str, encoded_size,
                                output_stream_.MutableString());
     } else {
