@@ -4070,10 +4070,13 @@ bool QuicFramer::ProcessConnectionCloseFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (!GetQuicReloadableFlag(quic_do_not_clip_received_error_code) &&
-      error_code >= QUIC_LAST_ERROR) {
-    // Ignore invalid QUIC error code if any.
-    error_code = QUIC_LAST_ERROR;
+  if (GetQuicReloadableFlag(quic_do_not_clip_received_error_code)) {
+    QUIC_CODE_COUNT_N(quic_do_not_clip_received_error_code, 1, 2);
+  } else {
+    if (error_code >= QUIC_LAST_ERROR) {
+      // Ignore invalid QUIC error code if any.
+      error_code = QUIC_LAST_ERROR;
+    }
   }
 
   // For Google QUIC connection closes, |wire_error_code| and |quic_error_code|
@@ -4099,10 +4102,13 @@ bool QuicFramer::ProcessGoAwayFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (!GetQuicReloadableFlag(quic_do_not_clip_received_error_code) &&
-      error_code >= QUIC_LAST_ERROR) {
-    // Ignore invalid QUIC error code if any.
-    error_code = QUIC_LAST_ERROR;
+  if (GetQuicReloadableFlag(quic_do_not_clip_received_error_code)) {
+    QUIC_CODE_COUNT_N(quic_do_not_clip_received_error_code, 2, 2);
+  } else {
+    if (error_code >= QUIC_LAST_ERROR) {
+      // Ignore invalid QUIC error code if any.
+      error_code = QUIC_LAST_ERROR;
+    }
   }
   frame->error_code = static_cast<QuicErrorCode>(error_code);
 
