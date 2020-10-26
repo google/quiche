@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -122,9 +123,9 @@ void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
 
 absl::string_view QuicMemoryCacheBackend::ResourceFile::RemoveScheme(
     absl::string_view url) {
-  if (quiche::QuicheTextUtils::StartsWith(url, "https://")) {
+  if (absl::StartsWith(url, "https://")) {
     url.remove_prefix(8);
-  } else if (quiche::QuicheTextUtils::StartsWith(url, "http://")) {
+  } else if (absl::StartsWith(url, "http://")) {
     url.remove_prefix(7);
   }
   return url;

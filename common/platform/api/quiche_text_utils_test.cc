@@ -13,28 +13,6 @@ namespace test {
 
 class QuicheTextUtilsTest : public QuicheTest {};
 
-TEST_F(QuicheTextUtilsTest, StartsWith) {
-  EXPECT_TRUE(quiche::QuicheTextUtils::StartsWith("hello world", "hello"));
-  EXPECT_TRUE(
-      quiche::QuicheTextUtils::StartsWith("hello world", "hello world"));
-  EXPECT_TRUE(quiche::QuicheTextUtils::StartsWith("hello world", ""));
-  EXPECT_FALSE(quiche::QuicheTextUtils::StartsWith("hello world", "Hello"));
-  EXPECT_FALSE(quiche::QuicheTextUtils::StartsWith("hello world", "world"));
-  EXPECT_FALSE(quiche::QuicheTextUtils::StartsWith("hello world", "bar"));
-}
-
-TEST_F(QuicheTextUtilsTest, EndsWithIgnoreCase) {
-  EXPECT_TRUE(
-      quiche::QuicheTextUtils::EndsWithIgnoreCase("hello world", "world"));
-  EXPECT_TRUE(quiche::QuicheTextUtils::EndsWithIgnoreCase("hello world",
-                                                          "hello world"));
-  EXPECT_TRUE(quiche::QuicheTextUtils::EndsWithIgnoreCase("hello world", ""));
-  EXPECT_TRUE(
-      quiche::QuicheTextUtils::EndsWithIgnoreCase("hello world", "WORLD"));
-  EXPECT_FALSE(
-      quiche::QuicheTextUtils::EndsWithIgnoreCase("hello world", "hello"));
-}
-
 TEST_F(QuicheTextUtilsTest, ToLower) {
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("LOWER"));
   EXPECT_EQ("lower", quiche::QuicheTextUtils::ToLower("lower"));

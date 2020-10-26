@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -160,7 +161,7 @@ bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
   absl::string_view data(frame.data_buffer, frame.data_length);
   if (QuicUtils::IsCryptoStreamId(framer_->transport_version(),
                                   frame.stream_id) &&
-      frame.offset == 0 && quiche::QuicheTextUtils::StartsWith(data, "CHLO")) {
+      frame.offset == 0 && absl::StartsWith(data, "CHLO")) {
     return OnHandshakeData(data);
   }
   return true;
@@ -172,7 +173,7 @@ bool ChloFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& frame) {
     return false;
   }
   absl::string_view data(frame.data_buffer, frame.data_length);
-  if (frame.offset == 0 && quiche::QuicheTextUtils::StartsWith(data, "CHLO")) {
+  if (frame.offset == 0 && absl::StartsWith(data, "CHLO")) {
     return OnHandshakeData(data);
   }
   return true;

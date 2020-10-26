@@ -9,6 +9,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
@@ -858,8 +859,7 @@ bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
   DCHECK(server_state->IsEmpty());
   size_t i = 0;
   for (; i < canonical_suffixes_.size(); ++i) {
-    if (quiche::QuicheTextUtils::EndsWithIgnoreCase(server_id.host(),
-                                                    canonical_suffixes_[i])) {
+    if (absl::EndsWithIgnoreCase(server_id.host(), canonical_suffixes_[i])) {
       break;
     }
   }

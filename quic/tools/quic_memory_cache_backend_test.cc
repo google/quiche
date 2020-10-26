@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 
+#include "absl/strings/match.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -123,7 +124,7 @@ TEST_F(QuicMemoryCacheBackendTest, UsesOriginalUrlOnly) {
   std::string dir;
   std::string path = "map.html";
   for (const std::string& file : ReadFileContents(CacheDirectory())) {
-    if (quiche::QuicheTextUtils::EndsWithIgnoreCase(file, "map.html")) {
+    if (absl::EndsWithIgnoreCase(file, "map.html")) {
       dir = file;
       dir.erase(dir.length() - path.length() - 1);
       break;

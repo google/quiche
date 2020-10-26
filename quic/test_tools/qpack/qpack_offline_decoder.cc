@@ -30,6 +30,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
@@ -316,8 +317,7 @@ bool QpackOfflineDecoder::CompareHeaderBlocks(
            decoded_header_list.begin();
        decoded_it != decoded_header_list.end();) {
     const absl::string_view key = decoded_it->first;
-    if (key != kContentLength &&
-        !quiche::QuicheTextUtils::StartsWith(key, kPseudoHeaderPrefix)) {
+    if (key != kContentLength && !absl::StartsWith(key, kPseudoHeaderPrefix)) {
       ++decoded_it;
       continue;
     }

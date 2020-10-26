@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/x509.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
@@ -939,8 +940,7 @@ bool QuicTestClient::PopulateHeaderBlockFromUrl(
     const std::string& uri,
     spdy::SpdyHeaderBlock* headers) {
   std::string url;
-  if (quiche::QuicheTextUtils::StartsWith(uri, "https://") ||
-      quiche::QuicheTextUtils::StartsWith(uri, "http://")) {
+  if (absl::StartsWith(uri, "https://") || absl::StartsWith(uri, "http://")) {
     url = uri;
   } else if (uri[0] == '/') {
     url = "https://" + client_->server_id().host() + uri;

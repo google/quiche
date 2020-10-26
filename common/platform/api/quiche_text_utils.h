@@ -17,22 +17,6 @@ namespace quiche {
 // Various utilities for manipulating text.
 class QUICHE_EXPORT QuicheTextUtils {
  public:
-  // Returns true if |data| starts with |prefix|, case sensitively.
-  static bool StartsWith(absl::string_view data, absl::string_view prefix) {
-    return quiche::QuicheTextUtilsImpl::StartsWith(data, prefix);
-  }
-
-  // Returns true if |data| ends with |suffix|, case sensitively.
-  static bool EndsWith(absl::string_view data, absl::string_view suffix) {
-    return quiche::QuicheTextUtilsImpl::EndsWith(data, suffix);
-  }
-
-  // Returns true if |data| ends with |suffix|, case insensitively.
-  static bool EndsWithIgnoreCase(absl::string_view data,
-                                 absl::string_view suffix) {
-    return quiche::QuicheTextUtilsImpl::EndsWithIgnoreCase(data, suffix);
-  }
-
   // Returns a new string in which |data| has been converted to lower case.
   static std::string ToLower(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::ToLower(data);

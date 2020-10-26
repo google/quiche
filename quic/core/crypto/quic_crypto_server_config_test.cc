@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_encrypter.h"
@@ -355,8 +356,7 @@ class CryptoServerConfigsTest : public QuicTest {
           QuicCryptoServerConfig::GenerateConfig(rand_, &clock_, options);
       protobuf.set_primary_time(primary_time);
       protobuf.set_priority(priority);
-      if (quiche::QuicheTextUtils::StartsWith(std::string(server_config_id),
-                                              "INVALID")) {
+      if (absl::StartsWith(std::string(server_config_id), "INVALID")) {
         protobuf.clear_key();
         has_invalid = true;
       }

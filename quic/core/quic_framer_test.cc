@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -4080,8 +4081,8 @@ TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
       AsChars(framer_.version().HasIetfInvariantHeader() ? packet46 : packet),
       ABSL_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  EXPECT_TRUE(quiche::QuicheTextUtils::StartsWith(
-      framer_.detailed_error(), "delta_from_largest_observed too high"));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "delta_from_largest_observed too high"));
 }
 
 TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
@@ -4153,8 +4154,8 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
       AsChars(framer_.version().HasIetfInvariantHeader() ? packet46 : packet),
       ABSL_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  EXPECT_TRUE(quiche::QuicheTextUtils::StartsWith(
-      framer_.detailed_error(), "delta_from_largest_observed too high"));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "delta_from_largest_observed too high"));
 }
 
 TEST_P(QuicFramerTest, NewStopWaitingFrame) {

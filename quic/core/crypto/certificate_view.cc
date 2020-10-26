@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
@@ -149,8 +150,8 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
     QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&line);
 
     // Handle BEGIN lines.
-    if (!pending_message && QuicheTextUtils::StartsWith(line, kPemBegin) &&
-        QuicheTextUtils::EndsWith(line, kPemDashes)) {
+    if (!pending_message && absl::StartsWith(line, kPemBegin) &&
+        absl::EndsWith(line, kPemDashes)) {
       result.type = std::string(
           line.substr(kPemBegin.size(),
                       line.size() - kPemDashes.size() - kPemBegin.size()));

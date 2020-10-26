@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_port_utils.h"
@@ -46,7 +47,7 @@ size_t NumOpenSocketFDs() {
     }
 
     std::string fd_path = ReadLink(quiche::QuicheStrCat(kPathToFds, "/", name));
-    if (quiche::QuicheTextUtils::StartsWith(fd_path, "socket:")) {
+    if (absl::StartsWith(fd_path, "socket:")) {
       socket_count++;
     }
   }
