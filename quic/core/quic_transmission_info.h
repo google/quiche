@@ -33,9 +33,9 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
   ~QuicTransmissionInfo();
 
   QuicFrames retransmittable_frames;
-  EncryptionLevel encryption_level;
-  QuicPacketLength bytes_sent;
   QuicTime sent_time;
+  QuicPacketLength bytes_sent;
+  EncryptionLevel encryption_level;
   // Reason why this packet was transmitted.
   TransmissionType transmission_type;
   // In flight packets have not been abandoned or lost.

@@ -7,9 +7,9 @@
 namespace quic {
 
 QuicTransmissionInfo::QuicTransmissionInfo()
-    : encryption_level(ENCRYPTION_INITIAL),
+    : sent_time(QuicTime::Zero()),
       bytes_sent(0),
-      sent_time(QuicTime::Zero()),
+      encryption_level(ENCRYPTION_INITIAL),
       transmission_type(NOT_RETRANSMISSION),
       in_flight(false),
       state(OUTSTANDING),
@@ -22,9 +22,9 @@ QuicTransmissionInfo::QuicTransmissionInfo(EncryptionLevel level,
                                            QuicPacketLength bytes_sent,
                                            bool has_crypto_handshake,
                                            bool has_ack_frequency)
-    : encryption_level(level),
+    : sent_time(sent_time),
       bytes_sent(bytes_sent),
-      sent_time(sent_time),
+      encryption_level(level),
       transmission_type(transmission_type),
       in_flight(false),
       state(OUTSTANDING),
