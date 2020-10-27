@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
@@ -524,8 +525,7 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id,
       const std::string& header_key = header.first;
       const std::string& header_value = header.second;
       if (header_key == kFinalOffsetHeaderKey) {
-        if (!quiche::QuicheTextUtils::StringToSizeT(header_value,
-                                                    &final_byte_offset)) {
+        if (!absl::SimpleAtoi(header_value, &final_byte_offset)) {
           connection()->CloseConnection(
               QUIC_INVALID_HEADERS_STREAM_DATA,
               "Trailers are malformed (no final offset)",

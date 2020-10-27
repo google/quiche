@@ -7,6 +7,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/numbers.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -333,8 +334,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
     return UnsupportedQuicVersion();
   }
   int quic_version_number = 0;
-  if (quiche::QuicheTextUtils::StringToInt(version_string,
-                                           &quic_version_number) &&
+  if (absl::SimpleAtoi(version_string, &quic_version_number) &&
       quic_version_number > 0) {
     QuicTransportVersion transport_version =
         static_cast<QuicTransportVersion>(quic_version_number);

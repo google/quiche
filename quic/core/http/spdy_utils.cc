@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -34,7 +35,7 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
         quiche::QuicheTextUtils::Split(content_length_header, '\0');
     for (const absl::string_view& value : values) {
       uint64_t new_value;
-      if (!quiche::QuicheTextUtils::StringToUint64(value, &new_value) ||
+      if (!absl::SimpleAtoi(value, &new_value) ||
           !quiche::QuicheTextUtils::IsAllDigits(value)) {
         QUIC_DLOG(ERROR)
             << "Content length was either unparseable or negative.";
@@ -96,7 +97,7 @@ bool SpdyUtils::CopyAndValidateTrailers(const QuicHeaderList& header_list,
     // response body bytes expected.
     if (expect_final_byte_offset && !found_final_byte_offset &&
         name == kFinalOffsetHeaderKey &&
-        quiche::QuicheTextUtils::StringToSizeT(p.second, final_byte_offset)) {
+        absl::SimpleAtoi(p.second, final_byte_offset)) {
       found_final_byte_offset = true;
       continue;
     }

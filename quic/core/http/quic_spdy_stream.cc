@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
@@ -844,7 +845,7 @@ bool QuicSpdyStream::ParseHeaderStatusCode(const SpdyHeaderBlock& header,
   if (!isdigit(status[1]) || !isdigit(status[2])) {
     return false;
   }
-  return quiche::QuicheTextUtils::StringToInt(status, status_code);
+  return absl::SimpleAtoi(status, status_code);
 }
 
 bool QuicSpdyStream::FinishedReadingTrailers() const {

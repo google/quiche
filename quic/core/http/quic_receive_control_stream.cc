@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
@@ -229,8 +230,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
 
     absl::string_view value = key_and_value[1];
     int urgency;
-    if (!quiche::QuicheTextUtils::StringToInt(value, &urgency) || urgency < 0 ||
-        urgency > 7) {
+    if (!absl::SimpleAtoi(value, &urgency) || urgency < 0 || urgency > 7) {
       stream_delegate()->OnStreamError(
           QUIC_INVALID_STREAM_ID,
           "Invalid value for PRIORITY_UPDATE urgency parameter.");

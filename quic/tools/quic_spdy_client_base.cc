@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
@@ -91,8 +92,7 @@ void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
     auto status = response_headers.find(":status");
     if (status == response_headers.end()) {
       QUIC_LOG(ERROR) << "Missing :status response header";
-    } else if (!quiche::QuicheTextUtils::StringToInt(status->second,
-                                                     &latest_response_code_)) {
+    } else if (!absl::SimpleAtoi(status->second, &latest_response_code_)) {
       QUIC_LOG(ERROR) << "Invalid :status response header: " << status->second;
     }
     latest_response_headers_ = response_headers.DebugString();

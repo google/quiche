@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -145,8 +146,8 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
   if (it == responses_.end()) {
     uint64_t ignored = 0;
     if (generate_bytes_response_) {
-      if (quiche::QuicheTextUtils::StringToUint64(
-              absl::string_view(path.data() + 1, path.size() - 1), &ignored)) {
+      if (absl::SimpleAtoi(absl::string_view(path.data() + 1, path.size() - 1),
+                           &ignored)) {
         // The actual parsed length is ignored here and will be recomputed
         // by the caller.
         return generate_bytes_response_.get();

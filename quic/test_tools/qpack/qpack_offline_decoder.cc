@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
@@ -102,8 +103,7 @@ bool QpackOfflineDecoder::ParseInputFilename(absl::string_view input_filename) {
 
   // Maximum allowed number of blocked streams.
   uint64_t max_blocked_streams = 0;
-  if (!quiche::QuicheTextUtils::StringToUint64(*piece_it,
-                                               &max_blocked_streams)) {
+  if (!absl::SimpleAtoi(*piece_it, &max_blocked_streams)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;
@@ -113,8 +113,7 @@ bool QpackOfflineDecoder::ParseInputFilename(absl::string_view input_filename) {
 
   // Maximum Dynamic Table Capacity in bytes
   uint64_t maximum_dynamic_table_capacity = 0;
-  if (!quiche::QuicheTextUtils::StringToUint64(
-          *piece_it, &maximum_dynamic_table_capacity)) {
+  if (!absl::SimpleAtoi(*piece_it, &maximum_dynamic_table_capacity)) {
     QUIC_LOG(ERROR) << "Error parsing part of input filename \"" << *piece_it
                     << "\" as an integer.";
     return false;

@@ -6,6 +6,7 @@
 
 #include <cstring>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
@@ -125,7 +126,7 @@ bool QuicheDataReader::ReadDecimal64(size_t num_digits, uint64_t* result) {
     return false;
   }
 
-  return QuicheTextUtils::StringToUint64(digits, result);
+  return absl::SimpleAtoi(digits, result);
 }
 
 absl::string_view QuicheDataReader::ReadRemainingPayload() {

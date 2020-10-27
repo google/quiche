@@ -7,6 +7,7 @@
 #include <list>
 #include <utility>
 
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
@@ -257,8 +258,7 @@ void QuicSimpleServerStream::OnResponseBackendComplete(
   if (response->response_type() == QuicBackendResponse::GENERATE_BYTES) {
     QUIC_DVLOG(1) << "Stream " << id() << " sending a generate bytes response.";
     std::string path = request_headers_[":path"].as_string().substr(1);
-    if (!quiche::QuicheTextUtils::StringToUint64(path,
-                                                 &generate_bytes_length_)) {
+    if (!absl::SimpleAtoi(path, &generate_bytes_length_)) {
       QUIC_LOG(ERROR) << "Path is not a number.";
       SendNotFoundResponse();
       return;

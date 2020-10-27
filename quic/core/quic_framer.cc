@@ -14,6 +14,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -6846,7 +6847,7 @@ void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
       quiche::QuicheTextUtils::Split(frame->error_details, ':');
   uint64_t extracted_error_code;
   if (ed.size() < 2 || !quiche::QuicheTextUtils::IsAllDigits(ed[0]) ||
-      !quiche::QuicheTextUtils::StringToUint64(ed[0], &extracted_error_code)) {
+      !absl::SimpleAtoi(ed[0], &extracted_error_code)) {
     if (frame->close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE &&
         frame->wire_error_code == NO_IETF_QUIC_ERROR) {
       frame->quic_error_code = QUIC_NO_ERROR;

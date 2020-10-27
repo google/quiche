@@ -7,6 +7,7 @@
 
 #include <iostream>
 
+#include "absl/strings/numbers.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -27,7 +28,7 @@ int main(int argc, char* argv[]) {
   }
 
   uint32_t packed_error = 0;
-  if (!quiche::QuicheTextUtils::StringToUint32(args[0], &packed_error)) {
+  if (!absl::SimpleAtoi(args[0], &packed_error)) {
     std::cerr << "Unable to parse: " << args[0] << "\n";
     return 2;
   }
