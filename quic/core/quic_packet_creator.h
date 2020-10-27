@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
@@ -28,7 +29,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 
 namespace quic {
 namespace test {
@@ -513,7 +513,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // retransmitted to packet_.retransmittable_frames. All frames must fit into
   // a single packet. Returns true on success, otherwise, returns false.
   // Fails if |encrypted_buffer| is not large enough for the encrypted packet.
-  QUIC_MUST_USE_RESULT bool SerializePacket(
+  ABSL_MUST_USE_RESULT bool SerializePacket(
       QuicOwnedPacketBuffer encrypted_buffer,
       size_t encrypted_buffer_len);
 

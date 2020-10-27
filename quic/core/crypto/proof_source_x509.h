@@ -8,11 +8,11 @@
 #include <forward_list>
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 
 namespace quic {
 
@@ -50,7 +50,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
   // Adds a certificate chain to the verifier.  Returns false if the chain is
   // not valid.  Newer certificates will override older certificates with the
   // same SubjectAltName value.
-  QUIC_MUST_USE_RESULT bool AddCertificateChain(
+  ABSL_MUST_USE_RESULT bool AddCertificateChain(
       QuicReferenceCountedPointer<Chain> chain,
       CertificatePrivateKey key);
 

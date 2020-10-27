@@ -5,13 +5,13 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 #define QUICHE_QUIC_CORE_HTTP_QUIC_SPDY_STREAM_BODY_MANAGER_H_
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 
 namespace quic {
 
@@ -38,7 +38,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // sequencer (provided that all previous body fragments are consumed) is
   // received.  |length| must be positive.  Returns number of bytes the caller
   // must mark consumed, which might be zero.
-  QUIC_MUST_USE_RESULT size_t OnNonBody(QuicByteCount length);
+  ABSL_MUST_USE_RESULT size_t OnNonBody(QuicByteCount length);
 
   // Called when body is received.  |body| is added to |fragments_|.  The data
   // pointed to by |body| must be kept alive until an OnBodyConsumed() or
@@ -49,7 +49,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // Returns the number of bytes that the caller should mark consumed with the
   // sequencer, which is the sum of |num_bytes| for body, and the number of any
   // interleaving or immediately trailing non-body bytes.
-  QUIC_MUST_USE_RESULT size_t OnBodyConsumed(size_t num_bytes);
+  ABSL_MUST_USE_RESULT size_t OnBodyConsumed(size_t num_bytes);
 
   // Set up to |iov_len| elements of iov[] to point to available bodies: each
   // iov[i].iov_base will point to a body fragment, and iov[i].iov_len will be
@@ -63,7 +63,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdyStreamBodyManager {
   // preassigned and will not be changed.  Returns the total number of bytes the
   // caller shall mark consumed.  Sets |*total_bytes_read| to the total number
   // of body bytes read.
-  QUIC_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov,
+  ABSL_MUST_USE_RESULT size_t ReadBody(const struct iovec* iov,
                                        size_t iov_len,
                                        size_t* total_bytes_read);
 

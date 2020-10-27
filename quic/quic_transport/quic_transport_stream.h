@@ -8,11 +8,11 @@
 #include <cstddef>
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_macros.h"
 #include "net/third_party/quiche/src/quic/quic_transport/quic_transport_session_interface.h"
 
 namespace quic {
@@ -40,9 +40,9 @@ class QUIC_EXPORT_PRIVATE QuicTransportStream : public QuicStream {
   // Reads all available data and appends it to the end of |output|.
   size_t Read(std::string* output);
   // Writes |data| into the stream.  Returns true on success.
-  QUIC_MUST_USE_RESULT bool Write(absl::string_view data);
+  ABSL_MUST_USE_RESULT bool Write(absl::string_view data);
   // Sends the FIN on the stream.  Returns true on success.
-  QUIC_MUST_USE_RESULT bool SendFin();
+  ABSL_MUST_USE_RESULT bool SendFin();
 
   // Indicates whether it is possible to write into stream right now.
   bool CanWrite() const;
