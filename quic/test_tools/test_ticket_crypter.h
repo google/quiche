@@ -14,6 +14,7 @@ namespace test {
 // THIS IMPLEMENTATION IS NOT SECURE. It is only intended for testing purposes.
 class TestTicketCrypter : public ProofSource::TicketCrypter {
  public:
+  TestTicketCrypter();
   ~TestTicketCrypter() override = default;
 
   // TicketCrypter interface
@@ -41,6 +42,7 @@ class TestTicketCrypter : public ProofSource::TicketCrypter {
   bool fail_decrypt_ = false;
   bool run_async_ = false;
   std::vector<PendingCallback> pending_callbacks_;
+  std::vector<uint8_t> ticket_prefix_;
 };
 
 }  // namespace test
