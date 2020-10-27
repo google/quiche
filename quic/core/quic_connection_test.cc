@@ -11296,8 +11296,6 @@ TEST_P(QuicConnectionTest, ShorterIdleTimeoutOnSentPackets) {
 // Regression test for b/166255274
 TEST_P(QuicConnectionTest,
        ReserializeInitialPacketInCoalescerAfterDiscardingInitialKey) {
-  SetQuicReloadableFlag(
-      quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded, true);
   if (!connection_.version().CanSendCoalescedPackets() ||
       !GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
     // Cannot set quic_fix_missing_initial_keys in the test since connection_ is
@@ -11326,9 +11324,6 @@ TEST_P(QuicConnectionTest,
     // Flush pending ACKs.
     connection_.GetAckAlarm()->Fire();
   }
-  // If not setting
-  // quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded, there
-  // will be pending frames in the creator.
   EXPECT_FALSE(connection_.packet_creator().HasPendingFrames());
   // The ACK frame is deleted along with initial_packet_ in coalescer. Sending
   // connection close would cause this (released) ACK frame be serialized (and

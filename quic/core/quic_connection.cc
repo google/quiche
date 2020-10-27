@@ -2627,12 +2627,7 @@ void QuicConnection::MarkZeroRttPacketsForRetransmission(int reject_reason) {
 
 void QuicConnection::NeuterUnencryptedPackets() {
   sent_packet_manager_.NeuterUnencryptedPackets();
-  if (!fix_missing_initial_keys_ &&
-      GetQuicReloadableFlag(
-          quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded) &&
-      version().CanSendCoalescedPackets()) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded);
+  if (!fix_missing_initial_keys_ && version().CanSendCoalescedPackets()) {
     coalesced_packet_.NeuterInitialPacket();
   }
   // This may have changed the retransmission timer, so re-arm it.
