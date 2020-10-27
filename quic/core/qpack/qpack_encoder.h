@@ -52,7 +52,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // |*encoder_stream_sent_byte_count| will be set to the number of bytes sent
   // on the encoder stream to insert dynamic table entries.
   std::string EncodeHeaderList(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock& header_list,
+                               const spdy::Http2HeaderBlock& header_list,
                                QuicByteCount* encoder_stream_sent_byte_count);
 
   // Set maximum dynamic table capacity to |maximum_dynamic_table_capacity|,
@@ -139,7 +139,7 @@ class QUIC_EXPORT_PRIVATE QpackEncoder
   // absolute indices.  Returned Instructions object may have
   // absl::string_views pointing to strings owned by |*header_list|.
   Instructions FirstPassEncode(QuicStreamId stream_id,
-                               const spdy::SpdyHeaderBlock& header_list,
+                               const spdy::Http2HeaderBlock& header_list,
                                QpackBlockingManager::IndexSet* referred_indices,
                                QuicByteCount* encoder_stream_sent_byte_count);
 

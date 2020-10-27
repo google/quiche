@@ -276,7 +276,7 @@ bool SpdyFrameWithFinIR::fin() const {
 
 SpdyFrameWithHeaderBlockIR::SpdyFrameWithHeaderBlockIR(
     SpdyStreamId stream_id,
-    SpdyHeaderBlock header_block)
+    Http2HeaderBlock header_block)
     : SpdyFrameWithFinIR(stream_id), header_block_(std::move(header_block)) {}
 
 SpdyFrameWithHeaderBlockIR::~SpdyFrameWithHeaderBlockIR() = default;

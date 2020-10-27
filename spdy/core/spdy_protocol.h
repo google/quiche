@@ -492,8 +492,8 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
  public:
   ~SpdyFrameWithHeaderBlockIR() override;
 
-  const SpdyHeaderBlock& header_block() const { return header_block_; }
-  void set_header_block(SpdyHeaderBlock header_block) {
+  const Http2HeaderBlock& header_block() const { return header_block_; }
+  void set_header_block(Http2HeaderBlock header_block) {
     // Deep copy.
     header_block_ = std::move(header_block);
   }
@@ -503,13 +503,13 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameWithHeaderBlockIR
 
  protected:
   SpdyFrameWithHeaderBlockIR(SpdyStreamId stream_id,
-                             SpdyHeaderBlock header_block);
+                             Http2HeaderBlock header_block);
   SpdyFrameWithHeaderBlockIR(const SpdyFrameWithHeaderBlockIR&) = delete;
   SpdyFrameWithHeaderBlockIR& operator=(const SpdyFrameWithHeaderBlockIR&) =
       delete;
 
  private:
-  SpdyHeaderBlock header_block_;
+  Http2HeaderBlock header_block_;
 };
 
 class QUICHE_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
@@ -706,8 +706,8 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
 class QUICHE_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
  public:
   explicit SpdyHeadersIR(SpdyStreamId stream_id)
-      : SpdyHeadersIR(stream_id, SpdyHeaderBlock()) {}
-  SpdyHeadersIR(SpdyStreamId stream_id, SpdyHeaderBlock header_block)
+      : SpdyHeadersIR(stream_id, Http2HeaderBlock()) {}
+  SpdyHeadersIR(SpdyStreamId stream_id, Http2HeaderBlock header_block)
       : SpdyFrameWithHeaderBlockIR(stream_id, std::move(header_block)) {}
   SpdyHeadersIR(const SpdyHeadersIR&) = delete;
   SpdyHeadersIR& operator=(const SpdyHeadersIR&) = delete;
@@ -775,10 +775,10 @@ class QUICHE_EXPORT_PRIVATE SpdyPushPromiseIR
     : public SpdyFrameWithHeaderBlockIR {
  public:
   SpdyPushPromiseIR(SpdyStreamId stream_id, SpdyStreamId promised_stream_id)
-      : SpdyPushPromiseIR(stream_id, promised_stream_id, SpdyHeaderBlock()) {}
+      : SpdyPushPromiseIR(stream_id, promised_stream_id, Http2HeaderBlock()) {}
   SpdyPushPromiseIR(SpdyStreamId stream_id,
                     SpdyStreamId promised_stream_id,
-                    SpdyHeaderBlock header_block)
+                    Http2HeaderBlock header_block)
       : SpdyFrameWithHeaderBlockIR(stream_id, std::move(header_block)),
         promised_stream_id_(promised_stream_id),
         padded_(false),

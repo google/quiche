@@ -23,8 +23,8 @@ class QpackRoundTripTest : public QuicTestWithParam<FragmentMode> {
   QpackRoundTripTest() = default;
   ~QpackRoundTripTest() override = default;
 
-  spdy::SpdyHeaderBlock EncodeThenDecode(
-      const spdy::SpdyHeaderBlock& header_list) {
+  spdy::Http2HeaderBlock EncodeThenDecode(
+      const spdy::Http2HeaderBlock& header_list) {
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
     QpackEncoder encoder(&decoder_stream_error_delegate);
@@ -55,80 +55,80 @@ INSTANTIATE_TEST_SUITE_P(All,
                                 FragmentMode::kOctetByOctet));
 
 TEST_P(QpackRoundTripTest, Empty) {
-  spdy::SpdyHeaderBlock header_list;
-  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  spdy::Http2HeaderBlock header_list;
+  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, EmptyName) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list[""] = "bar";
 
-  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, EmptyValue) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "";
   header_list[""] = "";
 
-  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, MultipleWithLongEntries) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list[":path"] = "/";
   header_list["foobaar"] = std::string(127, 'Z');
   header_list[std::string(1000, 'b')] = std::string(1000, 'c');
 
-  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 
 TEST_P(QpackRoundTripTest, StaticTable) {
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "GET";
     header_list["accept-encoding"] = "gzip, deflate";
     header_list["cache-control"] = "";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "POST";
     header_list["accept-encoding"] = "brotli";
     header_list["cache-control"] = "foo";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "CONNECT";
     header_list["accept-encoding"] = "";
     header_list["foo"] = "bar";
     header_list[":path"] = "/";
 
-    spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+    spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
     EXPECT_EQ(header_list, output);
   }
 }
 
 TEST_P(QpackRoundTripTest, ValueHasNullCharacter) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = absl::string_view("bar\0bar\0baz", 11);
 
-  spdy::SpdyHeaderBlock output = EncodeThenDecode(header_list);
+  spdy::Http2HeaderBlock output = EncodeThenDecode(header_list);
   EXPECT_EQ(header_list, output);
 }
 

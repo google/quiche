@@ -45,7 +45,7 @@ const size_t kPadLengthFieldSize = 1;
 // The size of one parameter in SETTINGS frame.
 const size_t kOneSettingParameterSize = 6;
 
-size_t GetUncompressedSerializedLength(const SpdyHeaderBlock& headers) {
+size_t GetUncompressedSerializedLength(const Http2HeaderBlock& headers) {
   const size_t num_name_value_pairs_size = sizeof(uint32_t);
   const size_t length_of_name_size = num_name_value_pairs_size;
   const size_t length_of_value_size = num_name_value_pairs_size;

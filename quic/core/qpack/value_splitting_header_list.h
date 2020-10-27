@@ -11,18 +11,18 @@
 
 namespace quic {
 
-// A wrapper class around SpdyHeaderBlock that splits header values along ';'
+// A wrapper class around Http2HeaderBlock that splits header values along ';'
 // separators (while also removing optional space following separator) for
 // cookies and along '\0' separators for other header fields.
 class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
  public:
-  using value_type = spdy::SpdyHeaderBlock::value_type;
+  using value_type = spdy::Http2HeaderBlock::value_type;
 
   class QUIC_EXPORT_PRIVATE const_iterator {
    public:
     // |header_list| must outlive this object.
-    const_iterator(const spdy::SpdyHeaderBlock* header_list,
-                   spdy::SpdyHeaderBlock::const_iterator header_list_iterator);
+    const_iterator(const spdy::Http2HeaderBlock* header_list,
+                   spdy::Http2HeaderBlock::const_iterator header_list_iterator);
     const_iterator(const const_iterator&) = default;
     const_iterator& operator=(const const_iterator&) = delete;
 
@@ -38,15 +38,15 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
     // Find next separator; update |value_end_| and |header_field_|.
     void UpdateHeaderField();
 
-    const spdy::SpdyHeaderBlock* const header_list_;
-    spdy::SpdyHeaderBlock::const_iterator header_list_iterator_;
+    const spdy::Http2HeaderBlock* const header_list_;
+    spdy::Http2HeaderBlock::const_iterator header_list_iterator_;
     absl::string_view::size_type value_start_;
     absl::string_view::size_type value_end_;
     value_type header_field_;
   };
 
   // |header_list| must outlive this object.
-  explicit ValueSplittingHeaderList(const spdy::SpdyHeaderBlock* header_list);
+  explicit ValueSplittingHeaderList(const spdy::Http2HeaderBlock* header_list);
   ValueSplittingHeaderList(const ValueSplittingHeaderList&) = delete;
   ValueSplittingHeaderList& operator=(const ValueSplittingHeaderList&) = delete;
 
@@ -54,7 +54,7 @@ class QUIC_EXPORT_PRIVATE ValueSplittingHeaderList {
   const_iterator end() const;
 
  private:
-  const spdy::SpdyHeaderBlock* const header_list_;
+  const spdy::Http2HeaderBlock* const header_list_;
 };
 
 }  // namespace quic

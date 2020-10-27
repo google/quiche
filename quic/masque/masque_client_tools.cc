@@ -69,7 +69,7 @@ bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
   const std::string body = "";
 
   // Construct a GET or POST request for supplied URL.
-  spdy::SpdyHeaderBlock header_block;
+  spdy::Http2HeaderBlock header_block;
   header_block[":method"] = "GET";
   header_block[":scheme"] = url.scheme();
   header_block[":authority"] = url.HostPort();

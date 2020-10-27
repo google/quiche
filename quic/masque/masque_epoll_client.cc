@@ -82,7 +82,7 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
   std::string body = "foo";
 
   // Construct a GET or POST request for supplied URL.
-  spdy::SpdyHeaderBlock header_block;
+  spdy::Http2HeaderBlock header_block;
   header_block[":method"] = "POST";
   header_block[":scheme"] = "https";
   header_block[":authority"] = masque_client->authority_;
@@ -115,7 +115,7 @@ void MasqueEpollClient::UnregisterClientConnectionId(
   std::string body(client_connection_id.data(), client_connection_id.length());
 
   // Construct a GET or POST request for supplied URL.
-  spdy::SpdyHeaderBlock header_block;
+  spdy::Http2HeaderBlock header_block;
   header_block[":method"] = "POST";
   header_block[":scheme"] = "https";
   header_block[":authority"] = authority_;

@@ -28,7 +28,7 @@ MasqueServerBackend::MasqueServerBackend(const std::string& server_authority,
 }
 
 bool MasqueServerBackend::MaybeHandleMasqueRequest(
-    const spdy::SpdyHeaderBlock& request_headers,
+    const spdy::Http2HeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   auto path_pair = request_headers.find(":path");
@@ -100,7 +100,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
 }
 
 void MasqueServerBackend::FetchResponseFromBackend(
-    const spdy::SpdyHeaderBlock& request_headers,
+    const spdy::Http2HeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* request_handler) {
   if (MaybeHandleMasqueRequest(request_headers, request_body,

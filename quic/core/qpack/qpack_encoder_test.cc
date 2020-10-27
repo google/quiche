@@ -36,7 +36,7 @@ class QpackEncoderTest : public QuicTest {
 
   ~QpackEncoderTest() override = default;
 
-  std::string Encode(const spdy::SpdyHeaderBlock& header_list) {
+  std::string Encode(const spdy::Http2HeaderBlock& header_list) {
     return encoder_.EncodeHeaderList(/* stream_id = */ 1, header_list,
                                      &encoder_stream_sent_byte_count_);
   }
@@ -48,14 +48,14 @@ class QpackEncoderTest : public QuicTest {
 };
 
 TEST_F(QpackEncoderTest, Empty) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   std::string output = Encode(header_list);
 
   EXPECT_EQ(quiche::QuicheTextUtils::HexDecode("0000"), output);
 }
 
 TEST_F(QpackEncoderTest, EmptyName) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list[""] = "foo";
   std::string output = Encode(header_list);
 
@@ -63,7 +63,7 @@ TEST_F(QpackEncoderTest, EmptyName) {
 }
 
 TEST_F(QpackEncoderTest, EmptyValue) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "";
   std::string output = Encode(header_list);
 
@@ -71,7 +71,7 @@ TEST_F(QpackEncoderTest, EmptyValue) {
 }
 
 TEST_F(QpackEncoderTest, EmptyNameAndValue) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list[""] = "";
   std::string output = Encode(header_list);
 
@@ -79,7 +79,7 @@ TEST_F(QpackEncoderTest, EmptyNameAndValue) {
 }
 
 TEST_F(QpackEncoderTest, Simple) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   std::string output = Encode(header_list);
 
@@ -87,7 +87,7 @@ TEST_F(QpackEncoderTest, Simple) {
 }
 
 TEST_F(QpackEncoderTest, Multiple) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   // 'Z' would be Huffman encoded to 8 bits, so no Huffman encoding is used.
   header_list["ZZZZZZZ"] = std::string(127, 'Z');
@@ -110,7 +110,7 @@ TEST_F(QpackEncoderTest, Multiple) {
 
 TEST_F(QpackEncoderTest, StaticTable) {
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "GET";
     header_list["accept-encoding"] = "gzip, deflate, br";
     header_list["location"] = "";
@@ -119,7 +119,7 @@ TEST_F(QpackEncoderTest, StaticTable) {
     EXPECT_EQ(quiche::QuicheTextUtils::HexDecode("0000d1dfcc"), output);
   }
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "POST";
     header_list["accept-encoding"] = "compress";
     header_list["location"] = "foo";
@@ -130,7 +130,7 @@ TEST_F(QpackEncoderTest, StaticTable) {
         output);
   }
   {
-    spdy::SpdyHeaderBlock header_list;
+    spdy::Http2HeaderBlock header_list;
     header_list[":method"] = "TRACE";
     header_list["accept-encoding"] = "";
 
@@ -155,7 +155,7 @@ TEST_F(QpackEncoderTest, DecoderStreamError) {
 }
 
 TEST_F(QpackEncoderTest, SplitAlongNullCharacter) {
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = absl::string_view("bar\0bar\0baz", 11);
   std::string output = Encode(header_list);
 
@@ -234,7 +234,7 @@ TEST_F(QpackEncoderTest, DynamicTable) {
   encoder_.SetMaximumDynamicTableCapacity(4096);
   encoder_.SetDynamicTableCapacity(4096);
 
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list.AppendValueOrAddHeader("foo",
                                      "baz");  // name matches dynamic entry
@@ -270,7 +270,7 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
   encoder_.SetMaximumDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
   encoder_.SetDynamicTableCapacity(QpackEntry::Size("foo", "bar"));
 
-  spdy::SpdyHeaderBlock header_list;
+  spdy::Http2HeaderBlock header_list;
   header_list["foo"] = "bar";
   header_list.AppendValueOrAddHeader("foo",
                                      "baz");  // name matches dynamic entry
@@ -308,7 +308,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
   encoder_.SetMaximumDynamicTableCapacity(4096);
   encoder_.SetDynamicTableCapacity(4096);
 
-  spdy::SpdyHeaderBlock header_list1;
+  spdy::Http2HeaderBlock header_list1;
   header_list1["foo"] = "bar";
 
   // Set Dynamic Table Capacity instruction.
@@ -330,7 +330,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
   EXPECT_EQ(insert_entry1.size(), encoder_stream_sent_byte_count_);
 
   // Stream 1 is blocked.  Stream 2 is not allowed to block.
-  spdy::SpdyHeaderBlock header_list2;
+  spdy::Http2HeaderBlock header_list2;
   header_list2["foo"] = "bar";  // name and value match dynamic entry
   header_list2.AppendValueOrAddHeader("foo",
                                       "baz");  // name matches dynamic entry
@@ -415,7 +415,7 @@ TEST_F(QpackEncoderTest, BlockedStream) {
 }
 
 TEST_F(QpackEncoderTest, Draining) {
-  spdy::SpdyHeaderBlock header_list1;
+  spdy::Http2HeaderBlock header_list1;
   header_list1["one"] = "foo";
   header_list1["two"] = "foo";
   header_list1["three"] = "foo";
@@ -450,7 +450,7 @@ TEST_F(QpackEncoderTest, Draining) {
 
   // Entry is identical to oldest one, which is draining.  It will be
   // duplicated and referenced.
-  spdy::SpdyHeaderBlock header_list2;
+  spdy::Http2HeaderBlock header_list2;
   header_list2["one"] = "foo";
 
   // Duplicate oldest entry.
@@ -462,7 +462,7 @@ TEST_F(QpackEncoderTest, Draining) {
                 "80"),  // most recent dynamic table entry
             Encode(header_list2));
 
-  spdy::SpdyHeaderBlock header_list3;
+  spdy::Http2HeaderBlock header_list3;
   // Entry is identical to second oldest one, which is draining.  There is no
   // room to duplicate, it will be encoded with string literals.
   header_list3.AppendValueOrAddHeader("two", "foo");

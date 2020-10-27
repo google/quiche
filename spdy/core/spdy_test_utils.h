@@ -18,7 +18,7 @@
 namespace spdy {
 
 inline bool operator==(absl::string_view x,
-                       const SpdyHeaderBlock::ValueProxy& y) {
+                       const Http2HeaderBlock::ValueProxy& y) {
   return y.operator==(x);
 }
 
@@ -54,14 +54,14 @@ class TestHeadersHandler : public SpdyHeadersHandlerInterface {
   void OnHeaderBlockEnd(size_t header_bytes_parsed,
                         size_t compressed_header_bytes_parsed) override;
 
-  const SpdyHeaderBlock& decoded_block() const { return block_; }
+  const Http2HeaderBlock& decoded_block() const { return block_; }
   size_t header_bytes_parsed() const { return header_bytes_parsed_; }
   size_t compressed_header_bytes_parsed() const {
     return compressed_header_bytes_parsed_;
   }
 
  private:
-  SpdyHeaderBlock block_;
+  Http2HeaderBlock block_;
   size_t header_bytes_parsed_ = 0;
   size_t compressed_header_bytes_parsed_ = 0;
 };

@@ -532,7 +532,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   SpdyFrameType header_control_type_;
   bool header_buffer_valid_;
   std::unique_ptr<TestHeadersHandler> headers_handler_;
-  SpdyHeaderBlock headers_;
+  Http2HeaderBlock headers_;
   bool header_has_priority_;
   SpdyStreamId header_parent_stream_id_;
   bool header_exclusive_;
@@ -1102,7 +1102,7 @@ TEST_P(SpdyFramerTest, MultiValueHeader) {
   SpdyFramer framer(SpdyFramer::DISABLE_COMPRESSION);
   std::string value("value1\0value2", 13);
   // TODO(jgraettinger): If this pattern appears again, move to test class.
-  SpdyHeaderBlock header_set;
+  Http2HeaderBlock header_set;
   header_set["name"] = value;
   std::string buffer;
   HpackEncoder encoder;
@@ -2304,7 +2304,7 @@ TEST_P(SpdyFramerTest, CreateContinuationUncompressed) {
   };
   // frame-format on
 
-  SpdyHeaderBlock header_block;
+  Http2HeaderBlock header_block;
   header_block["bar"] = "foo";
   header_block["foo"] = "bar";
   auto buffer = std::make_unique<std::string>();
