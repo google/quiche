@@ -149,17 +149,8 @@ void QuicWriteBlockedList::UpdateBytesForStream(QuicStreamId stream_id,
   if (batch_write_stream_id_[last_priority_popped_] == stream_id) {
     // If this was the last data stream popped by PopFront, update the
     // bytes remaining in its batch write.
-    if (fix_bytes_left_for_batch_write_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_bytes_left_for_batch_write);
-      // TODO(fayang): change this static_cast to static_cast<uint32_t> when
-      // deprecating quic_fix_bytes_left_for_batch_write.
-      bytes_left_for_batch_write_[last_priority_popped_] -=
-          std::min(bytes_left_for_batch_write_[last_priority_popped_],
-                   static_cast<int32_t>(bytes));
-    } else {
-      bytes_left_for_batch_write_[last_priority_popped_] -=
-          static_cast<int32_t>(bytes);
-    }
+    bytes_left_for_batch_write_[last_priority_popped_] -=
+        std::min(bytes_left_for_batch_write_[last_priority_popped_], bytes);
   }
 }
 
