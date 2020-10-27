@@ -10,7 +10,6 @@
 #include "third_party/boringssl/src/include/openssl/err.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
@@ -136,7 +135,7 @@ bool AeadBaseEncrypter::EncryptPacket(uint64_t packet_number,
   }
   // TODO(ianswett): Introduce a check to ensure that we don't encrypt with the
   // same packet number twice.
-  QUIC_ALIGNED(4) char nonce_buffer[kMaxNonceSize];
+  alignas(4) char nonce_buffer[kMaxNonceSize];
   memcpy(nonce_buffer, iv_, nonce_size_);
   size_t prefix_len = nonce_size_ - sizeof(packet_number);
   if (use_ietf_nonce_construction_) {

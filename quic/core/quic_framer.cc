@@ -13,6 +13,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -37,7 +38,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -1499,7 +1499,7 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
   } else if (packet.length() <= kMaxIncomingPacketSize) {
     // The optimized decryption algorithm implementations run faster when
     // operating on aligned memory.
-    QUIC_CACHELINE_ALIGNED char buffer[kMaxIncomingPacketSize];
+    ABSL_CACHELINE_ALIGNED char buffer[kMaxIncomingPacketSize];
     if (packet_has_ietf_packet_header) {
       rv = ProcessIetfDataPacket(&reader, &header, packet, buffer,
                                  ABSL_ARRAYSIZE(buffer));

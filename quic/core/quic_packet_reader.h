@@ -7,11 +7,11 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_PACKET_READER_H_
 #define QUICHE_QUIC_CORE_QUIC_PACKET_READER_H_
 
+#include "absl/base/optimization.h"
 #include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
@@ -51,10 +51,10 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
       bool prefer_v6_ip);
 
   struct QUIC_EXPORT_PRIVATE ReadBuffer {
-    QUIC_CACHELINE_ALIGNED char
+    ABSL_CACHELINE_ALIGNED char
         control_buffer[kDefaultUdpPacketControlBufferSize];  // For ancillary
                                                              // data.
-    QUIC_CACHELINE_ALIGNED char packet_buffer[kMaxIncomingPacketSize];
+    ABSL_CACHELINE_ALIGNED char packet_buffer[kMaxIncomingPacketSize];
   };
 
   QuicUdpSocketApi socket_api_;

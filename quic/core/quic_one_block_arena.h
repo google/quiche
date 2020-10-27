@@ -44,7 +44,7 @@ class QUIC_EXPORT_PRIVATE QuicOneBlockArena {
   // Actual storage.
   // Subtle/annoying: the value '8' must be coded explicitly into the alignment
   // declaration for MSVC.
-  QUIC_ALIGNED(8) char storage_[ArenaSize];
+  alignas(8) char storage_[ArenaSize];
   // Current offset into the storage.
   uint32_t offset_;
 };
@@ -57,7 +57,7 @@ template <typename T, typename... Args>
 QuicArenaScopedPtr<T> QuicOneBlockArena<ArenaSize>::New(Args&&... args) {
   DCHECK_LT(AlignedSize<T>(), ArenaSize)
       << "Object is too large for the arena.";
-  static_assert(QUIC_ALIGN_OF(T) > 1,
+  static_assert(alignof(T) > 1,
                 "Objects added to the arena must be at least 2B aligned.");
   if (QUIC_PREDICT_FALSE(offset_ > ArenaSize - AlignedSize<T>())) {
     QUIC_BUG << "Ran out of space in QuicOneBlockArena at " << this

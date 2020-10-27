@@ -1991,7 +1991,7 @@ class StrictTaggingDecrypter : public TaggingDecrypter {
 
 class TestPacketWriter : public QuicPacketWriter {
   struct PacketBuffer {
-    QUIC_CACHELINE_ALIGNED char buffer[1500];
+    ABSL_CACHELINE_ALIGNED char buffer[1500];
     bool in_use = false;
   };
 

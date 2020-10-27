@@ -10,12 +10,12 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -265,7 +265,7 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
     // it to the hardware prefetcher after that.
     QuicPrefetchT0(next_base);
     if (iov[iovnum + 1].iov_len >= 64) {
-      QuicPrefetchT0(next_base + QUIC_CACHELINE_SIZE);
+      QuicPrefetchT0(next_base + ABSL_CACHELINE_SIZE);
     }
   }
 

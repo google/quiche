@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_aligned.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
@@ -469,7 +469,7 @@ void QuicPacketCreator::FlushCurrentPacket() {
     return;
   }
 
-  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
+  ABSL_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   QuicOwnedPacketBuffer external_buffer(delegate_->GetPacketBuffer());
 
   if (external_buffer.buffer == nullptr) {
@@ -593,7 +593,7 @@ void QuicPacketCreator::CreateAndSerializeStreamFrame(
                 << ": " << SerializedPacketFateToString(packet_.fate) << " of "
                 << EncryptionLevelToString(packet_.encryption_level);
 
-  QUIC_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
+  ABSL_CACHELINE_ALIGNED char stack_buffer[kMaxOutgoingPacketSize];
   QuicOwnedPacketBuffer packet_buffer(delegate_->GetPacketBuffer());
 
   if (packet_buffer.buffer == nullptr) {
