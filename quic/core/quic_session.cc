@@ -649,9 +649,16 @@ bool QuicSession::WillingAndAbleToWrite() const {
   // 3) If the crypto or headers streams are blocked, or
   // 4) connection is not flow control blocked and there are write blocked
   // streams.
-  if (QuicVersionUsesCryptoFrames(transport_version()) &&
-      HasPendingHandshake()) {
-    return true;
+  if (QuicVersionUsesCryptoFrames(transport_version())) {
+    if (HasPendingHandshake()) {
+      return true;
+    }
+    if (GetQuicReloadableFlag(quic_fix_willing_and_able_to_write2)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_willing_and_able_to_write2);
+      if (!IsEncryptionEstablished()) {
+        return false;
+      }
+    }
   }
   if (control_frame_manager_.WillingToWrite() ||
       !streams_with_pending_retransmission_.empty()) {

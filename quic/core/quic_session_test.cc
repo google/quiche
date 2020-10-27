@@ -104,6 +104,9 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
           session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
     }
     EXPECT_THAT(error, IsQuicNoError());
+    session()->OnNewEncryptionKeyAvailable(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(session()->perspective()));
     session()->OnConfigNegotiated();
     if (session()->connection()->version().handshake_protocol ==
         PROTOCOL_TLS1_3) {
@@ -487,6 +490,16 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     closed_streams_.insert(id);
   }
 
+  void CompleteHandshake() {
+    CryptoHandshakeMessage msg;
+    if (connection_->version().HasHandshakeDone() &&
+        connection_->perspective() == Perspective::IS_SERVER) {
+      EXPECT_CALL(*connection_, SendControlFrame(_))
+          .WillOnce(Invoke(&ClearControlFrame));
+    }
+    session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
+  }
+
   QuicTransportVersion transport_version() const {
     return connection_->transport_version();
   }
@@ -630,12 +643,7 @@ TEST_P(QuicSessionTestServer, DontCallOnWriteBlockedForDisconnectedConnection) {
 
 TEST_P(QuicSessionTestServer, OneRttKeysAvailable) {
   EXPECT_FALSE(session_.OneRttKeysAvailable());
-  CryptoHandshakeMessage message;
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
-  }
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(message);
+  CompleteHandshake();
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 }
 
@@ -928,6 +936,7 @@ TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWrite) {
+  CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -1152,15 +1161,9 @@ TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
 
 TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   // Encryption needs to be established before data can be sent.
-  if (connection_->version().HasHandshakeDone()) {
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillRepeatedly(Invoke(&ClearControlFrame));
-  }
-  CryptoHandshakeMessage msg;
+  CompleteHandshake();
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
 
   // Drive congestion control manually.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -1199,6 +1202,7 @@ TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
+  CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
   InSequence s;
 
@@ -1246,6 +1250,7 @@ TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
 }
 
 TEST_P(QuicSessionTestServer, OnCanWriteWriterBlocks) {
+  CompleteHandshake();
   // Drive congestion control manually in order to ensure that
   // application-limited signaling is handled correctly.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -2373,6 +2378,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameLost) {
+  CompleteHandshake();
   InSequence s;
 
   // Drive congestion control manually.

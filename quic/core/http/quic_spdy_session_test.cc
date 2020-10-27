@@ -704,6 +704,7 @@ TEST_P(QuicSpdySessionTestServer,
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWrite) {
+  CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -861,6 +862,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
+  CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
   InSequence s;
 
@@ -908,6 +910,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteWriterBlocks) {
+  CompleteHandshake();
   // Drive congestion control manually in order to ensure that
   // application-limited signaling is handled correctly.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -1009,6 +1012,7 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWithClosedStream) {
 
 TEST_P(QuicSpdySessionTestServer,
        OnCanWriteLimitsNumWritesIfFlowControlBlocked) {
+  CompleteHandshake();
   // Drive congestion control manually in order to ensure that
   // application-limited signaling is handled correctly.
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
@@ -2031,6 +2035,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
+  CompleteHandshake();
   InSequence s;
 
   // Drive congestion control manually.
