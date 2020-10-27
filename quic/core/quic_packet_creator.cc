@@ -134,9 +134,6 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
       max_datagram_frame_size_(0) {
-  if (close_connection_on_serialization_failure_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_close_connection_on_serialization_failure);
-  }
   if (let_connection_handle_pings_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_let_connection_handle_pings);
   }
@@ -478,24 +475,14 @@ void QuicPacketCreator::FlushCurrentPacket() {
   }
 
   DCHECK_EQ(nullptr, packet_.encrypted_buffer);
-  const bool success =
-      SerializePacket(std::move(external_buffer), kMaxOutgoingPacketSize);
-  if (close_connection_on_serialization_failure_ && !success) {
+  if (!SerializePacket(std::move(external_buffer), kMaxOutgoingPacketSize)) {
     return;
   }
   OnSerializedPacket();
 }
 
 void QuicPacketCreator::OnSerializedPacket() {
-  if (close_connection_on_serialization_failure_) {
-    QUIC_BUG_IF(packet_.encrypted_buffer == nullptr);
-  } else if (packet_.encrypted_buffer == nullptr) {
-    const std::string error_details = "Failed to SerializePacket.";
-    QUIC_BUG << error_details;
-    delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
-                                    error_details);
-    return;
-  }
+  QUIC_BUG_IF(packet_.encrypted_buffer == nullptr);
 
   SerializedPacket packet(std::move(packet_));
   ClearPacket();
@@ -559,9 +546,7 @@ size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(
       return 0;
     }
   }
-  const bool success =
-      SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len);
-  if (close_connection_on_serialization_failure_ && !success) {
+  if (!SerializePacket(QuicOwnedPacketBuffer(buffer, nullptr), buffer_len)) {
     return 0;
   }
   const size_t encrypted_length = packet_.encrypted_length;
@@ -760,8 +745,7 @@ bool QuicPacketCreator::AddPaddedSavedFrame(
 
 bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                         size_t encrypted_buffer_len) {
-  if (close_connection_on_serialization_failure_ &&
-      packet_.encrypted_buffer != nullptr) {
+  if (packet_.encrypted_buffer != nullptr) {
     const std::string error_details =
         "Packet's encrypted buffer is not empty before serialization";
     QUIC_BUG << error_details;
@@ -769,11 +753,7 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
                                     error_details);
     return false;
   }
-  const bool use_handler =
-      GetQuicReloadableFlag(
-          quic_neuter_initial_packet_in_coalescer_with_initial_key_discarded) ||
-      close_connection_on_serialization_failure_;
-  ScopedSerializationFailureHandler handler(use_handler ? this : nullptr);
+  ScopedSerializationFailureHandler handler(this);
 
   DCHECK_LT(0u, encrypted_buffer_len);
   QUIC_BUG_IF(queued_frames_.empty() && pending_padding_bytes_ == 0)
@@ -848,9 +828,6 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
   }
 
   packet_size_ = 0;
-  if (!use_handler) {
-    queued_frames_.clear();
-  }
   packet_.encrypted_buffer = encrypted_buffer.buffer;
   packet_.encrypted_length = encrypted_length;
 
@@ -2015,8 +1992,7 @@ QuicPacketCreator::ScopedSerializationFailureHandler::
   // Always clear queued_frames_.
   creator_->queued_frames_.clear();
 
-  if (creator_->close_connection_on_serialization_failure_ &&
-      creator_->packet_.encrypted_buffer == nullptr) {
+  if (creator_->packet_.encrypted_buffer == nullptr) {
     const std::string error_details = "Failed to SerializePacket.";
     QUIC_BUG << error_details;
     creator_->delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,

@@ -671,9 +671,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
 
-  const bool close_connection_on_serialization_failure_ =
-      GetQuicReloadableFlag(quic_close_connection_on_serialization_failure);
-
   const bool let_connection_handle_pings_ =
       GetQuicReloadableFlag(quic_let_connection_handle_pings);
 };
