@@ -355,9 +355,6 @@ QuicConnection::QuicConnection(
            self_address_.IsInitialized());
     QUIC_RELOADABLE_FLAG_COUNT(quic_connection_set_initial_self_address);
   }
-  if (fix_missing_connected_checks_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_add_missing_connected_checks);
-  }
   if (enable_aead_limits_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_aead_limits);
   }
@@ -3526,7 +3523,7 @@ void QuicConnection::OnRetransmissionTimeout() {
     DCHECK(!IsHandshakeComplete());
   }
 #endif
-  if (fix_missing_connected_checks_ && !connected_) {
+  if (!connected_) {
     return;
   }
 
@@ -4121,7 +4118,7 @@ void QuicConnection::SetPingAlarm() {
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
-  if (fix_missing_connected_checks_ && !connected_) {
+  if (!connected_) {
     if (retransmission_alarm_->IsSet()) {
       QUIC_BUG << ENDPOINT << "Retransmission alarm is set while disconnected";
       retransmission_alarm_->Cancel();
@@ -4624,8 +4621,7 @@ void QuicConnection::MaybeSendProbingRetransmissions() {
 }
 
 void QuicConnection::CheckIfApplicationLimited() {
-  if ((fix_missing_connected_checks_ && !connected_) ||
-      probing_retransmission_pending_) {
+  if (!connected_ || probing_retransmission_pending_) {
     return;
   }
 
@@ -5022,7 +5018,7 @@ void QuicConnection::MaybeCoalescePacketOfHigherSpace() {
 
 bool QuicConnection::FlushCoalescedPacket() {
   ScopedCoalescedPacketClearer clearer(&coalesced_packet_);
-  if (fix_missing_connected_checks_ && !connected_) {
+  if (!connected_) {
     return false;
   }
   if (!version().CanSendCoalescedPackets()) {

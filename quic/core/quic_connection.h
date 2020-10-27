@@ -1897,9 +1897,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool start_peer_migration_earlier_ =
       GetQuicReloadableFlag(quic_start_peer_migration_earlier);
 
-  bool fix_missing_connected_checks_ =
-      GetQuicReloadableFlag(quic_add_missing_connected_checks);
-
   // latch --gfe2_reloadable_flag_quic_send_path_response and
   // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
   bool send_path_response_ = start_peer_migration_earlier_ &&
