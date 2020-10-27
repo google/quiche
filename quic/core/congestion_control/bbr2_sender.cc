@@ -100,9 +100,6 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
 
 void Bbr2Sender::SetFromConfig(const QuicConfig& config,
                                Perspective perspective) {
-  if (config.HasClientRequestedIndependentOption(kBBR9, perspective)) {
-    params_.flexible_app_limited = true;
-  }
   if (config.HasClientRequestedIndependentOption(kB2NA, perspective)) {
     params_.add_ack_height_to_queueing_threshold = false;
   }
@@ -405,9 +402,6 @@ void Bbr2Sender::OnApplicationLimited(QuicByteCount bytes_in_flight) {
   if (bytes_in_flight >= GetCongestionWindow()) {
     return;
   }
-  if (params().flexible_app_limited && IsPipeSufficientlyFull()) {
-    return;
-  }
 
   model_.OnApplicationLimited();
   QUIC_DVLOG(2) << this << " Becoming application limited. Last sent packet: "
@@ -443,41 +437,7 @@ void Bbr2Sender::OnExitQuiescence(QuicTime now) {
 
 bool Bbr2Sender::ShouldSendProbingPacket() const {
   // TODO(wub): Implement ShouldSendProbingPacket properly.
-  if (!BBR2_MODE_DISPATCH(IsProbingForBandwidth())) {
-    return false;
-  }
-
-  // TODO(b/77975811): If the pipe is highly under-utilized, consider not
-  // sending a probing transmission, because the extra bandwidth is not needed.
-  // If flexible_app_limited is enabled, check if the pipe is sufficiently full.
-  if (params().flexible_app_limited) {
-    const bool is_pipe_sufficiently_full = IsPipeSufficientlyFull();
-    QUIC_DVLOG(3) << this << " CWND: " << GetCongestionWindow()
-                  << ", inflight: " << unacked_packets_->bytes_in_flight()
-                  << ", pacing_rate: " << PacingRate(0)
-                  << ", flexible_app_limited: true, ShouldSendProbingPacket: "
-                  << !is_pipe_sufficiently_full;
-    return !is_pipe_sufficiently_full;
-  } else {
-    return true;
-  }
-}
-
-bool Bbr2Sender::IsPipeSufficientlyFull() const {
-  QuicByteCount bytes_in_flight = unacked_packets_->bytes_in_flight();
-  // See if we need more bytes in flight to see more bandwidth.
-  if (mode_ == Bbr2Mode::STARTUP) {
-    // STARTUP exits if it doesn't observe a 25% bandwidth increase, so the CWND
-    // must be more than 25% above the target.
-    return bytes_in_flight >= GetTargetCongestionWindow(1.5);
-  }
-  if (model_.pacing_gain() > 1) {
-    // Super-unity PROBE_BW doesn't exit until 1.25 * BDP is achieved.
-    return bytes_in_flight >= GetTargetCongestionWindow(model_.pacing_gain());
-  }
-  // If bytes_in_flight are above the target congestion window, it should be
-  // possible to observe the same or more bandwidth if it's available.
-  return bytes_in_flight >= GetTargetCongestionWindow(1.1);
+  return BBR2_MODE_DISPATCH(IsProbingForBandwidth());
 }
 
 std::string Bbr2Sender::GetDebugState() const {

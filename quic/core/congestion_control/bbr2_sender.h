@@ -160,10 +160,6 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
     return random_->RandUint64() % max;
   }
 
-  // Returns true if there are enough bytes in flight to ensure more bandwidth
-  // will be observed if present.
-  bool IsPipeSufficientlyFull() const;
-
   // Cwnd limits imposed by the current Bbr2 mode.
   Limits<QuicByteCount> GetCwndLimitsByMode() const;
 

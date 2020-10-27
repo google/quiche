@@ -171,10 +171,6 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
    * Experimental flags from QuicConfig.
    */
 
-  // Indicates app-limited calls should be ignored as long as there's
-  // enough data inflight to see more bandwidth when necessary.
-  bool flexible_app_limited = false;
-
   // Can be disabled by connection option 'B2NA'.
   bool add_ack_height_to_queueing_threshold = true;
 

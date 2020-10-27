@@ -221,24 +221,6 @@ bool BbrSender::ShouldSendProbingPacket() const {
   return true;
 }
 
-bool BbrSender::IsPipeSufficientlyFull() const {
-  // See if we need more bytes in flight to see more bandwidth.
-  if (mode_ == STARTUP) {
-    // STARTUP exits if it doesn't observe a 25% bandwidth increase, so the CWND
-    // must be more than 25% above the target.
-    return unacked_packets_->bytes_in_flight() >=
-           GetTargetCongestionWindow(1.5);
-  }
-  if (pacing_gain_ > 1) {
-    // Super-unity PROBE_BW doesn't exit until 1.25 * BDP is achieved.
-    return unacked_packets_->bytes_in_flight() >=
-           GetTargetCongestionWindow(pacing_gain_);
-  }
-  // If bytes_in_flight are above the target congestion window, it should be
-  // possible to observe the same or more bandwidth if it's available.
-  return unacked_packets_->bytes_in_flight() >= GetTargetCongestionWindow(1.1);
-}
-
 void BbrSender::SetFromConfig(const QuicConfig& config,
                               Perspective perspective) {
   if (config.HasClientRequestedIndependentOption(k1RTT, perspective)) {
