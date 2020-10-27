@@ -89,8 +89,8 @@ const QuicByteCount kDefaultSocketReceiveBuffer = 1024 * 1024;
 // Don't allow a client to suggest an RTT shorter than 10ms.
 const uint32_t kMinInitialRoundTripTimeUs = 10 * kNumMicrosPerMilli;
 
-// Don't allow a client to suggest an RTT longer than 15 seconds.
-const uint32_t kMaxInitialRoundTripTimeUs = 15 * kNumMicrosPerSecond;
+// Don't allow a client to suggest an RTT longer than 1 second.
+const uint32_t kMaxInitialRoundTripTimeUs = kNumMicrosPerSecond;
 
 // Maximum number of open streams per connection.
 const size_t kDefaultMaxStreamsPerConnection = 100;

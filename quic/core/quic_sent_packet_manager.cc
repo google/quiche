@@ -1575,11 +1575,6 @@ void QuicSentPacketManager::SetInitialRtt(QuicTime::Delta rtt) {
       QuicTime::Delta::FromMicroseconds(kMinInitialRoundTripTimeUs);
   QuicTime::Delta max_rtt =
       QuicTime::Delta::FromMicroseconds(kMaxInitialRoundTripTimeUs);
-  if (GetQuicReloadableFlag(quic_cap_large_client_initial_rtt)) {
-    // TODO(fayang): change the value of kMaxInitialRoundTripTimeUs when
-    // deprecating quic_cap_large_client_initial_rtt.
-    max_rtt = QuicTime::Delta::FromSeconds(1);
-  }
   rtt_stats_.set_initial_rtt(std::max(min_rtt, std::min(max_rtt, rtt)));
 }
 

@@ -2245,17 +2245,10 @@ TEST_P(EndToEndTest, MaxInitialRTT) {
         client_sent_packet_manager->GetRttStats()->smoothed_rtt().IsInfinite());
     const RttStats* server_rtt_stats =
         server_sent_packet_manager->GetRttStats();
-    if (GetQuicReloadableFlag(quic_cap_large_client_initial_rtt)) {
-      EXPECT_EQ(static_cast<int64_t>(1 * kNumMicrosPerSecond),
-                server_rtt_stats->initial_rtt().ToMicroseconds());
-      EXPECT_GE(static_cast<int64_t>(1 * kNumMicrosPerSecond),
-                server_rtt_stats->smoothed_rtt().ToMicroseconds());
-    } else {
-      EXPECT_EQ(static_cast<int64_t>(kMaxInitialRoundTripTimeUs),
-                server_rtt_stats->initial_rtt().ToMicroseconds());
-      EXPECT_GE(static_cast<int64_t>(kMaxInitialRoundTripTimeUs),
-                server_rtt_stats->smoothed_rtt().ToMicroseconds());
-    }
+    EXPECT_EQ(static_cast<int64_t>(kMaxInitialRoundTripTimeUs),
+              server_rtt_stats->initial_rtt().ToMicroseconds());
+    EXPECT_GE(static_cast<int64_t>(kMaxInitialRoundTripTimeUs),
+              server_rtt_stats->smoothed_rtt().ToMicroseconds());
   } else {
     ADD_FAILURE() << "Missing sent packet manager";
   }
