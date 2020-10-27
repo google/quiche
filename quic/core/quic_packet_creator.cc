@@ -1464,7 +1464,7 @@ void QuicPacketCreator::Flush() {
   FlushCurrentPacket();
   SendRemainingPendingPadding();
   flusher_attached_ = false;
-  if (GetQuicFlag(FLAGS_quic_export_server_num_packets_per_write_histogram)) {
+  if (GetQuicFlag(FLAGS_quic_export_write_path_stats_at_server)) {
     if (!write_start_packet_number_.IsInitialized()) {
       QUIC_BUG << "write_start_packet_number is not initialized";
       return;

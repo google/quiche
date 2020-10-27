@@ -88,11 +88,10 @@ QUIC_PROTOCOL_FLAG(
     0.125f,  // One-eighth smoothed RTT
     "Smoothed RTT fraction that a connection can pace packets into the future.")
 
-QUIC_PROTOCOL_FLAG(
-    bool,
-    quic_export_server_num_packets_per_write_histogram,
-    false,
-    "If true, export number of packets written per write operation histogram.")
+QUIC_PROTOCOL_FLAG(bool,
+                   quic_export_write_path_stats_at_server,
+                   false,
+                   "If true, export detailed write path statistics at server.")
 
 QUIC_PROTOCOL_FLAG(bool,
                    quic_disable_version_negotiation_grease_randomness,
