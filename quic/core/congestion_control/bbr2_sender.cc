@@ -195,6 +195,8 @@ void Bbr2Sender::AdjustNetworkParameters(const NetworkParams& params) {
 
     QuicBandwidth effective_bandwidth =
         std::max(params.bandwidth, model_.BandwidthEstimate());
+    connection_stats_->cwnd_bootstrapping_rtt_us =
+        model_.MinRtt().ToMicroseconds();
     if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
       if (params.max_initial_congestion_window > 0) {
         QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_support_max_bootstrap_cwnd, 2,
