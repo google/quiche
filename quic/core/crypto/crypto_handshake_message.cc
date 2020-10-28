@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -370,7 +371,7 @@ std::string CryptoHandshakeMessage::DebugStringInternal(size_t indent) const {
     if (!done) {
       // If there's no specific format for this tag, or the value is invalid,
       // then just use hex.
-      ret += "0x" + quiche::QuicheTextUtils::HexEncode(it->second);
+      ret += "0x" + absl::BytesToHexString(it->second);
     }
     ret += "\n";
   }

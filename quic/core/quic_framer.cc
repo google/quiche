@@ -14,6 +14,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -1648,8 +1649,8 @@ void QuicFramer::MaybeProcessCoalescedPacket(
                     << "Failed to parse received coalesced header of length "
                     << coalesced_data_length
                     << " with error: " << detailed_error_ << ": "
-                    << quiche::QuicheTextUtils::HexEncode(coalesced_data,
-                                                          coalesced_data_length)
+                    << absl::BytesToHexString(absl::string_view(
+                           coalesced_data, coalesced_data_length))
                     << " previous header was " << header;
     return;
   }

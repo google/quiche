@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
@@ -408,7 +409,7 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
     if (configs_.find(config->id) != configs_.end()) {
       QUIC_LOG(WARNING) << "Failed to add config because another with the same "
                            "server config id already exists: "
-                        << quiche::QuicheTextUtils::HexEncode(config->id);
+                        << absl::BytesToHexString(config->id);
       return nullptr;
     }
 
@@ -454,7 +455,7 @@ bool QuicCryptoServerConfig::SetConfigs(
       return false;
     }
     QUIC_LOG(INFO) << "Fallback config has scid "
-                   << quiche::QuicheTextUtils::HexEncode(fallback_config->id);
+                   << absl::BytesToHexString(fallback_config->id);
     parsed_configs.push_back(fallback_config);
   } else {
     QUIC_LOG(INFO) << "No fallback config provided";
@@ -474,26 +475,27 @@ bool QuicCryptoServerConfig::SetConfigs(
   for (const QuicReferenceCountedPointer<Config>& config : parsed_configs) {
     auto it = configs_.find(config->id);
     if (it != configs_.end()) {
-      QUIC_LOG(INFO)
-          << "Keeping scid: " << quiche::QuicheTextUtils::HexEncode(config->id)
-          << " orbit: "
-          << quiche::QuicheTextUtils::HexEncode(
-                 reinterpret_cast<const char*>(config->orbit), kOrbitSize)
-          << " new primary_time " << config->primary_time.ToUNIXSeconds()
-          << " old primary_time " << it->second->primary_time.ToUNIXSeconds()
-          << " new priority " << config->priority << " old priority "
-          << it->second->priority;
+      QUIC_LOG(INFO) << "Keeping scid: " << absl::BytesToHexString(config->id)
+                     << " orbit: "
+                     << absl::BytesToHexString(absl::string_view(
+                            reinterpret_cast<const char*>(config->orbit),
+                            kOrbitSize))
+                     << " new primary_time "
+                     << config->primary_time.ToUNIXSeconds()
+                     << " old primary_time "
+                     << it->second->primary_time.ToUNIXSeconds()
+                     << " new priority " << config->priority << " old priority "
+                     << it->second->priority;
       // Update primary_time and priority.
       it->second->primary_time = config->primary_time;
       it->second->priority = config->priority;
       new_configs.insert(*it);
     } else {
-      QUIC_LOG(INFO) << "Adding scid: "
-                     << quiche::QuicheTextUtils::HexEncode(config->id)
+      QUIC_LOG(INFO) << "Adding scid: " << absl::BytesToHexString(config->id)
                      << " orbit: "
-                     << quiche::QuicheTextUtils::HexEncode(
+                     << absl::BytesToHexString(absl::string_view(
                             reinterpret_cast<const char*>(config->orbit),
-                            kOrbitSize)
+                            kOrbitSize))
                      << " primary_time " << config->primary_time.ToUNIXSeconds()
                      << " priority " << config->priority;
       new_configs.emplace(config->id, config);
@@ -1172,10 +1174,10 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
     primary_config_ = new_primary;
     new_primary->is_primary = true;
     QUIC_DLOG(INFO) << "New primary config.  orbit: "
-                    << quiche::QuicheTextUtils::HexEncode(
-                           reinterpret_cast<const char*>(
-                               primary_config_->orbit),
-                           kOrbitSize);
+                    << absl::BytesToHexString(
+                           absl::string_view(reinterpret_cast<const char*>(
+                                                 primary_config_->orbit),
+                                             kOrbitSize));
     if (primary_config_changed_cb_ != nullptr) {
       primary_config_changed_cb_->Run(primary_config_->id);
     }
@@ -1192,11 +1194,10 @@ void QuicCryptoServerConfig::SelectNewPrimaryConfig(
   primary_config_ = new_primary;
   new_primary->is_primary = true;
   QUIC_DLOG(INFO) << "New primary config.  orbit: "
-                  << quiche::QuicheTextUtils::HexEncode(
+                  << absl::BytesToHexString(absl::string_view(
                          reinterpret_cast<const char*>(primary_config_->orbit),
-                         kOrbitSize)
-                  << " scid: "
-                  << quiche::QuicheTextUtils::HexEncode(primary_config_->id);
+                         kOrbitSize))
+                  << " scid: " << absl::BytesToHexString(primary_config_->id);
   next_config_promotion_time_ = QuicWallTime::Zero();
   if (primary_config_changed_cb_ != nullptr) {
     primary_config_changed_cb_->Run(primary_config_->id);

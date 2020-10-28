@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_tls_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -92,7 +93,7 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
   ChaCha20Poly1305TlsEncrypter encrypter;
   ChaCha20Poly1305TlsDecrypter decrypter;
 
-  std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[0].key);
+  std::string key = absl::HexStringToBytes(test_vectors[0].key);
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(decrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetIV("abcdefghijkl"));
@@ -116,13 +117,12 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, EncryptThenDecrypt) {
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, Encrypt) {
   for (size_t i = 0; test_vectors[i].key != nullptr; i++) {
     // Decode the test vector.
-    std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[i].key);
-    std::string pt = quiche::QuicheTextUtils::HexDecode(test_vectors[i].pt);
-    std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[i].iv);
-    std::string fixed =
-        quiche::QuicheTextUtils::HexDecode(test_vectors[i].fixed);
-    std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[i].aad);
-    std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = absl::HexStringToBytes(test_vectors[i].key);
+    std::string pt = absl::HexStringToBytes(test_vectors[i].pt);
+    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
+    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
+    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
+    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
 
     ChaCha20Poly1305TlsEncrypter encrypter;
     ASSERT_TRUE(encrypter.SetKey(key));
@@ -158,13 +158,13 @@ TEST_F(ChaCha20Poly1305TlsEncrypterTest, GetCiphertextSize) {
 
 TEST_F(ChaCha20Poly1305TlsEncrypterTest, GenerateHeaderProtectionMask) {
   ChaCha20Poly1305TlsEncrypter encrypter;
-  std::string key = quiche::QuicheTextUtils::HexDecode(
+  std::string key = absl::HexStringToBytes(
       "6a067f432787bd6034dd3f08f07fc9703a27e58c70e2d88d948b7f6489923cc7");
   std::string sample =
-      quiche::QuicheTextUtils::HexDecode("1210d91cceb45c716b023f492c29e612");
+      absl::HexStringToBytes("1210d91cceb45c716b023f492c29e612");
   ASSERT_TRUE(encrypter.SetHeaderProtectionKey(key));
   std::string mask = encrypter.GenerateHeaderProtectionMask(sample);
-  std::string expected_mask = quiche::QuicheTextUtils::HexDecode("1cc2cd98dc");
+  std::string expected_mask = absl::HexStringToBytes("1cc2cd98dc");
   quiche::test::CompareCharArraysWithHexError(
       "header protection mask", mask.data(), mask.size(), expected_mask.data(),
       expected_mask.size());

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
@@ -60,8 +61,8 @@ std::string QuicTagToString(QuicTag tag) {
     return std::string(chars, sizeof(chars));
   }
 
-  return quiche::QuicheTextUtils::HexEncode(
-      reinterpret_cast<const char*>(&orig_tag), sizeof(orig_tag));
+  return absl::BytesToHexString(absl::string_view(
+      reinterpret_cast<const char*>(&orig_tag), sizeof(orig_tag)));
 }
 
 uint32_t MakeQuicTag(char a, char b, char c, char d) {
@@ -78,7 +79,7 @@ QuicTag ParseQuicTag(absl::string_view tag_string) {
   quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tag_string);
   std::string tag_bytes;
   if (tag_string.length() == 8) {
-    tag_bytes = quiche::QuicheTextUtils::HexDecode(tag_string);
+    tag_bytes = absl::HexStringToBytes(tag_string);
     tag_string = tag_bytes;
   }
   QuicTag tag = 0;

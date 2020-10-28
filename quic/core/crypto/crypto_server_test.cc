@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
@@ -135,9 +136,9 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
     char public_value[32];
     memset(public_value, 42, sizeof(public_value));
 
-    nonce_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(GenerateNonce());
-    pub_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(public_value,
-                                                        sizeof(public_value));
+    nonce_hex_ = "#" + absl::BytesToHexString(GenerateNonce());
+    pub_hex_ = "#" + absl::BytesToHexString(
+                         absl::string_view(public_value, sizeof(public_value)));
 
     CryptoHandshakeMessage client_hello =
         crypto_test_utils::CreateCHLO({{"PDMD", "X509"},
@@ -158,7 +159,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
     absl::string_view srct;
     ASSERT_TRUE(out_.GetStringPiece(kSourceAddressTokenTag, &srct));
-    srct_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(srct);
+    srct_hex_ = "#" + absl::BytesToHexString(srct);
 
     absl::string_view scfg;
     ASSERT_TRUE(out_.GetStringPiece(kSCFG, &scfg));
@@ -166,7 +167,7 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
     absl::string_view scid;
     ASSERT_TRUE(server_config_->GetStringPiece(kSCID, &scid));
-    scid_hex_ = "#" + quiche::QuicheTextUtils::HexEncode(scid);
+    scid_hex_ = "#" + absl::BytesToHexString(scid);
 
     signed_config_ = QuicReferenceCountedPointer<QuicSignedServerConfig>(
         new QuicSignedServerConfig());
@@ -340,8 +341,8 @@ class CryptoServerTest : public QuicTestWithParam<TestParams> {
 
   std::string XlctHexString() {
     uint64_t xlct = crypto_test_utils::LeafCertHashForTesting();
-    return "#" + quiche::QuicheTextUtils::HexEncode(
-                     reinterpret_cast<char*>(&xlct), sizeof(xlct));
+    return "#" + absl::BytesToHexString(absl::string_view(
+                     reinterpret_cast<char*>(&xlct), sizeof(xlct)));
   }
 
  protected:

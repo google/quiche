@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -394,9 +395,9 @@ std::string TransportParameters::PreferredAddress::ToString() const {
   return "[" + ipv4_socket_address.ToString() + " " +
          ipv6_socket_address.ToString() + " connection_id " +
          connection_id.ToString() + " stateless_reset_token " +
-         quiche::QuicheTextUtils::HexEncode(
+         absl::BytesToHexString(absl::string_view(
              reinterpret_cast<const char*>(stateless_reset_token.data()),
-             stateless_reset_token.size()) +
+             stateless_reset_token.size())) +
          "]";
 }
 
@@ -426,9 +427,9 @@ std::string TransportParameters::ToString() const {
   rv += max_idle_timeout_ms.ToString(/*for_use_in_list=*/true);
   if (!stateless_reset_token.empty()) {
     rv += " " + TransportParameterIdToString(kStatelessResetToken) + " " +
-          quiche::QuicheTextUtils::HexEncode(
+          absl::BytesToHexString(absl::string_view(
               reinterpret_cast<const char*>(stateless_reset_token.data()),
-              stateless_reset_token.size());
+              stateless_reset_token.size()));
   }
   rv += max_udp_payload_size.ToString(/*for_use_in_list=*/true);
   rv += initial_max_data.ToString(/*for_use_in_list=*/true);
@@ -485,10 +486,10 @@ std::string TransportParameters::ToString() const {
     rv += "=";
     static constexpr size_t kMaxPrintableLength = 32;
     if (kv.second.length() <= kMaxPrintableLength) {
-      rv += quiche::QuicheTextUtils::HexEncode(kv.second);
+      rv += absl::BytesToHexString(kv.second);
     } else {
       absl::string_view truncated(kv.second.data(), kMaxPrintableLength);
-      rv += quiche::QuicheStrCat(quiche::QuicheTextUtils::HexEncode(truncated),
+      rv += quiche::QuicheStrCat(absl::BytesToHexString(truncated),
                                  "...(length ", kv.second.length(), ")");
     }
   }

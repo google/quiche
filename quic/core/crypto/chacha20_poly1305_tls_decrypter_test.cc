@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -138,15 +139,14 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
     bool has_pt = test_vectors[i].pt;
 
     // Decode the test vector.
-    std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[i].key);
-    std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[i].iv);
-    std::string fixed =
-        quiche::QuicheTextUtils::HexDecode(test_vectors[i].fixed);
-    std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[i].aad);
-    std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = absl::HexStringToBytes(test_vectors[i].key);
+    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
+    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
+    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
+    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
     std::string pt;
     if (has_pt) {
-      pt = quiche::QuicheTextUtils::HexDecode(test_vectors[i].pt);
+      pt = absl::HexStringToBytes(test_vectors[i].pt);
     }
 
     ChaCha20Poly1305TlsDecrypter decrypter;
@@ -172,14 +172,14 @@ TEST_F(ChaCha20Poly1305TlsDecrypterTest, Decrypt) {
 
 TEST_F(ChaCha20Poly1305TlsDecrypterTest, GenerateHeaderProtectionMask) {
   ChaCha20Poly1305TlsDecrypter decrypter;
-  std::string key = quiche::QuicheTextUtils::HexDecode(
+  std::string key = absl::HexStringToBytes(
       "6a067f432787bd6034dd3f08f07fc9703a27e58c70e2d88d948b7f6489923cc7");
   std::string sample =
-      quiche::QuicheTextUtils::HexDecode("1210d91cceb45c716b023f492c29e612");
+      absl::HexStringToBytes("1210d91cceb45c716b023f492c29e612");
   QuicDataReader sample_reader(sample.data(), sample.size());
   ASSERT_TRUE(decrypter.SetHeaderProtectionKey(key));
   std::string mask = decrypter.GenerateHeaderProtectionMask(&sample_reader);
-  std::string expected_mask = quiche::QuicheTextUtils::HexDecode("1cc2cd98dc");
+  std::string expected_mask = absl::HexStringToBytes("1cc2cd98dc");
   quiche::test::CompareCharArraysWithHexError(
       "header protection mask", mask.data(), mask.size(), expected_mask.data(),
       expected_mask.size());

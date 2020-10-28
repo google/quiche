@@ -48,6 +48,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
@@ -321,7 +322,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!GetQuicFlag(FLAGS_body_hex).empty()) {
     DCHECK(GetQuicFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
-    body = QuicheTextUtils::HexDecode(GetQuicFlag(FLAGS_body_hex));
+    body = absl::HexStringToBytes(GetQuicFlag(FLAGS_body_hex));
   }
 
   // Construct a GET or POST request for supplied URL.
@@ -358,8 +359,8 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       if (!GetQuicFlag(FLAGS_body_hex).empty()) {
         // Print the user provided hex, rather than binary body.
         std::cout << "body:\n"
-                  << QuicheTextUtils::HexDump(QuicheTextUtils::HexDecode(
-                         GetQuicFlag(FLAGS_body_hex)))
+                  << QuicheTextUtils::HexDump(
+                         absl::HexStringToBytes(GetQuicFlag(FLAGS_body_hex)))
                   << std::endl;
       } else {
         std::cout << "body: " << body << std::endl;

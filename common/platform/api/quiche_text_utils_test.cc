@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 
 namespace quiche {
@@ -37,21 +38,6 @@ TEST_F(QuicheTextUtilsTest, Uint64ToString) {
   EXPECT_EQ("1234", quiche::QuicheTextUtils::Uint64ToString(1234));
 }
 
-TEST_F(QuicheTextUtilsTest, HexEncode) {
-  EXPECT_EQ("48656c6c6f", quiche::QuicheTextUtils::HexEncode("Hello", 5));
-  EXPECT_EQ("48656c6c6f", quiche::QuicheTextUtils::HexEncode("Hello World", 5));
-  EXPECT_EQ("48656c6c6f", quiche::QuicheTextUtils::HexEncode("Hello"));
-  EXPECT_EQ("0102779cfa",
-            quiche::QuicheTextUtils::HexEncode("\x01\x02\x77\x9c\xfa"));
-}
-
-TEST_F(QuicheTextUtilsTest, HexDecode) {
-  EXPECT_EQ("Hello", quiche::QuicheTextUtils::HexDecode("48656c6c6f"));
-  EXPECT_EQ("", quiche::QuicheTextUtils::HexDecode(""));
-  EXPECT_EQ("\x01\x02\x77\x9c\xfa",
-            quiche::QuicheTextUtils::HexDecode("0102779cfa"));
-}
-
 TEST_F(QuicheTextUtilsTest, HexDump) {
   // Verify output of the HexDump method is as expected.
   char packet[] = {
@@ -72,14 +58,13 @@ TEST_F(QuicheTextUtilsTest, HexDump) {
       "0x0040:  6c69 6e65 7320 6f66 206f 7574 7075 742e  lines.of.output.\n"
       "0x0050:  0102 03                                  ...\n");
   // Verify that 0x21 and 0x7e are printable, 0x20 and 0x7f are not.
-  EXPECT_EQ("0x0000:  2021 7e7f                                .!~.\n",
-            quiche::QuicheTextUtils::HexDump(
-                quiche::QuicheTextUtils::HexDecode("20217e7f")));
+  EXPECT_EQ(
+      "0x0000:  2021 7e7f                                .!~.\n",
+      quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("20217e7f")));
   // Verify that values above numeric_limits<unsigned char>::max() are formatted
   // properly on platforms where char is unsigned.
   EXPECT_EQ("0x0000:  90aa ff                                  ...\n",
-            quiche::QuicheTextUtils::HexDump(
-                quiche::QuicheTextUtils::HexDecode("90aaff")));
+            quiche::QuicheTextUtils::HexDump(absl::HexStringToBytes("90aaff")));
 }
 
 TEST_F(QuicheTextUtilsTest, Base64Encode) {

@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
@@ -696,7 +697,7 @@ TEST_P(QuicSpdyStreamTest, Http3FrameError) {
   Initialize(kShouldProcessData);
 
   // PUSH_PROMISE frame with empty payload is considered invalid.
-  std::string invalid_http3_frame = quiche::QuicheTextUtils::HexDecode("0500");
+  std::string invalid_http3_frame = absl::HexStringToBytes("0500");
   QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
                                /* offset = */ 0, invalid_http3_frame);
 
@@ -712,7 +713,7 @@ TEST_P(QuicSpdyStreamTest, UnexpectedHttp3Frame) {
   Initialize(kShouldProcessData);
 
   // SETTINGS frame with empty payload.
-  std::string settings = quiche::QuicheTextUtils::HexDecode("0400");
+  std::string settings = absl::HexStringToBytes("0400");
   QuicStreamFrame stream_frame(stream_->id(), /* fin = */ false,
                                /* offset = */ 0, settings);
 
@@ -2088,7 +2089,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
 
   // Random bad headers.
   std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("00002a94e7036261"));
+      HeadersFrame(absl::HexStringToBytes("00002a94e7036261"));
   std::string data = DataFrame(kDataFramePayload);
 
   std::string stream_frame_payload = quiche::QuicheStrCat(headers, data);
@@ -2164,8 +2165,7 @@ TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
 
   // Invalid headers: Required Insert Count is zero, but the header block
   // contains a dynamic table reference.
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("000080"));
+  std::string headers = HeadersFrame(absl::HexStringToBytes("000080"));
   QuicStreamFrame frame(stream_->id(), false, 0, headers);
   stream_->OnStreamFrame(frame);
 }
@@ -2188,7 +2188,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string encoded_headers = absl::HexStringToBytes("020080");
   std::string headers = HeadersFrame(encoded_headers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
@@ -2222,7 +2222,7 @@ TEST_P(QuicSpdyStreamTest, ImmediateHeaderDecodingWithDynamicTableEntries) {
   session_->qpack_decoder()->OnInsertWithoutNameReference("trailing", "foobar");
 
   // Trailing HEADERS frame referencing second dynamic table entry.
-  std::string encoded_trailers = quiche::QuicheTextUtils::HexDecode("030080");
+  std::string encoded_trailers = absl::HexStringToBytes("030080");
   std::string trailers = HeadersFrame(encoded_trailers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_trailers.length()));
@@ -2254,7 +2254,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   session_->set_debug_visitor(&debug_visitor);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string encoded_headers = absl::HexStringToBytes("020080");
   std::string headers = HeadersFrame(encoded_headers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
@@ -2292,7 +2292,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   EXPECT_EQ(kDataFramePayload, stream_->data());
 
   // Trailing HEADERS frame referencing second dynamic table entry.
-  std::string encoded_trailers = quiche::QuicheTextUtils::HexDecode("030080");
+  std::string encoded_trailers = absl::HexStringToBytes("030080");
   std::string trailers = HeadersFrame(encoded_trailers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_trailers.length()));
@@ -2326,8 +2326,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingHeaders) {
 
   // HEADERS frame only referencing entry with absolute index 0 but with
   // Required Insert Count = 2, which is incorrect.
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("030081"));
+  std::string headers = HeadersFrame(absl::HexStringToBytes("030081"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
   // Even though entire header block is received and every referenced entry is
@@ -2359,8 +2358,7 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecodingUnblockedWithBufferedError) {
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // Relative index 2 is invalid because it is larger than or equal to the Base.
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("020082"));
+  std::string headers = HeadersFrame(absl::HexStringToBytes("020082"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
   // Decoding is blocked.
@@ -2388,8 +2386,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
   session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("020080"));
+  std::string headers = HeadersFrame(absl::HexStringToBytes("020080"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, headers));
 
   // Decoding is blocked because dynamic table entry has not been received yet.
@@ -2422,8 +2419,7 @@ TEST_P(QuicSpdyStreamTest, AsyncErrorDecodingTrailers) {
 
   // Trailing HEADERS frame only referencing entry with absolute index 0 but
   // with Required Insert Count = 2, which is incorrect.
-  std::string trailers =
-      HeadersFrame(quiche::QuicheTextUtils::HexDecode("030081"));
+  std::string trailers = HeadersFrame(absl::HexStringToBytes("030081"));
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), true, /* offset = */
                                          headers.length() + data.length(),
                                          trailers));
@@ -2459,7 +2455,7 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
   session_->set_debug_visitor(&debug_visitor);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string encoded_headers = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string encoded_headers = absl::HexStringToBytes("020080");
   std::string headers = HeadersFrame(encoded_headers);
   EXPECT_CALL(debug_visitor,
               OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
@@ -2903,7 +2899,7 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
   Initialize(kShouldProcessData);
 
   // SETTINGS frame with empty payload.
-  std::string settings = quiche::QuicheTextUtils::HexDecode("0400");
+  std::string settings = absl::HexStringToBytes("0400");
 
   // HEADERS frame.
   // Since it arrives after a SETTINGS frame, it should never be read.

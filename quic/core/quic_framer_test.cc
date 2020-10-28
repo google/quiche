@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
@@ -768,10 +769,8 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
             retry_token_length, length_length);
     if (associated_data != decrypter_->associated_data_) {
       QUIC_LOG(ERROR) << "Decrypted incorrect associated data.  expected "
-                      << quiche::QuicheTextUtils::HexEncode(associated_data)
-                      << " actual: "
-                      << quiche::QuicheTextUtils::HexEncode(
-                             decrypter_->associated_data_);
+                      << absl::BytesToHexString(associated_data) << " actual: "
+                      << absl::BytesToHexString(decrypter_->associated_data_);
       return false;
     }
     absl::string_view ciphertext(
@@ -782,12 +781,10 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
             retry_token_length_length, retry_token_length, length_length)));
     if (ciphertext != decrypter_->ciphertext_) {
       QUIC_LOG(ERROR) << "Decrypted incorrect ciphertext data.  expected "
-                      << quiche::QuicheTextUtils::HexEncode(ciphertext)
-                      << " actual: "
-                      << quiche::QuicheTextUtils::HexEncode(
-                             decrypter_->ciphertext_)
+                      << absl::BytesToHexString(ciphertext) << " actual: "
+                      << absl::BytesToHexString(decrypter_->ciphertext_)
                       << " associated data: "
-                      << quiche::QuicheTextUtils::HexEncode(associated_data);
+                      << absl::BytesToHexString(associated_data);
       return false;
     }
     return true;

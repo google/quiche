@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/bn.h"
 #include "third_party/boringssl/src/include/openssl/ec.h"
@@ -705,7 +706,7 @@ CryptoHandshakeMessage CreateCHLO(
     if (value_len > 0 && value[0] == '#') {
       // This is ascii encoded hex.
       std::string hex_value =
-          quiche::QuicheTextUtils::HexDecode(absl::string_view(&value[1]));
+          absl::HexStringToBytes(absl::string_view(&value[1]));
       msg.SetStringPiece(quic_tag, hex_value);
       continue;
     }
@@ -831,14 +832,14 @@ std::string GenerateClientNonceHex(const QuicClock* clock,
   std::string nonce;
   CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);
-  return ("#" + quiche::QuicheTextUtils::HexEncode(nonce));
+  return ("#" + absl::BytesToHexString(nonce));
 }
 
 std::string GenerateClientPublicValuesHex() {
   char public_value[32];
   memset(public_value, 42, sizeof(public_value));
-  return ("#" + quiche::QuicheTextUtils::HexEncode(public_value,
-                                                   sizeof(public_value)));
+  return ("#" + absl::BytesToHexString(
+                    absl::string_view(public_value, sizeof(public_value))));
 }
 
 void GenerateFullCHLO(

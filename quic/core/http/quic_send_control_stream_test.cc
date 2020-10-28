@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
@@ -113,7 +114,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
   Initialize();
   testing::InSequence s;
 
-  std::string expected_write_data = quiche::QuicheTextUtils::HexDecode(
+  std::string expected_write_data = absl::HexStringToBytes(
       "00"    // stream type: control stream
       "04"    // frame type: SETTINGS frame
       "0b"    // frame length

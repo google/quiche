@@ -92,7 +92,7 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
   ChaCha20Poly1305Encrypter encrypter;
   ChaCha20Poly1305Decrypter decrypter;
 
-  std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[0].key);
+  std::string key = absl::HexStringToBytes(test_vectors[0].key);
   ASSERT_TRUE(encrypter.SetKey(key));
   ASSERT_TRUE(decrypter.SetKey(key));
   ASSERT_TRUE(encrypter.SetNoncePrefix("abcd"));
@@ -116,13 +116,12 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
 TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {
   for (size_t i = 0; test_vectors[i].key != nullptr; i++) {
     // Decode the test vector.
-    std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[i].key);
-    std::string pt = quiche::QuicheTextUtils::HexDecode(test_vectors[i].pt);
-    std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[i].iv);
-    std::string fixed =
-        quiche::QuicheTextUtils::HexDecode(test_vectors[i].fixed);
-    std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[i].aad);
-    std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = absl::HexStringToBytes(test_vectors[i].key);
+    std::string pt = absl::HexStringToBytes(test_vectors[i].pt);
+    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
+    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
+    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
+    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
 
     ChaCha20Poly1305Encrypter encrypter;
     ASSERT_TRUE(encrypter.SetKey(key));

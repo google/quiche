@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -1979,7 +1980,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 
   // Push unidirectional stream is type 0x01.
-  std::string frame_type1 = quiche::QuicheTextUtils::HexDecode("01");
+  std::string frame_type1 = absl::HexStringToBytes("01");
   QuicStreamId stream_id1 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   session_.OnStreamFrame(QuicStreamFrame(stream_id1, /* fin = */ false,
@@ -1991,7 +1992,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   EXPECT_EQ(1u, session_.flow_controller()->bytes_consumed());
 
   // The same stream type can be encoded differently.
-  std::string frame_type2 = quiche::QuicheTextUtils::HexDecode("80000001");
+  std::string frame_type2 = absl::HexStringToBytes("80000001");
   QuicStreamId stream_id2 =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 1);
   session_.OnStreamFrame(QuicStreamFrame(stream_id2, /* fin = */ false,
@@ -2011,9 +2012,9 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(&session_));
 
   // Push unidirectional stream is type 0x01.
-  std::string frame_type = quiche::QuicheTextUtils::HexDecode("01");
+  std::string frame_type = absl::HexStringToBytes("01");
   // The first field of a push stream is the Push ID.
-  std::string push_id = quiche::QuicheTextUtils::HexDecode("4000");
+  std::string push_id = absl::HexStringToBytes("4000");
 
   QuicStreamId stream_id =
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
@@ -2485,7 +2486,7 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_payload = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string headers_payload = absl::HexStringToBytes("020080");
   std::unique_ptr<char[]> headers_buffer;
   QuicByteCount headers_frame_header_length =
       HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
@@ -2520,7 +2521,7 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   TestStream* stream = session_.CreateIncomingStream(stream_id);
 
   // HEADERS frame referencing first dynamic table entry.
-  std::string headers_payload = quiche::QuicheTextUtils::HexDecode("020080");
+  std::string headers_payload = absl::HexStringToBytes("020080");
   std::unique_ptr<char[]> headers_buffer;
   QuicByteCount headers_frame_header_length =
       HttpEncoder::SerializeHeadersFrameHeader(headers_payload.length(),
@@ -2553,7 +2554,7 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
   // must not be interpreted as stream type.
-  std::string payload = quiche::QuicheTextUtils::HexDecode("3f01");
+  std::string payload = absl::HexStringToBytes("3f01");
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2599,7 +2600,7 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
   // Payload consists of two bytes.  The first byte is an unknown unidirectional
   // stream type.  The second one would be the type of a push stream, but it
   // must not be interpreted as stream type.
-  std::string payload = quiche::QuicheTextUtils::HexDecode("3f01");
+  std::string payload = absl::HexStringToBytes("3f01");
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2636,7 +2637,7 @@ TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
 
   // Payload is the first byte of a two byte varint encoding.
-  std::string payload = quiche::QuicheTextUtils::HexDecode("40");
+  std::string payload = absl::HexStringToBytes("40");
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0,
                         payload);
 
@@ -2664,7 +2665,7 @@ TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
 
   // Payload is the first byte of a two byte varint encoding with a FIN.
-  std::string payload = quiche::QuicheTextUtils::HexDecode("40");
+  std::string payload = absl::HexStringToBytes("40");
   QuicStreamFrame frame(stream_id, /* fin = */ true, /* offset = */ 0, payload);
 
   session_.OnStreamFrame(frame);
@@ -2741,7 +2742,7 @@ TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
     return;
   }
 
-  std::string data = quiche::QuicheTextUtils::HexDecode(
+  std::string data = absl::HexStringToBytes(
       "02"    // Encoder stream.
       "00");  // Duplicate entry 0, but no entries exist.
 
@@ -2765,7 +2766,7 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
     return;
   }
 
-  std::string data = quiche::QuicheTextUtils::HexDecode(
+  std::string data = absl::HexStringToBytes(
       "03"    // Decoder stream.
       "00");  // Insert Count Increment with forbidden increment value of zero.
 
@@ -2920,7 +2921,7 @@ TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
 
   // Index 126 does not exist (static table has 61 entries and dynamic table is
   // empty).
-  std::string headers_frame = quiche::QuicheTextUtils::HexDecode(
+  std::string headers_frame = absl::HexStringToBytes(
       "000006"    // length
       "01"        // type
       "24"        // flags: PRIORITY | END_HEADERS

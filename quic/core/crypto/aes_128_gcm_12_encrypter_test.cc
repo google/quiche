@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -183,12 +184,12 @@ TEST_F(Aes128Gcm12EncrypterTest, Encrypt) {
     const TestGroupInfo& test_info = test_group_info[i];
     for (size_t j = 0; test_vectors[j].key != nullptr; j++) {
       // Decode the test vector.
-      std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[j].key);
-      std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[j].iv);
-      std::string pt = quiche::QuicheTextUtils::HexDecode(test_vectors[j].pt);
-      std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[j].aad);
-      std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[j].ct);
-      std::string tag = quiche::QuicheTextUtils::HexDecode(test_vectors[j].tag);
+      std::string key = absl::HexStringToBytes(test_vectors[j].key);
+      std::string iv = absl::HexStringToBytes(test_vectors[j].iv);
+      std::string pt = absl::HexStringToBytes(test_vectors[j].pt);
+      std::string aad = absl::HexStringToBytes(test_vectors[j].aad);
+      std::string ct = absl::HexStringToBytes(test_vectors[j].ct);
+      std::string tag = absl::HexStringToBytes(test_vectors[j].tag);
 
       // The test vector's lengths should look sane. Note that the lengths
       // in |test_info| are in bits.

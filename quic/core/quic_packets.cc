@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -263,7 +264,7 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
   }
   if (header.nonce != nullptr) {
     os << ", diversification_nonce: "
-       << quiche::QuicheTextUtils::HexEncode(
+       << absl::BytesToHexString(
               absl::string_view(header.nonce->data(), header.nonce->size()));
   }
   os << ", packet_number: " << header.packet_number << " }\n";

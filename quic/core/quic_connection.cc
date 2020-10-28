@@ -15,6 +15,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
@@ -939,21 +940,20 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
       QUIC_DLOG(ERROR) << "Ignoring RETRY with original connection ID "
                        << original_connection_id << " not matching expected "
                        << server_connection_id_ << " token "
-                       << quiche::QuicheTextUtils::HexEncode(retry_token);
+                       << absl::BytesToHexString(retry_token);
       return;
     }
   }
   if (drop_incoming_retry_packets_) {
     QUIC_DLOG(ERROR) << "Ignoring RETRY with token "
-                     << quiche::QuicheTextUtils::HexEncode(retry_token);
+                     << absl::BytesToHexString(retry_token);
     return;
   }
   drop_incoming_retry_packets_ = true;
   stats_.retry_packet_processed = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
                   << server_connection_id_ << " with " << new_connection_id
-                  << ", received token "
-                  << quiche::QuicheTextUtils::HexEncode(retry_token);
+                  << ", received token " << absl::BytesToHexString(retry_token);
   if (!original_destination_connection_id_.has_value()) {
     original_destination_connection_id_ = server_connection_id_;
   }

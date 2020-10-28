@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "third_party/boringssl/src/include/openssl/siphash.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -144,7 +145,7 @@ std::string QuicConnectionId::ToString() const {
   if (IsEmpty()) {
     return std::string("0");
   }
-  return quiche::QuicheTextUtils::HexEncode(data(), length_);
+  return absl::BytesToHexString(absl::string_view(data(), length_));
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicConnectionId& v) {

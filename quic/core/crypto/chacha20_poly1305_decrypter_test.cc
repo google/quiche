@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -143,15 +144,14 @@ TEST_F(ChaCha20Poly1305DecrypterTest, Decrypt) {
     bool has_pt = test_vectors[i].pt;
 
     // Decode the test vector.
-    std::string key = quiche::QuicheTextUtils::HexDecode(test_vectors[i].key);
-    std::string iv = quiche::QuicheTextUtils::HexDecode(test_vectors[i].iv);
-    std::string fixed =
-        quiche::QuicheTextUtils::HexDecode(test_vectors[i].fixed);
-    std::string aad = quiche::QuicheTextUtils::HexDecode(test_vectors[i].aad);
-    std::string ct = quiche::QuicheTextUtils::HexDecode(test_vectors[i].ct);
+    std::string key = absl::HexStringToBytes(test_vectors[i].key);
+    std::string iv = absl::HexStringToBytes(test_vectors[i].iv);
+    std::string fixed = absl::HexStringToBytes(test_vectors[i].fixed);
+    std::string aad = absl::HexStringToBytes(test_vectors[i].aad);
+    std::string ct = absl::HexStringToBytes(test_vectors[i].ct);
     std::string pt;
     if (has_pt) {
-      pt = quiche::QuicheTextUtils::HexDecode(test_vectors[i].pt);
+      pt = absl::HexStringToBytes(test_vectors[i].pt);
     }
 
     ChaCha20Poly1305Decrypter decrypter;

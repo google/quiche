@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_new_token_frame.h"
 
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -15,7 +16,7 @@ QuicNewTokenFrame::QuicNewTokenFrame(QuicControlFrameId control_frame_id,
 
 std::ostream& operator<<(std::ostream& os, const QuicNewTokenFrame& s) {
   os << "{ control_frame_id: " << s.control_frame_id
-     << ", token: " << quiche::QuicheTextUtils::HexEncode(s.token) << " }\n";
+     << ", token: " << absl::BytesToHexString(s.token) << " }\n";
   return os;
 }
 

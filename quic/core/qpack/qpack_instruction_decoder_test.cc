@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -130,14 +131,14 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("7f01ff65"));
+  DecodeInstruction(absl::HexStringToBytes("7f01ff65"));
 
   EXPECT_TRUE(decoder_->s_bit());
   EXPECT_EQ(64u, decoder_->varint());
   EXPECT_EQ(356u, decoder_->varint2());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("05c8"));
+  DecodeInstruction(absl::HexStringToBytes("05c8"));
 
   EXPECT_FALSE(decoder_->s_bit());
   EXPECT_EQ(5u, decoder_->varint());
@@ -146,19 +147,19 @@ TEST_P(QpackInstructionDecoderTest, SBitAndVarint2) {
 
 TEST_P(QpackInstructionDecoderTest, NameAndValue) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("83666f6f03626172"));
+  DecodeInstruction(absl::HexStringToBytes("83666f6f03626172"));
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("8000"));
+  DecodeInstruction(absl::HexStringToBytes("8000"));
 
   EXPECT_EQ("", decoder_->name());
   EXPECT_EQ("", decoder_->value());
 
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction2()));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("c294e7838c767f"));
+  DecodeInstruction(absl::HexStringToBytes("c294e7838c767f"));
 
   EXPECT_EQ("foo", decoder_->name());
   EXPECT_EQ("bar", decoder_->value());
@@ -169,7 +170,7 @@ TEST_P(QpackInstructionDecoderTest, InvalidHuffmanEncoding) {
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::HUFFMAN_ENCODING_ERROR,
                   Eq("Error in Huffman-encoded string.")));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("c1ff"));
+  DecodeInstruction(absl::HexStringToBytes("c1ff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
@@ -177,8 +178,7 @@ TEST_P(QpackInstructionDecoderTest, InvalidVarintEncoding) {
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::INTEGER_TOO_LARGE,
                   Eq("Encoded integer too large.")));
-  DecodeInstruction(
-      quiche::QuicheTextUtils::HexDecode("ffffffffffffffffffffff"));
+  DecodeInstruction(absl::HexStringToBytes("ffffffffffffffffffffff"));
 }
 
 TEST_P(QpackInstructionDecoderTest, StringLiteralTooLong) {
@@ -186,7 +186,7 @@ TEST_P(QpackInstructionDecoderTest, StringLiteralTooLong) {
               OnInstructionDecodingError(
                   QpackInstructionDecoder::ErrorCode::STRING_LITERAL_TOO_LONG,
                   Eq("String literal too long.")));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("bfffff7f"));
+  DecodeInstruction(absl::HexStringToBytes("bfffff7f"));
 }
 
 TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
@@ -206,8 +206,8 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
         return false;
       }));
 
-  EXPECT_FALSE(decoder_->Decode(
-      quiche::QuicheTextUtils::HexDecode("01000200030004000500")));
+  EXPECT_FALSE(
+      decoder_->Decode(absl::HexStringToBytes("01000200030004000500")));
 }
 
 // QpackInstructionDecoder must not crash if it is destroyed from a
@@ -219,7 +219,7 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsErrorAndDestroysDecoder) {
         decoder_.reset();
         return false;
       }));
-  DecodeInstruction(quiche::QuicheTextUtils::HexDecode("0100"));
+  DecodeInstruction(absl::HexStringToBytes("0100"));
 }
 
 }  // namespace

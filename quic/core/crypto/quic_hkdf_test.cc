@@ -7,6 +7,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -71,11 +72,10 @@ TEST_F(QuicHKDFTest, HKDF) {
     const HKDFInput& test(kHKDFInputs[i]);
     SCOPED_TRACE(i);
 
-    const std::string key = quiche::QuicheTextUtils::HexDecode(test.key_hex);
-    const std::string salt = quiche::QuicheTextUtils::HexDecode(test.salt_hex);
-    const std::string info = quiche::QuicheTextUtils::HexDecode(test.info_hex);
-    const std::string expected =
-        quiche::QuicheTextUtils::HexDecode(test.output_hex);
+    const std::string key = absl::HexStringToBytes(test.key_hex);
+    const std::string salt = absl::HexStringToBytes(test.salt_hex);
+    const std::string info = absl::HexStringToBytes(test.info_hex);
+    const std::string expected = absl::HexStringToBytes(test.output_hex);
 
     // We set the key_length to the length of the expected output and then take
     // the result from the first key, which is the client write key.

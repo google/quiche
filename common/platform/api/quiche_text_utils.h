@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
@@ -32,30 +33,10 @@ class QUICHE_EXPORT QuicheTextUtils {
     return quiche::QuicheTextUtilsImpl::Uint64ToString(in);
   }
 
-  // This converts |length| bytes of binary to a 2*|length|-character
-  // hexadecimal representation.
-  // Return value: 2*|length| characters of ASCII string.
-  static std::string HexEncode(const char* data, size_t length) {
-    return HexEncode(absl::string_view(data, length));
-  }
-
-  // This converts |data.length()| bytes of binary to a
-  // 2*|data.length()|-character hexadecimal representation.
-  // Return value: 2*|data.length()| characters of ASCII string.
-  static std::string HexEncode(absl::string_view data) {
-    return quiche::QuicheTextUtilsImpl::HexEncode(data);
-  }
-
   // This converts a uint32 into an 8-character hexidecimal
   // representation.  Return value: 8 characters of ASCII string.
   static std::string Hex(uint32_t v) {
     return quiche::QuicheTextUtilsImpl::Hex(v);
-  }
-
-  // Converts |data| from a hexadecimal ASCII string to a binary string
-  // that is |data.length()/2| bytes long.
-  static std::string HexDecode(absl::string_view data) {
-    return quiche::QuicheTextUtilsImpl::HexDecode(data);
   }
 
   // Base64 encodes with no padding |data_len| bytes of |data| into |output|.

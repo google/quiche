@@ -7,6 +7,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
@@ -53,16 +54,14 @@ TEST_F(CryptoUtilsTest, TestExportKeyingMaterial) {
   for (size_t i = 0; i < ABSL_ARRAYSIZE(test_vector); i++) {
     // Decode the test vector.
     std::string subkey_secret =
-        quiche::QuicheTextUtils::HexDecode(test_vector[i].subkey_secret);
-    std::string label =
-        quiche::QuicheTextUtils::HexDecode(test_vector[i].label);
-    std::string context =
-        quiche::QuicheTextUtils::HexDecode(test_vector[i].context);
+        absl::HexStringToBytes(test_vector[i].subkey_secret);
+    std::string label = absl::HexStringToBytes(test_vector[i].label);
+    std::string context = absl::HexStringToBytes(test_vector[i].context);
     size_t result_len = test_vector[i].result_len;
     bool expect_ok = test_vector[i].expected != nullptr;
     std::string expected;
     if (expect_ok) {
-      expected = quiche::QuicheTextUtils::HexDecode(test_vector[i].expected);
+      expected = absl::HexStringToBytes(test_vector[i].expected);
     }
 
     std::string result;

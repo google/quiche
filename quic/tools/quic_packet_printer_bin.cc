@@ -33,6 +33,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "absl/strings/string_view.h"
+#include "absl/strings/escaping.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               quic_version,
@@ -99,16 +100,16 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
   bool OnStreamFrame(const QuicStreamFrame& frame) override {
     std::cerr << "OnStreamFrame: " << frame;
     std::cerr << "         data: { "
-              << quiche::QuicheTextUtils::HexEncode(frame.data_buffer,
-                                                    frame.data_length)
+              << absl::BytesToHexString(
+                     absl::string_view(frame.data_buffer, frame.data_length))
               << " }\n";
     return true;
   }
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override {
     std::cerr << "OnCryptoFrame: " << frame;
     std::cerr << "         data: { "
-              << quiche::QuicheTextUtils::HexEncode(frame.data_buffer,
-                                                    frame.data_length)
+              << absl::BytesToHexString(
+                     absl::string_view(frame.data_buffer, frame.data_length))
               << " }\n";
     return true;
   }
@@ -263,7 +264,7 @@ int main(int argc, char* argv[]) {
     quic::QuicPrintCommandLineFlagHelp(usage);
     return 1;
   }
-  std::string hex = quiche::QuicheTextUtils::HexDecode(args[1]);
+  std::string hex = absl::HexStringToBytes(args[1]);
   quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
   // Fake a time since we're not actually generating acks.
   quic::QuicTime start(quic::QuicTime::Zero());

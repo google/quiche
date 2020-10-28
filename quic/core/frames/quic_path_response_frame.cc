@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/frames/quic_path_response_frame.h"
 
+#include "absl/strings/escaping.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
@@ -20,9 +21,9 @@ QuicPathResponseFrame::~QuicPathResponseFrame() {}
 
 std::ostream& operator<<(std::ostream& os, const QuicPathResponseFrame& frame) {
   os << "{ control_frame_id: " << frame.control_frame_id << ", data: "
-     << quiche::QuicheTextUtils::HexEncode(
+     << absl::BytesToHexString(absl::string_view(
             reinterpret_cast<const char*>(frame.data_buffer.data()),
-            frame.data_buffer.size())
+            frame.data_buffer.size()))
      << " }\n";
   return os;
 }
