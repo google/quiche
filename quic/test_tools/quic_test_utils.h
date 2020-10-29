@@ -254,6 +254,8 @@ std::string Sha1Hash(absl::string_view data);
 
 // Delete |frame| and return true.
 bool ClearControlFrame(const QuicFrame& frame);
+bool ClearControlFrameWithTransmissionType(const QuicFrame& frame,
+                                           TransmissionType type);
 
 // Simple random number generator used to compute random numbers suitable
 // for pseudo-randomly dropping packets in tests.
@@ -839,6 +841,10 @@ class MockQuicSession : public QuicSession {
                StreamSendingState state,
                TransmissionType type,
                absl::optional<EncryptionLevel> level),
+              (override));
+  MOCK_METHOD(bool,
+              WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type),
               (override));
 
   MOCK_METHOD(void,

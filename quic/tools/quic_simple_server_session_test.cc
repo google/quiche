@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
@@ -203,6 +204,10 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
               ());
 
   MOCK_METHOD(void, SendBlocked, (QuicStreamId), (override));
+  MOCK_METHOD(bool,
+              WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type),
+              (override));
 };
 
 class QuicSimpleServerSessionTest
@@ -256,6 +261,9 @@ class QuicSimpleServerSessionTest
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     session_ = std::make_unique<MockQuicSimpleServerSession>(
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
@@ -266,9 +274,8 @@ class QuicSimpleServerSessionTest
     session_->Initialize();
 
     if (VersionHasIetfQuicFrames(transport_version())) {
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillRepeatedly(Invoke(
-              this, &QuicSimpleServerSessionTest::ClearMaxStreamsControlFrame));
+      EXPECT_CALL(*session_, WriteControlFrame(_, _))
+          .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
     }
     session_->OnConfigNegotiated();
   }
@@ -335,7 +342,8 @@ TEST_P(QuicSimpleServerSessionTest, CloseStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _));
+
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
@@ -365,7 +373,7 @@ TEST_P(QuicSimpleServerSessionTest, NeverOpenStreamDueToReset) {
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
@@ -406,7 +414,7 @@ TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   if (!VersionHasIetfQuicFrames(transport_version())) {
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
@@ -622,6 +630,9 @@ class QuicSimpleServerSessionServerPushTest
     ParsedQuicVersionVector supported_versions = SupportedVersions(GetParam());
     connection_ = new StrictMock<MockQuicConnectionWithSendStreamData>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     session_ = std::make_unique<MockQuicSimpleServerSession>(
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
@@ -629,9 +640,8 @@ class QuicSimpleServerSessionServerPushTest
     // Needed to make new session flow control window and server push work.
 
     if (VersionHasIetfQuicFrames(transport_version())) {
-      EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillRepeatedly(Invoke(this, &QuicSimpleServerSessionServerPushTest::
-                                           ClearMaxStreamsControlFrame));
+      EXPECT_CALL(*session_, WriteControlFrame(_, _))
+          .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
     }
     session_->OnConfigNegotiated();
 
@@ -881,8 +891,8 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // V99 will send out a STREAMS_BLOCKED frame when it tries to exceed the
     // limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&ClearControlFrame));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _))
+        .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
 
@@ -898,8 +908,8 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   QuicRstStreamFrame rst(kInvalidControlFrameId, stream_got_reset,
                          QUIC_STREAM_CANCELLED, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_got_reset, QUIC_RST_ACKNOWLEDGEMENT));
   session_->OnRstStream(rst);
@@ -968,8 +978,8 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
     // V99 will send out a stream-id-blocked frame when the we desired to exceed
     // the limit. This will clear the frames so that they do not block the later
     // rst-stream frame.
-    EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&ClearControlFrame));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _))
+        .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   }
   QuicByteCount data_frame_header_length = PromisePushResources(num_resources);
   QuicStreamId stream_to_open;
@@ -983,7 +993,7 @@ TEST_P(QuicSimpleServerSessionServerPushTest,
   // Resetting an open stream will close the stream and give space for extra
   // stream to be opened.
   QuicStreamId stream_got_reset = GetNthServerInitiatedUnidirectionalId(3);
-  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _));
   if (!VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
     // For version 99, this is covered in InjectStopSending()

@@ -766,6 +766,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseDuplicateUrl) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
+  CompleteCryptoHandshake();
   for (size_t i = 0u; i < session_->get_max_promises(); i++) {
     push_promise_[":path"] = quiche::QuicheStringPrintf("/bar%zu", i);
 

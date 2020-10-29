@@ -394,5 +394,10 @@ void QuicConnectionPeer::SetConnectionClose(QuicConnection* connection) {
   connection->connected_ = false;
 }
 
+// static
+void QuicConnectionPeer::SendPing(QuicConnection* connection) {
+  connection->SendPingAtLevel(connection->encryption_level());
+}
+
 }  // namespace test
 }  // namespace quic

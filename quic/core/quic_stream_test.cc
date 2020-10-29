@@ -621,9 +621,9 @@ TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA, _, _))
       .Times(0);
-  EXPECT_CALL(*connection_, SendControlFrame(_))
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
 
   std::string data(1000, 'x');
   for (QuicStreamOffset offset = 0;
@@ -951,9 +951,9 @@ TEST_P(QuicStreamTest, CancelStream) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_STREAM_CANCELLED));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   if (!session_->split_up_send_rst()) {
     EXPECT_CALL(*session_,
                 SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, 9, _))
@@ -1475,8 +1475,8 @@ TEST_P(QuicStreamTest, MarkConnectionLevelWriteBlockedOnWindowUpdateFrame) {
 
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(Invoke(session_.get(), &MockQuicSession::ConsumeData));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   std::string data(1024, '.');
   stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
@@ -1509,8 +1509,8 @@ TEST_P(QuicStreamTest,
   std::string data(100, '.');
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
       .WillRepeatedly(Invoke(session_.get(), &MockQuicSession::ConsumeData));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   stream->WriteOrBufferData(data, false, nullptr);
   EXPECT_FALSE(HasWriteBlockedStreams());
 

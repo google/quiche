@@ -349,7 +349,10 @@ QuicConnection::QuicConnection(
                              clock_->ApproximateNow(),
                              &arena_,
                              alarm_factory_),
-      support_handshake_done_(version().HasHandshakeDone()) {
+      support_handshake_done_(version().HasHandshakeDone()),
+      encrypted_control_frames_(
+          GetQuicReloadableFlag(quic_encrypted_control_frames) &&
+          packet_creator_.let_connection_handle_pings()) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
   if (GetQuicReloadableFlag(quic_connection_set_initial_self_address)) {
     DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -1840,8 +1843,8 @@ void QuicConnection::OnPacketComplete() {
   if (!should_last_packet_instigate_acks_) {
     uber_received_packet_manager_.MaybeUpdateAckTimeout(
         should_last_packet_instigate_acks_, last_decrypted_packet_level_,
-        last_header_.packet_number,
-        clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
+        last_header_.packet_number, clock_->ApproximateNow(),
+        sent_packet_manager_.GetRttStats());
   }
 
   ClearLastFrames();
@@ -5342,8 +5345,8 @@ void QuicConnection::MaybeUpdateAckTimeout() {
   should_last_packet_instigate_acks_ = true;
   uber_received_packet_manager_.MaybeUpdateAckTimeout(
       /*should_last_packet_instigate_acks=*/true, last_decrypted_packet_level_,
-      last_header_.packet_number,
-      clock_->ApproximateNow(), sent_packet_manager_.GetRttStats());
+      last_header_.packet_number, clock_->ApproximateNow(),
+      sent_packet_manager_.GetRttStats());
 }
 
 QuicTime QuicConnection::GetPathDegradingDeadline() const {

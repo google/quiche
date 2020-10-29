@@ -804,6 +804,14 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
                                     TransmissionType type) {
   DCHECK(connection()->connected())
       << ENDPOINT << "Try to write control frames when connection is closed.";
+  if (connection_->encrypted_control_frames()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_encrypted_control_frames);
+    if (!IsEncryptionEstablished()) {
+      QUIC_BUG << ENDPOINT << "Tried to send control frame " << frame
+               << " before encryption is established.";
+      return false;
+    }
+  }
   SetTransmissionType(type);
   return connection_->SendControlFrame(frame);
 }

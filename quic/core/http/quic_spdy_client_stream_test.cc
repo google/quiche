@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -46,6 +47,11 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
       delete;
   ~MockQuicSpdyClientSession() override = default;
 
+  MOCK_METHOD(bool,
+              WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type),
+              (override));
+
   using QuicSession::ActivateStream;
 
  private:
@@ -68,7 +74,9 @@ class QuicSpdyClientStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         body_("hello world") {
     session_.Initialize();
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
-
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     headers_[":status"] = "200";
     headers_["content-length"] = "11";
 
@@ -109,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(Tests,
 TEST_P(QuicSpdyClientStreamTest, TestReceivingIllegalResponseStatusCode) {
   headers_[":status"] = "200 ok";
 
-  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(session_, WriteControlFrame(_, _));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
   auto headers = AsHeaderList(headers_);
@@ -200,7 +208,7 @@ TEST_P(QuicSpdyClientStreamTest, TestReceiving101) {
   // 101 "Switching Protocols" is forbidden in HTTP/3 as per the
   // "HTTP Upgrade" section of draft-ietf-quic-http.
   headers_[":status"] = "101";
-  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(session_, WriteControlFrame(_, _));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
   auto headers = AsHeaderList(headers_);
@@ -246,7 +254,7 @@ TEST_P(QuicSpdyClientStreamTest,
   std::string data = VersionUsesHttp3(connection_->transport_version())
                          ? header + large_body
                          : large_body;
-  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(session_, WriteControlFrame(_, _));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_->id(), QUIC_BAD_APPLICATION_PAYLOAD));
 

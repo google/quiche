@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
@@ -39,6 +40,9 @@ class QuicFlowControllerTest : public QuicTest {
   void Initialize() {
     connection_ = new MockQuicConnection(&helper_, &alarm_factory_,
                                          Perspective::IS_CLIENT);
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     session_ = std::make_unique<MockQuicSession>(connection_);
     flow_controller_ = std::make_unique<QuicFlowController>(
         session_.get(), stream_id_, /*is_connection_flow_controller*/ false,
@@ -115,7 +119,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytes) {
             QuicFlowControllerPeer::ReceiveWindowSize(flow_controller_.get()));
 
   // Consume enough bytes to send a WINDOW_UPDATE frame.
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).Times(1);
 
   flow_controller_->AddBytesConsumed(1 + receive_window_ / 2);
 
@@ -185,7 +189,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastIncreasesFlowWindow) {
   should_auto_tune_receive_window_ = true;
   Initialize();
   // This test will generate two WINDOW_UPDATE frames.
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).Times(1);
   EXPECT_TRUE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.
@@ -237,9 +241,9 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastIncreasesFlowWindow) {
 TEST_F(QuicFlowControllerTest, ReceivingBytesFastNoAutoTune) {
   Initialize();
   // This test will generate two WINDOW_UPDATE frames.
-  EXPECT_CALL(*connection_, SendControlFrame(_))
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.
@@ -292,7 +296,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalStableFlowWindow) {
   should_auto_tune_receive_window_ = true;
   Initialize();
   // This test will generate two WINDOW_UPDATE frames.
-  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).Times(1);
   EXPECT_TRUE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.
@@ -347,9 +351,9 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalStableFlowWindow) {
 TEST_F(QuicFlowControllerTest, ReceivingBytesNormalNoAutoTune) {
   Initialize();
   // This test will generate two WINDOW_UPDATE frames.
-  EXPECT_CALL(*connection_, SendControlFrame(_))
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.

@@ -162,6 +162,8 @@ class QuicConnectionPeer {
   pending_path_challenge_payloads(QuicConnection* connection);
 
   static void SetConnectionClose(QuicConnection* connection);
+
+  static void SendPing(QuicConnection* connection);
 };
 
 }  // namespace test

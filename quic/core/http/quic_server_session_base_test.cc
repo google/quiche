@@ -71,6 +71,11 @@ class TestServerSession : public QuicServerSessionBase {
 
   ~TestServerSession() override { DeleteConnection(); }
 
+  MOCK_METHOD(bool,
+              WriteControlFrame,
+              (const QuicFrame& frame, TransmissionType type),
+              (override));
+
  protected:
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override {
     if (!ShouldCreateIncomingStream(id)) {
@@ -147,6 +152,9 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     connection_ = new StrictMock<MockQuicConnection>(
         &helper_, &alarm_factory_, Perspective::IS_SERVER, supported_versions);
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     session_ = std::make_unique<TestServerSession>(
         config_, connection_, &owner_, &stream_helper_, &crypto_config_,
         &compressed_certs_cache_, &memory_cache_backend_);
@@ -193,7 +201,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_CALL(owner_, OnStopSendingReceived(_)).Times(1);
     // Expect the RESET_STREAM that is generated in response to receiving a
     // STOP_SENDING.
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream_id, QUIC_ERROR_PROCESSING_STREAM));
     session_->OnStopSendingFrame(stop_sending);
@@ -249,7 +257,7 @@ TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
@@ -278,7 +286,7 @@ TEST_P(QuicServerSessionBaseTest, NeverOpenStreamDueToReset) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
@@ -318,7 +326,7 @@ TEST_P(QuicServerSessionBaseTest, AcceptClosedStream) {
   if (!VersionHasIetfQuicFrames(transport_version())) {
     // For non-version 99, the RESET_STREAM will do the full close.
     // Set up expects accordingly.
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
                               QUIC_RST_ACKNOWLEDGEMENT));
@@ -348,9 +356,6 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // streams.  For versions other than version 99, the server accepts slightly
   // more than the negotiated stream limit to deal with rare cases where a
   // client FIN/RST is lost.
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   if (!VersionHasIetfQuicFrames(transport_version())) {
@@ -387,7 +392,7 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
     // For non-version 99, QUIC responds to an attempt to exceed the stream
     // limit by resetting the stream.
     EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-    EXPECT_CALL(*connection_, SendControlFrame(_));
+    EXPECT_CALL(*session_, WriteControlFrame(_, _));
     EXPECT_CALL(*connection_, OnStreamReset(stream_id, QUIC_REFUSED_STREAM));
   } else {
     // In version 99 QUIC responds to an attempt to exceed the stream limit by
@@ -403,9 +408,6 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   // Test that the server closes the connection if a client makes too many data
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   const size_t kAvailableStreamLimit =
@@ -512,9 +514,6 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   QuicTagVector copt;
   copt.push_back(kBWRE);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
@@ -706,9 +705,6 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
   QuicTagVector copt;
   copt.push_back(kBWMX);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
@@ -718,9 +714,6 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
 TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
@@ -736,9 +729,6 @@ TEST_P(QuicServerSessionBaseTest, TurnOffServerPush) {
   QuicTagVector copt;
   copt.push_back(kQNSP);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
-  connection_->SetEncrypter(
-      ENCRYPTION_FORWARD_SECURE,
-      std::make_unique<NullEncrypter>(session_->perspective()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_->OnConfigNegotiated();
   EXPECT_FALSE(session_->server_push_enabled());

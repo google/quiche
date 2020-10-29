@@ -1127,6 +1127,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
 
+  bool encrypted_control_frames() const { return encrypted_control_frames_; }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1926,6 +1928,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool check_keys_before_writing_ =
       GetQuicReloadableFlag(quic_check_keys_before_writing);
+
+  bool encrypted_control_frames_;
 };
 
 }  // namespace quic

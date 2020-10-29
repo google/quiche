@@ -214,6 +214,11 @@ bool ClearControlFrame(const QuicFrame& frame) {
   return true;
 }
 
+bool ClearControlFrameWithTransmissionType(const QuicFrame& frame,
+                                           TransmissionType /*type*/) {
+  return ClearControlFrame(frame);
+}
+
 uint64_t SimpleRandom::RandUint64() {
   uint64_t result;
   RandBytes(&result, sizeof(result));

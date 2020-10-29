@@ -85,6 +85,13 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     params_->cipher_suite = 1;
   }
 
+  void EstablishZeroRttEncryption() {
+    encryption_established_ = true;
+    session()->connection()->SetEncrypter(
+        ENCRYPTION_ZERO_RTT,
+        std::make_unique<NullEncrypter>(session()->perspective()));
+  }
+
   void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
     encryption_established_ = true;
     one_rtt_keys_available_ = true;
@@ -573,6 +580,7 @@ TEST_P(QuicSpdySessionTestServer, AvailableStreams) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamLocallyCreated) {
+  CompleteHandshake();
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   EXPECT_EQ(GetNthServerInitiatedBidirectionalId(0), stream2->id());
   QuicSpdyStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -586,6 +594,7 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamLocallyCreated) {
 }
 
 TEST_P(QuicSpdySessionTestServer, IsClosedStreamPeerCreated) {
+  CompleteHandshake();
   QuicStreamId stream_id1 = GetNthClientInitiatedBidirectionalId(0);
   QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
   session_.GetOrCreateStream(stream_id1);
@@ -988,6 +997,7 @@ TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
 }
 
 TEST_P(QuicSpdySessionTestServer, OnCanWriteWithClosedStream) {
+  CompleteHandshake();
   session_.set_writev_consumes_all_data(true);
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
@@ -1065,6 +1075,7 @@ TEST_P(QuicSpdySessionTestServer,
 }
 
 TEST_P(QuicSpdySessionTestServer, SendGoAway) {
+  CompleteHandshake();
   if (VersionHasIetfQuicFrames(transport_version())) {
     // HTTP/3 GOAWAY has different semantic and thus has its own test.
     return;
@@ -1188,6 +1199,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterShutdownNotice) {
 }
 
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
+  CompleteHandshake();
   if (VersionHasIetfQuicFrames(transport_version())) {
     // HTTP/3 GOAWAY doesn't have such restriction.
     return;
@@ -1400,6 +1412,7 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
   // Ensure that Writev consumes all the data it is given (simulate no socket
   // blocking).
+  session_.GetMutableCryptoStream()->EstablishZeroRttEncryption();
   session_.set_writev_consumes_all_data(true);
 
   // Create a stream, and send enough data to make it flow control blocked.
@@ -1426,9 +1439,12 @@ TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
 
 TEST_P(QuicSpdySessionTestServer,
        HandshakeUnblocksFlowControlBlockedCryptoStream) {
-  if (QuicVersionUsesCryptoFrames(transport_version())) {
+  if (QuicVersionUsesCryptoFrames(transport_version()) ||
+      connection_->encrypted_control_frames()) {
     // QUIC version 47 onwards uses CRYPTO frames for the handshake, so this
-    // test doesn't make sense for those versions.
+    // test doesn't make sense for those versions. With
+    // use_encryption_level_context, control frames can only be sent when
+    // encryption gets established, do not send BLOCKED for crypto streams.
     return;
   }
   // Test that if the crypto stream is flow control blocked, then if the SHLO
@@ -1498,6 +1514,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Test that if the header stream is flow control blocked, then if the SHLO
   // contains a larger send window offset, the stream becomes unblocked.
+  session_.GetMutableCryptoStream()->EstablishZeroRttEncryption();
   session_.set_writev_consumes_all_data(true);
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
   EXPECT_FALSE(crypto_stream->IsFlowControlBlocked());
@@ -1614,6 +1631,7 @@ TEST_P(QuicSpdySessionTestServer, TooLowUnidirectionalStreamLimitHttp3) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+  session_.GetMutableCryptoStream()->EstablishZeroRttEncryption();
   QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 2u);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
@@ -1629,7 +1647,6 @@ TEST_P(QuicSpdySessionTestServer, CustomFlowControlWindow) {
   QuicTagVector copt;
   copt.push_back(kIFW7);
   QuicConfigPeer::SetReceivedConnectionOptions(session_.config(), copt);
-
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
   EXPECT_EQ(192 * 1024u, QuicFlowControllerPeer::ReceiveWindowSize(
@@ -1668,6 +1685,7 @@ TEST_P(QuicSpdySessionTestServer,
   // If a buggy/malicious peer creates too many streams that are not ended
   // with a FIN or RST then we send an RST to refuse streams for versions other
   // than version 99. In version 99 the connection gets closed.
+  CompleteHandshake();
   const QuicStreamId kMaxStreams = 5;
   if (VersionHasIetfQuicFrames(transport_version())) {
     QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&session_,
@@ -1722,6 +1740,7 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // Verify that a draining stream (which has received a FIN but not consumed
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
+  CompleteHandshake();
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Simulate receiving a config. so that MAX_STREAMS/etc frames may
     // be transmitted
@@ -1907,6 +1926,7 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
   // Verify that an incoming FIN is recorded in a stream object even if the read
   // side has been closed.  This prevents an entry from being made in
   // locally_closed_streams_highest_offset_ (which will never be deleted).
+  CompleteHandshake();
   TestStream* stream = session_.CreateOutgoingBidirectionalStream();
   QuicStreamId stream_id = stream->id();
 
@@ -2111,6 +2131,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
 TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
   // Resetting a stream will send a QPACK Stream Cancellation instruction on the
   // decoder stream.  For simplicity, ignore writes on this stream.
+  CompleteHandshake();
   NoopQpackStreamSenderDelegate qpack_stream_sender_delegate;
   if (VersionUsesHttp3(transport_version())) {
     session_.qpack_decoder()->set_qpack_stream_sender_delegate(
@@ -2156,6 +2177,7 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
 }
 
 TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
+  CompleteHandshake();
   MockSendAlgorithm* send_algorithm = new StrictMock<MockSendAlgorithm>;
   QuicConnectionPeer::SetSendAlgorithm(session_.connection(), send_algorithm);
   InSequence s;
@@ -2274,7 +2296,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-
+  CompleteHandshake();
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
   absl::string_view payload(input, ABSL_ARRAYSIZE(input));
@@ -2326,7 +2348,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-
+  CompleteHandshake();
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
   absl::string_view payload(input, ABSL_ARRAYSIZE(input));
@@ -2367,7 +2389,7 @@ TEST_P(QuicSpdySessionTestServer,
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-
+  CompleteHandshake();
   char input[] = {0x41, 0x00,      // type (256)
                   'a', 'b', 'c'};  // data
   absl::string_view payload(input, ABSL_ARRAYSIZE(input));
@@ -2479,7 +2501,7 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
-
+  CompleteHandshake();
   session_.qpack_decoder()->OnSetDynamicTableCapacity(1024);
 
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
@@ -2546,6 +2568,7 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+  CompleteHandshake();
   ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
@@ -2592,6 +2615,7 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
   }
+  CompleteHandshake();
   ASSERT_TRUE(session_.UsesPendingStreams());
 
   const QuicStreamId stream_id =
