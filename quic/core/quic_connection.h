@@ -1129,6 +1129,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool encrypted_control_frames() const { return encrypted_control_frames_; }
 
+  bool use_encryption_level_context() const {
+    return use_encryption_level_context_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1929,7 +1933,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool check_keys_before_writing_ =
       GetQuicReloadableFlag(quic_check_keys_before_writing);
 
-  bool encrypted_control_frames_;
+  const bool encrypted_control_frames_;
+
+  const bool use_encryption_level_context_;
 };
 
 }  // namespace quic

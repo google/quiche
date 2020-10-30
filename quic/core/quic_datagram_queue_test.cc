@@ -6,6 +6,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -38,6 +39,9 @@ class QuicDatagramQueueTest : public QuicTest {
         session_(connection_),
         queue_(&session_) {
     session_.SetCryptoStream(new EstablishedCryptoStream(&session_));
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
   }
 
   QuicMemSlice CreateMemSlice(absl::string_view data) {

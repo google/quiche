@@ -749,9 +749,14 @@ QuicConsumedData QuicSession::WritevData(
 
   SetTransmissionType(type);
   const auto current_level = connection()->encryption_level();
-  if (level.has_value()) {
-    connection()->SetDefaultEncryptionLevel(level.value());
+  if (!use_encryption_level_context()) {
+    if (level.has_value()) {
+      connection()->SetDefaultEncryptionLevel(level.value());
+    }
   }
+  QuicConnection::ScopedEncryptionLevelContext context(
+      use_encryption_level_context() ? connection() : nullptr,
+      use_encryption_level_context() ? level.value() : NUM_ENCRYPTION_LEVELS);
 
   QuicConsumedData data =
       connection_->SendStreamData(id, write_length, offset, state);
@@ -761,8 +766,11 @@ QuicConsumedData QuicSession::WritevData(
   }
 
   // Restore the encryption level.
-  if (level.has_value()) {
-    connection()->SetDefaultEncryptionLevel(current_level);
+  if (!use_encryption_level_context()) {
+    // Restore the encryption level.
+    if (level.has_value()) {
+      connection()->SetDefaultEncryptionLevel(current_level);
+    }
   }
 
   return data;
@@ -786,11 +794,17 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
   }
   SetTransmissionType(type);
   const auto current_level = connection()->encryption_level();
-  connection_->SetDefaultEncryptionLevel(level);
+  if (!use_encryption_level_context()) {
+    connection_->SetDefaultEncryptionLevel(level);
+  }
+  QuicConnection::ScopedEncryptionLevelContext context(
+      use_encryption_level_context() ? connection() : nullptr, level);
   const auto bytes_consumed =
       connection_->SendCryptoData(level, write_length, offset);
-  // Restores encryption level.
-  connection_->SetDefaultEncryptionLevel(current_level);
+  if (!use_encryption_level_context()) {
+    // Restores encryption level.
+    connection_->SetDefaultEncryptionLevel(current_level);
+  }
   return bytes_consumed;
 }
 
@@ -814,6 +828,10 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
     }
   }
   SetTransmissionType(type);
+  QuicConnection::ScopedEncryptionLevelContext context(
+      use_encryption_level_context() ? connection() : nullptr,
+      use_encryption_level_context() ? GetEncryptionLevelToSendApplicationData()
+                                     : NUM_ENCRYPTION_LEVELS);
   return connection_->SendControlFrame(frame);
 }
 
@@ -2373,6 +2391,10 @@ MessageResult QuicSession::SendMessage(QuicMemSliceSpan message, bool flush) {
   if (!IsEncryptionEstablished()) {
     return {MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0};
   }
+  QuicConnection::ScopedEncryptionLevelContext context(
+      use_encryption_level_context() ? connection() : nullptr,
+      use_encryption_level_context() ? GetEncryptionLevelToSendApplicationData()
+                                     : NUM_ENCRYPTION_LEVELS);
   MessageStatus result =
       connection_->SendMessage(last_message_id_ + 1, message, flush);
   if (result == MESSAGE_STATUS_SUCCESS) {

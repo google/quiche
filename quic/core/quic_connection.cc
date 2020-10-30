@@ -352,7 +352,10 @@ QuicConnection::QuicConnection(
       support_handshake_done_(version().HasHandshakeDone()),
       encrypted_control_frames_(
           GetQuicReloadableFlag(quic_encrypted_control_frames) &&
-          packet_creator_.let_connection_handle_pings()) {
+          packet_creator_.let_connection_handle_pings()),
+      use_encryption_level_context_(
+          encrypted_control_frames_ &&
+          GetQuicReloadableFlag(quic_use_encryption_level_context)) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
   if (GetQuicReloadableFlag(quic_connection_set_initial_self_address)) {
     DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -361,6 +364,9 @@ QuicConnection::QuicConnection(
   }
   if (enable_aead_limits_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_aead_limits);
+  }
+  if (use_encryption_level_context_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_encryption_level_context);
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created connection with server connection ID "
                   << server_connection_id
@@ -3481,7 +3487,9 @@ void QuicConnection::OnPingTimeout() {
     return;
   }
   if (packet_creator_.let_connection_handle_pings()) {
-    SendPingAtLevel(encryption_level_);
+    SendPingAtLevel(use_encryption_level_context_
+                        ? framer().GetEncryptionLevelToSendApplicationData()
+                        : encryption_level_);
   } else {
     visitor_->SendPing();
   }
@@ -3907,7 +3915,12 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
                                                       peer_address());
   if (!SupportsMultiplePacketNumberSpaces()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
-    SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
+    if (!use_encryption_level_context_) {
+      SetDefaultEncryptionLevel(GetConnectionCloseEncryptionLevel());
+    }
+    ScopedEncryptionLevelContext context(
+        use_encryption_level_context_ ? this : nullptr,
+        GetConnectionCloseEncryptionLevel());
     if (version().CanSendCoalescedPackets()) {
       coalesced_packet_.Clear();
     }
@@ -3950,7 +3963,11 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     }
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Sending connection close packet at level: " << level;
-    SetDefaultEncryptionLevel(level);
+    if (!use_encryption_level_context_) {
+      SetDefaultEncryptionLevel(level);
+    }
+    ScopedEncryptionLevelContext context(
+        use_encryption_level_context_ ? this : nullptr, level);
     // Bundle an ACK of the corresponding packet number space for debugging
     // purpose.
     if (error != QUIC_PACKET_WRITE_ERROR &&
@@ -3978,7 +3995,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
   // Since the connection is closing, if the connection close packets were not
   // sent, then they should be discarded.
   ClearQueuedPackets();
-  SetDefaultEncryptionLevel(current_encryption_level);
+  if (!use_encryption_level_context_) {
+    SetDefaultEncryptionLevel(current_encryption_level);
+  }
 }
 
 void QuicConnection::TearDownLocalConnectionState(
@@ -4926,7 +4945,12 @@ void QuicConnection::SendAllPendingAcks() {
                   << PacketNumberSpaceToString(
                          static_cast<PacketNumberSpace>(i));
     // Switch to the appropriate encryption level.
-    SetDefaultEncryptionLevel(
+    if (!use_encryption_level_context_) {
+      SetDefaultEncryptionLevel(
+          QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
+    }
+    ScopedEncryptionLevelContext context(
+        use_encryption_level_context_ ? this : nullptr,
         QuicUtils::GetEncryptionLevel(static_cast<PacketNumberSpace>(i)));
     QuicFrames frames;
     frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
@@ -4942,8 +4966,10 @@ void QuicConnection::SendAllPendingAcks() {
     }
     ResetAckStates();
   }
-  // Restores encryption level.
-  SetDefaultEncryptionLevel(current_encryption_level);
+  if (!use_encryption_level_context_) {
+    // Restores encryption level.
+    SetDefaultEncryptionLevel(current_encryption_level);
+  }
 
   const QuicTime timeout =
       uber_received_packet_manager_.GetEarliestAckTimeout();

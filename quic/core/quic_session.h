@@ -517,6 +517,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return use_write_or_buffer_data_at_level_;
   }
 
+  bool use_encryption_level_context() const {
+    return connection_->use_encryption_level_context() &&
+           use_write_or_buffer_data_at_level_;
+  }
+
  protected:
   using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
 
