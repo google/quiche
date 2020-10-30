@@ -621,6 +621,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   // Returns true if an encrypter of |space| is available.
   bool HasAnEncrypterForSpace(PacketNumberSpace space) const;
 
+  // Returns the encryption level to send application data. This should be only
+  // called with available encrypter for application data.
+  EncryptionLevel GetEncryptionLevelToSendApplicationData() const;
+
   void set_validate_flags(bool value) { validate_flags_ = value; }
 
   Perspective perspective() const { return perspective_; }

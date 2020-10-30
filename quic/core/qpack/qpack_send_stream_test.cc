@@ -5,6 +5,7 @@
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_send_stream.h"
 
 #include "absl/strings/string_view.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
@@ -69,6 +70,9 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
         session_(connection_) {
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     if (connection_->version().SupportsAntiAmplificationLimit()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }

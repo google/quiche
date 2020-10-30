@@ -26,6 +26,8 @@ class QUIC_EXPORT_PRIVATE StreamDelegateInterface {
   // Called when the stream needs to write data. If |level| is present, the data
   // will be written at the specified |level|. The data will be written
   // at specified transmission |type|.
+  // TODO(fayang): Change absl::optional<EncryptionLevel> to EncryptionLevel
+  // when deprecating quic_use_write_or_buffer_data_at_level.
   virtual QuicConsumedData WritevData(
       QuicStreamId id,
       size_t write_length,

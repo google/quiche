@@ -347,7 +347,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
     chlo_hash_ = CryptoUtils::HashHandshakeMessage(out, Perspective::IS_CLIENT);
     session()->connection()->set_fully_pad_crypto_handshake_packets(
         crypto_config_->pad_inchoate_hello());
-    SendHandshakeMessage(out);
+    SendHandshakeMessage(out, ENCRYPTION_INITIAL);
     return;
   }
 
@@ -374,7 +374,7 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   next_state_ = STATE_RECV_SHLO;
   session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_full_hello());
-  SendHandshakeMessage(out);
+  SendHandshakeMessage(out, ENCRYPTION_INITIAL);
   // Be prepared to decrypt with the new server write key.
   delegate_->OnNewEncryptionKeyAvailable(
       ENCRYPTION_ZERO_RTT,

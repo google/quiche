@@ -21,7 +21,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoHandshaker
 
   // Sends |message| to the peer.
   // TODO(wtc): return a success/failure status.
-  void SendHandshakeMessage(const CryptoHandshakeMessage& message);
+  void SendHandshakeMessage(const CryptoHandshakeMessage& message,
+                            EncryptionLevel level);
 
   void OnError(CryptoFramer* framer) override;
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

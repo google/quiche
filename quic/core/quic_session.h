@@ -493,6 +493,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   virtual void MaybeSendStopSendingFrame(QuicStreamId id,
                                          QuicRstStreamErrorCode error);
 
+  // Returns the encryption level to send application data.
+  EncryptionLevel GetEncryptionLevelToSendApplicationData() const;
+
   const absl::optional<std::string> user_agent_id() const {
     return user_agent_id_;
   }
@@ -508,6 +511,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   bool liveness_testing_in_progress() const {
     return liveness_testing_in_progress_;
+  }
+
+  bool use_write_or_buffer_data_at_level() const {
+    return use_write_or_buffer_data_at_level_;
   }
 
  protected:
@@ -849,6 +856,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool liveness_testing_in_progress_;
 
   const bool split_up_send_rst_ = GetQuicReloadableFlag(quic_split_up_send_rst);
+
+  const bool use_write_or_buffer_data_at_level_ =
+      GetQuicReloadableFlag(quic_use_write_or_buffer_data_at_level);
 };
 
 }  // namespace quic

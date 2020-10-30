@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -226,6 +227,9 @@ class QuicHeadersStreamTest : public QuicTestWithParam<TestParams> {
     QuicSpdySessionPeer::SetMaxInboundHeaderListSize(&session_, 256 * 1024);
     EXPECT_CALL(session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_.Initialize();
+    connection_->SetEncrypter(
+        quic::ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<quic::NullEncrypter>(connection_->perspective()));
     headers_stream_ = QuicSpdySessionPeer::GetHeadersStream(&session_);
     headers_[":status"] = "200 Ok";
     headers_["content-length"] = "11";

@@ -350,7 +350,8 @@ class TestSession : public QuicSession {
     MakeIOVector("not empty", &iov);
     QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
     QuicConsumedData consumed =
-        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION, absl::nullopt);
+        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION,
+                   GetEncryptionLevelToSendApplicationData());
     QuicStreamPeer::SendBuffer(stream).OnStreamDataConsumed(
         consumed.bytes_consumed);
     return consumed;
@@ -367,7 +368,7 @@ class TestSession : public QuicSession {
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
     return WritevData(stream->id(), bytes, 0, FIN, NOT_RETRANSMISSION,
-                      absl::nullopt);
+                      GetEncryptionLevelToSendApplicationData());
   }
 
   bool UsesPendingStreams() const override { return uses_pending_streams_; }
@@ -1683,7 +1684,7 @@ TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedCryptoStream) {
     QuicConfig config;
     CryptoHandshakeMessage crypto_message;
     config.ToHandshakeMessage(&crypto_message, transport_version());
-    crypto_stream->SendHandshakeMessage(crypto_message);
+    crypto_stream->SendHandshakeMessage(crypto_message, ENCRYPTION_INITIAL);
     char buf[1000];
     QuicDataWriter writer(1000, buf, quiche::NETWORK_BYTE_ORDER);
     crypto_stream->WriteStreamData(offset, crypto_message.size(), &writer);

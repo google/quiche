@@ -121,6 +121,9 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
         QuicServerId(kServerHostname, kPort, false),
         client_crypto_config_.get(), &push_promise_index_);
     session_->Initialize();
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
     push_promise_[":path"] = "/bar";
@@ -281,7 +284,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   char data[] = "hello world";
   EXPECT_QUIC_BUG(
       session_->WritevData(stream->id(), ABSL_ARRAYSIZE(data), 0, NO_FIN,
-                           NOT_RETRANSMISSION, absl::nullopt),
+                           NOT_RETRANSMISSION, ENCRYPTION_INITIAL),
       "Client: Try to send data of stream");
 }
 

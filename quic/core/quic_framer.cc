@@ -2065,6 +2065,20 @@ bool QuicFramer::HasAnEncrypterForSpace(PacketNumberSpace space) const {
   return false;
 }
 
+EncryptionLevel QuicFramer::GetEncryptionLevelToSendApplicationData() const {
+  if (!HasAnEncrypterForSpace(APPLICATION_DATA)) {
+    QUIC_BUG
+        << "Tried to get encryption level to send application data with no "
+           "encrypter available.";
+    return NUM_ENCRYPTION_LEVELS;
+  }
+  if (HasEncrypterOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE)) {
+    return ENCRYPTION_FORWARD_SECURE;
+  }
+  DCHECK(HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT));
+  return ENCRYPTION_ZERO_RTT;
+}
+
 bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
                                     QuicDataWriter* writer,
                                     size_t* length_field_offset) {

@@ -142,6 +142,11 @@ bool QuicCryptoStream::ExportKeyingMaterial(absl::string_view label,
 void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
                                        absl::string_view data) {
   if (!QuicVersionUsesCryptoFrames(session()->transport_version())) {
+    if (session()->use_write_or_buffer_data_at_level()) {
+      WriteOrBufferDataAtLevel(data, /*fin=*/false, level,
+                               /*ack_listener=*/nullptr);
+      return;
+    }
     // The QUIC crypto handshake takes care of setting the appropriate
     // encryption level before writing data. Since that is the only handshake
     // supported in versions less than 47, |level| can be ignored here.
@@ -307,7 +312,7 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
                                             QuicByteCount data_length,
                                             bool /*fin*/,
                                             TransmissionType type) {
-  DCHECK_EQ(HANDSHAKE_RETRANSMISSION, type);
+  DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   QuicIntervalSet<QuicStreamOffset> retransmission(offset,
                                                    offset + data_length);
   // Determine the encryption level to send data. This only needs to be once as
@@ -340,7 +345,7 @@ QuicConsumedData QuicCryptoStream::RetransmitStreamDataAtLevel(
     QuicByteCount retransmission_length,
     EncryptionLevel encryption_level,
     TransmissionType type) {
-  DCHECK_EQ(HANDSHAKE_RETRANSMISSION, type);
+  DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   const auto consumed = stream_delegate()->WritevData(
       id(), retransmission_length, retransmission_offset, NO_FIN, type,
       encryption_level);

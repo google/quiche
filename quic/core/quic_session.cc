@@ -730,6 +730,7 @@ QuicConsumedData QuicSession::WritevData(
     absl::optional<EncryptionLevel> level) {
   DCHECK(connection_->connected())
       << ENDPOINT << "Try to write stream data when connection is closed.";
+  DCHECK(!use_write_or_buffer_data_at_level_ || level.has_value());
   if (!IsEncryptionEstablished() &&
       !QuicUtils::IsCryptoStreamId(transport_version(), id)) {
     // Do not let streams write without encryption. The calling stream will end
@@ -2500,6 +2501,10 @@ void QuicSession::PerformActionOnActiveStreams(
       return;
     }
   }
+}
+
+EncryptionLevel QuicSession::GetEncryptionLevelToSendApplicationData() const {
+  return connection_->framer().GetEncryptionLevelToSendApplicationData();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

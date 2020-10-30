@@ -335,7 +335,8 @@ class TestSession : public QuicSpdySession {
     MakeIOVector("not empty", &iov);
     QuicStreamPeer::SendBuffer(stream).SaveStreamData(&iov, 1, 0, 9);
     QuicConsumedData consumed =
-        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION, absl::nullopt);
+        WritevData(stream->id(), 9, 0, FIN, NOT_RETRANSMISSION,
+                   GetEncryptionLevelToSendApplicationData());
     QuicStreamPeer::SendBuffer(stream).OnStreamDataConsumed(
         consumed.bytes_consumed);
     return consumed;
@@ -344,7 +345,7 @@ class TestSession : public QuicSpdySession {
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
     DCHECK(writev_consumes_all_data_);
     return WritevData(stream->id(), bytes, 0, FIN, NOT_RETRANSMISSION,
-                      absl::nullopt);
+                      GetEncryptionLevelToSendApplicationData());
   }
 
   using QuicSession::closed_streams;
@@ -1469,7 +1470,7 @@ TEST_P(QuicSpdySessionTestServer,
     QuicConfig config;
     CryptoHandshakeMessage crypto_message;
     config.ToHandshakeMessage(&crypto_message, transport_version());
-    crypto_stream->SendHandshakeMessage(crypto_message);
+    crypto_stream->SendHandshakeMessage(crypto_message, ENCRYPTION_INITIAL);
     char buf[1000];
     QuicDataWriter writer(1000, buf, quiche::NETWORK_BYTE_ORDER);
     crypto_stream->WriteStreamData(offset, crypto_message.size(), &writer);

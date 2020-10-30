@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_window_update_frame.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
@@ -42,7 +43,9 @@ class QuicTransportStreamTest : public QuicTest {
         session_(connection_) {
     QuicEnableVersion(DefaultVersionForQuicTransport());
     session_.Initialize();
-
+    connection_->SetEncrypter(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(connection_->perspective()));
     stream_ = new QuicTransportStream(0, &session_, &interface_);
     session_.ActivateStream(QuicWrapUnique(stream_));
 

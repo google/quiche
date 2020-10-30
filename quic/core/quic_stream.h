@@ -275,13 +275,21 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // stop sending stream-level flow-control updates when this end sends FIN.
   virtual void StopReading();
 
-  // Sends as much of 'data' to the connection as the connection will consume,
-  // and then buffers any remaining data in queued_data_.
-  // If fin is true: if it is immediately passed on to the session,
-  // write_side_closed() becomes true, otherwise fin_buffered_ becomes true.
+  // Sends as much of |data| to the connection on the application encryption
+  // level as the connection will consume, and then buffers any remaining data
+  // in the send buffer. If fin is true: if it is immediately passed on to the
+  // session, write_side_closed() becomes true, otherwise fin_buffered_ becomes
+  // true.
   void WriteOrBufferData(
       absl::string_view data,
       bool fin,
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
+
+  // Sends |data| to connection with specified |level|.
+  void WriteOrBufferDataAtLevel(
+      absl::string_view data,
+      bool fin,
+      EncryptionLevel level,
       QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Adds random padding after the fin is consumed for this stream.
@@ -455,15 +463,24 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // controller, marks this stream as connection-level write blocked.
   void MaybeSendBlocked();
 
-  // Write buffered data in send buffer. TODO(fayang): Consider combine
-  // WriteOrBufferData, Writev and WriteBufferedData.
-  void WriteBufferedData();
+  // Write buffered data in send buffer.
+  // TODO(fayang): Change absl::optional<EncryptionLevel> to EncryptionLevel
+  // when deprecating quic_use_write_or_buffer_data_at_level.
+  void WriteBufferedData(absl::optional<EncryptionLevel> level);
 
   // Close the read side of the stream.  May cause the stream to be closed.
   void CloseReadSide();
 
   // Called when bytes are sent to the peer.
   void AddBytesSent(QuicByteCount bytes);
+
+  // TODO(fayang): Inline this function when deprecating
+  // quic_use_write_or_buffer_data_at_level.
+  void WriteOrBufferDataInner(
+      absl::string_view data,
+      bool fin,
+      absl::optional<EncryptionLevel> level,
+      QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener);
 
   // Returns true if deadline_ has passed.
   bool HasDeadlinePassed() const;

@@ -173,7 +173,8 @@ void QuicCryptoServerStream::
   if (reply->tag() != kSHLO) {
     session()->connection()->set_fully_pad_crypto_handshake_packets(
         crypto_config_->pad_rej());
-    SendHandshakeMessage(*reply);
+    // Send REJ in plaintext.
+    SendHandshakeMessage(*reply, ENCRYPTION_INITIAL);
     return;
   }
 
@@ -213,7 +214,8 @@ void QuicCryptoServerStream::
 
   session()->connection()->set_fully_pad_crypto_handshake_packets(
       crypto_config_->pad_shlo());
-  SendHandshakeMessage(*reply);
+  // Send SHLO in ENCRYPTION_ZERO_RTT.
+  SendHandshakeMessage(*reply, ENCRYPTION_ZERO_RTT);
   delegate_->OnNewEncryptionKeyAvailable(
       ENCRYPTION_FORWARD_SECURE,
       std::move(crypto_negotiated_params_->forward_secure_crypters.encrypter));
@@ -284,12 +286,15 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
 
   QUIC_DVLOG(1) << "Server: Sending server config update: "
                 << message.DebugString();
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+
+  if (!session()->use_write_or_buffer_data_at_level() &&
+      !QuicVersionUsesCryptoFrames(transport_version())) {
     const QuicData& data = message.GetSerialized();
     WriteOrBufferData(absl::string_view(data.data(), data.length()), false,
                       nullptr);
   } else {
-    SendHandshakeMessage(message);
+    // Send server config update in ENCRYPTION_FORWARD_SECURE.
+    SendHandshakeMessage(message, ENCRYPTION_FORWARD_SECURE);
   }
 
   ++num_server_config_update_messages_sent_;
