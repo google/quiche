@@ -7,11 +7,13 @@
 #include <memory>
 #include <sstream>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -56,6 +58,9 @@ TEST(CertificateViewTest, Parse) {
   const QuicWallTime validity_end = QuicWallTime::FromUNIXSeconds(
       *quiche::QuicheUtcDateTimeToUnixSeconds(2020, 2, 2, 18, 13, 59));
   EXPECT_EQ(view->validity_end(), validity_end);
+
+  EXPECT_EQ("C=US,ST=California,L=Mountain View,O=QUIC Server,CN=127.0.0.1",
+            view->GetHumanReadableSubject());
 }
 
 TEST(CertificateViewTest, ParseCertWithUnknownSanType) {
@@ -178,6 +183,28 @@ TEST(CertificateViewTest, DerTime) {
               Optional(QuicWallTime::FromUNIXSeconds(23 * 3600)));
   EXPECT_EQ(ParseDerTime(CBS_ASN1_GENERALIZEDTIME, "19700101240000Z"),
             absl::nullopt);
+}
+
+TEST(CertificateViewTest, NameAttribute) {
+  // OBJECT_IDENTIFIER { 1.2.840.113554.4.1.112411 }
+  // UTF8String { "Test" }
+  std::string unknown_oid =
+      absl::HexStringToBytes("060b2a864886f712040186ee1b0c0454657374");
+  EXPECT_EQ("1.2.840.113554.4.1.112411=Test",
+            X509NameAttributeToString(StringPieceToCbs(unknown_oid)));
+
+  // OBJECT_IDENTIFIER { 2.5.4.3 }
+  // UTF8String { "Bell: \x07" }
+  std::string non_printable =
+      absl::HexStringToBytes("06035504030c0742656c6c3a2007");
+  EXPECT_EQ(R"(CN=Bell: \x07)",
+            X509NameAttributeToString(StringPieceToCbs(non_printable)));
+
+  // OBJECT_IDENTIFIER { "\x55\x80" }
+  // UTF8String { "Test" }
+  std::string invalid_oid = absl::HexStringToBytes("060255800c0454657374");
+  EXPECT_EQ("(5580)=Test",
+            X509NameAttributeToString(StringPieceToCbs(invalid_oid)));
 }
 
 }  // namespace

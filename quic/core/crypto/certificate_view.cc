@@ -9,7 +9,9 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/base.h"
@@ -32,6 +34,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
 
+namespace quic {
 namespace {
 
 using ::quiche::QuicheTextUtils;
@@ -100,9 +103,78 @@ PublicKeyType PublicKeyTypeFromSignatureAlgorithm(
   }
 }
 
+std::string AttributeNameToString(const CBS& oid_cbs) {
+  absl::string_view oid = CbsToStringPiece(oid_cbs);
+
+  // We only handle OIDs of form 2.5.4.N, which have binary encoding of
+  // "55 04 0N".
+  if (oid.length() == 3 && absl::StartsWith(oid, "\x55\x04")) {
+    // clang-format off
+    switch (oid[2]) {
+      case '\x3': return "CN";
+      case '\x7': return "L";
+      case '\x8': return "ST";
+      case '\xa': return "O";
+      case '\xb': return "OU";
+      case '\x6': return "C";
+    }
+    // clang-format on
+  }
+
+  bssl::UniquePtr<char> oid_representation(CBS_asn1_oid_to_text(&oid_cbs));
+  if (oid_representation == nullptr) {
+    return quiche::QuicheStrCat("(", absl::BytesToHexString(oid), ")");
+  }
+  return std::string(oid_representation.get());
+}
+
 }  // namespace
 
-namespace quic {
+absl::optional<std::string> X509NameAttributeToString(CBS input) {
+  CBS name, value;
+  unsigned value_tag;
+  if (!CBS_get_asn1(&input, &name, CBS_ASN1_OBJECT) ||
+      !CBS_get_any_asn1(&input, &value, &value_tag) || CBS_len(&input) != 0) {
+    return absl::nullopt;
+  }
+  // Note that this does not process encoding of |input| in any way.  This works
+  // fine for the most cases.
+  return quiche::QuicheStrCat(AttributeNameToString(name), "=",
+                              absl::CHexEscape(CbsToStringPiece(value)));
+}
+
+namespace {
+
+template <unsigned inner_tag,
+          char separator,
+          absl::optional<std::string> (*parser)(CBS)>
+absl::optional<std::string> ParseAndJoin(CBS input) {
+  std::vector<std::string> pieces;
+  while (CBS_len(&input) != 0) {
+    CBS attribute;
+    if (!CBS_get_asn1(&input, &attribute, inner_tag)) {
+      return absl::nullopt;
+    }
+    absl::optional<std::string> formatted = parser(attribute);
+    if (!formatted.has_value()) {
+      return absl::nullopt;
+    }
+    pieces.push_back(*formatted);
+  }
+
+  return absl::StrJoin(pieces, std::string({separator}));
+}
+
+absl::optional<std::string> RelativeDistinguishedNameToString(CBS input) {
+  return ParseAndJoin<CBS_ASN1_SEQUENCE, '+', X509NameAttributeToString>(input);
+}
+
+absl::optional<std::string> DistinguishedNameToString(CBS input) {
+  return ParseAndJoin<CBS_ASN1_SET, ',', RelativeDistinguishedNameToString>(
+      input);
+}
+
+}  // namespace
 
 absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
                                                 absl::string_view payload) {
@@ -256,6 +328,8 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
       CBS_len(&tbs_certificate) != 0) {
     return nullptr;
   }
+
+  result->subject_der_ = CbsToStringPiece(subject);
 
   unsigned not_before_tag, not_after_tag;
   CBS not_before, not_after;
@@ -444,6 +518,11 @@ bool CertificateView::VerifySignature(absl::string_view data,
       md_ctx.get(), reinterpret_cast<const uint8_t*>(signature.data()),
       signature.size(), reinterpret_cast<const uint8_t*>(data.data()),
       data.size());
+}
+
+absl::optional<std::string> CertificateView::GetHumanReadableSubject() const {
+  CBS input = StringPieceToCbs(subject_der_);
+  return DistinguishedNameToString(input);
 }
 
 std::unique_ptr<CertificatePrivateKey> CertificatePrivateKey::LoadFromDer(

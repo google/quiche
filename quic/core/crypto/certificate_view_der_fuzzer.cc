@@ -9,7 +9,11 @@
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::string input(reinterpret_cast<const char*>(data), size);
 
-  quic::CertificateView::ParseSingleCertificate(input);
+  std::unique_ptr<quic::CertificateView> view =
+      quic::CertificateView::ParseSingleCertificate(input);
+  if (view != nullptr) {
+    view->GetHumanReadableSubject();
+  }
   quic::CertificatePrivateKey::LoadFromDer(input);
   return 0;
 }

@@ -60,6 +60,10 @@ class QUIC_EXPORT_PRIVATE CertificateView {
     return subject_alt_name_ips_;
   }
 
+  // Returns a human-readable representation of the Subject field.  The format
+  // is similar to RFC 2253, but does not match it exactly.
+  absl::optional<std::string> GetHumanReadableSubject() const;
+
   // |signature_algorithm| is a TLS signature algorithm ID.
   bool VerifySignature(absl::string_view data,
                        absl::string_view signature,
@@ -70,6 +74,7 @@ class QUIC_EXPORT_PRIVATE CertificateView {
 
   QuicWallTime validity_start_ = QuicWallTime::Zero();
   QuicWallTime validity_end_ = QuicWallTime::Zero();
+  absl::string_view subject_der_;
 
   // Public key parsed from SPKI.
   bssl::UniquePtr<EVP_PKEY> public_key_;
@@ -117,6 +122,9 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 
   bssl::UniquePtr<EVP_PKEY> private_key_;
 };
+
+// Parses a DER-encoded X.509 NameAttribute.  Exposed primarily for testing.
+absl::optional<std::string> X509NameAttributeToString(CBS input);
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
