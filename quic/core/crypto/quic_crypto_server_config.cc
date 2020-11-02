@@ -13,11 +13,13 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/cert_compressor.h"
+#include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/channel_id.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -1509,9 +1511,29 @@ void QuicCryptoServerConfig::BuildRejection(
         // This is for debugging b/28342827.
         const std::vector<std::string>& certs =
             context.signed_config()->chain->certs;
-        absl::string_view ca_subject;
+        std::string ca_subject;
         if (!certs.empty()) {
-          QuicCertUtils::ExtractSubjectNameFromDERCert(certs[0], &ca_subject);
+          if (GetQuicReloadableFlag(
+                  quic_extract_x509_subject_using_certificate_view)) {
+            QUIC_RELOADABLE_FLAG_COUNT_N(
+                quic_extract_x509_subject_using_certificate_view, 1, 2);
+            std::unique_ptr<CertificateView> view =
+                CertificateView::ParseSingleCertificate(certs[0]);
+            if (view != nullptr) {
+              absl::optional<std::string> maybe_ca_subject =
+                  view->GetHumanReadableSubject();
+              if (maybe_ca_subject.has_value()) {
+                QUIC_RELOADABLE_FLAG_COUNT_N(
+                    quic_extract_x509_subject_using_certificate_view, 2, 2);
+                ca_subject = *maybe_ca_subject;
+              }
+            }
+          } else {
+            absl::string_view ca_subject_view;
+            QuicCertUtils::ExtractSubjectNameFromDERCert(certs[0],
+                                                         &ca_subject_view);
+            ca_subject = std::string(ca_subject_view);
+          }
         }
         QUIC_LOG_EVERY_N_SEC(WARNING, 60)
             << "SCT is expected but it is empty. sni: '"
