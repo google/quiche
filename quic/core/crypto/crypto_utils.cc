@@ -737,6 +737,15 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
 // static
 const char* CryptoUtils::EarlyDataReasonToString(
     ssl_early_data_reason_t reason) {
+#if BORINGSSL_API_VERSION >= 12
+  const char* reason_string = SSL_early_data_reason_string(reason);
+  if (reason_string != nullptr) {
+    return reason_string;
+  }
+#else
+  // TODO(davidben): Remove this logic once
+  // https://boringssl-review.googlesource.com/c/boringssl/+/43724 has landed in
+  // downstream repositories.
   switch (reason) {
     RETURN_STRING_LITERAL(ssl_early_data_unknown);
     RETURN_STRING_LITERAL(ssl_early_data_disabled);
@@ -753,6 +762,7 @@ const char* CryptoUtils::EarlyDataReasonToString(
     RETURN_STRING_LITERAL(ssl_early_data_ticket_age_skew);
     RETURN_STRING_LITERAL(ssl_early_data_quic_parameter_mismatch);
   }
+#endif
   QUIC_BUG_IF(reason < 0 || reason > ssl_early_data_reason_max_value)
       << "Unknown ssl_early_data_reason_t " << reason;
   return "unknown ssl_early_data_reason_t";
