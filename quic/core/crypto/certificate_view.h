@@ -124,7 +124,8 @@ class QUIC_EXPORT_PRIVATE CertificatePrivateKey {
 };
 
 // Parses a DER-encoded X.509 NameAttribute.  Exposed primarily for testing.
-absl::optional<std::string> X509NameAttributeToString(CBS input);
+QUIC_EXPORT_PRIVATE absl::optional<std::string> X509NameAttributeToString(
+    CBS input);
 
 // Parses a DER time based on the specified ASN.1 tag.  Exposed primarily for
 // testing.
