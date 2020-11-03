@@ -441,11 +441,14 @@ void QpackEncoder::OnStreamCancellation(QuicStreamId stream_id) {
 
 void QpackEncoder::OnErrorDetected(QuicErrorCode error_code,
                                    absl::string_view error_message) {
-  decoder_stream_error_delegate_->OnDecoderStreamError(
-      GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-          ? error_code
-          : QUIC_QPACK_DECODER_STREAM_ERROR,
-      error_message);
+  if (GetQuicReloadableFlag(quic_granular_qpack_error_codes)) {
+    QUIC_CODE_COUNT_N(quic_granular_qpack_error_codes, 1, 2);
+    decoder_stream_error_delegate_->OnDecoderStreamError(error_code,
+                                                         error_message);
+  } else {
+    decoder_stream_error_delegate_->OnDecoderStreamError(
+        QUIC_QPACK_DECODER_STREAM_ERROR, error_message);
+  }
 }
 
 }  // namespace quic
