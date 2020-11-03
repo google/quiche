@@ -436,7 +436,10 @@ TEST_F(BbrSenderTest, SimpleTransferAckDecimation) {
 }
 
 // Test a simple long data transfer with 2 rtts of aggregation.
-TEST_F(BbrSenderTest, SimpleTransfer2RTTAggregationBytes20RTTWindow) {
+// TODO(b/172302465) Re-enable this test.
+TEST_F(BbrSenderTest,
+       QUIC_TEST_DISABLED_IN_CHROME(
+           SimpleTransfer2RTTAggregationBytes20RTTWindow)) {
   SetConnectionOption(kBSAO);
   CreateDefaultSetup();
   SetConnectionOption(kBBR4);
@@ -728,7 +731,8 @@ TEST_F(BbrSenderTest, ProbeRtt) {
 // Ensure that a connection that is app-limited and is at sufficiently low
 // bandwidth will not exit high gain phase, and similarly ensure that the
 // connection will exit low gain early if the number of bytes in flight is low.
-TEST_F(BbrSenderTest, InFlightAwareGainCycling) {
+// TODO(crbug.com/1145095): Re-enable this test.
+TEST_F(BbrSenderTest, QUIC_TEST_DISABLED_IN_CHROME(InFlightAwareGainCycling)) {
   CreateDefaultSetup();
   DriveOutOfStartup();
 
