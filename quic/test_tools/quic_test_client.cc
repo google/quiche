@@ -702,8 +702,7 @@ bool QuicTestClient::WaitUntil(int timeout_ms, std::function<bool()> trigger) {
     epoll_server()->set_timeout_in_us(old_timeout_us);
   }
   if (trigger && !trigger()) {
-    QUIC_VLOG(1) << "Client WaitUntil returning with trigger returning false."
-                 << QuicStackTrace();
+    QUIC_VLOG(1) << "Client WaitUntil returning with trigger returning false.";
     return false;
   }
   return true;
