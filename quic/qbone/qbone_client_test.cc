@@ -232,6 +232,8 @@ TEST_P(QboneClientTest, SendDataFromClient) {
                                    QuicPickServerPortForTestsOrDie());
   ServerThread server_thread(server, server_address);
   server_thread.Initialize();
+  server_address =
+      QuicSocketAddress(server_address.host(), server_thread.GetPort());
   server_thread.Start();
 
   QuicEpollServer epoll_server;
