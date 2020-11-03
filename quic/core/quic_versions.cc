@@ -8,6 +8,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -376,7 +377,7 @@ ParsedQuicVersionVector ParseQuicVersionVectorString(
     absl::string_view versions_string) {
   ParsedQuicVersionVector versions;
   std::vector<absl::string_view> version_strings =
-      quiche::QuicheTextUtils::Split(versions_string, ',');
+      absl::StrSplit(versions_string, ',');
   for (absl::string_view version_string : version_strings) {
     quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
         &version_string);

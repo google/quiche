@@ -16,6 +16,7 @@
 #include "absl/base/optimization.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
@@ -6858,8 +6859,7 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
 // the string is not found, or is not properly formed, it returns
 // ErrorCode::QUIC_IETF_GQUIC_ERROR_MISSING
 void MaybeExtractQuicErrorCode(QuicConnectionCloseFrame* frame) {
-  std::vector<absl::string_view> ed =
-      quiche::QuicheTextUtils::Split(frame->error_details, ':');
+  std::vector<absl::string_view> ed = absl::StrSplit(frame->error_details, ':');
   uint64_t extracted_error_code;
   if (ed.size() < 2 || !quiche::QuicheTextUtils::IsAllDigits(ed[0]) ||
       !absl::SimpleAtoi(ed[0], &extracted_error_code)) {

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
@@ -32,7 +33,7 @@ bool SpdyUtils::ExtractContentLengthFromHeaders(int64_t* content_length,
     // Check whether multiple values are consistent.
     absl::string_view content_length_header = it->second;
     std::vector<absl::string_view> values =
-        quiche::QuicheTextUtils::Split(content_length_header, '\0');
+        absl::StrSplit(content_length_header, '\0');
     for (const absl::string_view& value : values) {
       uint64_t new_value;
       if (!absl::SimpleAtoi(value, &new_value) ||

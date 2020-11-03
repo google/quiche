@@ -93,19 +93,5 @@ TEST_F(QuicheTextUtilsTest, ContainsUpperCase) {
   EXPECT_TRUE(quiche::QuicheTextUtils::ContainsUpperCase("aBc"));
 }
 
-TEST_F(QuicheTextUtilsTest, Split) {
-  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
-            quiche::QuicheTextUtils::Split("a,b,c", ','));
-  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
-            quiche::QuicheTextUtils::Split("a:b:c", ':'));
-  EXPECT_EQ(std::vector<absl::string_view>({"a:b:c"}),
-            quiche::QuicheTextUtils::Split("a:b:c", ','));
-  // Leading and trailing whitespace is preserved.
-  EXPECT_EQ(std::vector<absl::string_view>({"a", "b", "c"}),
-            quiche::QuicheTextUtils::Split("a,b,c", ','));
-  EXPECT_EQ(std::vector<absl::string_view>({" a", "b ", " c "}),
-            quiche::QuicheTextUtils::Split(" a:b : c ", ':'));
-}
-
 }  // namespace test
 }  // namespace quiche

@@ -9,6 +9,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_split.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
@@ -98,7 +99,7 @@ QuicTagVector ParseQuicTagVector(absl::string_view tags_string) {
   quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&tags_string);
   if (!tags_string.empty()) {
     std::vector<absl::string_view> tag_strings =
-        quiche::QuicheTextUtils::Split(tags_string, ',');
+        absl::StrSplit(tags_string, ',');
     for (absl::string_view tag_string : tag_strings) {
       tag_vector.push_back(ParseQuicTag(tag_string));
     }

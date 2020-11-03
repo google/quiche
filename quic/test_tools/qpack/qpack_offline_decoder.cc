@@ -32,6 +32,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
@@ -77,7 +78,7 @@ void QpackOfflineDecoder::OnEncoderStreamError(
 }
 
 bool QpackOfflineDecoder::ParseInputFilename(absl::string_view input_filename) {
-  auto pieces = quiche::QuicheTextUtils::Split(input_filename, '.');
+  std::vector<absl::string_view> pieces = absl::StrSplit(input_filename, '.');
 
   if (pieces.size() < 3) {
     QUIC_LOG(ERROR) << "Not enough fields in input filename " << input_filename;
@@ -286,7 +287,7 @@ bool QpackOfflineDecoder::ReadNextExpectedHeaderList(
     }
 
     absl::string_view header_field = expected_headers_data->substr(0, endline);
-    auto pieces = quiche::QuicheTextUtils::Split(header_field, '\t');
+    std::vector<absl::string_view> pieces = absl::StrSplit(header_field, '\t');
 
     if (pieces.size() != 2) {
       QUIC_LOG(ERROR) << "Header key and value must be separated by TAB.";

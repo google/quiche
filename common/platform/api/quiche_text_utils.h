@@ -70,12 +70,6 @@ class QUICHE_EXPORT QuicheTextUtils {
   static bool IsAllDigits(absl::string_view data) {
     return quiche::QuicheTextUtilsImpl::IsAllDigits(data);
   }
-
-  // Splits |data| into a vector of pieces delimited by |delim|.
-  static std::vector<absl::string_view> Split(absl::string_view data,
-                                              char delim) {
-    return quiche::QuicheTextUtilsImpl::Split(data, delim);
-  }
 };
 
 }  // namespace quiche

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/http_decoder.h"
@@ -215,9 +216,10 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
   }
 
   // TODO(b/147306124): Use a proper structured headers parser instead.
-  for (auto key_value :
-       quiche::QuicheTextUtils::Split(frame.priority_field_value, ',')) {
-    auto key_and_value = quiche::QuicheTextUtils::Split(key_value, '=');
+  for (absl::string_view key_value :
+       absl::StrSplit(frame.priority_field_value, ',')) {
+    std::vector<absl::string_view> key_and_value =
+        absl::StrSplit(key_value, '=');
     if (key_and_value.size() != 2) {
       continue;
     }
