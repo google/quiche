@@ -52,6 +52,50 @@ bool TlsHandshaker::ProcessInput(absl::string_view input,
   return true;
 }
 
+void TlsHandshaker::AdvanceHandshake() {
+  if (is_connection_closed_) {
+    return;
+  }
+  if (GetHandshakeState() >= HANDSHAKE_COMPLETE) {
+    ProcessPostHandshakeMessage();
+    return;
+  }
+
+  QUIC_LOG(INFO) << "TlsHandshaker: continuing handshake";
+  int rv = SSL_do_handshake(ssl());
+  if (rv == 1) {
+    FinishHandshake();
+    return;
+  }
+  int ssl_error = SSL_get_error(ssl(), rv);
+  if (ssl_error == expected_ssl_error_) {
+    return;
+  }
+  if (ShouldCloseConnectionOnUnexpectedError(ssl_error) &&
+      !is_connection_closed_) {
+    QUIC_VLOG(1) << "SSL_do_handshake failed; SSL_get_error returns "
+                 << ssl_error;
+    ERR_print_errors_fp(stderr);
+    CloseConnection(QUIC_HANDSHAKE_FAILED, "TLS handshake failed");
+  }
+}
+
+void TlsHandshaker::CloseConnection(QuicErrorCode error,
+                                    const std::string& reason_phrase) {
+  DCHECK(!reason_phrase.empty());
+  stream()->OnUnrecoverableError(error, reason_phrase);
+  is_connection_closed_ = true;
+}
+
+void TlsHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
+                                       ConnectionCloseSource /*source*/) {
+  is_connection_closed_ = true;
+}
+
+bool TlsHandshaker::ShouldCloseConnectionOnUnexpectedError(int /*ssl_error*/) {
+  return true;
+}
+
 size_t TlsHandshaker::BufferSizeLimitForLevel(EncryptionLevel level) const {
   return SSL_quic_max_handshake_flight_len(
       ssl(), TlsConnection::BoringEncryptionLevel(level));

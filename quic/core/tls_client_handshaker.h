@@ -86,9 +86,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
     return &tls_connection_;
   }
 
-  void AdvanceHandshake() override;
-  void CloseConnection(QuicErrorCode error,
-                       const std::string& reason_phrase) override;
+  void FinishHandshake() override;
+  void ProcessPostHandshakeMessage() override;
+  bool ShouldCloseConnectionOnUnexpectedError(int ssl_error) override;
 
   // TlsClientConnection::Delegate implementation:
   enum ssl_verify_result_t VerifyCert(uint8_t* out_alert) override;
@@ -115,19 +115,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
     TlsClientHandshaker* parent_;
   };
 
-  enum State {
-    STATE_IDLE,
-    STATE_HANDSHAKE_RUNNING,
-    STATE_CERT_VERIFY_PENDING,
-    STATE_ENCRYPTION_HANDSHAKE_DATA_SENT,
-    STATE_HANDSHAKE_COMPLETE,
-    STATE_CONNECTION_CLOSED,
-  } state_ = STATE_IDLE;
-
   bool SetAlpn();
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
-  void FinishHandshake();
   void HandleZeroRttReject();
 
   // Called when server completes handshake (i.e., either handshake done is
@@ -169,10 +159,9 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   enum ssl_verify_result_t verify_result_ = ssl_verify_retry;
   std::string cert_verify_error_details_;
 
+  HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
   bool initial_keys_dropped_ = false;
-  bool one_rtt_keys_available_ = false;
-  bool handshake_confirmed_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
 

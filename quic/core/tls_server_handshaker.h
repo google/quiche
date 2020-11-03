@@ -86,15 +86,13 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   virtual void ProcessAdditionalTransportParameters(
       const TransportParameters& /*params*/) {}
 
-  // Called when a new message is received on the crypto stream and is available
-  // for the TLS stack to read.
-  void AdvanceHandshake() override;
-
   // Called when a potentially async operation is done and the done callback
   // needs to advance the handshake.
   void AdvanceHandshakeFromCallback();
-  void CloseConnection(QuicErrorCode error,
-                       const std::string& reason_phrase) override;
+
+  // TlsHandshaker implementation:
+  void FinishHandshake() override;
+  void ProcessPostHandshakeMessage() override {}
 
   // TlsServerConnection::Delegate implementation:
   int SelectCertificate(int* out_alert) override;
@@ -150,25 +148,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
-  enum State {
-    STATE_LISTENING,
-    STATE_TICKET_DECRYPTION_PENDING,
-    STATE_SIGNATURE_PENDING,
-    STATE_SIGNATURE_COMPLETE,
-    STATE_ENCRYPTION_HANDSHAKE_DATA_PROCESSED,
-    STATE_HANDSHAKE_COMPLETE,
-    STATE_CONNECTION_CLOSED,
-  };
-
-  // Called when the TLS handshake is complete.
-  void FinishHandshake();
-
-  void CloseConnection(const std::string& reason_phrase);
-
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
-
-  State state_ = STATE_LISTENING;
 
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
@@ -196,6 +177,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;
 
+  HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
   bool one_rtt_keys_available_ = false;
   bool valid_alpn_received_ = false;
