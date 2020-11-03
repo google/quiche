@@ -1364,6 +1364,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
 void QuicSpdySession::BeforeConnectionCloseSent() {
   if (GetQuicReloadableFlag(quic_send_goaway_with_connection_close) &&
       VersionUsesHttp3(transport_version()) && IsEncryptionEstablished()) {
+    QUIC_CODE_COUNT(quic_send_goaway_with_connection_close);
     SendHttp3GoAway();
   }
 }
