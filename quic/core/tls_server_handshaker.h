@@ -179,7 +179,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;
-  bool one_rtt_keys_available_ = false;
   bool valid_alpn_received_ = false;
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
