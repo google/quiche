@@ -234,17 +234,6 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
                         << model_->max_bytes_delivered_in_round() << "  @ "
                         << congestion_event.event_time;
           model_->set_inflight_hi(new_inflight_hi);
-        } else if (Params().limit_inflight_hi_by_cwnd) {
-          const QuicByteCount cwnd_target =
-              sender_->GetCongestionWindow() * (1.0 - Params().beta);
-          if (inflight_at_send >= cwnd_target) {
-            // The new code does not change behavior.
-            QUIC_CODE_COUNT(quic_bbr2_cut_inflight_hi_cwnd_noop);
-          } else {
-            // The new code actually cuts inflight_hi slower than before.
-            QUIC_CODE_COUNT(quic_bbr2_cut_inflight_hi_cwnd_in_effect);
-          }
-          model_->set_inflight_hi(std::max(inflight_at_send, cwnd_target));
         } else {
           model_->set_inflight_hi(std::max(inflight_at_send, inflight_target));
         }
