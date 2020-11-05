@@ -20,35 +20,6 @@
 
 namespace quic {
 
-TlsClientHandshaker::ProofVerifierCallbackImpl::ProofVerifierCallbackImpl(
-    TlsClientHandshaker* parent)
-    : parent_(parent) {}
-
-TlsClientHandshaker::ProofVerifierCallbackImpl::~ProofVerifierCallbackImpl() {}
-
-void TlsClientHandshaker::ProofVerifierCallbackImpl::Run(
-    bool ok,
-    const std::string& /*error_details*/,
-    std::unique_ptr<ProofVerifyDetails>* details) {
-  if (parent_ == nullptr) {
-    return;
-  }
-
-  parent_->verify_details_ = std::move(*details);
-  parent_->verify_result_ = ok ? ssl_verify_ok : ssl_verify_invalid;
-  parent_->set_expected_ssl_error(SSL_ERROR_WANT_READ);
-  parent_->proof_verify_callback_ = nullptr;
-  if (parent_->verify_details_) {
-    parent_->proof_handler_->OnProofVerifyDetailsAvailable(
-        *parent_->verify_details_);
-  }
-  parent_->AdvanceHandshake();
-}
-
-void TlsClientHandshaker::ProofVerifierCallbackImpl::Cancel() {
-  parent_ = nullptr;
-}
-
 TlsClientHandshaker::TlsClientHandshaker(
     const QuicServerId& server_id,
     QuicCryptoStream* stream,
@@ -70,11 +41,7 @@ TlsClientHandshaker::TlsClientHandshaker(
       has_application_state_(has_application_state),
       tls_connection_(crypto_config->ssl_ctx(), this) {}
 
-TlsClientHandshaker::~TlsClientHandshaker() {
-  if (proof_verify_callback_) {
-    proof_verify_callback_->Cancel();
-  }
-}
+TlsClientHandshaker::~TlsClientHandshaker() {}
 
 bool TlsClientHandshaker::CryptoConnect() {
   if (!pre_shared_key_.empty()) {
@@ -405,6 +372,32 @@ void TlsClientHandshaker::OnHandshakeConfirmed() {
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
 }
 
+QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
+    const std::vector<std::string>& certs,
+    std::string* error_details,
+    std::unique_ptr<ProofVerifyDetails>* details,
+    std::unique_ptr<ProofVerifierCallback> callback) {
+  const uint8_t* ocsp_response_raw;
+  size_t ocsp_response_len;
+  SSL_get0_ocsp_response(ssl(), &ocsp_response_raw, &ocsp_response_len);
+  std::string ocsp_response(reinterpret_cast<const char*>(ocsp_response_raw),
+                            ocsp_response_len);
+  const uint8_t* sct_list_raw;
+  size_t sct_list_len;
+  SSL_get0_signed_cert_timestamp_list(ssl(), &sct_list_raw, &sct_list_len);
+  std::string sct_list(reinterpret_cast<const char*>(sct_list_raw),
+                       sct_list_len);
+
+  return proof_verifier_->VerifyCertChain(
+      server_id_.host(), server_id_.port(), certs, ocsp_response, sct_list,
+      verify_context_.get(), error_details, details, std::move(callback));
+}
+
+void TlsClientHandshaker::OnProofVerifyDetailsAvailable(
+    const ProofVerifyDetails& verify_details) {
+  proof_handler_->OnProofVerifyDetailsAvailable(verify_details);
+}
+
 void TlsClientHandshaker::FinishHandshake() {
   // Fill crypto_negotiated_params_:
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
@@ -491,61 +484,6 @@ void TlsClientHandshaker::HandleZeroRttReject() {
   SSL_reset_early_data_reject(ssl());
   session_cache_->ClearEarlyData(server_id_);
   AdvanceHandshake();
-}
-
-enum ssl_verify_result_t TlsClientHandshaker::VerifyCert(uint8_t* out_alert) {
-  if (verify_result_ != ssl_verify_retry ||
-      expected_ssl_error() == SSL_ERROR_WANT_CERTIFICATE_VERIFY) {
-    enum ssl_verify_result_t result = verify_result_;
-    verify_result_ = ssl_verify_retry;
-    return result;
-  }
-  const STACK_OF(CRYPTO_BUFFER)* cert_chain = SSL_get0_peer_certificates(ssl());
-  if (cert_chain == nullptr) {
-    *out_alert = SSL_AD_INTERNAL_ERROR;
-    return ssl_verify_invalid;
-  }
-  // TODO(nharper): Pass the CRYPTO_BUFFERs into the QUIC stack to avoid copies.
-  std::vector<std::string> certs;
-  for (CRYPTO_BUFFER* cert : cert_chain) {
-    certs.push_back(
-        std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
-                    CRYPTO_BUFFER_len(cert)));
-  }
-  const uint8_t* ocsp_response_raw;
-  size_t ocsp_response_len;
-  SSL_get0_ocsp_response(ssl(), &ocsp_response_raw, &ocsp_response_len);
-  std::string ocsp_response(reinterpret_cast<const char*>(ocsp_response_raw),
-                            ocsp_response_len);
-  const uint8_t* sct_list_raw;
-  size_t sct_list_len;
-  SSL_get0_signed_cert_timestamp_list(ssl(), &sct_list_raw, &sct_list_len);
-  std::string sct_list(reinterpret_cast<const char*>(sct_list_raw),
-                       sct_list_len);
-
-  ProofVerifierCallbackImpl* proof_verify_callback =
-      new ProofVerifierCallbackImpl(this);
-
-  QuicAsyncStatus verify_result = proof_verifier_->VerifyCertChain(
-      server_id_.host(), server_id_.port(), certs, ocsp_response, sct_list,
-      verify_context_.get(), &cert_verify_error_details_, &verify_details_,
-      std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
-  switch (verify_result) {
-    case QUIC_SUCCESS:
-      if (verify_details_) {
-        proof_handler_->OnProofVerifyDetailsAvailable(*verify_details_);
-      }
-      return ssl_verify_ok;
-    case QUIC_PENDING:
-      proof_verify_callback_ = proof_verify_callback;
-      set_expected_ssl_error(SSL_ERROR_WANT_CERTIFICATE_VERIFY);
-      return ssl_verify_retry;
-    case QUIC_FAILURE:
-    default:
-      QUIC_LOG(INFO) << "Cert chain verification failed: "
-                     << cert_verify_error_details_;
-      return ssl_verify_invalid;
-  }
 }
 
 void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {

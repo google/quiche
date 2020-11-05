@@ -15,10 +15,42 @@
 
 namespace quic {
 
+TlsHandshaker::ProofVerifierCallbackImpl::ProofVerifierCallbackImpl(
+    TlsHandshaker* parent)
+    : parent_(parent) {}
+
+TlsHandshaker::ProofVerifierCallbackImpl::~ProofVerifierCallbackImpl() {}
+
+void TlsHandshaker::ProofVerifierCallbackImpl::Run(
+    bool ok,
+    const std::string& /*error_details*/,
+    std::unique_ptr<ProofVerifyDetails>* details) {
+  if (parent_ == nullptr) {
+    return;
+  }
+
+  parent_->verify_details_ = std::move(*details);
+  parent_->verify_result_ = ok ? ssl_verify_ok : ssl_verify_invalid;
+  parent_->set_expected_ssl_error(SSL_ERROR_WANT_READ);
+  parent_->proof_verify_callback_ = nullptr;
+  if (parent_->verify_details_) {
+    parent_->OnProofVerifyDetailsAvailable(*parent_->verify_details_);
+  }
+  parent_->AdvanceHandshake();
+}
+
+void TlsHandshaker::ProofVerifierCallbackImpl::Cancel() {
+  parent_ = nullptr;
+}
+
 TlsHandshaker::TlsHandshaker(QuicCryptoStream* stream, QuicSession* session)
     : stream_(stream), handshaker_delegate_(session) {}
 
-TlsHandshaker::~TlsHandshaker() {}
+TlsHandshaker::~TlsHandshaker() {
+  if (proof_verify_callback_) {
+    proof_verify_callback_->Cancel();
+  }
+}
 
 bool TlsHandshaker::ProcessInput(absl::string_view input,
                                  EncryptionLevel level) {
@@ -107,6 +139,50 @@ ssl_early_data_reason_t TlsHandshaker::EarlyDataReason() const {
 
 const EVP_MD* TlsHandshaker::Prf(const SSL_CIPHER* cipher) {
   return EVP_get_digestbynid(SSL_CIPHER_get_prf_nid(cipher));
+}
+
+enum ssl_verify_result_t TlsHandshaker::VerifyCert(uint8_t* out_alert) {
+  if (verify_result_ != ssl_verify_retry ||
+      expected_ssl_error() == SSL_ERROR_WANT_CERTIFICATE_VERIFY) {
+    enum ssl_verify_result_t result = verify_result_;
+    verify_result_ = ssl_verify_retry;
+    return result;
+  }
+  const STACK_OF(CRYPTO_BUFFER)* cert_chain = SSL_get0_peer_certificates(ssl());
+  if (cert_chain == nullptr) {
+    *out_alert = SSL_AD_INTERNAL_ERROR;
+    return ssl_verify_invalid;
+  }
+  // TODO(nharper): Pass the CRYPTO_BUFFERs into the QUIC stack to avoid copies.
+  std::vector<std::string> certs;
+  for (CRYPTO_BUFFER* cert : cert_chain) {
+    certs.push_back(
+        std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
+                    CRYPTO_BUFFER_len(cert)));
+  }
+
+  ProofVerifierCallbackImpl* proof_verify_callback =
+      new ProofVerifierCallbackImpl(this);
+
+  QuicAsyncStatus verify_result = VerifyCertChain(
+      certs, &cert_verify_error_details_, &verify_details_,
+      std::unique_ptr<ProofVerifierCallback>(proof_verify_callback));
+  switch (verify_result) {
+    case QUIC_SUCCESS:
+      if (verify_details_) {
+        OnProofVerifyDetailsAvailable(*verify_details_);
+      }
+      return ssl_verify_ok;
+    case QUIC_PENDING:
+      proof_verify_callback_ = proof_verify_callback;
+      set_expected_ssl_error(SSL_ERROR_WANT_CERTIFICATE_VERIFY);
+      return ssl_verify_retry;
+    case QUIC_FAILURE:
+    default:
+      QUIC_LOG(INFO) << "Cert chain verification failed: "
+                     << cert_verify_error_details_;
+      return ssl_verify_invalid;
+  }
 }
 
 void TlsHandshaker::SetWriteSecret(EncryptionLevel level,

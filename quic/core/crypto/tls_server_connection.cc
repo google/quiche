@@ -18,7 +18,8 @@ TlsServerConnection::TlsServerConnection(SSL_CTX* ssl_ctx, Delegate* delegate)
 // static
 bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
     ProofSource* proof_source) {
-  bssl::UniquePtr<SSL_CTX> ssl_ctx = TlsConnection::CreateSslCtx();
+  bssl::UniquePtr<SSL_CTX> ssl_ctx =
+      TlsConnection::CreateSslCtx(SSL_VERIFY_NONE);
   SSL_CTX_set_tlsext_servername_callback(ssl_ctx.get(),
                                          &SelectCertificateCallback);
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);

@@ -389,6 +389,18 @@ void TlsServerHandshaker::FinishHandshake() {
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_ZERO_RTT);
 }
 
+QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
+    const std::vector<std::string>& /*certs*/,
+    std::string* /*error_details*/,
+    std::unique_ptr<ProofVerifyDetails>* /*details*/,
+    std::unique_ptr<ProofVerifierCallback> /*callback*/) {
+  QUIC_BUG << "Client certificates are not yet supported on the server";
+  return QUIC_FAILURE;
+}
+
+void TlsServerHandshaker::OnProofVerifyDetailsAvailable(
+    const ProofVerifyDetails& /*verify_details*/) {}
+
 ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     uint8_t* out,
     size_t* out_len,

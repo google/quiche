@@ -20,12 +20,6 @@ class QUIC_EXPORT_PRIVATE TlsClientConnection : public TlsConnection {
     virtual ~Delegate() {}
 
    protected:
-    // Verifies the peer's certificate chain. It may use
-    // SSL_get0_peer_certificates to get the cert chain. This method returns
-    // ssl_verify_ok if the cert is valid, ssl_verify_invalid if it is invalid,
-    // or ssl_verify_retry if verification is happening asynchronously.
-    virtual enum ssl_verify_result_t VerifyCert(uint8_t* out_alert) = 0;
-
     // Called when a NewSessionTicket is received from the server.
     virtual void InsertSession(bssl::UniquePtr<SSL_SESSION> session) = 0;
 
@@ -42,10 +36,6 @@ class QUIC_EXPORT_PRIVATE TlsClientConnection : public TlsConnection {
   static bssl::UniquePtr<SSL_CTX> CreateSslCtx(bool enable_early_data);
 
  private:
-  // Registered as the callback for SSL_CTX_set_custom_verify. The
-  // implementation is delegated to Delegate::VerifyCert.
-  static enum ssl_verify_result_t VerifyCallback(SSL* ssl, uint8_t* out_alert);
-
   // Registered as the callback for SSL_CTX_sess_set_new_cb, which calls
   // Delegate::InsertSession.
   static int NewSessionCallback(SSL* ssl, SSL_SESSION* session);

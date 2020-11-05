@@ -11,7 +11,6 @@
 
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
 #include "net/third_party/quiche/src/quic/core/crypto/tls_client_connection.h"
 #include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
@@ -89,32 +88,18 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   void FinishHandshake() override;
   void ProcessPostHandshakeMessage() override;
   bool ShouldCloseConnectionOnUnexpectedError(int ssl_error) override;
+  QuicAsyncStatus VerifyCertChain(
+      const std::vector<std::string>& certs,
+      std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details,
+      std::unique_ptr<ProofVerifierCallback> callback) override;
+  void OnProofVerifyDetailsAvailable(
+      const ProofVerifyDetails& verify_details) override;
 
   // TlsClientConnection::Delegate implementation:
-  enum ssl_verify_result_t VerifyCert(uint8_t* out_alert) override;
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
  private:
-  // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
-  // verification operation.
-  class QUIC_EXPORT_PRIVATE ProofVerifierCallbackImpl
-      : public ProofVerifierCallback {
-   public:
-    explicit ProofVerifierCallbackImpl(TlsClientHandshaker* parent);
-    ~ProofVerifierCallbackImpl() override;
-
-    // ProofVerifierCallback interface.
-    void Run(bool ok,
-             const std::string& error_details,
-             std::unique_ptr<ProofVerifyDetails>* details) override;
-
-    // If called, Cancel causes the pending callback to be a no-op.
-    void Cancel();
-
-   private:
-    TlsClientHandshaker* parent_;
-  };
-
   bool SetAlpn();
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
@@ -134,10 +119,10 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   QuicServerId server_id_;
 
   // Objects used for verifying the server's certificate chain.
-  // |proof_verifier_| is owned by the caller of TlsClientHandshaker's
-  // constructor.
+  // |proof_verifier_| is owned by the caller of TlsHandshaker's constructor.
   ProofVerifier* proof_verifier_;
   std::unique_ptr<ProofVerifyContext> verify_context_;
+
   // Unowned pointer to the proof handler which has the
   // OnProofVerifyDetailsAvailable callback to use for notifying the result of
   // certificate verification.
@@ -151,13 +136,6 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
 
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;
-
-  // ProofVerifierCallback used for async certificate verification. This object
-  // is owned by |proof_verifier_|.
-  ProofVerifierCallbackImpl* proof_verify_callback_ = nullptr;
-  std::unique_ptr<ProofVerifyDetails> verify_details_;
-  enum ssl_verify_result_t verify_result_ = ssl_verify_retry;
-  std::string cert_verify_error_details_;
 
   HandshakeState state_ = HANDSHAKE_START;
   bool encryption_established_ = false;

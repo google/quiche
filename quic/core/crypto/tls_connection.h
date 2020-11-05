@@ -31,6 +31,16 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
     virtual ~Delegate() {}
 
    protected:
+    // Certificate management functions:
+
+    // Verifies the peer's certificate chain. It may use
+    // SSL_get0_peer_certificates to get the cert chain. This method returns
+    // ssl_verify_ok if the cert is valid, ssl_verify_invalid if it is invalid,
+    // or ssl_verify_retry if verification is happening asynchronously.
+    virtual enum ssl_verify_result_t VerifyCert(uint8_t* out_alert) = 0;
+
+    // QUIC-TLS interface functions:
+
     // SetWriteSecret provides the encryption secret used to encrypt messages at
     // encryption level |level|. The secret provided here is the one from the
     // TLS 1.3 key schedule (RFC 8446 section 7.1), in particular the handshake
@@ -87,7 +97,12 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   // Creates an SSL_CTX and configures it with the options that are appropriate
   // for both client and server. The caller is responsible for ownership of the
   // newly created struct.
-  static bssl::UniquePtr<SSL_CTX> CreateSslCtx();
+  //
+  // The provided |cert_verify_mode| is passed in as the |mode| argument for
+  // |SSL_CTX_set_verify|. See
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_VERIFY_NONE
+  // for a description of possible values.
+  static bssl::UniquePtr<SSL_CTX> CreateSslCtx(int cert_verify_mode);
 
   // From a given SSL* |ssl|, returns a pointer to the TlsConnection that it
   // belongs to. This helper method allows the callbacks set in BoringSSL to be
@@ -96,6 +111,10 @@ class QUIC_EXPORT_PRIVATE TlsConnection {
   static TlsConnection* ConnectionFromSsl(const SSL* ssl);
 
  private:
+  // Registered as the callback for SSL_CTX_set_custom_verify. The
+  // implementation is delegated to Delegate::VerifyCert.
+  static enum ssl_verify_result_t VerifyCallback(SSL* ssl, uint8_t* out_alert);
+
   // TlsConnection implements SSL_QUIC_METHOD, which provides the interface
   // between BoringSSL's TLS stack and a QUIC implementation.
   static const SSL_QUIC_METHOD kSslQuicMethod;

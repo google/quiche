@@ -93,6 +93,13 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // TlsHandshaker implementation:
   void FinishHandshake() override;
   void ProcessPostHandshakeMessage() override {}
+  QuicAsyncStatus VerifyCertChain(
+      const std::vector<std::string>& certs,
+      std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details,
+      std::unique_ptr<ProofVerifierCallback> callback) override;
+  void OnProofVerifyDetailsAvailable(
+      const ProofVerifyDetails& verify_details) override;
 
   // TlsServerConnection::Delegate implementation:
   int SelectCertificate(int* out_alert) override;

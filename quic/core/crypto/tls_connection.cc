@@ -93,12 +93,15 @@ TlsConnection::TlsConnection(SSL_CTX* ssl_ctx,
       this);
 }
 // static
-bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx() {
+bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx(int cert_verify_mode) {
   CRYPTO_library_init();
   bssl::UniquePtr<SSL_CTX> ssl_ctx(SSL_CTX_new(TLS_with_buffers_method()));
   SSL_CTX_set_min_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx.get(), TLS1_3_VERSION);
   SSL_CTX_set_quic_method(ssl_ctx.get(), &kSslQuicMethod);
+  if (cert_verify_mode != SSL_VERIFY_NONE) {
+    SSL_CTX_set_custom_verify(ssl_ctx.get(), cert_verify_mode, &VerifyCallback);
+  }
   return ssl_ctx;
 }
 
@@ -106,6 +109,12 @@ bssl::UniquePtr<SSL_CTX> TlsConnection::CreateSslCtx() {
 TlsConnection* TlsConnection::ConnectionFromSsl(const SSL* ssl) {
   return reinterpret_cast<TlsConnection*>(SSL_get_ex_data(
       ssl, SslIndexSingleton::GetInstance()->ssl_ex_data_index_connection()));
+}
+
+// static
+enum ssl_verify_result_t TlsConnection::VerifyCallback(SSL* ssl,
+                                                       uint8_t* out_alert) {
+  return ConnectionFromSsl(ssl)->delegate_->VerifyCert(out_alert);
 }
 
 const SSL_QUIC_METHOD TlsConnection::kSslQuicMethod{
