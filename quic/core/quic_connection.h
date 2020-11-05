@@ -38,6 +38,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
+#include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_framer.h"
 #include "net/third_party/quiche/src/quic/core/quic_idle_network_detector.h"
 #include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
@@ -948,6 +949,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // any point during the connection.  This assumes the version and
   // connection ID lengths do not change.
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
+
+  virtual int GetUnackedMapInitialCapacity() const {
+    return kDefaultUnackedPacketsInitialCapacity;
+  }
 
   // Returns the id of the cipher last used for decrypting packets.
   uint32_t cipher_id() const;

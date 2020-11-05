@@ -3,10 +3,12 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
+#include <cstddef>
 #include <limits>
 
 #include "absl/base/macros.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
+#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
 #include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -84,8 +86,8 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
               .in_flight);
     }
     size_t in_flight_count = 0;
-    for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
-         it != unacked_packets_.end(); ++it) {
+    for (auto it = unacked_packets_.begin(); it != unacked_packets_.end();
+         ++it) {
       if (it->in_flight) {
         ++in_flight_count;
       }
@@ -111,8 +113,8 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
   void VerifyRetransmittablePackets(uint64_t* packets, size_t num_packets) {
     unacked_packets_.RemoveObsoletePackets();
     size_t num_retransmittable_packets = 0;
-    for (QuicUnackedPacketMap::const_iterator it = unacked_packets_.begin();
-         it != unacked_packets_.end(); ++it) {
+    for (auto it = unacked_packets_.begin(); it != unacked_packets_.end();
+         ++it) {
       if (unacked_packets_.HasRetransmittableFrames(*it)) {
         ++num_retransmittable_packets;
       }
@@ -653,6 +655,18 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
                 APPLICATION_DATA));
   EXPECT_TRUE(unacked_packets_.GetLastPacketContent() & (1 << STREAM_FRAME));
   EXPECT_FALSE(unacked_packets_.GetLastPacketContent() & (1 << ACK_FRAME));
+}
+
+TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
+  SetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets, true);
+  QuicUnackedPacketMap unacked_packets(GetParam());
+  ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 0u);
+  unacked_packets.ReserveInitialCapacity(16);
+  QuicStreamId stream_id(1);
+  SerializedPacket packet(CreateRetransmittablePacketForStream(1, stream_id));
+  unacked_packets.AddSentPacket(&packet, TransmissionType::NOT_RETRANSMISSION,
+                                now_, true, true);
+  ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 16u);
 }
 
 }  // namespace

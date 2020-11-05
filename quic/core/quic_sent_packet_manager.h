@@ -125,6 +125,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   virtual void SetFromConfig(const QuicConfig& config);
 
+  void ReserveUnackedPacketsInitialCapacity(int initial_capacity) {
+    unacked_packets_.ReserveInitialCapacity(initial_capacity);
+  }
+
   void ApplyConnectionOptions(const QuicTagVector& connection_options);
 
   // Pass the CachedNetworkParameters to the send algorithm.
@@ -514,7 +518,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // Request that |packet_number| be retransmitted after the other pending
   // retransmissions.  Does not add it to the retransmissions if it's already
-  // a pending retransmission.
+  // a pending retransmission. Do not reuse iterator of the underlying
+  // unacked_packets_ after calling this function as it can be invalidated.
   void MarkForRetransmission(QuicPacketNumber packet_number,
                              TransmissionType transmission_type);
 

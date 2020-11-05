@@ -6,12 +6,15 @@
 #define QUICHE_QUIC_CORE_QUIC_UNACKED_PACKET_MAP_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 
+#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -90,7 +93,9 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   bool HasUnackedRetransmittableFrames() const;
 
   // Returns true if there are no packets present in the unacked packet map.
-  bool empty() const { return unacked_packets_.empty(); }
+  bool empty() const { return unacked_packets_empty(); }
+
+  bool use_circular_deque() const { return use_circular_deque_; }
 
   // Returns the largest packet number that has been sent.
   QuicPacketNumber largest_sent_packet() const { return largest_sent_packet_; }
@@ -110,20 +115,79 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // been acked by the peer.  If there are no unacked packets, returns 0.
   QuicPacketNumber GetLeastUnacked() const;
 
-  // This can not be a QuicCircularDeque since pointers into this are
-  // assumed to be stable.
-  typedef std::deque<QuicTransmissionInfo> UnackedPacketMap;
+  template <typename Itr1, typename Itr2>
+  class QUIC_EXPORT_PRIVATE IteratorWrapper {
+   public:
+    explicit IteratorWrapper(Itr1 itr1) : itr_(std::move(itr1)) {}
+    explicit IteratorWrapper(Itr2 itr2) : itr_(std::move(itr2)) {}
 
-  typedef UnackedPacketMap::const_iterator const_iterator;
-  typedef UnackedPacketMap::const_reverse_iterator const_reverse_iterator;
-  typedef UnackedPacketMap::iterator iterator;
+    auto& operator*() const {
+      return absl::visit(
+          [](const auto& itr) -> auto& { return *itr; }, itr_);
+    }
 
-  const_iterator begin() const { return unacked_packets_.begin(); }
-  const_iterator end() const { return unacked_packets_.end(); }
-  const_reverse_iterator rbegin() const { return unacked_packets_.rbegin(); }
-  const_reverse_iterator rend() const { return unacked_packets_.rend(); }
-  iterator begin() { return unacked_packets_.begin(); }
-  iterator end() { return unacked_packets_.end(); }
+    auto* operator->() const {
+      return absl::visit([](const auto& itr) { return &*itr; }, itr_);
+    }
+
+    IteratorWrapper& operator++() {
+      absl::visit([](auto& itr) { ++itr; }, itr_);
+      return *this;
+    }
+
+    IteratorWrapper& operator+=(int difference) {
+      absl::visit([difference](auto& itr) { itr += difference; }, itr_);
+      return *this;
+    }
+
+    IteratorWrapper operator++(int) {
+      return absl::visit([](auto& itr) { IteratorWrapper(itr++); }, itr_);
+    }
+
+    bool operator!=(const IteratorWrapper& other) const {
+      return itr_ != other.itr_;
+    }
+
+   private:
+    absl::variant<Itr1, Itr2> itr_;
+  };
+
+  using const_iterator =
+      IteratorWrapper<std::deque<QuicTransmissionInfo>::const_iterator,
+                      QuicCircularDeque<QuicTransmissionInfo>::const_iterator>;
+  using const_reverse_iterator = IteratorWrapper<
+      std::deque<QuicTransmissionInfo>::const_reverse_iterator,
+      QuicCircularDeque<QuicTransmissionInfo>::const_reverse_iterator>;
+  using iterator =
+      IteratorWrapper<std::deque<QuicTransmissionInfo>::iterator,
+                      QuicCircularDeque<QuicTransmissionInfo>::iterator>;
+
+  const_iterator begin() const {
+    return use_circular_deque_ ? const_iterator(unacked_packets_.begin())
+                               : const_iterator(unacked_packets_deque_.begin());
+  }
+  const_iterator end() const {
+    return use_circular_deque_ ? const_iterator(unacked_packets_.end())
+                               : const_iterator(unacked_packets_deque_.end());
+  }
+  const_reverse_iterator rbegin() const {
+    return use_circular_deque_
+               ? const_reverse_iterator(unacked_packets_.rbegin())
+               : const_reverse_iterator(unacked_packets_deque_.rbegin());
+  }
+  const_reverse_iterator rend() const {
+    return use_circular_deque_
+               ? const_reverse_iterator(unacked_packets_.rend())
+               : const_reverse_iterator(unacked_packets_deque_.rend());
+  }
+  iterator begin() {
+    return use_circular_deque_ ? iterator(unacked_packets_.begin())
+                               : iterator(unacked_packets_deque_.begin());
+  }
+  iterator end() {
+    return use_circular_deque_ ? iterator(unacked_packets_.end())
+                               : iterator(unacked_packets_deque_.end());
+  }
 
   // Returns true if there are unacked packets that are in flight.
   bool HasInFlightPackets() const;
@@ -244,8 +308,72 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
     return supports_multiple_packet_number_spaces_;
   }
 
+  void ReserveInitialCapacity(size_t initial_capacity) {
+    if (use_circular_deque_) {
+      unacked_packets_.reserve(initial_capacity);
+    }
+  }
+
  private:
   friend class test::QuicUnackedPacketMapPeer;
+
+  // TODO(haoyuewang) Remove these methods when deprecate
+  // quic_use_circular_deque_for_unacked_packets flag.
+  size_t unacked_packets_size() const {
+    return use_circular_deque_ ? unacked_packets_.size()
+                               : unacked_packets_deque_.size();
+  }
+
+  const QuicTransmissionInfo& unacked_packets_at(int index) const {
+    return use_circular_deque_ ? unacked_packets_[index]
+                               : unacked_packets_deque_[index];
+  }
+
+  QuicTransmissionInfo& unacked_packets_at(int index) {
+    return use_circular_deque_ ? unacked_packets_[index]
+                               : unacked_packets_deque_[index];
+  }
+
+  const QuicTransmissionInfo& unacked_packets_front() const {
+    return use_circular_deque_ ? unacked_packets_.front()
+                               : unacked_packets_deque_.front();
+  }
+
+  QuicTransmissionInfo& unacked_packets_front() {
+    return use_circular_deque_ ? unacked_packets_.front()
+                               : unacked_packets_deque_.front();
+  }
+
+  const QuicTransmissionInfo& unacked_packets_back() const {
+    return use_circular_deque_ ? unacked_packets_.back()
+                               : unacked_packets_deque_.back();
+  }
+
+  QuicTransmissionInfo& unacked_packets_back() {
+    return use_circular_deque_ ? unacked_packets_.back()
+                               : unacked_packets_deque_.back();
+  }
+
+  void unacked_packets_push_back(QuicTransmissionInfo info) {
+    if (use_circular_deque_) {
+      unacked_packets_.push_back(std::move(info));
+    } else {
+      unacked_packets_deque_.push_back(std::move(info));
+    }
+  }
+
+  void unacked_packets_pop_front() {
+    if (use_circular_deque_) {
+      unacked_packets_.pop_front();
+    } else {
+      unacked_packets_deque_.pop_front();
+    }
+  }
+
+  bool unacked_packets_empty() const {
+    return use_circular_deque_ ? unacked_packets_.empty()
+                               : unacked_packets_deque_.empty();
+  }
 
   // Returns true if packet may be useful for an RTT measurement.
   bool IsPacketUsefulForMeasuringRtt(QuicPacketNumber packet_number,
@@ -286,7 +414,12 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   // If the old packet is acked before the new packet, then the old entry will
   // be removed from the map and the new entry's retransmittable frames will be
   // set to nullptr.
-  UnackedPacketMap unacked_packets_;
+  QuicCircularDeque<QuicTransmissionInfo> unacked_packets_;
+  std::deque<QuicTransmissionInfo> unacked_packets_deque_;
+
+  const bool use_circular_deque_ =
+      GetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets);
+
   // The packet at the 0th index of unacked_packets_.
   QuicPacketNumber least_unacked_;
 

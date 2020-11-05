@@ -382,6 +382,8 @@ QuicConnection::QuicConnection(
   // TODO(ianswett): Supply the NetworkChangeVisitor as a constructor argument
   // and make it required non-null, because it's always used.
   sent_packet_manager_.SetNetworkChangeVisitor(this);
+  sent_packet_manager_.ReserveUnackedPacketsInitialCapacity(
+      GetUnackedMapInitialCapacity());
   if (GetQuicRestartFlag(quic_offload_pacing_to_usps2)) {
     sent_packet_manager_.SetPacingAlarmGranularity(QuicTime::Delta::Zero());
     release_time_into_future_ =

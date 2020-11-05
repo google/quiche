@@ -104,6 +104,10 @@ const size_t kQuicVersionSize = 4;
 // https://tools.ietf.org/html/draft-ietf-quic-transport-25#section-17.2.5
 const size_t kRetryIntegrityTagLength = 16;
 
+// By default, UnackedPacketsMap allocates buffer of 64 after the first packet
+// is added.
+const int kDefaultUnackedPacketsInitialCapacity = 64;
+
 // Signifies that the QuicPacket will contain version of the protocol.
 const bool kIncludeVersion = true;
 // Signifies that the QuicPacket will include a diversification nonce.

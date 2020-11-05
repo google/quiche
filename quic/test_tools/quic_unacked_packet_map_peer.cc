@@ -20,5 +20,11 @@ void QuicUnackedPacketMapPeer::SetPerspective(
   *const_cast<Perspective*>(&unacked_packets->perspective_) = perspective;
 }
 
+// static
+size_t QuicUnackedPacketMapPeer::GetCapacity(
+    const QuicUnackedPacketMap& unacked_packets) {
+  return unacked_packets.unacked_packets_.capacity();
+}
+
 }  // namespace test
 }  // namespace quic
