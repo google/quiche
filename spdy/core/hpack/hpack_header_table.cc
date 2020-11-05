@@ -253,7 +253,7 @@ void HpackHeaderTable::DebugLogTableState() const {
     SPDY_DVLOG(2) << "  " << entry->GetDebugString();
   }
   SPDY_DVLOG(2) << "Full Static Name Index:";
-  for (const auto it : static_name_index_) {
+  for (const auto& it : static_name_index_) {
     SPDY_DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
   }
   SPDY_DVLOG(2) << "Full Dynamic Index:";
@@ -261,7 +261,7 @@ void HpackHeaderTable::DebugLogTableState() const {
     SPDY_DVLOG(2) << "  " << entry->GetDebugString();
   }
   SPDY_DVLOG(2) << "Full Dynamic Name Index:";
-  for (const auto it : dynamic_name_index_) {
+  for (const auto& it : dynamic_name_index_) {
     SPDY_DVLOG(2) << "  " << it.first << ": " << it.second->GetDebugString();
   }
 }

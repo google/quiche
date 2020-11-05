@@ -5706,9 +5706,9 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
     const uint64_t ack_range = iter->Length() - 1;
 
     if (writer->remaining() < ecn_size ||
-        static_cast<size_t>(writer->remaining() - ecn_size) <
-            QuicDataWriter::GetVarInt62Len(gap) +
-                QuicDataWriter::GetVarInt62Len(ack_range)) {
+        writer->remaining() - ecn_size <
+            static_cast<size_t>(QuicDataWriter::GetVarInt62Len(gap) +
+                                QuicDataWriter::GetVarInt62Len(ack_range))) {
       // ACK range does not fit, truncate it.
       break;
     }
