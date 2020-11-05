@@ -474,9 +474,9 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
 
   EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  // The margin here is high, because the aggregation greatly increases
-  // smoothed rtt.
-  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
+  // The margin here is high, because both link level aggregation and ack
+  // decimation can greatly increase smoothed rtt.
+  EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
