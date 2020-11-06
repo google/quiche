@@ -42,14 +42,39 @@ namespace {
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
 
-class TlsServerHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
+struct TestParams {
+  ParsedQuicVersion version;
+  bool disable_resumption;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
+  return quiche::QuicheStrCat(
+      ParsedQuicVersionToString(p.version), "_",
+      (p.disable_resumption ? "ResumptionDisabled" : "ResumptionEnabled"));
+}
+
+// Constructs test permutations.
+std::vector<TestParams> GetTestParams() {
+  std::vector<TestParams> params;
+  for (const auto& version : AllSupportedVersionsWithTls()) {
+    for (bool disable_resumption : {false, true}) {
+      params.push_back(TestParams{version, disable_resumption});
+    }
+  }
+  return params;
+}
+
+class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
  public:
   TlsServerHandshakerTest()
       : server_compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
         server_id_(kServerHostname, kServerPort, false),
-        supported_versions_({GetParam()}) {
+        supported_versions_({GetParam().version}) {
     SetQuicRestartFlag(quic_enable_zero_rtt_for_tls_v2, true);
+    SetQuicFlag(FLAGS_quic_disable_server_tls_resumption,
+                GetParam().disable_resumption);
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(),
         std::make_unique<test::SimpleSessionCache>());
@@ -228,7 +253,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 INSTANTIATE_TEST_SUITE_P(TlsServerHandshakerTests,
                          TlsServerHandshakerTest,
-                         ::testing::ValuesIn(AllSupportedVersionsWithTls()),
+                         ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
 TEST_P(TlsServerHandshakerTest, NotInitiallyConected) {
@@ -369,9 +394,10 @@ TEST_P(TlsServerHandshakerTest, Resumption) {
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  EXPECT_TRUE(client_stream()->IsResumption());
-  EXPECT_TRUE(server_stream()->IsResumption());
-  EXPECT_TRUE(server_stream()->ResumptionAttempted());
+  EXPECT_NE(client_stream()->IsResumption(), GetParam().disable_resumption);
+  EXPECT_NE(server_stream()->IsResumption(), GetParam().disable_resumption);
+  EXPECT_NE(server_stream()->ResumptionAttempted(),
+            GetParam().disable_resumption);
 }
 
 TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
@@ -386,6 +412,10 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
   InitializeFakeClient();
 
   AdvanceHandshakeWithFakeClient();
+  if (GetParam().disable_resumption) {
+    ASSERT_EQ(ticket_crypter_->NumPendingCallbacks(), 0u);
+    return;
+  }
   // Test that the DecryptCallback will be run asynchronously, and then run it.
   ASSERT_EQ(ticket_crypter_->NumPendingCallbacks(), 1u);
   ticket_crypter_->RunPendingCallback(0);
@@ -398,6 +428,10 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithAsyncDecryptCallback) {
 }
 
 TEST_P(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -415,6 +449,10 @@ TEST_P(TlsServerHandshakerTest, ResumptionWithFailingDecryptCallback) {
 }
 
 TEST_P(TlsServerHandshakerTest, ResumptionWithFailingAsyncDecryptCallback) {
+  if (GetParam().disable_resumption) {
+    return;
+  }
+
   // Do the first handshake
   InitializeFakeClient();
   CompleteCryptoHandshake();
@@ -469,8 +507,8 @@ TEST_P(TlsServerHandshakerTest, ZeroRttResumption) {
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  EXPECT_TRUE(client_stream()->IsResumption());
-  EXPECT_TRUE(server_stream()->IsZeroRtt());
+  EXPECT_NE(client_stream()->IsResumption(), GetParam().disable_resumption);
+  EXPECT_NE(server_stream()->IsZeroRtt(), GetParam().disable_resumption);
 }
 
 TEST_P(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
@@ -493,7 +531,7 @@ TEST_P(TlsServerHandshakerTest, ZeroRttRejectOnApplicationStateChange) {
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  EXPECT_TRUE(client_stream()->IsResumption());
+  EXPECT_NE(client_stream()->IsResumption(), GetParam().disable_resumption);
   EXPECT_FALSE(server_stream()->IsZeroRtt());
 }
 

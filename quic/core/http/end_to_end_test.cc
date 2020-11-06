@@ -5086,6 +5086,108 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, TlsResumptionEnabledOnTheFly) {
+  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, true);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesTls()) {
+    // This test is TLS specific.
+    return;
+  }
+
+  // Send the first request. Client should not have a resumption ticket.
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+            ssl_early_data_no_session_offered);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  client_->Disconnect();
+
+  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, false);
+
+  // Send the second request. Client should still have no resumption ticket, but
+  // it will receive one which can be used by the next request.
+  client_->Connect();
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+            ssl_early_data_no_session_offered);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  client_->Disconnect();
+
+  // Send the third request in 0RTT.
+  client_->Connect();
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
+  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, false);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.UsesTls()) {
+    // This test is TLS specific.
+    return;
+  }
+
+  // Send the first request and then disconnect.
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  client_->Disconnect();
+
+  // Send the second request in 0RTT.
+  client_->Connect();
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  client_->Disconnect();
+
+  SetQuicFlag(FLAGS_quic_disable_server_tls_resumption, true);
+
+  // Send the third request. The client should try resumption but server should
+  // decline it.
+  client_->Connect();
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_EQ(client_session->GetCryptoStream()->EarlyDataReason(),
+            ssl_early_data_session_not_resumed);
+  client_->Disconnect();
+
+  // Keep sending until the client runs out of resumption tickets.
+  for (int i = 0; i < 10; ++i) {
+    client_->Connect();
+    SendSynchronousFooRequestAndCheckResponse();
+
+    client_session = GetClientSession();
+    ASSERT_TRUE(client_session);
+    EXPECT_FALSE(client_session->EarlyDataAccepted());
+    const auto early_data_reason =
+        client_session->GetCryptoStream()->EarlyDataReason();
+    client_->Disconnect();
+
+    if (early_data_reason != ssl_early_data_session_not_resumed) {
+      EXPECT_EQ(early_data_reason, ssl_early_data_no_session_offered);
+      return;
+    }
+  }
+
+  ADD_FAILURE() << "Client should not have 10 resumption tickets.";
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

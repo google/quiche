@@ -237,4 +237,10 @@ QUIC_PROTOCOL_FLAG(bool,
                    false,
                    "If true, QUIC client with TLS will not try 0-RTT.")
 
+QUIC_PROTOCOL_FLAG(bool,
+                   quic_disable_server_tls_resumption,
+                   false,
+                   "If true, QUIC server will disable TLS resumption by not "
+                   "issuing or processing session tickets.")
+
 #endif

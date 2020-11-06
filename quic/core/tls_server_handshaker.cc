@@ -98,6 +98,10 @@ TlsServerHandshaker::TlsServerHandshaker(
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
+
+  if (GetQuicFlag(FLAGS_quic_disable_server_tls_resumption)) {
+    SSL_set_options(ssl(), SSL_OP_NO_TICKET);
+  }
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() {
