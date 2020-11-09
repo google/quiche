@@ -108,6 +108,9 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 // static
 const SpdyPriority QuicStream::kDefaultPriority;
 
+// static
+const int QuicStream::kDefaultUrgency;
+
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
       stream_delegate_(session),
@@ -385,16 +388,6 @@ QuicStream::~QuicStream() {
   }
   if (stream_delegate_ != nullptr && type_ != CRYPTO) {
     stream_delegate_->UnregisterStreamPriority(id(), is_static_);
-  }
-}
-
-// static
-int QuicStream::DefaultUrgency() {
-  if (GetQuicReloadableFlag(quic_http3_new_default_urgency_value)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_http3_new_default_urgency_value);
-    return 3;
-  } else {
-    return 1;
   }
 }
 
@@ -1445,7 +1438,7 @@ void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
 spdy::SpdyStreamPrecedence QuicStream::CalculateDefaultPriority(
     const QuicSession* session) {
   if (VersionUsesHttp3(session->transport_version())) {
-    return spdy::SpdyStreamPrecedence(DefaultUrgency());
+    return spdy::SpdyStreamPrecedence(kDefaultUrgency);
   }
 
   if (session->use_http2_priority_write_scheduler()) {

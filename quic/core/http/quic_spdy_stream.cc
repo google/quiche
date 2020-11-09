@@ -200,7 +200,7 @@ QuicSpdyStream::QuicSpdyStream(QuicStreamId id,
       sequencer_offset_(0),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr),
-      last_sent_urgency_(DefaultUrgency()) {
+      last_sent_urgency_(kDefaultUrgency) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
   DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id));
@@ -236,7 +236,7 @@ QuicSpdyStream::QuicSpdyStream(PendingStream* pending,
       sequencer_offset_(sequencer()->NumBytesConsumed()),
       is_decoder_processing_input_(false),
       ack_listener_(nullptr),
-      last_sent_urgency_(DefaultUrgency()) {
+      last_sent_urgency_(kDefaultUrgency) {
   DCHECK_EQ(session()->connection(), spdy_session->connection());
   DCHECK_EQ(transport_version(), spdy_session->transport_version());
   DCHECK(!QuicUtils::IsCryptoStreamId(transport_version(), id()));
