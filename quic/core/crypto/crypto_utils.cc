@@ -735,12 +735,12 @@ const char* CryptoUtils::HandshakeFailureReasonToString(
 }
 
 // static
-const char* CryptoUtils::EarlyDataReasonToString(
+std::string CryptoUtils::EarlyDataReasonToString(
     ssl_early_data_reason_t reason) {
 #if BORINGSSL_API_VERSION >= 12
   const char* reason_string = SSL_early_data_reason_string(reason);
   if (reason_string != nullptr) {
-    return reason_string;
+    return std::string("ssl_early_data_") + reason_string;
   }
 #else
   // TODO(davidben): Remove this logic once

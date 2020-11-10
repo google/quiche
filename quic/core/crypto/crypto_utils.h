@@ -232,7 +232,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
       HandshakeFailureReason reason);
 
   // Returns the name of an ssl_early_data_reason_t as a char*
-  static const char* EarlyDataReasonToString(ssl_early_data_reason_t reason);
+  static std::string EarlyDataReasonToString(ssl_early_data_reason_t reason);
 
   // Returns a hash of the serialized |message|.
   static std::string HashHandshakeMessage(const CryptoHandshakeMessage& message,
