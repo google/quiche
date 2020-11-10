@@ -118,8 +118,12 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   template <typename Itr1, typename Itr2>
   class QUIC_EXPORT_PRIVATE IteratorWrapper {
    public:
-    explicit IteratorWrapper(Itr1 itr1) : itr_(std::move(itr1)) {}
-    explicit IteratorWrapper(Itr2 itr2) : itr_(std::move(itr2)) {}
+    explicit IteratorWrapper(Itr1 itr1) {
+      itr_.template emplace<0>(std::move(itr1));
+    }
+    explicit IteratorWrapper(Itr2 itr2) {
+      itr_.template emplace<1>(std::move(itr2));
+    }
 
     auto& operator*() const {
       return absl::visit(
