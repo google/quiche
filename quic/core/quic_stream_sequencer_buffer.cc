@@ -92,16 +92,16 @@ void QuicStreamSequencerBuffer::MaybeAddMoreBlocks(size_t next_expected_byte) {
   if (current_blocks_count_ >= num_of_blocks_needed) {
     return;
   }
-  size_t new_block_count_ =
-      std::clamp(kBlocksGrowthFactor * current_blocks_count_,
-                 num_of_blocks_needed, max_blocks_count_);
-  auto new_blocks = std::make_unique<BufferBlock*[]>(new_block_count_);
+  size_t new_block_count = kBlocksGrowthFactor * current_blocks_count_;
+  new_block_count = std::min(std::max(new_block_count, num_of_blocks_needed),
+                             max_blocks_count_);
+  auto new_blocks = std::make_unique<BufferBlock*[]>(new_block_count);
   if (blocks_ != nullptr) {
     memcpy(new_blocks.get(), blocks_.get(),
            current_blocks_count_ * sizeof(BufferBlock*));
   }
   blocks_ = std::move(new_blocks);
-  current_blocks_count_ = new_block_count_;
+  current_blocks_count_ = new_block_count;
 }
 
 QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(

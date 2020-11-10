@@ -2389,8 +2389,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
   const QuicPacketCount packets_sent_now =
       client_connection->GetStats().packets_sent;
 
-  if (version_.UsesHttp3() &&
-      absl::GetFlag(FLAGS_gfe2_reloadable_flag_quic_split_up_send_rst_2)) {
+  if (version_.UsesHttp3() && GetQuicReloadableFlag(quic_split_up_send_rst_2)) {
     // Make sure 2 packets were sent, one for QPACK instructions, another for
     // RESET_STREAM and STOP_SENDING.
     EXPECT_EQ(packets_sent_before + 2, packets_sent_now);
