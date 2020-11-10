@@ -82,7 +82,14 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Size of blocks used by this buffer.
   // Choose 8K to make block large enough to hold multiple frames, each of
   // which could be up to 1.5 KB.
-  static const size_t kBlockSizeBytes = 8 * 1024;  // 8KB
+  static constexpr size_t kBlockSizeBytes = 8 * 1024;  // 8KB
+
+  // Number of blocks allocated initially.
+  static constexpr size_t kInitialBlockCount = 8u;
+
+  // How fast block pointers container grow in size.
+  // Choose 4 to reduce the amount of reallocation.
+  static constexpr int kBlocksGrowthFactor = 4;
 
   // The basic storage block used by this buffer.
   struct QUIC_EXPORT_PRIVATE BufferBlock {
@@ -212,17 +219,29 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Return all received frames as a string.
   std::string ReceivedFramesDebugString() const;
 
+  // Resize blocks_ if more blocks are needed to accomodate bytes before
+  // next_expected_byte.
+  void MaybeAddMoreBlocks(size_t next_expected_byte);
+
   // The maximum total capacity of this buffer in byte, as constructed.
   size_t max_buffer_capacity_bytes_;
 
-  // How many blocks this buffer would need when it reaches full capacity.
-  size_t blocks_count_;
+  // Number of blocks this buffer would have when it reaches full capacity,
+  // i.e., maximal number of blocks in blocks_.
+  size_t max_blocks_count_;
+
+  // Number of blocks this buffer currently has.
+  size_t current_blocks_count_;
 
   // Number of bytes read out of buffer.
   QuicStreamOffset total_bytes_read_;
 
+  // Whether size of blocks_ grows on demand.
+  bool allocate_blocks_on_demand_ = GetQuicReloadableFlag(
+      quic_allocate_stream_sequencer_buffer_blocks_on_demand);
+
   // An ordered, variable-length list of blocks, with the length limited
-  // such that the number of blocks never exceeds blocks_count_.
+  // such that the number of blocks never exceeds max_blocks_count_.
   // Each list entry can hold up to kBlockSizeBytes bytes.
   std::unique_ptr<BufferBlock*[]> blocks_;
 

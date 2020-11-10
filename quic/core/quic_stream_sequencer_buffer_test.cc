@@ -72,10 +72,10 @@ class QuicStreamSequencerBufferTest : public QuicTest {
     helper_ = std::make_unique<QuicStreamSequencerBufferPeer>((buffer_.get()));
   }
 
-  // Use 2.5 here to make sure the buffer has more than one block and its end
-  // doesn't align with the end of a block in order to test all the offset
-  // calculation.
-  size_t max_capacity_bytes_ = 2.5 * kBlockSizeBytes;
+  // Use 8.5 here to make sure that the buffer has more than
+  // QuicStreamSequencerBuffer::kInitialBlockCount block and its end doesn't
+  // align with the end of a block in order to test all the offset calculation.
+  size_t max_capacity_bytes_ = 8.5 * kBlockSizeBytes;
 
   std::unique_ptr<QuicStreamSequencerBuffer> buffer_;
   std::unique_ptr<QuicStreamSequencerBufferPeer> helper_;
@@ -86,18 +86,18 @@ class QuicStreamSequencerBufferTest : public QuicTest {
 TEST_F(QuicStreamSequencerBufferTest, InitializeWithMaxRecvWindowSize) {
   ResetMaxCapacityBytes(16 * 1024 * 1024);  // 16MB
   EXPECT_EQ(2 * 1024u,                      // 16MB / 8KB = 2K
-            helper_->block_count());
+            helper_->max_blocks_count());
   EXPECT_EQ(max_capacity_bytes_, helper_->max_buffer_capacity());
   EXPECT_TRUE(helper_->CheckInitialState());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, InitializationWithDifferentSizes) {
-  const size_t kCapacity = 2 * QuicStreamSequencerBuffer::kBlockSizeBytes;
+  const size_t kCapacity = 16 * QuicStreamSequencerBuffer::kBlockSizeBytes;
   ResetMaxCapacityBytes(kCapacity);
   EXPECT_EQ(max_capacity_bytes_, helper_->max_buffer_capacity());
   EXPECT_TRUE(helper_->CheckInitialState());
 
-  const size_t kCapacity1 = 8 * QuicStreamSequencerBuffer::kBlockSizeBytes;
+  const size_t kCapacity1 = 32 * QuicStreamSequencerBuffer::kBlockSizeBytes;
   ResetMaxCapacityBytes(kCapacity1);
   EXPECT_EQ(kCapacity1, helper_->max_buffer_capacity());
   EXPECT_TRUE(helper_->CheckInitialState());
@@ -399,7 +399,7 @@ TEST_F(QuicStreamSequencerBufferTest,
   // Try to write from [max_capacity_bytes_ - 0.5 * kBlockSizeBytes,
   // max_capacity_bytes_ +  512 + 1). But last bytes exceeds current capacity.
   source = std::string(0.5 * kBlockSizeBytes + 512 + 1, 'b');
-  EXPECT_THAT(buffer_->OnStreamData(2 * kBlockSizeBytes, source, &written_,
+  EXPECT_THAT(buffer_->OnStreamData(8 * kBlockSizeBytes, source, &written_,
                                     &error_details_),
               IsError(QUIC_INTERNAL_ERROR));
   EXPECT_TRUE(helper_->CheckBufferInvariants());
@@ -523,15 +523,15 @@ TEST_F(QuicStreamSequencerBufferTest,
 
 TEST_F(QuicStreamSequencerBufferTest,
        GetReadableRegionsWithMultipleIOVsAcrossEnd) {
-  // Write into [0, 2 * kBlockSizeBytes + 1024) and then read out [0, 1024)
+  // Write into [0, 8.5 * kBlockSizeBytes - 1024) and then read out [0, 1024)
   // and then append 1024 + 512 bytes.
-  std::string source(2.5 * kBlockSizeBytes - 1024, 'a');
+  std::string source(8.5 * kBlockSizeBytes - 1024, 'a');
   buffer_->OnStreamData(0, source, &written_, &error_details_);
   char dest[1024];
   helper_->Read(dest, 1024);
   // Write across the end.
   source = std::string(1024 + 512, 'b');
-  buffer_->OnStreamData(2.5 * kBlockSizeBytes - 1024, source, &written_,
+  buffer_->OnStreamData(8.5 * kBlockSizeBytes - 1024, source, &written_,
                         &error_details_);
   // Use short iovec's.
   iovec iovs[2];
@@ -540,11 +540,11 @@ TEST_F(QuicStreamSequencerBufferTest,
   EXPECT_EQ(kBlockSizeBytes - 1024, iovs[0].iov_len);
   EXPECT_EQ(kBlockSizeBytes, iovs[1].iov_len);
   // Use long iovec's and wrap the end of buffer.
-  iovec iovs1[5];
-  EXPECT_EQ(4, buffer_->GetReadableRegions(iovs1, 5));
-  EXPECT_EQ(0.5 * kBlockSizeBytes, iovs1[2].iov_len);
-  EXPECT_EQ(512u, iovs1[3].iov_len);
-  EXPECT_EQ(std::string(512, 'b'), IovecToStringPiece(iovs1[3]));
+  iovec iovs1[11];
+  EXPECT_EQ(10, buffer_->GetReadableRegions(iovs1, 11));
+  EXPECT_EQ(0.5 * kBlockSizeBytes, iovs1[8].iov_len);
+  EXPECT_EQ(512u, iovs1[9].iov_len);
+  EXPECT_EQ(std::string(512, 'b'), IovecToStringPiece(iovs1[9]));
 }
 
 TEST_F(QuicStreamSequencerBufferTest, GetReadableRegionEmpty) {
@@ -795,20 +795,20 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossBlock) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossEnd) {
-  // Write into [0, 2.5 * kBlockSizeBytes - 1024) and then read out [0, 1024)
+  // Write into [0, 8.5 * kBlockSizeBytes - 1024) and then read out [0, 1024)
   // and then append 1024 + 512 bytes.
-  std::string source(2.5 * kBlockSizeBytes - 1024, 'a');
+  std::string source(8.5 * kBlockSizeBytes - 1024, 'a');
   buffer_->OnStreamData(0, source, &written_, &error_details_);
   char dest[1024];
   helper_->Read(dest, 1024);
   source = std::string(1024 + 512, 'b');
-  buffer_->OnStreamData(2.5 * kBlockSizeBytes - 1024, source, &written_,
+  buffer_->OnStreamData(8.5 * kBlockSizeBytes - 1024, source, &written_,
                         &error_details_);
   EXPECT_EQ(1024u, buffer_->BytesConsumed());
 
-  // Consume to the end of 2nd block.
-  buffer_->MarkConsumed(2 * kBlockSizeBytes - 1024);
-  EXPECT_EQ(2 * kBlockSizeBytes, buffer_->BytesConsumed());
+  // Consume to the end of 8th block.
+  buffer_->MarkConsumed(8 * kBlockSizeBytes - 1024);
+  EXPECT_EQ(8 * kBlockSizeBytes, buffer_->BytesConsumed());
   // Consume across the physical end of buffer
   buffer_->MarkConsumed(0.5 * kBlockSizeBytes + 500);
   EXPECT_EQ(max_capacity_bytes_ + 500, buffer_->BytesConsumed());
@@ -821,7 +821,7 @@ TEST_F(QuicStreamSequencerBufferTest, MarkConsumedAcrossEnd) {
 }
 
 TEST_F(QuicStreamSequencerBufferTest, FlushBufferedFrames) {
-  // Write into [0, 2.5 * kBlockSizeBytes - 1024) and then read out [0, 1024).
+  // Write into [0, 8.5 * kBlockSizeBytes - 1024) and then read out [0, 1024).
   std::string source(max_capacity_bytes_ - 1024, 'a');
   buffer_->OnStreamData(0, source, &written_, &error_details_);
   char dest[1024];
@@ -869,7 +869,7 @@ class QuicStreamSequencerBufferRandomIOTest
   void SetUp() override {
     // Test against a larger capacity then above tests. Also make sure the last
     // block is partially available to use.
-    max_capacity_bytes_ = 6.25 * kBlockSizeBytes;
+    max_capacity_bytes_ = 8.25 * kBlockSizeBytes;
     // Stream to be buffered should be larger than the capacity to test wrap
     // around.
     bytes_to_buffer_ = 2 * max_capacity_bytes_;
@@ -1088,6 +1088,50 @@ TEST_F(QuicStreamSequencerBufferRandomIOTest, RandomWriteAndConsumeInPlace) {
   EXPECT_LE(bytes_to_buffer_, total_bytes_read_)
       << "iterations: " << iterations;
   EXPECT_LE(bytes_to_buffer_, total_bytes_written_);
+}
+
+TEST_F(QuicStreamSequencerBufferTest, GrowBlockSizeOnDemand) {
+  SetQuicReloadableFlag(quic_allocate_stream_sequencer_buffer_blocks_on_demand,
+                        true);
+  max_capacity_bytes_ = 1024 * kBlockSizeBytes;
+  std::string source_of_one_block(kBlockSizeBytes, 'a');
+  Initialize();
+
+  ASSERT_EQ(helper_->current_blocks_count(), 0u);
+
+  // A minimum of 8 blocks are allocated
+  buffer_->OnStreamData(0, source_of_one_block, &written_, &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 8u);
+
+  // Number of blocks doesn't grow if the data is within the capacity.
+  buffer_->OnStreamData(kBlockSizeBytes * 7, source_of_one_block, &written_,
+                        &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 8u);
+
+  // Number of blocks grows by a factor of 4 normally.
+  buffer_->OnStreamData(kBlockSizeBytes * 8, "a", &written_, &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 32u);
+
+  // Number of blocks grow to the demanded size of 140 instead of 128 since
+  // that's not enough.
+  buffer_->OnStreamData(kBlockSizeBytes * 139, source_of_one_block, &written_,
+                        &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 140u);
+
+  // Number of blocks grows by a factor of 4 normally.
+  buffer_->OnStreamData(kBlockSizeBytes * 140, source_of_one_block, &written_,
+                        &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 560u);
+
+  // max_capacity_bytes is reached and number of blocks is capped.
+  buffer_->OnStreamData(kBlockSizeBytes * 560, source_of_one_block, &written_,
+                        &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 1024u);
+
+  // max_capacity_bytes is reached and number of blocks is capped.
+  buffer_->OnStreamData(kBlockSizeBytes * 1025, source_of_one_block, &written_,
+                        &error_details_);
+  ASSERT_EQ(helper_->current_blocks_count(), 1024u);
 }
 
 }  // anonymous namespace

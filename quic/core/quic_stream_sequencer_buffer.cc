@@ -4,6 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_stream_sequencer_buffer.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -32,9 +35,13 @@ const size_t kMaxNumDataIntervalsAllowed = 2 * kMaxPacketGap;
 
 QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)
     : max_buffer_capacity_bytes_(max_capacity_bytes),
-      blocks_count_(CalculateBlockCount(max_capacity_bytes)),
+      max_blocks_count_(CalculateBlockCount(max_capacity_bytes)),
+      current_blocks_count_(0u),
       total_bytes_read_(0),
       blocks_(nullptr) {
+  if (allocate_blocks_on_demand_) {
+    DCHECK_GE(max_blocks_count_, kInitialBlockCount);
+  }
   Clear();
 }
 
@@ -44,7 +51,9 @@ QuicStreamSequencerBuffer::~QuicStreamSequencerBuffer() {
 
 void QuicStreamSequencerBuffer::Clear() {
   if (blocks_ != nullptr) {
-    for (size_t i = 0; i < blocks_count_; ++i) {
+    size_t blocks_to_clear =
+        allocate_blocks_on_demand_ ? current_blocks_count_ : max_blocks_count_;
+    for (size_t i = 0; i < blocks_to_clear; ++i) {
       if (blocks_[i] != nullptr) {
         RetireBlock(i);
       }
@@ -66,6 +75,35 @@ bool QuicStreamSequencerBuffer::RetireBlock(size_t index) {
   return true;
 }
 
+void QuicStreamSequencerBuffer::MaybeAddMoreBlocks(size_t next_expected_byte) {
+  if (current_blocks_count_ == max_blocks_count_) {
+    return;
+  }
+  size_t last_byte = next_expected_byte - 1;
+  size_t num_of_blocks_needed;
+  // As long as last_byte does not wrap around, its index plus one blocks are
+  // needed. Otherwise, block_count_ blocks are needed.
+  if (last_byte < max_buffer_capacity_bytes_) {
+    num_of_blocks_needed =
+        std::max(GetBlockIndex(last_byte) + 1, kInitialBlockCount);
+  } else {
+    num_of_blocks_needed = max_blocks_count_;
+  }
+  if (current_blocks_count_ >= num_of_blocks_needed) {
+    return;
+  }
+  size_t new_block_count_ =
+      std::clamp(kBlocksGrowthFactor * current_blocks_count_,
+                 num_of_blocks_needed, max_blocks_count_);
+  auto new_blocks = std::make_unique<BufferBlock*[]>(new_block_count_);
+  if (blocks_ != nullptr) {
+    memcpy(new_blocks.get(), blocks_.get(),
+           current_blocks_count_ * sizeof(BufferBlock*));
+  }
+  blocks_ = std::move(new_blocks);
+  current_blocks_count_ = new_block_count_;
+}
+
 QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     QuicStreamOffset starting_offset,
     absl::string_view data,
@@ -83,6 +121,12 @@ QuicErrorCode QuicStreamSequencerBuffer::OnStreamData(
     *error_details = "Received data beyond available range.";
     return QUIC_INTERNAL_ERROR;
   }
+  if (allocate_blocks_on_demand_) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_allocate_stream_sequencer_buffer_blocks_on_demand);
+    MaybeAddMoreBlocks(starting_offset + size);
+  }
+
   if (bytes_received_.Empty() ||
       starting_offset >= bytes_received_.rbegin()->max() ||
       bytes_received_.IsDisjoint(QuicInterval<QuicStreamOffset>(
@@ -150,7 +194,9 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
   while (source_remaining > 0) {
     const size_t write_block_num = GetBlockIndex(offset);
     const size_t write_block_offset = GetInBlockOffset(offset);
-    DCHECK_GT(blocks_count_, write_block_num);
+    size_t current_blocks_count =
+        allocate_blocks_on_demand_ ? current_blocks_count_ : max_blocks_count_;
+    DCHECK_GT(current_blocks_count, write_block_num);
 
     size_t block_capacity = GetBlockCapacity(write_block_num);
     size_t bytes_avail = block_capacity - write_block_offset;
@@ -161,19 +207,21 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
       bytes_avail = total_bytes_read_ + max_buffer_capacity_bytes_ - offset;
     }
 
-    if (blocks_ == nullptr) {
-      blocks_.reset(new BufferBlock*[blocks_count_]());
-      for (size_t i = 0; i < blocks_count_; ++i) {
-        blocks_[i] = nullptr;
+    if (!allocate_blocks_on_demand_) {
+      if (blocks_ == nullptr) {
+        blocks_.reset(new BufferBlock*[max_blocks_count_]());
+        for (size_t i = 0; i < max_blocks_count_; ++i) {
+          blocks_[i] = nullptr;
+        }
       }
     }
 
-    if (write_block_num >= blocks_count_) {
+    if (write_block_num >= current_blocks_count) {
       *error_details = quiche::QuicheStrCat(
           "QuicStreamSequencerBuffer error: OnStreamData() exceed array bounds."
           "write offset = ",
           offset, " write_block_num = ", write_block_num,
-          " blocks_count_ = ", blocks_count_);
+          " current_blocks_count_ = ", current_blocks_count);
       return false;
     }
     if (blocks_ == nullptr) {
@@ -307,14 +355,14 @@ int QuicStreamSequencerBuffer::GetReadableRegions(struct iovec* iov,
   // before gap is met or |iov| is filled. For these blocks, one whole block is
   // a region.
   int iov_used = 1;
-  size_t block_idx = (start_block_idx + iov_used) % blocks_count_;
+  size_t block_idx = (start_block_idx + iov_used) % max_blocks_count_;
   while (block_idx != end_block_idx && iov_used < iov_len) {
     DCHECK(nullptr != blocks_[block_idx]);
     iov[iov_used].iov_base = blocks_[block_idx]->buffer;
     iov[iov_used].iov_len = GetBlockCapacity(block_idx);
     QUIC_DVLOG(1) << "Got block with index: " << block_idx;
     ++iov_used;
-    block_idx = (start_block_idx + iov_used) % blocks_count_;
+    block_idx = (start_block_idx + iov_used) % max_blocks_count_;
   }
 
   // Deal with last block if |iov| can hold more.
@@ -397,6 +445,7 @@ size_t QuicStreamSequencerBuffer::FlushBufferedFrames() {
 
 void QuicStreamSequencerBuffer::ReleaseWholeBuffer() {
   Clear();
+  current_blocks_count_ = 0;
   blocks_.reset(nullptr);
 }
 
@@ -472,7 +521,7 @@ bool QuicStreamSequencerBuffer::Empty() const {
 }
 
 size_t QuicStreamSequencerBuffer::GetBlockCapacity(size_t block_index) const {
-  if ((block_index + 1) == blocks_count_) {
+  if ((block_index + 1) == max_blocks_count_) {
     size_t result = max_buffer_capacity_bytes_ % kBlockSizeBytes;
     if (result == 0) {  // whole block
       result = kBlockSizeBytes;

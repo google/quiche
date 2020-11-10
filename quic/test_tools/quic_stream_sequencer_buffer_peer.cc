@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
+#include <cstddef>
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -45,7 +46,8 @@ bool QuicStreamSequencerBufferPeer::IsBlockArrayEmpty() {
     return true;
   }
 
-  size_t count = buffer_->blocks_count_;
+  size_t count = buffer_->allocate_blocks_on_demand_ ? current_blocks_count()
+                                                     : max_blocks_count();
   for (size_t i = 0; i < count; i++) {
     if (buffer_->blocks_[i] != nullptr) {
       return false;
@@ -79,10 +81,11 @@ bool QuicStreamSequencerBufferPeer::CheckBufferInvariants() {
   if (!capacity_sane) {
     QUIC_LOG(ERROR) << "read offset go beyond 1st block";
   }
-  bool block_match_capacity = (buffer_->max_buffer_capacity_bytes_ <=
-                               buffer_->blocks_count_ * kBlockSizeBytes) &&
-                              (buffer_->max_buffer_capacity_bytes_ >
-                               (buffer_->blocks_count_ - 1) * kBlockSizeBytes);
+  bool block_match_capacity =
+      (buffer_->max_buffer_capacity_bytes_ <=
+       buffer_->max_blocks_count_ * kBlockSizeBytes) &&
+      (buffer_->max_buffer_capacity_bytes_ >
+       (buffer_->max_blocks_count_ - 1) * kBlockSizeBytes);
   if (!capacity_sane) {
     QUIC_LOG(ERROR) << "block number not match capcaity.";
   }
@@ -143,8 +146,12 @@ bool QuicStreamSequencerBufferPeer::IsBufferAllocated() {
   return buffer_->blocks_ != nullptr;
 }
 
-size_t QuicStreamSequencerBufferPeer::block_count() {
-  return buffer_->blocks_count_;
+size_t QuicStreamSequencerBufferPeer::max_blocks_count() {
+  return buffer_->max_blocks_count_;
+}
+
+size_t QuicStreamSequencerBufferPeer::current_blocks_count() {
+  return buffer_->current_blocks_count_;
 }
 
 const QuicIntervalSet<QuicStreamOffset>&

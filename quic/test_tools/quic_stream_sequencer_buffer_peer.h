@@ -49,7 +49,9 @@ class QuicStreamSequencerBufferPeer {
 
   bool IsBufferAllocated();
 
-  size_t block_count();
+  size_t max_blocks_count();
+
+  size_t current_blocks_count();
 
   const QuicIntervalSet<QuicStreamOffset>& bytes_received();
 
