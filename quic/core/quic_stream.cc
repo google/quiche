@@ -499,7 +499,7 @@ bool QuicStream::OnStopSending(QuicRstStreamErrorCode code) {
   stream_error_ = code;
 
   if (session()->split_up_send_rst()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 1, 3);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst_2, 1, 3);
     MaybeSendRstStream(code);
   } else {
     session()->SendRstStream(id(), code, stream_bytes_written(),
@@ -593,7 +593,8 @@ void QuicStream::SetFinSent() {
 void QuicStream::Reset(QuicRstStreamErrorCode error) {
   stream_error_ = error;
   if (session()->split_up_send_rst()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 2, 3);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst_2, 2, 3);
+    QuicConnection::ScopedPacketFlusher flusher(session()->connection());
     MaybeSendStopSending(error);
     MaybeSendRstStream(error);
   } else {
@@ -925,7 +926,7 @@ void QuicStream::OnClose() {
       session_->MaybeCloseZombieStream(id_);
       rst_sent_ = true;
     } else {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst, 3, 3);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_split_up_send_rst_2, 3, 3);
       QUIC_BUG_IF(session()->connection()->connected() &&
                   session()->version().UsesHttp3())
           << "The stream should've already sent RST in response to "

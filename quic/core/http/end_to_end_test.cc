@@ -2381,7 +2381,20 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
   // Transmit the cancel, and ensure the connection is torn down properly.
   SetPacketLossPercentage(0);
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  const QuicPacketCount packets_sent_before =
+      client_connection->GetStats().packets_sent;
   session->ResetStream(stream_id, QUIC_STREAM_CANCELLED);
+  const QuicPacketCount packets_sent_now =
+      client_connection->GetStats().packets_sent;
+
+  if (version_.UsesHttp3() &&
+      absl::GetFlag(FLAGS_gfe2_reloadable_flag_quic_split_up_send_rst_2)) {
+    // Make sure 2 packets were sent, one for QPACK instructions, another for
+    // RESET_STREAM and STOP_SENDING.
+    EXPECT_EQ(packets_sent_before + 2, packets_sent_now);
+  }
 
   // WaitForEvents waits 50ms and returns true if there are outstanding
   // requests.

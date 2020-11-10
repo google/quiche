@@ -57,9 +57,6 @@ class MockQuicSession : public QboneSessionBase {
     return nullptr;
   }
 
-  const QuicCryptoStream* GetCryptoStream() const override { return nullptr; }
-  QuicCryptoStream* GetMutableCryptoStream() override { return nullptr; }
-
   // Called by QuicStream when they want to close stream.
   MOCK_METHOD(void,
               SendRstStream,
@@ -95,7 +92,7 @@ class MockQuicSession : public QboneSessionBase {
   }
 
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override {
-    return nullptr;
+    return std::make_unique<test::MockQuicCryptoStream>(this);
   }
 
   MOCK_METHOD(void, ProcessPacketFromPeer, (absl::string_view), (override));
@@ -162,6 +159,7 @@ class QboneReadOnlyStreamTest : public ::testing::Test,
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     session_ = std::make_unique<StrictMock<MockQuicSession>>(connection_.get(),
                                                              QuicConfig());
+    session_->Initialize();
     stream_ = new QboneReadOnlyStream(kStreamId, session_.get());
     session_->ActivateReliableStream(
         std::unique_ptr<QboneReadOnlyStream>(stream_));

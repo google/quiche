@@ -221,7 +221,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Called by stream to send RST_STREAM (and STOP_SENDING in IETF QUIC).
   // if |send_rst_only|, STOP_SENDING will not be sent for IETF QUIC.
-  // TODO(b/170233449): Delete this method when flag quic_split_up_send_rst is
+  // TODO(b/170233449): Delete this method when flag quic_split_up_send_rst_2 is
   // deprecated.
   virtual void SendRstStream(QuicStreamId id,
                              QuicRstStreamErrorCode error,
@@ -860,7 +860,8 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
 
-  const bool split_up_send_rst_ = GetQuicReloadableFlag(quic_split_up_send_rst);
+  const bool split_up_send_rst_ =
+      GetQuicReloadableFlag(quic_split_up_send_rst_2);
 
   const bool use_write_or_buffer_data_at_level_ =
       GetQuicReloadableFlag(quic_use_write_or_buffer_data_at_level);
