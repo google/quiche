@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
+#include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
@@ -178,7 +179,7 @@ class HpackDecoderAdapterTest
         decode_has_failed_ = true;
         return false;
       }
-      total_hpack_bytes = handler_.compressed_header_bytes_parsed();
+      total_hpack_bytes = handler_.compressed_header_bytes();
     } else {
       if (!HandleControlFrameHeadersComplete(&total_hpack_bytes)) {
         decode_has_failed_ = true;
@@ -187,7 +188,8 @@ class HpackDecoderAdapterTest
     }
     EXPECT_EQ(total_hpack_bytes, bytes_passed_in_);
     if (check_decoded_size && start_choice_ == START_WITH_HANDLER) {
-      EXPECT_EQ(handler_.header_bytes_parsed(), SizeOfHeaders(decoded_block()));
+      EXPECT_EQ(handler_.uncompressed_header_bytes(),
+                SizeOfHeaders(decoded_block()));
     }
     return true;
   }
@@ -252,7 +254,7 @@ class HpackDecoderAdapterTest
   http2::test::Http2Random random_;
   HpackDecoderAdapter decoder_;
   test::HpackDecoderAdapterPeer decoder_peer_;
-  TestHeadersHandler handler_;
+  RecordingHeadersHandler handler_;
   StartChoice start_choice_;
   bool randomly_split_input_buffer_;
   bool decode_has_failed_ = false;
@@ -1104,7 +1106,7 @@ TEST_P(HpackDecoderAdapterTest, ReuseNameOfEvictedEntry) {
   EXPECT_EQ(expected_header_set, decoded_block());
 
   if (start_choice_ == START_WITH_HANDLER) {
-    EXPECT_EQ(handler_.header_bytes_parsed(),
+    EXPECT_EQ(handler_.uncompressed_header_bytes(),
               6 * name.size() + 2 * value1.size() + 2 * value2.size() +
                   2 * value3.size());
   }

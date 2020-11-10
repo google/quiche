@@ -100,21 +100,5 @@ void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
   }
 }
 
-void TestHeadersHandler::OnHeaderBlockStart() {
-  block_.clear();
-}
-
-void TestHeadersHandler::OnHeader(absl::string_view name,
-                                  absl::string_view value) {
-  block_.AppendValueOrAddHeader(name, value);
-}
-
-void TestHeadersHandler::OnHeaderBlockEnd(
-    size_t header_bytes_parsed,
-    size_t compressed_header_bytes_parsed) {
-  header_bytes_parsed_ = header_bytes_parsed;
-  compressed_header_bytes_parsed_ = compressed_header_bytes_parsed;
-}
-
 }  // namespace test
 }  // namespace spdy

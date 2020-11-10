@@ -12,6 +12,7 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
+#include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
 
 namespace spdy {
@@ -117,7 +118,7 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
   SpdyHeadersHandlerInterface* ReturnTestHeadersHandler(
       SpdyStreamId /* stream_id */) {
     if (headers_handler_ == nullptr) {
-      headers_handler_ = std::make_unique<TestHeadersHandler>();
+      headers_handler_ = std::make_unique<RecordingHeadersHandler>();
     }
     return headers_handler_.get();
   }

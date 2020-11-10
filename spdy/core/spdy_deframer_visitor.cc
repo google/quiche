@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
+#include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
@@ -226,7 +227,7 @@ class SpdyTestDeframerImpl : public SpdyTestDeframer,
   std::unique_ptr<std::string> goaway_description_;
   std::unique_ptr<StringPairVector> headers_;
   std::unique_ptr<SettingVector> settings_;
-  std::unique_ptr<TestHeadersHandler> headers_handler_;
+  std::unique_ptr<RecordingHeadersHandler> headers_handler_;
 
   std::unique_ptr<SpdyGoAwayIR> goaway_ir_;
   std::unique_ptr<SpdyHeadersIR> headers_ir_;
@@ -531,7 +532,7 @@ void SpdyTestDeframerImpl::OnHeaders(SpdyStreamId stream_id,
   end_ = end;
 
   headers_ = std::make_unique<StringPairVector>();
-  headers_handler_ = std::make_unique<TestHeadersHandler>();
+  headers_handler_ = std::make_unique<RecordingHeadersHandler>();
   headers_ir_ = std::make_unique<SpdyHeadersIR>(stream_id);
   headers_ir_->set_fin(fin);
   if (has_priority) {
@@ -587,7 +588,7 @@ void SpdyTestDeframerImpl::OnPushPromise(SpdyStreamId stream_id,
   end_ = end;
 
   headers_ = std::make_unique<StringPairVector>();
-  headers_handler_ = std::make_unique<TestHeadersHandler>();
+  headers_handler_ = std::make_unique<RecordingHeadersHandler>();
   push_promise_ir_ =
       std::make_unique<SpdyPushPromiseIR>(stream_id, promised_stream_id);
 }

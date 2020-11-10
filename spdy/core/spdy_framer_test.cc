@@ -17,6 +17,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
 #include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
+#include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_bitmasks.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_frame_reader.h"
@@ -315,7 +316,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
       SpdyStreamId /*stream_id*/) override {
     if (headers_handler_ == nullptr) {
-      headers_handler_ = std::make_unique<TestHeadersHandler>();
+      headers_handler_ = std::make_unique<RecordingHeadersHandler>();
     }
     return headers_handler_.get();
   }
@@ -323,7 +324,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   void OnHeaderFrameEnd(SpdyStreamId /*stream_id*/) override {
     CHECK(headers_handler_ != nullptr);
     headers_ = headers_handler_->decoded_block().Clone();
-    header_bytes_received_ = headers_handler_->header_bytes_parsed();
+    header_bytes_received_ = headers_handler_->uncompressed_header_bytes();
     headers_handler_.reset();
   }
 
@@ -531,7 +532,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   SpdyStreamId header_stream_id_;
   SpdyFrameType header_control_type_;
   bool header_buffer_valid_;
-  std::unique_ptr<TestHeadersHandler> headers_handler_;
+  std::unique_ptr<RecordingHeadersHandler> headers_handler_;
   Http2HeaderBlock headers_;
   bool header_has_priority_;
   SpdyStreamId header_parent_stream_id_;
