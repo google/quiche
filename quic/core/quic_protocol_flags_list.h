@@ -162,7 +162,7 @@ QUIC_PROTOCOL_FLAG(
 QUIC_PROTOCOL_FLAG(
     double,
     quic_bbr2_default_inflight_hi_headroom,
-    0.01,
+    0.15,
     "The default fraction of unutilized headroom to try to leave in path "
     "upon high loss.")
 
