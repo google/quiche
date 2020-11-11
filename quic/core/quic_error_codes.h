@@ -556,8 +556,15 @@ enum QuicErrorCode {
   // AEAD algorithm used by the given connection.
   QUIC_AEAD_LIMIT_REACHED = 173,
 
+  // Connection reached maximum age (regardless of activity), no new requests
+  // are accepted.  This error code is sent in transport layer GOAWAY frame when
+  // using gQUIC, and only used internally when using HTTP/3.  Active requests
+  // are still served, after which connection will be closed due to idle
+  // timeout.
+  QUIC_MAX_AGE_TIMEOUT = 191,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 191,
+  QUIC_LAST_ERROR = 192,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
