@@ -197,9 +197,15 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Parses the payload of a SETTINGS frame from |reader| into |frame|.
   bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);
 
-  // Parses the payload of a PRIORITY_UPDATE frame from |reader| into |frame|.
+  // Parses the payload of a PRIORITY_UPDATE frame (draft-01, type 0x0f)
+  // from |reader| into |frame|.
   bool ParsePriorityUpdateFrame(QuicDataReader* reader,
                                 PriorityUpdateFrame* frame);
+
+  // Parses the payload of a PRIORITY_UPDATE frame (draft-02, type 0xf0700)
+  // from |reader| into |frame|.
+  bool ParseNewPriorityUpdateFrame(QuicDataReader* reader,
+                                   PriorityUpdateFrame* frame);
 
   // Returns the max frame size of a given |frame_type|.
   QuicByteCount MaxFrameLength(uint64_t frame_type);
