@@ -93,7 +93,7 @@ void TlsHandshaker::AdvanceHandshake() {
     return;
   }
 
-  QUIC_LOG(INFO) << "TlsHandshaker: continuing handshake";
+  QUIC_VLOG(1) << "TlsHandshaker: continuing handshake";
   int rv = SSL_do_handshake(ssl());
   if (rv == 1) {
     FinishHandshake();
