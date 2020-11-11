@@ -170,6 +170,10 @@ class QUIC_EXPORT_PRIVATE QuicUtils {
       QuicTransportVersion version,
       Perspective perspective);
 
+  // Returns the largest possible client initiated bidirectional stream ID.
+  static QuicStreamId GetMaxClientInitiatedBidirectionalStreamId(
+      QuicTransportVersion version);
+
   // Generates a connection ID of length |expected_connection_id_length|
   // derived from |connection_id|.
   // This is guaranteed to be deterministic (calling this method with two

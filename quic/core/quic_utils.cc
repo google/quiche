@@ -494,6 +494,18 @@ QuicStreamId QuicUtils::GetFirstUnidirectionalStreamId(
 }
 
 // static
+QuicStreamId QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
+    QuicTransportVersion version) {
+  if (VersionHasIetfQuicFrames(version)) {
+    // Client initiated bidirectional streams have stream IDs divisible by 4.
+    return std::numeric_limits<QuicStreamId>::max() - 3;
+  }
+
+  // Client initiated bidirectional streams have odd stream IDs.
+  return std::numeric_limits<QuicStreamId>::max();
+}
+
+// static
 QuicConnectionId QuicUtils::CreateReplacementConnectionId(
     const QuicConnectionId& connection_id) {
   return CreateReplacementConnectionId(connection_id,

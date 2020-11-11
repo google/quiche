@@ -921,8 +921,19 @@ void QuicSession::SendGoAway(QuicErrorCode error_code,
     return;
   }
   transport_goaway_sent_ = true;
-  control_frame_manager_.WriteOrBufferGoAway(
-      error_code, stream_id_manager_.largest_peer_created_stream_id(), reason);
+  if (GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
+    DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_goaway_with_max_stream_id, 2, 2);
+    control_frame_manager_.WriteOrBufferGoAway(
+        error_code,
+        QuicUtils::GetMaxClientInitiatedBidirectionalStreamId(
+            transport_version()),
+        reason);
+  } else {
+    control_frame_manager_.WriteOrBufferGoAway(
+        error_code, stream_id_manager_.largest_peer_created_stream_id(),
+        reason);
+  }
 }
 
 void QuicSession::SendBlocked(QuicStreamId id) {

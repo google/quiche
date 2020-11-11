@@ -227,15 +227,14 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Send GOAWAY if the peer is blocked on the implementation max.
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
 
-  // Write GOAWAY frame on the control stream to notify the client that every
-  // stream that has not reached the server yet can be retried.  Do not send a
-  // GOAWAY frame if it could not convey new information to the client with
-  // respect to the previous GOAWAY frame.
+  // Write GOAWAY frame with maximum stream ID on the control stream.  Called to
+  // initite graceful connection shutdown.  Do not use smaller stream ID, in
+  // case client does not implement retry on GOAWAY.  Do not send GOAWAY if one
+  // has already been sent.
   void SendHttp3GoAway();
 
-  // Write advisory GOAWAY frame on the control stream with the max stream ID
-  // that the client could send. If GOAWAY has already been sent, the lesser of
-  // its max stream ID and the one advertised via MAX_STREAMS is used.
+  // Same as SendHttp3GoAway().  TODO(bnc): remove when
+  // gfe2_reloadable_flag_quic_goaway_with_max_stream_id flag is deprecated.
   void SendHttp3Shutdown();
 
   // Write |headers| for |promised_stream_id| on |original_stream_id| in a
@@ -606,6 +605,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Latched value of reloadable flag quic_reject_spdy_settings.
   const bool reject_spdy_settings_;
+
+  // Latched value of reloadable flag quic_goaway_with_max_stream_id.
+  const bool goaway_with_max_stream_id_;
 };
 
 }  // namespace quic
