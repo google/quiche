@@ -275,10 +275,9 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   };
 
   // QuicLinkedHashMap allows lookup by ConnectionId and traversal in add order.
-  typedef QuicLinkedHashMap<QuicConnectionId,
-                            ConnectionIdData,
-                            QuicConnectionIdHash>
-      ConnectionIdMap;
+  using ConnectionIdMap = QuicLinkedHashMap<QuicConnectionId,
+                                            ConnectionIdData,
+                                            QuicConnectionIdHash>;
   ConnectionIdMap connection_id_map_;
 
   // Pending termination packets that need to be sent out to the peer when we

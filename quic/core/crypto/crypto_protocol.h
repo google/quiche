@@ -24,7 +24,7 @@
 
 namespace quic {
 
-typedef std::string ServerConfigID;
+using ServerConfigID = std::string;
 
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",

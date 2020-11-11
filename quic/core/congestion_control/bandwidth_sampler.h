@@ -129,11 +129,10 @@ class QUIC_EXPORT_PRIVATE MaxAckHeightTracker {
  private:
   // Tracks the maximum number of bytes acked faster than the estimated
   // bandwidth.
-  typedef WindowedFilter<QuicByteCount,
-                         MaxFilter<QuicByteCount>,
-                         QuicRoundTripCount,
-                         QuicRoundTripCount>
-      MaxAckHeightFilter;
+  using MaxAckHeightFilter = WindowedFilter<QuicByteCount,
+                                            MaxFilter<QuicByteCount>,
+                                            QuicRoundTripCount,
+                                            QuicRoundTripCount>;
   MaxAckHeightFilter max_ack_height_filter_;
 
   // The time this aggregation started and the number of bytes acked during it.

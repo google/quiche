@@ -133,7 +133,7 @@ static_assert(offsetof(QuicStreamFrame, type) == offsetof(QuicFrame, type),
 
 // A inline size of 1 is chosen to optimize the typical use case of
 // 1-stream-frame in QuicTransmissionInfo.retransmittable_frames.
-typedef QuicInlinedVector<QuicFrame, 1> QuicFrames;
+using QuicFrames = QuicInlinedVector<QuicFrame, 1>;
 
 // Deletes all the sub-frames contained in |frames|.
 QUIC_EXPORT_PRIVATE void DeleteFrames(QuicFrames* frames);

@@ -41,7 +41,7 @@ class QUIC_NO_EXPORT QuicDispatcher
       public QuicBufferedPacketStore::VisitorInterface {
  public:
   // Ideally we'd have a linked_hash_set: the  boolean is unused.
-  typedef QuicLinkedHashMap<QuicBlockedWriterInterface*, bool> WriteBlockedList;
+  using WriteBlockedList = QuicLinkedHashMap<QuicBlockedWriterInterface*, bool>;
 
   QuicDispatcher(
       const QuicConfig* config,

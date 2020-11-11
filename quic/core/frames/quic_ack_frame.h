@@ -29,9 +29,9 @@ class QUIC_EXPORT_PRIVATE PacketNumberQueue {
   PacketNumberQueue& operator=(const PacketNumberQueue& other);
   PacketNumberQueue& operator=(PacketNumberQueue&& other);
 
-  typedef QuicIntervalSet<QuicPacketNumber>::const_iterator const_iterator;
-  typedef QuicIntervalSet<QuicPacketNumber>::const_reverse_iterator
-      const_reverse_iterator;
+  using const_iterator = QuicIntervalSet<QuicPacketNumber>::const_iterator;
+  using const_reverse_iterator =
+      QuicIntervalSet<QuicPacketNumber>::const_reverse_iterator;
 
   // Adds |packet_number| to the set of packets in the queue.
   void Add(QuicPacketNumber packet_number);

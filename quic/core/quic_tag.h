@@ -22,9 +22,9 @@ namespace quic {
 // Tags will often be referred to by their ASCII equivalent, e.g. EXMP. This is
 // just a mnemonic for the value 0x504d5845 (little-endian version of the ASCII
 // string E X M P).
-typedef uint32_t QuicTag;
-typedef std::map<QuicTag, std::string> QuicTagValueMap;
-typedef std::vector<QuicTag> QuicTagVector;
+using QuicTag = uint32_t;
+using QuicTagValueMap = std::map<QuicTag, std::string>;
+using QuicTagVector = std::vector<QuicTag>;
 
 // MakeQuicTag returns a value given the four bytes. For example:
 //   MakeQuicTag('C', 'H', 'L', 'O');

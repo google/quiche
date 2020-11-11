@@ -13,7 +13,7 @@
 namespace quic {
 namespace simulator {
 
-typedef size_t SwitchPortNumber;
+using SwitchPortNumber = size_t;
 
 // Simulates a network switch with simple persistent learning scheme and queues
 // on every output port.

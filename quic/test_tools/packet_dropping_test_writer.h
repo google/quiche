@@ -157,7 +157,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
     QuicTime send_time;
   };
 
-  typedef std::list<DelayedWrite> DelayedPacketList;
+  using DelayedPacketList = std::list<DelayedWrite>;
 
   const QuicClock* clock_;
   std::unique_ptr<QuicAlarm> write_unblocked_alarm_;

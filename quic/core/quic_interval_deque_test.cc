@@ -32,7 +32,7 @@ struct TestIntervalItem {
       : val(val), interval_start(interval_start), interval_end(interval_end) {}
 };
 
-typedef QuicIntervalDeque<TestIntervalItem> QID;
+using QID = QuicIntervalDeque<TestIntervalItem>;
 
 class QuicIntervalDequeTest : public QuicTest {
  public:

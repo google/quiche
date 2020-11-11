@@ -55,7 +55,7 @@ class Queue : public Actor, public UnconstrainedPortInterface {
                          QuicTime::Delta aggregation_timeout);
 
  private:
-  typedef uint64_t AggregationBundleNumber;
+  using AggregationBundleNumber = uint64_t;
 
   // In order to implement packet aggregation, each packet is tagged with a
   // bundle number.  The queue keeps a bundle counter, and whenever a bundle is

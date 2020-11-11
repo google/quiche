@@ -25,7 +25,7 @@ class QUIC_EXPORT_PRIVATE QuicSendmmsgBatchWriter : public QuicUdpBatchWriter {
   FlushImplResult FlushImpl() override;
 
  protected:
-  typedef QuicMMsgHdr::ControlBufferInitializer CmsgBuilder;
+  using CmsgBuilder = QuicMMsgHdr::ControlBufferInitializer;
   FlushImplResult InternalFlushImpl(size_t cmsg_space,
                                     const CmsgBuilder& cmsg_builder);
 };

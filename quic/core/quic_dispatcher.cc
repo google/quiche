@@ -27,9 +27,9 @@
 
 namespace quic {
 
-typedef QuicBufferedPacketStore::BufferedPacket BufferedPacket;
-typedef QuicBufferedPacketStore::BufferedPacketList BufferedPacketList;
-typedef QuicBufferedPacketStore::EnqueuePacketResult EnqueuePacketResult;
+using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
+using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;
+using EnqueuePacketResult = QuicBufferedPacketStore::EnqueuePacketResult;
 
 namespace {
 

@@ -20,7 +20,7 @@ namespace {
 
 template <typename T, template <typename> class BaseAllocator = std::allocator>
 class CountingAllocator : public BaseAllocator<T> {
-  typedef BaseAllocator<T> BaseType;
+  using BaseType = BaseAllocator<T>;
 
  public:
   using propagate_on_container_copy_assignment = std::true_type;
@@ -582,7 +582,7 @@ TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
 
   {
     // Move construct in Relocate.
-    typedef std::unique_ptr<Foo> MoveConstructible;
+    using MoveConstructible = std::unique_ptr<Foo>;
     ASSERT_FALSE(std::is_trivially_copyable<MoveConstructible>::value);
     ASSERT_TRUE(std::is_move_constructible<MoveConstructible>::value);
     QuicCircularDeque<MoveConstructible, 3,
@@ -603,7 +603,7 @@ TEST_F(QuicCircularDequeTest, RelocateNonTriviallyCopyable) {
 
   {
     // Copy construct in Relocate.
-    typedef Foo NonMoveConstructible;
+    using NonMoveConstructible = Foo;
     ASSERT_FALSE(std::is_trivially_copyable<NonMoveConstructible>::value);
     ASSERT_FALSE(std::is_move_constructible<NonMoveConstructible>::value);
     QuicCircularDeque<NonMoveConstructible, 3,

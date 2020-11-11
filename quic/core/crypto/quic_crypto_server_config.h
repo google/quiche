@@ -511,8 +511,8 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     ~Config() override;
   };
 
-  typedef std::map<ServerConfigID, QuicReferenceCountedPointer<Config>>
-      ConfigMap;
+  using ConfigMap =
+      std::map<ServerConfigID, QuicReferenceCountedPointer<Config>>;
 
   // Get a ref to the config with a given server config id.
   QuicReferenceCountedPointer<Config> GetConfigWithScid(

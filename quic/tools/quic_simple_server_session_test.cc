@@ -51,7 +51,7 @@ namespace quic {
 namespace test {
 namespace {
 
-typedef QuicSimpleServerSession::PromisedStreamInfo PromisedStreamInfo;
+using PromisedStreamInfo = QuicSimpleServerSession::PromisedStreamInfo;
 
 const QuicByteCount kHeadersFrameHeaderLength = 2;
 const QuicByteCount kHeadersFramePayloadLength = 9;

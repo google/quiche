@@ -67,18 +67,18 @@ namespace quic {
 template <typename T>
 class QUIC_NO_EXPORT QuicIntervalSet {
  public:
-  typedef QuicInterval<T> value_type;
+  using value_type = QuicInterval<T>;
 
  private:
   struct QUIC_NO_EXPORT IntervalLess {
     bool operator()(const value_type& a, const value_type& b) const;
   };
   // TODO(wub): Switch to absl::btree_set when it is available in Chromium.
-  typedef std::set<value_type, IntervalLess> Set;
+  using Set = std::set<value_type, IntervalLess>;
 
  public:
-  typedef typename Set::const_iterator const_iterator;
-  typedef typename Set::const_reverse_iterator const_reverse_iterator;
+  using const_iterator = typename Set::const_iterator;
+  using const_reverse_iterator = typename Set::const_reverse_iterator;
 
   // Instantiates an empty QuicIntervalSet.
   QuicIntervalSet() {}

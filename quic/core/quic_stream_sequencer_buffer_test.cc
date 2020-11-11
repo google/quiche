@@ -52,7 +52,7 @@ const size_t kMaxNumGapsAllowed = 2 * kMaxPacketGap;
 
 static const size_t kBlockSizeBytes =
     QuicStreamSequencerBuffer::kBlockSizeBytes;
-typedef QuicStreamSequencerBuffer::BufferBlock BufferBlock;
+using BufferBlock = QuicStreamSequencerBuffer::BufferBlock;
 
 namespace {
 
@@ -864,7 +864,7 @@ TEST_F(QuicStreamSequencerBufferTest, TooManyGaps) {
 class QuicStreamSequencerBufferRandomIOTest
     : public QuicStreamSequencerBufferTest {
  public:
-  typedef std::pair<QuicStreamOffset, size_t> OffsetSizePair;
+  using OffsetSizePair = std::pair<QuicStreamOffset, size_t>;
 
   void SetUp() override {
     // Test against a larger capacity then above tests. Also make sure the last

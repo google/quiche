@@ -376,8 +376,8 @@ TEST_F(QuicStreamSequencerTest, MultipleOffsets) {
 
 class QuicSequencerRandomTest : public QuicStreamSequencerTest {
  public:
-  typedef std::pair<int, std::string> Frame;
-  typedef std::vector<Frame> FrameList;
+  using Frame = std::pair<int, std::string>;
+  using FrameList = std::vector<Frame>;
 
   void CreateFrames() {
     int payload_size = ABSL_ARRAYSIZE(kPayload) - 1;

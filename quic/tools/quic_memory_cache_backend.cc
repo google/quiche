@@ -163,8 +163,8 @@ const QuicBackendResponse* QuicMemoryCacheBackend::GetResponse(
   return it->second.get();
 }
 
-typedef QuicBackendResponse::ServerPushInfo ServerPushInfo;
-typedef QuicBackendResponse::SpecialResponseType SpecialResponseType;
+using ServerPushInfo = QuicBackendResponse::ServerPushInfo;
+using SpecialResponseType = QuicBackendResponse::SpecialResponseType;
 
 void QuicMemoryCacheBackend::AddSimpleResponse(absl::string_view host,
                                                absl::string_view path,

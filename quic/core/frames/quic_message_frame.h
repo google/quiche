@@ -13,7 +13,7 @@
 
 namespace quic {
 
-typedef QuicInlinedVector<QuicMemSlice, 1> QuicMessageData;
+using QuicMessageData = QuicInlinedVector<QuicMemSlice, 1>;
 
 struct QUIC_EXPORT_PRIVATE QuicMessageFrame {
   QuicMessageFrame() = default;

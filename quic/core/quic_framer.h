@@ -708,7 +708,7 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
  private:
   friend class test::QuicFramerPeer;
 
-  typedef std::map<QuicPacketNumber, uint8_t> NackRangeMap;
+  using NackRangeMap = std::map<QuicPacketNumber, uint8_t>;
 
   struct QUIC_EXPORT_PRIVATE AckFrameInfo {
     AckFrameInfo();

@@ -161,9 +161,8 @@ struct QUIC_EXPORT_PRIVATE BufferedWrite {
 //   QuicSocketUtils::WriteMultiplePackets(fd, &mhdr, &num_packets_sent);
 class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
  public:
-  typedef std::function<
-      void(QuicMMsgHdr* mhdr, int i, const BufferedWrite& buffered_write)>
-      ControlBufferInitializer;
+  using ControlBufferInitializer = std::function<
+      void(QuicMMsgHdr* mhdr, int i, const BufferedWrite& buffered_write)>;
   template <typename IteratorT>
   QuicMMsgHdr(const IteratorT& first,
               const IteratorT& last,

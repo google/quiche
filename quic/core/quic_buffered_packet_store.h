@@ -77,10 +77,9 @@ class QUIC_NO_EXPORT QuicBufferedPacketStore {
     TlsChloExtractor tls_chlo_extractor;
   };
 
-  typedef QuicLinkedHashMap<QuicConnectionId,
-                            BufferedPacketList,
-                            QuicConnectionIdHash>
-      BufferedPacketMap;
+  using BufferedPacketMap = QuicLinkedHashMap<QuicConnectionId,
+                                              BufferedPacketList,
+                                              QuicConnectionIdHash>;
 
   class QUIC_NO_EXPORT VisitorInterface {
    public:

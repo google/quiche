@@ -24,7 +24,7 @@
 
 namespace quic {
 
-typedef uint64_t QuicRoundTripCount;
+using QuicRoundTripCount = uint64_t;
 
 class CachedNetworkParameters;
 class RttStats;

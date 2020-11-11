@@ -175,17 +175,15 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   // For switching send algorithm mid connection.
   friend class Bbr2Sender;
 
-  typedef WindowedFilter<QuicBandwidth,
-                         MaxFilter<QuicBandwidth>,
-                         QuicRoundTripCount,
-                         QuicRoundTripCount>
-      MaxBandwidthFilter;
+  using MaxBandwidthFilter = WindowedFilter<QuicBandwidth,
+                                            MaxFilter<QuicBandwidth>,
+                                            QuicRoundTripCount,
+                                            QuicRoundTripCount>;
 
-  typedef WindowedFilter<QuicByteCount,
-                         MaxFilter<QuicByteCount>,
-                         QuicRoundTripCount,
-                         QuicRoundTripCount>
-      MaxAckHeightFilter;
+  using MaxAckHeightFilter = WindowedFilter<QuicByteCount,
+                                            MaxFilter<QuicByteCount>,
+                                            QuicRoundTripCount,
+                                            QuicRoundTripCount>;
 
   // Returns whether the connection has achieved full bandwidth required to exit
   // the slow start.

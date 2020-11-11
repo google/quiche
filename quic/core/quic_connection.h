@@ -1217,7 +1217,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
  private:
   friend class test::QuicConnectionPeer;
 
-  typedef std::list<SerializedPacket> QueuedPacketList;
+  using QueuedPacketList = std::list<SerializedPacket>;
 
   // BufferedPacket stores necessary information (encrypted buffer and self/peer
   // addresses) of those packets which are serialized but failed to send because

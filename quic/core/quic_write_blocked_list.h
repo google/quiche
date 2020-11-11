@@ -27,7 +27,7 @@ namespace quic {
 // Crypto stream > Headers stream > Data streams by requested priority.
 class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
  private:
-  typedef spdy::WriteScheduler<QuicStreamId> QuicPriorityWriteScheduler;
+  using QuicPriorityWriteScheduler = spdy::WriteScheduler<QuicStreamId>;
 
  public:
   explicit QuicWriteBlockedList(QuicTransportVersion version);
@@ -118,7 +118,7 @@ class QUIC_EXPORT_PRIVATE QuicWriteBlockedList {
     };
 
     // Optimized for the typical case of 2 static streams per session.
-    typedef QuicInlinedVector<StreamIdBlockedPair, 2> StreamsVector;
+    using StreamsVector = QuicInlinedVector<StreamIdBlockedPair, 2>;
 
     StreamsVector::const_iterator begin() const { return streams_.cbegin(); }
 
