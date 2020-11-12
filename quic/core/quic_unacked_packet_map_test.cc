@@ -669,6 +669,32 @@ TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
   ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 16u);
 }
 
+TEST_P(QuicUnackedPacketMapTest, DebugString) {
+  EXPECT_EQ(unacked_packets_.DebugString(),
+            "{size: 0, least_unacked: 1, largest_sent_packet: uninitialized, "
+            "largest_acked: uninitialized, bytes_in_flight: 0, "
+            "packets_in_flight: 0}");
+
+  SerializedPacket packet1(CreateRetransmittablePacket(1));
+  unacked_packets_.AddSentPacket(&packet1, NOT_RETRANSMISSION, now_, true,
+                                 true);
+  EXPECT_EQ(
+      unacked_packets_.DebugString(),
+      "{size: 1, least_unacked: 1, largest_sent_packet: 1, largest_acked: "
+      "uninitialized, bytes_in_flight: 1000, packets_in_flight: 1}");
+
+  SerializedPacket packet2(CreateRetransmittablePacket(2));
+  unacked_packets_.AddSentPacket(&packet2, NOT_RETRANSMISSION, now_, true,
+                                 true);
+  unacked_packets_.RemoveFromInFlight(QuicPacketNumber(1));
+  unacked_packets_.IncreaseLargestAcked(QuicPacketNumber(1));
+  unacked_packets_.RemoveObsoletePackets();
+  EXPECT_EQ(
+      unacked_packets_.DebugString(),
+      "{size: 1, least_unacked: 2, largest_sent_packet: 2, largest_acked: 1, "
+      "bytes_in_flight: 1000, packets_in_flight: 1}");
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

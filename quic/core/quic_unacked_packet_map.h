@@ -15,6 +15,7 @@
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -316,6 +317,16 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
     if (use_circular_deque_) {
       unacked_packets_.reserve(initial_capacity);
     }
+  }
+
+  std::string DebugString() const {
+    return quiche::QuicheStringPrintf(
+        "{size: %zu, least_unacked: %s, largest_sent_packet: %s, "
+        "largest_acked: %s, bytes_in_flight: %zu, packets_in_flight: %zu}",
+        unacked_packets_size(), least_unacked_.ToString().c_str(),
+        largest_sent_packet_.ToString().c_str(),
+        largest_acked_.ToString().c_str(), bytes_in_flight_,
+        packets_in_flight_);
   }
 
  private:

@@ -174,9 +174,12 @@ void BandwidthSampler::OnPacketSent(
                << max_tracked_packets_
                << ").  First tracked: " << connection_state_map_.first_packet()
                << "; last tracked: " << connection_state_map_.last_packet()
-               << "; least unacked: " << unacked_packet_map_->GetLeastUnacked()
-               << "; packet number: " << packet_number << "; largest observed: "
-               << unacked_packet_map_->largest_acked();
+               << "; entry_slots_used: "
+               << connection_state_map_.entry_slots_used()
+               << "; number_of_present_entries: "
+               << connection_state_map_.number_of_present_entries()
+               << "; packet number: " << packet_number
+               << "; unacked_map: " << unacked_packet_map_->DebugString();
     } else {
       QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
                   "number of tracked packets.";
