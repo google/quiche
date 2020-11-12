@@ -18,7 +18,6 @@ MasqueEpollServer::MasqueEpollServer(MasqueServerBackend* masque_server_backend)
       masque_server_backend_(masque_server_backend) {}
 
 QuicDispatcher* MasqueEpollServer::CreateQuicDispatcher() {
-  QuicEpollAlarmFactory alarm_factory(epoll_server());
   return new MasqueDispatcher(
       &config(), &crypto_config(), version_manager(),
       std::make_unique<QuicEpollConnectionHelper>(epoll_server(),
