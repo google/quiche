@@ -1176,7 +1176,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
           {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
       return QuicPacketCreatorPeer::
           SerializePathChallengeConnectivityProbingPacket(&peer_creator_,
-                                                          &payload);
+                                                          payload);
     }
     return QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
         &peer_creator_);
@@ -6505,9 +6505,10 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
       .Times(1);
   if (connection_.send_path_response() &&
       VersionHasIetfQuicFrames(GetParam().version.transport_version)) {
-    QuicPathFrameBuffer payload;
+    QuicPathFrameBuffer payload{
+        {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SendPathChallenge(&payload, connection_.self_address(),
+    connection_.SendPathChallenge(payload, connection_.self_address(),
                                   connection_.peer_address(), writer_.get());
   } else {
     connection_.SendConnectivityProbingPacket(writer_.get(),
@@ -11342,7 +11343,7 @@ TEST_P(QuicConnectionTest, SendPathChallenge) {
   const QuicSocketAddress kNewSourceAddress(QuicIpAddress::Any6(), 12345);
   EXPECT_NE(kNewSourceAddress, connection_.self_address());
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
-  QuicPathFrameBuffer payload;
+  QuicPathFrameBuffer payload{{0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .WillOnce(Invoke([&]() {
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
@@ -11355,7 +11356,7 @@ TEST_P(QuicConnectionTest, SendPathChallenge) {
         EXPECT_EQ(kNewSourceAddress.host(),
                   new_writer.last_write_source_address());
       }));
-  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+  connection_.SendPathChallenge(payload, kNewSourceAddress,
                                 connection_.peer_address(), &new_writer);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 }
@@ -11370,7 +11371,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   EXPECT_NE(kNewSourceAddress, connection_.self_address());
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   new_writer.BlockOnNextWrite();
-  QuicPathFrameBuffer payload;
+  QuicPathFrameBuffer payload{{0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(0);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .WillOnce(Invoke([&]() {
@@ -11386,7 +11387,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
         EXPECT_EQ(kNewSourceAddress.host(),
                   new_writer.last_write_source_address());
       }));
-  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+  connection_.SendPathChallenge(payload, kNewSourceAddress,
                                 connection_.peer_address(), &new_writer);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
@@ -11408,7 +11409,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeWithDefaultSocketBlocked) {
   }
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any6(), 12345);
   writer_->BlockOnNextWrite();
-  QuicPathFrameBuffer payload;
+  QuicPathFrameBuffer payload{{0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
   // 1st time is after writer returns WRITE_STATUS_BLOCKED. 2nd time is in
   // ShouldGeneratePacket();
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(2u);
@@ -11423,14 +11424,14 @@ TEST_P(QuicConnectionTest, SendPathChallengeWithDefaultSocketBlocked) {
         EXPECT_EQ(1u, writer_->padding_frames().size());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
       }));
-  connection_.SendPathChallenge(&payload, connection_.self_address(),
+  connection_.SendPathChallenge(payload, connection_.self_address(),
                                 kNewPeerAddress, writer_.get());
   EXPECT_EQ(1u, writer_->packets_write_attempts());
 
   memset(payload.data(), 0, sizeof(payload));
   // Try again with the new socket blocked from the beginning. The 2nd
   // PATH_CHALLENGE shouldn't be serialized, but be dropped.
-  connection_.SendPathChallenge(&payload, connection_.self_address(),
+  connection_.SendPathChallenge(payload, connection_.self_address(),
                                 kNewPeerAddress, writer_.get());
   // No more write attempt should be made.
   EXPECT_EQ(1u, writer_->packets_write_attempts());
@@ -11453,11 +11454,11 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnNewSocket) {
   EXPECT_NE(kNewSourceAddress, connection_.self_address());
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   new_writer.SetShouldWriteFail();
-  QuicPathFrameBuffer payload;
+  QuicPathFrameBuffer payload{{0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(0);
 
-  connection_.SendPathChallenge(&payload, kNewSourceAddress,
+  connection_.SendPathChallenge(payload, kNewSourceAddress,
                                 connection_.peer_address(), &new_writer);
   // Regardless of the write error, the PATH_CHALLENGE should still be
   // treated as sent.
@@ -11481,7 +11482,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
   writer_->SetShouldWriteFail();
-  QuicPathFrameBuffer payload;
+  QuicPathFrameBuffer payload{{0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce(
           Invoke([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
@@ -11492,7 +11493,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
     // Add a flusher to force flush, otherwise the frames will remain in the
     // packet creator.
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SendPathChallenge(&payload, connection_.self_address(),
+    connection_.SendPathChallenge(payload, connection_.self_address(),
                                   connection_.peer_address(), writer_.get());
   }
   EXPECT_EQ(1u, writer_->packets_write_attempts());

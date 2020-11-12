@@ -875,7 +875,7 @@ QuicPacketCreator::SerializeConnectivityProbingPacket() {
 
 std::unique_ptr<SerializedPacket>
 QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
-    QuicPathFrameBuffer* payload) {
+    const QuicPathFrameBuffer& payload) {
   QUIC_BUG_IF(!VersionHasIetfQuicFrames(framer_->transport_version()))
       << "Must be version 99 to serialize path challenge connectivity probe, "
          "is version "
@@ -888,9 +888,9 @@ QuicPacketCreator::SerializePathChallengeConnectivityProbingPacket(
   QUIC_DVLOG(2) << ENDPOINT << "Serializing path challenge packet " << header;
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  size_t length = BuildPaddedPathChallengePacket(
-      header, buffer.get(), max_plaintext_size_, payload, random_,
-      packet_.encryption_level);
+  size_t length =
+      BuildPaddedPathChallengePacket(header, buffer.get(), max_plaintext_size_,
+                                     payload, packet_.encryption_level);
   DCHECK(length);
 
   DCHECK_EQ(packet_.encryption_level, ENCRYPTION_FORWARD_SECURE);
@@ -960,15 +960,13 @@ size_t QuicPacketCreator::BuildPaddedPathChallengePacket(
     const QuicPacketHeader& header,
     char* buffer,
     size_t packet_length,
-    QuicPathFrameBuffer* payload,
-    QuicRandom* randomizer,
+    const QuicPathFrameBuffer& payload,
     EncryptionLevel level) {
   DCHECK(VersionHasIetfQuicFrames(framer_->transport_version()));
   QuicFrames frames;
 
   // Write a PATH_CHALLENGE frame, which has a random 8-byte payload
-  randomizer->RandBytes(payload->data(), payload->size());
-  QuicPathChallengeFrame path_challenge_frame(0, *payload);
+  QuicPathChallengeFrame path_challenge_frame(0, payload);
   frames.push_back(QuicFrame(&path_challenge_frame));
 
   if (debug_delegate_ != nullptr) {
@@ -2008,10 +2006,10 @@ void QuicPacketCreator::set_encryption_level(EncryptionLevel level) {
   packet_.encryption_level = level;
 }
 
-void QuicPacketCreator::AddPathChallengeFrame(QuicPathFrameBuffer* payload) {
+void QuicPacketCreator::AddPathChallengeFrame(
+    const QuicPathFrameBuffer& payload) {
   // Write a PATH_CHALLENGE frame, which has a random 8-byte payload.
-  random_->RandBytes(payload->data(), payload->size());
-  auto path_challenge_frame = new QuicPathChallengeFrame(0, *payload);
+  auto path_challenge_frame = new QuicPathChallengeFrame(0, payload);
   QuicFrame frame(path_challenge_frame);
   if (AddPaddedFrameWithRetry(frame)) {
     return;

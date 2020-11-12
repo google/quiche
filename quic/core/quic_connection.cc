@@ -4432,9 +4432,11 @@ bool QuicConnection::SendGenericPathProbePacket(
     // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.
     transmitted_connectivity_probe_payload_ =
         std::make_unique<QuicPathFrameBuffer>();
+    random_generator_->RandBytes(transmitted_connectivity_probe_payload_.get(),
+                                 sizeof(QuicPathFrameBuffer));
     probing_packet =
         packet_creator_.SerializePathChallengeConnectivityProbingPacket(
-            transmitted_connectivity_probe_payload_.get());
+            *transmitted_connectivity_probe_payload_);
     if (!probing_packet) {
       transmitted_connectivity_probe_payload_ = nullptr;
     }
@@ -5437,7 +5439,7 @@ QuicTime QuicConnection::GetRetransmissionDeadline() const {
   return sent_packet_manager_.GetRetransmissionTime();
 }
 
-void QuicConnection::SendPathChallenge(QuicPathFrameBuffer* data_buffer,
+void QuicConnection::SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
                                        const QuicSocketAddress& self_address,
                                        const QuicSocketAddress& peer_address,
                                        QuicPacketWriter* writer) {

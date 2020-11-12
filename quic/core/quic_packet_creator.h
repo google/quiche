@@ -239,7 +239,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // SerializePathChallengeConnectivityProbingPacket will pad the packet to be
   // MTU bytes long.
   std::unique_ptr<SerializedPacket>
-  SerializePathChallengeConnectivityProbingPacket(QuicPathFrameBuffer* payload);
+  SerializePathChallengeConnectivityProbingPacket(
+      const QuicPathFrameBuffer& payload);
 
   // If |is_padded| is true then SerializePathResponseConnectivityProbingPacket
   // will pad the packet to be MTU bytes long, else it will not pad the packet.
@@ -255,7 +256,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Add PATH_CHALLENGE to current packet, flush before or afterwards if needed.
   // This is a best effort adding. It may fail becasue of delegate state, but
   // it's okay because of path validation retry mechanism.
-  void AddPathChallengeFrame(QuicPathFrameBuffer* payload);
+  void AddPathChallengeFrame(const QuicPathFrameBuffer& payload);
 
   // Returns a dummy packet that is valid but contains no useful information.
   static SerializedPacket NoPacket();
@@ -432,8 +433,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   size_t BuildPaddedPathChallengePacket(const QuicPacketHeader& header,
                                         char* buffer,
                                         size_t packet_length,
-                                        QuicPathFrameBuffer* payload,
-                                        QuicRandom* randomizer,
+                                        const QuicPathFrameBuffer& payload,
                                         EncryptionLevel level);
 
   // Serialize a probing response packet that uses IETF QUIC's PATH RESPONSE

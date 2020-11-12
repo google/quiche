@@ -592,7 +592,9 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
+  MockRandom randomizer;
   QuicPathFrameBuffer payload;
+  randomizer.RandBytes(payload.data(), payload.size());
 
   // clang-format off
   unsigned char packet[] = {
@@ -614,10 +616,9 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   // clang-format on
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
-  MockRandom randomizer;
 
   size_t length = creator_.BuildPaddedPathChallengePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), &payload, &randomizer,
+      header, buffer.get(), ABSL_ARRAYSIZE(packet), payload,
       ENCRYPTION_INITIAL);
   EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
 
@@ -921,7 +922,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
     QuicPathFrameBuffer payload = {
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     encrypted =
-        creator_.SerializePathChallengeConnectivityProbingPacket(&payload);
+        creator_.SerializePathChallengeConnectivityProbingPacket(payload);
   } else {
     encrypted = creator_.SerializeConnectivityProbingPacket();
   }
@@ -956,7 +957,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
 
   std::unique_ptr<SerializedPacket> encrypted(
-      creator_.SerializePathChallengeConnectivityProbingPacket(&payload));
+      creator_.SerializePathChallengeConnectivityProbingPacket(payload));
   {
     InSequence s;
     EXPECT_CALL(framer_visitor_, OnPacket());
@@ -3413,7 +3414,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     QuicPathFrameBuffer payload = {
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     probing_packet =
-        creator_.SerializePathChallengeConnectivityProbingPacket(&payload);
+        creator_.SerializePathChallengeConnectivityProbingPacket(payload);
   } else {
     probing_packet = creator_.SerializeConnectivityProbingPacket();
   }

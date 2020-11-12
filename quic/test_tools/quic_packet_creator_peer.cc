@@ -131,7 +131,7 @@ QuicPacketCreatorPeer::SerializeConnectivityProbingPacket(
 std::unique_ptr<SerializedPacket>
 QuicPacketCreatorPeer::SerializePathChallengeConnectivityProbingPacket(
     QuicPacketCreator* creator,
-    QuicPathFrameBuffer* payload) {
+    const QuicPathFrameBuffer& payload) {
   return creator->SerializePathChallengeConnectivityProbingPacket(payload);
 }
 

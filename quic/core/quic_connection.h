@@ -1115,7 +1115,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // PATH_CHALLENGE will be written in an individual packet and it will be
   // dropped if write fails. |data_buffer| will be populated with the payload
   // for future validation.
-  void SendPathChallenge(QuicPathFrameBuffer* data_buffer,
+  void SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
                          const QuicSocketAddress& self_address,
                          const QuicSocketAddress& peer_address,
                          QuicPacketWriter* writer);

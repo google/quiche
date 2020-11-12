@@ -53,8 +53,9 @@ class QuicPacketCreatorPeer {
   static std::unique_ptr<SerializedPacket> SerializeConnectivityProbingPacket(
       QuicPacketCreator* creator);
   static std::unique_ptr<SerializedPacket>
-  SerializePathChallengeConnectivityProbingPacket(QuicPacketCreator* creator,
-                                                  QuicPathFrameBuffer* payload);
+  SerializePathChallengeConnectivityProbingPacket(
+      QuicPacketCreator* creator,
+      const QuicPathFrameBuffer& payload);
 
   static EncryptionLevel GetEncryptionLevel(QuicPacketCreator* creator);
   static QuicFramer* framer(QuicPacketCreator* creator);
