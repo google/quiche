@@ -54,6 +54,7 @@ class InsecureProofVerifier : public ProofVerifier {
       const ProofVerifyContext* /*context*/,
       std::string* /*error_details*/,
       std::unique_ptr<ProofVerifyDetails>* /*details*/,
+      uint8_t* /*out_alert*/,
       std::unique_ptr<ProofVerifierCallback> /*callback*/) override {
     return QUIC_SUCCESS;
   }

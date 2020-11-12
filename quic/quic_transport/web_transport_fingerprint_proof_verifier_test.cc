@@ -40,12 +40,13 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
   VerifyResult Verify(absl::string_view certificate) {
     VerifyResult result;
     std::unique_ptr<ProofVerifyDetails> details;
+    uint8_t tls_alert;
     result.status = verifier_->VerifyCertChain(
         /*hostname=*/"", /*port=*/0,
         std::vector<std::string>{std::string(certificate)},
         /*ocsp_response=*/"",
         /*cert_sct=*/"",
-        /*context=*/nullptr, &result.error, &details,
+        /*context=*/nullptr, &result.error, &details, &tls_alert,
         /*callback=*/nullptr);
     result.detailed_status =
         static_cast<WebTransportFingerprintProofVerifier::Details*>(

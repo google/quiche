@@ -74,15 +74,16 @@ class TestProofVerifier : public ProofVerifier {
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
-      return verifier_->VerifyCertChain(hostname, port, certs, ocsp_response,
-                                        cert_sct, context, error_details,
-                                        details, std::move(callback));
+      return verifier_->VerifyCertChain(
+          hostname, port, certs, ocsp_response, cert_sct, context,
+          error_details, details, out_alert, std::move(callback));
     }
     pending_ops_.push_back(std::make_unique<VerifyChainPendingOp>(
         hostname, port, certs, ocsp_response, cert_sct, context, error_details,
-        details, std::move(callback), verifier_.get()));
+        details, out_alert, std::move(callback), verifier_.get()));
     return QUIC_PENDING;
   }
 
@@ -123,6 +124,7 @@ class TestProofVerifier : public ProofVerifier {
                          const ProofVerifyContext* context,
                          std::string* error_details,
                          std::unique_ptr<ProofVerifyDetails>* details,
+                         uint8_t* out_alert,
                          std::unique_ptr<ProofVerifierCallback> callback,
                          ProofVerifier* delegate)
         : hostname_(hostname),
@@ -133,6 +135,7 @@ class TestProofVerifier : public ProofVerifier {
           context_(context),
           error_details_(error_details),
           details_(details),
+          out_alert_(out_alert),
           callback_(std::move(callback)),
           delegate_(delegate) {}
 
@@ -143,7 +146,7 @@ class TestProofVerifier : public ProofVerifier {
       // synchronously.
       QuicAsyncStatus status = delegate_->VerifyCertChain(
           hostname_, port_, certs_, ocsp_response_, cert_sct_, context_,
-          error_details_, details_,
+          error_details_, details_, out_alert_,
           std::make_unique<FailingProofVerifierCallback>());
       ASSERT_NE(status, QUIC_PENDING);
       callback_->Run(status == QUIC_SUCCESS, *error_details_, details_);
@@ -158,6 +161,7 @@ class TestProofVerifier : public ProofVerifier {
     const ProofVerifyContext* context_;
     std::string* error_details_;
     std::unique_ptr<ProofVerifyDetails>* details_;
+    uint8_t* out_alert_;
     std::unique_ptr<ProofVerifierCallback> callback_;
     ProofVerifier* delegate_;
   };

@@ -97,6 +97,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       const std::vector<std::string>& certs,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;

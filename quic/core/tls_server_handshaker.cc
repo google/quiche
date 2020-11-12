@@ -397,6 +397,7 @@ QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
     const std::vector<std::string>& /*certs*/,
     std::string* /*error_details*/,
     std::unique_ptr<ProofVerifyDetails>* /*details*/,
+    uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
   QUIC_BUG << "Client certificates are not yet supported on the server";
   return QUIC_FAILURE;

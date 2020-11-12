@@ -376,6 +376,7 @@ QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
     const std::vector<std::string>& certs,
     std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details,
+    uint8_t* out_alert,
     std::unique_ptr<ProofVerifierCallback> callback) {
   const uint8_t* ocsp_response_raw;
   size_t ocsp_response_len;
@@ -390,7 +391,8 @@ QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
 
   return proof_verifier_->VerifyCertChain(
       server_id_.host(), server_id_.port(), certs, ocsp_response, sct_list,
-      verify_context_.get(), error_details, details, std::move(callback));
+      verify_context_.get(), error_details, details, out_alert,
+      std::move(callback));
 }
 
 void TlsClientHandshaker::OnProofVerifyDetailsAvailable(

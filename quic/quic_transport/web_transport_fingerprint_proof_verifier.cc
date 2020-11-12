@@ -139,6 +139,7 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyCertChain(
     const ProofVerifyContext* /*context*/,
     std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details,
+    uint8_t* /*out_alert*/,
     std::unique_ptr<ProofVerifierCallback> /*callback*/) {
   if (certs.empty()) {
     *details = std::make_unique<Details>(Status::kInternalError);

@@ -97,6 +97,11 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
   // for some implementations) that provides useful information for the
   // verifier, e.g. logging handles.
   //
+  // If certificate verification fails, a TLS alert will be sent when closing
+  // the connection. This alert defaults to certificate_unknown. By setting
+  // |*out_alert|, a different alert can be sent to provide a more specific
+  // reason why verification failed.
+  //
   // This function may also return QUIC_PENDING, in which case the ProofVerifier
   // will call back, on the original thread, via |callback| when complete.
   // In this case, the ProofVerifier will take ownership of |callback|.
@@ -109,6 +114,7 @@ class QUIC_EXPORT_PRIVATE ProofVerifier {
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
 
   // Returns a ProofVerifyContext instance which can be use for subsequent

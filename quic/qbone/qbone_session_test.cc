@@ -167,13 +167,14 @@ class IndirectionProofVerifier : public ProofVerifier {
       const ProofVerifyContext* context,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!proof_verifier_) {
       return QUIC_FAILURE;
     }
     return proof_verifier_->VerifyCertChain(
         hostname, port, certs, ocsp_response, cert_sct, context, error_details,
-        details, std::move(callback));
+        details, out_alert, std::move(callback));
   }
 
   std::unique_ptr<ProofVerifyContext> CreateDefaultContext() override {

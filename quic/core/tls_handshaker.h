@@ -90,10 +90,16 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   // non-owning pointer to |callback|; the callback must live until this
   // function returns QUIC_SUCCESS or QUIC_FAILURE, or until the callback is
   // run.
+  //
+  // If certificate verification fails, |*out_alert| may be set to a TLS alert
+  // that will be sent when closing the connection; it defaults to
+  // certificate_unknown. Implementations of VerifyCertChain may retain the
+  // |out_alert| pointer while performing an async operation.
   virtual QuicAsyncStatus VerifyCertChain(
       const std::vector<std::string>& certs,
       std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
+      uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
   // Called when certificate verification is completed.
   virtual void OnProofVerifyDetailsAvailable(
@@ -173,6 +179,7 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   ProofVerifierCallbackImpl* proof_verify_callback_ = nullptr;
   std::unique_ptr<ProofVerifyDetails> verify_details_;
   enum ssl_verify_result_t verify_result_ = ssl_verify_retry;
+  uint8_t cert_verify_tls_alert_ = SSL_AD_CERTIFICATE_UNKNOWN;
   std::string cert_verify_error_details_;
 
   int expected_ssl_error_ = SSL_ERROR_WANT_READ;
