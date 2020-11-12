@@ -1130,6 +1130,14 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
   // No more GOAWAY frames are sent because they could not convey new
   // information to the client.
+  if (!GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id) &&
+      !GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
+    // Except when both these flags are false, in which case a second GOAWAY
+    // frame is sent.
+    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
+        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
+  }
   session_.SendHttp3GoAway();
 }
 
