@@ -31,6 +31,13 @@ size_t CalculateBlockCount(size_t max_capacity_bytes) {
 // arrives.
 const size_t kMaxNumDataIntervalsAllowed = 2 * kMaxPacketGap;
 
+// Number of blocks allocated initially.
+constexpr size_t kInitialBlockCount = 8u;
+
+// How fast block pointers container grow in size.
+// Choose 4 to reduce the amount of reallocation.
+constexpr int kBlocksGrowthFactor = 4;
+
 }  // namespace
 
 QuicStreamSequencerBuffer::QuicStreamSequencerBuffer(size_t max_capacity_bytes)

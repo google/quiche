@@ -82,14 +82,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
   // Size of blocks used by this buffer.
   // Choose 8K to make block large enough to hold multiple frames, each of
   // which could be up to 1.5 KB.
-  static constexpr size_t kBlockSizeBytes = 8 * 1024;  // 8KB
-
-  // Number of blocks allocated initially.
-  static constexpr size_t kInitialBlockCount = 8u;
-
-  // How fast block pointers container grow in size.
-  // Choose 4 to reduce the amount of reallocation.
-  static constexpr int kBlocksGrowthFactor = 4;
+  static const size_t kBlockSizeBytes = 8 * 1024;  // 8KB
 
   // The basic storage block used by this buffer.
   struct QUIC_EXPORT_PRIVATE BufferBlock {
