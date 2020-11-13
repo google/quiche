@@ -1239,24 +1239,31 @@ void QuicSession::OnConfigNegotiated() {
       if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFWA)) {
         AdjustInitialFlowControlWindows(1024 * 1024);
       }
-      if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
-          !VersionHasIetfQuicFrames(transport_version())) {
-        // Enable HTTP2 (tree-style) priority write scheduler.
-        use_http2_priority_write_scheduler_ =
-            write_blocked_streams_.SwitchWriteScheduler(
-                spdy::WriteSchedulerType::HTTP2, transport_version());
-      } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kFIFO)) {
-        // Enable FIFO write scheduler.
-        write_blocked_streams_.SwitchWriteScheduler(
-            spdy::WriteSchedulerType::FIFO, transport_version());
-      } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kLIFO)) {
-        // Enable LIFO write scheduler.
-        write_blocked_streams_.SwitchWriteScheduler(
-            spdy::WriteSchedulerType::LIFO, transport_version());
-      } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kRRWS) &&
-                 write_blocked_streams_.scheduler_type() ==
-                     spdy::WriteSchedulerType::SPDY) {
-        enable_round_robin_scheduling_ = true;
+      if (GetQuicReloadableFlag(quic_deprecate_http2_priority_experiment)) {
+        QUIC_CODE_COUNT(quic_deprecate_http2_priority_experiment);
+      } else {
+        if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
+            !VersionHasIetfQuicFrames(transport_version())) {
+          // Enable HTTP2 (tree-style) priority write scheduler.
+          use_http2_priority_write_scheduler_ =
+              write_blocked_streams_.SwitchWriteScheduler(
+                  spdy::WriteSchedulerType::HTTP2, transport_version());
+        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
+                                   kFIFO)) {
+          // Enable FIFO write scheduler.
+          write_blocked_streams_.SwitchWriteScheduler(
+              spdy::WriteSchedulerType::FIFO, transport_version());
+        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
+                                   kLIFO)) {
+          // Enable LIFO write scheduler.
+          write_blocked_streams_.SwitchWriteScheduler(
+              spdy::WriteSchedulerType::LIFO, transport_version());
+        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
+                                   kRRWS) &&
+                   write_blocked_streams_.scheduler_type() ==
+                       spdy::WriteSchedulerType::SPDY) {
+          enable_round_robin_scheduling_ = true;
+        }
       }
     }
 

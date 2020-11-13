@@ -1045,6 +1045,10 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
 }
 
 TEST_P(QuicSessionTestServer, Http2Priority) {
+  if (GetQuicReloadableFlag(quic_deprecate_http2_priority_experiment)) {
+    return;
+  }
+
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
     // The test is using HTTP/2 priority which is not supported in IETF QUIC.
     return;
@@ -1128,6 +1132,10 @@ TEST_P(QuicSessionTestServer, Http2Priority) {
 }
 
 TEST_P(QuicSessionTestServer, RoundRobinScheduling) {
+  if (GetQuicReloadableFlag(quic_deprecate_http2_priority_experiment)) {
+    return;
+  }
+
   if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
     // IETF QUIC currently doesn't support PRIORITY.
     return;
