@@ -213,8 +213,6 @@ class QUIC_NO_EXPORT QuicDispatcher
     return time_wait_list_manager_.get();
   }
 
-  const QuicTransportVersionVector& GetSupportedTransportVersions();
-
   const ParsedQuicVersionVector& GetSupportedVersions();
 
   const ParsedQuicVersionVector& GetSupportedVersionsWithQuicCrypto();

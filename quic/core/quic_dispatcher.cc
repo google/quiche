@@ -1148,11 +1148,6 @@ bool QuicDispatcher::OnFailedToDispatchPacket(
   return false;
 }
 
-const QuicTransportVersionVector&
-QuicDispatcher::GetSupportedTransportVersions() {
-  return version_manager_->GetSupportedTransportVersions();
-}
-
 const ParsedQuicVersionVector& QuicDispatcher::GetSupportedVersions() {
   return version_manager_->GetSupportedVersions();
 }

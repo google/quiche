@@ -32,12 +32,6 @@ QuicVersionManager::QuicVersionManager(
 
 QuicVersionManager::~QuicVersionManager() {}
 
-const QuicTransportVersionVector&
-QuicVersionManager::GetSupportedTransportVersions() {
-  MaybeRefilterSupportedVersions();
-  return filtered_transport_versions_;
-}
-
 const ParsedQuicVersionVector& QuicVersionManager::GetSupportedVersions() {
   MaybeRefilterSupportedVersions();
   return filtered_supported_versions_;
