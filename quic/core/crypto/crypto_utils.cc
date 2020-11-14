@@ -55,11 +55,6 @@ namespace {
 // The implicit PRF is explicitly passed into HkdfExpandLabel as |prf|; the
 // Secret, Label, and Length are passed in as |secret|, |label|, and
 // |out_len|, respectively. The resulting expanded secret is returned.
-//
-// TODO(nharper): HkdfExpandLabel and SetKeyAndIV (below) implement what is
-// specified in draft-ietf-quic-tls-16. The latest editors' draft has changed
-// derivation again, and this will need to be updated to reflect those (and any
-// other future) changes.
 std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
                                      const std::vector<uint8_t>& secret,
                                      const std::string& label,
