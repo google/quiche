@@ -669,7 +669,7 @@ TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
   ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 16u);
 }
 
-TEST_P(QuicUnackedPacketMapTest, DebugString) {
+TEST_P(QuicUnackedPacketMapTest, QUIC_TEST_DISABLED_IN_CHROME(DebugString)) {
   EXPECT_EQ(unacked_packets_.DebugString(),
             "{size: 0, least_unacked: 1, largest_sent_packet: uninitialized, "
             "largest_acked: uninitialized, bytes_in_flight: 0, "
