@@ -681,7 +681,8 @@ TEST_P(QuicUnackedPacketMapTest, DebugString) {
   EXPECT_EQ(
       unacked_packets_.DebugString(),
       "{size: 1, least_unacked: 1, largest_sent_packet: 1, largest_acked: "
-      "uninitialized, bytes_in_flight: 1000, packets_in_flight: 1}");
+      "uninitialized, bytes_in_flight: 1000, packets_in_flight: 1}")
+      << "packets_in_flight=" << unacked_packets_.packets_in_flight();
 
   SerializedPacket packet2(CreateRetransmittablePacket(2));
   unacked_packets_.AddSentPacket(&packet2, NOT_RETRANSMISSION, now_, true,
