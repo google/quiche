@@ -320,13 +320,13 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   }
 
   std::string DebugString() const {
-    return quiche::QuicheStringPrintf(
-        "{size: %zu, least_unacked: %s, largest_sent_packet: %s, "
-        "largest_acked: %s, bytes_in_flight: %zu, packets_in_flight: %zu}",
-        unacked_packets_size(), least_unacked_.ToString().c_str(),
-        largest_sent_packet_.ToString().c_str(),
-        largest_acked_.ToString().c_str(), bytes_in_flight_,
-        packets_in_flight_);
+    return quiche::QuicheStrCat(
+        "{size: ", unacked_packets_size(),
+        ", least_unacked: ", least_unacked_.ToString(),
+        ", largest_sent_packet: ", largest_sent_packet_.ToString(),
+        ", largest_acked: ", largest_acked_.ToString(),
+        ", bytes_in_flight: ", bytes_in_flight_,
+        ", packets_in_flight: ", packets_in_flight_, "}");
   }
 
  private:
