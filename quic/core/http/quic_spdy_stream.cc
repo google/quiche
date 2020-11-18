@@ -717,6 +717,10 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
     if (VersionUsesHttp3(transport_version()) && !fin_received() &&
         spdy_session_->qpack_decoder()) {
       spdy_session_->qpack_decoder()->OnStreamReset(id());
+      if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_abort_qpack_on_stream_reset, 1, 2);
+        qpack_decoded_headers_accumulator_.reset();
+      }
     }
 
     QuicStream::OnStreamReset(frame);
@@ -735,6 +739,10 @@ void QuicSpdyStream::Reset(QuicRstStreamErrorCode error) {
   if (VersionUsesHttp3(transport_version()) && !fin_received() &&
       spdy_session_->qpack_decoder()) {
     spdy_session_->qpack_decoder()->OnStreamReset(id());
+    if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_abort_qpack_on_stream_reset, 2, 2);
+      qpack_decoded_headers_accumulator_.reset();
+    }
   }
 
   QuicStream::Reset(error);
