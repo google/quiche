@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_H_
 
+#include <memory>
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_mem_slice_impl.h"
 
@@ -31,6 +32,11 @@ class QUIC_EXPORT_PRIVATE QuicMemSlice {
   // not be zero.  To construct an empty QuicMemSlice, use the zero-argument
   // constructor instead.
   QuicMemSlice(QuicUniqueBufferPtr buffer, size_t length)
+      : impl_(std::move(buffer), length) {}
+
+  // Constructs a QuicMemSlice that takes ownership of |buffer| allocated on
+  // heap.  |length| must not be zero.
+  QuicMemSlice(std::unique_ptr<char[]> buffer, size_t length)
       : impl_(std::move(buffer), length) {}
 
   // Constructs QuicMemSlice from |impl|. It takes the reference away from
