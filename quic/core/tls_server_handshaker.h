@@ -156,6 +156,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
+  virtual bool ValidateHostname(const std::string& hostname) const;
   bool SetTransportParameters();
   bool ProcessTransportParameters(std::string* error_details);
 

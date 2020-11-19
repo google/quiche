@@ -506,16 +506,23 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   return ssl_ticket_aead_success;
 }
 
+bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
+  if (!QuicHostnameUtils::IsValidSNI(hostname)) {
+    // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE
+    // frame.
+    QUIC_LOG(ERROR) << "Invalid SNI provided: \"" << hostname << "\"";
+    return false;
+  }
+  return true;
+}
+
 int TlsServerHandshaker::SelectCertificate(int* out_alert) {
   const char* hostname = SSL_get_servername(ssl(), TLSEXT_NAMETYPE_host_name);
   if (hostname) {
     hostname_ = hostname;
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname_);
-    if (!QuicHostnameUtils::IsValidSNI(hostname_)) {
-      // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE
-      // frame.
-      QUIC_LOG(ERROR) << "Invalid SNI provided: \"" << hostname_ << "\"";
+    if (!ValidateHostname(hostname_)) {
       return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
   } else {
