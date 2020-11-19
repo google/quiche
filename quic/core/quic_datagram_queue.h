@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 #define QUICHE_QUIC_CORE_QUIC_DATAGRAM_QUEUE_H_
 
+#include <memory>
+
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
@@ -20,8 +22,25 @@ class QuicSession;
 // amount of time, and deleted after that time passes.
 class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
  public:
+  // An interface used to monitor events on the associated `QuicDatagramQueue`.
+  class QUIC_EXPORT_PRIVATE Observer {
+   public:
+    virtual ~Observer() = default;
+
+    // Called when a datagram in the associated queue is sent or discarded.
+    // Identity information for the datagram is not given, because the sending
+    // and discarding order is always first-in-first-out.
+    // This function is called synchronously in `QuicDatagramQueue` methods.
+    // `status` is nullopt when the datagram is dropped due to being in the
+    // queue for too long.
+    virtual void OnDatagramProcessed(absl::optional<MessageStatus> status) = 0;
+  };
+
   // |session| is not owned and must outlive this object.
   explicit QuicDatagramQueue(QuicSession* session);
+
+  // |session| is not owned and must outlive this object.
+  QuicDatagramQueue(QuicSession* session, std::unique_ptr<Observer> observer);
 
   // Adds the datagram to the end of the queue.  May send it immediately; if
   // not, MESSAGE_STATUS_BLOCKED is returned.
@@ -62,6 +81,7 @@ class QUIC_EXPORT_PRIVATE QuicDatagramQueue {
 
   QuicTime::Delta max_time_in_queue_ = QuicTime::Delta::Zero();
   QuicCircularDeque<Datagram> queue_;
+  std::unique_ptr<Observer> observer_;
 };
 
 }  // namespace quic

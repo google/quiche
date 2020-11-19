@@ -16,6 +16,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
+#include "net/third_party/quiche/src/quic/core/quic_datagram_queue.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
@@ -56,14 +57,16 @@ class QUIC_EXPORT_PRIVATE QuicTransportClientSession
     virtual void OnCanCreateNewOutgoingUnidirectionalStream() = 0;
   };
 
-  QuicTransportClientSession(QuicConnection* connection,
-                             Visitor* owner,
-                             const QuicConfig& config,
-                             const ParsedQuicVersionVector& supported_versions,
-                             const GURL& url,
-                             QuicCryptoClientConfig* crypto_config,
-                             url::Origin origin,
-                             ClientVisitor* visitor);
+  QuicTransportClientSession(
+      QuicConnection* connection,
+      Visitor* owner,
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      const GURL& url,
+      QuicCryptoClientConfig* crypto_config,
+      url::Origin origin,
+      ClientVisitor* visitor,
+      std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer);
 
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({QuicTransportAlpn()});

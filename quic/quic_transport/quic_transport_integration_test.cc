@@ -90,7 +90,8 @@ class QuicTransportClientEndpoint : public QuicTransportEndpointBase {
                  GURL("quic-transport://test.example.com:50000" + path),
                  &crypto_config_,
                  origin,
-                 &visitor_) {
+                 &visitor_,
+                 /*datagram_observer=*/nullptr) {
     session_.Initialize();
   }
 

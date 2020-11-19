@@ -17,7 +17,13 @@ constexpr float kExpiryInMinRtts = 1.25;
 constexpr float kMinPacingWindows = 4;
 
 QuicDatagramQueue::QuicDatagramQueue(QuicSession* session)
-    : session_(session), clock_(session->connection()->clock()) {}
+    : QuicDatagramQueue(session, nullptr) {}
+
+QuicDatagramQueue::QuicDatagramQueue(QuicSession* session,
+                                     std::unique_ptr<Observer> observer)
+    : session_(session),
+      clock_(session->connection()->clock()),
+      observer_(std::move(observer)) {}
 
 MessageStatus QuicDatagramQueue::SendOrQueueDatagram(QuicMemSlice datagram) {
   // If the queue is non-empty, always queue the daragram.  This ensures that
@@ -27,6 +33,9 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(QuicMemSlice datagram) {
     QuicMemSliceSpan span(&datagram);
     MessageResult result = session_->SendMessage(span);
     if (result.status != MESSAGE_STATUS_BLOCKED) {
+      if (observer_) {
+        observer_->OnDatagramProcessed(result.status);
+      }
       return result.status;
     }
   }
@@ -46,6 +55,9 @@ absl::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
   MessageResult result = session_->SendMessage(span);
   if (result.status != MESSAGE_STATUS_BLOCKED) {
     queue_.pop_front();
+    if (observer_) {
+      observer_->OnDatagramProcessed(result.status);
+    }
   }
   return result.status;
 }
@@ -80,6 +92,9 @@ void QuicDatagramQueue::RemoveExpiredDatagrams() {
   QuicTime now = clock_->ApproximateNow();
   while (!queue_.empty() && queue_.front().expiry <= now) {
     queue_.pop_front();
+    if (observer_) {
+      observer_->OnDatagramProcessed(absl::nullopt);
+    }
   }
 }
 

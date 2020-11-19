@@ -4,6 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_datagram_queue.h"
 
+#include <vector>
+
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -11,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 
@@ -30,19 +33,42 @@ class EstablishedCryptoStream : public MockQuicCryptoStream {
   bool encryption_established() const override { return true; }
 };
 
-class QuicDatagramQueueTest : public QuicTest {
+class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
  public:
-  QuicDatagramQueueTest()
+  class Context : public QuicReferenceCounted {
+   public:
+    std::vector<absl::optional<MessageStatus>> statuses;
+  };
+
+  QuicDatagramQueueObserver() : context_(new Context()) {}
+  QuicDatagramQueueObserver(const QuicDatagramQueueObserver&) = delete;
+  QuicDatagramQueueObserver& operator=(const QuicDatagramQueueObserver&) =
+      delete;
+
+  void OnDatagramProcessed(absl::optional<MessageStatus> status) override {
+    context_->statuses.push_back(std::move(status));
+  }
+
+  const QuicReferenceCountedPointer<Context>& context() { return context_; }
+
+ private:
+  QuicReferenceCountedPointer<Context> context_;
+};
+
+class QuicDatagramQueueTestBase : public QuicTest {
+ protected:
+  QuicDatagramQueueTestBase()
       : connection_(new MockQuicConnection(&helper_,
                                            &alarm_factory_,
                                            Perspective::IS_CLIENT)),
-        session_(connection_),
-        queue_(&session_) {
+        session_(connection_) {
     session_.SetCryptoStream(new EstablishedCryptoStream(&session_));
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection_->perspective()));
   }
+
+  ~QuicDatagramQueueTestBase() = default;
 
   QuicMemSlice CreateMemSlice(absl::string_view data) {
     QuicUniqueBufferPtr buffer =
@@ -51,11 +77,17 @@ class QuicDatagramQueueTest : public QuicTest {
     return QuicMemSlice(std::move(buffer), data.size());
   }
 
- protected:
   MockQuicConnectionHelper helper_;
   MockAlarmFactory alarm_factory_;
   MockQuicConnection* connection_;  // Owned by |session_|.
   MockQuicSession session_;
+};
+
+class QuicDatagramQueueTest : public QuicDatagramQueueTestBase {
+ public:
+  QuicDatagramQueueTest() : queue_(&session_) {}
+
+ protected:
   QuicDatagramQueue queue_;
 };
 
@@ -165,6 +197,99 @@ TEST_F(QuicDatagramQueueTest, ExpireAll) {
   helper_.AdvanceTime(100 * expiry);
   EXPECT_CALL(*connection_, SendMessage(_, _, _)).Times(0);
   EXPECT_EQ(0u, queue_.SendDatagrams());
+}
+
+class QuicDatagramQueueWithObserverTest : public QuicDatagramQueueTestBase {
+ public:
+  QuicDatagramQueueWithObserverTest()
+      : observer_(std::make_unique<QuicDatagramQueueObserver>()),
+        context_(observer_->context()),
+        queue_(&session_, std::move(observer_)) {}
+
+ protected:
+  // This is moved out immediately.
+  std::unique_ptr<QuicDatagramQueueObserver> observer_;
+
+  QuicReferenceCountedPointer<QuicDatagramQueueObserver::Context> context_;
+  QuicDatagramQueue queue_;
+};
+
+TEST_F(QuicDatagramQueueWithObserverTest, ObserveSuccessImmediately) {
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+
+  EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
+            queue_.SendOrQueueDatagram(CreateMemSlice("a")));
+
+  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_SUCCESS));
+}
+
+TEST_F(QuicDatagramQueueWithObserverTest, ObserveFailureImmediately) {
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillOnce(Return(MESSAGE_STATUS_TOO_LARGE));
+
+  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+            queue_.SendOrQueueDatagram(CreateMemSlice("a")));
+
+  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_TOO_LARGE));
+}
+
+TEST_F(QuicDatagramQueueWithObserverTest, BlockingShouldNotBeObserved) {
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillRepeatedly(Return(MESSAGE_STATUS_BLOCKED));
+
+  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+            queue_.SendOrQueueDatagram(CreateMemSlice("a")));
+  EXPECT_EQ(0u, queue_.SendDatagrams());
+
+  EXPECT_TRUE(context_->statuses.empty());
+}
+
+TEST_F(QuicDatagramQueueWithObserverTest, ObserveSuccessAfterBuffering) {
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+
+  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+            queue_.SendOrQueueDatagram(CreateMemSlice("a")));
+
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+
+  EXPECT_EQ(1u, queue_.SendDatagrams());
+  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_SUCCESS));
+}
+
+TEST_F(QuicDatagramQueueWithObserverTest, ObserveExpiry) {
+  constexpr QuicTime::Delta expiry = QuicTime::Delta::FromMilliseconds(100);
+  queue_.SetMaxTimeInQueue(expiry);
+
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+
+  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+            queue_.SendOrQueueDatagram(CreateMemSlice("a")));
+
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_CALL(*connection_, SendMessage(_, _, _)).Times(0);
+  helper_.AdvanceTime(100 * expiry);
+
+  EXPECT_TRUE(context_->statuses.empty());
+
+  EXPECT_EQ(0u, queue_.SendDatagrams());
+  EXPECT_THAT(context_->statuses, ElementsAre(absl::nullopt));
 }
 
 }  // namespace

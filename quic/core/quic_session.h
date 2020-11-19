@@ -88,6 +88,12 @@ class QUIC_EXPORT_PRIVATE QuicSession
               const QuicConfig& config,
               const ParsedQuicVersionVector& supported_versions,
               QuicStreamCount num_expected_unidirectional_static_streams);
+  QuicSession(QuicConnection* connection,
+              Visitor* owner,
+              const QuicConfig& config,
+              const ParsedQuicVersionVector& supported_versions,
+              QuicStreamCount num_expected_unidirectional_static_streams,
+              std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer);
   QuicSession(const QuicSession&) = delete;
   QuicSession& operator=(const QuicSession&) = delete;
 

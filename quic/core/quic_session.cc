@@ -57,6 +57,20 @@ QuicSession::QuicSession(
     const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     QuicStreamCount num_expected_unidirectional_static_streams)
+    : QuicSession(connection,
+                  owner,
+                  config,
+                  supported_versions,
+                  num_expected_unidirectional_static_streams,
+                  nullptr) {}
+
+QuicSession::QuicSession(
+    QuicConnection* connection,
+    Visitor* owner,
+    const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions,
+    QuicStreamCount num_expected_unidirectional_static_streams,
+    std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer)
     : connection_(connection),
       perspective_(connection->perspective()),
       visitor_(owner),
@@ -94,7 +108,7 @@ QuicSession::QuicSession(
       transport_goaway_received_(false),
       control_frame_manager_(this),
       last_message_id_(0),
-      datagram_queue_(this),
+      datagram_queue_(this, std::move(datagram_observer)),
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
       use_http2_priority_write_scheduler_(false),

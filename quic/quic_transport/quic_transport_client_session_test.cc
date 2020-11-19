@@ -65,7 +65,7 @@ class QuicTransportClientSessionTest : public QuicTest {
     session_ = std::make_unique<QuicTransportClientSession>(
         &connection_, nullptr, DefaultQuicConfig(), GetVersions(),
         GURL("quic-transport://test.example.com:50000" + url_suffix),
-        &crypto_config_, origin, &visitor_);
+        &crypto_config_, origin, &visitor_, /*datagram_observer=*/nullptr);
     session_->Initialize();
     crypto_stream_ = static_cast<QuicCryptoClientStream*>(
         session_->GetMutableCryptoStream());
