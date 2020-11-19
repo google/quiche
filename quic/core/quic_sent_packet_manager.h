@@ -737,6 +737,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // available.
   float pto_multiplier_without_rtt_samples_;
 
+  // The number of PTOs needed for path degrading alarm. If equals to 0, the
+  // traditional path degrading mechanism will be used.
+  int num_ptos_for_path_degrading_;
+
   const bool give_sent_packet_to_debug_visitor_after_sent_ =
       GetQuicReloadableFlag(quic_give_sent_packet_to_debug_visitor_after_sent);
 };

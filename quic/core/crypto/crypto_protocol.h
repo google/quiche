@@ -377,6 +377,18 @@ const QuicTag kXLCT = TAG('X', 'L', 'C', 'T');   // Expected leaf certificate.
 const QuicTag kQLVE = TAG('Q', 'L', 'V', 'E');   // Legacy Version
                                                  // Encapsulation.
 
+const QuicTag kPDP2 = TAG('P', 'D', 'P', '2');   // Path degrading triggered
+                                                 // at 2PTO.
+
+const QuicTag kPDP3 = TAG('P', 'D', 'P', '3');   // Path degrading triggered
+                                                 // at 3PTO.
+
+const QuicTag kPDP4 = TAG('P', 'D', 'P', '4');   // Path degrading triggered
+                                                 // at 4PTO.
+
+const QuicTag kPDP5 = TAG('P', 'D', 'P', '5');   // Path degrading triggered
+                                                 // at 5PTO.
+
 const QuicTag kQNZ2 = TAG('Q', 'N', 'Z', '2');   // Turn off QUIC crypto 0-RTT.
 
 const QuicTag kQNSP = TAG('Q', 'N', 'S', 'P');   // Turn off server push in

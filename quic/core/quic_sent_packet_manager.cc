@@ -115,7 +115,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       one_rtt_packet_sent_(false),
       first_pto_srtt_multiplier_(0),
       use_standard_deviation_for_pto_(false),
-      pto_multiplier_without_rtt_samples_(3) {
+      pto_multiplier_without_rtt_samples_(3),
+      num_ptos_for_path_degrading_(0) {
   SetSendAlgorithm(congestion_control_type);
   if (pto_enabled_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
@@ -218,6 +219,18 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientSentConnectionOption(kPSDA, perspective)) {
       use_standard_deviation_for_pto_ = true;
       rtt_stats_.EnableStandardDeviationCalculation();
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP2, perspective)) {
+      num_ptos_for_path_degrading_ = 2;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP3, perspective)) {
+      num_ptos_for_path_degrading_ = 3;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP4, perspective)) {
+      num_ptos_for_path_degrading_ = 4;
+    }
+    if (config.HasClientRequestedIndependentOption(kPDP5, perspective)) {
+      num_ptos_for_path_degrading_ = 5;
     }
   }
 
@@ -1393,6 +1406,9 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
 }
 
 const QuicTime::Delta QuicSentPacketManager::GetPathDegradingDelay() const {
+  if (num_ptos_for_path_degrading_ > 0) {
+    return num_ptos_for_path_degrading_ * GetPtoDelay();
+  }
   return GetNConsecutiveRetransmissionTimeoutDelay(
       max_tail_loss_probes_ + kNumRetransmissionDelaysForPathDegradingDelay);
 }

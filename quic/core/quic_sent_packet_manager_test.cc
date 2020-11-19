@@ -3865,6 +3865,23 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelay) {
   EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsingPTO) {
+  QuicConfig client_config;
+  QuicTagVector options;
+  options.push_back(k1PTO);
+  QuicTagVector client_options;
+  client_options.push_back(kPDP2);
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  client_config.SetConnectionOptionsToSend(options);
+  client_config.SetClientConnectionOptions(client_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(client_config);
+  EXPECT_TRUE(manager_.pto_enabled());
+  QuicTime::Delta expected_delay = 2 * manager_.GetPtoDelay();
+  EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
+}
+
 // Regression test for b/154050235.
 TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
