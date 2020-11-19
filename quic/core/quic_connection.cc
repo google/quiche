@@ -30,6 +30,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_legacy_version_encapsulator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_path_validator.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
@@ -355,7 +356,8 @@ QuicConnection::QuicConnection(
           packet_creator_.let_connection_handle_pings()),
       use_encryption_level_context_(
           encrypted_control_frames_ &&
-          GetQuicReloadableFlag(quic_use_encryption_level_context)) {
+          GetQuicReloadableFlag(quic_use_encryption_level_context)),
+      path_validator_(alarm_factory_, &arena_, this, random_generator_) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
   if (GetQuicReloadableFlag(quic_connection_set_initial_self_address)) {
     DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -1108,7 +1110,7 @@ void QuicConnection::OnSuccessfulVersionNegotiation() {
   }
 }
 
-void QuicConnection::OnSuccessfulMigrationAfterProbing() {
+void QuicConnection::OnSuccessfulMigration() {
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (IsPathDegrading()) {
     // If path was previously degrading, and migration is successful after
@@ -1597,13 +1599,18 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
     debug_visitor_->OnPathResponseFrame(frame);
   }
   MaybeUpdateAckTimeout();
-  if (!transmitted_connectivity_probe_payload_ ||
-      *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
-    // Is not for the probe we sent, ignore it.
-    return true;
+  if (use_path_validator_) {
+    path_validator_.OnPathResponse(frame.data_buffer,
+                                   last_packet_destination_address_);
+  } else {
+    if (!transmitted_connectivity_probe_payload_ ||
+        *transmitted_connectivity_probe_payload_ != frame.data_buffer) {
+      // Is not for the probe we sent, ignore it.
+      return true;
+    }
+    // Have received the matching PATH RESPONSE, saved payload no longer valid.
+    transmitted_connectivity_probe_payload_ = nullptr;
   }
-  // Have received the matching PATH RESPONSE, saved payload no longer valid.
-  transmitted_connectivity_probe_payload_ = nullptr;
   return true;
 }
 
@@ -2833,7 +2840,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(1) << ENDPOINT << "Sending packet " << packet_number << " : "
                 << (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA
                         ? "data bearing "
-                        : " ack only ")
+                        : " ack or probing only ")
                 << ", encryption level: " << packet->encryption_level
                 << ", encrypted length:" << encrypted_length
                 << ", fate: " << fate;
@@ -2850,6 +2857,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   WriteResult result(WRITE_STATUS_OK, encrypted_length);
   QuicSocketAddress send_to_address =
       (send_path_response_) ? packet->peer_address : peer_address();
+  // Self address is always the default self address on this code path.
+  bool send_on_current_path = send_to_address == peer_address();
   switch (fate) {
     case DISCARD:
       ++stats_.packets_discarded;
@@ -3001,17 +3010,23 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
   // In some cases, an MTU probe can cause EMSGSIZE. This indicates that the
   // MTU discovery is permanently unsuccessful.
-  if (IsMsgTooBig(result) && is_mtu_discovery) {
-    // When MSG_TOO_BIG is returned, the system typically knows what the
-    // actual MTU is, so there is no need to probe further.
-    // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
-    QUIC_DVLOG(1) << ENDPOINT
-                  << " MTU probe packet too big, size:" << encrypted_length
-                  << ", long_term_mtu_:" << long_term_mtu_;
-    mtu_discoverer_.Disable();
-    mtu_discovery_alarm_->Cancel();
-    // The write failed, but the writer is not blocked, so return true.
-    return true;
+  if (IsMsgTooBig(result)) {
+    if (is_mtu_discovery) {
+      // When MSG_TOO_BIG is returned, the system typically knows what the
+      // actual MTU is, so there is no need to probe further.
+      // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
+      QUIC_DVLOG(1) << ENDPOINT
+                    << " MTU probe packet too big, size:" << encrypted_length
+                    << ", long_term_mtu_:" << long_term_mtu_;
+      mtu_discoverer_.Disable();
+      mtu_discovery_alarm_->Cancel();
+      // The write failed, but the writer is not blocked, so return true.
+      return true;
+    }
+    if (use_path_validator_ && !send_on_current_path) {
+      // Only handle MSG_TOO_BIG as error on current path.
+      return true;
+    }
   }
 
   if (IsWriteError(result.status)) {
@@ -3072,14 +3087,13 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   }
 
   // Do not measure rtt of this packet if it's not sent on current path.
-  const bool measure_rtt = send_to_address == peer_address();
-  QUIC_DLOG_IF(INFO, !measure_rtt)
+  QUIC_DLOG_IF(INFO, !send_on_current_path)
       << ENDPOINT << " Sent packet " << packet->packet_number
       << " on a different path with remote address " << send_to_address
       << " while current path has peer address " << peer_address();
   const bool in_flight = sent_packet_manager_.OnPacketSent(
       packet, packet_send_time, packet->transmission_type,
-      IsRetransmittable(*packet), measure_rtt);
+      IsRetransmittable(*packet), /*measure_rtt=*/send_on_current_path);
   QUIC_BUG_IF(default_enable_5rto_blackhole_detection_ &&
               blackhole_detector_.IsDetectionInProgress() &&
               !sent_packet_manager_.HasInFlightPackets())
@@ -4034,6 +4048,7 @@ void QuicConnection::TearDownLocalConnectionState(
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
   CancelAllAlarms();
+  path_validator_.CancelPathValidation();
 }
 
 void QuicConnection::CancelAllAlarms() {
@@ -5439,17 +5454,21 @@ QuicTime QuicConnection::GetRetransmissionDeadline() const {
   return sent_packet_manager_.GetRetransmissionTime();
 }
 
-void QuicConnection::SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
+bool QuicConnection::SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
                                        const QuicSocketAddress& self_address,
                                        const QuicSocketAddress& peer_address,
                                        QuicPacketWriter* writer) {
   if (writer == writer_) {
-    // It's on current path, add the PATH_CHALLENGE the same way as other
-    // frames.
-    QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
-                                                        peer_address);
-    packet_creator_.AddPathChallengeFrame(data_buffer);
-    return;
+    {
+      // It's on current path, add the PATH_CHALLENGE the same way as other
+      // frames.
+      QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
+                                                          peer_address);
+      // This may cause connection to be closed.
+      packet_creator_.AddPathChallengeFrame(data_buffer);
+    }
+    // Return outside of the scope so that the flush result can be reflected.
+    return connected_;
   }
   std::unique_ptr<SerializedPacket> probing_packet =
       packet_creator_.SerializePathChallengeConnectivityProbingPacket(
@@ -5457,6 +5476,24 @@ void QuicConnection::SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
   DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
   WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
                          peer_address, /*measure_rtt=*/false);
+  return true;
+}
+
+QuicTime QuicConnection::GetRetryTimeout(
+    const QuicSocketAddress& peer_address_to_use,
+    QuicPacketWriter* writer_to_use) const {
+  if (writer_to_use == writer_ && peer_address_to_use == peer_address()) {
+    return clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay();
+  }
+  return clock_->ApproximateNow() +
+         QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs);
+}
+
+void QuicConnection::ValidatePath(
+    std::unique_ptr<QuicPathValidationContext> context,
+    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+  path_validator_.StartValidingPath(std::move(context),
+                                    std::move(result_delegate));
 }
 
 bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,
@@ -5479,6 +5516,23 @@ void QuicConnection::SendPingAtLevel(EncryptionLevel level) {
   DCHECK(packet_creator_.let_connection_handle_pings());
   ScopedEncryptionLevelContext context(this, level);
   SendControlFrame(QuicFrame(QuicPingFrame()));
+}
+
+bool QuicConnection::HasPendingPathValidation() const {
+  return path_validator_.HasPendingPathValidation();
+}
+
+void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
+                                 const QuicSocketAddress& peer_address,
+                                 QuicPacketWriter* writer,
+                                 bool owns_writer) {
+  if (!connected_) {
+    return;
+  }
+  SetSelfAddress(self_address);
+  UpdatePeerAddress(peer_address);
+  SetQuicPacketWriter(writer, owns_writer);
+  OnSuccessfulMigration();
 }
 
 #undef ENDPOINT  // undef for jumbo builds

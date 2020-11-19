@@ -1465,7 +1465,7 @@ WriteResult TestPacketWriter::WritePacket(const char* buffer,
   }
 
   if (ShouldWriteFail()) {
-    return WriteResult(WRITE_STATUS_ERROR, 0);
+    return WriteResult(WRITE_STATUS_ERROR, write_error_code_);
   }
 
   last_packet_size_ = packet.length();

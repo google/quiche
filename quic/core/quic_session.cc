@@ -2561,5 +2561,22 @@ EncryptionLevel QuicSession::GetEncryptionLevelToSendApplicationData() const {
   return connection_->framer().GetEncryptionLevelToSendApplicationData();
 }
 
+void QuicSession::ValidatePath(
+    std::unique_ptr<QuicPathValidationContext> context,
+    std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+  connection_->ValidatePath(std::move(context), std::move(result_delegate));
+}
+
+bool QuicSession::HasPendingPathValidation() const {
+  return connection_->HasPendingPathValidation();
+}
+
+void QuicSession::MigratePath(const QuicSocketAddress& self_address,
+                              const QuicSocketAddress& peer_address,
+                              QuicPacketWriter* writer,
+                              bool owns_writer) {
+  connection_->MigratePath(self_address, peer_address, writer, owns_writer);
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

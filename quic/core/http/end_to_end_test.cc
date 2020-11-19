@@ -2422,6 +2422,33 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   SendSynchronousBarRequestAndCheckResponse();
 }
 
+TEST_P(EndToEndTest, AsynchronousConnectionMigrationClientIPChanged) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->use_path_validator()) {
+    return;
+  }
+  client_.reset(CreateQuicClient(nullptr));
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Store the client IP address which was used to send the first request.
+  QuicIpAddress old_host =
+      client_->client()->network_helper()->GetLatestClientAddress().host();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_host, new_host);
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(new_host));
+
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  EXPECT_EQ(new_host, client_->client()->session()->self_address().host());
+  // Send a request using the new socket.
+  SendSynchronousBarRequestAndCheckResponse();
+}
+
 TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   // Tests that the client's port can change during an established QUIC
   // connection, and that doing so does not result in the connection being
@@ -4397,8 +4424,6 @@ INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
 TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
   ASSERT_TRUE(Initialize());
   if (version_.HasIetfQuicFrames()) {
-    // TODO(b/143909619): Reenable this test when supporting IETF connection
-    // migration.
     return;
   }
 
@@ -4450,6 +4475,148 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
   ASSERT_TRUE(client_connection);
   EXPECT_LE(1u,
             client_connection->GetStats().num_connectivity_probing_received);
+}
+
+// A writer which holds the next packet to be sent till ReleasePacket() is
+// called.
+class PacketHoldingWriter : public QuicPacketWriterWrapper {
+ public:
+  WriteResult WritePacket(const char* buffer,
+                          size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          PerPacketOptions* options) override {
+    if (!hold_next_packet_) {
+      return QuicPacketWriterWrapper::WritePacket(buffer, buf_len, self_address,
+                                                  peer_address, options);
+    }
+    QUIC_DLOG(INFO) << "Packet is held by the writer";
+    packet_content_ = std::string(buffer, buf_len);
+    self_address_ = self_address;
+    peer_address_ = peer_address;
+    options_ = (options == nullptr ? nullptr : options->Clone());
+    hold_next_packet_ = false;
+    return WriteResult(WRITE_STATUS_OK, buf_len);
+  }
+
+  void HoldNextPacket() {
+    DCHECK(packet_content_.empty()) << "There is already one packet on hold.";
+    hold_next_packet_ = true;
+  }
+
+  void ReleasePacket() {
+    QUIC_DLOG(INFO) << "Release packet";
+    ASSERT_EQ(WRITE_STATUS_OK,
+              QuicPacketWriterWrapper::WritePacket(
+                  packet_content_.data(), packet_content_.length(),
+                  self_address_, peer_address_, options_.release())
+                  .status);
+    packet_content_.clear();
+  }
+
+ private:
+  bool hold_next_packet_{false};
+  std::string packet_content_;
+  QuicIpAddress self_address_;
+  QuicSocketAddress peer_address_;
+  std::unique_ptr<PerPacketOptions> options_;
+};
+
+TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->use_path_validator()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+
+  // Finish one request to make sure handshake established.
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  // Wait for the connection to become idle, to make sure the packet gets
+  // delayed is the connectivity probing packet.
+  client_->WaitForDelayedAcks();
+
+  QuicSocketAddress old_addr =
+      client_->client()->network_helper()->GetLatestClientAddress();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_addr.host(), new_host);
+
+  // Setup writer wrapper to hold the probing packet.
+  auto holding_writer = new PacketHoldingWriter();
+  client_->UseWriter(holding_writer);
+  // Write a connectivity probing after the next /foo request.
+  holding_writer->HoldNextPacket();
+
+  // A packet with PATH_CHALLENGE will be held in the writer.
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(new_host));
+
+  // Send (on-hold) PATH_CHALLENGE after this request.
+  client_->SendRequest("/foo");
+  holding_writer->ReleasePacket();
+
+  client_->WaitForResponse();
+
+  EXPECT_EQ(kFooResponseBody, client_->response_body());
+  // Send yet another request after the PATH_CHALLENGE, when this request
+  // returns, the probing is guaranteed to have been received by the server, and
+  // the server's response to probing is guaranteed to have been received by the
+  // client.
+  EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_EQ(1u,
+              server_connection->GetStats().num_connectivity_probing_received);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() ||
+      !client_->client()->session()->connection()->use_path_validator()) {
+    return;
+  }
+
+  client_.reset(CreateQuicClient(nullptr));
+  // Finish one request to make sure handshake established.
+  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
+
+  // Wait for the connection to become idle, to make sure the packet gets
+  // delayed is the connectivity probing packet.
+  client_->WaitForDelayedAcks();
+
+  QuicSocketAddress old_addr = client_->client()->session()->self_address();
+
+  // Migrate socket to the new IP address.
+  QuicIpAddress new_host = TestLoopback(2);
+  EXPECT_NE(old_addr.host(), new_host);
+
+  // Drop PATH_RESPONSE packets to timeout the path validation.
+  server_writer_->set_fake_packet_loss_percentage(100);
+  ASSERT_TRUE(client_->client()->ValidateAndMigrateSocket(new_host));
+  while (client_->client()->HasPendingPathValidation()) {
+    client_->client()->WaitForEvents();
+  }
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    EXPECT_EQ(3u,
+              server_connection->GetStats().num_connectivity_probing_received);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+
+  EXPECT_EQ(old_addr, client_->client()->session()->self_address());
+  server_writer_->set_fake_packet_loss_percentage(0);
+  EXPECT_EQ(kBarResponseBody, client_->SendSynchronousRequest("/bar"));
 }
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {

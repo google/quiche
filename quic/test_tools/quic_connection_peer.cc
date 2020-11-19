@@ -399,5 +399,18 @@ void QuicConnectionPeer::SendPing(QuicConnection* connection) {
   connection->SendPingAtLevel(connection->encryption_level());
 }
 
+// static
+void QuicConnectionPeer::SetLastPacketDestinationAddress(
+    QuicConnection* connection,
+    const QuicSocketAddress& address) {
+  connection->last_packet_destination_address_ = address;
+}
+
+// static
+QuicPathValidator* QuicConnectionPeer::path_validator(
+    QuicConnection* connection) {
+  return &connection->path_validator_;
+}
+
 }  // namespace test
 }  // namespace quic

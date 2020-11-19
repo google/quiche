@@ -129,7 +129,7 @@ void QuicClientEpollNetworkHelper::OnUnregistration(int /*fd*/,
 void QuicClientEpollNetworkHelper::OnShutdown(QuicEpollServer* /*eps*/,
                                               int /*fd*/) {}
 
-void QuicClientEpollNetworkHelper::OnEvent(int /*fd*/, QuicEpollEvent* event) {
+void QuicClientEpollNetworkHelper::OnEvent(int fd, QuicEpollEvent* event) {
   if (event->in_events & EPOLLIN) {
     QUIC_DVLOG(1) << "Read packets on EPOLLIN";
     int times_to_read = max_reads_per_epoll_loop_;
@@ -137,9 +137,8 @@ void QuicClientEpollNetworkHelper::OnEvent(int /*fd*/, QuicEpollEvent* event) {
     QuicPacketCount packets_dropped = 0;
     while (client_->connected() && more_to_read && times_to_read > 0) {
       more_to_read = packet_reader_->ReadAndDispatchPackets(
-          GetLatestFD(), GetLatestClientAddress().port(),
-          *client_->helper()->GetClock(), this,
-          overflow_supported_ ? &packets_dropped : nullptr);
+          fd, GetLatestClientAddress().port(), *client_->helper()->GetClock(),
+          this, overflow_supported_ ? &packets_dropped : nullptr);
       --times_to_read;
     }
     if (packets_dropped_ < packets_dropped) {

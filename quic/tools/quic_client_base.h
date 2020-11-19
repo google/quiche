@@ -8,6 +8,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 #define QUICHE_QUIC_TOOLS_QUIC_CLIENT_BASE_H_
 
+#include <memory>
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -120,6 +121,11 @@ class QuicClientBase {
 
   // Migrate to a new socket (new_host, port) during an active connection.
   bool MigrateSocketWithSpecifiedPort(const QuicIpAddress& new_host, int port);
+
+  // Validate the new socket and migrate to it if the validation succeeds.
+  // Otherwise stay on the current socket. Return true if the validation has
+  // started.
+  bool ValidateAndMigrateSocket(const QuicIpAddress& new_host);
 
   // Open a new socket to change to a new ephemeral port.
   bool ChangeEphemeralPort();
@@ -244,6 +250,19 @@ class QuicClientBase {
     client_connection_id_length_ = client_connection_id_length;
   }
 
+  bool HasPendingPathValidation();
+
+  void ValidateNewNetwork(const QuicIpAddress& host);
+
+  void AddValidatedPath(std::unique_ptr<QuicPathValidationContext> context) {
+    validated_paths_.push_back(std::move(context));
+  }
+
+  const std::vector<std::unique_ptr<QuicPathValidationContext>>&
+  validated_paths() const {
+    return validated_paths_;
+  }
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -298,6 +317,10 @@ class QuicClientBase {
   // Returns true and set |version| if client can reconnect with a different
   // version.
   bool CanReconnectWithDifferentVersion(ParsedQuicVersion* version) const;
+
+  std::unique_ptr<QuicPacketWriter> CreateWriterForNewNetwork(
+      const QuicIpAddress& new_host,
+      int port);
 
   // |server_id_| is a tuple (hostname, port, is_https) of the server.
   QuicServerId server_id_;
@@ -370,6 +393,9 @@ class QuicClientBase {
   // GetClientConnectionId creates a random connection ID of this length.
   // Defaults to 0.
   uint8_t client_connection_id_length_;
+
+  // Stores validated paths.
+  std::vector<std::unique_ptr<QuicPathValidationContext>> validated_paths_;
 };
 
 }  // namespace quic

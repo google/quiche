@@ -47,6 +47,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quic/core/quic_path_validator.h"
 #include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -432,7 +433,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       public QuicPacketCreator::DelegateInterface,
       public QuicSentPacketManager::NetworkChangeVisitor,
       public QuicNetworkBlackholeDetector::Delegate,
-      public QuicIdleNetworkDetector::Delegate {
+      public QuicIdleNetworkDetector::Delegate,
+      public QuicPathValidator::SendDelegate {
  public:
   // Constructs a new QuicConnection for |connection_id| and
   // |initial_peer_address| using |writer| to write packets. |owns_writer|
@@ -1078,7 +1080,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void OnSuccessfulVersionNegotiation();
 
   // Called when self migration succeeds after probing.
-  void OnSuccessfulMigrationAfterProbing();
+  void OnSuccessfulMigration();
 
   // Called for QUIC+TLS versions when we send transport parameters.
   void OnTransportParametersSent(
@@ -1104,21 +1106,37 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool send_path_response() const { return send_path_response_; }
 
+  bool use_path_validator() const { return use_path_validator_; }
+
   // If now is close to idle timeout, returns true and sends a connectivity
   // probing packet to test the connection for liveness. Otherwise, returns
   // false.
   bool MaybeTestLiveness();
 
+  // QuicPathValidator::SendDelegate
   // Send PATH_CHALLENGE using the given path information. If |writer| is the
   // default writer, PATH_CHALLENGE can be bundled with other frames, and the
   // containing packet can be buffered if the writer is blocked. Otherwise,
   // PATH_CHALLENGE will be written in an individual packet and it will be
   // dropped if write fails. |data_buffer| will be populated with the payload
   // for future validation.
-  void SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
+  // Return false if the connection is closed thus the caller will not continue
+  // the validation, otherwise return true.
+  bool SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
                          const QuicSocketAddress& self_address,
                          const QuicSocketAddress& peer_address,
-                         QuicPacketWriter* writer);
+                         QuicPacketWriter* writer) override;
+  // If |writer| is the default writer and |peer_address| is the same as
+  // peer_address(), return the PTO of this connection. Otherwise, return 3 *
+  // kInitialRtt.
+  QuicTime GetRetryTimeout(const QuicSocketAddress& peer_address_to_use,
+                           QuicPacketWriter* writer_to_use) const override;
+
+  // Start vaildating the path defined by |context| asynchronously and call the
+  // |result_delegate| after validation finishes.
+  void ValidatePath(
+      std::unique_ptr<QuicPathValidationContext> context,
+      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate);
 
   bool can_receive_ack_frequency_frame() const {
     return can_receive_ack_frequency_frame_;
@@ -1137,6 +1155,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   bool use_encryption_level_context() const {
     return use_encryption_level_context_;
   }
+
+  bool HasPendingPathValidation() const;
+
+  void MigratePath(const QuicSocketAddress& self_address,
+                   const QuicSocketAddress& peer_address,
+                   QuicPacketWriter* writer,
+                   bool owns_writer);
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.
@@ -1912,6 +1937,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
   bool send_path_response_ = start_peer_migration_earlier_ &&
                              GetQuicReloadableFlag(quic_send_path_response);
+
+  bool use_path_validator_ =
+      send_path_response_ &&
+      GetQuicReloadableFlag(quic_pass_path_response_to_validator);
+
   // True if AckFrequencyFrame is supported.
   bool can_receive_ack_frequency_frame_ = false;
 
@@ -1941,6 +1971,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool encrypted_control_frames_;
 
   const bool use_encryption_level_context_;
+
+  QuicPathValidator path_validator_;
 };
 
 }  // namespace quic

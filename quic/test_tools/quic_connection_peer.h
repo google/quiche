@@ -164,6 +164,11 @@ class QuicConnectionPeer {
   static void SetConnectionClose(QuicConnection* connection);
 
   static void SendPing(QuicConnection* connection);
+
+  static void SetLastPacketDestinationAddress(QuicConnection* connection,
+                                              const QuicSocketAddress& address);
+
+  static QuicPathValidator* path_validator(QuicConnection* connection);
 };
 
 }  // namespace test

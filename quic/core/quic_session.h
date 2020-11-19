@@ -26,6 +26,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "net/third_party/quiche/src/quic/core/quic_path_validator.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream_frame_data_producer.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -368,6 +369,77 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Returns true if the session has data to be sent, either queued in the
   // connection, or in a write-blocked stream.
   bool HasDataToWrite() const;
+
+  // Initiates a path validation on the path described in the given context,
+  // asynchronously calls |result_delegate| upon success or failure.
+  // The initiator should extend QuicPathValidationContext to provide the writer
+  // and ResultDelegate to react upon the validation result.
+  // Example implementations of these for path validation for connection
+  // migration could be:
+  //  class QUIC_EXPORT_PRIVATE PathMigrationContext
+  //      : public QuicPathValidationContext {
+  //   public:
+  //    PathMigrationContext(std::unique_ptr<QuicPacketWriter> writer,
+  //                         const QuicSocketAddress& self_address,
+  //                         const QuicSocketAddress& peer_address)
+  //        : QuicPathValidationContext(self_address, peer_address),
+  //          alternative_writer_(std::move(writer)) {}
+  //
+  //    QuicPacketWriter* WriterToUse() override {
+  //         return alternative_writer_.get();
+  //    }
+  //
+  //    QuicPacketWriter* ReleaseWriter() {
+  //         return alternative_writer_.release();
+  //    }
+  //
+  //   private:
+  //    std::unique_ptr<QuicPacketWriter> alternative_writer_;
+  //  };
+  //
+  //  class PathMigrationValidationResultDelegate
+  //      : public QuicPathValidator::ResultDelegate {
+  //   public:
+  //    PathMigrationValidationResultDelegate(QuicConnection* connection)
+  //        : QuicPathValidator::ResultDelegate(), connection_(connection) {}
+  //
+  //    void OnPathValidationSuccess(
+  //        std::unique_ptr<QuicPathValidationContext> context) override {
+  //    // Do some work to prepare for migration.
+  //    // ...
+  //
+  //    // Actually migrate to the validated path.
+  //    auto migration_context = std::unique_ptr<PathMigrationContext>(
+  //        static_cast<PathMigrationContext*>(context.release()));
+  //    connection_->MigratePath(migration_context->self_address(),
+  //                          migration_context->peer_address(),
+  //                          migration_context->ReleaseWriter(),
+  //                          /*owns_writer=*/true);
+  //
+  //    // Post-migration actions
+  //    // ...
+  //  }
+  //
+  //    void OnPathValidationFailure(
+  //        std::unique_ptr<QuicPathValidationContext> /*context*/) override {
+  //    // Handle validation failure.
+  //  }
+  //
+  //   private:
+  //    QuicConnection* connection_;
+  //  };
+  void ValidatePath(
+      std::unique_ptr<QuicPathValidationContext> context,
+      std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate);
+
+  // Return true if there is a path being validated.
+  bool HasPendingPathValidation() const;
+
+  // Switch to the path described in |context| without validating the path.
+  void MigratePath(const QuicSocketAddress& self_address,
+                   const QuicSocketAddress& peer_address,
+                   QuicPacketWriter* writer,
+                   bool owns_writer);
 
   // Returns the largest payload that will fit into a single MESSAGE frame.
   // Because overhead can vary during a connection, this method should be
