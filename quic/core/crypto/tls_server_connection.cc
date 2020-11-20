@@ -40,6 +40,8 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
        GetQuicRestartFlag(quic_session_tickets_always_enabled))) {
     SSL_CTX_set_early_data_enabled(ssl_ctx.get(), 1);
   }
+  SSL_CTX_set_select_certificate_cb(
+      ssl_ctx.get(), &TlsServerConnection::EarlySelectCertCallback);
   return ssl_ctx;
 }
 
@@ -59,6 +61,13 @@ const SSL_PRIVATE_KEY_METHOD TlsServerConnection::kPrivateKeyMethod{
 TlsServerConnection* TlsServerConnection::ConnectionFromSsl(SSL* ssl) {
   return static_cast<TlsServerConnection*>(
       TlsConnection::ConnectionFromSsl(ssl));
+}
+
+// static
+ssl_select_cert_result_t TlsServerConnection::EarlySelectCertCallback(
+    const SSL_CLIENT_HELLO* client_hello) {
+  return ConnectionFromSsl(client_hello->ssl)
+      ->delegate_->EarlySelectCertCallback(client_hello);
 }
 
 // static

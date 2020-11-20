@@ -103,6 +103,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       const ProofVerifyDetails& verify_details) override;
 
   // TlsServerConnection::Delegate implementation:
+  // Used to select certificates and process transport parameters.
+  ssl_select_cert_result_t EarlySelectCertCallback(
+      const SSL_CLIENT_HELLO* client_hello) override;
   int SelectCertificate(int* out_alert) override;
   int SelectAlpn(const uint8_t** out,
                  uint8_t* out_len,
@@ -158,7 +161,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   virtual bool ValidateHostname(const std::string& hostname) const;
   bool SetTransportParameters();
-  bool ProcessTransportParameters(std::string* error_details);
+  bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
+                                  std::string* error_details);
 
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
@@ -192,6 +196,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
+  const bool use_early_select_cert_ =
+      GetQuicReloadableFlag(quic_tls_use_early_select_cert);
 };
 
 }  // namespace quic

@@ -243,12 +243,26 @@ void TlsServerHandshaker::AdvanceHandshakeFromCallback() {
 }
 
 bool TlsServerHandshaker::ProcessTransportParameters(
+    const SSL_CLIENT_HELLO* client_hello,
     std::string* error_details) {
   TransportParameters client_params;
   const uint8_t* client_params_bytes;
   size_t params_bytes_len;
-  SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
-                                     &params_bytes_len);
+  if (use_early_select_cert_) {
+    // When using early select cert callback, SSL_get_peer_quic_transport_params
+    // can not be used to retrieve the client's transport parameters, but we can
+    // use SSL_early_callback_ctx_extension_get to do that.
+    if (!SSL_early_callback_ctx_extension_get(
+            client_hello, TLSEXT_TYPE_quic_transport_parameters,
+            &client_params_bytes, &params_bytes_len)) {
+      params_bytes_len = 0;
+    }
+  } else {
+    DCHECK_EQ(client_hello, nullptr);
+    SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
+                                       &params_bytes_len);
+  }
+
   if (params_bytes_len == 0) {
     *error_details = "Client's transport parameters are missing";
     return false;
@@ -506,6 +520,62 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
   return ssl_ticket_aead_success;
 }
 
+ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
+    const SSL_CLIENT_HELLO* client_hello) {
+  if (!use_early_select_cert_) {
+    return ssl_select_cert_success;
+  }
+
+  if (!pre_shared_key_.empty()) {
+    // TODO(b/154162689) add PSK support to QUIC+TLS.
+    QUIC_BUG << "QUIC server pre-shared keys not yet supported with TLS";
+    return ssl_select_cert_error;
+  }
+
+  // This callback is called very early by Boring SSL, most of the SSL_get_foo
+  // function do not work at this point, but SSL_get_servername does.
+  const char* hostname = SSL_get_servername(ssl(), TLSEXT_NAMETYPE_host_name);
+  if (hostname) {
+    hostname_ = hostname;
+    crypto_negotiated_params_->sni =
+        QuicHostnameUtils::NormalizeHostname(hostname_);
+    if (!ValidateHostname(hostname_)) {
+      return ssl_select_cert_error;
+    }
+  } else {
+    QUIC_LOG(INFO) << "No hostname indicated in SNI";
+  }
+
+  QuicReferenceCountedPointer<ProofSource::Chain> chain =
+      proof_source_->GetCertChain(session()->connection()->self_address(),
+                                  session()->connection()->peer_address(),
+                                  hostname_);
+  if (!chain || chain->certs.empty()) {
+    QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
+    return ssl_select_cert_error;
+  }
+
+  CryptoBuffers cert_buffers = chain->ToCryptoBuffers();
+  tls_connection_.SetCertChain(cert_buffers.value);
+
+  std::string error_details;
+  if (!ProcessTransportParameters(client_hello, &error_details)) {
+    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+    return ssl_select_cert_error;
+  }
+  OverrideQuicConfigDefaults(session()->config());
+  session()->OnConfigNegotiated();
+
+  if (!SetTransportParameters()) {
+    QUIC_LOG(ERROR) << "Failed to set transport parameters";
+    return ssl_select_cert_error;
+  }
+
+  QUIC_DLOG(INFO) << "Set " << chain->certs.size() << " certs for server "
+                  << "with hostname " << hostname_;
+  return ssl_select_cert_success;
+}
+
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   if (!QuicHostnameUtils::IsValidSNI(hostname)) {
     // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE
@@ -517,6 +587,10 @@ bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
 }
 
 int TlsServerHandshaker::SelectCertificate(int* out_alert) {
+  if (use_early_select_cert_) {
+    return SSL_TLSEXT_ERR_OK;
+  }
+
   const char* hostname = SSL_get_servername(ssl(), TLSEXT_NAMETYPE_host_name);
   if (hostname) {
     hostname_ = hostname;
@@ -548,7 +622,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
   tls_connection_.SetCertChain(cert_buffers.value);
 
   std::string error_details;
-  if (!ProcessTransportParameters(&error_details)) {
+  if (!ProcessTransportParameters(nullptr, &error_details)) {
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return SSL_TLSEXT_ERR_ALERT_FATAL;

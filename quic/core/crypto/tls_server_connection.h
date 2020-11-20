@@ -22,12 +22,19 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     virtual ~Delegate() {}
 
    protected:
+    // Called from BoringSSL right after SNI is extracted, which is very early
+    // in the handshake process.
+    virtual ssl_select_cert_result_t EarlySelectCertCallback(
+        const SSL_CLIENT_HELLO* client_hello) = 0;
+
     // Configures the certificate to use on |ssl_| based on the SNI sent by the
     // client. Returns an SSL_TLSEXT_ERR_* value (see
     // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_servername_callback).
     //
     // If SelectCertificate returns SSL_TLSEXT_ERR_ALERT_FATAL, then it puts in
     // |*out_alert| the TLS alert value that the server will send.
+    //
+    // TODO(wub): Deprecate it after enabling --quic_tls_use_early_select_cert.
     virtual int SelectCertificate(int* out_alert) = 0;
 
     // Selects which ALPN to use based on the list sent by the client.
@@ -120,6 +127,9 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
  private:
   // Specialization of TlsConnection::ConnectionFromSsl.
   static TlsServerConnection* ConnectionFromSsl(SSL* ssl);
+
+  static ssl_select_cert_result_t EarlySelectCertCallback(
+      const SSL_CLIENT_HELLO* client_hello);
 
   // These functions are registered as callbacks in BoringSSL and delegate their
   // implementation to the matching methods in Delegate above.
