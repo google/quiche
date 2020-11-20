@@ -102,6 +102,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   virtual void Initialize();
 
+  // Return the reserved crypto stream as a constant pointer.
+  virtual const QuicCryptoStream* GetCryptoStream() const = 0;
+
   // QuicConnectionVisitorInterface methods:
   void OnStreamFrame(const QuicStreamFrame& frame) override;
   void OnCryptoFrame(const QuicCryptoFrame& frame) override;
@@ -619,9 +622,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetMutableCryptoStream() = 0;
-
-  // Return the reserved crypto stream as a constant pointer.
-  virtual const QuicCryptoStream* GetCryptoStream() const = 0;
 
   // Adds |stream| to the stream map.
   virtual void ActivateStream(std::unique_ptr<QuicStream> stream);
