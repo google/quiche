@@ -225,12 +225,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionDebugVisitor
   ~QuicConnectionDebugVisitor() override {}
 
   // Called when a packet has been sent.
-  // TODO(wub): Delete when deprecating
-  // --quic_give_sent_packet_to_debug_visitor_after_sent.
-  virtual void OnPacketSent(const SerializedPacket& /*serialized_packet*/,
-                            TransmissionType /*transmission_type*/,
-                            QuicTime /*sent_time*/) {}
-
   virtual void OnPacketSent(QuicPacketNumber /*packet_number*/,
                             QuicPacketLength /*packet_length*/,
                             bool /*has_crypto_handshake*/,

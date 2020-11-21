@@ -3052,12 +3052,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     packet_send_time = packet_send_time + result.send_time_offset;
   }
 
-  if (!sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
-      debug_visitor_ != nullptr) {
-    // Pass the write result to the visitor.
-    debug_visitor_->OnPacketSent(*packet, packet->transmission_type,
-                                 packet_send_time);
-  }
   if (IsRetransmittable(*packet) == HAS_RETRANSMITTABLE_DATA &&
       !is_termination_packet) {
     // Start blackhole/path degrading detections if the sent packet is not
@@ -3100,10 +3094,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       << ENDPOINT
       << "Trying to start blackhole detection without no bytes in flight";
 
-  if (sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
-      debug_visitor_ != nullptr) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_give_sent_packet_to_debug_visitor_after_sent, 1, 2);
+  if (debug_visitor_ != nullptr) {
     if (sent_packet_manager_.unacked_packets().empty()) {
       QUIC_BUG << "Unacked map is empty right after packet is sent";
     } else {
@@ -4492,21 +4483,12 @@ bool QuicConnection::WritePacketUsingWriter(
     return false;
   }
 
-  if (!sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
-      debug_visitor_ != nullptr) {
-    debug_visitor_->OnPacketSent(*packet, packet->transmission_type,
-                                 packet_send_time);
-  }
-
   // Send in currrent path. Call OnPacketSent regardless of the write result.
   sent_packet_manager_.OnPacketSent(packet.get(), packet_send_time,
                                     packet->transmission_type,
                                     NO_RETRANSMITTABLE_DATA, measure_rtt);
 
-  if (sent_packet_manager_.give_sent_packet_to_debug_visitor_after_sent() &&
-      debug_visitor_ != nullptr) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(
-        quic_give_sent_packet_to_debug_visitor_after_sent, 2, 2);
+  if (debug_visitor_ != nullptr) {
     if (sent_packet_manager_.unacked_packets().empty()) {
       QUIC_BUG << "Unacked map is empty right after packet is sent";
     } else {

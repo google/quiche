@@ -18,12 +18,6 @@ class QUIC_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
  public:
   explicit QuicTraceVisitor(const QuicConnection* connection);
 
-  // TODO(wub): Delete when deprecating
-  // --quic_give_sent_packet_to_debug_visitor_after_sent.
-  void OnPacketSent(const SerializedPacket& serialized_packet,
-                    TransmissionType transmission_type,
-                    QuicTime sent_time) override;
-
   void OnPacketSent(QuicPacketNumber packet_number,
                     QuicPacketLength packet_length,
                     bool has_crypto_handshake,

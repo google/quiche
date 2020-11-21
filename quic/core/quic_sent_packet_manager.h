@@ -456,10 +456,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   QuicTime GetEarliestPacketSentTimeForPto(
       PacketNumberSpace* packet_number_space) const;
 
-  bool give_sent_packet_to_debug_visitor_after_sent() const {
-    return give_sent_packet_to_debug_visitor_after_sent_;
-  }
-
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -740,9 +736,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The number of PTOs needed for path degrading alarm. If equals to 0, the
   // traditional path degrading mechanism will be used.
   int num_ptos_for_path_degrading_;
-
-  const bool give_sent_packet_to_debug_visitor_after_sent_ =
-      GetQuicReloadableFlag(quic_give_sent_packet_to_debug_visitor_after_sent);
 };
 
 }  // namespace quic

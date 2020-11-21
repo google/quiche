@@ -1457,13 +1457,6 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
   MockQuicConnectionDebugVisitor();
   ~MockQuicConnectionDebugVisitor() override;
 
-  // TODO(wub): Delete when deprecating
-  // --quic_give_sent_packet_to_debug_visitor_after_sent.
-  MOCK_METHOD(void,
-              OnPacketSent,
-              (const SerializedPacket&, TransmissionType, QuicTime),
-              (override));
-
   MOCK_METHOD(void,
               OnPacketSent,
               (QuicPacketNumber,
