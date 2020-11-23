@@ -736,6 +736,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // The number of PTOs needed for path degrading alarm. If equals to 0, the
   // traditional path degrading mechanism will be used.
   int num_ptos_for_path_degrading_;
+
+  // If true, do not use PING only packets for RTT measurement or congestion
+  // control.
+  bool ignore_pings_;
 };
 
 }  // namespace quic

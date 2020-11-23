@@ -116,7 +116,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       first_pto_srtt_multiplier_(0),
       use_standard_deviation_for_pto_(false),
       pto_multiplier_without_rtt_samples_(3),
-      num_ptos_for_path_degrading_(0) {
+      num_ptos_for_path_degrading_(0),
+      ignore_pings_(false) {
   SetSendAlgorithm(congestion_control_type);
   if (pto_enabled_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_default_on_pto, 1, 2);
@@ -274,6 +275,10 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kBWS5, perspective)) {
     initial_congestion_window_ = 10;
     send_algorithm_->SetInitialCongestionWindowInPackets(10);
+  }
+
+  if (config.HasClientRequestedIndependentOption(kIGNP, perspective)) {
+    ignore_pings_ = true;
   }
 
   using_pacing_ = !GetQuicFlag(FLAGS_quic_disable_pacing_for_perf_tests);
@@ -798,6 +803,12 @@ bool QuicSentPacketManager::OnPacketSent(
   }
 
   bool in_flight = has_retransmittable_data == HAS_RETRANSMITTABLE_DATA;
+  if (ignore_pings_ && mutable_packet->retransmittable_frames.size() == 1 &&
+      mutable_packet->retransmittable_frames[0].type == PING_FRAME) {
+    // Dot not use PING only packet for RTT measure or congestion control.
+    in_flight = false;
+    measure_rtt = false;
+  }
   if (using_pacing_) {
     pacing_sender_.OnPacketSent(sent_time, unacked_packets_.bytes_in_flight(),
                                 packet_number, packet.encrypted_length,

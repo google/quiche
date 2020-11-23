@@ -396,6 +396,10 @@ const QuicTag kQNSP = TAG('Q', 'N', 'S', 'P');   // Turn off server push in
 
 const QuicTag kMAD  = TAG('M', 'A', 'D', 0);     // Max Ack Delay (IETF QUIC)
 
+const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
+                                                 // for RTT measure or
+                                                 // congestion control.
+
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
 

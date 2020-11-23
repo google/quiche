@@ -3882,6 +3882,55 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsingPTO) {
   EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
 }
 
+TEST_F(QuicSentPacketManagerTest, ClientsIgnorePings) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  QuicConfig client_config;
+  QuicTagVector options;
+  QuicTagVector client_options;
+  client_options.push_back(kIGNP);
+  client_config.SetConnectionOptionsToSend(options);
+  client_config.SetClientConnectionOptions(client_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(client_config);
+
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Zero()));
+  EXPECT_CALL(*send_algorithm_, GetCongestionWindow())
+      .WillRepeatedly(Return(10 * kDefaultTCPMSS));
+  EXPECT_CALL(*send_algorithm_, CanSend(_)).WillRepeatedly(Return(true));
+
+  SendPingPacket(1, ENCRYPTION_INITIAL);
+  // Verify PING only packet is not considered in flight.
+  EXPECT_EQ(QuicTime::Zero(), manager_.GetRetransmissionTime());
+  SendDataPacket(2, ENCRYPTION_INITIAL);
+  EXPECT_NE(QuicTime::Zero(), manager_.GetRetransmissionTime());
+
+  uint64_t acked[] = {1};
+  ExpectAcksAndLosses(/*rtt_updated=*/false, acked, ABSL_ARRAYSIZE(acked),
+                      nullptr, 0);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(90));
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL));
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_.GetRttStats());
+  // Verify no RTT samples for PING only packet.
+  EXPECT_TRUE(rtt_stats->smoothed_rtt().IsZero());
+
+  ExpectAck(2);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_INITIAL));
+  EXPECT_EQ(QuicTime::Delta::FromMilliseconds(100), rtt_stats->smoothed_rtt());
+}
+
 // Regression test for b/154050235.
 TEST_F(QuicSentPacketManagerTest, ExponentialBackoffWithNoRttMeasurement) {
   QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
