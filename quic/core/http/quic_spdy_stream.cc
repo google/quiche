@@ -865,10 +865,6 @@ bool QuicSpdyStream::FinishedReadingTrailers() const {
   }
 }
 
-void QuicSpdyStream::ClearSession() {
-  spdy_session_ = nullptr;
-}
-
 bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
                                       QuicByteCount payload_length) {
   DCHECK(VersionUsesHttp3(transport_version()));
