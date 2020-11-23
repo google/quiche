@@ -195,14 +195,28 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
     return NOT_ADAPTED_INVALID_SAMPLE;
   }
 
+  // TODO(ianswett): Rename to bytes_delivered if
+  // use_bytes_delivered_for_inflight_hi is default enabled.
+  QuicByteCount inflight_at_send = BytesInFlight(send_state);
+  if (Params().use_bytes_delivered_for_inflight_hi) {
+    if (congestion_event.last_packet_send_state.total_bytes_acked <=
+        model_->total_bytes_acked()) {
+      inflight_at_send =
+          model_->total_bytes_acked() -
+          congestion_event.last_packet_send_state.total_bytes_acked;
+    } else {
+      QUIC_BUG << "Total_bytes_acked(" << model_->total_bytes_acked()
+               << ") < send_state.total_bytes_acked("
+               << congestion_event.last_packet_send_state.total_bytes_acked
+               << ")";
+    }
+  }
   if (model_->IsInflightTooHigh(congestion_event,
                                 Params().probe_bw_full_loss_count)) {
     if (cycle_.is_sample_from_probing) {
       cycle_.is_sample_from_probing = false;
 
       if (!send_state.is_app_limited) {
-        const QuicByteCount inflight_at_send = BytesInFlight(send_state);
-
         const QuicByteCount inflight_target =
             sender_->GetTargetBytesInflight() * (1.0 - Params().beta);
         if (inflight_at_send >= inflight_target) {
@@ -247,8 +261,6 @@ Bbr2ProbeBwMode::AdaptUpperBoundsResult Bbr2ProbeBwMode::MaybeAdaptUpperBounds(
                   << ": NOT_ADAPTED_INFLIGHT_HIGH_NOT_SET";
     return NOT_ADAPTED_INFLIGHT_HIGH_NOT_SET;
   }
-
-  const QuicByteCount inflight_at_send = BytesInFlight(send_state);
 
   // Raise the upper bound for inflight.
   if (inflight_at_send > model_->inflight_hi()) {
