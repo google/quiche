@@ -123,9 +123,7 @@ void Bbr2Sender::SetFromConfig(const QuicConfig& config,
   if (config.HasClientRequestedIndependentOption(kB2LO, perspective)) {
     params_.ignore_inflight_lo = true;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_use_tcp_inflight_hi_headroom) &&
-      config.HasClientRequestedIndependentOption(kB2HR, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_use_tcp_inflight_hi_headroom);
+  if (config.HasClientRequestedIndependentOption(kB2HR, perspective)) {
     params_.inflight_hi_headroom = 0.15;
   }
   if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd) &&
