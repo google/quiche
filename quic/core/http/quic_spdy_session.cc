@@ -740,25 +740,22 @@ void QuicSpdySession::SendHttp3GoAway() {
   } else {
     stream_id = GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
 
-    if (GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_http3_goaway_stream_id);
-      if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
-        // No client-initiated bidirectional streams received yet.
-        // Send 0 to let client know that all requests can be retried.
-        stream_id = 0;
-      } else {
-        // Tell client that streams starting with the next after the largest
-        // received one can be retried.
-        stream_id += QuicUtils::StreamIdDelta(transport_version());
-      }
-      if (last_sent_http3_goaway_id_.has_value() &&
-          last_sent_http3_goaway_id_.value() <= stream_id) {
-        // MUST not send GOAWAY with identifier larger than previously sent.
-        // Do not bother sending one with same identifier as before, since
-        // GOAWAY frames on the control stream are guaranteed to be processed in
-        // order.
-        return;
-      }
+    if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
+      // No client-initiated bidirectional streams received yet.
+      // Send 0 to let client know that all requests can be retried.
+      stream_id = 0;
+    } else {
+      // Tell client that streams starting with the next after the largest
+      // received one can be retried.
+      stream_id += QuicUtils::StreamIdDelta(transport_version());
+    }
+    if (last_sent_http3_goaway_id_.has_value() &&
+        last_sent_http3_goaway_id_.value() <= stream_id) {
+      // MUST not send GOAWAY with identifier larger than previously sent.
+      // Do not bother sending one with same identifier as before, since
+      // GOAWAY frames on the control stream are guaranteed to be processed in
+      // order.
+      return;
     }
   }
 
@@ -1404,31 +1401,28 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
   QuicStreamId stream_id =
       GetLargestPeerCreatedStreamId(/*unidirectional = */ false);
 
-  if (GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_http3_goaway_stream_id);
-    if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
-      // No client-initiated bidirectional streams received yet.
-      // Send 0 to let client know that all requests can be retried.
-      stream_id = 0;
-    } else {
-      // Tell client that streams starting with the next after the largest
-      // received one can be retried.
-      stream_id += QuicUtils::StreamIdDelta(transport_version());
+  if (stream_id == QuicUtils::GetInvalidStreamId(transport_version())) {
+    // No client-initiated bidirectional streams received yet.
+    // Send 0 to let client know that all requests can be retried.
+    stream_id = 0;
+  } else {
+    // Tell client that streams starting with the next after the largest
+    // received one can be retried.
+    stream_id += QuicUtils::StreamIdDelta(transport_version());
+  }
+  if (last_sent_http3_goaway_id_.has_value() &&
+      last_sent_http3_goaway_id_.value() <= stream_id) {
+    if (goaway_with_max_stream_id_) {
+      // A previous GOAWAY frame was sent with smaller stream ID.  This is not
+      // possible, because this is the only method sending a GOAWAY frame with
+      // non-maximal stream ID, and this must only be called once, right
+      // before closing connection.
+      QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
     }
-    if (last_sent_http3_goaway_id_.has_value() &&
-        last_sent_http3_goaway_id_.value() <= stream_id) {
-      if (goaway_with_max_stream_id_) {
-        // A previous GOAWAY frame was sent with smaller stream ID.  This is not
-        // possible, because this is the only method sending a GOAWAY frame with
-        // non-maximal stream ID, and this must only be called once, right
-        // before closing connection.
-        QUIC_BUG << "GOAWAY frame with smaller ID already sent.";
-      }
-      // MUST not send GOAWAY with identifier larger than previously sent.
-      // Do not bother sending one with same identifier as before, since GOAWAY
-      // frames on the control stream are guaranteed to be processed in order.
-      return;
-    }
+    // MUST not send GOAWAY with identifier larger than previously sent.
+    // Do not bother sending one with same identifier as before, since GOAWAY
+    // frames on the control stream are guaranteed to be processed in order.
+    return;
   }
 
   send_control_stream_->SendGoAway(stream_id);

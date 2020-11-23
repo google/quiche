@@ -1130,23 +1130,11 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
   // No more GOAWAY frames are sent because they could not convey new
   // information to the client.
-  if (!GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id) &&
-      !GetQuicReloadableFlag(quic_goaway_with_max_stream_id)) {
-    // Except when both these flags are false, in which case a second GOAWAY
-    // frame is sent.
-    EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
-        .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
-    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
-  }
   session_.SendHttp3GoAway();
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
   if (!VersionUsesHttp3(transport_version())) {
-    return;
-  }
-
-  if (!GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
     return;
   }
 
@@ -3160,16 +3148,11 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
                            &session_, /*unidirectional = */ false));
 
   if (GetQuicReloadableFlag(quic_send_goaway_with_connection_close)) {
-    if (GetQuicReloadableFlag(quic_fix_http3_goaway_stream_id)) {
-      // Stream with stream_id is already received and potentially processed,
-      // therefore a GOAWAY frame is sent with the next stream ID.
-      EXPECT_CALL(debug_visitor,
-                  OnGoAwayFrameSent(stream_id + QuicUtils::StreamIdDelta(
-                                                    transport_version())));
-    } else {
-      // GOAWAY frame stream id is incorrect, ignore.
-      EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(_));
-    }
+    // Stream with stream_id is already received and potentially processed,
+    // therefore a GOAWAY frame is sent with the next stream ID.
+    EXPECT_CALL(debug_visitor,
+                OnGoAwayFrameSent(
+                    stream_id + QuicUtils::StreamIdDelta(transport_version())));
   }
 
   // Close connection.
