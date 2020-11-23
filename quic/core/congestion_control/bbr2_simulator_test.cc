@@ -1000,9 +1000,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
   // Switch from |old_sender| to |sender_|.
   const QuicByteCount old_sender_cwnd = old_sender.GetCongestionWindow();
   sender_ = SetupBbr2Sender(&sender_endpoint_, &old_sender);
-  if (GetQuicReloadableFlag(quic_copy_bbr_cwnd_to_bbr2)) {
-    EXPECT_EQ(old_sender_cwnd, sender_->GetCongestionWindow());
-  }
+  EXPECT_EQ(old_sender_cwnd, sender_->GetCongestionWindow());
 
   // Send packets 5-7.
   now = now + QuicTime::Delta::FromMilliseconds(10);
