@@ -1426,6 +1426,8 @@ void QuicPacketCreator::MaybeBundleAckOpportunistically() {
 bool QuicPacketCreator::FlushAckFrame(const QuicFrames& frames) {
   QUIC_BUG_IF(!flusher_attached_) << "Packet flusher is not attached when "
                                      "generator tries to send ACK frame.";
+  QUIC_BUG_IF(GetQuicReloadableFlag(quic_single_ack_in_packet) && has_ack())
+      << "Trying to flush " << frames << " when there is ACK queued";
   for (const auto& frame : frames) {
     DCHECK(frame.type == ACK_FRAME || frame.type == STOP_WAITING_FRAME);
     if (HasPendingFrames()) {

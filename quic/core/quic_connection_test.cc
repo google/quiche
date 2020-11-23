@@ -12826,6 +12826,32 @@ TEST_P(QuicConnectionTest, MigratePath) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 }
 
+TEST_P(QuicConnectionTest, SingleAckInPacket) {
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=]() {
+    connection_.SendStreamData3();
+    connection_.CloseConnection(
+        QUIC_INTERNAL_ERROR, "error",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+  }));
+  QuicFrames frames;
+  frames.push_back(QuicFrame(frame1_));
+  ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  ASSERT_FALSE(writer_->ack_frames().empty());
+  if (GetQuicReloadableFlag(quic_single_ack_in_packet)) {
+    EXPECT_EQ(1u, writer_->ack_frames().size());
+  } else {
+    EXPECT_EQ(2u, writer_->ack_frames().size());
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
