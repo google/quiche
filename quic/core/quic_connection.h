@@ -1140,8 +1140,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     can_receive_ack_frequency_frame_ = true;
   }
 
-  bool check_keys_before_writing() const { return check_keys_before_writing_; }
-
   bool is_processing_packet() const { return framer_.is_processing_packet(); }
 
   bool encrypted_control_frames() const { return encrypted_control_frames_; }
@@ -1958,9 +1956,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   const bool fix_out_of_order_sending_ =
       GetQuicReloadableFlag(quic_fix_out_of_order_sending2);
-
-  const bool check_keys_before_writing_ =
-      GetQuicReloadableFlag(quic_check_keys_before_writing);
 
   const bool encrypted_control_frames_;
 

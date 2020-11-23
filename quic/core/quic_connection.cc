@@ -4906,14 +4906,11 @@ void QuicConnection::MaybeBundleCryptoDataWithAcks() {
     return;
   }
 
-  if (check_keys_before_writing_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_keys_before_writing, 1, 2);
-    if (!framer_.HasAnEncrypterForSpace(space)) {
-      QUIC_BUG << ENDPOINT
-               << "Try to bundle crypto with ACK with missing key of space "
-               << PacketNumberSpaceToString(space);
-      return;
-    }
+  if (!framer_.HasAnEncrypterForSpace(space)) {
+    QUIC_BUG << ENDPOINT
+             << "Try to bundle crypto with ACK with missing key of space "
+             << PacketNumberSpaceToString(space);
+    return;
   }
 
   sent_packet_manager_.RetransmitDataOfSpaceIfAny(space);
@@ -4939,12 +4936,9 @@ void QuicConnection::SendAllPendingAcks() {
     if (!ack_timeout.IsInitialized()) {
       continue;
     }
-    if (check_keys_before_writing_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_keys_before_writing, 2, 2);
-      if (!framer_.HasAnEncrypterForSpace(static_cast<PacketNumberSpace>(i))) {
-        // The key has been dropped.
-        continue;
-      }
+    if (!framer_.HasAnEncrypterForSpace(static_cast<PacketNumberSpace>(i))) {
+      // The key has been dropped.
+      continue;
     }
     if (ack_timeout > clock_->ApproximateNow() &&
         ack_timeout > earliest_ack_timeout) {

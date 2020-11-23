@@ -795,8 +795,7 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
                                    QuicStreamOffset offset,
                                    TransmissionType type) {
   DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
-  if (connection()->check_keys_before_writing() &&
-      !connection()->framer().HasEncrypterOfEncryptionLevel(level)) {
+  if (!connection()->framer().HasEncrypterOfEncryptionLevel(level)) {
     const std::string error_details = quiche::QuicheStrCat(
         "Try to send crypto data with missing keys of encryption level: ",
         EncryptionLevelToString(level));
