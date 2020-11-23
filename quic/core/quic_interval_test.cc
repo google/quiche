@@ -375,6 +375,19 @@ TEST_F(QuicIntervalTest, CoveringOps) {
   EXPECT_TRUE(d.Difference(d8, &diff) && diff.empty());
 }
 
+TEST_F(QuicIntervalTest, Separated) {
+  using QI = QuicInterval<int>;
+  EXPECT_FALSE(QI(100, 200).Separated(QI(100, 200)));
+  EXPECT_FALSE(QI(100, 200).Separated(QI(200, 300)));
+  EXPECT_TRUE(QI(100, 200).Separated(QI(201, 300)));
+  EXPECT_FALSE(QI(100, 200).Separated(QI(0, 100)));
+  EXPECT_TRUE(QI(100, 200).Separated(QI(0, 99)));
+  EXPECT_FALSE(QI(100, 200).Separated(QI(150, 170)));
+  EXPECT_FALSE(QI(150, 170).Separated(QI(100, 200)));
+  EXPECT_FALSE(QI(100, 200).Separated(QI(150, 250)));
+  EXPECT_FALSE(QI(150, 250).Separated(QI(100, 200)));
+}
+
 TEST_F(QuicIntervalTest, Length) {
   const QuicInterval<int> empty1;
   const QuicInterval<int> empty2(1, 1);

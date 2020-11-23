@@ -52,6 +52,14 @@ using QuicQueue = QuicQueueImpl<T>;
 template <typename T, size_t N, typename A = std::allocator<T>>
 using QuicInlinedVector = QuicInlinedVectorImpl<T, N, A>;
 
+// An ordered set of values.
+//
+// DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
+template <typename Key,
+          typename Compare = std::less<Key>,
+          typename Rep = std::vector<Key>>
+using QuicOrderedSet = QuicOrderedSetImpl<Key, Compare, Rep>;
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_CONTAINERS_H_

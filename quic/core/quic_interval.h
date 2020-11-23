@@ -152,6 +152,16 @@ class QUIC_NO_EXPORT QuicInterval {
   // *this was modified.
   bool IntersectWith(const QuicInterval& i);
 
+  // Returns true iff this and other have disjoint closures.  For nonempty
+  // intervals, that means there is at least one point between this and other.
+  // Roughly speaking that means the intervals don't intersect, and they are not
+  // adjacent.   Empty intervals are always separated from any other interval.
+  bool Separated(const QuicInterval& other) const {
+    if (Empty() || other.Empty())
+      return true;
+    return other.max() < min() || max() < other.min();
+  }
+
   // Calculates the smallest QuicInterval containing both *this i, and updates
   // *this to represent that QuicInterval, and returns true iff *this was
   // modified.

@@ -16,14 +16,29 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 
 namespace quic {
+
+// Fully instantiate a QuicIntervalSet to check for compile-time errors on the
+// templated code.
+template class QuicIntervalSet<int>;
+
+void Quic_Test_Set_Fast(bool fast) {
+  QuicIntervalSetParameterSetter::SetUseFasterIntervalSet(fast);
+}
+
 namespace test {
-namespace {
 
 using ::testing::ElementsAreArray;
 
-class QuicIntervalSetTest : public QuicTest {
+class QuicIntervalSetTest :
+    // The parameter is whether to for FLAGS_quic_startup_faster_interval_set.
+    public QuicTestWithParam<bool> {
  protected:
   virtual void SetUp() {
+    Quic_Test_Set_Fast(GetParam());
+    // Must make new sets, since the representation depends on the flag.
+    is = QuicIntervalSet<int>();
+    other = QuicIntervalSet<int>();
+
     // Initialize two QuicIntervalSets for union, intersection, and difference
     // tests
     is.Add(100, 200);
@@ -60,8 +75,11 @@ class QuicIntervalSetTest : public QuicTest {
   QuicIntervalSet<int> is;
   QuicIntervalSet<int> other;
 };
+INSTANTIATE_TEST_SUITE_P(QuicIntervalSetTest,
+                         QuicIntervalSetTest,
+                         ::testing::Bool());
 
-TEST_F(QuicIntervalSetTest, IsDisjoint) {
+TEST_P(QuicIntervalSetTest, IsDisjoint) {
   EXPECT_TRUE(is.IsDisjoint(QuicInterval<int>(0, 99)));
   EXPECT_TRUE(is.IsDisjoint(QuicInterval<int>(0, 100)));
   EXPECT_TRUE(is.IsDisjoint(QuicInterval<int>(200, 200)));
@@ -162,7 +180,22 @@ static void TestNotContainsAndFind(const QuicIntervalSet<int>& is,
                           << "and max " << max;
 }
 
-TEST_F(QuicIntervalSetTest, AddOptimizedForAppend) {
+TEST_P(QuicIntervalSetTest, AddInterval) {
+  QuicIntervalSet<int> s;
+  s.Add(QuicInterval<int>(0, 10));
+  EXPECT_TRUE(Check(s, 1, 0, 10));
+}
+
+TEST_P(QuicIntervalSetTest, DecrementIterator) {
+  auto it = is.end();
+  EXPECT_NE(it, is.begin());
+  --it;
+  EXPECT_EQ(*it, QuicInterval<int>(2100, 2200));
+  ++it;
+  EXPECT_EQ(it, is.end());
+}
+
+TEST_P(QuicIntervalSetTest, AddOptimizedForAppend) {
   QuicIntervalSet<int> empty_one, empty_two;
   empty_one.AddOptimizedForAppend(QuicInterval<int>(0, 99));
   EXPECT_TRUE(Check(empty_one, 1, 0, 99));
@@ -191,7 +224,7 @@ TEST_F(QuicIntervalSetTest, AddOptimizedForAppend) {
   EXPECT_TRUE(Check(iset, 3, 100, 150, 199, 250, 251, 350));
 }
 
-TEST_F(QuicIntervalSetTest, PopFront) {
+TEST_P(QuicIntervalSetTest, PopFront) {
   QuicIntervalSet<int> iset{{100, 200}, {400, 500}, {700, 800}};
   EXPECT_TRUE(Check(iset, 3, 100, 200, 400, 500, 700, 800));
 
@@ -205,7 +238,7 @@ TEST_F(QuicIntervalSetTest, PopFront) {
   EXPECT_TRUE(iset.Empty());
 }
 
-TEST_F(QuicIntervalSetTest, TrimLessThan) {
+TEST_P(QuicIntervalSetTest, TrimLessThan) {
   QuicIntervalSet<int> iset{{100, 200}, {400, 500}, {700, 800}};
   EXPECT_TRUE(Check(iset, 3, 100, 200, 400, 500, 700, 800));
 
@@ -232,7 +265,7 @@ TEST_F(QuicIntervalSetTest, TrimLessThan) {
   EXPECT_TRUE(iset.Empty());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetBasic) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetBasic) {
   // Test Add, Get, Contains and Find
   QuicIntervalSet<int> iset;
   EXPECT_TRUE(iset.Empty());
@@ -350,9 +383,14 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetBasic) {
   EXPECT_FALSE(iset.Contains(iset_contains));
   EXPECT_FALSE(iset.Contains(QuicInterval<int>()));
   EXPECT_FALSE(iset.Contains(QuicIntervalSet<int>()));
+
+  // Check the case where the query set isn't contained, but the spanning
+  // intervals do overlap.
+  QuicIntervalSet<int> i2({{220, 230}});
+  EXPECT_FALSE(iset.Contains(i2));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetContainsEmpty) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetContainsEmpty) {
   const QuicIntervalSet<int> empty;
   const QuicIntervalSet<int> other_empty;
   const QuicIntervalSet<int> non_empty({{10, 20}, {40, 50}});
@@ -362,7 +400,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetContainsEmpty) {
   EXPECT_FALSE(non_empty.Contains(empty));
 }
 
-TEST_F(QuicIntervalSetTest, Equality) {
+TEST_P(QuicIntervalSetTest, Equality) {
   QuicIntervalSet<int> is_copy = is;
   EXPECT_EQ(is, is);
   EXPECT_EQ(is, is_copy);
@@ -371,7 +409,7 @@ TEST_F(QuicIntervalSetTest, Equality) {
   EXPECT_EQ(QuicIntervalSet<int>(), QuicIntervalSet<int>());
 }
 
-TEST_F(QuicIntervalSetTest, LowerAndUpperBound) {
+TEST_P(QuicIntervalSetTest, LowerAndUpperBound) {
   QuicIntervalSet<int> intervals;
   intervals.Add(10, 20);
   intervals.Add(30, 40);
@@ -417,7 +455,7 @@ TEST_F(QuicIntervalSetTest, LowerAndUpperBound) {
   EXPECT_EQ(intervals.UpperBound(50), intervals.end());
 }
 
-TEST_F(QuicIntervalSetTest, SpanningInterval) {
+TEST_P(QuicIntervalSetTest, SpanningInterval) {
   // Spanning interval of an empty set is empty:
   {
     QuicIntervalSet<int> iset;
@@ -448,14 +486,14 @@ TEST_F(QuicIntervalSetTest, SpanningInterval) {
   }
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetUnion) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetUnion) {
   is.Union(other);
   EXPECT_TRUE(Check(is, 12, 50, 70, 100, 200, 300, 400, 470, 600, 650, 670, 700,
                     830, 870, 1000, 1100, 1230, 1270, 1830, 1900, 2000, 2100,
                     2200, 2250, 2270));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersection) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersection) {
   EXPECT_TRUE(is.Intersects(other));
   EXPECT_TRUE(other.Intersects(is));
   is.Intersection(other);
@@ -465,7 +503,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersection) {
   EXPECT_TRUE(other.Intersects(is));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionBothEmpty) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionBothEmpty) {
   QuicIntervalSet<std::string> mine, theirs;
   EXPECT_FALSE(mine.Intersects(theirs));
   EXPECT_FALSE(theirs.Intersects(mine));
@@ -475,7 +513,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionBothEmpty) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyMine) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyMine) {
   QuicIntervalSet<std::string> mine;
   QuicIntervalSet<std::string> theirs("a", "b");
   EXPECT_FALSE(mine.Intersects(theirs));
@@ -486,7 +524,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyMine) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyTheirs) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyTheirs) {
   QuicIntervalSet<std::string> mine("a", "b");
   QuicIntervalSet<std::string> theirs;
   EXPECT_FALSE(mine.Intersects(theirs));
@@ -497,7 +535,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionEmptyTheirs) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBeforeMine) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBeforeMine) {
   QuicIntervalSet<std::string> mine("y", "z");
   QuicIntervalSet<std::string> theirs;
   theirs.Add("a", "b");
@@ -510,7 +548,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBeforeMine) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBeforeTheirs) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBeforeTheirs) {
   QuicIntervalSet<std::string> mine;
   mine.Add("a", "b");
   mine.Add("c", "d");
@@ -523,7 +561,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBeforeTheirs) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest,
+TEST_P(QuicIntervalSetTest,
        QuicIntervalSetIntersectionTheirsBeforeMineInt64Singletons) {
   QuicIntervalSet<int64_t> mine({{10, 15}});
   QuicIntervalSet<int64_t> theirs({{-20, -5}});
@@ -535,7 +573,7 @@ TEST_F(QuicIntervalSetTest,
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest,
+TEST_P(QuicIntervalSetTest,
        QuicIntervalSetIntersectionMineBeforeTheirsIntSingletons) {
   QuicIntervalSet<int> mine({{10, 15}});
   QuicIntervalSet<int> theirs({{90, 95}});
@@ -547,7 +585,7 @@ TEST_F(QuicIntervalSetTest,
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBetweenMine) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBetweenMine) {
   QuicIntervalSet<int64_t> mine({{0, 5}, {40, 50}});
   QuicIntervalSet<int64_t> theirs({{10, 15}});
   EXPECT_FALSE(mine.Intersects(theirs));
@@ -558,7 +596,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionTheirsBetweenMine) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBetweenTheirs) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBetweenTheirs) {
   QuicIntervalSet<int> mine({{20, 25}});
   QuicIntervalSet<int> theirs({{10, 15}, {30, 32}});
   EXPECT_FALSE(mine.Intersects(theirs));
@@ -569,7 +607,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionMineBetweenTheirs) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionAlternatingIntervals) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionAlternatingIntervals) {
   QuicIntervalSet<int> mine, theirs;
   mine.Add(10, 20);
   mine.Add(40, 50);
@@ -585,7 +623,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionAlternatingIntervals) {
   EXPECT_FALSE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest,
+TEST_P(QuicIntervalSetTest,
        QuicIntervalSetIntersectionAdjacentAlternatingNonIntersectingIntervals) {
   // Make sure that intersection with adjacent interval set is empty.
   const QuicIntervalSet<int> x1({{0, 10}});
@@ -611,7 +649,7 @@ TEST_F(QuicIntervalSetTest,
   EXPECT_TRUE(result3.Empty()) << result3;
 }
 
-TEST_F(QuicIntervalSetTest,
+TEST_P(QuicIntervalSetTest,
        QuicIntervalSetIntersectionAlternatingIntersectingIntervals) {
   const QuicIntervalSet<int> x1({{0, 10}});
   const QuicIntervalSet<int> y1({{-50, 1}, {9, 95}});
@@ -640,7 +678,7 @@ TEST_F(QuicIntervalSetTest,
   EXPECT_EQ(result3, expected_result3);
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionIdentical) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionIdentical) {
   QuicIntervalSet<int> copy(is);
   EXPECT_TRUE(copy.Intersects(is));
   EXPECT_TRUE(is.Intersects(copy));
@@ -648,7 +686,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionIdentical) {
   EXPECT_EQ(copy, is);
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionSuperset) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionSuperset) {
   QuicIntervalSet<int> mine(-1, 10000);
   EXPECT_TRUE(mine.Intersects(is));
   EXPECT_TRUE(is.Intersects(mine));
@@ -656,7 +694,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionSuperset) {
   EXPECT_EQ(is, mine);
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionSubset) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionSubset) {
   QuicIntervalSet<int> copy(is);
   QuicIntervalSet<int> theirs(-1, 10000);
   EXPECT_TRUE(copy.Intersects(theirs));
@@ -665,7 +703,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionSubset) {
   EXPECT_EQ(copy, is);
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionLargeSet) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetIntersectionLargeSet) {
   QuicIntervalSet<int> mine, theirs;
   // mine: [0, 9), [10, 19), ..., [990, 999)
   for (int i = 0; i < 1000; i += 10) {
@@ -683,7 +721,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetIntersectionLargeSet) {
   EXPECT_TRUE(theirs.Intersects(mine));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifference) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifference) {
   is.Difference(other);
   EXPECT_TRUE(Check(is, 10, 100, 200, 300, 350, 360, 370, 380, 400, 530, 600,
                     700, 770, 900, 1000, 1100, 1200, 1900, 2000, 2100, 2200));
@@ -692,7 +730,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifference) {
   EXPECT_TRUE(is.Empty());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleBounds) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleBounds) {
   std::vector<QuicInterval<int>> ivals(other.begin(), other.end());
   for (const QuicInterval<int>& ival : ivals) {
     is.Difference(ival.min(), ival.max());
@@ -701,7 +739,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleBounds) {
                     700, 770, 900, 1000, 1100, 1200, 1900, 2000, 2100, 2200));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleInterval) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleInterval) {
   std::vector<QuicInterval<int>> ivals(other.begin(), other.end());
   for (const QuicInterval<int>& ival : ivals) {
     is.Difference(ival);
@@ -710,7 +748,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceSingleInterval) {
                     700, 770, 900, 1000, 1100, 1200, 1900, 2000, 2100, 2200));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceAlternatingIntervals) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceAlternatingIntervals) {
   QuicIntervalSet<int> mine, theirs;
   mine.Add(10, 20);
   mine.Add(40, 50);
@@ -723,7 +761,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceAlternatingIntervals) {
   EXPECT_TRUE(Check(mine, 3, 10, 20, 40, 50, 60, 70));
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyMine) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyMine) {
   QuicIntervalSet<std::string> mine, theirs;
   theirs.Add("a", "b");
 
@@ -731,7 +769,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyMine) {
   EXPECT_TRUE(mine.Empty());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyTheirs) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyTheirs) {
   QuicIntervalSet<std::string> mine, theirs;
   mine.Add("a", "b");
 
@@ -741,7 +779,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceEmptyTheirs) {
   EXPECT_EQ("b", mine.begin()->max());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceTheirsBeforeMine) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceTheirsBeforeMine) {
   QuicIntervalSet<std::string> mine, theirs;
   mine.Add("y", "z");
   theirs.Add("a", "b");
@@ -752,7 +790,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceTheirsBeforeMine) {
   EXPECT_EQ("z", mine.begin()->max());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceMineBeforeTheirs) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceMineBeforeTheirs) {
   QuicIntervalSet<std::string> mine, theirs;
   mine.Add("a", "b");
   theirs.Add("y", "z");
@@ -763,7 +801,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceMineBeforeTheirs) {
   EXPECT_EQ("b", mine.begin()->max());
 }
 
-TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceIdentical) {
+TEST_P(QuicIntervalSetTest, QuicIntervalSetDifferenceIdentical) {
   QuicIntervalSet<std::string> mine;
   mine.Add("a", "b");
   mine.Add("c", "d");
@@ -773,7 +811,7 @@ TEST_F(QuicIntervalSetTest, QuicIntervalSetDifferenceIdentical) {
   EXPECT_TRUE(mine.Empty());
 }
 
-TEST_F(QuicIntervalSetTest, EmptyComplement) {
+TEST_P(QuicIntervalSetTest, EmptyComplement) {
   // The complement of an empty set is the input interval:
   QuicIntervalSet<int> iset;
   iset.Complement(100, 200);
@@ -853,7 +891,7 @@ static bool CheckOneComplement(int add_min,
   return result;
 }
 
-TEST_F(QuicIntervalSetTest, SingleIntervalComplement) {
+TEST_P(QuicIntervalSetTest, SingleIntervalComplement) {
   // Verify the complement of a set with one interval (i):
   //                     |-----   i  -----|
   // |----- args -----|
@@ -903,7 +941,7 @@ static bool CheckComplement(const QuicIntervalSet<int>& iset,
   return result;
 }
 
-TEST_F(QuicIntervalSetTest, MultiIntervalComplement) {
+TEST_P(QuicIntervalSetTest, MultiIntervalComplement) {
   // Initialize a small test set:
   QuicIntervalSet<int> iset;
   iset.Add(100, 200);
@@ -946,7 +984,7 @@ TEST_F(QuicIntervalSetTest, MultiIntervalComplement) {
 }
 
 // Verifies ToString, operator<< don't assert.
-TEST_F(QuicIntervalSetTest, ToString) {
+TEST_P(QuicIntervalSetTest, ToString) {
   QuicIntervalSet<int> iset;
   iset.Add(300, 400);
   iset.Add(100, 200);
@@ -959,14 +997,14 @@ TEST_F(QuicIntervalSetTest, ToString) {
   EXPECT_EQ("{ }", QuicIntervalSet<int>().ToString());
 }
 
-TEST_F(QuicIntervalSetTest, ConstructionDiscardsEmptyInterval) {
+TEST_P(QuicIntervalSetTest, ConstructionDiscardsEmptyInterval) {
   EXPECT_TRUE(QuicIntervalSet<int>(QuicInterval<int>(2, 2)).Empty());
   EXPECT_TRUE(QuicIntervalSet<int>(2, 2).Empty());
   EXPECT_FALSE(QuicIntervalSet<int>(QuicInterval<int>(2, 3)).Empty());
   EXPECT_FALSE(QuicIntervalSet<int>(2, 3).Empty());
 }
 
-TEST_F(QuicIntervalSetTest, Swap) {
+TEST_P(QuicIntervalSetTest, Swap) {
   QuicIntervalSet<int> a, b;
   a.Add(300, 400);
   b.Add(100, 200);
@@ -979,7 +1017,7 @@ TEST_F(QuicIntervalSetTest, Swap) {
   EXPECT_TRUE(Check(b, 2, 100, 200, 500, 600));
 }
 
-TEST_F(QuicIntervalSetTest, OutputReturnsOstreamRef) {
+TEST_P(QuicIntervalSetTest, OutputReturnsOstreamRef) {
   std::stringstream ss;
   const QuicIntervalSet<int> v(QuicInterval<int>(1, 2));
   auto return_type_is_a_ref = [](std::ostream&) {};
@@ -995,7 +1033,7 @@ struct NotOstreamable {
   bool operator==(const NotOstreamable&) const { return true; }
 };
 
-TEST_F(QuicIntervalSetTest, IntervalOfTypeWithNoOstreamSupport) {
+TEST_P(QuicIntervalSetTest, IntervalOfTypeWithNoOstreamSupport) {
   const NotOstreamable v;
   const QuicIntervalSet<NotOstreamable> d(QuicInterval<NotOstreamable>(v, v));
   // EXPECT_EQ builds a string representation of d. If d::operator<<()
@@ -1004,48 +1042,52 @@ TEST_F(QuicIntervalSetTest, IntervalOfTypeWithNoOstreamSupport) {
   EXPECT_EQ(d, d);
 }
 
-class QuicIntervalSetInitTest : public QuicTest {
+class QuicIntervalSetInitTest : public QuicTestWithParam<bool> {
  protected:
+  virtual void SetUp() { Quic_Test_Set_Fast(GetParam()); }
   const std::vector<QuicInterval<int>> intervals_{{0, 1}, {2, 4}};
 };
+INSTANTIATE_TEST_SUITE_P(QuicIntervalSetInitTest,
+                         QuicIntervalSetInitTest,
+                         ::testing::Bool());
 
-TEST_F(QuicIntervalSetInitTest, DirectInit) {
+TEST_P(QuicIntervalSetInitTest, DirectInit) {
   std::initializer_list<QuicInterval<int>> il = {{0, 1}, {2, 3}, {3, 4}};
   QuicIntervalSet<int> s(il);
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-TEST_F(QuicIntervalSetInitTest, CopyInit) {
+TEST_P(QuicIntervalSetInitTest, CopyInit) {
   std::initializer_list<QuicInterval<int>> il = {{0, 1}, {2, 3}, {3, 4}};
   QuicIntervalSet<int> s = il;
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-TEST_F(QuicIntervalSetInitTest, AssignIterPair) {
+TEST_P(QuicIntervalSetInitTest, AssignIterPair) {
   QuicIntervalSet<int> s(0, 1000);  // Make sure assign clears.
   s.assign(intervals_.begin(), intervals_.end());
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-TEST_F(QuicIntervalSetInitTest, AssignInitList) {
+TEST_P(QuicIntervalSetInitTest, AssignInitList) {
   QuicIntervalSet<int> s(0, 1000);  // Make sure assign clears.
   s.assign({{0, 1}, {2, 3}, {3, 4}});
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-TEST_F(QuicIntervalSetInitTest, AssignmentInitList) {
+TEST_P(QuicIntervalSetInitTest, AssignmentInitList) {
   std::initializer_list<QuicInterval<int>> il = {{0, 1}, {2, 3}, {3, 4}};
   QuicIntervalSet<int> s;
   s = il;
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-TEST_F(QuicIntervalSetInitTest, BracedInitThenBracedAssign) {
+TEST_P(QuicIntervalSetInitTest, BracedInitThenBracedAssign) {
   QuicIntervalSet<int> s{{0, 1}, {2, 3}, {3, 4}};
   s = {{0, 1}, {2, 4}};
   EXPECT_THAT(s, ElementsAreArray(intervals_));
 }
 
-}  // namespace
 }  // namespace test
+
 }  // namespace quic
