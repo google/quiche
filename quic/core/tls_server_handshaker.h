@@ -79,6 +79,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // before we generate transport parameters.
   virtual void OverrideQuicConfigDefaults(QuicConfig* config);
 
+  virtual bool ValidateHostname(const std::string& hostname) const;
+
   const TlsConnection* tls_connection() const override {
     return &tls_connection_;
   }
@@ -159,7 +161,6 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
-  virtual bool ValidateHostname(const std::string& hostname) const;
   bool SetTransportParameters();
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
