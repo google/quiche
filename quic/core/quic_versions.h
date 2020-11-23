@@ -151,6 +151,8 @@ QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
     QuicTransportVersion transport_version);
 
 // The crypto handshake protocols that can be used with QUIC.
+// We are planning on eventually deprecating PROTOCOL_QUIC_CRYPTO in favor of
+// PROTOCOL_TLS1_3.
 enum HandshakeProtocol {
   PROTOCOL_UNSUPPORTED,
   PROTOCOL_QUIC_CRYPTO,
