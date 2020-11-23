@@ -126,6 +126,7 @@ Bbr2Mode Bbr2ProbeBwMode::OnExitQuiescence(QuicTime now,
   return Bbr2Mode::PROBE_BW;
 }
 
+// TODO(ianswett): Remove prior_in_flight from UpdateProbeDown.
 void Bbr2ProbeBwMode::UpdateProbeDown(
     QuicByteCount prior_in_flight,
     const Bbr2CongestionEvent& congestion_event) {
@@ -169,13 +170,8 @@ void Bbr2ProbeBwMode::UpdateProbeDown(
       << prior_in_flight << " congestion_event.bytes_in_flight:"
       << congestion_event.bytes_in_flight
       << ", inflight_with_headroom:" << inflight_with_headroom;
-  QuicByteCount bytes_in_flight = prior_in_flight;
-  if (GetQuicReloadableFlag(quic_bbr2_use_post_inflight_to_detect_queuing)) {
-    // TODO(ianswett): Remove prior_in_flight from UpdateProbeDown.
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_use_post_inflight_to_detect_queuing,
-                                 2, 2);
-    bytes_in_flight = congestion_event.bytes_in_flight;
-  }
+  QuicByteCount bytes_in_flight = congestion_event.bytes_in_flight;
+
   if (bytes_in_flight > inflight_with_headroom) {
     // Stay in PROBE_DOWN.
     return;
@@ -450,13 +446,9 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     QuicByteCount queuing_threshold =
         (Params().probe_bw_probe_inflight_gain * bdp) +
         queuing_threshold_extra_bytes;
-    if (GetQuicReloadableFlag(quic_bbr2_use_post_inflight_to_detect_queuing)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(
-          quic_bbr2_use_post_inflight_to_detect_queuing, 1, 2);
-      is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
-    } else {
-      is_queuing = prior_in_flight >= queuing_threshold;
-    }
+
+    is_queuing = congestion_event.bytes_in_flight >= queuing_threshold;
+
     QUIC_DVLOG(3) << sender_
                   << " Checking if building up a queue. prior_in_flight:"
                   << prior_in_flight
