@@ -2486,26 +2486,10 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
   }
   stream_->Reset(QUIC_STREAM_CANCELLED);
 
-  if (!GetQuicReloadableFlag(quic_abort_qpack_on_stream_close) &&
-      !GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-    // Header acknowledgement.
-    EXPECT_CALL(*session_,
-                WritevData(decoder_send_stream->id(), /* write_length = */ 1,
-                           /* offset = */ 2, _, _, _));
-    EXPECT_CALL(debug_visitor, OnHeadersDecoded(stream_->id(), _));
-  }
-
   // Deliver dynamic table entry to decoder.
   session_->qpack_decoder()->OnInsertWithoutNameReference("foo", "bar");
 
-  if (GetQuicReloadableFlag(quic_abort_qpack_on_stream_close) ||
-      GetQuicReloadableFlag(quic_abort_qpack_on_stream_reset)) {
-    EXPECT_FALSE(stream_->headers_decompressed());
-  } else {
-    // Verify headers.
-    EXPECT_TRUE(stream_->headers_decompressed());
-    EXPECT_THAT(stream_->header_list(), ElementsAre(Pair("foo", "bar")));
-  }
+  EXPECT_FALSE(stream_->headers_decompressed());
 }
 
 TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterResetReceived) {
