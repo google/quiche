@@ -50,12 +50,7 @@ QboneSessionBase::QboneSessionBase(
   }
 }
 
-QboneSessionBase::~QboneSessionBase() {
-  // Clear out the streams before leaving this destructor to avoid calling
-  // QuicSession::UnregisterStreamPriority
-  stream_map().clear();
-  closed_streams()->clear();
-}
+QboneSessionBase::~QboneSessionBase() {}
 
 void QboneSessionBase::Initialize() {
   crypto_stream_ = CreateCryptoStream();
