@@ -11235,12 +11235,8 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.stop_sending_frame_.stream_id);
-  if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
-    EXPECT_EQ(QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
-              visitor_.stop_sending_frame_.error_code);
-  } else {
-    EXPECT_EQ(0x7654, visitor_.stop_sending_frame_.error_code);
-  }
+  EXPECT_EQ(QUIC_STREAM_UNKNOWN_APPLICATION_ERROR_CODE,
+            visitor_.stop_sending_frame_.error_code);
   EXPECT_EQ(static_cast<uint64_t>(0x7654),
             visitor_.stop_sending_frame_.ietf_error_code);
 

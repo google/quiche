@@ -6075,24 +6075,8 @@ bool QuicFramer::ProcessStopSendingFrame(
     return false;
   }
 
-  if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_stop_sending_uses_ietf_error_code, 2, 2);
-    stop_sending_frame->error_code =
-        IetfResetStreamErrorCodeToRstStreamErrorCode(
-            stop_sending_frame->ietf_error_code);
-    return true;
-  }
-
-  // TODO(fkastenholz): when error codes go to uint64_t, remove this.
-  if (stop_sending_frame->ietf_error_code > 0xffff) {
-    stop_sending_frame->error_code =
-        static_cast<QuicRstStreamErrorCode>(0xffff);
-    QUIC_DLOG(ERROR) << "Stop sending error code ("
-                     << stop_sending_frame->ietf_error_code << ") > 0xffff";
-  } else {
-    stop_sending_frame->error_code = static_cast<QuicRstStreamErrorCode>(
-        stop_sending_frame->ietf_error_code);
-  }
+  stop_sending_frame->error_code = IetfResetStreamErrorCodeToRstStreamErrorCode(
+      stop_sending_frame->ietf_error_code);
   return true;
 }
 

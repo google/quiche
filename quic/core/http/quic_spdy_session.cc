@@ -1320,13 +1320,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     default:
-      if (GetQuicReloadableFlag(quic_stop_sending_uses_ietf_error_code)) {
-        SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
-      } else {
-        SendStopSending(static_cast<QuicRstStreamErrorCode>(
-                            QuicHttp3ErrorCode::STREAM_CREATION_ERROR),
-                        pending->id());
-      }
+      SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
       pending->StopReading();
   }
   return false;
