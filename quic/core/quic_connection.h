@@ -946,6 +946,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // connection ID lengths do not change.
   QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
+  void SetUnackedMapInitialCapacity();
+
   virtual int GetUnackedMapInitialCapacity() const {
     return kDefaultUnackedPacketsInitialCapacity;
   }

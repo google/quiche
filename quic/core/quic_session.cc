@@ -134,6 +134,7 @@ void QuicSession::Initialize() {
   connection_->set_visitor(this);
   connection_->SetSessionNotifier(this);
   connection_->SetDataProducer(this);
+  connection_->SetUnackedMapInitialCapacity();
   connection_->SetFromConfig(config_);
   if (perspective_ == Perspective::IS_CLIENT &&
       config_.HasClientRequestedIndependentOption(kAFFE, perspective_) &&

@@ -384,8 +384,6 @@ QuicConnection::QuicConnection(
   // TODO(ianswett): Supply the NetworkChangeVisitor as a constructor argument
   // and make it required non-null, because it's always used.
   sent_packet_manager_.SetNetworkChangeVisitor(this);
-  sent_packet_manager_.ReserveUnackedPacketsInitialCapacity(
-      GetUnackedMapInitialCapacity());
   if (GetQuicRestartFlag(quic_offload_pacing_to_usps2)) {
     sent_packet_manager_.SetPacingAlarmGranularity(QuicTime::Delta::Zero());
     release_time_into_future_ =
@@ -5512,6 +5510,11 @@ void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   UpdatePeerAddress(peer_address);
   SetQuicPacketWriter(writer, owns_writer);
   OnSuccessfulMigration();
+}
+
+void QuicConnection::SetUnackedMapInitialCapacity() {
+  sent_packet_manager_.ReserveUnackedPacketsInitialCapacity(
+      GetUnackedMapInitialCapacity());
 }
 
 #undef ENDPOINT  // undef for jumbo builds
