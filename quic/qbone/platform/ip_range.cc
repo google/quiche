@@ -94,7 +94,7 @@ bool IpRange::FromString(const std::string& range) {
   return true;
 }
 
-QuicIpAddress IpRange::FirstAddressInRange() {
+QuicIpAddress IpRange::FirstAddressInRange() const {
   return prefix();
 }
 

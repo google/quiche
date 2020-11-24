@@ -39,7 +39,7 @@ class IpRange {
 
   // Returns the first available IP address in this IpRange. The resulting
   // address will be uninitialized if there is no available address.
-  QuicIpAddress FirstAddressInRange();
+  QuicIpAddress FirstAddressInRange() const;
 
   // The address family of this IpRange.
   IpAddressFamily address_family() const { return prefix_.address_family(); }
