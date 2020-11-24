@@ -127,7 +127,7 @@ QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(QuicSession* session) {
 
 // static
 QuicSession::StreamMap& QuicSessionPeer::stream_map(QuicSession* session) {
-  return session->stream_map();
+  return session->stream_map_;
 }
 
 // static
@@ -149,7 +149,7 @@ bool QuicSessionPeer::IsStreamClosed(QuicSession* session, QuicStreamId id) {
 
 // static
 bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
-  return QuicContainsKey(session->stream_map(), id);
+  return QuicContainsKey(session->stream_map_, id);
 }
 
 // static

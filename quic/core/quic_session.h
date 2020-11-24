@@ -664,8 +664,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
     return write_blocked_streams_.GetSpdyPriorityofStream(stream_id);
   }
 
-  StreamMap& stream_map() { return stream_map_; }
-
   size_t pending_streams_size() const { return pending_stream_map_.size(); }
 
   ClosedStreams* closed_streams() { return &closed_streams_; }

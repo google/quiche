@@ -19,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/core/frames/quic_max_streams_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -387,7 +386,6 @@ class TestSession : public QuicSession {
   using QuicSession::closed_streams;
   using QuicSession::GetNextOutgoingBidirectionalStreamId;
   using QuicSession::GetNextOutgoingUnidirectionalStreamId;
-  using QuicSession::stream_map;
 
  private:
   StrictMock<TestCryptoStream> crypto_stream_;
@@ -2652,8 +2650,9 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
   stream2->WriteOrBufferData(body, true, nullptr);
   EXPECT_TRUE(stream2->IsWaitingForAcks());
   // Verify stream2 is a zombie streams.
-  ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream2->id()));
-  auto* stream = session_.stream_map().find(stream2->id())->second.get();
+  auto& stream_map = QuicSessionPeer::stream_map(&session_);
+  ASSERT_TRUE(QuicContainsKey(stream_map, stream2->id()));
+  auto* stream = stream_map.find(stream2->id())->second.get();
   EXPECT_TRUE(stream->IsZombie());
 
   QuicStreamFrame frame(stream2->id(), true, 0, 100);
@@ -2700,8 +2699,9 @@ TEST_P(QuicSessionTestServer, WriteUnidirectionalStream) {
   std::string body(100, '.');
   stream4->WriteOrBufferData(body, false, nullptr);
   stream4->WriteOrBufferData(body, true, nullptr);
-  ASSERT_TRUE(QuicContainsKey(session_.stream_map(), stream4->id()));
-  auto* stream = session_.stream_map().find(stream4->id())->second.get();
+  auto& stream_map = QuicSessionPeer::stream_map(&session_);
+  ASSERT_TRUE(QuicContainsKey(stream_map, stream4->id()));
+  auto* stream = stream_map.find(stream4->id())->second.get();
   EXPECT_TRUE(stream->IsZombie());
 }
 
