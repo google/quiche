@@ -7,6 +7,7 @@
 #include <list>
 #include <utility>
 
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
@@ -63,6 +64,16 @@ void QuicSimpleServerStream::OnInitialHeadersComplete(
     SendErrorResponse();
   }
   ConsumeHeaderList();
+  if (!fin) {
+    // CONNECT and other CONNECT-like methods (such as CONNECT-UDP) require
+    // sending the response right after parsing the headers even though the FIN
+    // bit has not been received on the request stream.
+    auto it = request_headers_.find(":method");
+    if (it != request_headers_.end() &&
+        absl::StartsWith(it->second, "CONNECT")) {
+      SendResponse();
+    }
+  }
 }
 
 void QuicSimpleServerStream::OnTrailingHeadersComplete(

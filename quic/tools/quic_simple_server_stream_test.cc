@@ -76,12 +76,22 @@ class TestStream : public QuicSimpleServerStream {
   void set_body(std::string body) { body_ = std::move(body); }
   const std::string& body() const { return body_; }
   int content_length() const { return content_length_; }
+  bool send_response_was_called() const { return send_response_was_called_; }
 
   absl::string_view GetHeader(absl::string_view key) const {
     auto it = request_headers_.find(key);
     DCHECK(it != request_headers_.end());
     return it->second;
   }
+
+ protected:
+  void SendResponse() override {
+    send_response_was_called_ = true;
+    QuicSimpleServerStream::SendResponse();
+  }
+
+ private:
+  bool send_response_was_called_ = false;
 };
 
 namespace {
@@ -780,6 +790,29 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
   stream_->OnStreamFrame(frame);
+}
+
+TEST_P(QuicSimpleServerStreamTest, ConnectSendsResponseBeforeFinReceived) {
+  EXPECT_CALL(session_, WritevData(_, _, _, _, _, _))
+      .WillRepeatedly(
+          Invoke(&session_, &MockQuicSimpleServerSession::ConsumeData));
+  QuicHeaderList header_list;
+  header_list.OnHeaderBlockStart();
+  header_list.OnHeader(":authority", "www.google.com:4433");
+  header_list.OnHeader(":method", "CONNECT-SILLY");
+  header_list.OnHeaderBlockEnd(128, 128);
+  EXPECT_CALL(*stream_, WriteHeadersMock(/*fin=*/false));
+  stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
+  std::unique_ptr<char[]> buffer;
+  QuicByteCount header_length =
+      HttpEncoder::SerializeDataFrameHeader(body_.length(), &buffer);
+  std::string header = std::string(buffer.get(), header_length);
+  std::string data = UsesHttp3() ? header + body_ : body_;
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
+  EXPECT_EQ("CONNECT-SILLY", StreamHeadersValue(":method"));
+  EXPECT_EQ(body_, StreamBody());
+  EXPECT_TRUE(stream_->send_response_was_called());
 }
 
 }  // namespace
