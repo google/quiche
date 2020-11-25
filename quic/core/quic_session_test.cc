@@ -576,7 +576,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
       EXPECT_CALL(framer_visitor_, OnPacket());
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
       EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_))
           .WillOnce(

@@ -1832,8 +1832,9 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
 
   size_t decrypted_length = 0;
   EncryptionLevel decrypted_level;
-  if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
-                      buffer_length, &decrypted_length, &decrypted_level)) {
+  if (!DecryptPayload(packet.length(), encrypted, associated_data, *header,
+                      decrypted_buffer, buffer_length, &decrypted_length,
+                      &decrypted_level)) {
     if (IsIetfStatelessResetPacket(*header)) {
       // This is a stateless reset packet.
       QuicIetfStatelessResetPacket packet(
@@ -1934,8 +1935,9 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
 
   size_t decrypted_length = 0;
   EncryptionLevel decrypted_level;
-  if (!DecryptPayload(encrypted, associated_data, *header, decrypted_buffer,
-                      buffer_length, &decrypted_length, &decrypted_level)) {
+  if (!DecryptPayload(packet.length(), encrypted, associated_data, *header,
+                      decrypted_buffer, buffer_length, &decrypted_length,
+                      &decrypted_level)) {
     const EncryptionLevel decryption_level = decrypter_level_;
     // This version uses trial decryption so we always report to our visitor
     // that we are not certain we have the correct decryption key.
@@ -4694,7 +4696,8 @@ QuicPacketCount QuicFramer::GetOneRttEncrypterConfidentialityLimit() const {
   return encrypter_[ENCRYPTION_FORWARD_SECURE]->GetConfidentialityLimit();
 }
 
-bool QuicFramer::DecryptPayload(absl::string_view encrypted,
+bool QuicFramer::DecryptPayload(size_t udp_packet_length,
+                                absl::string_view encrypted,
                                 absl::string_view associated_data,
                                 const QuicPacketHeader& header,
                                 char* decrypted_buffer,
@@ -4788,7 +4791,7 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
       header.packet_number.ToUint64(), associated_data, encrypted,
       decrypted_buffer, decrypted_length, buffer_length);
   if (success) {
-    visitor_->OnDecryptedPacket(level);
+    visitor_->OnDecryptedPacket(udp_packet_length, level);
     *decrypted_level = level;
     potential_peer_key_update_attempt_count_ = 0;
     if (attempt_key_update) {
@@ -4835,7 +4838,8 @@ bool QuicFramer::DecryptPayload(absl::string_view encrypted,
           decrypted_buffer, decrypted_length, buffer_length);
     }
     if (success) {
-      visitor_->OnDecryptedPacket(alternative_decrypter_level_);
+      visitor_->OnDecryptedPacket(udp_packet_length,
+                                  alternative_decrypter_level_);
       *decrypted_level = decrypter_level_;
       if (alternative_decrypter_latch_) {
         if (!EncryptionLevelIsValid(alternative_decrypter_level_)) {

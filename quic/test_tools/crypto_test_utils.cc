@@ -756,7 +756,9 @@ void MovePackets(PacketSavingConnection* source_conn,
       continue;
     }
     QuicConnectionPeer::SwapCrypters(dest_conn, framer.framer());
-    dest_conn->OnDecryptedPacket(framer.last_decrypted_level());
+    dest_conn->OnDecryptedPacket(
+        source_conn->encrypted_packets_[index]->length(),
+        framer.last_decrypted_level());
 
     if (dest_stream->handshake_protocol() == PROTOCOL_TLS1_3) {
       // Try to process the packet with a framer that only has the NullDecrypter
@@ -777,7 +779,9 @@ void MovePackets(PacketSavingConnection* source_conn,
     // packet was decrypted at. This is needed by TLS to know what encryption
     // level was used for the data it's receiving, so we plumb this information
     // from the SimpleQuicFramer back into the connection.
-    dest_conn->OnDecryptedPacket(framer.last_decrypted_level());
+    dest_conn->OnDecryptedPacket(
+        source_conn->encrypted_packets_[index]->length(),
+        framer.last_decrypted_level());
 
     QuicConnectionPeer::SetCurrentPacket(
         dest_conn, source_conn->encrypted_packets_[index]->AsStringPiece());

@@ -74,7 +74,8 @@ class QUIC_NO_EXPORT TlsChloExtractor
   bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
     return true;
   }
-  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
+  void OnDecryptedPacket(size_t /*packet_length*/,
+                         EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& /*header*/) override {
     return true;
   }

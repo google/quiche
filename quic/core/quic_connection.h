@@ -612,7 +612,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                      absl::string_view retry_without_tag) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
-  void OnDecryptedPacket(EncryptionLevel level) override;
+  void OnDecryptedPacket(size_t length, EncryptionLevel level) override;
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   void OnUndecryptablePacket(const QuicEncryptedPacket& packet,
@@ -1233,6 +1233,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // list.
   bool HandleWriteBlocked();
 
+  // Whether connection enforces anti-amplification limit.
+  bool EnforceAntiAmplificationLimit() const;
+
+  void AddBytesReceivedBeforeAddressValidation(size_t length) {
+    bytes_received_before_address_validation_ += length;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
 
@@ -1454,9 +1461,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Whether incoming_connection_ids_ contains connection_id.
   bool HasIncomingConnectionId(QuicConnectionId connection_id);
-
-  // Whether connection enforces anti-amplification limit.
-  bool EnforceAntiAmplificationLimit() const;
 
   // Whether connection is limited by amplification factor.
   bool LimitedByAmplificationFactor() const;

@@ -52,7 +52,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   bool OnUnauthenticatedHeader(const QuicPacketHeader& /*header*/) override {
     return true;
   }
-  void OnDecryptedPacket(EncryptionLevel level) override {
+  void OnDecryptedPacket(size_t /*length*/, EncryptionLevel level) override {
     last_decrypted_level_ = level;
   }
   bool OnPacketHeader(const QuicPacketHeader& header) override {

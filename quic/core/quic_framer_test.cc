@@ -290,7 +290,8 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  void OnDecryptedPacket(EncryptionLevel /*level*/) override {
+  void OnDecryptedPacket(size_t /*length*/,
+                         EncryptionLevel /*level*/) override {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -9765,7 +9766,7 @@ TEST_P(QuicFramerTest, StopPacketProcessing) {
   EXPECT_CALL(visitor, OnPacketComplete());
   EXPECT_CALL(visitor, OnUnauthenticatedPublicHeader(_)).WillOnce(Return(true));
   EXPECT_CALL(visitor, OnUnauthenticatedHeader(_)).WillOnce(Return(true));
-  EXPECT_CALL(visitor, OnDecryptedPacket(_));
+  EXPECT_CALL(visitor, OnDecryptedPacket(_, _));
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
@@ -9824,7 +9825,7 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
       .Times(1)
       .WillOnce(Return(true));
   EXPECT_CALL(visitor, OnPacketHeader(_)).Times(1).WillOnce(Return(true));
-  EXPECT_CALL(visitor, OnDecryptedPacket(_)).Times(1);
+  EXPECT_CALL(visitor, OnDecryptedPacket(_, _)).Times(1);
   EXPECT_CALL(visitor, OnError(_)).Times(0);
   EXPECT_CALL(visitor, OnStreamFrame(_)).Times(0);
   if (!QuicVersionUsesCryptoFrames(framer_.version().transport_version)) {
@@ -9870,7 +9871,7 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
       .Times(1)
       .WillOnce(Return(true));
   EXPECT_CALL(visitor, OnPacketHeader(_)).Times(1);
-  EXPECT_CALL(visitor, OnDecryptedPacket(_)).Times(1);
+  EXPECT_CALL(visitor, OnDecryptedPacket(_, _)).Times(1);
   EXPECT_CALL(visitor, OnError(_)).Times(1);
   EXPECT_CALL(visitor, OnStreamFrame(_)).Times(0);
   EXPECT_CALL(visitor, OnPacketComplete()).Times(0);

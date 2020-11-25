@@ -121,9 +121,9 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // cease.
   virtual bool OnUnauthenticatedHeader(const QuicPacketHeader& header) = 0;
 
-  // Called when a packet has been decrypted. |level| is the encryption level
-  // of the packet.
-  virtual void OnDecryptedPacket(EncryptionLevel level) = 0;
+  // Called when a packet has been decrypted. |length| is the packet length,
+  // and |level| is the encryption level of the packet.
+  virtual void OnDecryptedPacket(size_t length, EncryptionLevel level) = 0;
 
   // Called when the complete header of a packet had been parsed.
   // If OnPacketHeader returns false, framing for this packet will cease.
@@ -849,7 +849,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                            bool no_message_length,
                            QuicMessageFrame* frame);
 
-  bool DecryptPayload(absl::string_view encrypted,
+  bool DecryptPayload(size_t udp_packet_length,
+                      absl::string_view encrypted,
                       absl::string_view associated_data,
                       const QuicPacketHeader& header,
                       char* decrypted_buffer,

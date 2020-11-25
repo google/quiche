@@ -45,7 +45,8 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
                      absl::string_view /*retry_without_tag*/) override {}
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
-  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
+  void OnDecryptedPacket(size_t /*length*/,
+                         EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   void OnUndecryptablePacket(const QuicEncryptedPacket& packet,

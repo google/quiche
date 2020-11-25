@@ -1144,7 +1144,8 @@ bool QuicConnection::HasPendingAcks() const {
   return ack_alarm_->IsSet();
 }
 
-void QuicConnection::OnDecryptedPacket(EncryptionLevel level) {
+void QuicConnection::OnDecryptedPacket(size_t /*length*/,
+                                       EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
   if (EnforceAntiAmplificationLimit()) {

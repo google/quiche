@@ -321,7 +321,10 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               OnUnauthenticatedPublicHeader,
               (const QuicPacketHeader& header),
               (override));
-  MOCK_METHOD(void, OnDecryptedPacket, (EncryptionLevel level), (override));
+  MOCK_METHOD(void,
+              OnDecryptedPacket,
+              (size_t length, EncryptionLevel level),
+              (override));
   MOCK_METHOD(bool,
               OnPacketHeader,
               (const QuicPacketHeader& header),
@@ -458,7 +461,8 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   bool OnUnauthenticatedHeader(const QuicPacketHeader& header) override;
   bool OnUnauthenticatedPublicHeader(const QuicPacketHeader& header) override;
-  void OnDecryptedPacket(EncryptionLevel /*level*/) override {}
+  void OnDecryptedPacket(size_t /*length*/,
+                         EncryptionLevel /*level*/) override {}
   bool OnPacketHeader(const QuicPacketHeader& header) override;
   void OnCoalescedPacket(const QuicEncryptedPacket& packet) override;
   void OnUndecryptablePacket(const QuicEncryptedPacket& packet,

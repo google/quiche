@@ -317,7 +317,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
       EXPECT_CALL(framer_visitor_, OnPacket());
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
       EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _))
           .WillOnce(Return(true));
@@ -355,7 +355,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
   EXPECT_CALL(framer_visitor_, OnPacket());
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnConnectionCloseFrame(_));
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -931,7 +931,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     if (VersionHasIetfQuicFrames(creator_.transport_version())) {
       EXPECT_CALL(framer_visitor_, OnPathChallengeFrame(_));
@@ -963,7 +963,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathChallengeProbePacket) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathChallengeFrame(_));
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
@@ -993,7 +993,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket1PayloadPadded) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_));
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
@@ -1023,7 +1023,7 @@ TEST_P(QuicPacketCreatorTest,
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_));
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -1054,7 +1054,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket2PayloadsPadded) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_)).Times(2);
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
@@ -1087,7 +1087,7 @@ TEST_P(QuicPacketCreatorTest,
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_)).Times(2);
     EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -1121,7 +1121,7 @@ TEST_P(QuicPacketCreatorTest, SerializePathResponseProbePacket3PayloadsPadded) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_)).Times(3);
     EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
@@ -1156,7 +1156,7 @@ TEST_P(QuicPacketCreatorTest,
   EXPECT_CALL(framer_visitor_, OnPacket());
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_)).Times(3);
   EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -1289,7 +1289,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrame) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
         .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
     if (QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
@@ -1326,7 +1326,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrameShortData) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
         .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
     if (QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
@@ -1514,7 +1514,7 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
     if (client_framer_.version().HasHeaderProtection()) {
@@ -1604,7 +1604,7 @@ TEST_P(QuicPacketCreatorTest, PendingPadding) {
       EXPECT_CALL(framer_visitor_, OnPacket());
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
       EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+      EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
@@ -1969,7 +1969,7 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
     EXPECT_CALL(framer_visitor_, OnPacket());
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
         .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
     if (QuicVersionUsesCryptoFrames(client_framer_.transport_version())) {
@@ -2078,7 +2078,7 @@ TEST_P(QuicPacketCreatorTest, CoalesceStreamFrames) {
   EXPECT_CALL(framer_visitor_, OnPacket());
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader(_));
   EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+  EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
   EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
   // The packet should only have 2 stream frames.
   EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
@@ -2155,7 +2155,7 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
           }));
     }
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
-    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_));
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
     EXPECT_CALL(framer_visitor_, OnAckFrameStart(_, _)).WillOnce(Return(true));
     EXPECT_CALL(framer_visitor_,
