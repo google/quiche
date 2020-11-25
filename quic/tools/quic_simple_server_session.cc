@@ -157,14 +157,15 @@ void QuicSimpleServerSession::HandleRstOnValidNonexistentStream(
     // Since PromisedStreamInfo are queued in sequence, the corresponding
     // index for it in promised_streams_ can be calculated.
     QuicStreamId next_stream_id = next_outgoing_unidirectional_stream_id();
-    if (VersionHasIetfQuicFrames(transport_version())) {
-      DCHECK(!QuicUtils::IsBidirectionalStreamId(frame.stream_id, version()));
+    if ((!version().HasIetfQuicFrames() ||
+         !QuicUtils::IsBidirectionalStreamId(frame.stream_id, version())) &&
+        frame.stream_id >= next_stream_id) {
+      size_t index = (frame.stream_id - next_stream_id) /
+                     QuicUtils::StreamIdDelta(transport_version());
+      if (index <= promised_streams_.size()) {
+        promised_streams_[index].is_cancelled = true;
+      }
     }
-    DCHECK_GE(frame.stream_id, next_stream_id);
-    size_t index = (frame.stream_id - next_stream_id) /
-                   QuicUtils::StreamIdDelta(transport_version());
-    DCHECK_LE(index, promised_streams_.size());
-    promised_streams_[index].is_cancelled = true;
     control_frame_manager().WriteOrBufferRstStream(frame.stream_id,
                                                    QUIC_RST_ACKNOWLEDGEMENT, 0);
     connection()->OnStreamReset(frame.stream_id, QUIC_RST_ACKNOWLEDGEMENT);
