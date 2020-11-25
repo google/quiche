@@ -59,10 +59,8 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   void NotifyFramesLost(const QuicTransmissionInfo& info,
                         TransmissionType type);
 
-  // Notifies session_notifier to retransmit frames in |info| with
-  // |transmission_type|.
-  void RetransmitFrames(const QuicTransmissionInfo& info,
-                        TransmissionType type);
+  // Notifies session_notifier to retransmit frames with |transmission_type|.
+  void RetransmitFrames(const QuicFrames& frames, TransmissionType type);
 
   // Marks |info| as no longer in flight.
   void RemoveFromInFlight(QuicTransmissionInfo* info);
@@ -333,7 +331,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   friend class test::QuicUnackedPacketMapPeer;
 
   // TODO(haoyuewang) Remove these methods when deprecate
-  // quic_use_circular_deque_for_unacked_packets flag.
+  // quic_use_circular_deque_for_unacked_packets_v2 flag.
   size_t unacked_packets_size() const {
     return use_circular_deque_ ? unacked_packets_.size()
                                : unacked_packets_deque_.size();
@@ -433,7 +431,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   std::deque<QuicTransmissionInfo> unacked_packets_deque_;
 
   const bool use_circular_deque_ =
-      GetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets);
+      GetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets_v2);
 
   // The packet at the 0th index of unacked_packets_.
   QuicPacketNumber least_unacked_;

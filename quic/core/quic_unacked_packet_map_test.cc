@@ -658,7 +658,7 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
 }
 
 TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
-  SetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets, true);
+  SetQuicReloadableFlag(quic_use_circular_deque_for_unacked_packets_v2, true);
   QuicUnackedPacketMap unacked_packets(GetParam());
   ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 0u);
   unacked_packets.ReserveInitialCapacity(16);

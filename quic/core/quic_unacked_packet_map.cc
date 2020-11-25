@@ -124,7 +124,7 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       session_notifier_(nullptr),
       supports_multiple_packet_number_spaces_(false) {
   if (use_circular_deque_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_circular_deque_for_unacked_packets);
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_circular_deque_for_unacked_packets_v2);
   }
 }
 
@@ -474,9 +474,9 @@ void QuicUnackedPacketMap::NotifyFramesLost(const QuicTransmissionInfo& info,
   }
 }
 
-void QuicUnackedPacketMap::RetransmitFrames(const QuicTransmissionInfo& info,
+void QuicUnackedPacketMap::RetransmitFrames(const QuicFrames& frames,
                                             TransmissionType type) {
-  session_notifier_->RetransmitFrames(info.retransmittable_frames, type);
+  session_notifier_->RetransmitFrames(frames, type);
 }
 
 void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(

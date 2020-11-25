@@ -671,7 +671,17 @@ void QuicSentPacketManager::HandleRetransmission(
     // applications may want to use higher priority stream data for bandwidth
     // probing, and some applications want to consider RTO is an indication of
     // loss, etc.
-    unacked_packets_.RetransmitFrames(*transmission_info, transmission_type);
+    // transmission_info owning these frames may be deallocated after each
+    // retransimission. Make a copy of retransmissible frames to prevent the
+    // invalidation.
+    if (unacked_packets_.use_circular_deque()) {
+      unacked_packets_.RetransmitFrames(
+          QuicFrames(transmission_info->retransmittable_frames),
+          transmission_type);
+    } else {
+      unacked_packets_.RetransmitFrames(
+          transmission_info->retransmittable_frames, transmission_type);
+    }
     return;
   }
 
