@@ -1105,12 +1105,10 @@ TEST_F(Bbr2DefaultTopologyTest,
       SendAlgorithmInterface::NetworkParams(1024 * params.BottleneckBandwidth(),
                                             QuicTime::Delta::Zero(), false));
 
-  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
-    // Verify cwnd is capped at 200.
-    EXPECT_EQ(200 * kDefaultTCPMSS,
-              sender_->ExportDebugState().congestion_window);
-    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
-  }
+  // Verify cwnd is capped at 200.
+  EXPECT_EQ(200 * kDefaultTCPMSS,
+            sender_->ExportDebugState().congestion_window);
+  EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
 }
 
 TEST_F(Bbr2DefaultTopologyTest,
@@ -1132,12 +1130,10 @@ TEST_F(Bbr2DefaultTopologyTest,
   network_params.max_initial_congestion_window = 100;
   sender_connection()->AdjustNetworkParameters(network_params);
 
-  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
-    // Verify cwnd is capped at 100.
-    EXPECT_EQ(100 * kDefaultTCPMSS,
-              sender_->ExportDebugState().congestion_window);
-    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
-  }
+  // Verify cwnd is capped at 100.
+  EXPECT_EQ(100 * kDefaultTCPMSS,
+            sender_->ExportDebugState().congestion_window);
+  EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
 }
 
 TEST_F(Bbr2DefaultTopologyTest,
@@ -1159,12 +1155,10 @@ TEST_F(Bbr2DefaultTopologyTest,
       SendAlgorithmInterface::NetworkParams(1024 * params.BottleneckBandwidth(),
                                             QuicTime::Delta::Zero(), false));
 
-  if (GetQuicReloadableFlag(quic_bbr2_support_max_bootstrap_cwnd)) {
-    // Verify cwnd is capped at 100.
-    EXPECT_EQ(100 * kDefaultTCPMSS,
-              sender_->ExportDebugState().congestion_window);
-    EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
-  }
+  // Verify cwnd is capped at 100.
+  EXPECT_EQ(100 * kDefaultTCPMSS,
+            sender_->ExportDebugState().congestion_window);
+  EXPECT_GT(1024 * params.BottleneckBandwidth(), sender_->PacingRate(0));
 }
 
 // All Bbr2MultiSenderTests uses the following network topology:
