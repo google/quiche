@@ -20,13 +20,7 @@ QpackInstructionEncoder::QpackInstructionEncoder()
       string_length_(0),
       byte_(0),
       state_(State::kOpcode),
-      instruction_(nullptr),
-      use_fast_huffman_encoder_(
-          GetQuicReloadableFlag(quic_use_fast_huffman_encoder)) {
-  if (use_fast_huffman_encoder_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_fast_huffman_encoder);
-  }
-}
+      instruction_(nullptr) {}
 
 void QpackInstructionEncoder::Encode(
     const QpackInstructionWithValues& instruction_with_values,
@@ -171,11 +165,7 @@ void QpackInstructionEncoder::DoWriteString(absl::string_view name,
   absl::string_view string_to_write =
       (field_->type == QpackInstructionFieldType::kName) ? name : value;
   if (use_huffman_) {
-    if (use_fast_huffman_encoder_) {
-      http2::HuffmanEncodeFast(string_to_write, string_length_, output);
-    } else {
-      http2::HuffmanEncode(string_to_write, string_length_, output);
-    }
+    http2::HuffmanEncodeFast(string_to_write, string_length_, output);
   } else {
     QuicStrAppend(output, string_to_write);
   }
