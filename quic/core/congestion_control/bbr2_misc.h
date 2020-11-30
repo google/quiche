@@ -187,8 +187,8 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
   // Can be enabled by connection option 'B2H2'.
   bool limit_inflight_hi_by_max_delivered = false;
 
-  // Can be enabled by connection option 'B2SL'.
-  bool startup_loss_exit_use_max_delivered_for_inflight_hi = false;
+  // Can be disabled by connection option 'B2SL'.
+  bool startup_loss_exit_use_max_delivered_for_inflight_hi = true;
 
   // Can be enabled by connection option 'B2DL'.
   bool use_bytes_delivered_for_inflight_hi = false;

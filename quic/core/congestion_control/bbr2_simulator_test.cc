@@ -713,6 +713,7 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
 
 // Test exiting STARTUP earlier upon loss due to loss.
 TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
+  SetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered, true);
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;
   CreateNetwork(params);
@@ -738,11 +739,14 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
       sender_->ExportDebugState().startup.round_trips_without_bandwidth_growth);
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
+
+  EXPECT_GT(sender_->ExportDebugState().inflight_hi, 1.2f * params.BDP());
 }
 
 // Test exiting STARTUP earlier upon loss due to loss when connection option
 // B2SL is used.
 TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
+  SetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered, true);
   SetConnectionOption(kB2SL);
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;
@@ -770,12 +774,7 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
   EXPECT_NE(0u, sender_connection_stats().packets_lost);
   EXPECT_FALSE(sender_->ExportDebugState().last_sample_is_app_limited);
 
-  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered)) {
-    EXPECT_GT(sender_->ExportDebugState().inflight_hi, 1.2f * params.BDP());
-  } else {
-    EXPECT_APPROX_EQ(sender_->ExportDebugState().inflight_hi, params.BDP(),
-                     0.1f);
-  }
+  EXPECT_APPROX_EQ(sender_->ExportDebugState().inflight_hi, params.BDP(), 0.1f);
 }
 
 TEST_F(Bbr2DefaultTopologyTest, SenderPoliced) {
