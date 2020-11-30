@@ -1146,10 +1146,7 @@ void QuicSentPacketManager::EnableIetfPtoAndLossDetection() {
   max_probe_packets_per_pto_ = 1;
   skip_packet_number_for_pto_ = true;
   first_pto_srtt_multiplier_ = 1.5;
-  if (GetQuicReloadableFlag(quic_default_to_2_rttvar)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_default_to_2_rttvar);
-    pto_rttvar_multiplier_ = 2;
-  }
+  pto_rttvar_multiplier_ = 2;
 }
 
 void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(

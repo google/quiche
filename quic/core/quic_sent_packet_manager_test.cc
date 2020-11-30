@@ -337,10 +337,7 @@ class QuicSentPacketManagerTest : public QuicTest {
   }
 
   int GetPtoRttvarMultiplier() {
-    if (GetQuicReloadableFlag(quic_default_on_pto)) {
-      return 2;
-    }
-    if (GetQuicReloadableFlag(quic_default_to_2_rttvar) &&
+    if (GetQuicReloadableFlag(quic_default_on_pto) ||
         manager_.handshake_mode_disabled()) {
       return 2;
     }
