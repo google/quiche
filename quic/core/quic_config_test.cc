@@ -437,7 +437,6 @@ TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayInTransportParameter) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
-  SetQuicReloadableFlag(quic_record_received_min_ack_delay, true);
   TransportParameters params;
 
   params.max_ack_delay.set_value(25 /*ms*/);
@@ -637,13 +636,9 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   ASSERT_TRUE(config_.HasReceivedMaxAckDelayMs());
   EXPECT_EQ(config_.ReceivedMaxAckDelayMs(), kMaxAckDelayForTest);
 
-  if (GetQuicReloadableFlag(quic_record_received_min_ack_delay)) {
-    ASSERT_TRUE(config_.HasReceivedMinAckDelayMs());
-    EXPECT_EQ(config_.ReceivedMinAckDelayMs(),
-              kMinAckDelayUsForTest / kNumMicrosPerMilli);
-  } else {
-    ASSERT_FALSE(config_.HasReceivedMinAckDelayMs());
-  }
+  ASSERT_TRUE(config_.HasReceivedMinAckDelayMs());
+  EXPECT_EQ(config_.ReceivedMinAckDelayMs(),
+            kMinAckDelayUsForTest / kNumMicrosPerMilli);
 
   ASSERT_TRUE(config_.HasReceivedAckDelayExponent());
   EXPECT_EQ(config_.ReceivedAckDelayExponent(), kAckDelayExponentForTest);

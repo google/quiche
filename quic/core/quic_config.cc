@@ -1336,17 +1336,14 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
             params.preferred_address->ipv4_socket_address);
       }
     }
-    if (GetQuicReloadableFlag(quic_record_received_min_ack_delay)) {
-      if (params.min_ack_delay_us.value() != 0) {
-        if (params.min_ack_delay_us.value() >
-            params.max_ack_delay.value() * kNumMicrosPerMilli) {
-          *error_details = "MinAckDelay is greater than MaxAckDelay.";
-          return IETF_QUIC_PROTOCOL_VIOLATION;
-        }
-        QUIC_RELOADABLE_FLAG_COUNT(quic_record_received_min_ack_delay);
-        min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
-                                           kNumMicrosPerMilli);
+    if (params.min_ack_delay_us.value() != 0) {
+      if (params.min_ack_delay_us.value() >
+          params.max_ack_delay.value() * kNumMicrosPerMilli) {
+        *error_details = "MinAckDelay is greater than MaxAckDelay.";
+        return IETF_QUIC_PROTOCOL_VIOLATION;
       }
+      min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
+                                         kNumMicrosPerMilli);
     }
   }
 
