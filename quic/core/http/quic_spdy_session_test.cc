@@ -3214,8 +3214,7 @@ TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfSetToDefaut) {
 }
 
 TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
-  if (!VersionUsesHttp3(transport_version()) ||
-      !GetQuicReloadableFlag(quic_reject_spdy_settings)) {
+  if (!VersionUsesHttp3(transport_version())) {
     return;
   }
 

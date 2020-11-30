@@ -603,9 +603,6 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // recent MAX_PUSH_ID frame.  Once true, never goes back to false.
   bool http3_max_push_id_sent_;
 
-  // Latched value of reloadable flag quic_reject_spdy_settings.
-  const bool reject_spdy_settings_;
-
   // Latched value of reloadable flag quic_goaway_with_max_stream_id.
   const bool goaway_with_max_stream_id_;
 };
