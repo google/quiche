@@ -833,16 +833,13 @@ bool QuicSentPacketManager::OnPacketSent(
     one_rtt_packet_sent_ = true;
   }
 
-  if (GetQuicReloadableFlag(quic_deallocate_message_right_after_sent)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_deallocate_message_right_after_sent);
-    // Deallocate message data in QuicMessageFrame immediately after packet
-    // sent.
-    if (packet.has_message) {
-      for (auto& frame : mutable_packet->retransmittable_frames) {
-        if (frame.type == MESSAGE_FRAME) {
-          frame.message_frame->message_data.clear();
-          frame.message_frame->message_length = 0;
-        }
+  // Deallocate message data in QuicMessageFrame immediately after packet
+  // sent.
+  if (packet.has_message) {
+    for (auto& frame : mutable_packet->retransmittable_frames) {
+      if (frame.type == MESSAGE_FRAME) {
+        frame.message_frame->message_data.clear();
+        frame.message_frame->message_length = 0;
       }
     }
   }

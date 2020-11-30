@@ -4459,8 +4459,6 @@ TEST_F(QuicSentPacketManagerTest,
 }
 
 TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
-  SetQuicReloadableFlag(quic_deallocate_message_right_after_sent, true);
-
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
 
   QuicMessageFrame* message_frame = nullptr;
