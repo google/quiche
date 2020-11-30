@@ -259,10 +259,7 @@ QuicConnection::QuicConnection(
       server_connection_id_(server_connection_id),
       client_connection_id_(EmptyQuicConnectionId()),
       client_connection_id_is_set_(false),
-      self_address_(
-          GetQuicReloadableFlag(quic_connection_set_initial_self_address)
-              ? initial_self_address
-              : QuicSocketAddress()),
+      self_address_(initial_self_address),
       peer_address_(initial_peer_address),
       direct_peer_address_(initial_peer_address),
       active_effective_peer_migration_type_(NO_CHANGE),
@@ -359,11 +356,10 @@ QuicConnection::QuicConnection(
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
-  if (GetQuicReloadableFlag(quic_connection_set_initial_self_address)) {
-    DCHECK(perspective_ == Perspective::IS_CLIENT ||
-           self_address_.IsInitialized());
-    QUIC_RELOADABLE_FLAG_COUNT(quic_connection_set_initial_self_address);
-  }
+
+  DCHECK(perspective_ == Perspective::IS_CLIENT ||
+         self_address_.IsInitialized());
+
   if (enable_aead_limits_) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_enable_aead_limits);
   }
