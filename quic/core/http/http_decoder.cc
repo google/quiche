@@ -144,24 +144,21 @@ bool HttpDecoder::ReadFrameType(QuicDataReader* reader) {
     DCHECK(success);
   }
 
-  if (GetQuicReloadableFlag(quic_reject_spdy_frames)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_spdy_frames);
-    // https://tools.ietf.org/html/draft-ietf-quic-http-31#section-7.2.8
-    // specifies that the following frames are treated as errors.
-    if (current_frame_type_ ==
-            static_cast<uint64_t>(http2::Http2FrameType::PRIORITY) ||
-        current_frame_type_ ==
-            static_cast<uint64_t>(http2::Http2FrameType::PING) ||
-        current_frame_type_ ==
-            static_cast<uint64_t>(http2::Http2FrameType::WINDOW_UPDATE) ||
-        current_frame_type_ ==
-            static_cast<uint64_t>(http2::Http2FrameType::CONTINUATION)) {
-      RaiseError(
-          QUIC_HTTP_RECEIVE_SPDY_FRAME,
-          quiche::QuicheStrCat("HTTP/2 frame received in a HTTP/3 connection: ",
-                               current_frame_type_));
-      return false;
-    }
+  // https://tools.ietf.org/html/draft-ietf-quic-http-31#section-7.2.8
+  // specifies that the following frames are treated as errors.
+  if (current_frame_type_ ==
+          static_cast<uint64_t>(http2::Http2FrameType::PRIORITY) ||
+      current_frame_type_ ==
+          static_cast<uint64_t>(http2::Http2FrameType::PING) ||
+      current_frame_type_ ==
+          static_cast<uint64_t>(http2::Http2FrameType::WINDOW_UPDATE) ||
+      current_frame_type_ ==
+          static_cast<uint64_t>(http2::Http2FrameType::CONTINUATION)) {
+    RaiseError(
+        QUIC_HTTP_RECEIVE_SPDY_FRAME,
+        quiche::QuicheStrCat("HTTP/2 frame received in a HTTP/3 connection: ",
+                             current_frame_type_));
+    return false;
   }
   state_ = STATE_READING_FRAME_LENGTH;
   return true;

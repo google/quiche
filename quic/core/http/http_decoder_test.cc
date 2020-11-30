@@ -783,7 +783,6 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
 }
 
 TEST_F(HttpDecoderTest, Http2Frame) {
-  SetQuicReloadableFlag(quic_reject_spdy_frames, true);
   std::string input = absl::HexStringToBytes(
       "06"    // PING in HTTP/2 but not supported in HTTP/3.
       "05"    // length
