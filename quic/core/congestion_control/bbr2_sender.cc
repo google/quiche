@@ -136,10 +136,7 @@ void Bbr2Sender::ApplyConnectionOptions(
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_no_exit_startup_on_loss_with_bw_growth) &&
-      ContainsQuicTag(connection_options, kB2NE)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_bbr2_no_exit_startup_on_loss_with_bw_growth);
+  if (ContainsQuicTag(connection_options, kB2NE)) {
     params_.always_exit_startup_on_excess_loss = false;
   }
   if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
