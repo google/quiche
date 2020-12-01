@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
@@ -37,7 +38,13 @@ QuicStreamSequencer::QuicStreamSequencer(StreamInterface* quic_stream)
       ignore_read_data_(false),
       level_triggered_(false) {}
 
-QuicStreamSequencer::~QuicStreamSequencer() {}
+QuicStreamSequencer::~QuicStreamSequencer() {
+  if (stream_ == nullptr) {
+    QUIC_BUG << "Double free'ing QuicStreamSequencer at " << this << ". "
+             << QuicStackTrace();
+  }
+  stream_ = nullptr;
+}
 
 void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   DCHECK_LE(frame.offset + frame.data_length, close_offset_);
