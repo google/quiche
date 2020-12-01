@@ -214,7 +214,7 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencerBuffer {
 
   // Resize blocks_ if more blocks are needed to accomodate bytes before
   // next_expected_byte.
-  void MaybeAddMoreBlocks(size_t next_expected_byte);
+  void MaybeAddMoreBlocks(QuicStreamOffset next_expected_byte);
 
   // The maximum total capacity of this buffer in byte, as constructed.
   size_t max_buffer_capacity_bytes_;

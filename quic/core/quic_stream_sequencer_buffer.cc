@@ -82,11 +82,12 @@ bool QuicStreamSequencerBuffer::RetireBlock(size_t index) {
   return true;
 }
 
-void QuicStreamSequencerBuffer::MaybeAddMoreBlocks(size_t next_expected_byte) {
+void QuicStreamSequencerBuffer::MaybeAddMoreBlocks(
+    QuicStreamOffset next_expected_byte) {
   if (current_blocks_count_ == max_blocks_count_) {
     return;
   }
-  size_t last_byte = next_expected_byte - 1;
+  QuicStreamOffset last_byte = next_expected_byte - 1;
   size_t num_of_blocks_needed;
   // As long as last_byte does not wrap around, its index plus one blocks are
   // needed. Otherwise, block_count_ blocks are needed.
