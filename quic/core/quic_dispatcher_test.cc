@@ -1149,11 +1149,45 @@ TEST_P(QuicDispatcherTestOneVersion,
 }
 
 TEST_P(QuicDispatcherTestOneVersion,
+       RejectDeprecatedVersionDraft27WithVersionNegotiation) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  char packet[kMinPacketSizeForVersionNegotiation] = {
+      0xC0, 0xFF, 0x00, 0x00, 27, /*destination connection ID length*/ 0x08};
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
+                                     QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                   /*use_length_prefix=*/true, _, _, _, _))
+      .Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
        RejectDeprecatedVersionDraft25WithVersionNegotiation) {
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   CreateTimeWaitListManager();
   char packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 25, /*destination connection ID length*/ 0x08};
+  QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
+                                     QuicTime::Zero());
+  EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
+  EXPECT_CALL(
+      *time_wait_list_manager_,
+      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                   /*use_length_prefix=*/true, _, _, _, _))
+      .Times(1);
+  dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
+}
+
+TEST_P(QuicDispatcherTestOneVersion,
+       RejectDeprecatedVersionT050WithVersionNegotiation) {
+  QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+  CreateTimeWaitListManager();
+  char packet[kMinPacketSizeForVersionNegotiation] = {
+      0xC0, 'T', '0', '5', '0', /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(packet, ABSL_ARRAYSIZE(packet),
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _)).Times(0);
@@ -1251,7 +1285,7 @@ TEST_P(QuicDispatcherTestOneVersion,
                              received_packet44);
 }
 
-static_assert(quic::SupportedVersions().size() == 7u,
+static_assert(quic::SupportedVersions().size() == 5u,
               "Please add new RejectDeprecatedVersion tests above this assert "
               "when deprecating versions");
 

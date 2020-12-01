@@ -131,11 +131,6 @@ std::vector<uint8_t> CryptoUtils::GenerateNextKeyPhaseSecret(
 
 namespace {
 
-// Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-5.2
-const uint8_t kDraft27InitialSalt[] = {0xc3, 0xee, 0xf7, 0x12, 0xc7, 0x2e, 0xbb,
-                                       0x5a, 0x11, 0xa7, 0xd2, 0x43, 0x2b, 0xb4,
-                                       0x63, 0x65, 0xbe, 0xf9, 0xf5, 0x02};
-
 // Salt from https://tools.ietf.org/html/draft-ietf-quic-tls-29#section-5.2
 const uint8_t kDraft29InitialSalt[] = {0xaf, 0xbf, 0xec, 0x28, 0x99, 0x93, 0xd2,
                                        0x4c, 0x9e, 0x97, 0x86, 0xf1, 0x9c, 0x61,
@@ -148,10 +143,6 @@ const uint8_t kDraft29InitialSalt[] = {0xaf, 0xbf, 0xec, 0x28, 0x99, 0x93, 0xd2,
 const uint8_t kQ050Salt[] = {0x50, 0x45, 0x74, 0xef, 0xd0, 0x66, 0xfe,
                              0x2f, 0x9d, 0x94, 0x5c, 0xfc, 0xdb, 0xd3,
                              0xa7, 0xf0, 0xd3, 0xb5, 0x6b, 0x45};
-// Salt to use for initial obfuscators in version T050.
-const uint8_t kT050Salt[] = {0x7f, 0xf5, 0x79, 0xe5, 0xac, 0xd0, 0x72,
-                             0x91, 0x55, 0x80, 0x30, 0x4c, 0x43, 0xa2,
-                             0x36, 0x7c, 0x60, 0x48, 0x83, 0x10};
 // Salt to use for initial obfuscators in version T051.
 const uint8_t kT051Salt[] = {0x7a, 0x4e, 0xde, 0xf4, 0xe7, 0xcc, 0xee,
                              0x5f, 0xa4, 0x50, 0x6c, 0x19, 0x12, 0x4f,
@@ -164,20 +155,14 @@ const uint8_t kReservedForNegotiationSalt[] = {
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with initial encryption salts");
   if (version == ParsedQuicVersion::Draft29()) {
     *out_len = ABSL_ARRAYSIZE(kDraft29InitialSalt);
     return kDraft29InitialSalt;
-  } else if (version == ParsedQuicVersion::Draft27()) {
-    *out_len = ABSL_ARRAYSIZE(kDraft27InitialSalt);
-    return kDraft27InitialSalt;
   } else if (version == ParsedQuicVersion::T051()) {
     *out_len = ABSL_ARRAYSIZE(kT051Salt);
     return kT051Salt;
-  } else if (version == ParsedQuicVersion::T050()) {
-    *out_len = ABSL_ARRAYSIZE(kT050Salt);
-    return kT050Salt;
   } else if (version == ParsedQuicVersion::Q050()) {
     *out_len = ABSL_ARRAYSIZE(kQ050Salt);
     return kQ050Salt;
@@ -186,20 +171,13 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
     return kReservedForNegotiationSalt;
   }
   QUIC_BUG << "No initial obfuscation salt for version " << version;
-  *out_len = ABSL_ARRAYSIZE(kDraft27InitialSalt);
-  return kDraft27InitialSalt;
+  *out_len = ABSL_ARRAYSIZE(kReservedForNegotiationSalt);
+  return kReservedForNegotiationSalt;
 }
 
 const char kPreSharedKeyLabel[] = "QUIC PSK";
 
 // Retry Integrity Protection Keys and Nonces.
-// https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-5.8
-const uint8_t kDraft27RetryIntegrityKey[] = {0x4d, 0x32, 0xec, 0xdb, 0x2a, 0x21,
-                                             0x33, 0xc8, 0x41, 0xe4, 0x04, 0x3d,
-                                             0xf2, 0x7d, 0x44, 0x30};
-const uint8_t kDraft27RetryIntegrityNonce[] = {
-    0x4d, 0x16, 0x11, 0xd0, 0x55, 0x13, 0xa5, 0x52, 0xc5, 0x87, 0xd5, 0x75};
-
 // https://tools.ietf.org/html/draft-ietf-quic-tls-29#section-5.8
 const uint8_t kDraft29RetryIntegrityKey[] = {0xcc, 0xce, 0x18, 0x7e, 0xd0, 0x9a,
                                              0x09, 0xd0, 0x57, 0x28, 0x15, 0x5a,
@@ -209,9 +187,6 @@ const uint8_t kDraft29RetryIntegrityNonce[] = {
 
 // Keys used by Google versions of QUIC. When introducing a new version,
 // generate a new key by running `openssl rand -hex 16`.
-const uint8_t kT050RetryIntegrityKey[] = {0xc9, 0x2d, 0x32, 0x3d, 0x9c, 0xe3,
-                                          0x0d, 0xa0, 0x88, 0xb9, 0xb7, 0xbb,
-                                          0xdc, 0xcd, 0x50, 0xc8};
 const uint8_t kT051RetryIntegrityKey[] = {0x2e, 0xb9, 0x61, 0xa6, 0x79, 0x56,
                                           0xf8, 0x79, 0x53, 0x14, 0xda, 0xfb,
                                           0x2e, 0xbc, 0x83, 0xd7};
@@ -221,8 +196,6 @@ const uint8_t kReservedForNegotiationRetryIntegrityKey[] = {
     0x03, 0xe6, 0x7c, 0x7b, 0xd2, 0x44, 0xca, 0xd9};
 // Nonces used by Google versions of QUIC. When introducing a new version,
 // generate a new nonce by running `openssl rand -hex 12`.
-const uint8_t kT050RetryIntegrityNonce[] = {0x26, 0xe4, 0xd6, 0x23, 0x83, 0xd5,
-                                            0xc7, 0x60, 0xea, 0x02, 0xb4, 0x1f};
 const uint8_t kT051RetryIntegrityNonce[] = {0xb5, 0x0e, 0x4e, 0x53, 0x4c, 0xfc,
                                             0x0b, 0xbb, 0x85, 0xf2, 0xf9, 0xca};
 // Retry integrity nonce used by ParsedQuicVersion::ReservedForNegotiation().
@@ -232,7 +205,7 @@ const uint8_t kReservedForNegotiationRetryIntegrityNonce[] = {
 bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
                                   absl::string_view* key,
                                   absl::string_view* nonce) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with retry integrity keys");
   if (!version.HasRetryIntegrityTag()) {
     QUIC_BUG << "Attempted to get retry integrity keys for invalid version "
@@ -246,14 +219,6 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
         reinterpret_cast<const char*>(kDraft29RetryIntegrityNonce),
         ABSL_ARRAYSIZE(kDraft29RetryIntegrityNonce));
     return true;
-  } else if (version == ParsedQuicVersion::Draft27()) {
-    *key = absl::string_view(
-        reinterpret_cast<const char*>(kDraft27RetryIntegrityKey),
-        ABSL_ARRAYSIZE(kDraft27RetryIntegrityKey));
-    *nonce = absl::string_view(
-        reinterpret_cast<const char*>(kDraft27RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kDraft27RetryIntegrityNonce));
-    return true;
   } else if (version == ParsedQuicVersion::T051()) {
     *key =
         absl::string_view(reinterpret_cast<const char*>(kT051RetryIntegrityKey),
@@ -261,14 +226,6 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kT051RetryIntegrityNonce),
         ABSL_ARRAYSIZE(kT051RetryIntegrityNonce));
-    return true;
-  } else if (version == ParsedQuicVersion::T050()) {
-    *key =
-        absl::string_view(reinterpret_cast<const char*>(kT050RetryIntegrityKey),
-                          ABSL_ARRAYSIZE(kT050RetryIntegrityKey));
-    *nonce = absl::string_view(
-        reinterpret_cast<const char*>(kT050RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kT050RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
     *key = absl::string_view(

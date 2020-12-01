@@ -42,18 +42,14 @@ QuicVersionLabel CreateRandomVersionLabelForNegotiation() {
 }
 
 void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   const bool enable = should_enable;
   const bool disable = !should_enable;
   if (version == ParsedQuicVersion::Draft29()) {
     SetQuicReloadableFlag(quic_disable_version_draft_29, disable);
-  } else if (version == ParsedQuicVersion::Draft27()) {
-    SetQuicReloadableFlag(quic_disable_version_draft_27, disable);
   } else if (version == ParsedQuicVersion::T051()) {
     SetQuicReloadableFlag(quic_disable_version_t051, disable);
-  } else if (version == ParsedQuicVersion::T050()) {
-    SetQuicReloadableFlag(quic_disable_version_t050, disable);
   } else if (version == ParsedQuicVersion::Q050()) {
     SetQuicReloadableFlag(quic_disable_version_q050, disable);
   } else if (version == ParsedQuicVersion::Q046()) {
@@ -180,22 +176,21 @@ bool ParsedQuicVersion::HasIetfQuicFrames() const {
 bool ParsedQuicVersion::HasHandshakeDone() const {
   DCHECK(IsKnown());
   // HANDSHAKE_DONE is supported in T051 and all IETF drafts since draft-25.
-  return UsesTls() && transport_version > QUIC_VERSION_50;
+  return UsesTls();
 }
 
 bool ParsedQuicVersion::HasVarIntTransportParams() const {
   DCHECK(IsKnown());
   // Variable-length integer transport parameters are supported in T051 and
   // all IETF drafts since draft-27.
-  return UsesTls() && transport_version > QUIC_VERSION_50;
+  return UsesTls();
 }
 
 bool ParsedQuicVersion::AuthenticatesHandshakeConnectionIds() const {
   DCHECK(IsKnown());
   // Authentication of handshake connection IDs is supported in T051 and
   // all IETF drafts since draft-28.
-  return UsesTls() && transport_version > QUIC_VERSION_50 &&
-         transport_version != QUIC_VERSION_IETF_DRAFT_27;
+  return UsesTls();
 }
 
 bool ParsedQuicVersion::UsesTls() const {
@@ -239,16 +234,12 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 QuicVersionLabel CreateQuicVersionLabel(ParsedQuicVersion parsed_version) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   if (parsed_version == ParsedQuicVersion::Draft29()) {
     return MakeVersionLabel(0xff, 0x00, 0x00, 29);
-  } else if (parsed_version == ParsedQuicVersion::Draft27()) {
-    return MakeVersionLabel(0xff, 0x00, 0x00, 27);
   } else if (parsed_version == ParsedQuicVersion::T051()) {
     return MakeVersionLabel('T', '0', '5', '1');
-  } else if (parsed_version == ParsedQuicVersion::T050()) {
-    return MakeVersionLabel('T', '0', '5', '0');
   } else if (parsed_version == ParsedQuicVersion::Q050()) {
     return MakeVersionLabel('Q', '0', '5', '0');
   } else if (parsed_version == ParsedQuicVersion::Q046()) {
@@ -417,16 +408,8 @@ ParsedQuicVersionVector FilterSupportedVersions(
       if (!GetQuicReloadableFlag(quic_disable_version_draft_29)) {
         filtered_versions.push_back(version);
       }
-    } else if (version == ParsedQuicVersion::Draft27()) {
-      if (!GetQuicReloadableFlag(quic_disable_version_draft_27)) {
-        filtered_versions.push_back(version);
-      }
     } else if (version == ParsedQuicVersion::T051()) {
       if (!GetQuicReloadableFlag(quic_disable_version_t051)) {
-        filtered_versions.push_back(version);
-      }
-    } else if (version == ParsedQuicVersion::T050()) {
-      if (!GetQuicReloadableFlag(quic_disable_version_t050)) {
         filtered_versions.push_back(version);
       }
     } else if (version == ParsedQuicVersion::Q050()) {
@@ -529,14 +512,13 @@ HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(SupportedTransportVersions().size() == 6u,
+  static_assert(SupportedTransportVersions().size() == 5u,
                 "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);
     RETURN_STRING_LITERAL(QUIC_VERSION_50);
     RETURN_STRING_LITERAL(QUIC_VERSION_51);
-    RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_27);
     RETURN_STRING_LITERAL(QUIC_VERSION_IETF_DRAFT_29);
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
@@ -556,7 +538,7 @@ std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
-  static_assert(SupportedVersions().size() == 7u,
+  static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync");
   if (version == UnsupportedQuicVersion()) {
     return "0";
@@ -564,9 +546,6 @@ std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
   if (version == ParsedQuicVersion::Draft29()) {
     DCHECK(version.UsesHttp3());
     return "draft29";
-  } else if (version == ParsedQuicVersion::Draft27()) {
-    DCHECK(version.UsesHttp3());
-    return "draft27";
   }
 
   return QuicVersionLabelToString(CreateQuicVersionLabel(version));
@@ -655,8 +634,6 @@ ParsedQuicVersion LegacyVersionForEncapsulation() {
 std::string AlpnForVersion(ParsedQuicVersion parsed_version) {
   if (parsed_version == ParsedQuicVersion::Draft29()) {
     return "h3-29";
-  } else if (parsed_version == ParsedQuicVersion::Draft27()) {
-    return "h3-27";
   }
   return "h3-" + ParsedQuicVersionToString(parsed_version);
 }
