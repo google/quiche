@@ -345,6 +345,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   void OnApplicationLimited() { bandwidth_sampler_.OnAppLimited(); }
 
+  // Calculates BDP using the current MaxBandwidth.
+  QuicByteCount BDP() const { return BDP(MaxBandwidth()); }
+
   QuicByteCount BDP(QuicBandwidth bandwidth) const {
     return bandwidth * MinRtt();
   }

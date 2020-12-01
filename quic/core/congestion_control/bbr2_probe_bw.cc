@@ -178,7 +178,7 @@ void Bbr2ProbeBwMode::UpdateProbeDown(
   }
 
   // Transition to PROBE_CRUISE iff we've drained to target.
-  QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
+  QuicByteCount bdp = model_->BDP();
   QUIC_DVLOG(3) << sender_ << " Checking if drained to target. bytes_in_flight:"
                 << bytes_in_flight << ", bdp:" << bdp;
   if (bytes_in_flight < bdp) {
@@ -450,7 +450,7 @@ void Bbr2ProbeBwMode::UpdateProbeUp(
     // TCP uses min_rtt instead of a full round:
     //   HasPhaseLasted(model_->MinRtt(), congestion_event)
   } else if (cycle_.rounds_in_phase > 0) {
-    const QuicByteCount bdp = model_->BDP(model_->MaxBandwidth());
+    const QuicByteCount bdp = model_->BDP();
     QuicByteCount queuing_threshold_extra_bytes = 2 * kDefaultTCPMSS;
     if (Params().add_ack_height_to_queueing_threshold) {
       queuing_threshold_extra_bytes += model_->MaxAckHeight();

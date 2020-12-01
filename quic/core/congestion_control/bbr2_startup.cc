@@ -107,7 +107,7 @@ void Bbr2StartupMode::CheckExcessiveLosses(
   // At the end of a round trip. Check if loss is too high in this round.
   if (model_->IsInflightTooHigh(congestion_event,
                                 Params().startup_full_loss_count)) {
-    QuicByteCount new_inflight_hi = model_->BDP(model_->MaxBandwidth());
+    QuicByteCount new_inflight_hi = model_->BDP();
     if (Params().startup_loss_exit_use_max_delivered_for_inflight_hi) {
       if (new_inflight_hi < model_->max_bytes_delivered_in_round()) {
         QUIC_RELOADABLE_FLAG_COUNT_N(
