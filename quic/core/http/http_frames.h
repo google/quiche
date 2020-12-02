@@ -5,9 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_HTTP_FRAMES_H_
 #define QUICHE_QUIC_CORE_HTTP_HTTP_FRAMES_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <ostream>
+#include <sstream>
 
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
@@ -28,6 +30,8 @@ enum class HttpFrameType {
   MAX_PUSH_ID = 0xD,
   // https://tools.ietf.org/html/draft-ietf-httpbis-priority-01
   PRIORITY_UPDATE = 0XF,
+  // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
+  ACCEPT_CH = 0x89,
   // https://tools.ietf.org/html/draft-ietf-httpbis-priority-02
   PRIORITY_UPDATE_REQUEST_STREAM = 0xF0700,
 };
@@ -172,6 +176,42 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
       std::ostream& os,
       const PriorityUpdateFrame& s) {
     os << s.ToString();
+    return os;
+  }
+};
+
+// ACCEPT_CH
+// https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02
+//
+struct QUIC_EXPORT_PRIVATE AcceptChFrame {
+  struct QUIC_EXPORT_PRIVATE OriginValuePair {
+    std::string origin;
+    std::string value;
+    bool operator==(const OriginValuePair& rhs) const {
+      return origin == rhs.origin && value == rhs.value;
+    }
+  };
+
+  std::vector<OriginValuePair> entries;
+
+  bool operator==(const AcceptChFrame& rhs) const {
+    return entries.size() == rhs.entries.size() &&
+           std::equal(entries.begin(), entries.end(), rhs.entries.begin());
+  }
+
+  std::string ToString() const {
+    std::stringstream s;
+    s << *this;
+    return s.str();
+  }
+
+  friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(
+      std::ostream& os,
+      const AcceptChFrame& frame) {
+    os << "ACCEPT_CH frame with " << frame.entries.size() << " entries: ";
+    for (auto& entry : frame.entries) {
+      os << "origin: " << entry.origin << "; value: " << entry.value;
+    }
     return os;
   }
 };
