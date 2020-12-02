@@ -1013,6 +1013,11 @@ class QUICHE_EXPORT_PRIVATE SpdySerializedFrame {
 // method of this class will be called.
 class QUICHE_EXPORT_PRIVATE SpdyFrameVisitor {
  public:
+  SpdyFrameVisitor() {}
+  SpdyFrameVisitor(const SpdyFrameVisitor&) = delete;
+  SpdyFrameVisitor& operator=(const SpdyFrameVisitor&) = delete;
+  virtual ~SpdyFrameVisitor() {}
+
   virtual void VisitRstStream(const SpdyRstStreamIR& rst_stream) = 0;
   virtual void VisitSettings(const SpdySettingsIR& settings) = 0;
   virtual void VisitPing(const SpdyPingIR& ping) = 0;
@@ -1027,12 +1032,6 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameVisitor {
   virtual void VisitUnknown(const SpdyUnknownIR& /*unknown*/) {
     // TODO(birenroy): make abstract.
   }
-
- protected:
-  SpdyFrameVisitor() {}
-  SpdyFrameVisitor(const SpdyFrameVisitor&) = delete;
-  SpdyFrameVisitor& operator=(const SpdyFrameVisitor&) = delete;
-  virtual ~SpdyFrameVisitor() {}
 };
 
 // Optionally, and in addition to SpdyFramerVisitorInterface, a class supporting
