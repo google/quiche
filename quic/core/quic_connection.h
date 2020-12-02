@@ -706,7 +706,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     ping_timeout_ = ping_timeout;
   }
   const QuicTime::Delta ping_timeout() const { return ping_timeout_; }
-  // Used in Chromium, but not internally.
   // Sets an initial timeout for the ping alarm when there is no retransmittable
   // data in flight, allowing for a more aggressive ping alarm in that case.
   void set_initial_retransmittable_on_wire_timeout(

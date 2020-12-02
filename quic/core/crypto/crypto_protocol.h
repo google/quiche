@@ -402,6 +402,10 @@ const QuicTag kIGNP = TAG('I', 'G', 'N', 'P');   // Do not use PING only packet
                                                  // for RTT measure or
                                                  // congestion control.
 
+const QuicTag kSRWP = TAG('S', 'R', 'W', 'P');   // Enable retransmittable on
+                                                 // wire PING (ROWP) on the
+                                                 // server side.
+
 // Rejection tags
 const QuicTag kRREJ = TAG('R', 'R', 'E', 'J');   // Reasons for server sending
 

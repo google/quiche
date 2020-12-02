@@ -656,6 +656,14 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     anti_amplification_factor_ = 10;
   }
 
+  if (GetQuicReloadableFlag(quic_enable_server_on_wire_ping) &&
+      perspective_ == Perspective::IS_SERVER &&
+      config.HasClientSentConnectionOption(kSRWP, perspective_)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_server_on_wire_ping);
+    set_initial_retransmittable_on_wire_timeout(
+        QuicTime::Delta::FromMilliseconds(200));
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSetFromConfig(config);
   }
@@ -4083,8 +4091,13 @@ void QuicConnection::SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
 }
 
 void QuicConnection::SetPingAlarm() {
-  if (perspective_ == Perspective::IS_SERVER) {
-    // Only clients send pings to avoid NATs from timing out.
+  if (perspective_ == Perspective::IS_SERVER &&
+      initial_retransmittable_on_wire_timeout_.IsInfinite()) {
+    // The PING alarm exists to support two features:
+    // 1) clients send PINGs every 15s to prevent NAT timeouts,
+    // 2) both clients and servers can send retransmittable on the wire PINGs
+    // (ROWP) while ShouldKeepConnectionAlive is true and there is no packets in
+    // flight.
     return;
   }
   if (!visitor_->ShouldKeepConnectionAlive()) {
@@ -4097,9 +4110,14 @@ void QuicConnection::SetPingAlarm() {
       sent_packet_manager_.HasInFlightPackets() ||
       retransmittable_on_wire_ping_count_ >
           GetQuicFlag(FLAGS_quic_max_retransmittable_on_wire_ping_count)) {
-    // Extend the ping alarm.
-    ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
-                        QuicTime::Delta::FromSeconds(1));
+    if (perspective_ == Perspective::IS_CLIENT) {
+      // Clients send 15s PINGs to avoid NATs from timing out.
+      ping_alarm_->Update(clock_->ApproximateNow() + ping_timeout_,
+                          QuicTime::Delta::FromSeconds(1));
+    } else {
+      // Servers do not send 15s PINGs.
+      ping_alarm_->Cancel();
+    }
     return;
   }
   DCHECK_LT(initial_retransmittable_on_wire_timeout_, ping_timeout_);

@@ -7119,6 +7119,45 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
                        clock_.ApproximateNow());
 }
 
+TEST_P(QuicConnectionTest, ServerRetransmittableOnWire) {
+  set_perspective(Perspective::IS_SERVER);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  SetQuicReloadableFlag(quic_enable_server_on_wire_ping, true);
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kSRWP);
+  config.SetInitialReceivedConnectionOptions(connection_options);
+  connection_.SetFromConfig(config);
+
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+
+  ProcessPacket(1);
+
+  ASSERT_TRUE(connection_.GetPingAlarm()->IsSet());
+  QuicTime::Delta ping_delay = QuicTime::Delta::FromMilliseconds(200);
+  EXPECT_EQ(ping_delay,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  connection_.SendStreamDataWithString(2, "foo", 0, NO_FIN);
+  // Verify PING alarm gets cancelled.
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+
+  // Now receive an ACK of the packet.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+  QuicAckFrame frame =
+      InitAckFrame({{QuicPacketNumber(1), QuicPacketNumber(2)}});
+  ProcessAckPacket(2, &frame);
+  // Verify PING alarm gets scheduled.
+  ASSERT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(ping_delay,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+}
+
 // This test verifies that the connection marks path as degrading and does not
 // spin timer to detect path degrading when a new packet is sent on the
 // degraded path.
