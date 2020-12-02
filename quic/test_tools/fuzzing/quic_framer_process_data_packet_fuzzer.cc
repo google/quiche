@@ -48,7 +48,7 @@ using quic::test::QuicFramerPeer;
 
 PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider,
                                              ParsedQuicVersion version) {
-  if (!VersionHasIetfInvariantHeader(version.transport_version)) {
+  if (!version.HasIetfInvariantHeader()) {
     return quic::GOOGLE_QUIC_PACKET;
   }
   return provider->ConsumeBool() ? quic::IETF_QUIC_LONG_HEADER_PACKET

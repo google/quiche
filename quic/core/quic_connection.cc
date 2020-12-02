@@ -323,8 +323,7 @@ QuicConnection::QuicConnection(
       peer_max_packet_size_(kDefaultMaxPacketSizeTransportParam),
       largest_received_packet_size_(0),
       write_error_occurred_(false),
-      no_stop_waiting_frames_(
-          VersionHasIetfInvariantHeader(transport_version())),
+      no_stop_waiting_frames_(version().HasIetfInvariantHeader()),
       consecutive_num_packets_with_no_retransmittable_frames_(0),
       max_consecutive_num_packets_with_no_retransmittable_frames_(
           kMaxConsecutiveNonRetransmittablePackets),
@@ -373,8 +372,7 @@ QuicConnection::QuicConnection(
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
                                                         transport_version()))
       << "QuicConnection: attempted to use server connection ID "
-      << server_connection_id << " which is invalid with version "
-      << QuicVersionToString(transport_version());
+      << server_connection_id << " which is invalid with version " << version();
   framer_.set_visitor(this);
   stats_.connection_creation_time = clock_->ApproximateNow();
   // TODO(ianswett): Supply the NetworkChangeVisitor as a constructor argument
@@ -857,7 +855,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   // here.  (Check for a bug regression.)
   DCHECK_EQ(server_connection_id_, packet.connection_id);
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  DCHECK(!VersionHasIetfInvariantHeader(transport_version()));
+  DCHECK(!version().HasIetfInvariantHeader());
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPublicResetPacket(packet);
   }
@@ -1940,7 +1938,7 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
     const QuicIetfStatelessResetPacket& /*packet*/) {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
-  DCHECK(VersionHasIetfInvariantHeader(transport_version()));
+  DCHECK(version().HasIetfInvariantHeader());
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
   if (!visitor_->ValidateStatelessReset(last_packet_destination_address_,
                                         last_packet_source_address_)) {
@@ -2538,7 +2536,7 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (!version_negotiated_) {
     if (perspective_ == Perspective::IS_CLIENT) {
       DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
-      if (!VersionHasIetfInvariantHeader(framer_.transport_version())) {
+      if (!version().HasIetfInvariantHeader()) {
         // If the client gets a packet without the version flag from the server
         // it should stop sending version since the version negotiation is done.
         // IETF QUIC stops sending version once encryption level switches to
@@ -3347,7 +3345,7 @@ void QuicConnection::OnWriteError(int error_code) {
       break;
     default:
       // We can't send an error as the socket is presumably borked.
-      if (VersionHasIetfInvariantHeader(transport_version())) {
+      if (version().HasIetfInvariantHeader()) {
         QUIC_CODE_COUNT(quic_tear_down_local_connection_on_write_error_ietf);
       } else {
         QUIC_CODE_COUNT(
@@ -3381,7 +3379,7 @@ void QuicConnection::OnSerializedPacket(SerializedPacket serialized_packet) {
     // loop here.
     // TODO(ianswett): This is actually an internal error, not an
     // encryption failure.
-    if (VersionHasIetfInvariantHeader(transport_version())) {
+    if (version().HasIetfInvariantHeader()) {
       QUIC_CODE_COUNT(
           quic_tear_down_local_connection_on_serialized_packet_ietf);
     } else {
@@ -3408,7 +3406,7 @@ void QuicConnection::OnUnrecoverableError(QuicErrorCode error,
                                           const std::string& error_details) {
   // The packet creator or generator encountered an unrecoverable error: tear
   // down local connection state immediately.
-  if (VersionHasIetfInvariantHeader(transport_version())) {
+  if (version().HasIetfInvariantHeader()) {
     QUIC_CODE_COUNT(
         quic_tear_down_local_connection_on_unrecoverable_error_ietf);
   } else {
@@ -4875,7 +4873,7 @@ EncryptionLevel QuicConnection::GetConnectionCloseEncryptionLevel() const {
   }
   if (framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT)) {
     if (encryption_level_ != ENCRYPTION_ZERO_RTT) {
-      if (VersionHasIetfInvariantHeader(transport_version())) {
+      if (version().HasIetfInvariantHeader()) {
         QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close_ietf);
       } else {
         QUIC_CODE_COUNT(quic_wrong_encryption_level_connection_close);

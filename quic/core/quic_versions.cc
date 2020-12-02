@@ -326,24 +326,22 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
     return UnsupportedQuicVersion();
   }
   int quic_version_number = 0;
+  const ParsedQuicVersionVector supported_versions = AllSupportedVersions();
   if (absl::SimpleAtoi(version_string, &quic_version_number) &&
       quic_version_number > 0) {
     QuicTransportVersion transport_version =
         static_cast<QuicTransportVersion>(quic_version_number);
-    bool transport_version_is_supported = false;
-    for (QuicTransportVersion transport_vers : SupportedTransportVersions()) {
-      if (transport_vers == transport_version) {
-        transport_version_is_supported = true;
-        break;
-      }
-    }
-    if (!transport_version_is_supported ||
-        !ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
+    if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
       return UnsupportedQuicVersion();
     }
-    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version);
+    ParsedQuicVersion version(PROTOCOL_QUIC_CRYPTO, transport_version);
+    if (std::find(supported_versions.begin(), supported_versions.end(),
+                  version) != supported_versions.end()) {
+      return version;
+    }
+    return UnsupportedQuicVersion();
   }
-  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+  for (const ParsedQuicVersion& version : supported_versions) {
     if (version_string == ParsedQuicVersionToString(version) ||
         version_string == AlpnForVersion(version) ||
         (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
@@ -351,13 +349,13 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
       return version;
     }
   }
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      if (version.UsesHttp3() &&
-          version_string ==
-              QuicVersionLabelToString(CreateQuicVersionLabel(version))) {
-        return version;
-      }
+  for (const ParsedQuicVersion& version : supported_versions) {
+    if (version.UsesHttp3() &&
+        version_string ==
+            QuicVersionLabelToString(CreateQuicVersionLabel(version))) {
+      return version;
     }
+  }
   // Reading from the client so this should not be considered an ERROR.
   QUIC_DLOG(INFO) << "Unsupported QUIC version string: \"" << version_string
                   << "\".";
@@ -383,10 +381,14 @@ ParsedQuicVersionVector ParseQuicVersionVectorString(
 }
 
 QuicTransportVersionVector AllSupportedTransportVersions() {
-  constexpr auto supported_transport_versions = SupportedTransportVersions();
-  QuicTransportVersionVector supported_versions(
-      supported_transport_versions.begin(), supported_transport_versions.end());
-  return supported_versions;
+  QuicTransportVersionVector transport_versions;
+  for (const ParsedQuicVersion& version : AllSupportedVersions()) {
+    if (std::find(transport_versions.begin(), transport_versions.end(),
+                  version.transport_version) == transport_versions.end()) {
+      transport_versions.push_back(version.transport_version);
+    }
+  }
+  return transport_versions;
 }
 
 ParsedQuicVersionVector AllSupportedVersions() {
@@ -432,19 +434,6 @@ ParsedQuicVersionVector FilterSupportedVersions(
   return filtered_versions;
 }
 
-QuicTransportVersionVector VersionOfIndex(
-    const QuicTransportVersionVector& versions,
-    int index) {
-  QuicTransportVersionVector version;
-  int version_count = versions.size();
-  if (index >= 0 && index < version_count) {
-    version.push_back(versions[index]);
-  } else {
-    version.push_back(QUIC_VERSION_UNSUPPORTED);
-  }
-  return version;
-}
-
 ParsedQuicVersionVector ParsedVersionOfIndex(
     const ParsedQuicVersionVector& versions,
     int index) {
@@ -456,22 +445,6 @@ ParsedQuicVersionVector ParsedVersionOfIndex(
     version.push_back(UnsupportedQuicVersion());
   }
   return version;
-}
-
-QuicTransportVersionVector ParsedVersionsToTransportVersions(
-    const ParsedQuicVersionVector& versions) {
-  QuicTransportVersionVector transport_versions;
-  transport_versions.resize(versions.size());
-  for (size_t i = 0; i < versions.size(); ++i) {
-    transport_versions[i] = versions[i].transport_version;
-  }
-  return transport_versions;
-}
-
-QuicVersionLabel QuicVersionToQuicVersionLabel(
-    QuicTransportVersion transport_version) {
-  return CreateQuicVersionLabel(
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
 }
 
 std::string QuicVersionLabelToString(QuicVersionLabel version_label) {
@@ -497,23 +470,11 @@ std::string QuicVersionLabelVectorToString(
   return result;
 }
 
-QuicTransportVersion QuicVersionLabelToQuicVersion(
-    QuicVersionLabel version_label) {
-  return ParseQuicVersionLabel(version_label).transport_version;
-}
-
-HandshakeProtocol QuicVersionLabelToHandshakeProtocol(
-    QuicVersionLabel version_label) {
-  return ParseQuicVersionLabel(version_label).handshake_protocol;
-}
-
 #define RETURN_STRING_LITERAL(x) \
   case x:                        \
     return #x
 
 std::string QuicVersionToString(QuicTransportVersion transport_version) {
-  static_assert(SupportedTransportVersions().size() == 5u,
-                "Supported versions out of sync");
   switch (transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_43);
     RETURN_STRING_LITERAL(QUIC_VERSION_46);

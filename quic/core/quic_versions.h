@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -134,16 +135,6 @@ enum QuicTransportVersion {
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
 };
 
-// This array contains QUIC transport versions which we currently support.
-// DEPRECATED. Use SupportedVersions() instead.
-constexpr std::array<QuicTransportVersion, 5> SupportedTransportVersions() {
-  return {QUIC_VERSION_IETF_DRAFT_29,
-          QUIC_VERSION_51,
-          QUIC_VERSION_50,
-          QUIC_VERSION_46,
-          QUIC_VERSION_43};
-}
-
 // Helper function which translates from a QuicTransportVersion to a string.
 // Returns strings corresponding to enum names (e.g. QUIC_VERSION_6).
 QUIC_EXPORT_PRIVATE std::string QuicVersionToString(
@@ -177,18 +168,20 @@ QUIC_EXPORT_PRIVATE constexpr bool QuicVersionUsesCryptoFrames(
 QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     HandshakeProtocol handshake_protocol,
     QuicTransportVersion transport_version) {
-  bool transport_version_is_valid =
-      transport_version == QUIC_VERSION_UNSUPPORTED ||
-      transport_version == QUIC_VERSION_RESERVED_FOR_NEGOTIATION;
-  if (!transport_version_is_valid) {
-    // Iterators are not constexpr in C++14 which Chrome uses.
-    constexpr auto supported_transport_versions = SupportedTransportVersions();
-    for (size_t i = 0; i < supported_transport_versions.size(); ++i) {
-      const QuicTransportVersion& trans_vers = supported_transport_versions[i];
-      if (trans_vers == transport_version) {
-        transport_version_is_valid = true;
-        break;
-      }
+  bool transport_version_is_valid = false;
+  constexpr QuicTransportVersion valid_transport_versions[] = {
+      QUIC_VERSION_IETF_DRAFT_29,
+      QUIC_VERSION_51,
+      QUIC_VERSION_50,
+      QUIC_VERSION_46,
+      QUIC_VERSION_43,
+      QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
+      QUIC_VERSION_UNSUPPORTED,
+  };
+  for (size_t i = 0; i < ABSL_ARRAYSIZE(valid_transport_versions); ++i) {
+    if (transport_version == valid_transport_versions[i]) {
+      transport_version_is_valid = true;
+      break;
     }
   }
   if (!transport_version_is_valid) {
@@ -424,16 +417,11 @@ QUIC_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os,
     const QuicTransportVersionVector& transport_versions);
 
-// Returns a vector of QUIC versions in kSupportedTransportVersions.
-QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();
-
-// Returns a vector of QUIC versions that is the cartesian product of
-// kSupportedTransportVersions and kSupportedHandshakeProtocols.
+// Returns a vector of supported QUIC versions.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersions();
 
-// Returns a vector of QUIC versions that is the cartesian product of
-// kSupportedTransportVersions and kSupportedHandshakeProtocols, with any
-// versions disabled by flags excluded.
+// Returns a vector of supported QUIC versions, with any versions disabled by
+// flags excluded.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersions();
 
 // Returns a vector of QUIC versions from |versions| which exclude any versions
@@ -462,21 +450,9 @@ QUIC_EXPORT_PRIVATE ParsedQuicVersionVector AllSupportedVersionsWithTls();
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector CurrentSupportedVersionsWithTls();
 
 // Returns QUIC version of |index| in result of |versions|. Returns
-// QUIC_VERSION_UNSUPPORTED if |index| is out of bounds.
-QUIC_EXPORT_PRIVATE QuicTransportVersionVector
-VersionOfIndex(const QuicTransportVersionVector& versions, int index);
-
-// Returns QUIC version of |index| in result of |versions|. Returns
 // UnsupportedQuicVersion() if |index| is out of bounds.
 QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
 ParsedVersionOfIndex(const ParsedQuicVersionVector& versions, int index);
-
-// Returns a vector of QuicTransportVersions corresponding to just the transport
-// versions in |versions|. If the input vector contains multiple parsed versions
-// with different handshake protocols (but the same transport version), that
-// transport version will appear in the resulting vector multiple times.
-QUIC_EXPORT_PRIVATE QuicTransportVersionVector
-ParsedVersionsToTransportVersions(const ParsedQuicVersionVector& versions);
 
 // QuicVersionLabel is written to and read from the wire, but we prefer to use
 // the more readable ParsedQuicVersion at other levels.
@@ -498,6 +474,10 @@ QUIC_EXPORT_PRIVATE ParsedQuicVersionVector
 ParseQuicVersionVectorString(absl::string_view versions_string);
 
 // Constructs a QuicVersionLabel from the provided ParsedQuicVersion.
+// QuicVersionLabel is written to and read from the wire, but we prefer to use
+// the more readable ParsedQuicVersion at other levels.
+// Helper function which translates from a ParsedQuicVersion to a
+// QuicVersionLabel. Returns 0 if |parsed_version| is unsupported.
 QUIC_EXPORT_PRIVATE QuicVersionLabel
 CreateQuicVersionLabel(ParsedQuicVersion parsed_version);
 
@@ -505,13 +485,6 @@ CreateQuicVersionLabel(ParsedQuicVersion parsed_version);
 // ParsedQuicVersionVector.
 QUIC_EXPORT_PRIVATE QuicVersionLabelVector
 CreateQuicVersionLabelVector(const ParsedQuicVersionVector& versions);
-
-// QuicVersionLabel is written to and read from the wire, but we prefer to use
-// the more readable QuicTransportVersion at other levels.
-// Helper function which translates from a QuicTransportVersion to a
-// QuicVersionLabel. Returns 0 if |version| is unsupported.
-QUIC_EXPORT_PRIVATE QuicVersionLabel
-QuicVersionToQuicVersionLabel(QuicTransportVersion transport_version);
 
 // Helper function which translates from a QuicVersionLabel to a string.
 QUIC_EXPORT_PRIVATE std::string QuicVersionLabelToString(
@@ -533,20 +506,14 @@ QUIC_EXPORT_PRIVATE inline std::string QuicVersionLabelVectorToString(
                                         std::numeric_limits<size_t>::max());
 }
 
-// Returns appropriate QuicTransportVersion from a QuicVersionLabel.
-// Returns QUIC_VERSION_UNSUPPORTED if |version_label| cannot be understood.
-QUIC_EXPORT_PRIVATE QuicTransportVersion
-QuicVersionLabelToQuicVersion(QuicVersionLabel version_label);
-
-// Returns the HandshakeProtocol used with the given |version_label|, returning
-// PROTOCOL_UNSUPPORTED if it is unknown.
-QUIC_EXPORT_PRIVATE HandshakeProtocol
-QuicVersionLabelToHandshakeProtocol(QuicVersionLabel version_label);
-
 // Helper function which translates from a ParsedQuicVersion to a string.
 // Returns strings corresponding to the on-the-wire tag.
 QUIC_EXPORT_PRIVATE std::string ParsedQuicVersionToString(
     ParsedQuicVersion version);
+
+// Returns a vector of supported QUIC transport versions. DEPRECATED, use
+// AllSupportedVersions instead.
+QUIC_EXPORT_PRIVATE QuicTransportVersionVector AllSupportedTransportVersions();
 
 // Returns comma separated list of string representations of
 // QuicTransportVersion enum values in the supplied |versions| vector.

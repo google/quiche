@@ -230,10 +230,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
 std::string ParamNameFormatter(
     const testing::TestParamInfo<QuicSpdyClientSessionTest::ParamType>& info) {
-  const ParsedQuicVersion& version = info.param;
-  return quiche::QuicheStrCat(
-      QuicVersionToString(version.transport_version), "_",
-      HandshakeProtocolToString(version.handshake_protocol));
+  return ParsedQuicVersionToString(info.param);
 }
 
 INSTANTIATE_TEST_SUITE_P(Tests,
@@ -583,7 +580,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
       QuicConnectionPeer::GetFramer(connection_), destination_connection_id);
   bool version_flag = false;
   QuicConnectionIdIncluded scid_included = CONNECTION_ID_ABSENT;
-  if (VersionHasIetfInvariantHeader(version.transport_version)) {
+  if (version.HasIetfInvariantHeader()) {
     version_flag = true;
     source_connection_id = destination_connection_id;
     scid_included = CONNECTION_ID_PRESENT;

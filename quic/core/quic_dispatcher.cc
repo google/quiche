@@ -749,7 +749,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
     action = QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS;
   } else {
     if (!connection->IsHandshakeComplete()) {
-      if (!VersionHasIetfInvariantHeader(connection->transport_version())) {
+      if (!connection->version().HasIetfInvariantHeader()) {
         QUIC_CODE_COUNT(gquic_add_to_time_wait_list_with_handshake_failed);
       } else {
         QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
@@ -759,7 +759,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
       // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
       StatelesslyTerminateConnection(
           connection->connection_id(),
-          VersionHasIetfInvariantHeader(connection->transport_version())
+          connection->version().HasIetfInvariantHeader()
               ? IETF_QUIC_LONG_HEADER_PACKET
               : GOOGLE_QUIC_PACKET,
           /*version_flag=*/true,
@@ -778,7 +778,7 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
   time_wait_list_manager_->AddConnectionIdToTimeWait(
       it->first, action,
       TimeWaitConnectionInfo(
-          VersionHasIetfInvariantHeader(connection->transport_version()),
+          connection->version().HasIetfInvariantHeader(),
           connection->termination_packets(),
           connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
   session_map_.erase(it);

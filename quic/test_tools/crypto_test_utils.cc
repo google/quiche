@@ -452,7 +452,7 @@ uint64_t LeafCertHashForTesting() {
   bool ok = false;
   proof_source->GetProof(
       server_address, client_address, "", "",
-      AllSupportedTransportVersions().front(), "",
+      AllSupportedVersionsWithQuicCrypto().front().transport_version, "",
       std::unique_ptr<ProofSource::Callback>(new Callback(&ok, &chain)));
   if (!ok || chain->certs.empty()) {
     DCHECK(false) << "Proof generation failed";
@@ -814,7 +814,8 @@ CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
        {"PUBS", GenerateClientPublicValuesHex().c_str()},
        {"NONC", GenerateClientNonceHex(clock, crypto_config).c_str()},
        {"VER\0", QuicVersionLabelToString(
-           QuicVersionToQuicVersionLabel(version)).c_str()}},
+           CreateQuicVersionLabel(
+            ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version))).c_str()}},
       kClientHelloMinimumSize);
   // clang-format on
 }

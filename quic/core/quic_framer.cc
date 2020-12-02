@@ -887,8 +887,7 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
                                    char* buffer,
                                    size_t packet_length,
                                    EncryptionLevel level) {
-  QUIC_BUG_IF(header.version_flag &&
-              VersionHasIetfInvariantHeader(transport_version()) &&
+  QUIC_BUG_IF(header.version_flag && version().HasIetfInvariantHeader() &&
               header.long_packet_type == RETRY && !frames.empty())
       << "IETF RETRY packets cannot contain frames " << header;
   QuicDataWriter writer(packet_length, buffer);
@@ -1439,8 +1438,7 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
 
   bool packet_has_ietf_packet_header = false;
   if (infer_packet_header_type_from_version_) {
-    packet_has_ietf_packet_header =
-        VersionHasIetfInvariantHeader(version_.transport_version);
+    packet_has_ietf_packet_header = version_.HasIetfInvariantHeader();
   } else if (!reader.IsDoneReading()) {
     uint8_t type = reader.PeekByte();
     packet_has_ietf_packet_header = QuicUtils::IsIetfPacketHeader(type);
@@ -2085,7 +2083,7 @@ EncryptionLevel QuicFramer::GetEncryptionLevelToSendApplicationData() const {
 bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
                                     QuicDataWriter* writer,
                                     size_t* length_field_offset) {
-  if (VersionHasIetfInvariantHeader(transport_version())) {
+  if (version().HasIetfInvariantHeader()) {
     return AppendIetfPacketHeader(header, writer, length_field_offset);
   }
   QUIC_DVLOG(1) << ENDPOINT << "Appending header: " << header;
@@ -2126,7 +2124,7 @@ bool QuicFramer::AppendPacketHeader(const QuicPacketHeader& header,
           server_connection_id, transport_version()))
           << "AppendPacketHeader: attempted to use connection ID "
           << server_connection_id << " which is invalid with version "
-          << QuicVersionToString(transport_version());
+          << version();
 
       public_flags |= PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID;
       if (perspective_ == Perspective::IS_CLIENT) {
@@ -2189,8 +2187,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(server_connection_id,
                                                         transport_version()))
       << "AppendIetfPacketHeader: attempted to use connection ID "
-      << server_connection_id << " which is invalid with version "
-      << QuicVersionToString(transport_version());
+      << server_connection_id << " which is invalid with version " << version();
   if (!AppendIetfHeaderTypeByte(header, writer)) {
     return false;
   }
@@ -2715,12 +2712,12 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
     std::string detailed_error;
     QuicErrorCode parse_result = QuicFramer::ParsePublicHeader(
         reader, expected_destination_connection_id_length,
-        VersionHasIetfInvariantHeader(version_.transport_version),
-        &header->type_byte, &header->form, &header->version_flag,
-        &has_length_prefix, &version_label, &header->version,
-        &header->destination_connection_id, &header->source_connection_id,
-        &header->long_packet_type, &header->retry_token_length_length,
-        &header->retry_token, &detailed_error);
+        version_.HasIetfInvariantHeader(), &header->type_byte, &header->form,
+        &header->version_flag, &has_length_prefix, &version_label,
+        &header->version, &header->destination_connection_id,
+        &header->source_connection_id, &header->long_packet_type,
+        &header->retry_token_length_length, &header->retry_token,
+        &detailed_error);
     if (parse_result != QUIC_NO_ERROR) {
       set_detailed_error(detailed_error);
       return false;
@@ -5618,7 +5615,7 @@ bool QuicFramer::AppendTimestampsToAckFrame(const QuicAckFrame& frame,
 bool QuicFramer::AppendStopWaitingFrame(const QuicPacketHeader& header,
                                         const QuicStopWaitingFrame& frame,
                                         QuicDataWriter* writer) {
-  DCHECK(!VersionHasIetfInvariantHeader(version_.transport_version));
+  DCHECK(!version_.HasIetfInvariantHeader());
   DCHECK(frame.least_unacked.IsInitialized());
   DCHECK_GE(header.packet_number, frame.least_unacked);
   const uint64_t least_unacked_delta =

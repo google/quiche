@@ -270,13 +270,10 @@ int main(int argc, char* argv[]) {
   quic::QuicTime start(quic::QuicTime::Zero());
   quic::QuicFramer framer(versions, start, perspective,
                           quic::kQuicDefaultConnectionIdLength);
-  if (!GetQuicFlag(FLAGS_quic_version).empty()) {
-    for (const quic::ParsedQuicVersion& version : versions) {
-      if (quic::QuicVersionToString(version.transport_version) ==
-          GetQuicFlag(FLAGS_quic_version)) {
-        framer.set_version(version);
-      }
-    }
+  const quic::ParsedQuicVersion& version =
+      quic::ParseQuicVersionString(GetQuicFlag(FLAGS_quic_version));
+  if (version != quic::ParsedQuicVersion::Unsupported()) {
+    framer.set_version(version);
   }
   quic::QuicPacketPrinter visitor(&framer);
   framer.set_visitor(&visitor);

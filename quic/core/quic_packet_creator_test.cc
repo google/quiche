@@ -102,7 +102,7 @@ class TestPacketCreator : public QuicPacketCreator {
                     SimpleDataProducer* producer)
       : QuicPacketCreator(connection_id, framer, delegate),
         producer_(producer),
-        version_(framer->transport_version()) {}
+        version_(framer->version()) {}
 
   bool ConsumeDataToFillCurrentPacket(QuicStreamId id,
                                       const struct iovec* iov,
@@ -125,7 +125,7 @@ class TestPacketCreator : public QuicPacketCreator {
   }
 
   void StopSendingVersion() {
-    if (VersionHasIetfInvariantHeader(version_)) {
+    if (version_.HasIetfInvariantHeader()) {
       set_encryption_level(ENCRYPTION_FORWARD_SECURE);
       return;
     }
@@ -133,7 +133,7 @@ class TestPacketCreator : public QuicPacketCreator {
   }
 
   SimpleDataProducer* producer_;
-  QuicTransportVersion version_;
+  ParsedQuicVersion version_;
 };
 
 class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
@@ -1166,7 +1166,7 @@ TEST_P(QuicPacketCreatorTest,
 }
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
-  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
+  if (creator_.version().HasIetfInvariantHeader() &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1204,7 +1204,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
+  if (creator_.version().HasIetfInvariantHeader() &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -1238,7 +1238,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
 
 TEST_P(QuicPacketCreatorTest, SkipNPacketNumbers) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (VersionHasIetfInvariantHeader(creator_.transport_version()) &&
+  if (creator_.version().HasIetfInvariantHeader() &&
       !GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
@@ -3230,7 +3230,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, TestConnectionIdLength) {
 
   for (size_t i = 1; i < 10; i++) {
     creator_.SetServerConnectionIdLength(i);
-    if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
+    if (framer_.version().HasIetfInvariantHeader()) {
       EXPECT_EQ(PACKET_0BYTE_CONNECTION_ID,
                 creator_.GetDestinationConnectionIdLength());
     } else {

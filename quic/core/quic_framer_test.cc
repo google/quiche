@@ -1362,11 +1362,10 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   const QuicErrorCode parse_error = QuicFramer::ParsePublicHeader(
       &reader, kQuicDefaultConnectionIdLength,
       /*ietf_format=*/
-      VersionHasIetfInvariantHeader(framer_.transport_version()), &first_byte,
-      &format, &version_present, &has_length_prefix, &version_label,
-      &parsed_version, &destination_connection_id, &source_connection_id,
-      &long_packet_type, &retry_token_length_length, &retry_token,
-      &detailed_error);
+      framer_.version().HasIetfInvariantHeader(), &first_byte, &format,
+      &version_present, &has_length_prefix, &version_label, &parsed_version,
+      &destination_connection_id, &source_connection_id, &long_packet_type,
+      &retry_token_length_length, &retry_token, &detailed_error);
   EXPECT_THAT(parse_error, IsQuicNoError());
   EXPECT_EQ("", detailed_error);
   EXPECT_EQ(p[0], first_byte);
@@ -1379,7 +1378,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   EXPECT_EQ(EmptyQuicConnectionId(), source_connection_id);
   EXPECT_EQ(VARIABLE_LENGTH_INTEGER_LENGTH_0, retry_token_length_length);
   EXPECT_EQ(absl::string_view(), retry_token);
-  if (VersionHasIetfInvariantHeader(framer_.transport_version())) {
+  if (framer_.version().HasIetfInvariantHeader()) {
     EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
     EXPECT_EQ(HANDSHAKE, long_packet_type);
   } else {
@@ -2763,7 +2762,7 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
   // If IETF frames are in use then we must also have the IETF
   // header invariants.
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    DCHECK(VersionHasIetfInvariantHeader(framer_.transport_version()));
+    DCHECK(framer_.version().HasIetfInvariantHeader());
   }
 
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);

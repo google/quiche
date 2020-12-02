@@ -486,10 +486,12 @@ TEST_F(QuicCryptoClientConfigTest, ProcessReject) {
       new QuicCryptoNegotiatedParameters);
   std::string error;
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
-  EXPECT_THAT(config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                      AllSupportedTransportVersions().front(),
-                                      "", &cached, out_params, &error),
-              IsQuicNoError());
+  EXPECT_THAT(
+      config.ProcessRejection(
+          rej, QuicWallTime::FromUNIXSeconds(0),
+          AllSupportedVersionsWithQuicCrypto().front().transport_version, "",
+          &cached, out_params, &error),
+      IsQuicNoError());
   EXPECT_FALSE(cached.has_server_nonce());
 }
 
@@ -506,10 +508,12 @@ TEST_F(QuicCryptoClientConfigTest, ProcessRejectWithLongTTL) {
       new QuicCryptoNegotiatedParameters);
   std::string error;
   QuicCryptoClientConfig config(crypto_test_utils::ProofVerifierForTesting());
-  EXPECT_THAT(config.ProcessRejection(rej, QuicWallTime::FromUNIXSeconds(0),
-                                      AllSupportedTransportVersions().front(),
-                                      "", &cached, out_params, &error),
-              IsQuicNoError());
+  EXPECT_THAT(
+      config.ProcessRejection(
+          rej, QuicWallTime::FromUNIXSeconds(0),
+          AllSupportedVersionsWithQuicCrypto().front().transport_version, "",
+          &cached, out_params, &error),
+      IsQuicNoError());
   cached.SetProofValid();
   EXPECT_FALSE(cached.IsComplete(QuicWallTime::FromUNIXSeconds(long_ttl)));
   EXPECT_FALSE(

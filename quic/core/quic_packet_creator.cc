@@ -221,7 +221,7 @@ void QuicPacketCreator::SetSoftMaxPacketLength(QuicByteCount length) {
 // maximum packet size if we stop sending version before it is serialized.
 void QuicPacketCreator::StopSendingVersion() {
   DCHECK(send_version_in_packet_);
-  DCHECK(!VersionHasIetfInvariantHeader(framer_->transport_version()));
+  DCHECK(!version().HasIetfInvariantHeader());
   send_version_in_packet_ = false;
   if (packet_size_ > 0) {
     DCHECK_LT(kQuicVersionSize, packet_size_);
@@ -1785,7 +1785,7 @@ bool QuicPacketCreator::IncludeNonceInPublicHeader() const {
 }
 
 bool QuicPacketCreator::IncludeVersionInHeader() const {
-  if (VersionHasIetfInvariantHeader(framer_->transport_version())) {
+  if (version().HasIetfInvariantHeader()) {
     return packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
   }
   return send_version_in_packet_;
@@ -1908,7 +1908,7 @@ bool QuicPacketCreator::AttemptingToSendUnencryptedStreamData() {
 }
 
 bool QuicPacketCreator::HasIetfLongHeader() const {
-  return VersionHasIetfInvariantHeader(framer_->transport_version()) &&
+  return version().HasIetfInvariantHeader() &&
          packet_.encryption_level < ENCRYPTION_FORWARD_SECURE;
 }
 

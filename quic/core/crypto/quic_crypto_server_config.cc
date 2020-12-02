@@ -742,7 +742,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterGetProof(
       context->connection_id(), context->transport_version()))
       << "ProcessClientHelloAfterGetProof: attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
-      << QuicVersionToString(context->transport_version());
+      << context->version();
 
   if (found_error) {
     context->Fail(QUIC_HANDSHAKE_FAILED, "Failed to get proof");
@@ -830,7 +830,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
       << "ProcessClientHelloAfterCalculateSharedKeys:"
          " attempted to use connection ID "
       << context->connection_id() << " which is invalid with version "
-      << QuicVersionToString(context->transport_version());
+      << context->version();
 
   if (found_error) {
     // If we are already using the fallback config, or there is no fallback

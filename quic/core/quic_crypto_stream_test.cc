@@ -576,20 +576,22 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoDataWithCryptoFrames) {
 
 // Regression test for bugfix of GetPacketHeaderSize.
 TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
-  for (auto version : AllSupportedTransportVersions()) {
+  for (const ParsedQuicVersion& version :
+       AllSupportedVersionsWithQuicCrypto()) {
     SCOPED_TRACE(version);
     QuicByteCount expected_overhead = 48;
-    if (VersionHasIetfInvariantHeader(version)) {
+    if (version.HasIetfInvariantHeader()) {
       expected_overhead += 4;
     }
-    if (QuicVersionHasLongHeaderLengths(version)) {
+    if (version.HasLongHeaderLengths()) {
       expected_overhead += 3;
     }
-    if (VersionHasLengthPrefixedConnectionIds(version)) {
+    if (version.HasLengthPrefixedConnectionIds()) {
       expected_overhead += 1;
     }
-    EXPECT_EQ(expected_overhead, QuicCryptoStream::CryptoMessageFramingOverhead(
-                                     version, TestConnectionId()));
+    EXPECT_EQ(expected_overhead,
+              QuicCryptoStream::CryptoMessageFramingOverhead(
+                  version.transport_version, TestConnectionId()));
   }
 }
 

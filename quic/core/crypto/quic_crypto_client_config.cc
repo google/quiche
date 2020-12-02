@@ -498,8 +498,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
       connection_id, preferred_version.transport_version))
       << "FillClientHello: attempted to use connection ID " << connection_id
-      << " which is invalid with version "
-      << QuicVersionToString(preferred_version.transport_version);
+      << " which is invalid with version " << preferred_version;
 
   FillInchoateClientHello(server_id, preferred_version, cached, rand,
                           /* demand_x509_proof= */ true, out_params, out);

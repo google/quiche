@@ -165,8 +165,9 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
        {"COPT", "SREJ"},
        {"PUBS", pub_hex},
        {"NONC", nonce_hex},
-       {"VER\0", QuicVersionLabelToString(
-                     QuicVersionToQuicVersionLabel(transport_version))}},
+       {"VER\0",
+        QuicVersionLabelToString(CreateQuicVersionLabel(
+            ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version)))}},
       kClientHelloMinimumSize);
 
   crypto_test_utils::GenerateFullCHLO(inchoate_chlo, &crypto_config,
