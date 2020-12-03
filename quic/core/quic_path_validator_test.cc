@@ -84,7 +84,7 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
         return true;
       }));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
   EXPECT_TRUE(path_validator_.HasPendingPathValidation());
@@ -107,7 +107,7 @@ TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
         return true;
       }));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
 
@@ -142,7 +142,7 @@ TEST_F(QuicPathValidatorTest, RespondAfter1stRetry) {
       }));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(2u);
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
 
@@ -176,7 +176,7 @@ TEST_F(QuicPathValidatorTest, RespondToRetryChallenge) {
       }));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(2u);
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
 
@@ -198,7 +198,7 @@ TEST_F(QuicPathValidatorTest, ValidationTimeOut) {
       .WillRepeatedly(Return(true));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(3u);
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
 
@@ -231,7 +231,7 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
       }));
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(0u);
-  path_validator_.StartValidingPath(
+  path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_));
   EXPECT_FALSE(path_validator_.HasPendingPathValidation());

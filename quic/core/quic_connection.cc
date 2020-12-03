@@ -5474,8 +5474,8 @@ QuicTime QuicConnection::GetRetryTimeout(
 void QuicConnection::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
-  path_validator_.StartValidingPath(std::move(context),
-                                    std::move(result_delegate));
+  path_validator_.StartPathValidation(std::move(context),
+                                      std::move(result_delegate));
 }
 
 bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,

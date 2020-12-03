@@ -92,8 +92,8 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
                     QuicRandom* random);
 
   // Send PATH_CHALLENGE and start the retry timer.
-  void StartValidingPath(std::unique_ptr<QuicPathValidationContext> context,
-                         std::unique_ptr<ResultDelegate> result_delegate);
+  void StartPathValidation(std::unique_ptr<QuicPathValidationContext> context,
+                           std::unique_ptr<ResultDelegate> result_delegate);
 
   // Called when a PATH_RESPONSE frame has been received. Matches the received
   // PATH_RESPONSE payload with the payloads previously sent in PATH_CHALLANGE

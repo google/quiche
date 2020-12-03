@@ -62,7 +62,7 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
   }
 }
 
-void QuicPathValidator::StartValidingPath(
+void QuicPathValidator::StartPathValidation(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<ResultDelegate> result_delegate) {
   CancelPathValidation();
