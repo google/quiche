@@ -112,7 +112,6 @@ QuicSentPacketManager::QuicSentPacketManager(
       handshake_packet_acked_(false),
       zero_rtt_packet_acked_(false),
       one_rtt_packet_acked_(false),
-      one_rtt_packet_sent_(false),
       first_pto_srtt_multiplier_(0),
       use_standard_deviation_for_pto_(false),
       pto_multiplier_without_rtt_samples_(3),
@@ -600,7 +599,8 @@ QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
   for (int8_t i = 0; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     const QuicTime sent_time = unacked_packets_.GetLastInFlightPacketSentTime(
         static_cast<PacketNumberSpace>(i));
-    if (!ShouldArmPtoForApplicationData() && i == APPLICATION_DATA) {
+    if (!handshake_finished_ && i == APPLICATION_DATA) {
+      // Do not arm PTO for application data until handshake gets confirmed.
       continue;
     }
     if (!sent_time.IsInitialized() || (earliest_sent_time.IsInitialized() &&
@@ -612,24 +612,6 @@ QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
   }
 
   return earliest_sent_time;
-}
-
-bool QuicSentPacketManager::ShouldArmPtoForApplicationData() const {
-  DCHECK(supports_multiple_packet_number_spaces());
-  if (GetQuicReloadableFlag(quic_fix_arm_pto_for_application_data)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_arm_pto_for_application_data);
-    // Do not arm PTO for application data until handshake gets confirmed.
-    return handshake_finished_;
-  }
-  // Application data must be ignored before handshake completes (1-RTT key
-  // is available). Not arming PTO for application data to prioritize the
-  // completion of handshake. On the server side, handshake_finished_
-  // indicates handshake complete (and confirmed). On the client side,
-  // one_rtt_packet_sent_ indicates handshake complete (while handshake
-  // confirmation will happen later).
-  return handshake_finished_ ||
-         (unacked_packets_.perspective() == Perspective::IS_CLIENT &&
-          one_rtt_packet_sent_);
 }
 
 void QuicSentPacketManager::MarkForRetransmission(
@@ -829,10 +811,6 @@ bool QuicSentPacketManager::OnPacketSent(
                                   has_retransmittable_data);
   }
 
-  if (packet.encryption_level == ENCRYPTION_FORWARD_SECURE) {
-    one_rtt_packet_sent_ = true;
-  }
-
   // Deallocate message data in QuicMessageFrame immediately after packet
   // sent.
   if (packet.has_message) {
@@ -895,7 +873,7 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
     case PTO_MODE:
       QUIC_DVLOG(1) << ENDPOINT << "PTO mode";
       ++stats_->pto_count;
-      if (handshake_mode_disabled_ && !ShouldArmPtoForApplicationData()) {
+      if (handshake_mode_disabled_ && !handshake_finished_) {
         ++stats_->crypto_retransmit_count;
       }
       ++consecutive_pto_count_;

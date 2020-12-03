@@ -551,10 +551,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // timeout.
   bool ShouldAddMaxAckDelay(PacketNumberSpace space) const;
 
-  // Returns true if application data should be used to arm PTO. Only used when
-  // multiple packet number space is enabled.
-  bool ShouldArmPtoForApplicationData() const;
-
   // A helper function to return total delay of |num_timeouts| retransmission
   // timeout with TLP and RTO mode.
   QuicTime::Delta GetNConsecutiveRetransmissionTimeoutDelay(
@@ -717,9 +713,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   // True if any 1-RTT packet gets acknowledged.
   bool one_rtt_packet_acked_;
-
-  // True if any 1-RTT packet gets sent.
-  bool one_rtt_packet_sent_;
 
   // If > 0, arm the 1st PTO with max of earliest in flight sent time + PTO
   // delay and multiplier * srtt from last in flight packet.
