@@ -526,6 +526,8 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     return ssl_select_cert_success;
   }
 
+  QUIC_RELOADABLE_FLAG_COUNT(quic_tls_use_early_select_cert);
+
   if (!pre_shared_key_.empty()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     QUIC_BUG << "QUIC server pre-shared keys not yet supported with TLS";
