@@ -7,8 +7,8 @@
 #include <cstring>  // For std::memcmp
 #include <sstream>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
@@ -21,9 +21,9 @@ bool Http2FrameHeader::IsProbableHttpResponse() const {
 }
 
 std::string Http2FrameHeader::ToString() const {
-  return quiche::QuicheStrCat(
-      "length=", payload_length, ", type=", Http2FrameTypeToString(type),
-      ", flags=", FlagsToString(), ", stream=", stream_id);
+  return absl::StrCat("length=", payload_length,
+                      ", type=", Http2FrameTypeToString(type),
+                      ", flags=", FlagsToString(), ", stream=", stream_id);
 }
 
 std::string Http2FrameHeader::FlagsToString() const {

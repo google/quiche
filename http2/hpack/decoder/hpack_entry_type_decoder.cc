@@ -4,16 +4,16 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_type_decoder.h"
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
 std::string HpackEntryTypeDecoder::DebugString() const {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       "HpackEntryTypeDecoder(varint_decoder=", varint_decoder_.DebugString(),
       ", entry_type=", entry_type_, ")");
 }

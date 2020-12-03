@@ -26,7 +26,7 @@ bool SendEncapsulatedMasqueRequest(MasqueEpollClient* masque_client,
 
   // Build the client, and try to connect.
   const QuicSocketAddress addr =
-      LookupAddress(url.host(), quiche::QuicheStrCat(url.port()));
+      LookupAddress(url.host(), absl::StrCat(url.port()));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << url.host();
     return false;

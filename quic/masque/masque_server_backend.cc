@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "net/third_party/quiche/src/quic/masque/masque_server_backend.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -12,9 +12,9 @@ namespace {
 
 std::string GetRequestHandlerKey(
     const QuicSimpleServerBackend::RequestHandler* request_handler) {
-  return quiche::QuicheStrCat(request_handler->connection_id().ToString(), "_",
-                              request_handler->stream_id(), "_",
-                              request_handler->peer_host());
+  return absl::StrCat(request_handler->connection_id().ToString(), "_",
+                      request_handler->stream_id(), "_",
+                      request_handler->peer_host());
 }
 
 }  // namespace

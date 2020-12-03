@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/masque/masque_client_tools.h"
@@ -21,7 +22,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(bool,
@@ -51,7 +51,7 @@ int RunMasqueClient(int argc, char* argv[]) {
 
   QuicUrl masque_url(urls[0], "https");
   if (masque_url.host().empty()) {
-    masque_url = QuicUrl(quiche::QuicheStrCat("https://", urls[0]), "https");
+    masque_url = QuicUrl(absl::StrCat("https://", urls[0]), "https");
   }
   if (masque_url.host().empty()) {
     QUIC_LOG(ERROR) << "Failed to parse MASQUE server address " << urls[0];

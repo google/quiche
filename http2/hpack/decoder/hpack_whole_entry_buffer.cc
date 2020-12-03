@@ -4,12 +4,12 @@
 
 #include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_buffer.h"
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_estimate_memory_usage.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace http2 {
 
@@ -92,7 +92,7 @@ void HpackWholeEntryBuffer::OnValueStart(bool huffman_encoded, size_t len) {
                  << (huffman_encoded ? "true" : "false") << ",  len=" << len;
   if (!error_detected_) {
     if (len > max_string_size_bytes_) {
-      std::string detailed_error = quiche::QuicheStrCat(
+      std::string detailed_error = absl::StrCat(
           "Value length (", len, ") of [", name_.GetStringIfComplete(),
           "] is longer than permitted (", max_string_size_bytes_, ")");
       HTTP2_DVLOG(1) << detailed_error;

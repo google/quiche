@@ -47,8 +47,7 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
     QuicEpollServer* epoll_server,
     std::unique_ptr<ProofVerifier> proof_verifier) {
   // Build the masque_client, and try to connect.
-  QuicSocketAddress addr =
-      tools::LookupAddress(host, quiche::QuicheStrCat(port));
+  QuicSocketAddress addr = tools::LookupAddress(host, absl::StrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << host;
     return nullptr;
@@ -59,7 +58,7 @@ std::unique_ptr<MasqueEpollClient> MasqueEpollClient::Create(
   // MasqueEpollClient is private and therefore not accessible from make_unique.
   auto masque_client = QuicWrapUnique(new MasqueEpollClient(
       addr, server_id, epoll_server, std::move(proof_verifier),
-      quiche::QuicheStrCat(host, ":", port)));
+      absl::StrCat(host, ":", port)));
 
   if (masque_client == nullptr) {
     QUIC_LOG(ERROR) << "Failed to create masque_client";
