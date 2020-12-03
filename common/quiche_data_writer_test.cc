@@ -8,8 +8,8 @@
 #include <cstring>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
@@ -31,7 +31,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       (p.endianness == quiche::NETWORK_BYTE_ORDER ? "Network" : "Host"),
       "ByteOrder");
 }

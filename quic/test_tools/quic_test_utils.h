@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
@@ -37,7 +38,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/mock_random.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -1821,8 +1821,8 @@ MATCHER_P2(InRange, min, max, "") {
 // EXPECT_THAT(stream_->connection_error(), IsError(QUIC_INTERNAL_ERROR));
 MATCHER_P(IsError,
           expected,
-          quiche::QuicheStrCat(negation ? "isn't equal to " : "is equal to ",
-                               QuicErrorCodeToString(expected))) {
+          absl::StrCat(negation ? "isn't equal to " : "is equal to ",
+                       QuicErrorCodeToString(expected))) {
   *result_listener << QuicErrorCodeToString(static_cast<QuicErrorCode>(arg));
   return arg == expected;
 }
@@ -1830,8 +1830,8 @@ MATCHER_P(IsError,
 // Shorthand for IsError(QUIC_NO_ERROR).
 // Example usage: EXPECT_THAT(stream_->connection_error(), IsQuicNoError());
 MATCHER(IsQuicNoError,
-        quiche::QuicheStrCat(negation ? "isn't equal to " : "is equal to ",
-                             QuicErrorCodeToString(QUIC_NO_ERROR))) {
+        absl::StrCat(negation ? "isn't equal to " : "is equal to ",
+                     QuicErrorCodeToString(QUIC_NO_ERROR))) {
   *result_listener << QuicErrorCodeToString(arg);
   return arg == QUIC_NO_ERROR;
 }
@@ -1841,8 +1841,8 @@ MATCHER(IsQuicNoError,
 // EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_INTERNAL_ERROR));
 MATCHER_P(IsStreamError,
           expected,
-          quiche::QuicheStrCat(negation ? "isn't equal to " : "is equal to ",
-                               QuicRstStreamErrorCodeToString(expected))) {
+          absl::StrCat(negation ? "isn't equal to " : "is equal to ",
+                       QuicRstStreamErrorCodeToString(expected))) {
   *result_listener << QuicRstStreamErrorCodeToString(arg);
   return arg == expected;
 }
@@ -1850,9 +1850,8 @@ MATCHER_P(IsStreamError,
 // Shorthand for IsStreamError(QUIC_STREAM_NO_ERROR).  Example usage:
 // EXPECT_THAT(stream_->stream_error(), IsQuicStreamNoError());
 MATCHER(IsQuicStreamNoError,
-        quiche::QuicheStrCat(
-            negation ? "isn't equal to " : "is equal to ",
-            QuicRstStreamErrorCodeToString(QUIC_STREAM_NO_ERROR))) {
+        absl::StrCat(negation ? "isn't equal to " : "is equal to ",
+                     QuicRstStreamErrorCodeToString(QUIC_STREAM_NO_ERROR))) {
   *result_listener << QuicRstStreamErrorCodeToString(arg);
   return arg == QUIC_STREAM_NO_ERROR;
 }

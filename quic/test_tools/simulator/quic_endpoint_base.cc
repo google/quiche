@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -73,7 +74,7 @@ QuicEndpointBase::~QuicEndpointBase() {
     const char* perspective_prefix =
         connection_->perspective() == Perspective::IS_CLIENT ? "C" : "S";
 
-    std::string identifier = quiche::QuicheStrCat(
+    std::string identifier = absl::StrCat(
         perspective_prefix, connection_->connection_id().ToString());
     QuicRecordTrace(identifier, trace_visitor_->trace()->SerializeAsString());
   }

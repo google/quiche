@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
 #include "net/third_party/quiche/src/quic/core/qpack/qpack_instruction_encoder.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -416,13 +416,12 @@ void QpackEncoder::OnInsertCountIncrement(uint64_t increment) {
 
   if (blocking_manager_.known_received_count() >
       header_table_.inserted_entry_count()) {
-    OnErrorDetected(
-        QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT,
-        quiche::QuicheStrCat("Increment value ", increment,
-                             " raises known received count to ",
-                             blocking_manager_.known_received_count(),
-                             " exceeding inserted entry count ",
-                             header_table_.inserted_entry_count()));
+    OnErrorDetected(QUIC_QPACK_DECODER_STREAM_IMPOSSIBLE_INSERT_COUNT,
+                    absl::StrCat("Increment value ", increment,
+                                 " raises known received count to ",
+                                 blocking_manager_.known_received_count(),
+                                 " exceeding inserted entry count ",
+                                 header_table_.inserted_entry_count()));
   }
 }
 
@@ -430,8 +429,8 @@ void QpackEncoder::OnHeaderAcknowledgement(QuicStreamId stream_id) {
   if (!blocking_manager_.OnHeaderAcknowledgement(stream_id)) {
     OnErrorDetected(
         QUIC_QPACK_DECODER_STREAM_INCORRECT_ACKNOWLEDGEMENT,
-        quiche::QuicheStrCat("Header Acknowledgement received for stream ",
-                             stream_id, " with no outstanding header blocks."));
+        absl::StrCat("Header Acknowledgement received for stream ", stream_id,
+                     " with no outstanding header blocks."));
   }
 }
 

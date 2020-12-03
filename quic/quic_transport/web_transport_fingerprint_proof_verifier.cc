@@ -7,13 +7,13 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -163,9 +163,9 @@ QuicAsyncStatus WebTransportFingerprintProofVerifier::VerifyCertChain(
 
   if (!HasValidExpiry(*view)) {
     *details = std::make_unique<Details>(Status::kExpiryTooLong);
-    *error_details = quiche::QuicheStrCat(
-        "Certificate expiry exceeds the configured limit of ",
-        max_validity_days_, " days");
+    *error_details =
+        absl::StrCat("Certificate expiry exceeds the configured limit of ",
+                     max_validity_days_, " days");
     return QUIC_FAILURE;
   }
 

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_encoder_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_header_table_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
@@ -251,8 +251,8 @@ TEST_F(QpackEncoderTest, DynamicTable) {
       "c5"          // insert with name reference, static index 5
       "0362617a");  // value "baz"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(quiche::QuicheStrCat(
-                  set_dyanamic_table_capacity, insert_entries))));
+              WriteStreamData(Eq(
+                  absl::StrCat(set_dyanamic_table_capacity, insert_entries))));
 
   EXPECT_EQ(absl::HexStringToBytes(
                 "0400"      // prefix
@@ -283,8 +283,8 @@ TEST_F(QpackEncoderTest, SmallDynamicTable) {
       "94e7"        // Huffman-encoded name "foo"
       "03626172");  // value "bar"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(quiche::QuicheStrCat(
-                  set_dyanamic_table_capacity, insert_entry))));
+              WriteStreamData(
+                  Eq(absl::StrCat(set_dyanamic_table_capacity, insert_entry))));
 
   EXPECT_EQ(absl::HexStringToBytes("0200"  // prefix
                                    "80"    // dynamic entry 0
@@ -315,8 +315,8 @@ TEST_F(QpackEncoderTest, BlockedStream) {
       "94e7"        // Huffman-encoded name "foo"
       "03626172");  // value "bar"
   EXPECT_CALL(encoder_stream_sender_delegate_,
-              WriteStreamData(Eq(quiche::QuicheStrCat(
-                  set_dyanamic_table_capacity, insert_entry1))));
+              WriteStreamData(Eq(
+                  absl::StrCat(set_dyanamic_table_capacity, insert_entry1))));
 
   EXPECT_EQ(absl::HexStringToBytes("0200"  // prefix
                                    "80"),  // dynamic entry 0

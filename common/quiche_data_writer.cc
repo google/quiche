@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <limits>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quiche {
@@ -145,8 +145,7 @@ bool QuicheDataWriter::Seek(size_t length) {
 }
 
 std::string QuicheDataWriter::DebugString() const {
-  return quiche::QuicheStrCat(" { capacity: ", capacity_, ", length: ", length_,
-                              " }");
+  return absl::StrCat(" { capacity: ", capacity_, ", length: ", length_, " }");
 }
 
 }  // namespace quiche

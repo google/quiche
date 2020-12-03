@@ -7,9 +7,9 @@
 #include <cstring>
 
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
@@ -209,7 +209,7 @@ uint8_t QuicheDataReader::PeekByte() const {
 }
 
 std::string QuicheDataReader::DebugString() const {
-  return quiche::QuicheStrCat(" { length: ", len_, ", position: ", pos_, " }");
+  return absl::StrCat(" { length: ", len_, ", position: ", pos_, " }");
 }
 
 #undef ENDPOINT  // undef for jumbo builds
