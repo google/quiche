@@ -5025,8 +5025,6 @@ TEST_P(EndToEndTest, LegacyVersionEncapsulationWithLoss) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
-  SetQuicReloadableFlag(quic_key_update_supported, true);
-
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
@@ -5065,8 +5063,6 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
-  SetQuicReloadableFlag(quic_key_update_supported, true);
-
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
@@ -5138,8 +5134,6 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
-  SetQuicReloadableFlag(quic_key_update_supported, true);
-
   if (!version_.UsesTls()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
@@ -5220,7 +5214,6 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
   SetQuicReloadableFlag(quic_enable_aead_limits, true);
-  SetQuicReloadableFlag(quic_key_update_supported, true);
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 4U);
 
   if (!version_.UsesTls()) {

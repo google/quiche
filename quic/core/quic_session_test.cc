@@ -2271,24 +2271,14 @@ TEST_P(QuicSessionTestClient, MinAckDelaySetOnTheClientQuicConfig) {
   ASSERT_TRUE(session_.connection()->can_receive_ack_frequency_frame());
 }
 
-TEST_P(QuicSessionTestClient, KeyUpdateFlagNotSet) {
-  SetQuicReloadableFlag(quic_key_update_supported, false);
-  EXPECT_CALL(*session_.GetMutableCryptoStream(), KeyUpdateSupportedLocally())
-      .Times(0);
-  session_.Initialize();
-  EXPECT_FALSE(session_.config()->KeyUpdateSupportedLocally());
-}
-
-TEST_P(QuicSessionTestClient, KeyUpdateNotSupportedLocallyAndFlagSet) {
-  SetQuicReloadableFlag(quic_key_update_supported, true);
+TEST_P(QuicSessionTestClient, KeyUpdateNotSupportedLocally) {
   EXPECT_CALL(*session_.GetMutableCryptoStream(), KeyUpdateSupportedLocally())
       .WillOnce(Return(false));
   session_.Initialize();
   EXPECT_FALSE(session_.config()->KeyUpdateSupportedLocally());
 }
 
-TEST_P(QuicSessionTestClient, KeyUpdateSupportedLocallyAndFlagSet) {
-  SetQuicReloadableFlag(quic_key_update_supported, true);
+TEST_P(QuicSessionTestClient, KeyUpdateSupportedLocally) {
   EXPECT_CALL(*session_.GetMutableCryptoStream(), KeyUpdateSupportedLocally())
       .WillOnce(Return(true));
   session_.Initialize();

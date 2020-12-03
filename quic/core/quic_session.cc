@@ -153,8 +153,7 @@ void QuicSession::Initialize() {
     connection_->OnSuccessfulVersionNegotiation();
   }
 
-  if (GetQuicReloadableFlag(quic_key_update_supported) &&
-      GetMutableCryptoStream()->KeyUpdateSupportedLocally()) {
+  if (GetMutableCryptoStream()->KeyUpdateSupportedLocally()) {
     config_.SetKeyUpdateSupportedLocally();
   }
 
