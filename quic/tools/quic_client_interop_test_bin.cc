@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               host,
@@ -382,14 +382,13 @@ std::set<Feature> ServerSupport(std::string dns_host,
   QuicEnableVersion(version);
 
   // Build the client, and try to connect.
-  QuicSocketAddress addr =
-      tools::LookupAddress(dns_host, quiche::QuicheStrCat(port));
+  QuicSocketAddress addr = tools::LookupAddress(dns_host, absl::StrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Failed to resolve " << dns_host;
     return std::set<Feature>();
   }
   QuicServerId server_id(url_host, port, false);
-  std::string authority = quiche::QuicheStrCat(url_host, ":", port);
+  std::string authority = absl::StrCat(url_host, ":", port);
 
   QuicClientInteropRunner runner;
 

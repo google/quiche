@@ -10,7 +10,7 @@
 #include <set>
 #include <string>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
 
@@ -228,7 +228,7 @@ size_t LifoWriteScheduler<StreamIdType>::NumRegisteredStreams() const {
 
 template <typename StreamIdType>
 std::string LifoWriteScheduler<StreamIdType>::DebugString() const {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       "LifoWriteScheduler {num_streams=", registered_streams_.size(),
       " num_ready_streams=", NumReadyStreams(), "}");
 }

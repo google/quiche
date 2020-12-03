@@ -4,8 +4,8 @@
 
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -19,7 +19,7 @@ QuicUrl::QuicUrl(absl::string_view url, absl::string_view default_scheme)
     return;
   }
 
-  url_ = GURL(quiche::QuicheStrCat(default_scheme, "://", url));
+  url_ = GURL(absl::StrCat(default_scheme, "://", url));
 }
 
 std::string QuicUrl::ToString() const {
@@ -51,7 +51,7 @@ std::string QuicUrl::HostPort() const {
   if (port == url::PORT_UNSPECIFIED) {
     return host;
   }
-  return quiche::QuicheStrCat(host, ":", port);
+  return absl::StrCat(host, ":", port);
 }
 
 std::string QuicUrl::PathParamsQuery() const {

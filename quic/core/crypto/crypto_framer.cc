@@ -8,13 +8,13 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
@@ -265,7 +265,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
       }
       reader.ReadUInt16(&num_entries_);
       if (num_entries_ > kMaxEntries) {
-        error_detail_ = quiche::QuicheStrCat(num_entries_, " entries");
+        error_detail_ = absl::StrCat(num_entries_, " entries");
         return QUIC_CRYPTO_TOO_MANY_ENTRIES;
       }
       uint16_t padding;
@@ -287,10 +287,10 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
         reader.ReadTag(&tag);
         if (i > 0 && tag <= tags_and_lengths_[i - 1].first) {
           if (tag == tags_and_lengths_[i - 1].first) {
-            error_detail_ = quiche::QuicheStrCat("Duplicate tag:", tag);
+            error_detail_ = absl::StrCat("Duplicate tag:", tag);
             return QUIC_CRYPTO_DUPLICATE_TAG;
           }
-          error_detail_ = quiche::QuicheStrCat("Tag ", tag, " out of order");
+          error_detail_ = absl::StrCat("Tag ", tag, " out of order");
           return QUIC_CRYPTO_TAGS_OUT_OF_ORDER;
         }
 
@@ -298,8 +298,8 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
         reader.ReadUInt32(&end_offset);
 
         if (end_offset < last_end_offset) {
-          error_detail_ = quiche::QuicheStrCat("End offset: ", end_offset,
-                                               " vs ", last_end_offset);
+          error_detail_ =
+              absl::StrCat("End offset: ", end_offset, " vs ", last_end_offset);
           return QUIC_CRYPTO_TAGS_OUT_OF_ORDER;
         }
         tags_and_lengths_.push_back(std::make_pair(

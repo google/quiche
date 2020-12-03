@@ -6,13 +6,13 @@
 
 #include <memory>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
@@ -123,7 +123,7 @@ ProofSourceX509::Certificate* ProofSourceX509::GetCertificate(
   }
   auto dot_pos = hostname.find('.');
   if (dot_pos != std::string::npos) {
-    std::string wildcard = quiche::QuicheStrCat("*", hostname.substr(dot_pos));
+    std::string wildcard = absl::StrCat("*", hostname.substr(dot_pos));
     it = certificate_map_.find(wildcard);
     if (it != certificate_map_.end()) {
       return it->second;

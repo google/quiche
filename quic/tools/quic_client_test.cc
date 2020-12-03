@@ -46,7 +46,7 @@ size_t NumOpenSocketFDs() {
       continue;
     }
 
-    std::string fd_path = ReadLink(quiche::QuicheStrCat(kPathToFds, "/", name));
+    std::string fd_path = ReadLink(absl::StrCat(kPathToFds, "/", name));
     if (absl::StartsWith(fd_path, "socket:")) {
       socket_count++;
     }

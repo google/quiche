@@ -11,6 +11,7 @@
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
@@ -29,7 +30,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
 #include "net/third_party/quiche/src/common/quiche_data_reader.h"
@@ -123,7 +123,7 @@ std::string AttributeNameToString(const CBS& oid_cbs) {
 
   bssl::UniquePtr<char> oid_representation(CBS_asn1_oid_to_text(&oid_cbs));
   if (oid_representation == nullptr) {
-    return quiche::QuicheStrCat("(", absl::BytesToHexString(oid), ")");
+    return absl::StrCat("(", absl::BytesToHexString(oid), ")");
   }
   return std::string(oid_representation.get());
 }
@@ -139,8 +139,8 @@ absl::optional<std::string> X509NameAttributeToString(CBS input) {
   }
   // Note that this does not process encoding of |input| in any way.  This works
   // fine for the most cases.
-  return quiche::QuicheStrCat(AttributeNameToString(name), "=",
-                              absl::CHexEscape(CbsToStringPiece(value)));
+  return absl::StrCat(AttributeNameToString(name), "=",
+                      absl::CHexEscape(CbsToStringPiece(value)));
 }
 
 namespace {
@@ -227,7 +227,7 @@ PemReadResult ReadNextPemMessage(std::istream* input) {
       result.type = std::string(
           line.substr(kPemBegin.size(),
                       line.size() - kPemDashes.size() - kPemBegin.size()));
-      expected_end = quiche::QuicheStrCat(kPemEnd, result.type, kPemDashes);
+      expected_end = absl::StrCat(kPemEnd, result.type, kPemDashes);
       pending_message = true;
       continue;
     }

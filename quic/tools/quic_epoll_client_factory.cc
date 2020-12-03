@@ -10,10 +10,10 @@
 
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_server_id.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/tools/quic_client.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -26,7 +26,7 @@ std::unique_ptr<QuicSpdyClientBase> QuicEpollClientFactory::CreateClient(
     const QuicConfig& config,
     std::unique_ptr<ProofVerifier> verifier) {
   QuicSocketAddress addr = tools::LookupAddress(
-      address_family_for_lookup, host_for_lookup, quiche::QuicheStrCat(port));
+      address_family_for_lookup, host_for_lookup, absl::StrCat(port));
   if (!addr.IsInitialized()) {
     QUIC_LOG(ERROR) << "Unable to resolve address: " << host_for_lookup;
     return nullptr;

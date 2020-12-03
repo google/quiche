@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
@@ -21,7 +22,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -336,8 +336,8 @@ bool TransportParameters::IntegerParameter::Read(QuicDataReader* reader,
   }
   if (!reader->IsDoneReading()) {
     *error_details =
-        quiche::QuicheStrCat("Received unexpected ", reader->BytesRemaining(),
-                             " bytes after parsing ", this->ToString(false));
+        absl::StrCat("Received unexpected ", reader->BytesRemaining(),
+                     " bytes after parsing ", this->ToString(false));
     return false;
   }
   return true;
@@ -489,8 +489,8 @@ std::string TransportParameters::ToString() const {
       rv += absl::BytesToHexString(kv.second);
     } else {
       absl::string_view truncated(kv.second.data(), kMaxPrintableLength);
-      rv += quiche::QuicheStrCat(absl::BytesToHexString(truncated),
-                                 "...(length ", kv.second.length(), ")");
+      rv += absl::StrCat(absl::BytesToHexString(truncated), "...(length ",
+                         kv.second.length(), ")");
     }
   }
   rv += "]";
@@ -643,8 +643,8 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   }
   if (!stateless_reset_token.empty() &&
       stateless_reset_token.size() != kStatelessResetTokenLength) {
-    *error_details = quiche::QuicheStrCat(
-        "Stateless reset token has bad length ", stateless_reset_token.size());
+    *error_details = absl::StrCat("Stateless reset token has bad length ",
+                                  stateless_reset_token.size());
     return false;
   }
   if (perspective == Perspective::IS_CLIENT && preferred_address) {
@@ -653,9 +653,9 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   }
   if (preferred_address && preferred_address->stateless_reset_token.size() !=
                                kStatelessResetTokenLength) {
-    *error_details = quiche::QuicheStrCat(
-        "Preferred address stateless reset token has bad length ",
-        preferred_address->stateless_reset_token.size());
+    *error_details =
+        absl::StrCat("Preferred address stateless reset token has bad length ",
+                     preferred_address->stateless_reset_token.size());
     return false;
   }
   if (preferred_address &&
@@ -672,9 +672,9 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   }
   for (const auto& kv : custom_parameters) {
     if (TransportParameterIdIsKnown(kv.first)) {
-      *error_details = quiche::QuicheStrCat(
-          "Using custom_parameters with known ID ",
-          TransportParameterIdToString(kv.first), " is not allowed");
+      *error_details = absl::StrCat("Using custom_parameters with known ID ",
+                                    TransportParameterIdToString(kv.first),
+                                    " is not allowed");
       return false;
     }
   }
@@ -1127,8 +1127,8 @@ bool ParseTransportParameters(ParsedQuicVersion version,
     }
     if (full_length != reader.BytesRemaining()) {
       *error_details =
-          quiche::QuicheStrCat("Invalid transport parameter full length ",
-                               full_length, " != ", reader.BytesRemaining());
+          absl::StrCat("Invalid transport parameter full length ", full_length,
+                       " != ", reader.BytesRemaining());
       return false;
     }
   }
@@ -1158,7 +1158,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         const size_t connection_id_length = value_reader.BytesRemaining();
         if (!QuicUtils::IsConnectionIdLengthValidForVersion(
                 connection_id_length, version.transport_version)) {
-          *error_details = quiche::QuicheStrCat(
+          *error_details = absl::StrCat(
               "Received original_destination_connection_id of invalid length ",
               connection_id_length);
           return false;
@@ -1184,9 +1184,9 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         absl::string_view stateless_reset_token =
             value_reader.ReadRemainingPayload();
         if (stateless_reset_token.length() != kStatelessResetTokenLength) {
-          *error_details = quiche::QuicheStrCat(
-              "Received stateless_reset_token of invalid length ",
-              stateless_reset_token.length());
+          *error_details =
+              absl::StrCat("Received stateless_reset_token of invalid length ",
+                           stateless_reset_token.length());
           return false;
         }
         out->stateless_reset_token.assign(
@@ -1285,7 +1285,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         const size_t connection_id_length = value_reader.BytesRemaining();
         if (!QuicUtils::IsConnectionIdLengthValidForVersion(
                 connection_id_length, version.transport_version)) {
-          *error_details = quiche::QuicheStrCat(
+          *error_details = absl::StrCat(
               "Received initial_source_connection_id of invalid length ",
               connection_id_length);
           return false;
@@ -1306,7 +1306,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         const size_t connection_id_length = value_reader.BytesRemaining();
         if (!QuicUtils::IsConnectionIdLengthValidForVersion(
                 connection_id_length, version.transport_version)) {
-          *error_details = quiche::QuicheStrCat(
+          *error_details = absl::StrCat(
               "Received retry_source_connection_id of invalid length ",
               connection_id_length);
           return false;
@@ -1405,7 +1405,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
       return false;
     }
     if (!value_reader.IsDoneReading()) {
-      *error_details = quiche::QuicheStrCat(
+      *error_details = absl::StrCat(
           "Received unexpected ", value_reader.BytesRemaining(),
           " bytes after parsing ", TransportParameterIdToString(param_id));
       return false;

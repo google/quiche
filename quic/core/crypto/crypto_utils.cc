@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/hkdf.h"
@@ -34,7 +35,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
 namespace quic {
@@ -584,7 +584,7 @@ QuicErrorCode CryptoUtils::ValidateServerHelloVersions(
     // reports that there was a version negotiation during the handshake.
     // Ensure that these two lists are identical.
     if (mismatch) {
-      *error_details = quiche::QuicheStrCat(
+      *error_details = absl::StrCat(
           "Downgrade attack detected: ServerVersions(", server_versions.size(),
           ")[", QuicVersionLabelVectorToString(server_versions, ",", 30),
           "] NegotiatedVersions(", negotiated_versions.size(), ")[",
@@ -630,7 +630,7 @@ QuicErrorCode CryptoUtils::ValidateClientHelloVersion(
     // downgrade attack.
     for (size_t i = 0; i < supported_versions.size(); ++i) {
       if (client_version == CreateQuicVersionLabel(supported_versions[i])) {
-        *error_details = quiche::QuicheStrCat(
+        *error_details = absl::StrCat(
             "Downgrade attack detected: ClientVersion[",
             QuicVersionLabelToString(client_version), "] ConnectionVersion[",
             ParsedQuicVersionToString(connection_version),

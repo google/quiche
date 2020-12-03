@@ -14,8 +14,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_containers.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 #include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
@@ -261,7 +261,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
   size_t NumRegisteredStreams() const override { return stream_infos_.size(); }
 
   std::string DebugString() const override {
-    return quiche::QuicheStrCat(
+    return absl::StrCat(
         "PriorityWriteScheduler {num_streams=", stream_infos_.size(),
         " num_ready_streams=", NumReadyStreams(), "}");
   }
