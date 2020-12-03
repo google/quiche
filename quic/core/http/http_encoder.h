@@ -67,6 +67,11 @@ class QUIC_EXPORT_PRIVATE HttpEncoder {
       const PriorityUpdateFrame& priority_update,
       std::unique_ptr<char[]>* output);
 
+  // Serializes an ACCEPT_CH frame into a new buffer stored in |output|.
+  // Returns the length of the buffer on success, or 0 otherwise.
+  static QuicByteCount SerializeAcceptChFrame(const AcceptChFrame& accept_ch,
+                                              std::unique_ptr<char[]>* output);
+
   // Serializes a frame with reserved frame type specified in
   // https://tools.ietf.org/html/draft-ietf-quic-http-25#section-7.2.9.
   static QuicByteCount SerializeGreasingFrame(std::unique_ptr<char[]>* output);

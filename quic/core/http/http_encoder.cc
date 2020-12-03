@@ -258,6 +258,42 @@ QuicByteCount HttpEncoder::SerializePriorityUpdateFrame(
 }
 
 // static
+QuicByteCount HttpEncoder::SerializeAcceptChFrame(
+    const AcceptChFrame& accept_ch,
+    std::unique_ptr<char[]>* output) {
+  QuicByteCount payload_length = 0;
+  for (const auto& entry : accept_ch.entries) {
+    payload_length += QuicDataWriter::GetVarInt62Len(entry.origin.size());
+    payload_length += entry.origin.size();
+    payload_length += QuicDataWriter::GetVarInt62Len(entry.value.size());
+    payload_length += entry.value.size();
+  }
+
+  QuicByteCount total_length =
+      GetTotalLength(payload_length, HttpFrameType::ACCEPT_CH);
+
+  output->reset(new char[total_length]);
+  QuicDataWriter writer(total_length, output->get());
+
+  if (!WriteFrameHeader(payload_length, HttpFrameType::ACCEPT_CH, &writer)) {
+    QUIC_DLOG(ERROR)
+        << "Http encoder failed to serialize ACCEPT_CH frame header.";
+    return 0;
+  }
+
+  for (const auto& entry : accept_ch.entries) {
+    if (!writer.WriteStringPieceVarInt62(entry.origin) ||
+        !writer.WriteStringPieceVarInt62(entry.value)) {
+      QUIC_DLOG(ERROR)
+          << "Http encoder failed to serialize ACCEPT_CH frame payload.";
+      return 0;
+    }
+  }
+
+  return total_length;
+}
+
+// static
 QuicByteCount HttpEncoder::SerializeGreasingFrame(
     std::unique_ptr<char[]>* output) {
   uint64_t frame_type;
