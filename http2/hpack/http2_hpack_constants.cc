@@ -4,7 +4,7 @@
 
 #include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "absl/strings/str_cat.h"
 
 namespace http2 {
 
@@ -21,8 +21,7 @@ std::string HpackEntryTypeToString(HpackEntryType v) {
     case HpackEntryType::kNeverIndexedLiteralHeader:
       return "kNeverIndexedLiteralHeader";
   }
-  return quiche::QuicheStrCat("UnknownHpackEntryType(", static_cast<int>(v),
-                              ")");
+  return absl::StrCat("UnknownHpackEntryType(", static_cast<int>(v), ")");
 }
 
 std::ostream& operator<<(std::ostream& out, HpackEntryType v) {
