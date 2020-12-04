@@ -75,7 +75,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
       peer_hello, perspective == Perspective::IS_CLIENT ? SERVER : CLIENT,
       &error);
   DCHECK_EQ(error_code, QUIC_NO_ERROR) << "Configuration failed: " << error;
-  if (connection_->version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_->version().UsesTls()) {
     if (connection_->perspective() == Perspective::IS_CLIENT) {
       test::QuicConfigPeer::SetReceivedOriginalConnectionId(
           &config, connection_->connection_id());

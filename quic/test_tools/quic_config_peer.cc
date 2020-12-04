@@ -138,10 +138,5 @@ void QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
   config->max_datagram_frame_size_.SetReceivedValue(max_datagram_frame_size);
 }
 
-// static
-void QuicConfigPeer::DisableSupportHandshakeDone(QuicConfig* config) {
-  config->support_handshake_done_.SetSendValue(0);
-}
-
 }  // namespace test
 }  // namespace quic

@@ -6061,7 +6061,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasRetryIntegrityTag()) {
+  if (framer_.version().UsesTls()) {
     p = packet_with_tag;
     p_length = ABSL_ARRAYSIZE(packet_with_tag);
   } else if (framer_.version().HasLongHeaderLengths()) {
@@ -6078,7 +6078,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   ASSERT_TRUE(visitor_.retry_new_connection_id_.get());
   ASSERT_TRUE(visitor_.retry_token_.get());
 
-  if (framer_.version().HasRetryIntegrityTag()) {
+  if (framer_.version().UsesTls()) {
     ASSERT_TRUE(visitor_.retry_token_integrity_tag_.get());
     static const unsigned char expected_integrity_tag[16] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,

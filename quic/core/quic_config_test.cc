@@ -569,7 +569,6 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
             config_.ReceivedMaxBidirectionalStreams());
 
   EXPECT_FALSE(config_.DisableConnectionMigration());
-  EXPECT_FALSE(config_.PeerSupportsHandshakeDone());
 
   // The following config shouldn't be processed because of resumption.
   EXPECT_FALSE(config_.HasReceivedStatelessResetToken());
@@ -594,7 +593,6 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.initial_max_streams_bidi.set_value(2 *
                                             kDefaultMaxStreamsPerConnection);
   params.disable_active_migration = true;
-  params.support_handshake_done = true;
 
   EXPECT_THAT(config_.ProcessTransportParameters(
                   params, /* is_resumption = */ false, &error_details),
@@ -629,7 +627,6 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
             config_.ReceivedMaxBidirectionalStreams());
 
   EXPECT_TRUE(config_.DisableConnectionMigration());
-  EXPECT_TRUE(config_.PeerSupportsHandshakeDone());
 
   ASSERT_TRUE(config_.HasReceivedStatelessResetToken());
 

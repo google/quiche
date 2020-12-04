@@ -101,7 +101,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (session()->version().AuthenticatesHandshakeConnectionIds()) {
+    if (session()->version().UsesTls()) {
       if (session()->perspective() == Perspective::IS_CLIENT) {
         session()->config()->SetOriginalConnectionIdToSend(
             session()->connection()->connection_id());
@@ -111,9 +111,6 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         session()->config()->SetInitialSourceConnectionIdToSend(
             session()->connection()->client_connection_id());
       }
-    }
-    if (session()->connection()->version().handshake_protocol ==
-        PROTOCOL_TLS1_3) {
       TransportParameters transport_parameters;
       EXPECT_TRUE(
           session()->config()->FillTransportParameters(&transport_parameters));
@@ -500,9 +497,9 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _))
           .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
     }
-    // HANDSHAKE_DONE frame sent by the server.
-    if (connection_->version().HasHandshakeDone() &&
+    if (connection_->version().UsesTls() &&
         connection_->perspective() == Perspective::IS_SERVER) {
+      // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillOnce(Invoke(&ClearControlFrame));
     }

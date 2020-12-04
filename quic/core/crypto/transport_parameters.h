@@ -24,7 +24,7 @@ namespace quic {
 // TransportParameters contains parameters for QUIC's transport layer that are
 // exchanged during the TLS handshake. This struct is a mirror of the struct in
 // the "Transport Parameter Encoding" section of draft-ietf-quic-transport.
-// This struct currently uses the values from draft 20.
+// This struct currently uses the values from draft 29.
 struct QUIC_EXPORT_PRIVATE TransportParameters {
   // The identifier used to differentiate transport parameters.
   enum TransportParameterId : uint64_t;
@@ -47,7 +47,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
     // Writes to a crypto byte buffer, used during serialization. Does not write
     // anything if the value is equal to the parameter's default value.
     // Returns whether the write was successful.
-    bool Write(QuicDataWriter* writer, ParsedQuicVersion version) const;
+    bool Write(QuicDataWriter* writer) const;
     // Reads from a crypto byte string, used during parsing.
     // Returns whether the read was successful.
     // On failure, this method will write a human-readable error message to
@@ -206,9 +206,6 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
 
   // Google-specific user agent identifier.
   absl::optional<std::string> user_agent_id;
-
-  // Google-specific handshake done support. This is only used for T050.
-  bool support_handshake_done;
 
   // Google-specific mechanism to indicate that IETF QUIC Key Update has not
   // yet been implemented. This will be removed once we implement it.

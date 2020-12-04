@@ -1556,7 +1556,7 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
                                     const QuicPacketHeader& header) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
 
-  if (version_.HasRetryIntegrityTag()) {
+  if (version_.UsesTls()) {
     DCHECK(version_.HasLengthPrefixedConnectionIds()) << version_;
     const size_t bytes_remaining = reader->BytesRemaining();
     if (bytes_remaining <= kRetryIntegrityTagLength) {

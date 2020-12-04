@@ -447,7 +447,6 @@ QuicConfig::QuicConfig()
       initial_stream_flow_control_window_bytes_(kSFCW, PRESENCE_OPTIONAL),
       initial_session_flow_control_window_bytes_(kCFCW, PRESENCE_OPTIONAL),
       connection_migration_disabled_(kNCMR, PRESENCE_OPTIONAL),
-      support_handshake_done_(0, PRESENCE_OPTIONAL),
       key_update_supported_remotely_(false),
       key_update_supported_locally_(false),
       alternate_server_address_ipv6_(kASAD, PRESENCE_OPTIONAL),
@@ -852,19 +851,6 @@ bool QuicConfig::DisableConnectionMigration() const {
   return connection_migration_disabled_.HasReceivedValue();
 }
 
-void QuicConfig::SetSupportHandshakeDone() {
-  support_handshake_done_.SetSendValue(1);
-}
-
-bool QuicConfig::HandshakeDoneSupported() const {
-  return support_handshake_done_.HasSendValue() &&
-         support_handshake_done_.GetSendValue() > 0;
-}
-
-bool QuicConfig::PeerSupportsHandshakeDone() const {
-  return support_handshake_done_.HasReceivedValue();
-}
-
 void QuicConfig::SetKeyUpdateSupportedLocally() {
   key_update_supported_locally_ = true;
 }
@@ -1204,7 +1190,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->disable_active_migration =
       connection_migration_disabled_.HasSendValue() &&
       connection_migration_disabled_.GetSendValue() != 0;
-  params->support_handshake_done = HandshakeDoneSupported();
 
   if (alternate_server_address_ipv6_.HasSendValue() ||
       alternate_server_address_ipv4_.HasSendValue()) {
@@ -1349,9 +1334,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (params.disable_active_migration) {
     connection_migration_disabled_.SetReceivedValue(1u);
-  }
-  if (params.support_handshake_done) {
-    support_handshake_done_.SetReceivedValue(1u);
   }
   if (!is_resumption && !params.key_update_not_yet_supported) {
     key_update_supported_remotely_ = true;

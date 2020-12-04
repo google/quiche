@@ -79,7 +79,6 @@ class QuicConfigPeer {
 
   static void SetReceivedMaxDatagramFrameSize(QuicConfig* config,
                                               uint64_t max_datagram_frame_size);
-  static void DisableSupportHandshakeDone(QuicConfig* config);
 };
 
 }  // namespace test

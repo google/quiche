@@ -69,7 +69,6 @@ TEST_F(QuicVersionsTest, Features) {
   EXPECT_FALSE(parsed_version_q043.AllowsLowFlowControlLimits());
   EXPECT_FALSE(parsed_version_q043.HasHeaderProtection());
   EXPECT_FALSE(parsed_version_q043.SupportsRetry());
-  EXPECT_FALSE(parsed_version_q043.HasRetryIntegrityTag());
   EXPECT_FALSE(
       parsed_version_q043.SendsVariableLengthPacketNumberInLongHeader());
   EXPECT_FALSE(parsed_version_q043.AllowsVariableLengthConnectionIds());
@@ -84,9 +83,6 @@ TEST_F(QuicVersionsTest, Features) {
   EXPECT_FALSE(parsed_version_q043.HasLongHeaderLengths());
   EXPECT_FALSE(parsed_version_q043.UsesCryptoFrames());
   EXPECT_FALSE(parsed_version_q043.HasIetfQuicFrames());
-  EXPECT_FALSE(parsed_version_q043.HasHandshakeDone());
-  EXPECT_FALSE(parsed_version_q043.HasVarIntTransportParams());
-  EXPECT_FALSE(parsed_version_q043.AuthenticatesHandshakeConnectionIds());
   EXPECT_FALSE(parsed_version_q043.UsesTls());
   EXPECT_TRUE(parsed_version_q043.UsesQuicCrypto());
 
@@ -96,7 +92,6 @@ TEST_F(QuicVersionsTest, Features) {
   EXPECT_TRUE(parsed_version_draft_29.AllowsLowFlowControlLimits());
   EXPECT_TRUE(parsed_version_draft_29.HasHeaderProtection());
   EXPECT_TRUE(parsed_version_draft_29.SupportsRetry());
-  EXPECT_TRUE(parsed_version_draft_29.HasRetryIntegrityTag());
   EXPECT_TRUE(
       parsed_version_draft_29.SendsVariableLengthPacketNumberInLongHeader());
   EXPECT_TRUE(parsed_version_draft_29.AllowsVariableLengthConnectionIds());
@@ -111,9 +106,6 @@ TEST_F(QuicVersionsTest, Features) {
   EXPECT_TRUE(parsed_version_draft_29.HasLongHeaderLengths());
   EXPECT_TRUE(parsed_version_draft_29.UsesCryptoFrames());
   EXPECT_TRUE(parsed_version_draft_29.HasIetfQuicFrames());
-  EXPECT_TRUE(parsed_version_draft_29.HasHandshakeDone());
-  EXPECT_TRUE(parsed_version_draft_29.HasVarIntTransportParams());
-  EXPECT_TRUE(parsed_version_draft_29.AuthenticatesHandshakeConnectionIds());
   EXPECT_TRUE(parsed_version_draft_29.UsesTls());
   EXPECT_FALSE(parsed_version_draft_29.UsesQuicCrypto());
 }

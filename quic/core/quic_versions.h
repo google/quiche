@@ -294,9 +294,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns whether this version supports IETF RETRY packets.
   bool SupportsRetry() const;
 
-  // Returns whether RETRY packets carry the Retry Integrity Tag field.
-  bool HasRetryIntegrityTag() const;
-
   // Returns true if this version sends variable length packet number in long
   // header.
   bool SendsVariableLengthPacketNumberInLongHeader() const;
@@ -353,17 +350,6 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // Returns whether |transport_version| makes use of IETF QUIC
   // frames or not.
   bool HasIetfQuicFrames() const;
-
-  // Returns true if this parsed version supports handshake done.
-  bool HasHandshakeDone() const;
-
-  // Returns true if this version uses variable-length integers when
-  // encoding transport parameter types and lengths.
-  bool HasVarIntTransportParams() const;
-
-  // Returns true if this version uses transport parameters to authenticate all
-  // the connection IDs used during the handshake.
-  bool AuthenticatesHandshakeConnectionIds() const;
 
   // Returns whether this version uses PROTOCOL_TLS1_3.
   bool UsesTls() const;

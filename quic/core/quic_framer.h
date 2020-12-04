@@ -96,11 +96,11 @@ class QUIC_EXPORT_PRIVATE QuicFramerVisitorInterface {
   // Called only when |perspective_| is IS_CLIENT and a retry packet has been
   // parsed. |new_connection_id| contains the value of the Source Connection
   // ID field, and |retry_token| contains the value of the Retry Token field.
-  // On versions where HasRetryIntegrityTag() is false,
+  // On versions where UsesTls() is false,
   // |original_connection_id| contains the value of the Original Destination
   // Connection ID field, and both |retry_integrity_tag| and
   // |retry_without_tag| are empty.
-  // On versions where HasRetryIntegrityTag() is true,
+  // On versions where UsesTls() is true,
   // |original_connection_id| is empty, |retry_integrity_tag| contains the
   // value of the Retry Integrity Tag field, and |retry_without_tag| contains
   // the entire RETRY packet except the Retry Integrity Tag field.

@@ -3888,7 +3888,7 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
   options.push_back(kTLPR);
   config.SetConnectionOptionsToSend(options);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -5395,7 +5395,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendAfterHandshake) {
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_THAT(error, IsQuicNoError());
 
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -5532,7 +5532,7 @@ TEST_P(QuicConnectionTest, TimeoutAfterSendSilentCloseWithOpenStreams) {
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_THAT(error, IsQuicNoError());
 
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -5699,7 +5699,7 @@ TEST_P(QuicConnectionTest, TimeoutAfter5ClientRTOs) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -9187,7 +9187,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter6ClientPTOs) {
   connection_options.push_back(k6PTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -9239,7 +9239,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter7ClientPTOs) {
   connection_options.push_back(k7PTO);
   config.SetConnectionOptionsToSend(connection_options);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -9289,7 +9289,7 @@ TEST_P(QuicConnectionTest, CloseConnectionAfter8ClientPTOs) {
   connection_options.push_back(k2PTO);
   connection_options.push_back(k8PTO);
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -9440,7 +9440,7 @@ TEST_P(QuicConnectionTest, 3AntiAmplificationLimit) {
   QuicTagVector connection_options;
   connection_options.push_back(k3AFF);
   config.SetInitialReceivedConnectionOptions(connection_options);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
@@ -9505,7 +9505,7 @@ TEST_P(QuicConnectionTest, 10AntiAmplificationLimit) {
   QuicTagVector connection_options;
   connection_options.push_back(k10AF);
   config.SetInitialReceivedConnectionOptions(connection_options);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
@@ -9786,7 +9786,7 @@ TEST_P(QuicConnectionTest, LegacyVersionEncapsulation) {
 }
 
 TEST_P(QuicConnectionTest, ClientReceivedHandshakeDone) {
-  if (!connection_.version().HasHandshakeDone()) {
+  if (!connection_.version().UsesTls()) {
     return;
   }
   EXPECT_CALL(visitor_, OnHandshakeDoneReceived());
@@ -9797,7 +9797,7 @@ TEST_P(QuicConnectionTest, ClientReceivedHandshakeDone) {
 }
 
 TEST_P(QuicConnectionTest, ServerReceivedHandshakeDone) {
-  if (!connection_.version().HasHandshakeDone()) {
+  if (!connection_.version().UsesTls()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -9908,7 +9908,7 @@ void QuicConnectionTest::TestClientRetryHandling(
     ASSERT_FALSE(missing_original_id_in_config && wrong_original_id_in_config);
     ASSERT_FALSE(missing_retry_id_in_config && wrong_retry_id_in_config);
   }
-  if (!version().HasRetryIntegrityTag()) {
+  if (!version().UsesTls()) {
     return;
   }
 
@@ -9993,7 +9993,7 @@ void QuicConnectionTest::TestClientRetryHandling(
   // Test validating the original_connection_id from the config.
   QuicConfig received_config;
   QuicConfigPeer::SetNegotiated(&received_config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
         &received_config, connection_.connection_id());
     if (!missing_retry_id_in_config) {
@@ -10060,7 +10060,7 @@ TEST_P(QuicConnectionTest, ClientParsesRetryWrongOriginalId) {
 }
 
 TEST_P(QuicConnectionTest, ClientParsesRetryMissingRetryId) {
-  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (!connection_.version().UsesTls()) {
     // Versions that do not authenticate connection IDs never send the
     // retry_source_connection_id transport parameter.
     return;
@@ -10073,7 +10073,7 @@ TEST_P(QuicConnectionTest, ClientParsesRetryMissingRetryId) {
 }
 
 TEST_P(QuicConnectionTest, ClientParsesRetryWrongRetryId) {
-  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (!connection_.version().UsesTls()) {
     // Versions that do not authenticate connection IDs never send the
     // retry_source_connection_id transport parameter.
     return;
@@ -10090,7 +10090,7 @@ TEST_P(QuicConnectionTest, ClientReceivesOriginalConnectionIdWithoutRetry) {
     // QUIC+TLS is required to transmit connection ID transport parameters.
     return;
   }
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     // Versions that authenticate connection IDs always send the
     // original_destination_connection_id transport parameter.
     return;
@@ -10110,7 +10110,7 @@ TEST_P(QuicConnectionTest, ClientReceivesOriginalConnectionIdWithoutRetry) {
 }
 
 TEST_P(QuicConnectionTest, ClientReceivesRetrySourceConnectionIdWithoutRetry) {
-  if (!connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (!connection_.version().UsesTls()) {
     // Versions that do not authenticate connection IDs never send the
     // retry_source_connection_id transport parameter.
     return;
@@ -10544,7 +10544,7 @@ TEST_P(QuicConnectionTest, MadeForwardProgressOnDiscardingKeys) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -10938,7 +10938,7 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
       config.ProcessPeerHello(msg, CLIENT, &error_details);
   EXPECT_THAT(error, IsQuicNoError());
 
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -10970,7 +10970,7 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
 
   QuicConfig config;
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
@@ -11123,7 +11123,7 @@ TEST_P(QuicConnectionTest, ShorterIdleTimeoutOnSentPackets) {
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
   }
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12015,7 +12015,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdate) {
               IsQuicNoError());
   config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12176,7 +12176,7 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
               IsQuicNoError());
   config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12274,7 +12274,7 @@ TEST_P(QuicConnectionTest,
               IsQuicNoError());
   config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12330,7 +12330,7 @@ TEST_P(QuicConnectionTest,
   // Key update is supported locally.
   config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12395,7 +12395,7 @@ TEST_P(QuicConnectionTest,
                   params, /* is_resumption = */ false, &error_details),
               IsQuicNoError());
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(
@@ -12602,7 +12602,7 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
               IsQuicNoError());
   config.SetKeyUpdateSupportedLocally();
   QuicConfigPeer::SetNegotiated(&config, true);
-  if (connection_.version().AuthenticatesHandshakeConnectionIds()) {
+  if (connection_.version().UsesTls()) {
     QuicConfigPeer::SetReceivedOriginalConnectionId(
         &config, connection_.connection_id());
     QuicConfigPeer::SetReceivedInitialSourceConnectionId(

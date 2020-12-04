@@ -207,7 +207,7 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
                                   absl::string_view* nonce) {
   static_assert(SupportedVersions().size() == 5u,
                 "Supported versions out of sync with retry integrity keys");
-  if (!version.HasRetryIntegrityTag()) {
+  if (!version.UsesTls()) {
     QUIC_BUG << "Attempted to get retry integrity keys for invalid version "
              << version;
     return false;

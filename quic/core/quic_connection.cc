@@ -366,7 +366,6 @@ QuicConnection::QuicConnection(
                              clock_->ApproximateNow(),
                              &arena_,
                              alarm_factory_),
-      support_handshake_done_(version().HasHandshakeDone()),
       encrypted_control_frames_(
           GetQuicReloadableFlag(quic_encrypted_control_frames) &&
           packet_creator_.let_connection_handle_pings()),
@@ -461,56 +460,11 @@ void QuicConnection::ClearQueuedPackets() {
   buffered_packets_.clear();
 }
 
-bool QuicConnection::ValidateConfigConnectionIdsOld(const QuicConfig& config) {
-  // This function validates connection IDs as defined in IETF draft-27 and
-  // earlier.
-  DCHECK(config.negotiated());
-  DCHECK(!version().AuthenticatesHandshakeConnectionIds());
-  if (original_destination_connection_id_.has_value() &&
-      retry_source_connection_id_.has_value()) {
-    DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-    // We received a RETRY packet, validate that the original destination
-    // connection ID from the config matches the one from the RETRY.
-    if (!config.HasReceivedOriginalConnectionId() ||
-        config.ReceivedOriginalConnectionId() !=
-            original_destination_connection_id_.value()) {
-      std::string received_value;
-      if (config.HasReceivedOriginalConnectionId()) {
-        received_value = config.ReceivedOriginalConnectionId().ToString();
-      } else {
-        received_value = "none";
-      }
-      std::string error_details = absl::StrCat(
-          "Bad original_connection_id: expected ",
-          original_destination_connection_id_.value().ToString(), ", received ",
-          received_value, ", RETRY used ", server_connection_id_.ToString());
-      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-  } else {
-    // We did not receive a RETRY packet, make sure we did not receive the
-    // original_destination_connection_id transport parameter.
-    if (config.HasReceivedOriginalConnectionId()) {
-      std::string error_details = absl::StrCat(
-          "Bad original_connection_id: did not receive RETRY but received ",
-          config.ReceivedOriginalConnectionId().ToString());
-      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
-                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-      return false;
-    }
-  }
-  return true;
-}
-
 bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
   DCHECK(config.negotiated());
   if (!version().UsesTls()) {
     // QUIC+TLS is required to transmit connection ID transport parameters.
     return true;
-  }
-  if (!version().AuthenticatesHandshakeConnectionIds()) {
-    return ValidateConfigConnectionIdsOld(config);
   }
   // This function validates connection IDs as defined in IETF draft-28 and
   // later.
@@ -621,9 +575,6 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   } else {
     SetNetworkTimeouts(config.max_time_before_crypto_handshake(),
                        config.max_idle_time_before_crypto_handshake());
-  }
-  if (config.HandshakeDoneSupported()) {
-    support_handshake_done_ = true;
   }
 
   sent_packet_manager_.SetFromConfig(config);
@@ -969,7 +920,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    absl::string_view retry_integrity_tag,
                                    absl::string_view retry_without_tag) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-  if (version().HasRetryIntegrityTag()) {
+  if (version().UsesTls()) {
     if (!CryptoUtils::ValidateRetryIntegrityTag(
             version(), server_connection_id_, retry_without_tag,
             retry_integrity_tag)) {
@@ -1795,7 +1746,7 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 
 bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
   DCHECK(connected_);
-  if (!support_handshake_done_) {
+  if (!version().UsesTls()) {
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
                     "Handshake done frame is unsupported",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

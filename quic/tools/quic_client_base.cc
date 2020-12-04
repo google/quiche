@@ -359,9 +359,10 @@ bool QuicClientBase::WaitForOneRttKeysAvailable() {
 }
 
 bool QuicClientBase::WaitForHandshakeConfirmed() {
-  if (!session_->connection()->version().HasHandshakeDone()) {
+  if (!session_->connection()->version().UsesTls()) {
     return WaitForOneRttKeysAvailable();
   }
+  // Otherwise, wait for receipt of HANDSHAKE_DONE frame.
   while (connected() && session_->GetHandshakeState() < HANDSHAKE_CONFIRMED) {
     WaitForEvents();
   }

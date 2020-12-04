@@ -382,11 +382,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   void SetDisableConnectionMigration();
   bool DisableConnectionMigration() const;
 
-  // Support handshake done.
-  void SetSupportHandshakeDone();
-  bool HandshakeDoneSupported() const;
-  bool PeerSupportsHandshakeDone() const;
-
   // Key update support.
   void SetKeyUpdateSupportedLocally();
   bool KeyUpdateSupportedForConnection() const;
@@ -581,10 +576,6 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Whether active connection migration is allowed.
   // Uses the disable_active_migration transport parameter in IETF QUIC.
   QuicFixedUint32 connection_migration_disabled_;
-
-  // Whether handshake done is supported. Only used in T050.
-  // Uses the support_handshake_done transport parameter in IETF QUIC.
-  QuicFixedUint32 support_handshake_done_;
 
   // Whether key update is supported by the peer. Uses key_update_not_yet
   // supported transport parameter in IETF QUIC.

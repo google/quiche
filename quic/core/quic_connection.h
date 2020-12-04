@@ -1498,7 +1498,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Validate connection IDs used during the handshake. Closes the connection
   // on validation failure.
   bool ValidateConfigConnectionIds(const QuicConfig& config);
-  bool ValidateConfigConnectionIdsOld(const QuicConfig& config);
 
   // Called when ACK alarm goes off. Try to bundle crypto data with ACKs.
   void MaybeBundleCryptoDataWithAcks();
@@ -1906,9 +1905,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   QuicIdleNetworkDetector idle_network_detector_;
 
   bool blackhole_detection_disabled_ = false;
-
-  // True if this connection supports handshake done frame.
-  bool support_handshake_done_;
 
   const bool default_enable_5rto_blackhole_detection_ =
       GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);

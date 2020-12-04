@@ -80,7 +80,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (session()->version().AuthenticatesHandshakeConnectionIds()) {
+    if (session()->version().UsesTls()) {
       if (session()->perspective() == Perspective::IS_CLIENT) {
         session()->config()->SetOriginalConnectionIdToSend(
             session()->connection()->connection_id());
@@ -90,8 +90,6 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         session()->config()->SetInitialSourceConnectionIdToSend(
             session()->connection()->client_connection_id());
       }
-    }
-    if (session()->version().UsesTls()) {
       TransportParameters transport_parameters;
       EXPECT_TRUE(
           session()->config()->FillTransportParameters(&transport_parameters));
@@ -113,7 +111,8 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     } else {
       session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     }
-    if (session()->version().HasHandshakeDone()) {
+    if (session()->version().UsesTls()) {
+      // HANDSHAKE_DONE frame.
       EXPECT_CALL(*this, HasPendingRetransmission());
     }
     session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
@@ -389,8 +388,9 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     TestCryptoStream* crypto_stream = session_->GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission()).Times(AnyNumber());
 
-    if (connection_->version().HasHandshakeDone() &&
+    if (connection_->version().UsesTls() &&
         session_->perspective() == Perspective::IS_SERVER) {
+      // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillOnce(Invoke(&ClearControlFrame));
     }

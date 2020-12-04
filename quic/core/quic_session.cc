@@ -142,10 +142,6 @@ void QuicSession::Initialize() {
     connection_->set_can_receive_ack_frequency_frame();
     config_.SetMinAckDelayMs(kDefaultMinAckDelayTimeMs);
   }
-  if (perspective() == Perspective::IS_CLIENT && version().UsesTls() &&
-      !version().HasHandshakeDone()) {
-    config_.SetSupportHandshakeDone();
-  }
 
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.
@@ -1661,8 +1657,7 @@ void QuicSession::OnTlsHandshakeComplete() {
       << ENDPOINT << "Handshake completes without parameter negotiation.";
   connection()->mutable_stats().handshake_completion_time =
       connection()->clock()->ApproximateNow();
-  if ((connection()->version().HasHandshakeDone() ||
-       config_.PeerSupportsHandshakeDone()) &&
+  if (connection()->version().UsesTls() &&
       perspective_ == Perspective::IS_SERVER) {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
@@ -1719,7 +1714,7 @@ void QuicSession::OnZeroRttRejected(int reason) {
 }
 
 bool QuicSession::FillTransportParameters(TransportParameters* params) {
-  if (version().AuthenticatesHandshakeConnectionIds()) {
+  if (version().UsesTls()) {
     if (perspective() == Perspective::IS_SERVER) {
       config_.SetOriginalConnectionIdToSend(
           connection_->GetOriginalDestinationConnectionId());

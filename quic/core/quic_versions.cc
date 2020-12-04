@@ -100,11 +100,6 @@ bool ParsedQuicVersion::SupportsRetry() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::HasRetryIntegrityTag() const {
-  DCHECK(IsKnown());
-  return handshake_protocol == PROTOCOL_TLS1_3;
-}
-
 bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
   DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
@@ -134,8 +129,7 @@ bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
 
 bool ParsedQuicVersion::CanSendCoalescedPackets() const {
   DCHECK(IsKnown());
-  return QuicVersionHasLongHeaderLengths(transport_version) &&
-         handshake_protocol == PROTOCOL_TLS1_3;
+  return HasLongHeaderLengths() && UsesTls();
 }
 
 bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
@@ -171,26 +165,6 @@ bool ParsedQuicVersion::UsesCryptoFrames() const {
 bool ParsedQuicVersion::HasIetfQuicFrames() const {
   DCHECK(IsKnown());
   return VersionHasIetfQuicFrames(transport_version);
-}
-
-bool ParsedQuicVersion::HasHandshakeDone() const {
-  DCHECK(IsKnown());
-  // HANDSHAKE_DONE is supported in T051 and all IETF drafts since draft-25.
-  return UsesTls();
-}
-
-bool ParsedQuicVersion::HasVarIntTransportParams() const {
-  DCHECK(IsKnown());
-  // Variable-length integer transport parameters are supported in T051 and
-  // all IETF drafts since draft-27.
-  return UsesTls();
-}
-
-bool ParsedQuicVersion::AuthenticatesHandshakeConnectionIds() const {
-  DCHECK(IsKnown());
-  // Authentication of handshake connection IDs is supported in T051 and
-  // all IETF drafts since draft-28.
-  return UsesTls();
 }
 
 bool ParsedQuicVersion::UsesTls() const {
@@ -290,7 +264,7 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
 ParsedQuicVersionVector AllSupportedVersionsWithTls() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+    if (version.UsesTls()) {
       versions.push_back(version);
     }
   }
@@ -301,7 +275,7 @@ ParsedQuicVersionVector AllSupportedVersionsWithTls() {
 ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_TLS1_3) {
+    if (version.UsesTls()) {
       versions.push_back(version);
     }
   }

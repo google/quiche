@@ -55,14 +55,14 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kInitialRoundTripTime = 0x3127,
   kGoogleConnectionOptions = 0x3128,
   kGoogleUserAgentId = 0x3129,
-  kGoogleSupportHandshakeDone = 0x312A,  // Only used in T050.
+  // 0x312A was used only in T050 to indicate support for HANDSHAKE_DONE.
   kGoogleKeyUpdateNotYetSupported = 0x312B,
   // 0x4751 was used for non-standard Google-specific parameters encoded as a
   // Google QUIC_CRYPTO CHLO, it has been replaced by individual parameters.
   kGoogleQuicVersion =
       0x4752,  // Used to transmit version and supported_versions.
 
-  kMinAckDelay = 0xDE1A  // draft-iyengar-quic-delayed-ack.
+  kMinAckDelay = 0xDE1A,  // draft-iyengar-quic-delayed-ack.
 };
 
 namespace {
@@ -124,8 +124,6 @@ std::string TransportParameterIdToString(
       return "google_connection_options";
     case TransportParameters::kGoogleUserAgentId:
       return "user_agent_id";
-    case TransportParameters::kGoogleSupportHandshakeDone:
-      return "support_handshake_done";
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
       return "key_update_not_yet_supported";
     case TransportParameters::kGoogleQuicVersion:
@@ -160,94 +158,12 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleUserAgentId:
-    case TransportParameters::kGoogleSupportHandshakeDone:
     case TransportParameters::kGoogleKeyUpdateNotYetSupported:
     case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelay:
       return true;
   }
   return false;
-}
-
-bool WriteTransportParameterId(
-    QuicDataWriter* writer,
-    TransportParameters::TransportParameterId param_id,
-    ParsedQuicVersion version) {
-  if (version.HasVarIntTransportParams()) {
-    if (!writer->WriteVarInt62(param_id)) {
-      QUIC_BUG << "Failed to write param_id for "
-               << TransportParameterIdToString(param_id);
-      return false;
-    }
-  } else {
-    if (static_cast<uint64_t>(param_id) >
-        std::numeric_limits<uint16_t>::max()) {
-      QUIC_BUG << "Cannot serialize transport parameter "
-               << TransportParameterIdToString(param_id) << " with version "
-               << version;
-      return false;
-    }
-    if (!writer->WriteUInt16(param_id)) {
-      QUIC_BUG << "Failed to write param_id16 for "
-               << TransportParameterIdToString(param_id);
-      return false;
-    }
-  }
-  return true;
-}
-
-bool WriteTransportParameterLength(QuicDataWriter* writer,
-                                   uint64_t length,
-                                   ParsedQuicVersion version) {
-  if (version.HasVarIntTransportParams()) {
-    return writer->WriteVarInt62(length);
-  }
-  if (length > std::numeric_limits<uint16_t>::max()) {
-    QUIC_BUG << "Cannot serialize transport parameter length " << length
-             << " with version " << version;
-    return false;
-  }
-  return writer->WriteUInt16(length);
-}
-
-bool WriteTransportParameterStringPiece(QuicDataWriter* writer,
-                                        absl::string_view value,
-                                        ParsedQuicVersion version) {
-  if (version.HasVarIntTransportParams()) {
-    return writer->WriteStringPieceVarInt62(value);
-  }
-  return writer->WriteStringPiece16(value);
-}
-
-bool ReadTransportParameterId(
-    QuicDataReader* reader,
-    ParsedQuicVersion version,
-    TransportParameters::TransportParameterId* out_param_id) {
-  if (version.HasVarIntTransportParams()) {
-    uint64_t param_id64;
-    if (!reader->ReadVarInt62(&param_id64)) {
-      return false;
-    }
-    *out_param_id =
-        static_cast<TransportParameters::TransportParameterId>(param_id64);
-  } else {
-    uint16_t param_id16;
-    if (!reader->ReadUInt16(&param_id16)) {
-      return false;
-    }
-    *out_param_id =
-        static_cast<TransportParameters::TransportParameterId>(param_id16);
-  }
-  return true;
-}
-
-bool ReadTransportParameterLengthAndValue(QuicDataReader* reader,
-                                          ParsedQuicVersion version,
-                                          absl::string_view* out_value) {
-  if (version.HasVarIntTransportParams()) {
-    return reader->ReadStringPieceVarInt62(out_value);
-  }
-  return reader->ReadStringPiece16(out_value);
 }
 
 }  // namespace
@@ -289,29 +205,21 @@ bool TransportParameters::IntegerParameter::IsValid() const {
 }
 
 bool TransportParameters::IntegerParameter::Write(
-    QuicDataWriter* writer,
-    ParsedQuicVersion version) const {
+    QuicDataWriter* writer) const {
   DCHECK(IsValid());
   if (value_ == default_value_) {
     // Do not write if the value is default.
     return true;
   }
-  if (!WriteTransportParameterId(writer, param_id_, version)) {
+  if (!writer->WriteVarInt62(param_id_)) {
     QUIC_BUG << "Failed to write param_id for " << *this;
     return false;
   }
   const QuicVariableLengthIntegerLength value_length =
       QuicDataWriter::GetVarInt62Len(value_);
-  if (version.HasVarIntTransportParams()) {
-    if (!writer->WriteVarInt62(value_length)) {
-      QUIC_BUG << "Failed to write value_length for " << *this;
-      return false;
-    }
-  } else {
-    if (!writer->WriteUInt16(value_length)) {
-      QUIC_BUG << "Failed to write value_length16 for " << *this;
-      return false;
-    }
+  if (!writer->WriteVarInt62(value_length)) {
+    QUIC_BUG << "Failed to write value_length for " << *this;
+    return false;
   }
   if (!writer->WriteVarInt62(value_, value_length)) {
     QUIC_BUG << "Failed to write value for " << *this;
@@ -475,9 +383,6 @@ std::string TransportParameters::ToString() const {
     rv += " " + TransportParameterIdToString(kGoogleUserAgentId) + " \"" +
           user_agent_id.value() + "\"";
   }
-  if (support_handshake_done) {
-    rv += " " + TransportParameterIdToString(kGoogleSupportHandshakeDone);
-  }
   if (key_update_not_yet_supported) {
     rv += " " + TransportParameterIdToString(kGoogleKeyUpdateNotYetSupported);
   }
@@ -529,7 +434,6 @@ TransportParameters::TransportParameters()
                                  kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize),
       initial_round_trip_time_us(kInitialRoundTripTime),
-      support_handshake_done(false),
       key_update_not_yet_supported(false)
 // Important note: any new transport parameters must be added
 // to TransportParameters::AreValid, SerializeTransportParameters and
@@ -565,7 +469,6 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_connection_options(other.google_connection_options),
       user_agent_id(other.user_agent_id),
-      support_handshake_done(other.support_handshake_done),
       key_update_not_yet_supported(other.key_update_not_yet_supported),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
@@ -607,7 +510,6 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_round_trip_time_us.value() &&
         google_connection_options == rhs.google_connection_options &&
         user_agent_id == rhs.user_agent_id &&
-        support_handshake_done == rhs.support_handshake_done &&
         key_update_not_yet_supported == rhs.key_update_not_yet_supported &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
@@ -705,7 +607,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
 
 TransportParameters::~TransportParameters() = default;
 
-bool SerializeTransportParameters(ParsedQuicVersion version,
+bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
                                   const TransportParameters& in,
                                   std::vector<uint8_t>* out) {
   std::string error_details;
@@ -763,7 +665,6 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength +               // user_agent_id
-      kTypeAndValueLength +               // support_handshake_done
       kTypeAndValueLength +               // key_update_not_yet_supported
       kTypeAndValueLength +               // google-version
       kGreaseParameterLength;             // GREASE
@@ -790,38 +691,23 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   out->resize(max_transport_param_length);
   QuicDataWriter writer(out->size(), reinterpret_cast<char*>(out->data()));
 
-  if (!version.HasVarIntTransportParams()) {
-    // Versions that do not use variable integer transport parameters carry
-    // a 16-bit length of the remaining transport parameters. We write 0 here
-    // to reserve 16 bits, and we fill it in at the end of this function.
-    // TODO(b/150465921) add support for doing this in QuicDataWriter.
-    if (!writer.WriteUInt16(0)) {
-      QUIC_BUG << "Failed to write transport parameter fake length prefix for "
-               << in;
-      return false;
-    }
-  }
-
   // original_destination_connection_id
   if (in.original_destination_connection_id.has_value()) {
     DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
     QuicConnectionId original_destination_connection_id =
         in.original_destination_connection_id.value();
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kOriginalDestinationConnectionId,
-            version) ||
-        !WriteTransportParameterStringPiece(
-            &writer,
+    if (!writer.WriteVarInt62(
+            TransportParameters::kOriginalDestinationConnectionId) ||
+        !writer.WriteStringPieceVarInt62(
             absl::string_view(original_destination_connection_id.data(),
-                              original_destination_connection_id.length()),
-            version)) {
+                              original_destination_connection_id.length()))) {
       QUIC_BUG << "Failed to write original_destination_connection_id "
                << original_destination_connection_id << " for " << in;
       return false;
     }
   }
 
-  if (!in.max_idle_timeout_ms.Write(&writer, version)) {
+  if (!in.max_idle_timeout_ms.Write(&writer)) {
     QUIC_BUG << "Failed to write idle_timeout for " << in;
     return false;
   }
@@ -830,42 +716,36 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   if (!in.stateless_reset_token.empty()) {
     DCHECK_EQ(kStatelessResetTokenLength, in.stateless_reset_token.size());
     DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kStatelessResetToken, version) ||
-        !WriteTransportParameterStringPiece(
-            &writer,
-            absl::string_view(
-                reinterpret_cast<const char*>(in.stateless_reset_token.data()),
-                in.stateless_reset_token.size()),
-            version)) {
+    if (!writer.WriteVarInt62(TransportParameters::kStatelessResetToken) ||
+        !writer.WriteStringPieceVarInt62(absl::string_view(
+            reinterpret_cast<const char*>(in.stateless_reset_token.data()),
+            in.stateless_reset_token.size()))) {
       QUIC_BUG << "Failed to write stateless_reset_token of length "
                << in.stateless_reset_token.size() << " for " << in;
       return false;
     }
   }
 
-  if (!in.max_udp_payload_size.Write(&writer, version) ||
-      !in.initial_max_data.Write(&writer, version) ||
-      !in.initial_max_stream_data_bidi_local.Write(&writer, version) ||
-      !in.initial_max_stream_data_bidi_remote.Write(&writer, version) ||
-      !in.initial_max_stream_data_uni.Write(&writer, version) ||
-      !in.initial_max_streams_bidi.Write(&writer, version) ||
-      !in.initial_max_streams_uni.Write(&writer, version) ||
-      !in.ack_delay_exponent.Write(&writer, version) ||
-      !in.max_ack_delay.Write(&writer, version) ||
-      !in.min_ack_delay_us.Write(&writer, version) ||
-      !in.active_connection_id_limit.Write(&writer, version) ||
-      !in.max_datagram_frame_size.Write(&writer, version) ||
-      !in.initial_round_trip_time_us.Write(&writer, version)) {
+  if (!in.max_udp_payload_size.Write(&writer) ||
+      !in.initial_max_data.Write(&writer) ||
+      !in.initial_max_stream_data_bidi_local.Write(&writer) ||
+      !in.initial_max_stream_data_bidi_remote.Write(&writer) ||
+      !in.initial_max_stream_data_uni.Write(&writer) ||
+      !in.initial_max_streams_bidi.Write(&writer) ||
+      !in.initial_max_streams_uni.Write(&writer) ||
+      !in.ack_delay_exponent.Write(&writer) ||
+      !in.max_ack_delay.Write(&writer) || !in.min_ack_delay_us.Write(&writer) ||
+      !in.active_connection_id_limit.Write(&writer) ||
+      !in.max_datagram_frame_size.Write(&writer) ||
+      !in.initial_round_trip_time_us.Write(&writer)) {
     QUIC_BUG << "Failed to write integers for " << in;
     return false;
   }
 
   // disable_active_migration
   if (in.disable_active_migration) {
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kDisableActiveMigration, version) ||
-        !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
+    if (!writer.WriteVarInt62(TransportParameters::kDisableActiveMigration) ||
+        !writer.WriteVarInt62(/* transport parameter length */ 0)) {
       QUIC_BUG << "Failed to write disable_active_migration for " << in;
       return false;
     }
@@ -889,10 +769,9 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
         /* connection ID length byte */ sizeof(uint8_t) +
         in.preferred_address->connection_id.length() +
         in.preferred_address->stateless_reset_token.size();
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kPreferredAddress, version) ||
-        !WriteTransportParameterLength(&writer, preferred_address_length,
-                                       version) ||
+    if (!writer.WriteVarInt62(TransportParameters::kPreferredAddress) ||
+        !writer.WriteVarInt62(
+            /* transport parameter length */ preferred_address_length) ||
         !writer.WriteStringPiece(v4_address_bytes) ||
         !writer.WriteUInt16(in.preferred_address->ipv4_socket_address.port()) ||
         !writer.WriteStringPiece(v6_address_bytes) ||
@@ -912,14 +791,11 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
   if (in.initial_source_connection_id.has_value()) {
     QuicConnectionId initial_source_connection_id =
         in.initial_source_connection_id.value();
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kInitialSourceConnectionId,
-            version) ||
-        !WriteTransportParameterStringPiece(
-            &writer,
+    if (!writer.WriteVarInt62(
+            TransportParameters::kInitialSourceConnectionId) ||
+        !writer.WriteStringPieceVarInt62(
             absl::string_view(initial_source_connection_id.data(),
-                              initial_source_connection_id.length()),
-            version)) {
+                              initial_source_connection_id.length()))) {
       QUIC_BUG << "Failed to write initial_source_connection_id "
                << initial_source_connection_id << " for " << in;
       return false;
@@ -931,13 +807,10 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
     QuicConnectionId retry_source_connection_id =
         in.retry_source_connection_id.value();
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kRetrySourceConnectionId, version) ||
-        !WriteTransportParameterStringPiece(
-            &writer,
+    if (!writer.WriteVarInt62(TransportParameters::kRetrySourceConnectionId) ||
+        !writer.WriteStringPieceVarInt62(
             absl::string_view(retry_source_connection_id.data(),
-                              retry_source_connection_id.length()),
-            version)) {
+                              retry_source_connection_id.length()))) {
       QUIC_BUG << "Failed to write retry_source_connection_id "
                << retry_source_connection_id << " for " << in;
       return false;
@@ -950,10 +823,9 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
                   "bad size");
     uint64_t connection_options_length =
         in.google_connection_options.value().size() * 4;
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kGoogleConnectionOptions, version) ||
-        !WriteTransportParameterLength(&writer, connection_options_length,
-                                       version)) {
+    if (!writer.WriteVarInt62(TransportParameters::kGoogleConnectionOptions) ||
+        !writer.WriteVarInt62(
+            /* transport parameter length */ connection_options_length)) {
       QUIC_BUG << "Failed to write google_connection_options of length "
                << connection_options_length << " for " << in;
       return false;
@@ -970,33 +842,19 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
 
   // Google-specific user agent identifier.
   if (in.user_agent_id.has_value()) {
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kGoogleUserAgentId, version) ||
-        !WriteTransportParameterStringPiece(&writer, in.user_agent_id.value(),
-                                            version)) {
+    if (!writer.WriteVarInt62(TransportParameters::kGoogleUserAgentId) ||
+        !writer.WriteStringPieceVarInt62(in.user_agent_id.value())) {
       QUIC_BUG << "Failed to write Google user agent ID \""
                << in.user_agent_id.value() << "\" for " << in;
       return false;
     }
   }
 
-  // Google-specific support handshake done.
-  if (in.support_handshake_done) {
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kGoogleSupportHandshakeDone,
-            version) ||
-        !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
-      QUIC_BUG << "Failed to write support_handshake_done for " << in;
-      return false;
-    }
-  }
-
   // Google-specific indicator for key update not yet supported.
   if (in.key_update_not_yet_supported) {
-    if (!WriteTransportParameterId(
-            &writer, TransportParameters::kGoogleKeyUpdateNotYetSupported,
-            version) ||
-        !WriteTransportParameterLength(&writer, /*length=*/0, version)) {
+    if (!writer.WriteVarInt62(
+            TransportParameters::kGoogleKeyUpdateNotYetSupported) ||
+        !writer.WriteVarInt62(/* transport parameter length */ 0)) {
       QUIC_BUG << "Failed to write key_update_not_yet_supported for " << in;
       return false;
     }
@@ -1010,9 +868,9 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
         /* versions length */ sizeof(uint8_t) +
         sizeof(QuicVersionLabel) * in.supported_versions.size();
   }
-  if (!WriteTransportParameterId(
-          &writer, TransportParameters::kGoogleQuicVersion, version) ||
-      !WriteTransportParameterLength(&writer, google_version_length, version) ||
+  if (!writer.WriteVarInt62(TransportParameters::kGoogleQuicVersion) ||
+      !writer.WriteVarInt62(
+          /* transport parameter length */ google_version_length) ||
       !writer.WriteUInt32(in.version)) {
     QUIC_BUG << "Failed to write Google version extension for " << in;
     return false;
@@ -1040,8 +898,8 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
                << " is not allowed";
       return false;
     }
-    if (!WriteTransportParameterId(&writer, param_id, version) ||
-        !WriteTransportParameterStringPiece(&writer, kv.second, version)) {
+    if (!writer.WriteVarInt62(param_id) ||
+        !writer.WriteStringPieceVarInt62(kv.second)) {
       QUIC_BUG << "Failed to write custom parameter " << param_id;
       return false;
     }
@@ -1053,51 +911,24 @@ bool SerializeTransportParameters(ParsedQuicVersion version,
     // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html
     // This forces receivers to support unexpected input.
     QuicRandom* random = QuicRandom::GetInstance();
-    uint64_t grease_id64 = random->RandUint64();
-    if (version.HasVarIntTransportParams()) {
-      // With these versions, identifiers are 62 bits long so we need to ensure
-      // that the output of the computation below fits in 62 bits.
-      grease_id64 %= ((1ULL << 62) - 31);
-    } else {
-      // Same with 16 bits.
-      grease_id64 %= ((1ULL << 16) - 31);
-    }
+    // Transport parameter identifiers are 62 bits long so we need to ensure
+    // that the output of the computation below fits in 62 bits.
+    uint64_t grease_id64 = random->RandUint64() % ((1ULL << 62) - 31);
     // Make sure grease_id % 31 == 27. Note that this is not uniformely
     // distributed but is acceptable since no security depends on this
     // randomness.
     grease_id64 = (grease_id64 / 31) * 31 + 27;
-    DCHECK(version.HasVarIntTransportParams() ||
-           grease_id64 <= std::numeric_limits<uint16_t>::max())
-        << grease_id64 << " invalid for " << version;
     TransportParameters::TransportParameterId grease_id =
         static_cast<TransportParameters::TransportParameterId>(grease_id64);
     const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
     DCHECK_GE(kMaxGreaseLength, grease_length);
     char grease_contents[kMaxGreaseLength];
     random->RandBytes(grease_contents, grease_length);
-    if (!WriteTransportParameterId(&writer, grease_id, version) ||
-        !WriteTransportParameterStringPiece(
-            &writer, absl::string_view(grease_contents, grease_length),
-            version)) {
+    if (!writer.WriteVarInt62(grease_id) ||
+        !writer.WriteStringPieceVarInt62(
+            absl::string_view(grease_contents, grease_length))) {
       QUIC_BUG << "Failed to write GREASE parameter "
                << TransportParameterIdToString(grease_id);
-      return false;
-    }
-  }
-
-  if (!version.HasVarIntTransportParams()) {
-    // Fill in the length prefix at the start of the transport parameters.
-    if (writer.length() < sizeof(uint16_t) ||
-        writer.length() - sizeof(uint16_t) >
-            std::numeric_limits<uint16_t>::max()) {
-      QUIC_BUG << "Cannot write length " << writer.length() << " for " << in;
-      return false;
-    }
-    const uint16_t length_prefix = writer.length() - sizeof(uint16_t);
-    QuicDataWriter length_prefix_writer(out->size(),
-                                        reinterpret_cast<char*>(out->data()));
-    if (!length_prefix_writer.WriteUInt16(length_prefix)) {
-      QUIC_BUG << "Failed to write length prefix for " << in;
       return false;
     }
   }
@@ -1119,28 +950,16 @@ bool ParseTransportParameters(ParsedQuicVersion version,
   out->perspective = perspective;
   QuicDataReader reader(reinterpret_cast<const char*>(in), in_len);
 
-  if (!version.HasVarIntTransportParams()) {
-    uint16_t full_length;
-    if (!reader.ReadUInt16(&full_length)) {
-      *error_details = "Failed to parse the transport parameter full length";
-      return false;
-    }
-    if (full_length != reader.BytesRemaining()) {
-      *error_details =
-          absl::StrCat("Invalid transport parameter full length ", full_length,
-                       " != ", reader.BytesRemaining());
-      return false;
-    }
-  }
-
   while (!reader.IsDoneReading()) {
-    TransportParameters::TransportParameterId param_id;
-    if (!ReadTransportParameterId(&reader, version, &param_id)) {
+    uint64_t param_id64;
+    if (!reader.ReadVarInt62(&param_id64)) {
       *error_details = "Failed to parse transport parameter ID";
       return false;
     }
+    TransportParameters::TransportParameterId param_id =
+        static_cast<TransportParameters::TransportParameterId>(param_id64);
     absl::string_view value;
-    if (!ReadTransportParameterLengthAndValue(&reader, version, &value)) {
+    if (!reader.ReadStringPieceVarInt62(&value)) {
       *error_details =
           "Failed to read length and value of transport parameter " +
           TransportParameterIdToString(param_id);
@@ -1348,13 +1167,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           return false;
         }
         out->user_agent_id = std::string(value_reader.ReadRemainingPayload());
-        break;
-      case TransportParameters::kGoogleSupportHandshakeDone:
-        if (out->support_handshake_done) {
-          *error_details = "Received a second support_handshake_done";
-          return false;
-        }
-        out->support_handshake_done = true;
         break;
       case TransportParameters::kGoogleKeyUpdateNotYetSupported:
         if (out->key_update_not_yet_supported) {
