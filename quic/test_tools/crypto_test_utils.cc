@@ -606,7 +606,7 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
     if (level == ENCRYPTION_FORWARD_SECURE ||
         !((level == ENCRYPTION_HANDSHAKE || level == ENCRYPTION_ZERO_RTT ||
            client_encrypter == nullptr) &&
-          server_decrypter == nullptr)) {
+          (level == ENCRYPTION_ZERO_RTT || server_decrypter == nullptr))) {
       CompareCrypters(client_encrypter, server_decrypter,
                       "client " + EncryptionLevelString(level) + " write");
     }

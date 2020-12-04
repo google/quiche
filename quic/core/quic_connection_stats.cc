@@ -58,6 +58,8 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " key_update_count: " << s.key_update_count;
   os << " num_failed_authentication_packets_received: "
      << s.num_failed_authentication_packets_received;
+  os << " num_tls_server_zero_rtt_packets_received_after_discarding_decrypter: "
+     << s.num_tls_server_zero_rtt_packets_received_after_discarding_decrypter;
   os << " }";
 
   return os;

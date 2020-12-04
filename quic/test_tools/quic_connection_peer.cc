@@ -157,6 +157,12 @@ QuicAlarm* QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(
 }
 
 // static
+QuicAlarm* QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(
+    QuicConnection* connection) {
+  return connection->discard_zero_rtt_decryption_keys_alarm_.get();
+}
+
+// static
 QuicPacketWriter* QuicConnectionPeer::GetWriter(QuicConnection* connection) {
   return connection->writer_;
 }

@@ -191,6 +191,25 @@ class DiscardPreviousOneRttKeysAlarmDelegate : public QuicAlarm::Delegate {
   QuicConnection* connection_;
 };
 
+class DiscardZeroRttDecryptionKeysAlarmDelegate : public QuicAlarm::Delegate {
+ public:
+  explicit DiscardZeroRttDecryptionKeysAlarmDelegate(QuicConnection* connection)
+      : connection_(connection) {}
+  DiscardZeroRttDecryptionKeysAlarmDelegate(
+      const DiscardZeroRttDecryptionKeysAlarmDelegate&) = delete;
+  DiscardZeroRttDecryptionKeysAlarmDelegate& operator=(
+      const DiscardZeroRttDecryptionKeysAlarmDelegate&) = delete;
+
+  void OnAlarm() override {
+    DCHECK(connection_->connected());
+    QUIC_DLOG(INFO) << "0-RTT discard alarm fired";
+    connection_->RemoveDecrypter(ENCRYPTION_ZERO_RTT);
+  }
+
+ private:
+  QuicConnection* connection_;
+};
+
 // When the clearer goes out of scope, the coalesced packet gets cleared.
 class ScopedCoalescedPacketClearer {
  public:
@@ -304,6 +323,9 @@ QuicConnection::QuicConnection(
           &arena_)),
       discard_previous_one_rtt_keys_alarm_(alarm_factory_->CreateAlarm(
           arena_.New<DiscardPreviousOneRttKeysAlarmDelegate>(this),
+          &arena_)),
+      discard_zero_rtt_decryption_keys_alarm_(alarm_factory_->CreateAlarm(
+          arena_.New<DiscardZeroRttDecryptionKeysAlarmDelegate>(this),
           &arena_)),
       visitor_(nullptr),
       debug_visitor_(nullptr),
@@ -427,6 +449,17 @@ QuicConnection::~QuicConnection() {
     delete writer_;
   }
   ClearQueuedPackets();
+  if (stats_
+          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter >
+      0) {
+    QUIC_CODE_COUNT_N(
+        quic_server_received_tls_zero_rtt_packet_after_discarding_decrypter, 2,
+        3);
+  } else {
+    QUIC_CODE_COUNT_N(
+        quic_server_received_tls_zero_rtt_packet_after_discarding_decrypter, 3,
+        3);
+  }
 }
 
 void QuicConnection::ClearQueuedPackets() {
@@ -1150,6 +1183,22 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
                                        EncryptionLevel level) {
   last_decrypted_packet_level_ = level;
   last_packet_decrypted_ = true;
+  if (level == ENCRYPTION_FORWARD_SECURE &&
+      !have_decrypted_first_one_rtt_packet_) {
+    have_decrypted_first_one_rtt_packet_ = true;
+    if (GetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys) &&
+        version().UsesTls() && perspective_ == Perspective::IS_SERVER) {
+      // Servers MAY temporarily retain 0-RTT keys to allow decrypting reordered
+      // packets without requiring their contents to be retransmitted with 1-RTT
+      // keys. After receiving a 1-RTT packet, servers MUST discard 0-RTT keys
+      // within a short time; the RECOMMENDED time period is three times the
+      // Probe Timeout.
+      // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-discarding-0-rtt-keys
+      QUIC_RESTART_FLAG_COUNT(quic_server_temporarily_retain_tls_zero_rtt_keys);
+      discard_zero_rtt_decryption_keys_alarm_->Set(
+          clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay() * 3);
+    }
+  }
   if (EnforceAntiAmplificationLimit() &&
       (last_decrypted_packet_level_ == ENCRYPTION_HANDSHAKE ||
        last_decrypted_packet_level_ == ENCRYPTION_FORWARD_SECURE)) {
@@ -2245,6 +2294,16 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       }
     }
+  }
+
+  if (version().UsesTls() && perspective_ == Perspective::IS_SERVER &&
+      decryption_level == ENCRYPTION_ZERO_RTT && !has_decryption_key &&
+      had_zero_rtt_decrypter_) {
+    QUIC_CODE_COUNT_N(
+        quic_server_received_tls_zero_rtt_packet_after_discarding_decrypter, 1,
+        3);
+    stats_
+        .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter++;
   }
 }
 
@@ -3689,6 +3748,9 @@ void QuicConnection::SetAlternativeDecrypter(
 void QuicConnection::InstallDecrypter(
     EncryptionLevel level,
     std::unique_ptr<QuicDecrypter> decrypter) {
+  if (level == ENCRYPTION_ZERO_RTT) {
+    had_zero_rtt_decrypter_ = true;
+  }
   framer_.InstallDecrypter(level, std::move(decrypter));
   if (!undecryptable_packets_.empty() &&
       !process_undecryptable_packets_alarm_->IsSet()) {
@@ -4048,6 +4110,7 @@ void QuicConnection::CancelAllAlarms() {
   mtu_discovery_alarm_->Cancel();
   process_undecryptable_packets_alarm_->Cancel();
   discard_previous_one_rtt_keys_alarm_->Cancel();
+  discard_zero_rtt_decryption_keys_alarm_->Cancel();
   blackhole_detector_.StopDetection();
   idle_network_detector_.StopDetection();
 }

@@ -178,6 +178,11 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // Counts the number of undecryptable packets received across all keys. Does
   // not include packets where a decryption key for that level was absent.
   QuicPacketCount num_failed_authentication_packets_received = 0;
+
+  // Counts the number of QUIC+TLS 0-RTT packets received after 0-RTT decrypter
+  // was discarded, only on server connections.
+  QuicPacketCount
+      num_tls_server_zero_rtt_packets_received_after_discarding_decrypter = 0;
 };
 
 }  // namespace quic

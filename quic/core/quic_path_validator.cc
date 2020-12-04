@@ -30,7 +30,7 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 QuicPathValidator::QuicPathValidator(QuicAlarmFactory* alarm_factory,
-                                     QuicOneBlockArena<1024>* arena,
+                                     QuicConnectionArena* arena,
                                      SendDelegate* send_delegate,
                                      QuicRandom* random)
     : send_delegate_(send_delegate),

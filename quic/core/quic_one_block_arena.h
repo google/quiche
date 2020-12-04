@@ -75,7 +75,7 @@ QuicArenaScopedPtr<T> QuicOneBlockArena<ArenaSize>::New(Args&&... args) {
 
 // QuicConnections currently use around 1KB of polymorphic types which would
 // ordinarily be on the heap. Instead, store them inline in an arena.
-using QuicConnectionArena = QuicOneBlockArena<1024>;
+using QuicConnectionArena = QuicOneBlockArena<1056>;
 
 }  // namespace quic
 

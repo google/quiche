@@ -1719,6 +1719,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // An alarm that fires to discard keys for the previous key phase some time
   // after a key update has completed.
   QuicArenaScopedPtr<QuicAlarm> discard_previous_one_rtt_keys_alarm_;
+  // An alarm that fires to discard 0-RTT decryption keys some time after the
+  // first 1-RTT packet has been decrypted. Only used on server connections with
+  // TLS handshaker.
+  QuicArenaScopedPtr<QuicAlarm> discard_zero_rtt_decryption_keys_alarm_;
   // Neither visitor is owned by this class.
   QuicConnectionVisitorInterface* visitor_;
   QuicConnectionDebugVisitor* debug_visitor_;
@@ -1955,6 +1959,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Indicate whether AckFrequency frame has been sent.
   bool ack_frequency_sent_ = false;
+
+  // True if a 0-RTT decrypter was or is installed at some point in the
+  // connection's lifetime.
+  bool had_zero_rtt_decrypter_ = false;
+
+  // True after the first 1-RTT packet has successfully decrypted.
+  bool have_decrypted_first_one_rtt_packet_ = false;
 
   const bool fix_missing_initial_keys_ =
       GetQuicReloadableFlag(quic_fix_missing_initial_keys2);

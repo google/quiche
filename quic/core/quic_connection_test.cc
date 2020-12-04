@@ -462,6 +462,11 @@ class TestConnection : public QuicConnection {
         QuicConnectionPeer::GetDiscardPreviousOneRttKeysAlarm(this));
   }
 
+  TestAlarmFactory::TestAlarm* GetDiscardZeroRttDecryptionKeysAlarm() {
+    return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
+        QuicConnectionPeer::GetDiscardZeroRttDecryptionKeysAlarm(this));
+  }
+
   TestAlarmFactory::TestAlarm* GetBlackholeDetectorAlarm() {
     return reinterpret_cast<TestAlarmFactory::TestAlarm*>(
         QuicConnectionPeer::GetBlackholeDetectorAlarm(this));
@@ -12877,6 +12882,102 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   } else {
     EXPECT_EQ(2u, writer_->ack_frames().size());
   }
+}
+
+TEST_P(QuicConnectionTest,
+       ServerReceivedZeroRttPacketAfterOneRttPacketWithoutRetainedKey) {
+  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, false);
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  set_perspective(Perspective::IS_SERVER);
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+
+  // Finish handshake.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  notifier_.NeuterUnencryptedData();
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+  // When quic_server_temporarily_retain_tls_zero_rtt_keys=false,
+  // TlsServerHandshaker::FinishHandshake will remove the ENCRYPTION_ZERO_RTT
+  // decrypter, simulate that here:
+  connection_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
+  EXPECT_EQ(
+      0u,
+      connection_.GetStats()
+          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(0);
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(
+      1u,
+      connection_.GetStats()
+          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
+}
+
+TEST_P(QuicConnectionTest,
+       ServerReceivedZeroRttPacketAfterOneRttPacketWithRetainedKey) {
+  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, true);
+  if (!connection_.version().UsesTls()) {
+    return;
+  }
+
+  set_perspective(Perspective::IS_SERVER);
+  SetDecrypter(ENCRYPTION_ZERO_RTT,
+               std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+
+  // Finish handshake.
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  notifier_.NeuterUnencryptedData();
+  connection_.NeuterUnencryptedPackets();
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(4, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
+
+  // 0-RTT packet received out of order should be decoded since the decrypter
+  // is temporarily retained.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(
+      0u,
+      connection_.GetStats()
+          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
+
+  // Simulate the timeout for discarding 0-RTT keys passing.
+  connection_.GetDiscardZeroRttDecryptionKeysAlarm()->Fire();
+
+  // Another 0-RTT packet received now should not be decoded.
+  EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(0);
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(
+      1u,
+      connection_.GetStats()
+          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
+
+  // The |discard_zero_rtt_decryption_keys_alarm_| should only be set on the
+  // first 1-RTT packet received.
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(5, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
 }
 
 }  // namespace
