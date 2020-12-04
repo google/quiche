@@ -261,11 +261,12 @@ class QUIC_NO_EXPORT QuicDispatcher
       QuicBufferedPacketStore::EnqueuePacketResult result,
       QuicConnectionId server_connection_id);
 
-  // Removes the session from the session map and write blocked list, and adds
-  // the ConnectionId to the time-wait list.
-  virtual void CleanUpSession(SessionMap::iterator it,
-                              QuicConnection* connection,
-                              ConnectionCloseSource source);
+  // Removes the session from the write blocked list, and adds the ConnectionId
+  // to the time-wait list.  The caller needs to manually remove the session
+  // from the map after that.
+  void CleanUpSession(QuicConnectionId server_connection_id,
+                      QuicConnection* connection,
+                      ConnectionCloseSource source);
 
   // Called to terminate a connection statelessly. Depending on |format|, either
   // 1) send connection close with |error_code| and |error_details| and add

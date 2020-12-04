@@ -738,7 +738,7 @@ QuicDispatcher::QuicPacketFate QuicDispatcher::ValidityChecks(
   return kFateProcess;
 }
 
-void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
+void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
                                     QuicConnection* connection,
                                     ConnectionCloseSource /*source*/) {
   write_blocked_list_.erase(connection);
@@ -770,18 +770,16 @@ void QuicDispatcher::CleanUpSession(SessionMap::iterator it,
           // |action| argument is not used by this call to
           // StatelesslyTerminateConnection().
           action);
-      session_map_.erase(it);
       return;
     }
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
   }
   time_wait_list_manager_->AddConnectionIdToTimeWait(
-      it->first, action,
+      server_connection_id, action,
       TimeWaitConnectionInfo(
           connection->version().HasIetfInvariantHeader(),
           connection->termination_packets(),
           connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
-  session_map_.erase(it);
 }
 
 void QuicDispatcher::StartAcceptingNewConnections() {
@@ -885,7 +883,8 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
     }
     closed_session_list_.push_back(std::move(it->second));
   }
-  CleanUpSession(it, connection, source);
+  CleanUpSession(it->first, connection, source);
+  session_map_.erase(it);
 }
 
 void QuicDispatcher::OnWriteBlocked(
