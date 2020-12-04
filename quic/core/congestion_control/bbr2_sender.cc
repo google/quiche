@@ -150,6 +150,11 @@ void Bbr2Sender::ApplyConnectionOptions(
     QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_use_bytes_delivered);
     params_.use_bytes_delivered_for_inflight_hi = true;
   }
+  if (GetQuicReloadableFlag(quic_bbr2_disable_reno_coexistence) &&
+      ContainsQuicTag(connection_options, kB2RC)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_disable_reno_coexistence);
+    params_.enable_reno_coexistence = false;
+  }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
   }

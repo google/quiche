@@ -432,6 +432,25 @@ TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2NE) {
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
+TEST_F(Bbr2DefaultTopologyTest, SimpleTransferB2RC) {
+  SetConnectionOption(kB2RC);
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  // Transfer 12MB.
+  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
+  EXPECT_TRUE(Bbr2ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
+
+  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
+                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
+
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+  // The margin here is high, because the aggregation greatly increases
+  // smoothed rtt.
+  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
+}
+
 TEST_F(Bbr2DefaultTopologyTest, SimpleTransferSmallBuffer) {
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;
@@ -1245,7 +1264,7 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     receiver_multiplexer_ =
         std::make_unique<simulator::QuicEndpointMultiplexer>(
             "Receiver multiplexer", receiver_endpoint_pointers);
-    sender_1_ = SetupBbr2Sender(sender_endpoints_[0].get());
+    sender_0_ = SetupBbr2Sender(sender_endpoints_[0].get());
   }
 
   ~Bbr2MultiSenderTest() {
@@ -1311,6 +1330,14 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
     return sender;
   }
 
+  void SetConnectionOption(SendAlgorithmInterface* sender, QuicTag option) {
+    QuicConfig config;
+    QuicTagVector options;
+    options.push_back(option);
+    QuicConfigPeer::SetReceivedConnectionOptions(&config, options);
+    sender->SetFromConfig(config, Perspective::IS_SERVER);
+  }
+
   void CreateNetwork(const MultiSenderTopologyParams& params) {
     QUIC_LOG(INFO) << "CreateNetwork with parameters: " << params.ToString();
     switch_ = std::make_unique<simulator::Switch>(&simulator_, "Switch",
@@ -1344,7 +1371,7 @@ class Bbr2MultiSenderTest : public Bbr2SimulatorTest {
   std::vector<std::unique_ptr<simulator::QuicEndpoint>> sender_endpoints_;
   std::vector<std::unique_ptr<simulator::QuicEndpoint>> receiver_endpoints_;
   std::unique_ptr<simulator::QuicEndpointMultiplexer> receiver_multiplexer_;
-  Bbr2Sender* sender_1_;
+  Bbr2Sender* sender_0_;
 
   std::unique_ptr<simulator::Switch> switch_;
   std::vector<std::unique_ptr<simulator::SymmetricLink>> network_links_;
@@ -1503,7 +1530,39 @@ TEST_F(Bbr2MultiSenderTest, QUIC_SLOW_TEST(Bbr2VsReno)) {
   MultiSenderTopologyParams params;
   CreateNetwork(params);
 
-  const QuicByteCount transfer_size = 50 * 1024 * 1024;
+  const QuicByteCount transfer_size = 10 * 1024 * 1024;
+  const QuicTime::Delta transfer_time =
+      params.BottleneckBandwidth().TransferTime(transfer_size);
+  QUIC_LOG(INFO) << "Single flow transfer time: " << transfer_time;
+
+  // Transfer 10% of data in first transfer.
+  sender_endpoints_[0]->AddBytesToTransfer(transfer_size);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() {
+        return receiver_endpoints_[0]->bytes_received() >= 0.1 * transfer_size;
+      },
+      transfer_time);
+  ASSERT_TRUE(simulator_result);
+
+  // Start the second transfer and wait until both finish.
+  sender_endpoints_[1]->AddBytesToTransfer(transfer_size);
+  simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() {
+        return receiver_endpoints_[0]->bytes_received() == transfer_size &&
+               receiver_endpoints_[1]->bytes_received() == transfer_size;
+      },
+      3 * transfer_time);
+  ASSERT_TRUE(simulator_result);
+}
+
+TEST_F(Bbr2MultiSenderTest, QUIC_SLOW_TEST(Bbr2VsRenoB2RC)) {
+  SetConnectionOption(sender_0_, kB2RC);
+  SetupTcpSender(sender_endpoints_[1].get(), /*reno=*/true);
+
+  MultiSenderTopologyParams params;
+  CreateNetwork(params);
+
+  const QuicByteCount transfer_size = 10 * 1024 * 1024;
   const QuicTime::Delta transfer_time =
       params.BottleneckBandwidth().TransferTime(transfer_size);
   QUIC_LOG(INFO) << "Single flow transfer time: " << transfer_time;

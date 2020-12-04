@@ -325,6 +325,10 @@ bool Bbr2ProbeBwMode::HasPhaseLasted(
 bool Bbr2ProbeBwMode::IsTimeToProbeForRenoCoexistence(
     double probe_wait_fraction,
     const Bbr2CongestionEvent& /*congestion_event*/) const {
+  if (!Params().enable_reno_coexistence) {
+    return false;
+  }
+
   uint64_t rounds = Params().probe_bw_probe_max_rounds;
   if (Params().probe_bw_probe_reno_gain > 0.0) {
     QuicByteCount target_bytes_inflight = sender_->GetTargetBytesInflight();

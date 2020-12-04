@@ -192,6 +192,9 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Can be enabled by connection option 'B2DL'.
   bool use_bytes_delivered_for_inflight_hi = false;
+
+  // Can be disabled by connection option 'B2RC'.
+  bool enable_reno_coexistence = true;
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {
