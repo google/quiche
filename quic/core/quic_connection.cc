@@ -2904,8 +2904,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       ++stats_.packets_discarded;
       return true;
     case COALESCE:
-      QUIC_BUG_IF(!version().CanSendCoalescedPackets());
-      QUIC_BUG_IF(fix_out_of_order_sending_ && coalescing_done_);
+      QUIC_BUG_IF(!version().CanSendCoalescedPackets() || coalescing_done_);
       if (!coalesced_packet_.MaybeCoalescePacket(
               *packet, self_address(), send_to_address,
               helper_->GetStreamSendBufferAllocator(),
@@ -2953,10 +2952,8 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       buffered_packets_.emplace_back(*packet, self_address(), send_to_address);
       break;
     case SEND_TO_WRITER:
-      if (fix_out_of_order_sending_ && !coalescing_done_) {
-        // Stop using coalsecer from now on.
-        coalescing_done_ = true;
-      }
+      // Stop using coalescer from now on.
+      coalescing_done_ = true;
       // At this point, packet->release_encrypted_buffer is either nullptr,
       // meaning |packet->encrypted_buffer| is a stack buffer, or not-nullptr,
       /// meaning it's a writer-allocated buffer. Note that connectivity probing
@@ -3403,16 +3400,9 @@ void QuicConnection::OnWriteError(int error_code) {
 }
 
 QuicPacketBuffer QuicConnection::GetPacketBuffer() {
-  if (fix_out_of_order_sending_) {
-    if (version().CanSendCoalescedPackets() && !coalescing_done_) {
-      // Do not use writer's packet buffer for coalesced packets which may
-      // contain
-      // multiple QUIC packets.
-      return {nullptr, nullptr};
-    }
-  } else if (version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
-    // Do not use writer's packet buffer for coalesced packets which may contain
-    // multiple QUIC packets.
+  if (version().CanSendCoalescedPackets() && !coalescing_done_) {
+    // Do not use writer's packet buffer for coalesced packets which may
+    // contain multiple QUIC packets.
     return {nullptr, nullptr};
   }
   return writer_->GetNextWriteLocation(self_address().host(), peer_address());
@@ -5291,13 +5281,10 @@ SerializedPacketFate QuicConnection::GetSerializedPacketFate(
       // packet (except MTU discovery packet).
       return COALESCE;
     }
-    if (fix_out_of_order_sending_) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fix_out_of_order_sending2);
-      if (coalesced_packet_.length() > 0) {
-        // If the coalescer is not empty, let this packet go through coalescer
-        // to avoid potential out of order sending.
-        return COALESCE;
-      }
+    if (coalesced_packet_.length() > 0) {
+      // If the coalescer is not empty, let this packet go through coalescer
+      // to avoid potential out of order sending.
+      return COALESCE;
     }
   }
   if (!buffered_packets_.empty() || HandleWriteBlocked()) {

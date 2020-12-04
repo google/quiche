@@ -1966,9 +1966,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool fix_missing_initial_keys_ =
       GetQuicReloadableFlag(quic_fix_missing_initial_keys2);
 
-  const bool fix_out_of_order_sending_ =
-      GetQuicReloadableFlag(quic_fix_out_of_order_sending2);
-
   const bool encrypted_control_frames_;
 
   const bool use_encryption_level_context_;
