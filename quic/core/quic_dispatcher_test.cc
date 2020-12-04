@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/chlo_extractor.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -37,7 +38,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_time_wait_list_manager_peer.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
@@ -2186,9 +2186,8 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   QuicBufferedPacketStorePeer::set_clock(store, mock_helper_.GetClock());
 
   QuicConnectionId conn_id = TestConnectionId(1);
-  ProcessPacket(client_addr_, conn_id, true,
-                quiche::QuicheStrCat("data packet ", 2), CONNECTION_ID_PRESENT,
-                PACKET_4BYTE_PACKET_NUMBER,
+  ProcessPacket(client_addr_, conn_id, true, absl::StrCat("data packet ", 2),
+                CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER,
                 /*packet_number=*/2);
 
   mock_helper_.AdvanceTime(

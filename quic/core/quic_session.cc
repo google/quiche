@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
@@ -24,7 +25,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::SpdyPriority;
 
@@ -691,7 +691,7 @@ bool QuicSession::WillingAndAbleToWrite() const {
 }
 
 std::string QuicSession::GetStreamsInfoForLogging() const {
-  std::string info = quiche::QuicheStrCat(
+  std::string info = absl::StrCat(
       "num_active_streams: ", GetNumActiveStreams(),
       ", num_pending_streams: ", pending_streams_size(),
       ", num_outgoing_draining_streams: ", num_outgoing_draining_streams(),
@@ -705,8 +705,8 @@ std::string QuicSession::GetStreamsInfoForLogging() const {
     // Calculate the stream creation delay.
     const QuicTime::Delta delay =
         connection_->clock()->ApproximateNow() - it.second->creation_time();
-    info = quiche::QuicheStrCat(
-        info, "{", it.second->id(), ":", delay.ToDebuggingValue(), ";",
+    absl::StrAppend(
+        &info, "{", it.second->id(), ":", delay.ToDebuggingValue(), ";",
         it.second->stream_bytes_written(), ",", it.second->fin_sent(), ",",
         it.second->HasBufferedData(), ",", it.second->fin_buffered(), ";",
         it.second->stream_bytes_read(), ",", it.second->fin_received(), "}");
@@ -796,7 +796,7 @@ size_t QuicSession::SendCryptoData(EncryptionLevel level,
                                    TransmissionType type) {
   DCHECK(QuicVersionUsesCryptoFrames(transport_version()));
   if (!connection()->framer().HasEncrypterOfEncryptionLevel(level)) {
-    const std::string error_details = quiche::QuicheStrCat(
+    const std::string error_details = absl::StrCat(
         "Try to send crypto data with missing keys of encryption level: ",
         EncryptionLevelToString(level));
     QUIC_BUG << ENDPOINT << error_details;
@@ -1139,7 +1139,7 @@ void QuicSession::OnConfigNegotiated() {
             ietf_streamid_manager_.outgoing_bidirectional_stream_count()) {
       connection_->CloseConnection(
           QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               "Server rejected 0-RTT, aborting because new bidirectional "
               "initial stream limit ",
               max_streams, " is less than current open streams: ",
@@ -1156,7 +1156,7 @@ void QuicSession::OnConfigNegotiated() {
       connection_->CloseConnection(
           was_zero_rtt_rejected_ ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
                                  : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               was_zero_rtt_rejected_
                   ? "Server rejected 0-RTT, aborting because "
                   : "",
@@ -1181,7 +1181,7 @@ void QuicSession::OnConfigNegotiated() {
             ietf_streamid_manager_.outgoing_unidirectional_stream_count()) {
       connection_->CloseConnection(
           QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               "Server rejected 0-RTT, aborting because new unidirectional "
               "initial stream limit ",
               max_streams, " is less than current open streams: ",
@@ -1195,7 +1195,7 @@ void QuicSession::OnConfigNegotiated() {
       connection_->CloseConnection(
           was_zero_rtt_rejected_ ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
                                  : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               was_zero_rtt_rejected_
                   ? "Server rejected 0-RTT, aborting because "
                   : "",
@@ -1223,7 +1223,7 @@ void QuicSession::OnConfigNegotiated() {
         max_streams < stream_id_manager_.num_open_outgoing_streams()) {
       connection_->CloseConnection(
           QUIC_INTERNAL_ERROR,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               "Server rejected 0-RTT, aborting because new stream limit ",
               max_streams, " is less than current open streams: ",
               stream_id_manager_.num_open_outgoing_streams()),
@@ -1526,7 +1526,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   QUIC_DVLOG(1) << ENDPOINT << "OnNewSessionFlowControlWindow " << new_window;
 
   if (was_zero_rtt_rejected_ && new_window < flow_controller_.bytes_sent()) {
-    std::string error_details = quiche::QuicheStrCat(
+    std::string error_details = absl::StrCat(
         "Server rejected 0-RTT. Aborting because the client received session "
         "flow control send window: ",
         new_window,
@@ -1539,7 +1539,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
   }
   if (!connection_->version().AllowsLowFlowControlLimits() &&
       new_window < kMinimumFlowControlSendWindow) {
-    std::string error_details = quiche::QuicheStrCat(
+    std::string error_details = absl::StrCat(
         "Peer sent us an invalid session flow control send window: ",
         new_window, ", below minimum: ", kMinimumFlowControlSendWindow);
     QUIC_LOG_FIRST_N(ERROR, 1) << error_details;
@@ -1552,7 +1552,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
       new_window < flow_controller_.send_window_offset()) {
     // The client receives a lower limit than remembered, violating
     // https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-7.3.1
-    std::string error_details = quiche::QuicheStrCat(
+    std::string error_details = absl::StrCat(
         was_zero_rtt_rejected_ ? "Server rejected 0-RTT, aborting because "
                                : "",
         "new session max data ", new_window,
@@ -1943,8 +1943,8 @@ bool QuicSession::MaybeIncreaseLargestPeerStreamId(
   if (!stream_id_manager_.MaybeIncreaseLargestPeerStreamId(stream_id)) {
     connection()->CloseConnection(
         QUIC_TOO_MANY_AVAILABLE_STREAMS,
-        quiche::QuicheStrCat(stream_id, " exceeds available streams ",
-                             stream_id_manager_.MaxAvailableStreams()),
+        absl::StrCat(stream_id, " exceeds available streams ",
+                     stream_id_manager_.MaxAvailableStreams()),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }

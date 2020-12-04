@@ -8,6 +8,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_tag.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 
@@ -484,8 +484,8 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
     RETURN_STRING_LITERAL(QUIC_VERSION_UNSUPPORTED);
     RETURN_STRING_LITERAL(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
-  return quiche::QuicheStrCat("QUIC_VERSION_UNKNOWN(",
-                              static_cast<int>(transport_version), ")");
+  return absl::StrCat("QUIC_VERSION_UNKNOWN(",
+                      static_cast<int>(transport_version), ")");
 }
 
 std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
@@ -494,8 +494,8 @@ std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
     RETURN_STRING_LITERAL(PROTOCOL_QUIC_CRYPTO);
     RETURN_STRING_LITERAL(PROTOCOL_TLS1_3);
   }
-  return quiche::QuicheStrCat("PROTOCOL_UNKNOWN(",
-                              static_cast<int>(handshake_protocol), ")");
+  return absl::StrCat("PROTOCOL_UNKNOWN(", static_cast<int>(handshake_protocol),
+                      ")");
 }
 
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {

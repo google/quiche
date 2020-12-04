@@ -11,12 +11,12 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_sequencer_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -163,7 +163,7 @@ TEST_F(QuicStreamSequencerBufferTest, OnStreamDataInvalidSource) {
   source = absl::string_view(nullptr, 1024);
   EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
               IsError(QUIC_STREAM_SEQUENCER_INVALID_STATE));
-  EXPECT_EQ(0u, error_details_.find(quiche::QuicheStrCat(
+  EXPECT_EQ(0u, error_details_.find(absl::StrCat(
                     "QuicStreamSequencerBuffer error: OnStreamData() "
                     "dest == nullptr: ",
                     false, " source == nullptr: ", true)));

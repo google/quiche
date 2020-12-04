@@ -5,10 +5,10 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/strings/str_cat.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -269,15 +269,15 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
 
 std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
   if (static_cast<uint64_t>(c) >= 0xff00u) {
-    return quiche::QuicheStrCat("Private(", static_cast<uint64_t>(c), ")");
+    return absl::StrCat("Private(", static_cast<uint64_t>(c), ")");
   }
   if (c >= CRYPTO_ERROR_FIRST && c <= CRYPTO_ERROR_LAST) {
     const int tls_error = static_cast<int>(c - CRYPTO_ERROR_FIRST);
     const char* tls_error_description = SSL_alert_desc_string_long(tls_error);
     if (strcmp("unknown", tls_error_description) != 0) {
-      return quiche::QuicheStrCat("CRYPTO_ERROR(", tls_error_description, ")");
+      return absl::StrCat("CRYPTO_ERROR(", tls_error_description, ")");
     }
-    return quiche::QuicheStrCat("CRYPTO_ERROR(unknown(", tls_error, "))");
+    return absl::StrCat("CRYPTO_ERROR(unknown(", tls_error, "))");
   }
 
   switch (c) {
@@ -304,7 +304,7 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
       break;
   }
 
-  return quiche::QuicheStrCat("Unknown(", static_cast<uint64_t>(c), ")");
+  return absl::StrCat("Unknown(", static_cast<uint64_t>(c), ")");
 }
 
 std::ostream& operator<<(std::ostream& os,

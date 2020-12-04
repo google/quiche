@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
@@ -39,7 +40,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::kV3HighestPriority;
 using spdy::SpdyPriority;
@@ -940,8 +940,8 @@ TEST_P(QuicSessionTestServer, DebugDFatalIfMarkingClosedStreamWriteBlocked) {
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(closed_stream_id, _));
   stream2->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
-  std::string msg = quiche::QuicheStrCat("Marking unknown stream ",
-                                         closed_stream_id, " blocked.");
+  std::string msg =
+      absl::StrCat("Marking unknown stream ", closed_stream_id, " blocked.");
   EXPECT_QUIC_BUG(session_.MarkConnectionLevelWriteBlocked(closed_stream_id),
                   msg);
 }

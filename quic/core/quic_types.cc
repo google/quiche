@@ -6,8 +6,8 @@
 
 #include <cstdint>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -24,7 +24,7 @@ std::string PerspectiveToString(Perspective perspective) {
   if (perspective == Perspective::IS_CLIENT) {
     return "IS_CLIENT";
   }
-  return quiche::QuicheStrCat("Unknown(", static_cast<int>(perspective), ")");
+  return absl::StrCat("Unknown(", static_cast<int>(perspective), ")");
 }
 
 std::ostream& operator<<(std::ostream& os, const Perspective& perspective) {
@@ -40,8 +40,8 @@ std::string ConnectionCloseSourceToString(
   if (connection_close_source == ConnectionCloseSource::FROM_SELF) {
     return "FROM_SELF";
   }
-  return quiche::QuicheStrCat("Unknown(",
-                              static_cast<int>(connection_close_source), ")");
+  return absl::StrCat("Unknown(", static_cast<int>(connection_close_source),
+                      ")");
 }
 
 std::ostream& operator<<(std::ostream& os,
@@ -59,8 +59,8 @@ std::string ConnectionCloseBehaviorToString(
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET) {
     return "SEND_CONNECTION_CLOSE_PACKET";
   }
-  return quiche::QuicheStrCat("Unknown(",
-                              static_cast<int>(connection_close_behavior), ")");
+  return absl::StrCat("Unknown(", static_cast<int>(connection_close_behavior),
+                      ")");
 }
 
 std::ostream& operator<<(
@@ -155,7 +155,7 @@ std::string QuicFrameTypeToString(QuicFrameType t) {
     RETURN_STRING_LITERAL(ACK_FREQUENCY_FRAME)
     RETURN_STRING_LITERAL(NUM_FRAME_TYPES)
   }
-  return quiche::QuicheStrCat("Unknown(", static_cast<int>(t), ")");
+  return absl::StrCat("Unknown(", static_cast<int>(t), ")");
 }
 
 std::ostream& operator<<(std::ostream& os, const QuicFrameType& t) {
@@ -196,7 +196,7 @@ std::string QuicIetfFrameTypeString(QuicIetfFrameType t) {
     RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_NO_LENGTH_V99);
     RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_V99);
     default:
-      return quiche::QuicheStrCat("Private value (", t, ")");
+      return absl::StrCat("Private value (", t, ")");
   }
 }
 std::ostream& operator<<(std::ostream& os, const QuicIetfFrameType& c) {
@@ -219,8 +219,7 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
       if (transmission_type == LAST_TRANSMISSION_TYPE + 1) {
         return "INVALID_TRANSMISSION_TYPE";
       }
-      return quiche::QuicheStrCat("Unknown(",
-                                  static_cast<int>(transmission_type), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(transmission_type), ")");
       break;
   }
 }
@@ -236,7 +235,7 @@ std::string PacketHeaderFormatToString(PacketHeaderFormat format) {
     RETURN_STRING_LITERAL(IETF_QUIC_SHORT_HEADER_PACKET);
     RETURN_STRING_LITERAL(GOOGLE_QUIC_PACKET);
     default:
-      return quiche::QuicheStrCat("Unknown (", static_cast<int>(format), ")");
+      return absl::StrCat("Unknown (", static_cast<int>(format), ")");
   }
 }
 
@@ -249,7 +248,7 @@ std::string QuicLongHeaderTypeToString(QuicLongHeaderType type) {
     RETURN_STRING_LITERAL(RETRY);
     RETURN_STRING_LITERAL(INVALID_PACKET_TYPE);
     default:
-      return quiche::QuicheStrCat("Unknown (", static_cast<int>(type), ")");
+      return absl::StrCat("Unknown (", static_cast<int>(type), ")");
   }
 }
 
@@ -262,19 +261,17 @@ std::string MessageStatusToString(MessageStatus message_status) {
     RETURN_STRING_LITERAL(MESSAGE_STATUS_TOO_LARGE);
     RETURN_STRING_LITERAL(MESSAGE_STATUS_INTERNAL_ERROR);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<int>(message_status),
-                                  ")");
+      return absl::StrCat("Unknown(", static_cast<int>(message_status), ")");
       break;
   }
 }
 
 std::string MessageResultToString(MessageResult message_result) {
   if (message_result.status != MESSAGE_STATUS_SUCCESS) {
-    return quiche::QuicheStrCat(
-        "{", MessageStatusToString(message_result.status), "}");
+    return absl::StrCat("{", MessageStatusToString(message_result.status), "}");
   }
-  return quiche::QuicheStrCat(
-      "{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id, "}");
+  return absl::StrCat("{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id,
+                      "}");
 }
 
 std::ostream& operator<<(std::ostream& os, const MessageResult& mr) {
@@ -288,8 +285,8 @@ std::string PacketNumberSpaceToString(PacketNumberSpace packet_number_space) {
     RETURN_STRING_LITERAL(HANDSHAKE_DATA);
     RETURN_STRING_LITERAL(APPLICATION_DATA);
     default:
-      return quiche::QuicheStrCat("Unknown(",
-                                  static_cast<int>(packet_number_space), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(packet_number_space),
+                          ")");
       break;
   }
 }
@@ -301,7 +298,7 @@ std::string SerializedPacketFateToString(SerializedPacketFate fate) {
     RETURN_STRING_LITERAL(SEND_TO_WRITER);
     RETURN_STRING_LITERAL(LEGACY_VERSION_ENCAPSULATE);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<int>(fate), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(fate), ")");
   }
 }
 
@@ -317,7 +314,7 @@ std::string EncryptionLevelToString(EncryptionLevel level) {
     RETURN_STRING_LITERAL(ENCRYPTION_ZERO_RTT);
     RETURN_STRING_LITERAL(ENCRYPTION_FORWARD_SECURE);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<int>(level), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(level), ")");
       break;
   }
 }
@@ -333,7 +330,7 @@ std::string QuicConnectionCloseTypeString(QuicConnectionCloseType type) {
     RETURN_STRING_LITERAL(IETF_QUIC_TRANSPORT_CONNECTION_CLOSE);
     RETURN_STRING_LITERAL(IETF_QUIC_APPLICATION_CONNECTION_CLOSE);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<int>(type), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(type), ")");
       break;
   }
 }
@@ -354,7 +351,7 @@ std::string AddressChangeTypeToString(AddressChangeType type) {
     RETURN_STRING_LITERAL(IPV6_TO_IPV4_CHANGE);
     RETURN_STRING_LITERAL(IPV6_TO_IPV6_CHANGE);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<IntType>(type), ")");
+      return absl::StrCat("Unknown(", static_cast<IntType>(type), ")");
   }
 }
 
@@ -375,7 +372,7 @@ std::string KeyUpdateReasonString(KeyUpdateReason reason) {
     RETURN_REASON_LITERAL(kLocalAeadConfidentialityLimit);
     RETURN_REASON_LITERAL(kLocalKeyUpdateLimitOverride);
     default:
-      return quiche::QuicheStrCat("Unknown(", static_cast<int>(reason), ")");
+      return absl::StrCat("Unknown(", static_cast<int>(reason), ")");
       break;
   }
 #undef RETURN_REASON_LITERAL

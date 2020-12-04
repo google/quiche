@@ -9,13 +9,13 @@
 #include <cstdint>
 #include <deque>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
 #include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -318,7 +318,7 @@ class QUIC_EXPORT_PRIVATE QuicUnackedPacketMap {
   }
 
   std::string DebugString() const {
-    return quiche::QuicheStrCat(
+    return absl::StrCat(
         "{size: ", unacked_packets_size(),
         ", least_unacked: ", least_unacked_.ToString(),
         ", largest_sent_packet: ", largest_sent_packet_.ToString(),

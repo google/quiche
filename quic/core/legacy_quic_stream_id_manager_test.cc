@@ -6,13 +6,13 @@
 
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace test {
@@ -31,7 +31,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(p.version),
       (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"));
 }

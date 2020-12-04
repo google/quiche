@@ -13,6 +13,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
@@ -31,7 +32,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -1899,8 +1899,8 @@ bool QuicPacketCreator::AttemptingToSendUnencryptedStreamData() {
     return false;
   }
   const std::string error_details =
-      quiche::QuicheStrCat("Cannot send stream data with level: ",
-                           EncryptionLevelToString(packet_.encryption_level));
+      absl::StrCat("Cannot send stream data with level: ",
+                   EncryptionLevelToString(packet_.encryption_level));
   QUIC_BUG << error_details;
   delegate_->OnUnrecoverableError(QUIC_ATTEMPT_TO_SEND_UNENCRYPTED_STREAM_DATA,
                                   error_details);

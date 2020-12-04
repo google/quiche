@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_interval.h"
@@ -16,7 +17,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace {
@@ -225,7 +225,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
     }
 
     if (write_block_num >= current_blocks_count) {
-      *error_details = quiche::QuicheStrCat(
+      *error_details = absl::StrCat(
           "QuicStreamSequencerBuffer error: OnStreamData() exceed array bounds."
           "write offset = ",
           offset, " write_block_num = ", write_block_num,
@@ -250,7 +250,7 @@ bool QuicStreamSequencerBuffer::CopyStreamData(QuicStreamOffset offset,
                   << " length: " << bytes_to_copy;
 
     if (dest == nullptr || source == nullptr) {
-      *error_details = quiche::QuicheStrCat(
+      *error_details = absl::StrCat(
           "QuicStreamSequencerBuffer error: OnStreamData()"
           " dest == nullptr: ",
           (dest == nullptr), " source == nullptr: ", (source == nullptr),
@@ -287,7 +287,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
           std::min<size_t>(bytes_available_in_block, dest_remaining);
       DCHECK_GT(bytes_to_copy, 0u);
       if (blocks_[block_idx] == nullptr || dest == nullptr) {
-        *error_details = quiche::QuicheStrCat(
+        *error_details = absl::StrCat(
             "QuicStreamSequencerBuffer error:"
             " Readv() dest == nullptr: ",
             (dest == nullptr), " blocks_[", block_idx,
@@ -311,7 +311,7 @@ QuicErrorCode QuicStreamSequencerBuffer::Readv(const iovec* dest_iov,
       if (bytes_to_copy == bytes_available_in_block) {
         bool retire_successfully = RetireBlockIfEmpty(block_idx);
         if (!retire_successfully) {
-          *error_details = quiche::QuicheStrCat(
+          *error_details = absl::StrCat(
               "QuicStreamSequencerBuffer error: fail to retire block ",
               block_idx,
               " as the block is already released, total_bytes_read_ = ",

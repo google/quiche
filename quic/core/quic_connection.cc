@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
@@ -44,7 +45,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -480,7 +480,7 @@ bool QuicConnection::ValidateConfigConnectionIdsOld(const QuicConfig& config) {
       } else {
         received_value = "none";
       }
-      std::string error_details = quiche::QuicheStrCat(
+      std::string error_details = absl::StrCat(
           "Bad original_connection_id: expected ",
           original_destination_connection_id_.value().ToString(), ", received ",
           received_value, ", RETRY used ", server_connection_id_.ToString());
@@ -492,7 +492,7 @@ bool QuicConnection::ValidateConfigConnectionIdsOld(const QuicConfig& config) {
     // We did not receive a RETRY packet, make sure we did not receive the
     // original_destination_connection_id transport parameter.
     if (config.HasReceivedOriginalConnectionId()) {
-      std::string error_details = quiche::QuicheStrCat(
+      std::string error_details = absl::StrCat(
           "Bad original_connection_id: did not receive RETRY but received ",
           config.ReceivedOriginalConnectionId().ToString());
       CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
@@ -532,9 +532,9 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
       received_value = "none";
     }
     std::string error_details =
-        quiche::QuicheStrCat("Bad initial_source_connection_id: expected ",
-                             expected_initial_source_connection_id.ToString(),
-                             ", received ", received_value);
+        absl::StrCat("Bad initial_source_connection_id: expected ",
+                     expected_initial_source_connection_id.ToString(),
+                     ", received ", received_value);
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
@@ -550,10 +550,10 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
       } else {
         received_value = "none";
       }
-      std::string error_details = quiche::QuicheStrCat(
-          "Bad original_destination_connection_id: expected ",
-          GetOriginalDestinationConnectionId().ToString(), ", received ",
-          received_value);
+      std::string error_details =
+          absl::StrCat("Bad original_destination_connection_id: expected ",
+                       GetOriginalDestinationConnectionId().ToString(),
+                       ", received ", received_value);
       CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       return false;
@@ -572,9 +572,9 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
           received_value = "none";
         }
         std::string error_details =
-            quiche::QuicheStrCat("Bad retry_source_connection_id: expected ",
-                                 retry_source_connection_id_.value().ToString(),
-                                 ", received ", received_value);
+            absl::StrCat("Bad retry_source_connection_id: expected ",
+                         retry_source_connection_id_.value().ToString(),
+                         ", received ", received_value);
         CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION, error_details,
                         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
         return false;
@@ -583,7 +583,7 @@ bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
       // We did not receive a RETRY packet, make sure we did not receive the
       // retry_source_connection_id transport parameter.
       if (config.HasReceivedRetrySourceConnectionId()) {
-        std::string error_details = quiche::QuicheStrCat(
+        std::string error_details = absl::StrCat(
             "Bad retry_source_connection_id: did not receive RETRY but "
             "received ",
             config.ReceivedRetrySourceConnectionId().ToString());
@@ -939,7 +939,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   }
 
   if (QuicContainsValue(packet.versions, version())) {
-    const std::string error_details = quiche::QuicheStrCat(
+    const std::string error_details = absl::StrCat(
         "Server already supports client's version ",
         ParsedQuicVersionToString(version()),
         " and should have accepted the connection instead of sending {",
@@ -953,7 +953,7 @@ void QuicConnection::OnVersionNegotiationPacket(
   server_supported_versions_ = packet.versions;
   CloseConnection(
       QUIC_INVALID_VERSION,
-      quiche::QuicheStrCat(
+      absl::StrCat(
           "Client may support one of the versions in the server's list, but "
           "it's going to close the connection anyway. Supported versions: {",
           ParsedQuicVersionVectorToString(framer_.supported_versions()),
@@ -2039,12 +2039,12 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
           sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_) {
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
-        quiche::QuicheStrCat(
-            "More than ", max_tracked_packets_, " outstanding, least_unacked: ",
-            sent_packet_manager_.GetLeastUnacked().ToUint64(),
-            ", packets_processed: ", stats_.packets_processed,
-            ", last_decrypted_packet_level: ",
-            EncryptionLevelToString(last_decrypted_packet_level_)),
+        absl::StrCat("More than ", max_tracked_packets_,
+                     " outstanding, least_unacked: ",
+                     sent_packet_manager_.GetLeastUnacked().ToUint64(),
+                     ", packets_processed: ", stats_.packets_processed,
+                     ", last_decrypted_packet_level: ",
+                     EncryptionLevelToString(last_decrypted_packet_level_)),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
 }
@@ -2280,7 +2280,7 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
                     << " integrity_limit=" << integrity_limit;
       if (stats_.num_failed_authentication_packets_received >=
           integrity_limit) {
-        const std::string error_details = quiche::QuicheStrCat(
+        const std::string error_details = absl::StrCat(
             "decrypter integrity limit reached:"
             " num_failed_authentication_packets_received=",
             stats_.num_failed_authentication_packets_received,
@@ -2328,14 +2328,14 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
 }
 
 std::string QuicConnection::UndecryptablePacketsInfo() const {
-  std::string info = quiche::QuicheStrCat(
+  std::string info = absl::StrCat(
       "num_undecryptable_packets: ", undecryptable_packets_.size(), " {");
   for (const auto& packet : undecryptable_packets_) {
-    info = quiche::QuicheStrCat(
-        info, "[", EncryptionLevelToString(packet.encryption_level), ", ",
-        packet.packet->length(), ", ", packet.processed, "]");
+    absl::StrAppend(&info, "[",
+                    EncryptionLevelToString(packet.encryption_level), ", ",
+                    packet.packet->length(), ", ", packet.processed, "]");
   }
-  info = quiche::QuicheStrCat(info, "}");
+  absl::StrAppend(&info, "}");
   return info;
 }
 
@@ -3208,10 +3208,10 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
   // sparse, so this might overcount, but doing a key update earlier than
   // necessary would only improve security and has negligible cost.
   if (packet.packet_number < lowest_packet_sent_in_current_key_phase_) {
-    const std::string error_details = quiche::QuicheStrCat(
-        "packet_number(", packet.packet_number.ToString(),
-        ") < lowest_packet_sent_in_current_key_phase_ (",
-        lowest_packet_sent_in_current_key_phase_.ToString(), ")");
+    const std::string error_details =
+        absl::StrCat("packet_number(", packet.packet_number.ToString(),
+                     ") < lowest_packet_sent_in_current_key_phase_ (",
+                     lowest_packet_sent_in_current_key_phase_.ToString(), ")");
     QUIC_BUG << error_details;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -3250,7 +3250,7 @@ bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
   if (num_packets_encrypted_in_current_key_phase >= confidentiality_limit) {
     // Reached the confidentiality limit without initiating a key update,
     // must close the connection.
-    const std::string error_details = quiche::QuicheStrCat(
+    const std::string error_details = absl::StrCat(
         "encrypter confidentiality limit reached: "
         "num_packets_encrypted_in_current_key_phase=",
         num_packets_encrypted_in_current_key_phase,
@@ -3381,7 +3381,7 @@ void QuicConnection::OnWriteError(int error_code) {
   }
   write_error_occurred_ = true;
 
-  const std::string error_details = quiche::QuicheStrCat(
+  const std::string error_details = absl::StrCat(
       "Write failed with error: ", error_code, " (", strerror(error_code), ")");
   QUIC_LOG_FIRST_N(ERROR, 2) << ENDPOINT << error_details;
   switch (error_code) {
@@ -5375,13 +5375,12 @@ void QuicConnection::OnPathMtuReductionDetected() {
 void QuicConnection::OnHandshakeTimeout() {
   const QuicTime::Delta duration =
       clock_->ApproximateNow() - stats_.connection_creation_time;
-  std::string error_details = quiche::QuicheStrCat(
+  std::string error_details = absl::StrCat(
       "Handshake timeout expired after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.handshake_timeout().ToDebuggingValue());
   if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
-    error_details =
-        quiche::QuicheStrCat(error_details, UndecryptablePacketsInfo());
+    absl::StrAppend(&error_details, UndecryptablePacketsInfo());
   }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
   CloseConnection(QUIC_HANDSHAKE_TIMEOUT, error_details,
@@ -5392,7 +5391,7 @@ void QuicConnection::OnIdleNetworkDetected() {
   const QuicTime::Delta duration =
       clock_->ApproximateNow() -
       idle_network_detector_.last_network_activity_time();
-  std::string error_details = quiche::QuicheStrCat(
+  std::string error_details = absl::StrCat(
       "No recent network activity after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.idle_network_timeout().ToDebuggingValue());
@@ -5406,8 +5405,8 @@ void QuicConnection::OnIdleNetworkDetected() {
         !has_consecutive_pto) {
       // Include stream information in error detail if there are open streams.
       QUIC_RELOADABLE_FLAG_COUNT(quic_add_stream_info_to_idle_close_detail);
-      error_details = quiche::QuicheStrCat(
-          error_details, ", ", visitor_->GetStreamsInfoForLogging());
+      absl::StrAppend(&error_details, ", ",
+                      visitor_->GetStreamsInfoForLogging());
     }
     CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);

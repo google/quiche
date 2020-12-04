@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -50,7 +50,7 @@ bool QuicStreamIdManager::OnStreamsBlockedFrame(
   DCHECK_EQ(frame.unidirectional, unidirectional_);
   if (frame.stream_count > incoming_advertised_max_streams_) {
     // Peer thinks it can send more streams that we've told it.
-    *error_details = quiche::QuicheStrCat(
+    *error_details = absl::StrCat(
         "StreamsBlockedFrame's stream count ", frame.stream_count,
         " exceeds incoming max stream ", incoming_advertised_max_streams_);
     return false;
@@ -89,10 +89,10 @@ void QuicStreamIdManager::SetMaxOpenIncomingStreams(
       << "non-zero incoming stream count " << incoming_stream_count_
       << " when setting max incoming stream to " << max_open_streams;
   QUIC_DLOG_IF(WARNING, incoming_initial_max_open_streams_ != max_open_streams)
-      << quiche::QuicheStrCat(
-             unidirectional_ ? "unidirectional " : "bidirectional: ",
-             "incoming stream limit changed from ",
-             incoming_initial_max_open_streams_, " to ", max_open_streams);
+      << absl::StrCat(unidirectional_ ? "unidirectional " : "bidirectional: ",
+                      "incoming stream limit changed from ",
+                      incoming_initial_max_open_streams_, " to ",
+                      max_open_streams);
   incoming_actual_max_streams_ = max_open_streams;
   incoming_advertised_max_streams_ = max_open_streams;
   incoming_initial_max_open_streams_ = max_open_streams;
@@ -186,9 +186,9 @@ bool QuicStreamIdManager::MaybeIncreaseLargestPeerStreamId(
                     << "Failed to create a new incoming stream with id:"
                     << stream_id << ", reaching MAX_STREAMS limit: "
                     << incoming_advertised_max_streams_ << ".";
-    *error_details = quiche::QuicheStrCat("Stream id ", stream_id,
-                                          " would exceed stream count limit ",
-                                          incoming_advertised_max_streams_);
+    *error_details = absl::StrCat("Stream id ", stream_id,
+                                  " would exceed stream count limit ",
+                                  incoming_advertised_max_streams_);
     return false;
   }
 

@@ -747,8 +747,8 @@ TEST_P(QuicStreamTest, StreamTooLong) {
   QuicStreamFrame stream_frame(stream_->id(), false, kMaxStreamLength, ".");
   EXPECT_QUIC_PEER_BUG(
       stream_->OnStreamFrame(stream_frame),
-      quiche::QuicheStrCat("Receive stream frame on stream ", stream_->id(),
-                           " reaches max stream length"));
+      absl::StrCat("Receive stream frame on stream ", stream_->id(),
+                   " reaches max stream length"));
 }
 
 TEST_P(QuicStreamTest, SetDrainingIncomingOutgoing) {

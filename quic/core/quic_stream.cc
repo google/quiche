@@ -7,6 +7,7 @@
 #include <limits>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -18,7 +19,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using spdy::SpdyPriority;
 
@@ -176,7 +176,7 @@ void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
     OnUnrecoverableError(
         QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
-        quiche::QuicheStrCat(
+        absl::StrCat(
             "Stream ", id_,
             " received data with offset: ", frame.offset + frame.data_length,
             ", which is beyond close offset: ", sequencer()->close_offset()));
@@ -224,10 +224,10 @@ void PendingStream::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
       frame.byte_offset != sequencer()->close_offset()) {
     OnUnrecoverableError(
         QUIC_STREAM_MULTIPLE_OFFSET,
-        quiche::QuicheStrCat("Stream ", id_,
-                             " received new final offset: ", frame.byte_offset,
-                             ", which is different from close offset: ",
-                             sequencer()->close_offset()));
+        absl::StrCat("Stream ", id_,
+                     " received new final offset: ", frame.byte_offset,
+                     ", which is different from close offset: ",
+                     sequencer()->close_offset()));
     return;
   }
 
@@ -419,17 +419,16 @@ void QuicStream::OnStreamFrame(const QuicStreamFrame& frame) {
                   << sequencer_.DebugString();
     OnUnrecoverableError(
         QUIC_STREAM_LENGTH_OVERFLOW,
-        quiche::QuicheStrCat("Peer sends more data than allowed on stream ",
-                             id_, ". frame: offset = ", frame.offset,
-                             ", length = ", frame.data_length, ". ",
-                             sequencer_.DebugString()));
+        absl::StrCat("Peer sends more data than allowed on stream ", id_,
+                     ". frame: offset = ", frame.offset, ", length = ",
+                     frame.data_length, ". ", sequencer_.DebugString()));
     return;
   }
 
   if (frame.offset + frame.data_length > sequencer_.close_offset()) {
     OnUnrecoverableError(
         QUIC_STREAM_DATA_BEYOND_CLOSE_OFFSET,
-        quiche::QuicheStrCat(
+        absl::StrCat(
             "Stream ", id_,
             " received data with offset: ", frame.offset + frame.data_length,
             ", which is beyond close offset: ", sequencer_.close_offset()));
@@ -533,10 +532,10 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
       frame.byte_offset != sequencer()->close_offset()) {
     OnUnrecoverableError(
         QUIC_STREAM_MULTIPLE_OFFSET,
-        quiche::QuicheStrCat("Stream ", id_,
-                             " received new final offset: ", frame.byte_offset,
-                             ", which is different from close offset: ",
-                             sequencer_.close_offset()));
+        absl::StrCat("Stream ", id_,
+                     " received new final offset: ", frame.byte_offset,
+                     ", which is different from close offset: ",
+                     sequencer_.close_offset()));
     return;
   }
 
@@ -681,7 +680,7 @@ void QuicStream::WriteOrBufferDataInner(
       QUIC_BUG << "Write too many data via stream " << id_;
       OnUnrecoverableError(
           QUIC_STREAM_LENGTH_OVERFLOW,
-          quiche::QuicheStrCat("Write too many data via stream ", id_));
+          absl::StrCat("Write too many data via stream ", id_));
       return;
     }
     send_buffer_.SaveStreamData(&iov, 1, 0, data.length());
@@ -794,7 +793,7 @@ QuicConsumedData QuicStream::WriteMemSlices(QuicMemSliceSpan span, bool fin) {
         QUIC_BUG << "Write too many data via stream " << id_;
         OnUnrecoverableError(
             QUIC_STREAM_LENGTH_OVERFLOW,
-            quiche::QuicheStrCat("Write too many data via stream ", id_));
+            absl::StrCat("Write too many data via stream ", id_));
         return consumed_data;
       }
       OnDataBuffered(offset, consumed_data.bytes_consumed, nullptr);
@@ -1049,7 +1048,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
           << "Server streams' flow control should never be configured twice.";
       OnUnrecoverableError(
           QUIC_ZERO_RTT_UNRETRANSMITTABLE,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               "Server rejected 0-RTT, aborting because new stream max data ",
               new_offset, " for stream ", id_, " is less than currently used: ",
               flow_controller_->bytes_sent()));
@@ -1063,7 +1062,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
       OnUnrecoverableError(
           was_zero_rtt_rejected ? QUIC_ZERO_RTT_REJECTION_LIMIT_REDUCED
                                 : QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED,
-          quiche::QuicheStrCat(
+          absl::StrCat(
               was_zero_rtt_rejected ? "Server rejected 0-RTT, aborting because "
                                     : "",
               "new stream max data ", new_offset, " decreases current limit: ",

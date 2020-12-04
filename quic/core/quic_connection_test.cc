@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/loss_detection_interface.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
@@ -46,7 +47,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_session_notifier.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::_;
 using testing::AnyNumber;
@@ -563,7 +563,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.ack_response == AckResponse::kDefer ? "defer" : "immediate"), "_",
       (p.no_stop_waiting ? "No" : ""), "StopWaiting");
@@ -1565,8 +1565,8 @@ TEST_P(QuicConnectionTest, AllowSelfAddressChangeToMappedIpv4AddressAtServer) {
                                   kPeerAddress, ENCRYPTION_INITIAL);
   // Cause self_address change to mapped Ipv4 address.
   QuicIpAddress host2;
-  host2.FromString(quiche::QuicheStrCat(
-      "::ffff:", connection_.self_address().host().ToString()));
+  host2.FromString(
+      absl::StrCat("::ffff:", connection_.self_address().host().ToString()));
   QuicSocketAddress self_address2(host2, connection_.self_address().port());
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), self_address2,
                                   kPeerAddress, ENCRYPTION_INITIAL);

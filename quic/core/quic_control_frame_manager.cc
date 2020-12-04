@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
 #include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
@@ -14,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -45,10 +45,9 @@ void QuicControlFrameManager::WriteOrBufferQuicFrame(QuicFrame frame) {
   if (control_frames_.size() > kMaxNumControlFrames) {
     delegate_->OnControlFrameManagerError(
         QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES,
-        quiche::QuicheStrCat(
-            "More than ", kMaxNumControlFrames,
-            "buffered control frames, least_unacked: ", least_unacked_,
-            ", least_unsent_: ", least_unsent_));
+        absl::StrCat("More than ", kMaxNumControlFrames,
+                     "buffered control frames, least_unacked: ", least_unacked_,
+                     ", least_unsent_: ", least_unsent_));
     return;
   }
   if (had_buffered_frames) {
@@ -145,10 +144,9 @@ void QuicControlFrameManager::WritePing() {
   if (control_frames_.size() > kMaxNumControlFrames) {
     delegate_->OnControlFrameManagerError(
         QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES,
-        quiche::QuicheStrCat(
-            "More than ", kMaxNumControlFrames,
-            "buffered control frames, least_unacked: ", least_unacked_,
-            ", least_unsent_: ", least_unsent_));
+        absl::StrCat("More than ", kMaxNumControlFrames,
+                     "buffered control frames, least_unacked: ", least_unacked_,
+                     ", least_unsent_: ", least_unsent_));
     return;
   }
   WriteBufferedFrames();

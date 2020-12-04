@@ -5,13 +5,13 @@
 #include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/crypto.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/tls_client_handshaker.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -296,7 +296,7 @@ void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
   // (draft-ietf-quic-transport-27, section 20). However, according to
   // quic_error_codes.h, this QUIC implementation only sends 1-byte error codes
   // right now.
-  std::string error_details = quiche::QuicheStrCat(
+  std::string error_details = absl::StrCat(
       "TLS handshake failure (", EncryptionLevelToString(level), ") ",
       static_cast<int>(desc), ": ", SSL_alert_desc_string_long(desc));
   QUIC_DLOG(ERROR) << error_details;

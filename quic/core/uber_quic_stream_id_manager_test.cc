@@ -27,7 +27,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.perspective == Perspective::IS_CLIENT ? "client" : "server"));
 }
@@ -203,16 +203,16 @@ TEST_P(UberQuicStreamIdManagerTest, SetMaxOpenIncomingStreams) {
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(
       GetNthPeerInitiatedUnidirectionalStreamId(i), &error_details));
   EXPECT_EQ(error_details,
-            quiche::QuicheStrCat(
+            absl::StrCat(
                 "Stream id ", GetNthPeerInitiatedUnidirectionalStreamId(i),
                 " would exceed stream count limit ", kNumMaxIncomingStreams));
   EXPECT_FALSE(manager_.MaybeIncreaseLargestPeerStreamId(
       GetNthPeerInitiatedBidirectionalStreamId(i + 1), &error_details));
-  EXPECT_EQ(
-      error_details,
-      quiche::QuicheStrCat(
-          "Stream id ", GetNthPeerInitiatedBidirectionalStreamId(i + 1),
-          " would exceed stream count limit ", kNumMaxIncomingStreams + 1));
+  EXPECT_EQ(error_details,
+            absl::StrCat("Stream id ",
+                         GetNthPeerInitiatedBidirectionalStreamId(i + 1),
+                         " would exceed stream count limit ",
+                         kNumMaxIncomingStreams + 1));
 }
 
 TEST_P(UberQuicStreamIdManagerTest, GetNextOutgoingStreamId) {

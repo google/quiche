@@ -16,6 +16,7 @@
 #include "absl/base/optimization.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_framer.h"
@@ -48,7 +49,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -390,9 +390,8 @@ std::string GenerateErrorString(std::string initial_error_string,
     // the error value in the string.
     return initial_error_string;
   }
-  return quiche::QuicheStrCat(
-      std::to_string(static_cast<unsigned>(quic_error_code)), ":",
-      initial_error_string);
+  return absl::StrCat(std::to_string(static_cast<unsigned>(quic_error_code)),
+                      ":", initial_error_string);
 }
 
 }  // namespace
@@ -1778,7 +1777,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
             QuicEncryptedPacket(encrypted_reader->FullPayload()),
             decryption_level, has_decryption_key);
         RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
-        set_detailed_error(quiche::QuicheStrCat(
+        set_detailed_error(absl::StrCat(
             "Unable to decrypt ", EncryptionLevelToString(decryption_level),
             " header protection", has_decryption_key ? "" : " (missing key)",
             "."));
@@ -1846,7 +1845,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     visitor_->OnUndecryptablePacket(
         QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
         has_decryption_key);
-    set_detailed_error(quiche::QuicheStrCat(
+    set_detailed_error(absl::StrCat(
         "Unable to decrypt ", EncryptionLevelToString(decryption_level),
         " payload with reconstructed packet number ",
         header->packet_number.ToString(), " (largest decrypted was ",
@@ -1944,9 +1943,9 @@ bool QuicFramer::ProcessDataPacket(QuicDataReader* encrypted_reader,
         QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
         has_decryption_key);
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
-    set_detailed_error(quiche::QuicheStrCat(
-        "Unable to decrypt ", EncryptionLevelToString(decryption_level),
-        " payload."));
+    set_detailed_error(absl::StrCat("Unable to decrypt ",
+                                    EncryptionLevelToString(decryption_level),
+                                    " payload."));
     return RaiseError(QUIC_DECRYPTION_FAILURE);
   }
 
@@ -3712,11 +3711,10 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
     first_ack_block_underflow = true;
   }
   if (first_ack_block_underflow) {
-    set_detailed_error(
-        quiche::QuicheStrCat("Underflow with first ack block length ",
-                             first_block_length, " largest acked is ",
-                             largest_acked, ".")
-            .c_str());
+    set_detailed_error(absl::StrCat("Underflow with first ack block length ",
+                                    first_block_length, " largest acked is ",
+                                    largest_acked, ".")
+                           .c_str());
     return false;
   }
 
@@ -3748,11 +3746,11 @@ bool QuicFramer::ProcessAckFrame(QuicDataReader* reader, uint8_t frame_type) {
         ack_block_underflow = true;
       }
       if (ack_block_underflow) {
-        set_detailed_error(
-            quiche::QuicheStrCat("Underflow with ack block length ",
-                                 current_block_length, ", end of block is ",
-                                 first_received - gap, ".")
-                .c_str());
+        set_detailed_error(absl::StrCat("Underflow with ack block length ",
+                                        current_block_length,
+                                        ", end of block is ",
+                                        first_received - gap, ".")
+                               .c_str());
         return false;
       }
 
@@ -3806,9 +3804,9 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
 
   if (largest_acked.ToUint64() <= delta_from_largest_observed) {
     set_detailed_error(
-        quiche::QuicheStrCat("delta_from_largest_observed too high: ",
-                             delta_from_largest_observed,
-                             ", largest_acked: ", largest_acked.ToUint64())
+        absl::StrCat("delta_from_largest_observed too high: ",
+                     delta_from_largest_observed,
+                     ", largest_acked: ", largest_acked.ToUint64())
             .c_str());
     return false;
   }
@@ -3834,9 +3832,9 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
     }
     if (largest_acked.ToUint64() <= delta_from_largest_observed) {
       set_detailed_error(
-          quiche::QuicheStrCat("delta_from_largest_observed too high: ",
-                               delta_from_largest_observed,
-                               ", largest_acked: ", largest_acked.ToUint64())
+          absl::StrCat("delta_from_largest_observed too high: ",
+                       delta_from_largest_observed,
+                       ", largest_acked: ", largest_acked.ToUint64())
               .c_str());
       return false;
     }
@@ -3922,11 +3920,10 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
   // error if the value is wrong.
   if (ack_block_value + first_sending_packet_number_.ToUint64() >
       largest_acked) {
-    set_detailed_error(
-        quiche::QuicheStrCat("Underflow with first ack block length ",
-                             ack_block_value + 1, " largest acked is ",
-                             largest_acked, ".")
-            .c_str());
+    set_detailed_error(absl::StrCat("Underflow with first ack block length ",
+                                    ack_block_value + 1, " largest acked is ",
+                                    largest_acked, ".")
+                           .c_str());
     return false;
   }
 
@@ -3956,9 +3953,8 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     // The test is written this way to detect wrap-arounds.
     if ((gap_block_value + 2) > block_low) {
       set_detailed_error(
-          quiche::QuicheStrCat("Underflow with gap block length ",
-                               gap_block_value + 1,
-                               " previous ack block start is ", block_low, ".")
+          absl::StrCat("Underflow with gap block length ", gap_block_value + 1,
+                       " previous ack block start is ", block_low, ".")
               .c_str());
       return false;
     }
@@ -3978,9 +3974,8 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     if (ack_block_value + first_sending_packet_number_.ToUint64() >
         (block_high - 1)) {
       set_detailed_error(
-          quiche::QuicheStrCat("Underflow with ack block length ",
-                               ack_block_value + 1, " latest ack block end is ",
-                               block_high - 1, ".")
+          absl::StrCat("Underflow with ack block length ", ack_block_value + 1,
+                       " latest ack block end is ", block_high - 1, ".")
               .c_str());
       return false;
     }
@@ -5065,7 +5060,7 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
           type_byte = IETF_CONNECTION_CLOSE;
           break;
         default:
-          set_detailed_error(quiche::QuicheStrCat(
+          set_detailed_error(absl::StrCat(
               "Invalid QuicConnectionCloseFrame type: ",
               static_cast<int>(frame.connection_close_frame->close_type)));
           return RaiseError(QUIC_INTERNAL_ERROR);
@@ -6820,10 +6815,10 @@ bool QuicFramer::ParseServerVersionNegotiationProbeResponse(
     return false;
   }
   if (*source_connection_id_length_out < source_connection_id.length()) {
-    *detailed_error = quiche::QuicheStrCat(
-        "*source_connection_id_length_out too small ",
-        static_cast<int>(*source_connection_id_length_out), " < ",
-        static_cast<int>(source_connection_id.length()));
+    *detailed_error =
+        absl::StrCat("*source_connection_id_length_out too small ",
+                     static_cast<int>(*source_connection_id_length_out), " < ",
+                     static_cast<int>(source_connection_id.length()));
     return false;
   }
 

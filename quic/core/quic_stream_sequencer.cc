@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_clock.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
@@ -23,7 +24,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -75,9 +75,9 @@ void QuicStreamSequencer::OnFrameData(QuicStreamOffset byte_offset,
       byte_offset, absl::string_view(data_buffer, data_len), &bytes_written,
       &error_details);
   if (result != QUIC_NO_ERROR) {
-    std::string details = quiche::QuicheStrCat("Stream ", stream_->id(), ": ",
-                                               QuicErrorCodeToString(result),
-                                               ": ", error_details);
+    std::string details =
+        absl::StrCat("Stream ", stream_->id(), ": ",
+                     QuicErrorCodeToString(result), ": ", error_details);
     QUIC_LOG_FIRST_N(WARNING, 50) << QuicErrorCodeToString(result);
     QUIC_LOG_FIRST_N(WARNING, 50) << details;
     stream_->OnUnrecoverableError(result, details);
@@ -125,7 +125,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
   if (close_offset_ != kMaxOffset && offset != close_offset_) {
     stream_->OnUnrecoverableError(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
-        quiche::QuicheStrCat(
+        absl::StrCat(
             "Stream ", stream_->id(), " received new final offset: ", offset,
             ", which is different from close offset: ", close_offset_));
     return false;
@@ -136,7 +136,7 @@ bool QuicStreamSequencer::CloseStreamAtOffset(QuicStreamOffset offset) {
   if (offset < highest_offset_) {
     stream_->OnUnrecoverableError(
         QUIC_STREAM_SEQUENCER_INVALID_STATE,
-        quiche::QuicheStrCat(
+        absl::StrCat(
             "Stream ", stream_->id(), " received fin with offset: ", offset,
             ", which reduces current highest offset: ", highest_offset_));
     return false;
@@ -202,7 +202,7 @@ size_t QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
       buffered_frames_.Readv(iov, iov_len, &bytes_read, &error_details);
   if (read_error != QUIC_NO_ERROR) {
     std::string details =
-        quiche::QuicheStrCat("Stream ", stream_->id(), ": ", error_details);
+        absl::StrCat("Stream ", stream_->id(), ": ", error_details);
     stream_->OnUnrecoverableError(read_error, details);
     return bytes_read;
   }
@@ -285,7 +285,7 @@ QuicStreamOffset QuicStreamSequencer::NumBytesConsumed() const {
 
 const std::string QuicStreamSequencer::DebugString() const {
   // clang-format off
-  return quiche::QuicheStrCat("QuicStreamSequencer:",
+  return absl::StrCat("QuicStreamSequencer:",
                 "\n  bytes buffered: ", NumBytesBuffered(),
                 "\n  bytes consumed: ", NumBytesConsumed(),
                 "\n  has bytes to read: ", HasBytesToRead() ? "true" : "false",

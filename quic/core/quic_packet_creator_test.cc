@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -32,7 +33,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_data_producer.h"
 #include "net/third_party/quiche/src/quic/test_tools/simple_quic_framer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
@@ -66,9 +66,8 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(ParsedQuicVersionToString(p.version), "_",
-                              (p.version_serialization ? "Include" : "No"),
-                              "Version");
+  return absl::StrCat(ParsedQuicVersionToString(p.version), "_",
+                      (p.version_serialization ? "Include" : "No"), "Version");
 }
 
 // Constructs various test permutations.

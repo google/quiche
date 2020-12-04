@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -15,7 +16,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -574,11 +574,11 @@ ReceivedPacketInfo::ReceivedPacketInfo(const QuicSocketAddress& self_address,
 ReceivedPacketInfo::~ReceivedPacketInfo() {}
 
 std::string ReceivedPacketInfo::ToString() const {
-  std::string output = quiche::QuicheStrCat(
-      "{ self_address: ", self_address.ToString(),
-      ", peer_address: ", peer_address.ToString(),
-      ", packet_length: ", packet.length(), ", header_format: ", form,
-      ", version_flag: ", version_flag);
+  std::string output =
+      absl::StrCat("{ self_address: ", self_address.ToString(),
+                   ", peer_address: ", peer_address.ToString(),
+                   ", packet_length: ", packet.length(),
+                   ", header_format: ", form, ", version_flag: ", version_flag);
   if (version_flag) {
     QuicStrAppend(&output, ", version: ", ParsedQuicVersionToString(version));
   }

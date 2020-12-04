@@ -49,7 +49,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.disable_resumption ? "ResumptionDisabled" : "ResumptionEnabled"));
 }

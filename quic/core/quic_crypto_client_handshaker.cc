@@ -7,13 +7,13 @@
 #include <memory>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_client_stats.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
@@ -298,9 +298,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   if (num_client_hellos_ >= QuicCryptoClientStream::kMaxClientHellos) {
     stream_->OnUnrecoverableError(
         QUIC_CRYPTO_TOO_MANY_REJECTS,
-        quiche::QuicheStrCat("More than ",
-                             QuicCryptoClientStream::kMaxClientHellos,
-                             " rejects"));
+        absl::StrCat("More than ", QuicCryptoClientStream::kMaxClientHellos,
+                     " rejects"));
     return;
   }
   num_client_hellos_++;
@@ -553,8 +552,8 @@ void QuicCryptoClientHandshaker::DoReceiveSHLO(
   if (in->tag() != kSHLO) {
     stream_->OnUnrecoverableError(
         QUIC_INVALID_CRYPTO_MESSAGE_TYPE,
-        quiche::QuicheStrCat("Expected SHLO or REJ. Received: ",
-                             QuicTagToString(in->tag())));
+        absl::StrCat("Expected SHLO or REJ. Received: ",
+                     QuicTagToString(in->tag())));
     return;
   }
 

@@ -7,13 +7,13 @@
 #include <string>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "net/third_party/quiche/src/quic/core/quic_constants.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_expect_bug.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_id_manager_peer.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 
 using testing::_;
 using testing::StrictMock;
@@ -45,7 +45,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.perspective == Perspective::IS_CLIENT ? "Client" : "Server"),
       (p.is_unidirectional ? "Unidirectional" : "Bidirectional"));
@@ -205,8 +205,8 @@ TEST_P(QuicStreamIdManagerTest, IsIncomingStreamIdInValidAboveLimit) {
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
       stream_id, &error_details));
   EXPECT_EQ(error_details,
-            quiche::QuicheStrCat("Stream id ", stream_id,
-                                 " would exceed stream count limit 100"));
+            absl::StrCat("Stream id ", stream_id,
+                         " would exceed stream count limit 100"));
 }
 
 TEST_P(QuicStreamIdManagerTest, OnStreamsBlockedFrame) {
@@ -315,7 +315,7 @@ TEST_P(QuicStreamIdManagerTest, MaybeIncreaseLargestPeerStreamId) {
       max_stream_id + QuicUtils::StreamIdDelta(transport_version()),
       &error_details));
   EXPECT_EQ(error_details,
-            quiche::QuicheStrCat(
+            absl::StrCat(
                 "Stream id ",
                 max_stream_id + QuicUtils::StreamIdDelta(transport_version()),
                 " would exceed stream count limit 100"));
@@ -470,8 +470,8 @@ TEST_P(QuicStreamIdManagerTest, ExtremeMaybeIncreaseLargestPeerStreamId) {
   EXPECT_FALSE(stream_id_manager_.MaybeIncreaseLargestPeerStreamId(
       too_big_stream_id, &error_details));
   EXPECT_EQ(error_details,
-            quiche::QuicheStrCat("Stream id ", too_big_stream_id,
-                                 " would exceed stream count limit 100"));
+            absl::StrCat("Stream id ", too_big_stream_id,
+                         " would exceed stream count limit 100"));
 }
 
 }  // namespace
