@@ -12,6 +12,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -44,7 +45,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_send_buffer_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
@@ -708,8 +708,8 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_CALL(*connection_, SendControlFrame(_));
   EXPECT_CALL(*connection_, OnStreamReset(closed_stream_id, _));
   stream2->Reset(QUIC_BAD_APPLICATION_PAYLOAD);
-  std::string msg = quiche::QuicheStrCat("Marking unknown stream ",
-                                         closed_stream_id, " blocked.");
+  std::string msg =
+      absl::StrCat("Marking unknown stream ", closed_stream_id, " blocked.");
   EXPECT_QUIC_BUG(session_.MarkConnectionLevelWriteBlocked(closed_stream_id),
                   msg);
 }
@@ -1554,8 +1554,8 @@ TEST_P(QuicSpdySessionTestServer,
   while (!headers_stream->IsFlowControlBlocked() && stream_id < 2000) {
     EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
     EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
-    headers["header"] = quiche::QuicheStrCat(
-        random.RandUint64(), random.RandUint64(), random.RandUint64());
+    headers["header"] = absl::StrCat(random.RandUint64(), random.RandUint64(),
+                                     random.RandUint64());
     session_.WriteHeadersOnHeadersStream(stream_id, headers.Clone(), true,
                                          spdy::SpdyStreamPrecedence(0),
                                          nullptr);
@@ -2531,8 +2531,7 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
                                                &headers_buffer);
   absl::string_view headers_frame_header(headers_buffer.get(),
                                          headers_frame_header_length);
-  std::string headers =
-      quiche::QuicheStrCat(headers_frame_header, headers_payload);
+  std::string headers = absl::StrCat(headers_frame_header, headers_payload);
   stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
 
   // Decoding is blocked because dynamic table entry has not been received yet.
@@ -2566,8 +2565,7 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
                                                &headers_buffer);
   absl::string_view headers_frame_header(headers_buffer.get(),
                                          headers_frame_header_length);
-  std::string headers =
-      quiche::QuicheStrCat(headers_frame_header, headers_payload);
+  std::string headers = absl::StrCat(headers_frame_header, headers_payload);
   stream->OnStreamFrame(QuicStreamFrame(stream_id, false, 0, headers));
 
   // Decoding is blocked because dynamic table entry has not been received yet.

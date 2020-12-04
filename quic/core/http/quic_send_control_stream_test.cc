@@ -48,7 +48,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& tp) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(tp.version), "_",
       (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
 }

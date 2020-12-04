@@ -284,7 +284,7 @@ bool QuicReceiveControlStream::OnUnknownFrameEnd() {
 void QuicReceiveControlStream::OnWrongFrame(absl::string_view frame_type) {
   OnUnrecoverableError(
       QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
-      quiche::QuicheStrCat(frame_type, " frame received on control stream"));
+      absl::StrCat(frame_type, " frame received on control stream"));
 }
 
 }  // namespace quic

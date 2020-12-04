@@ -9,13 +9,13 @@
 #include <vector>
 
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
 
@@ -165,7 +165,7 @@ std::string SpdyUtils::H3SettingsToString(
     RETURN_STRING_LITERAL(SETTINGS_MAX_FIELD_SECTION_SIZE);
     RETURN_STRING_LITERAL(SETTINGS_QPACK_BLOCKED_STREAMS);
   }
-  return quiche::QuicheStrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
+  return absl::StrCat("UNSUPPORTED_SETTINGS_TYPE(", identifier, ")");
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

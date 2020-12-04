@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
@@ -65,7 +66,6 @@
 #include "net/third_party/quiche/src/quic/tools/quic_server.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_client_stream.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using spdy::kV3LowestPriority;
@@ -104,9 +104,8 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
-  std::string rv =
-      quiche::QuicheStrCat(ParsedQuicVersionToString(p.version), "_",
-                           QuicTagToString(p.congestion_control_tag));
+  std::string rv = absl::StrCat(ParsedQuicVersionToString(p.version), "_",
+                                QuicTagToString(p.congestion_control_tag));
   std::replace(rv.begin(), rv.end(), ',', '_');
   std::replace(rv.begin(), rv.end(), ' ', '_');
   return rv;
@@ -3566,8 +3565,7 @@ class EndToEndTestServerPush : public EndToEndTest {
       std::string body =
           use_large_response
               ? large_resource
-              : quiche::QuicheStrCat("This is server push response body for ",
-                                     url);
+              : absl::StrCat("This is server push response body for ", url);
       SpdyHeaderBlock response_headers;
       response_headers[":status"] = "200";
       response_headers["content-length"] =
@@ -3630,7 +3628,7 @@ TEST_P(EndToEndTestServerPush, ServerPush) {
   for (const std::string& url : push_urls) {
     QUIC_DVLOG(1) << "send request for pushed stream on url " << url;
     std::string expected_body =
-        quiche::QuicheStrCat("This is server push response body for ", url);
+        absl::StrCat("This is server push response body for ", url);
     std::string response_body = client_->SendSynchronousRequest(url);
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
@@ -3684,7 +3682,7 @@ TEST_P(EndToEndTestServerPush, ServerPushUnderLimit) {
     // as the responses are already in the client's cache.
     QUIC_DVLOG(1) << "send request for pushed stream on url " << url;
     std::string expected_body =
-        quiche::QuicheStrCat("This is server push response body for ", url);
+        absl::StrCat("This is server push response body for ", url);
     std::string response_body = client_->SendSynchronousRequest(url);
     QUIC_DVLOG(1) << "response body " << response_body;
     EXPECT_EQ(expected_body, response_body);
@@ -3724,8 +3722,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   const size_t kNumResources = 1 + kNumMaxStreams;  // 11.
   std::string push_urls[11];
   for (size_t i = 0; i < kNumResources; ++i) {
-    push_urls[i] =
-        quiche::QuicheStrCat("https://example.com/push_resources", i);
+    push_urls[i] = absl::StrCat("https://example.com/push_resources", i);
   }
   AddRequestAndResponseWithServerPush("example.com", "/push_example", kBody,
                                       push_urls, kNumResources, 0);
@@ -3742,9 +3739,8 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitNonBlocking) {
   for (const std::string& url : push_urls) {
     // Sending subsequent requesets will not actually send anything on the wire,
     // as the responses are already in the client's cache.
-    EXPECT_EQ(
-        quiche::QuicheStrCat("This is server push response body for ", url),
-        client_->SendSynchronousRequest(url));
+    EXPECT_EQ(absl::StrCat("This is server push response body for ", url),
+              client_->SendSynchronousRequest(url));
   }
 
   // Only 1 request should have been sent.
@@ -3787,7 +3783,7 @@ TEST_P(EndToEndTestServerPush, ServerPushOverLimitWithBlocking) {
   const size_t kNumResources = kNumMaxStreams + 1;
   std::string push_urls[11];
   for (size_t i = 0; i < kNumResources; ++i) {
-    push_urls[i] = quiche::QuicheStrCat("http://example.com/push_resources", i);
+    push_urls[i] = absl::StrCat("http://example.com/push_resources", i);
   }
   AddRequestAndResponseWithServerPush("example.com", "/push_example", kBody,
                                       push_urls, kNumResources, kBodySize);

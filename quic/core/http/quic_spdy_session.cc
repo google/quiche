@@ -12,6 +12,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_constants.h"
 #include "net/third_party/quiche/src/quic/core/http/quic_headers_stream.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 
@@ -201,10 +201,10 @@ class QuicSpdySession::SpdyFramerVisitor
       default:
         code = QUIC_INVALID_HEADERS_STREAM_DATA;
     }
-    CloseConnection(quiche::QuicheStrCat(
-                        "SPDY framing error: ", detailed_error,
-                        Http2DecoderAdapter::SpdyFramerErrorToString(error)),
-                    code);
+    CloseConnection(
+        absl::StrCat("SPDY framing error: ", detailed_error,
+                     Http2DecoderAdapter::SpdyFramerErrorToString(error)),
+        code);
   }
 
   void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
@@ -471,8 +471,7 @@ void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
-      error_code,
-      quiche::QuicheStrCat("Decoder stream error: ", error_message));
+      error_code, absl::StrCat("Decoder stream error: ", error_message));
 }
 
 void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
@@ -480,8 +479,7 @@ void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
   DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
-      error_code,
-      quiche::QuicheStrCat("Encoder stream error: ", error_message));
+      error_code, absl::StrCat("Encoder stream error: ", error_message));
 }
 
 void QuicSpdySession::OnStreamHeadersPriority(
@@ -583,11 +581,11 @@ bool QuicSpdySession::OnPriorityUpdateForRequestStream(QuicStreamId stream_id,
     // This should never happen, because |buffered_stream_priorities_| should
     // only contain entries for streams that are allowed to be open by the peer
     // but have not been opened yet.
-    std::string error_message = quiche::QuicheStrCat(
-        "Too many stream priority values buffered: ",
-        buffered_stream_priorities_.size(),
-        ", which should not exceed the incoming stream limit of ",
-        max_open_incoming_bidirectional_streams());
+    std::string error_message =
+        absl::StrCat("Too many stream priority values buffered: ",
+                     buffered_stream_priorities_.size(),
+                     ", which should not exceed the incoming stream limit of ",
+                     max_open_incoming_bidirectional_streams());
     QUIC_BUG << error_message;
     connection()->CloseConnection(
         QUIC_INTERNAL_ERROR, error_message,
@@ -654,9 +652,9 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
       id > last_received_http3_goaway_id_.value()) {
     CloseConnectionWithDetails(
         QUIC_HTTP_GOAWAY_ID_LARGER_THAN_PREVIOUS,
-        quiche::QuicheStrCat("GOAWAY received with ID ", id,
-                             " greater than previously received ID ",
-                             last_received_http3_goaway_id_.value()));
+        absl::StrCat("GOAWAY received with ID ", id,
+                     " greater than previously received ID ",
+                     last_received_http3_goaway_id_.value()));
     return;
   }
   last_received_http3_goaway_id_ = id;
@@ -863,7 +861,7 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
              << QuicStackTrace();
     connection()->CloseConnection(
         QUIC_INVALID_STREAM_ID,
-        quiche::QuicheStrCat("stream ", stream_id, " is static"),
+        absl::StrCat("stream ", stream_id, " is static"),
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return nullptr;
   }
@@ -994,13 +992,12 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
               was_zero_rtt_rejected()
                   ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
                   : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
-              quiche::QuicheStrCat(
-                  was_zero_rtt_rejected()
-                      ? "Server rejected 0-RTT, aborting because "
-                      : "",
-                  "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: ", value,
-                  "while current value is: ",
-                  qpack_encoder_->MaximumDynamicTableCapacity()));
+              absl::StrCat(was_zero_rtt_rejected()
+                               ? "Server rejected 0-RTT, aborting because "
+                               : "",
+                           "Server sent an SETTINGS_QPACK_MAX_TABLE_CAPACITY: ",
+                           value, "while current value is: ",
+                           qpack_encoder_->MaximumDynamicTableCapacity()));
           return false;
         }
         // However, limit the dynamic table capacity to
@@ -1021,13 +1018,12 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
               was_zero_rtt_rejected()
                   ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
                   : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
-              quiche::QuicheStrCat(
-                  was_zero_rtt_rejected()
-                      ? "Server rejected 0-RTT, aborting because "
-                      : "",
-                  "Server sent an SETTINGS_MAX_FIELD_SECTION_SIZE: ", value,
-                  "which reduces current value: ",
-                  max_outbound_header_list_size_));
+              absl::StrCat(was_zero_rtt_rejected()
+                               ? "Server rejected 0-RTT, aborting because "
+                               : "",
+                           "Server sent an SETTINGS_MAX_FIELD_SECTION_SIZE: ",
+                           value, "which reduces current value: ",
+                           max_outbound_header_list_size_));
           return false;
         }
         max_outbound_header_list_size_ = value;
@@ -1042,13 +1038,12 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
               was_zero_rtt_rejected()
                   ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
                   : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
-              quiche::QuicheStrCat(
-                  was_zero_rtt_rejected()
-                      ? "Server rejected 0-RTT, aborting because "
-                      : "",
-                  "Server sent an SETTINGS_QPACK_BLOCKED_STREAMS: ", value,
-                  "which reduces current value: ",
-                  qpack_encoder_->maximum_blocked_streams()));
+              absl::StrCat(was_zero_rtt_rejected()
+                               ? "Server rejected 0-RTT, aborting because "
+                               : "",
+                           "Server sent an SETTINGS_QPACK_BLOCKED_STREAMS: ",
+                           value, "which reduces current value: ",
+                           qpack_encoder_->maximum_blocked_streams()));
           return false;
         }
         break;
@@ -1062,8 +1057,8 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       case spdy::SETTINGS_MAX_FRAME_SIZE:
         CloseConnectionWithDetails(
             QUIC_HTTP_RECEIVE_SPDY_SETTING,
-            quiche::QuicheStrCat(
-                "received HTTP/2 specific setting in HTTP/3 session: ", id));
+            absl::StrCat("received HTTP/2 specific setting in HTTP/3 session: ",
+                         id));
         return false;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
@@ -1091,8 +1086,8 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
           if (IsConnected()) {
             CloseConnectionWithDetails(
                 QUIC_INVALID_HEADERS_STREAM_DATA,
-                quiche::QuicheStrCat("Invalid value for SETTINGS_ENABLE_PUSH: ",
-                                     value));
+                absl::StrCat("Invalid value for SETTINGS_ENABLE_PUSH: ",
+                             value));
           }
           return true;
         }
@@ -1108,8 +1103,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
         if (IsConnected()) {
           CloseConnectionWithDetails(
               QUIC_INVALID_HEADERS_STREAM_DATA,
-              quiche::QuicheStrCat(
-                  "Unsupported field of HTTP/2 SETTINGS frame: ", id));
+              absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
         }
       }
       break;
@@ -1125,8 +1119,7 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
       if (IsConnected()) {
         CloseConnectionWithDetails(
             QUIC_INVALID_HEADERS_STREAM_DATA,
-            quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
-                                 id));
+            absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ", id));
       }
   }
   return true;
@@ -1462,10 +1455,9 @@ bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
   if (max_push_id < old_max_push_id.value()) {
     CloseConnectionWithDetails(
         QUIC_HTTP_INVALID_MAX_PUSH_ID,
-        quiche::QuicheStrCat(
-            "MAX_PUSH_ID received with value ", max_push_id,
-            " which is smaller that previously received value ",
-            old_max_push_id.value()));
+        absl::StrCat("MAX_PUSH_ID received with value ", max_push_id,
+                     " which is smaller that previously received value ",
+                     old_max_push_id.value()));
     return false;
   }
 
@@ -1508,11 +1500,10 @@ bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
 
 void QuicSpdySession::CloseConnectionOnDuplicateHttp3UnidirectionalStreams(
     absl::string_view type) {
-  QUIC_PEER_BUG << quiche::QuicheStrCat("Received a duplicate ", type,
-                                        " stream: Closing connection.");
-  CloseConnectionWithDetails(
-      QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
-      quiche::QuicheStrCat(type, " stream is received twice."));
+  QUIC_PEER_BUG << absl::StrCat("Received a duplicate ", type,
+                                " stream: Closing connection.");
+  CloseConnectionWithDetails(QUIC_HTTP_DUPLICATE_UNIDIRECTIONAL_STREAM,
+                             absl::StrCat(type, " stream is received twice."));
 }
 
 // static

@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
@@ -25,7 +26,6 @@
 #include "net/third_party/quiche/src/quic/test_tools/quic_spdy_session_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_stream_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/quiche_endian.h"
 #include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
 #include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
@@ -191,7 +191,7 @@ struct TestParams {
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& tp) {
-  return quiche::QuicheStrCat(
+  return absl::StrCat(
       ParsedQuicVersionToString(tp.version), "_",
       (tp.perspective == Perspective::IS_CLIENT ? "client" : "server"));
 }
@@ -687,36 +687,32 @@ TEST_P(QuicHeadersStreamTest, RespectHttp2SettingsFrameUnsupportedFields) {
   data.AddSetting(SETTINGS_ENABLE_PUSH, 1);
   data.AddSetting(SETTINGS_MAX_FRAME_SIZE, 1250);
   SpdySerializedFrame frame(framer_->SerializeFrame(data));
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(
-          QUIC_INVALID_HEADERS_STREAM_DATA,
-          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_INVALID_HEADERS_STREAM_DATA,
+                  absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
                                SETTINGS_MAX_CONCURRENT_STREAMS),
-          _));
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(
-          QUIC_INVALID_HEADERS_STREAM_DATA,
-          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+                  _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_INVALID_HEADERS_STREAM_DATA,
+                  absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
                                SETTINGS_INITIAL_WINDOW_SIZE),
-          _));
+                  _));
   if (session_.perspective() == Perspective::IS_CLIENT) {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(
-            QUIC_INVALID_HEADERS_STREAM_DATA,
-            quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+    EXPECT_CALL(*connection_,
+                CloseConnection(
+                    QUIC_INVALID_HEADERS_STREAM_DATA,
+                    absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
                                  SETTINGS_ENABLE_PUSH),
-            _));
+                    _));
   }
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(
-          QUIC_INVALID_HEADERS_STREAM_DATA,
-          quiche::QuicheStrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_INVALID_HEADERS_STREAM_DATA,
+                  absl::StrCat("Unsupported field of HTTP/2 SETTINGS frame: ",
                                SETTINGS_MAX_FRAME_SIZE),
-          _));
+                  _));
   stream_frame_.data_buffer = frame.data();
   stream_frame_.data_length = frame.size();
   headers_stream_->OnStreamFrame(stream_frame_);

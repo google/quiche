@@ -9,6 +9,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/http_encoder.h"
 #include "net/third_party/quiche/src/quic/core/http/http_frames.h"
@@ -17,7 +18,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
@@ -164,8 +164,7 @@ class HttpDecoderTest : public QuicTest {
   // Append garbage to |input|, then process it in a single call to
   // HttpDecoder::ProcessInput().  Verify that garbage is not read.
   QuicByteCount ProcessInputWithGarbageAppended(absl::string_view input) {
-    std::string input_with_garbage_appended =
-        quiche::QuicheStrCat(input, "blahblah");
+    std::string input_with_garbage_appended = absl::StrCat(input, "blahblah");
     QuicByteCount processed_bytes = ProcessInput(input_with_garbage_appended);
 
     // Guaranteed by HttpDecoder::ProcessInput() contract.
@@ -258,11 +257,11 @@ TEST_F(HttpDecoderTest, CancelPush) {
 
 TEST_F(HttpDecoderTest, PushPromiseFrame) {
   InSequence s;
-  std::string input = quiche::QuicheStrCat(
-      absl::HexStringToBytes("05"                  // type (PUSH PROMISE)
-                             "0f"                  // length
-                             "C000000000000101"),  // push id 257
-      "Headers");                                  // headers
+  std::string input =
+      absl::StrCat(absl::HexStringToBytes("05"  // type (PUSH PROMISE)
+                                          "0f"  // length
+                                          "C000000000000101"),  // push id 257
+                   "Headers");                                  // headers
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnPushPromiseFrameStart(2)).WillOnce(Return(false));
@@ -485,10 +484,9 @@ TEST_F(HttpDecoderTest, DuplicateSettingsIdentifier) {
 
 TEST_F(HttpDecoderTest, DataFrame) {
   InSequence s;
-  std::string input =
-      quiche::QuicheStrCat(absl::HexStringToBytes("00"    // type (DATA)
-                                                  "05"),  // length
-                           "Data!");                      // data
+  std::string input = absl::StrCat(absl::HexStringToBytes("00"    // type (DATA)
+                                                          "05"),  // length
+                                   "Data!");                      // data
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnDataFrameStart(2, 5)).WillOnce(Return(false));
@@ -615,9 +613,9 @@ TEST_F(HttpDecoderTest, GoAway) {
 TEST_F(HttpDecoderTest, HeadersFrame) {
   InSequence s;
   std::string input =
-      quiche::QuicheStrCat(absl::HexStringToBytes("01"    // type (HEADERS)
-                                                  "07"),  // length
-                           "Headers");                    // headers
+      absl::StrCat(absl::HexStringToBytes("01"    // type (HEADERS)
+                                          "07"),  // length
+                   "Headers");                    // headers
 
   // Visitor pauses processing.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7)).WillOnce(Return(false));
@@ -799,12 +797,12 @@ TEST_F(HttpDecoderTest, Http2Frame) {
 TEST_F(HttpDecoderTest, HeadersPausedThenData) {
   InSequence s;
   std::string input =
-      quiche::QuicheStrCat(absl::HexStringToBytes("01"    // type (HEADERS)
-                                                  "07"),  // length
-                           "Headers",                     // headers
-                           absl::HexStringToBytes("00"    // type (DATA)
-                                                  "05"),  // length
-                           "Data!");                      // data
+      absl::StrCat(absl::HexStringToBytes("01"    // type (HEADERS)
+                                          "07"),  // length
+                   "Headers",                     // headers
+                   absl::HexStringToBytes("00"    // type (DATA)
+                                          "05"),  // length
+                   "Data!");                      // data
 
   // Visitor pauses processing, maybe because header decompression is blocked.
   EXPECT_CALL(visitor_, OnHeadersFrameStart(2, 7));

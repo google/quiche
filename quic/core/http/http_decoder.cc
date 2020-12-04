@@ -154,10 +154,9 @@ bool HttpDecoder::ReadFrameType(QuicDataReader* reader) {
           static_cast<uint64_t>(http2::Http2FrameType::WINDOW_UPDATE) ||
       current_frame_type_ ==
           static_cast<uint64_t>(http2::Http2FrameType::CONTINUATION)) {
-    RaiseError(
-        QUIC_HTTP_RECEIVE_SPDY_FRAME,
-        quiche::QuicheStrCat("HTTP/2 frame received in a HTTP/3 connection: ",
-                             current_frame_type_));
+    RaiseError(QUIC_HTTP_RECEIVE_SPDY_FRAME,
+               absl::StrCat("HTTP/2 frame received in a HTTP/3 connection: ",
+                            current_frame_type_));
     return false;
   }
   state_ = STATE_READING_FRAME_LENGTH;

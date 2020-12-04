@@ -434,7 +434,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
                                                  &headers_buffer);
     absl::string_view headers_frame_header(headers_buffer.get(),
                                            headers_frame_header_length);
-    return quiche::QuicheStrCat(headers_frame_header, payload);
+    return absl::StrCat(headers_frame_header, payload);
   }
 
   // Construct PUSH_PROMISE frame with given payload.
@@ -449,7 +449,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
             frame, &push_promise_buffer);
     absl::string_view push_promise_frame_header(
         push_promise_buffer.get(), push_promise_frame_header_length);
-    return quiche::QuicheStrCat(push_promise_frame_header, payload);
+    return absl::StrCat(push_promise_frame_header, payload);
   }
 
   std::string DataFrame(absl::string_view payload) {
@@ -458,7 +458,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
         HttpEncoder::SerializeDataFrameHeader(payload.length(), &data_buffer);
     absl::string_view data_frame_header(data_buffer.get(),
                                         data_frame_header_length);
-    return quiche::QuicheStrCat(data_frame_header, payload);
+    return absl::StrCat(data_frame_header, payload);
   }
 
   std::string UnknownFrame(uint64_t frame_type, absl::string_view payload) {
@@ -2016,8 +2016,7 @@ TEST_P(QuicSpdyStreamTest, HeadersFrameOnRequestStream) {
   std::string trailers =
       HeadersFrame({std::make_pair("custom-key", "custom-value")});
 
-  std::string stream_frame_payload =
-      quiche::QuicheStrCat(headers, data, trailers);
+  std::string stream_frame_payload = absl::StrCat(headers, data, trailers);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
   stream_->OnStreamFrame(frame);
 
@@ -2051,8 +2050,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   std::string trailers = HeadersFrame(trailers_block);
 
   // Feed all three HTTP/3 frames in a single stream frame.
-  std::string stream_frame_payload =
-      quiche::QuicheStrCat(headers, data, trailers);
+  std::string stream_frame_payload = absl::StrCat(headers, data, trailers);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
   stream_->OnStreamFrame(frame);
 
@@ -2092,7 +2090,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
       HeadersFrame(absl::HexStringToBytes("00002a94e7036261"));
   std::string data = DataFrame(kDataFramePayload);
 
-  std::string stream_frame_payload = quiche::QuicheStrCat(headers, data);
+  std::string stream_frame_payload = absl::StrCat(headers, data);
   QuicStreamFrame frame(stream_->id(), false, 0, stream_frame_payload);
 
   EXPECT_CALL(
@@ -2948,7 +2946,7 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
 
   // Combine the two frames to make sure they are processed in a single
   // QuicSpdyStream::OnDataAvailable() call.
-  std::string frames = quiche::QuicheStrCat(settings, headers);
+  std::string frames = absl::StrCat(settings, headers);
 
   EXPECT_EQ(0u, stream_->sequencer()->NumBytesConsumed());
 

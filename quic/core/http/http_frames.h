@@ -11,11 +11,11 @@
 #include <ostream>
 #include <sstream>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -84,7 +84,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
   std::string ToString() const {
     std::string s;
     for (auto it : values) {
-      std::string setting = quiche::QuicheStrCat(
+      std::string setting = absl::StrCat(
           SpdyUtils::H3SettingsToString(
               static_cast<Http3AndQpackSettingsIdentifiers>(it.first)),
           " = ", it.second, "; ");
@@ -165,11 +165,10 @@ struct QUIC_EXPORT_PRIVATE PriorityUpdateFrame {
                     rhs.priority_field_value);
   }
   std::string ToString() const {
-    return quiche::QuicheStrCat(
-        "Priority Frame : {prioritized_element_type: ",
-        static_cast<int>(prioritized_element_type),
-        ", prioritized_element_id: ", prioritized_element_id,
-        ", priority_field_value: ", priority_field_value, "}");
+    return absl::StrCat("Priority Frame : {prioritized_element_type: ",
+                        static_cast<int>(prioritized_element_type),
+                        ", prioritized_element_id: ", prioritized_element_id,
+                        ", priority_field_value: ", priority_field_value, "}");
   }
 
   friend QUIC_EXPORT_PRIVATE std::ostream& operator<<(

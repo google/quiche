@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
 #include "net/third_party/quiche/src/quic/core/crypto/null_encrypter.h"
@@ -950,7 +951,7 @@ TEST_P(QuicSpdyClientSessionTest, TooManyPushPromises) {
         connection_->transport_version(), promise_count);
     auto headers = QuicHeaderList();
     headers.OnHeaderBlockStart();
-    headers.OnHeader(":path", quiche::QuicheStrCat("/", promise_count));
+    headers.OnHeader(":path", absl::StrCat("/", promise_count));
     headers.OnHeader(":authority", "www.google.com");
     headers.OnHeader(":method", "GET");
     headers.OnHeader(":scheme", "https");

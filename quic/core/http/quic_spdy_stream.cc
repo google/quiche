@@ -171,7 +171,7 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
   void CloseConnectionOnWrongFrame(absl::string_view frame_type) {
     stream_->OnUnrecoverableError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM,
-        quiche::QuicheStrCat(frame_type, " frame received on data stream"));
+        absl::StrCat(frame_type, " frame received on data stream"));
   }
 
   QuicSpdyStream* stream_;
@@ -597,7 +597,7 @@ void QuicSpdyStream::OnHeadersDecoded(QuicHeaderList headers,
 void QuicSpdyStream::OnHeaderDecodingError(absl::string_view error_message) {
   qpack_decoded_headers_accumulator_.reset();
 
-  std::string connection_close_error_message = quiche::QuicheStrCat(
+  std::string connection_close_error_message = absl::StrCat(
       "Error decoding ", headers_decompressed_ ? "trailers" : "headers",
       " on stream ", id(), ": ", error_message);
   OnUnrecoverableError(QUIC_QPACK_DECOMPRESSION_FAILED,
@@ -620,7 +620,7 @@ void QuicSpdyStream::MaybeSendPriorityUpdateFrame() {
   PriorityUpdateFrame priority_update;
   priority_update.prioritized_element_type = REQUEST_STREAM;
   priority_update.prioritized_element_id = id();
-  priority_update.priority_field_value = quiche::QuicheStrCat("u=", urgency);
+  priority_update.priority_field_value = absl::StrCat("u=", urgency);
   spdy_session_->WriteHttp3PriorityUpdate(priority_update);
 }
 
