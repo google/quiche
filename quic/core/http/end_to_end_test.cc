@@ -5213,7 +5213,6 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
-  SetQuicReloadableFlag(quic_enable_aead_limits, true);
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 4U);
 
   if (!version_.UsesTls()) {

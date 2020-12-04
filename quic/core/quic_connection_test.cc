@@ -12164,7 +12164,6 @@ TEST_P(QuicConnectionTest, InitiateKeyUpdateApproachingConfidentialityLimit) {
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 3U);
 
   std::string error_details;
@@ -12260,7 +12259,6 @@ TEST_P(QuicConnectionTest,
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
   // Set key update confidentiality limit to 1 packet.
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
   // Use confidentiality limit for connection close of 3 packets.
@@ -12316,7 +12314,6 @@ TEST_P(QuicConnectionTest,
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
   // Set key update confidentiality limit to 1 packet.
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
   // Use confidentiality limit for connection close of 3 packets.
@@ -12383,7 +12380,6 @@ TEST_P(QuicConnectionTest,
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
   // Set key update confidentiality limit to 1 packet.
   SetQuicFlag(FLAGS_quic_key_update_confidentiality_limit, 1U);
   // Use confidentiality limit for connection close of 3 packets.
@@ -12448,8 +12444,6 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitDuringHandshake) {
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
-
   constexpr uint8_t correct_tag = 0x01;
   constexpr uint8_t wrong_tag = 0xFE;
   constexpr QuicPacketCount kIntegrityLimit = 3;
@@ -12480,8 +12474,6 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAfterHandshake) {
   if (!connection_.version().UsesTls()) {
     return;
   }
-
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
 
   constexpr uint8_t correct_tag = 0x01;
   constexpr uint8_t wrong_tag = 0xFE;
@@ -12518,8 +12510,6 @@ TEST_P(QuicConnectionTest,
   if (!connection_.version().UsesTls()) {
     return;
   }
-
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
 
   constexpr uint8_t correct_tag = 0x01;
   constexpr uint8_t wrong_tag = 0xFE;
@@ -12572,8 +12562,6 @@ TEST_P(QuicConnectionTest, IntegrityLimitDoesNotApplyWithoutDecryptionKey) {
     return;
   }
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
-
   constexpr uint8_t correct_tag = 0x01;
   constexpr uint8_t wrong_tag = 0xFE;
   constexpr QuicPacketCount kIntegrityLimit = 3;
@@ -12605,7 +12593,6 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
 
   constexpr QuicPacketCount kIntegrityLimit = 4;
 
-  QuicConnectionPeer::SetEnableAeadLimits(&connection_, true);
   TransportParameters params;
   params.key_update_not_yet_supported = false;
   QuicConfig config;

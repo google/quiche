@@ -126,7 +126,6 @@ class QuicConnectionPeer {
                                   PacketHeaderFormat format);
   static void AddBytesReceived(QuicConnection* connection, size_t length);
   static void SetAddressValidated(QuicConnection* connection);
-  static void SetEnableAeadLimits(QuicConnection* connection, bool enabled);
 
   static void SendConnectionClosePacket(QuicConnection* connection,
                                         QuicErrorCode error,

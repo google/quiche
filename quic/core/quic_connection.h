@@ -1612,10 +1612,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // key update but before the first packet has been sent.
   QuicPacketNumber lowest_packet_sent_in_current_key_phase_;
 
-  // Honor the AEAD confidentiality and integrity limits by initiating key
-  // update (if allowed) and/or closing the connection, as necessary.
-  bool enable_aead_limits_;
-
   // True if the last packet has gotten far enough in the framer to be
   // decrypted.
   bool last_packet_decrypted_;
