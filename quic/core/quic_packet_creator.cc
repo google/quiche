@@ -258,13 +258,13 @@ void QuicPacketCreator::UpdatePacketNumberLength(
   if (packet_.packet_number_length == packet_number_length) {
     return;
   }
-  QUIC_DLOG(INFO) << ENDPOINT << "Updating packet number length from "
-                  << static_cast<int>(packet_.packet_number_length) << " to "
-                  << static_cast<int>(packet_number_length)
-                  << ", least_packet_awaited_by_peer: "
-                  << least_packet_awaited_by_peer
-                  << " max_packets_in_flight: " << max_packets_in_flight
-                  << " next_packet_number: " << next_packet_number;
+  QUIC_DVLOG(1) << ENDPOINT << "Updating packet number length from "
+                << static_cast<int>(packet_.packet_number_length) << " to "
+                << static_cast<int>(packet_number_length)
+                << ", least_packet_awaited_by_peer: "
+                << least_packet_awaited_by_peer
+                << " max_packets_in_flight: " << max_packets_in_flight
+                << " next_packet_number: " << next_packet_number;
   packet_.packet_number_length = packet_number_length;
 }
 
