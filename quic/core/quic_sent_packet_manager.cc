@@ -1154,9 +1154,7 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
           unacked_packets_.GetPacketNumberSpace(
               transmission_info->encryption_level) == space) {
         DCHECK(transmission_info->in_flight);
-        if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count) &&
-            pending_timer_transmission_count_ == 0) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_fix_pto_pending_timer_count);
+        if (pending_timer_transmission_count_ == 0) {
           pending_timer_transmission_count_ = 1;
         }
         MarkForRetransmission(packet_number, PTO_RETRANSMISSION);
@@ -1172,9 +1170,7 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
           unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
               space) {
         DCHECK(it->in_flight);
-        if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count) &&
-            pending_timer_transmission_count_ == 0) {
-          QUIC_RELOADABLE_FLAG_COUNT(quic_fix_pto_pending_timer_count);
+        if (pending_timer_transmission_count_ == 0) {
           pending_timer_transmission_count_ = 1;
         }
         MarkForRetransmission(packet_number, PTO_RETRANSMISSION);

@@ -11773,41 +11773,14 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
 
   // Fire ACK alarm.
   connection_.GetAckAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
-    // Verify 1-RTT packet is coalesced with handshake packet.
-    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-  } else {
-    // Verify handshake crypto frame is not bundled.
-    EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
-    EXPECT_FALSE(writer_->ack_frames().empty());
-    EXPECT_TRUE(writer_->crypto_frames().empty());
-  }
+  // Verify 1-RTT packet is coalesced with handshake packet.
+  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
   connection_.GetSendAlarm()->Fire();
 
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  if (!GetQuicReloadableFlag(quic_fix_pto_pending_timer_count) &&
-      !GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(0);
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetRetransmissionAlarm()->Fire();
-  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
-    // Verify a handshake packet gets PTOed and 1-RTT packet gets coalesced.
-    EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-  } else {
-    if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-      // Verify PING is sent in the right encryption level.
-      EXPECT_EQ(0x02020202u, writer_->final_bytes_of_last_packet());
-    } else {
-      // Verify an 1-RTT PING gets sent because there is nothing to PTO, bummer,
-      // since this 1-RTT PING cannot be processed by peer and there is a
-      // deadlock.
-      EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
-    }
-    EXPECT_FALSE(writer_->ping_frames().empty());
-  }
+  // Verify a handshake packet gets PTOed and 1-RTT packet gets coalesced.
+  EXPECT_EQ(0x03030303u, writer_->final_bytes_of_last_packet());
 }
 
 // Regression test for b/168294218.
