@@ -2636,9 +2636,6 @@ void QuicConnection::MarkZeroRttPacketsForRetransmission(int reject_reason) {
 
 void QuicConnection::NeuterUnencryptedPackets() {
   sent_packet_manager_.NeuterUnencryptedPackets();
-  if (!fix_missing_initial_keys_ && version().CanSendCoalescedPackets()) {
-    coalesced_packet_.NeuterInitialPacket();
-  }
   // This may have changed the retransmission timer, so re-arm it.
   SetRetransmissionAlarm();
   if (default_enable_5rto_blackhole_detection_) {
@@ -2864,19 +2861,6 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
         if (!FlushCoalescedPacket()) {
           // Failed to flush coalesced packet, write error has been handled.
           return false;
-        }
-        if (!fix_missing_initial_keys_ &&
-            GetQuicReloadableFlag(
-                quic_discard_initial_packet_with_key_dropped)) {
-          QUIC_RELOADABLE_FLAG_COUNT(
-              quic_discard_initial_packet_with_key_dropped);
-          if (packet->encryption_level == ENCRYPTION_INITIAL &&
-              !framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
-            // Discard initial packet since flush of coalesce packet could
-            // cause initial keys to be dropped.
-            ++stats_.packets_discarded;
-            return true;
-          }
         }
         if (!coalesced_packet_.MaybeCoalescePacket(
                 *packet, self_address(), send_to_address,
@@ -4235,9 +4219,7 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
-    if (connection_->fix_missing_initial_keys_ && !handshake_packet_sent_ &&
-        connection_->handshake_packet_sent_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys2, 1, 2);
+    if (!handshake_packet_sent_ && connection_->handshake_packet_sent_) {
       // This would cause INITIAL key to be dropped. Drop keys here to avoid
       // missing the write keys in the middle of writing.
       connection_->visitor_->OnHandshakePacketSent();
@@ -5049,17 +5031,14 @@ bool QuicConnection::FlushCoalescedPacket() {
     QUIC_BUG_IF(coalesced_packet_.length() > 0);
     return true;
   }
-  if (fix_missing_initial_keys_) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_fix_missing_initial_keys2, 2, 2);
-    if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
-        !framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
-      // Initial packet will be re-serialized. Neuter it in case initial key has
-      // been dropped.
-      QUIC_BUG << ENDPOINT
-               << "Coalescer contains initial packet while initial key has "
-                  "been dropped.";
-      coalesced_packet_.NeuterInitialPacket();
-    }
+  if (coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_INITIAL) &&
+      !framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL)) {
+    // Initial packet will be re-serialized. Neuter it in case initial key has
+    // been dropped.
+    QUIC_BUG << ENDPOINT
+             << "Coalescer contains initial packet while initial key has "
+                "been dropped.";
+    coalesced_packet_.NeuterInitialPacket();
   }
   if (coalesced_packet_.length() == 0) {
     return true;
@@ -5083,13 +5062,6 @@ bool QuicConnection::FlushCoalescedPacket() {
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
     }
-    if (!fix_missing_initial_keys_ &&
-        coalesced_packet_.ContainsPacketOfEncryptionLevel(
-            ENCRYPTION_HANDSHAKE)) {
-      // This is only called in coalescer because all ENCRYPTION_HANDSHAKE
-      // packets go through the coalescer.
-      visitor_->OnHandshakePacketSent();
-    }
     return true;
   }
 
@@ -5112,12 +5084,6 @@ bool QuicConnection::FlushCoalescedPacket() {
   }
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnCoalescedPacketSent(coalesced_packet_, length);
-  }
-  if (!fix_missing_initial_keys_ &&
-      coalesced_packet_.ContainsPacketOfEncryptionLevel(ENCRYPTION_HANDSHAKE)) {
-    // This is only called in coalescer because all ENCRYPTION_HANDSHAKE
-    // packets go through the coalescer.
-    visitor_->OnHandshakePacketSent();
   }
   // Account for added padding.
   if (length > coalesced_packet_.length()) {

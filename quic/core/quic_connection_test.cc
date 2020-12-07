@@ -9845,9 +9845,6 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
                                ? QuicPacketNumber(3)
                                : QuicPacketNumber(4),
                            _, _));
-  if (!GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  }
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify 1-RTT packet gets coalesced with handshake retransmission.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
@@ -9869,9 +9866,6 @@ TEST_P(QuicConnectionTest, MultiplePacketNumberSpacePto) {
               OnPacketSent(_, _, handshake_retransmission + 1, _, _));
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, handshake_retransmission, _, _));
-  if (!GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  }
   connection_.GetRetransmissionAlarm()->Fire();
   // Verify 1-RTT packet gets coalesced with handshake retransmission.
   EXPECT_EQ(0x01010101u, writer_->final_bytes_of_last_packet());
@@ -10647,11 +10641,7 @@ TEST_P(QuicConnectionTest, ServerBundlesInitialDataWithInitialAck) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
-  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
   // Verify PTO time does not change.
   EXPECT_EQ(expected_pto_time,
@@ -10690,11 +10680,7 @@ TEST_P(QuicConnectionTest, ClientBundlesHandshakeDataWithHandshakeAck) {
   // Receives packet 1000 in handshake data.
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_HANDSHAKE);
   EXPECT_TRUE(connection_.HasPendingAcks());
-  if (GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
-  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
 
   // Receives packet 1001 in handshake data.
@@ -10757,11 +10743,7 @@ TEST_P(QuicConnectionTest, ServerRetransmitsHandshakeDataEarly) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(3);
-  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   // Send HANDSHAKE 2 and 3.
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
   connection_.SendCryptoDataWithString("bar", 3, ENCRYPTION_HANDSHAKE);
@@ -10827,11 +10809,7 @@ TEST_P(QuicConnectionTest, InflatedRttSample) {
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  if (GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
-  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   std::string handshake_crypto_data(1024, 'a');
   connection_.SendCryptoDataWithString(handshake_crypto_data, 0,
                                        ENCRYPTION_HANDSHAKE);
@@ -10903,11 +10881,7 @@ TEST_P(QuicConnectionTest, CoalscingPacketCausesInfiniteLoop) {
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
   // Verify HANDSHAKE packet is coalesced with INITIAL retransmission.
-  if (GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  } else {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(2);
-  }
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
   std::string handshake_crypto_data(1024, 'a');
   connection_.SendCryptoDataWithString(handshake_crypto_data, 0,
                                        ENCRYPTION_HANDSHAKE);
@@ -11158,10 +11132,7 @@ TEST_P(QuicConnectionTest, ShorterIdleTimeoutOnSentPackets) {
 // Regression test for b/166255274
 TEST_P(QuicConnectionTest,
        ReserializeInitialPacketInCoalescerAfterDiscardingInitialKey) {
-  if (!connection_.version().CanSendCoalescedPackets() ||
-      !GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    // Cannot set quic_fix_missing_initial_keys in the test since connection_ is
-    // created since the setup.
+  if (!connection_.version().CanSendCoalescedPackets()) {
     return;
   }
   use_tagging_decrypter();
@@ -11805,9 +11776,6 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
   connection_.GetSendAlarm()->Set(clock_.ApproximateNow());
 
   // Fire ACK alarm.
-  if (!GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-    EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-  }
   connection_.GetAckAlarm()->Fire();
   if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
     // Verify 1-RTT packet is coalesced with handshake packet.
@@ -11821,15 +11789,8 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
   connection_.GetSendAlarm()->Fire();
 
   ASSERT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
-  if (GetQuicReloadableFlag(quic_fix_pto_pending_timer_count)) {
-    if (!GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-      EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-    }
-  } else if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    if (!GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
-      EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(1);
-    }
-  } else {
+  if (!GetQuicReloadableFlag(quic_fix_pto_pending_timer_count) &&
+      !GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
     EXPECT_CALL(visitor_, OnHandshakePacketSent()).Times(0);
     EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
       SendPing();
@@ -11855,8 +11816,7 @@ TEST_P(QuicConnectionTest, HandshakeDataDoesNotGetPtoed) {
 
 // Regression test for b/168294218.
 TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
-  if (!connection_.version().CanSendCoalescedPackets() ||
-      !GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
+  if (!connection_.version().CanSendCoalescedPackets()) {
     return;
   }
   SetQuicReloadableFlag(quic_discard_initial_packet_with_key_dropped, true);
@@ -11887,8 +11847,7 @@ TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
 
 // Regresstion test for b/168294218
 TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
-  if (!connection_.SupportsMultiplePacketNumberSpaces() ||
-      !GetQuicReloadableFlag(quic_fix_missing_initial_keys2)) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
     return;
   }
   // Not defer send in response to packet.

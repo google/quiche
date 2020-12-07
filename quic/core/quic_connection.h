@@ -1959,9 +1959,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // True after the first 1-RTT packet has successfully decrypted.
   bool have_decrypted_first_one_rtt_packet_ = false;
 
-  const bool fix_missing_initial_keys_ =
-      GetQuicReloadableFlag(quic_fix_missing_initial_keys2);
-
   const bool encrypted_control_frames_;
 
   const bool use_encryption_level_context_;
