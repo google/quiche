@@ -110,12 +110,7 @@ void Bbr2StartupMode::CheckExcessiveLosses(
     QuicByteCount new_inflight_hi = model_->BDP();
     if (Params().startup_loss_exit_use_max_delivered_for_inflight_hi) {
       if (new_inflight_hi < model_->max_bytes_delivered_in_round()) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(
-            quic_bbr2_startup_loss_exit_use_max_delivered, 1, 2);
         new_inflight_hi = model_->max_bytes_delivered_in_round();
-      } else {
-        QUIC_RELOADABLE_FLAG_COUNT_N(
-            quic_bbr2_startup_loss_exit_use_max_delivered, 2, 2);
       }
     }
     QUIC_DVLOG(3) << sender_ << " Exiting STARTUP due to loss. inflight_hi:"

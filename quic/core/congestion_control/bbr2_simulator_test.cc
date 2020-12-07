@@ -732,7 +732,6 @@ TEST_F(Bbr2DefaultTopologyTest, InFlightAwareGainCycling) {
 
 // Test exiting STARTUP earlier upon loss due to loss.
 TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
-  SetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered, true);
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;
   CreateNetwork(params);
@@ -765,7 +764,6 @@ TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLoss) {
 // Test exiting STARTUP earlier upon loss due to loss when connection option
 // B2SL is used.
 TEST_F(Bbr2DefaultTopologyTest, ExitStartupDueToLossB2SL) {
-  SetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered, true);
   SetConnectionOption(kB2SL);
   DefaultTopologyParams params;
   params.switch_queue_capacity_in_bdp = 0.5;

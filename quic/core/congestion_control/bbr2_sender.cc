@@ -137,12 +137,10 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB2NE)) {
     params_.always_exit_startup_on_excess_loss = false;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
-      ContainsQuicTag(connection_options, kB2SL)) {
+  if (ContainsQuicTag(connection_options, kB2SL)) {
     params_.startup_loss_exit_use_max_delivered_for_inflight_hi = false;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_startup_loss_exit_use_max_delivered) &&
-      ContainsQuicTag(connection_options, kB2H2)) {
+  if (ContainsQuicTag(connection_options, kB2H2)) {
     params_.limit_inflight_hi_by_max_delivered = true;
   }
   if (GetQuicReloadableFlag(quic_bbr2_use_bytes_delivered) &&
