@@ -233,11 +233,7 @@ void TlsServerHandshaker::OverrideQuicConfigDefaults(QuicConfig* /*config*/) {}
 
 void TlsServerHandshaker::AdvanceHandshakeFromCallback() {
   AdvanceHandshake();
-  if (GetQuicReloadableFlag(
-          quic_process_undecryptable_packets_after_async_decrypt_callback) &&
-      !is_connection_closed()) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_process_undecryptable_packets_after_async_decrypt_callback);
+  if (!is_connection_closed()) {
     handshaker_delegate()->OnHandshakeCallbackDone();
   }
 }
