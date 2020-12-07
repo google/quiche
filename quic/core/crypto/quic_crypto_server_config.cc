@@ -1001,7 +1001,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   out->SetVersionVector(kVER, context->supported_versions());
   out->SetStringPiece(
       kSourceAddressTokenTag,
-      NewSourceAddressToken(*configs.requested,
+      NewSourceAddressToken(*configs.requested->source_address_token_boxer,
                             context->info().source_address_tokens,
                             context->client_address().host(), context->rand(),
                             context->info().now, nullptr));
@@ -1235,7 +1235,8 @@ void QuicCryptoServerConfig::EvaluateClientHello(
       Config& config =
           configs.requested != nullptr ? *configs.requested : *configs.primary;
       source_address_token_error =
-          ParseSourceAddressToken(config, srct, &info->source_address_tokens);
+          ParseSourceAddressToken(*config.source_address_token_boxer, srct,
+                                  &info->source_address_tokens);
 
       if (source_address_token_error == HANDSHAKE_OK) {
         source_address_token_error = ValidateSourceAddressTokens(
@@ -1326,8 +1327,9 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
     serialized = primary_config_->serialized;
     common_cert_sets = primary_config_->common_cert_sets;
     source_address_token = NewSourceAddressToken(
-        *primary_config_, previous_source_address_tokens, client_address.host(),
-        rand, clock->WallNow(), cached_network_params);
+        *primary_config_->source_address_token_boxer,
+        previous_source_address_tokens, client_address.host(), rand,
+        clock->WallNow(), cached_network_params);
   }
 
   CryptoHandshakeMessage message;
@@ -1438,8 +1440,9 @@ void QuicCryptoServerConfig::BuildRejection(
   out->SetStringPiece(
       kSourceAddressTokenTag,
       NewSourceAddressToken(
-          config, context.info().source_address_tokens,
-          context.info().client_ip, context.rand(), context.info().now,
+          *config.source_address_token_boxer,
+          context.info().source_address_tokens, context.info().client_ip,
+          context.rand(), context.info().now,
           &context.validate_chlo_result()->cached_network_params));
   out->SetValue(kSTTL, config.expiry_time.AbsoluteDifference(now).ToSeconds());
   if (replay_protection_) {
@@ -1718,7 +1721,7 @@ void QuicCryptoServerConfig::AcquirePrimaryConfigChangedCb(
 }
 
 std::string QuicCryptoServerConfig::NewSourceAddressToken(
-    const Config& config,
+    const CryptoSecretBoxer& crypto_secret_boxer,
     const SourceAddressTokens& previous_tokens,
     const QuicIpAddress& ip,
     QuicRandom* rand,
@@ -1751,8 +1754,8 @@ std::string QuicCryptoServerConfig::NewSourceAddressToken(
     *(source_address_tokens.add_tokens()) = token;
   }
 
-  return config.source_address_token_boxer->Box(
-      rand, source_address_tokens.SerializeAsString());
+  return crypto_secret_boxer.Box(rand,
+                                 source_address_tokens.SerializeAsString());
 }
 
 int QuicCryptoServerConfig::NumberOfConfigs() const {
@@ -1786,12 +1789,12 @@ SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const {
 }
 
 HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
-    const Config& config,
+    const CryptoSecretBoxer& crypto_secret_boxer,
     absl::string_view token,
     SourceAddressTokens* tokens) const {
   std::string storage;
   absl::string_view plaintext;
-  if (!config.source_address_token_boxer->Unbox(token, &storage, &plaintext)) {
+  if (!crypto_secret_boxer.Unbox(token, &storage, &plaintext)) {
     return SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE;
   }
 

@@ -748,7 +748,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // NewSourceAddressToken returns a fresh source address token for the given
   // IP address. |cached_network_params| is optional, and can be nullptr.
   std::string NewSourceAddressToken(
-      const Config& config,
+      const CryptoSecretBoxer& crypto_secret_boxer,
       const SourceAddressTokens& previous_tokens,
       const QuicIpAddress& ip,
       QuicRandom* rand,
@@ -760,7 +760,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // Returns HANDSHAKE_OK if |token| could be parsed, or the reason for the
   // failure.
   HandshakeFailureReason ParseSourceAddressToken(
-      const Config& config,
+      const CryptoSecretBoxer& crypto_secret_boxer,
       absl::string_view token,
       SourceAddressTokens* tokens) const;
 
