@@ -2284,7 +2284,7 @@ std::string QuicConnection::UndecryptablePacketsInfo() const {
   for (const auto& packet : undecryptable_packets_) {
     absl::StrAppend(&info, "[",
                     EncryptionLevelToString(packet.encryption_level), ", ",
-                    packet.packet->length(), ", ", packet.processed, "]");
+                    packet.packet->length(), "]");
   }
   absl::StrAppend(&info, "}");
   return info;
@@ -3744,11 +3744,6 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       encryption_level_ == ENCRYPTION_INITIAL) {
     return;
   }
-  const bool fix_undecryptable_packets =
-      GetQuicReloadableFlag(quic_fix_undecryptable_packets2);
-  if (fix_undecryptable_packets) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_undecryptable_packets2);
-  }
 
   auto iter = undecryptable_packets_.begin();
   while (connected_ && iter != undecryptable_packets_.end()) {
@@ -3759,12 +3754,6 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       return;
     }
     UndecryptablePacket* undecryptable_packet = &*iter;
-    if (!fix_undecryptable_packets) {
-      ++iter;
-      if (undecryptable_packet->processed) {
-        continue;
-      }
-    }
     QUIC_DVLOG(1) << ENDPOINT << "Attempting to process undecryptable packet";
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnAttemptingToProcessUndecryptablePacket(
@@ -3772,11 +3761,7 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
     }
     if (framer_.ProcessPacket(*undecryptable_packet->packet)) {
       QUIC_DVLOG(1) << ENDPOINT << "Processed undecryptable packet!";
-      if (fix_undecryptable_packets) {
-        iter = undecryptable_packets_.erase(iter);
-      } else {
-        undecryptable_packet->processed = true;
-      }
+      iter = undecryptable_packets_.erase(iter);
       ++stats_.packets_processed;
       continue;
     }
@@ -3789,25 +3774,10 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       QUIC_DVLOG(1)
           << ENDPOINT
           << "Need to attempt to process this undecryptable packet later";
-      if (fix_undecryptable_packets) {
-        ++iter;
-      }
+      ++iter;
       continue;
     }
-    if (fix_undecryptable_packets) {
-      iter = undecryptable_packets_.erase(iter);
-    } else {
-      undecryptable_packet->processed = true;
-    }
-  }
-  // Remove processed packets. We cannot remove elements in the while loop
-  // above because currently QuicCircularDeque does not support removing
-  // mid elements.
-  while (!fix_undecryptable_packets && !undecryptable_packets_.empty()) {
-    if (!undecryptable_packets_.front().processed) {
-      break;
-    }
-    undecryptable_packets_.pop_front();
+    iter = undecryptable_packets_.erase(iter);
   }
 
   // Once forward secure encryption is in use, there will be no

@@ -1273,18 +1273,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   struct QUIC_EXPORT_PRIVATE UndecryptablePacket {
     UndecryptablePacket(const QuicEncryptedPacket& packet,
                         EncryptionLevel encryption_level)
-        : packet(packet.Clone()),
-          encryption_level(encryption_level),
-          processed(false) {}
+        : packet(packet.Clone()), encryption_level(encryption_level) {}
 
     std::unique_ptr<QuicEncryptedPacket> packet;
     EncryptionLevel encryption_level;
-    // This gets set to true if 1) connection sucessfully processed the packet
-    // or 2) connection failed to process the packet and will not try to process
-    // it later.
-    // TODO(fayang): Remove this when deprecating
-    // quic_fix_undecryptable_packets2.
-    bool processed;
   };
 
   // Notifies the visitor of the close and marks the connection as disconnected.
