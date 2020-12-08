@@ -1610,7 +1610,7 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
     // Have received the matching PATH RESPONSE, saved payload no longer valid.
     transmitted_connectivity_probe_payload_ = nullptr;
   }
-  return true;
+  return connected_;
 }
 
 bool QuicConnection::OnConnectionCloseFrame(
