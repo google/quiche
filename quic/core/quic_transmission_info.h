@@ -32,6 +32,8 @@ struct QUIC_EXPORT_PRIVATE QuicTransmissionInfo {
 
   ~QuicTransmissionInfo();
 
+  std::string DebugString() const;
+
   QuicFrames retransmittable_frames;
   QuicTime sent_time;
   QuicPacketLength bytes_sent;

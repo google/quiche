@@ -168,7 +168,9 @@ void BandwidthSampler::OnPacketSent(
   if (!connection_state_map_.IsEmpty() &&
       packet_number >
           connection_state_map_.last_packet() + max_tracked_packets_) {
-    if (unacked_packet_map_ != nullptr) {
+    if (unacked_packet_map_ != nullptr && !unacked_packet_map_->empty()) {
+      QuicPacketNumber maybe_least_unacked =
+          unacked_packet_map_->GetLeastUnacked();
       QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
                   "number of tracked packets("
                << max_tracked_packets_
@@ -179,7 +181,21 @@ void BandwidthSampler::OnPacketSent(
                << "; number_of_present_entries: "
                << connection_state_map_.number_of_present_entries()
                << "; packet number: " << packet_number
-               << "; unacked_map: " << unacked_packet_map_->DebugString();
+               << "; unacked_map: " << unacked_packet_map_->DebugString()
+               << "; total_bytes_sent: " << total_bytes_sent_
+               << "; total_bytes_acked: " << total_bytes_acked_
+               << "; total_bytes_lost: " << total_bytes_lost_
+               << "; total_bytes_neutered: " << total_bytes_neutered_
+               << "; last_acked_packet_sent_time: "
+               << last_acked_packet_sent_time_
+               << "; total_bytes_sent_at_last_acked_packet: "
+               << total_bytes_sent_at_last_acked_packet_
+               << "; least_unacked_packet_info: "
+               << (unacked_packet_map_->IsUnacked(maybe_least_unacked)
+                       ? unacked_packet_map_
+                             ->GetTransmissionInfo(maybe_least_unacked)
+                             .DebugString()
+                       : "n/a");
     } else {
       QUIC_BUG << "BandwidthSampler in-flight packet map has exceeded maximum "
                   "number of tracked packets.";
