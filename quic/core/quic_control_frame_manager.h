@@ -93,9 +93,6 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // immediately.
   void WriteOrBufferNewToken(absl::string_view token);
 
-  // Sends a PING_FRAME. Do not send PING if there is buffered frames.
-  void WritePing();
-
   // Called when |frame| gets acked. Returns true if |frame| gets acked for the
   // first time, return false otherwise.
   bool OnControlFrameAcked(const QuicFrame& frame);

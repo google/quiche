@@ -567,7 +567,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
                bool is_connectivity_probe),
               (override));
   MOCK_METHOD(void, OnAckNeedsRetransmittableFrame, (), (override));
-  MOCK_METHOD(void, SendPing, (), (override));
   MOCK_METHOD(void,
               SendAckFrequency,
               (const QuicAckFrequencyFrame& frame),

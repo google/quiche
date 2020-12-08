@@ -471,10 +471,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Return true if retry_token_ is not empty.
   bool HasRetryToken() const;
 
-  bool let_connection_handle_pings() const {
-    return let_connection_handle_pings_;
-  }
-
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -673,9 +669,6 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
-
-  const bool let_connection_handle_pings_ =
-      GetQuicReloadableFlag(quic_let_connection_handle_pings);
 };
 
 }  // namespace quic

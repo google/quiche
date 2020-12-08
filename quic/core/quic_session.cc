@@ -2091,10 +2091,6 @@ void QuicSession::OnAckNeedsRetransmittableFrame() {
   flow_controller_.SendWindowUpdate();
 }
 
-void QuicSession::SendPing() {
-  control_frame_manager_.WritePing();
-}
-
 void QuicSession::SendAckFrequency(const QuicAckFrequencyFrame& frame) {
   control_frame_manager_.WriteOrBufferAckFrequency(frame);
 }

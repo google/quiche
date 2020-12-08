@@ -3960,11 +3960,6 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   // Simulate firing of the retransmittable on wire and send a PING.
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   clock_.AdvanceTime(retransmittable_on_wire_timeout);
   connection_.GetPingAlarm()->Fire();
 
@@ -3978,21 +3973,14 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
       QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs);
   srtt = manager_->GetRttStats()->SmoothedOrInitialRtt();
 
-  if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    // Arm RTO mode since there is only PING in flight.
-    expected_delay = manager_->GetPtoDelay();
-  } else {
-    // First TLP without unacked stream data will no longer use TLPR.
-    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
-  }
+  // Arm RTO mode since there is only PING in flight.
+  expected_delay = manager_->GetPtoDelay();
   EXPECT_EQ(expected_delay,
             connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
 
   // Verify the path degrading delay = TLP delay + 1st RTO + 2nd RTO.
   // Add 1st RTO.
-  if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
-  }
+  expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
   retransmission_delay =
       std::max(manager_->GetRttStats()->smoothed_rtt() +
                    4 * manager_->GetRttStats()->mean_deviation(),
@@ -4019,12 +4007,8 @@ TEST_P(QuicConnectionTest, TailLossProbeDelayForNonStreamDataInTLPR) {
 
   // Verify the retransmission delay.
   // First TLP without unacked stream data will no longer use TLPR.
-  if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    // Arm RTO mode since there is only PING in flight.
-    expected_delay = manager_->GetPtoDelay();
-  } else {
-    expected_delay = std::max(2 * srtt, 1.5 * srtt + 0.5 * min_rto_timeout);
-  }
+  // Arm RTO mode since there is only PING in flight.
+  expected_delay = manager_->GetPtoDelay();
   expected_delay = expected_delay - QuicTime::Delta::FromMilliseconds(5);
   EXPECT_EQ(expected_delay,
             connection_.GetRetransmissionAlarm()->deadline() - clock_.Now());
@@ -4550,11 +4534,6 @@ TEST_P(QuicConnectionTest, PingAfterSend) {
 
   writer_->Reset();
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(15));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
@@ -4608,11 +4587,6 @@ TEST_P(QuicConnectionTest, ReducedPingTimeout) {
 
   writer_->Reset();
   clock_.AdvanceTime(QuicTime::Delta::FromSeconds(10));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-    }));
-  }
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   EXPECT_EQ(padding_frame_count + 1u, writer_->frame_count());
@@ -7103,11 +7077,6 @@ TEST_P(QuicConnectionTest, RetransmittableOnWireSetsPingAlarm) {
 
   // Simulate firing the ping alarm and sending a PING.
   clock_.AdvanceTime(retransmittable_on_wire_timeout);
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-    }));
-  }
   connection_.GetPingAlarm()->Fire();
 
   // Now there's a retransmittable packet (PING) on the wire, so the path
@@ -7829,11 +7798,6 @@ TEST_P(QuicConnectionTest, PingAfterLastRetransmittablePacketAcked) {
   EXPECT_EQ(prev_deadline, connection_.GetPingAlarm()->deadline());
 
   // Simulate the alarm firing and check that a PING is sent.
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-    }));
-  }
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
@@ -7904,11 +7868,6 @@ TEST_P(QuicConnectionTest, NoPingIfRetransmittablePacketSent) {
 
   // Simulate the alarm firing and check that a PING is sent.
   writer_->Reset();
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-    }));
-  }
   connection_.GetPingAlarm()->Fire();
   size_t padding_frame_count = writer_->padding_frames().size();
   if (GetParam().no_stop_waiting) {
@@ -7968,11 +7927,6 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
               connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
     // Simulate the alarm firing and check that a PING is sent.
     writer_->Reset();
-    if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-      EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-        SendPing();
-      }));
-    }
     clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
     connection_.GetPingAlarm()->Fire();
   }
@@ -7997,11 +7951,6 @@ TEST_P(QuicConnectionTest, BackOffRetransmittableOnWireTimeout) {
 
     // Simulate the alarm firing and check that a PING is sent.
     writer_->Reset();
-    if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-      EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-        SendPing();
-      }));
-    }
     clock_.AdvanceTime(retransmittable_on_wire_timeout);
     connection_.GetPingAlarm()->Fire();
   }
@@ -8067,11 +8016,6 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
 
   // Simulate the alarm firing and check that a PING is sent.
   writer_->Reset();
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
   connection_.GetPingAlarm()->Fire();
 
@@ -8107,11 +8051,6 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
               connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
     // Simulate the alarm firing and check that a PING is sent.
     writer_->Reset();
-    if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-      EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-        SendPing();
-      }));
-    }
     clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
     connection_.GetPingAlarm()->Fire();
     // Advance 5ms to receive next packet.
@@ -8129,11 +8068,6 @@ TEST_P(QuicConnectionTest, ResetBackOffRetransmitableOnWireTimeout) {
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 
   writer_->Reset();
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   clock_.AdvanceTime(2 * initial_retransmittable_on_wire_timeout);
   connection_.GetPingAlarm()->Fire();
 
@@ -8202,11 +8136,6 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
               connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
     // Simulate the alarm firing and check that a PING is sent.
     writer_->Reset();
-    if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-      EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-        SendPing();
-      }));
-    }
     clock_.AdvanceTime(initial_retransmittable_on_wire_timeout);
     connection_.GetPingAlarm()->Fire();
   }
@@ -9141,11 +9070,6 @@ TEST_P(QuicConnectionTest, RtoForcesSendingPing) {
 
   // RTO fires, verify a PING packet gets sent because there is no data to send.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   clock_.AdvanceTime(retransmission_time - clock_.Now());
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().tlp_count);
@@ -9365,11 +9289,6 @@ TEST_P(QuicConnectionTest, DeprecateHandshakeMode) {
                                ? QuicPacketNumber(2)
                                : QuicPacketNumber(3),
                            _, _));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
   EXPECT_EQ(1u, connection_.GetStats().crypto_retransmit_count);
@@ -9666,11 +9585,6 @@ TEST_P(QuicConnectionTest, RtoPacketAsTwo) {
   // Fires TLP, verify a PING gets sent because packet 3 is marked
   // RTO_RETRANSMITTED.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(70), _, _));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetRetransmissionAlarm()->Fire();
 }
 
@@ -10240,11 +10154,6 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   // PTO fires, verify a PING packet gets sent because there is no data to
   // send.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, QuicPacketNumber(3), _, _));
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetRetransmissionAlarm()->Fire();
   EXPECT_EQ(1u, connection_.GetStats().pto_count);
   EXPECT_EQ(0u, connection_.GetStats().crypto_retransmit_count);
@@ -11008,11 +10917,7 @@ TEST_P(QuicConnectionTest, DonotSendPing) {
   EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
       .WillRepeatedly(Return(false));
   // Verify PING does not get sent.
-  if (GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
-  } else {
-    EXPECT_CALL(visitor_, SendPing()).Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   connection_.GetPingAlarm()->Fire();
 }
 
@@ -11865,11 +11770,6 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // Fire retransmission alarm.
-  if (!GetQuicReloadableFlag(quic_let_connection_handle_pings)) {
-    EXPECT_CALL(visitor_, SendPing()).WillOnce(Invoke([this]() {
-      SendPing();
-    }));
-  }
   connection_.GetRetransmissionAlarm()->Fire();
 
   QuicFrames frames1;

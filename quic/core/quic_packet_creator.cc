@@ -134,9 +134,6 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       fully_pad_crypto_handshake_packets_(true),
       latched_hard_max_packet_length_(0),
       max_datagram_frame_size_(0) {
-  if (let_connection_handle_pings_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_let_connection_handle_pings);
-  }
   SetMaxPacketLength(kDefaultMaxPacketSize);
   if (!framer_->version().UsesTls()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
@@ -1191,7 +1188,7 @@ void QuicPacketCreator::SetRetryToken(absl::string_view retry_token) {
 bool QuicPacketCreator::ConsumeRetransmittableControlFrame(
     const QuicFrame& frame) {
   QUIC_BUG_IF(IsControlFrame(frame.type) && !GetControlFrameId(frame) &&
-              (!let_connection_handle_pings_ || frame.type != PING_FRAME))
+              frame.type != PING_FRAME)
       << "Adding a control frame with no control frame id: " << frame;
   DCHECK(QuicUtils::IsRetransmittableFrame(frame.type)) << frame;
   MaybeBundleAckOpportunistically();

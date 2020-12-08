@@ -161,9 +161,6 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // retransmittable frame needs to be added.
   virtual void OnAckNeedsRetransmittableFrame() = 0;
 
-  // Called when a ping needs to be sent.
-  virtual void SendPing() = 0;
-
   // Called when an AckFrequency frame need to be sent.
   virtual void SendAckFrequency(const QuicAckFrequencyFrame& frame) = 0;
 

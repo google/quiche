@@ -137,27 +137,6 @@ void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
       QuicFrame(new QuicNewTokenFrame(++last_control_frame_id_, token)));
 }
 
-void QuicControlFrameManager::WritePing() {
-  QUIC_DVLOG(1) << "Writing PING_FRAME";
-  if (HasBufferedFrames()) {
-    // Do not send ping if there is buffered frames.
-    QUIC_LOG(WARNING)
-        << "Try to send PING when there is buffered control frames.";
-    return;
-  }
-  control_frames_.emplace_back(
-      QuicFrame(QuicPingFrame(++last_control_frame_id_)));
-  if (control_frames_.size() > kMaxNumControlFrames) {
-    delegate_->OnControlFrameManagerError(
-        QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES,
-        absl::StrCat("More than ", kMaxNumControlFrames,
-                     "buffered control frames, least_unacked: ", least_unacked_,
-                     ", least_unsent_: ", least_unsent_));
-    return;
-  }
-  WriteBufferedFrames();
-}
-
 void QuicControlFrameManager::OnControlFrameSent(const QuicFrame& frame) {
   QuicControlFrameId id = GetControlFrameId(frame);
   if (id == kInvalidControlFrameId) {

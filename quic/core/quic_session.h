@@ -134,7 +134,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.
   void OnAckNeedsRetransmittableFrame() override;
-  void SendPing() override;
   void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;
   bool WillingAndAbleToWrite() const override;
   std::string GetStreamsInfoForLogging() const override;

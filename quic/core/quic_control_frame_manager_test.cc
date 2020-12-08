@@ -72,7 +72,6 @@ class QuicControlFrameManagerTest : public QuicTest {
     manager_->WriteOrBufferBlocked(kTestStreamId);
     manager_->WriteOrBufferStopSending(kTestStopSendingCode, kTestStreamId);
     number_of_frames_ = 5u;
-    ping_frame_id_ = 6u;
     EXPECT_EQ(number_of_frames_,
               QuicControlFrameManagerPeer::QueueSize(manager_.get()));
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&rst_stream_)));
@@ -81,8 +80,6 @@ class QuicControlFrameManagerTest : public QuicTest {
         manager_->IsControlFrameOutstanding(QuicFrame(&window_update_)));
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&blocked_)));
     EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&stop_sending_)));
-    EXPECT_FALSE(manager_->IsControlFrameOutstanding(
-        QuicFrame(QuicPingFrame(ping_frame_id_))));
 
     EXPECT_FALSE(manager_->HasPendingRetransmission());
     EXPECT_TRUE(manager_->WillingToWrite());
@@ -101,7 +98,6 @@ class QuicControlFrameManagerTest : public QuicTest {
   std::unique_ptr<QuicControlFrameManager> manager_;
   QuicFrame frame_;
   size_t number_of_frames_;
-  int ping_frame_id_;
 };
 
 TEST_F(QuicControlFrameManagerTest, OnControlFrameAcked) {
@@ -119,8 +115,6 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameAcked) {
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&blocked_)));
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(&stop_sending_)));
 
-  EXPECT_FALSE(manager_->IsControlFrameOutstanding(
-      QuicFrame(QuicPingFrame(ping_frame_id_))));
   EXPECT_TRUE(manager_->OnControlFrameAcked(QuicFrame(&window_update_)));
   EXPECT_FALSE(manager_->IsControlFrameOutstanding(QuicFrame(&window_update_)));
   EXPECT_EQ(number_of_frames_,
@@ -146,7 +140,6 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameAcked) {
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   manager_->OnCanWrite();
-  manager_->WritePing();
   EXPECT_FALSE(manager_->WillingToWrite());
 }
 
@@ -179,10 +172,9 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameLost) {
 
   // Send control frames 4, 5, and 6.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .Times(number_of_frames_ - 2u)
+      .Times(number_of_frames_ - 3u)
       .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
   manager_->OnCanWrite();
-  manager_->WritePing();
   EXPECT_FALSE(manager_->WillingToWrite());
 }
 
@@ -212,28 +204,6 @@ TEST_F(QuicControlFrameManagerTest, RetransmitControlFrame) {
   EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
   EXPECT_FALSE(manager_->RetransmitControlFrame(QuicFrame(&window_update_),
                                                 PTO_RETRANSMISSION));
-}
-
-TEST_F(QuicControlFrameManagerTest, DonotSendPingWithBufferedFrames) {
-  Initialize();
-  InSequence s;
-  EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
-  EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
-  // Send control frame 1.
-  manager_->OnCanWrite();
-  EXPECT_FALSE(manager_->HasPendingRetransmission());
-  EXPECT_TRUE(manager_->WillingToWrite());
-
-  // Send PING when there is buffered frames.
-  manager_->WritePing();
-  // Verify only the buffered frames are sent.
-  EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .Times(number_of_frames_ - 1)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
-  manager_->OnCanWrite();
-  EXPECT_FALSE(manager_->HasPendingRetransmission());
-  EXPECT_FALSE(manager_->WillingToWrite());
 }
 
 TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {

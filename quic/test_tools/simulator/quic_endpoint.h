@@ -80,7 +80,6 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnPathDegrading() override {}
   void OnForwardProgressMadeAfterPathDegrading() override {}
   void OnAckNeedsRetransmittableFrame() override {}
-  void SendPing() override {}
   void SendAckFrequency(const QuicAckFrequencyFrame& /*frame*/) override {}
   bool AllowSelfAddressChange() const override;
   HandshakeState GetHandshakeState() const override;
