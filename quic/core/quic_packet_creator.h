@@ -468,6 +468,9 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // different from the current one, flush all the queue frames first.
   void SetDefaultPeerAddress(QuicSocketAddress address);
 
+  // Return true if retry_token_ is not empty.
+  bool HasRetryToken() const;
+
   bool let_connection_handle_pings() const {
     return let_connection_handle_pings_;
   }

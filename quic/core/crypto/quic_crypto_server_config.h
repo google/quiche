@@ -417,6 +417,37 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // Returns the number of configs this object owns.
   int NumberOfConfigs() const;
 
+  // NewSourceAddressToken returns a fresh source address token for the given
+  // IP address. |previous_tokens| is the received tokens, and can be empty.
+  // |cached_network_params| is optional, and can be nullptr.
+  std::string NewSourceAddressToken(
+      const CryptoSecretBoxer& crypto_secret_boxer,
+      const SourceAddressTokens& previous_tokens,
+      const QuicIpAddress& ip,
+      QuicRandom* rand,
+      QuicWallTime now,
+      const CachedNetworkParameters* cached_network_params) const;
+
+  // ParseSourceAddressToken parses the source address tokens contained in
+  // the encrypted |token|, and populates |tokens| with the parsed tokens.
+  // Returns HANDSHAKE_OK if |token| could be parsed, or the reason for the
+  // failure.
+  HandshakeFailureReason ParseSourceAddressToken(
+      const CryptoSecretBoxer& crypto_secret_boxer,
+      absl::string_view token,
+      SourceAddressTokens* tokens) const;
+
+  // ValidateSourceAddressTokens returns HANDSHAKE_OK if the source address
+  // tokens in |tokens| contain a valid and timely token for the IP address
+  // |ip| given that the current time is |now|. Otherwise it returns the
+  // reason for failure. |cached_network_params| is populated if the valid
+  // token contains a CachedNetworkParameters proto.
+  HandshakeFailureReason ValidateSourceAddressTokens(
+      const SourceAddressTokens& tokens,
+      const QuicIpAddress& ip,
+      QuicWallTime now,
+      CachedNetworkParameters* cached_network_params) const;
+
   // Callers retain the ownership of |rejection_observer| which must outlive the
   // config.
   void set_rejection_observer(RejectionObserver* rejection_observer) {
@@ -443,6 +474,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   bool pad_shlo() const { return pad_shlo_; }
   void set_pad_shlo(bool new_value) { pad_shlo_ = new_value; }
+
+  const CryptoSecretBoxer& source_address_token_boxer() const {
+    return source_address_token_boxer_;
+  }
 
  private:
   friend class test::QuicCryptoServerConfigPeer;
@@ -744,36 +779,6 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   QuicReferenceCountedPointer<Config> ParseConfigProtobuf(
       const QuicServerConfigProtobuf& protobuf,
       bool is_fallback) const;
-
-  // NewSourceAddressToken returns a fresh source address token for the given
-  // IP address. |cached_network_params| is optional, and can be nullptr.
-  std::string NewSourceAddressToken(
-      const CryptoSecretBoxer& crypto_secret_boxer,
-      const SourceAddressTokens& previous_tokens,
-      const QuicIpAddress& ip,
-      QuicRandom* rand,
-      QuicWallTime now,
-      const CachedNetworkParameters* cached_network_params) const;
-
-  // ParseSourceAddressToken parses the source address tokens contained in
-  // the encrypted |token|, and populates |tokens| with the parsed tokens.
-  // Returns HANDSHAKE_OK if |token| could be parsed, or the reason for the
-  // failure.
-  HandshakeFailureReason ParseSourceAddressToken(
-      const CryptoSecretBoxer& crypto_secret_boxer,
-      absl::string_view token,
-      SourceAddressTokens* tokens) const;
-
-  // ValidateSourceAddressTokens returns HANDSHAKE_OK if the source address
-  // tokens in |tokens| contain a valid and timely token for the IP address
-  // |ip| given that the current time is |now|. Otherwise it returns the
-  // reason for failure. |cached_network_params| is populated if the valid
-  // token contains a CachedNetworkParameters proto.
-  HandshakeFailureReason ValidateSourceAddressTokens(
-      const SourceAddressTokens& tokens,
-      const QuicIpAddress& ip,
-      QuicWallTime now,
-      CachedNetworkParameters* cached_network_params) const;
 
   // ValidateSingleSourceAddressToken returns HANDSHAKE_OK if the source
   // address token in |token| is a timely token for the IP address |ip|

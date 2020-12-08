@@ -183,6 +183,13 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // was discarded, only on server connections.
   QuicPacketCount
       num_tls_server_zero_rtt_packets_received_after_discarding_decrypter = 0;
+
+  // True if address is validated via decrypting HANDSHAKE or 1-RTT packet.
+  bool address_validated_via_decrypting_packet = false;
+
+  // True if address is validated via validating token received in INITIAL
+  // packet.
+  bool address_validated_via_token = false;
 };
 
 }  // namespace quic

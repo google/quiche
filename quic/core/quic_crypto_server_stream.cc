@@ -340,6 +340,21 @@ void QuicCryptoServerStream::OnHandshakeDoneReceived() {
   DCHECK(false);
 }
 
+void QuicCryptoServerStream::OnNewTokenReceived(absl::string_view /*token*/) {
+  DCHECK(false);
+}
+
+std::string QuicCryptoServerStream::GetAddressToken() const {
+  DCHECK(false);
+  return "";
+}
+
+bool QuicCryptoServerStream::ValidateAddressToken(
+    absl::string_view /*token*/) const {
+  DCHECK(false);
+  return false;
+}
+
 bool QuicCryptoServerStream::ShouldSendExpectCTHeader() const {
   return signed_config_->proof.send_expect_ct_header;
 }

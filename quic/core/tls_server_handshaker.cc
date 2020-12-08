@@ -86,13 +86,14 @@ void TlsServerHandshaker::DecryptCallback::Cancel() {
 
 TlsServerHandshaker::TlsServerHandshaker(
     QuicSession* session,
-    const QuicCryptoServerConfig& crypto_config)
+    const QuicCryptoServerConfig* crypto_config)
     : TlsHandshaker(this, session),
       QuicCryptoServerStreamBase(session),
-      proof_source_(crypto_config.proof_source()),
-      pre_shared_key_(crypto_config.pre_shared_key()),
+      proof_source_(crypto_config->proof_source()),
+      pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
-      tls_connection_(crypto_config.ssl_ctx(), this) {
+      tls_connection_(crypto_config->ssl_ctx(), this),
+      crypto_config_(crypto_config) {
   DCHECK_EQ(PROTOCOL_TLS1_3,
             session->connection()->version().handshake_protocol);
 
@@ -165,6 +166,41 @@ void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
 
 void TlsServerHandshaker::OnHandshakeDoneReceived() {
   DCHECK(false);
+}
+
+void TlsServerHandshaker::OnNewTokenReceived(absl::string_view /*token*/) {
+  DCHECK(false);
+}
+
+std::string TlsServerHandshaker::GetAddressToken() const {
+  SourceAddressTokens empty_previous_tokens;
+  const QuicConnection* connection = session()->connection();
+  return crypto_config_->NewSourceAddressToken(
+      crypto_config_->source_address_token_boxer(), empty_previous_tokens,
+      connection->effective_peer_address().host(),
+      connection->random_generator(), connection->clock()->WallNow(),
+      /*cached_network_params=*/nullptr);
+}
+
+bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
+  SourceAddressTokens tokens;
+  HandshakeFailureReason reason = crypto_config_->ParseSourceAddressToken(
+      crypto_config_->source_address_token_boxer(), token, &tokens);
+  if (reason != HANDSHAKE_OK) {
+    QUIC_DLOG(WARNING) << "Failed to parse source address token: "
+                       << CryptoUtils::HandshakeFailureReasonToString(reason);
+    return false;
+  }
+  reason = crypto_config_->ValidateSourceAddressTokens(
+      tokens, session()->connection()->effective_peer_address().host(),
+      session()->connection()->clock()->WallNow(),
+      /*cached_network_params=*/nullptr);
+  if (reason != HANDSHAKE_OK) {
+    QUIC_DLOG(WARNING) << "Failed to validate source address token: "
+                       << CryptoUtils::HandshakeFailureReasonToString(reason);
+    return false;
+  }
+  return true;
 }
 
 bool TlsServerHandshaker::ShouldSendExpectCTHeader() const {

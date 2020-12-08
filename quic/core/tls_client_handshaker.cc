@@ -39,7 +39,16 @@ TlsClientHandshaker::TlsClientHandshaker(
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       has_application_state_(has_application_state),
-      tls_connection_(crypto_config->ssl_ctx(), this) {}
+      crypto_config_(crypto_config),
+      tls_connection_(crypto_config->ssl_ctx(), this) {
+  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
+    std::string token =
+        crypto_config->LookupOrCreate(server_id)->source_address_token();
+    if (!token.empty()) {
+      session->SetSourceAddressTokenToSend(token);
+    }
+  }
+}
 
 TlsClientHandshaker::~TlsClientHandshaker() {}
 
@@ -344,6 +353,15 @@ void TlsClientHandshaker::OnHandshakeDoneReceived() {
     return;
   }
   OnHandshakeConfirmed();
+}
+
+void TlsClientHandshaker::OnNewTokenReceived(absl::string_view token) {
+  if (token.empty()) {
+    return;
+  }
+  QuicCryptoClientConfig::CachedState* cached =
+      crypto_config_->LookupOrCreate(server_id_);
+  cached->set_source_address_token(token);
 }
 
 void TlsClientHandshaker::SetWriteSecret(

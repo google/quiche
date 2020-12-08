@@ -144,6 +144,21 @@ void QuicCryptoClientStream::OnHandshakeDoneReceived() {
   handshaker_->OnHandshakeDoneReceived();
 }
 
+void QuicCryptoClientStream::OnNewTokenReceived(absl::string_view token) {
+  handshaker_->OnNewTokenReceived(token);
+}
+
+std::string QuicCryptoClientStream::GetAddressToken() const {
+  DCHECK(false);
+  return "";
+}
+
+bool QuicCryptoClientStream::ValidateAddressToken(
+    absl::string_view /*token*/) const {
+  DCHECK(false);
+  return false;
+}
+
 void QuicCryptoClientStream::SetServerApplicationStateForResumption(
     std::unique_ptr<ApplicationState> application_state) {
   handshaker_->SetServerApplicationStateForResumption(

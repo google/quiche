@@ -11165,8 +11165,9 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
   uint8_t expected_token_value[] = {0x00, 0x01, 0x02, 0x03,
                                     0x04, 0x05, 0x06, 0x07};
 
-  QuicNewTokenFrame frame(0, std::string((const char*)(expected_token_value),
-                                         sizeof(expected_token_value)));
+  QuicNewTokenFrame frame(0,
+                          absl::string_view((const char*)(expected_token_value),
+                                            sizeof(expected_token_value)));
 
   QuicFrames frames = {QuicFrame(&frame)};
 

@@ -378,6 +378,11 @@ void QuicSession::OnHandshakeDoneReceived() {
   GetMutableCryptoStream()->OnHandshakeDoneReceived();
 }
 
+void QuicSession::OnNewTokenReceived(absl::string_view token) {
+  DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  GetMutableCryptoStream()->OnNewTokenReceived(token);
+}
+
 // static
 void QuicSession::RecordConnectionCloseAtServer(QuicErrorCode error,
                                                 ConnectionCloseSource source) {
@@ -1662,6 +1667,22 @@ void QuicSession::OnTlsHandshakeComplete() {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
     control_frame_manager_.WriteOrBufferHandshakeDone();
+    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation) &&
+        connection()->version().HasIetfQuicFrames()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation,
+                                   1, 2);
+      std::string address_token = GetCryptoStream()->GetAddressToken();
+      if (!address_token.empty()) {
+        const size_t buf_len = address_token.length() + 1;
+        auto buffer = std::make_unique<char[]>(buf_len);
+        QuicDataWriter writer(buf_len, buffer.get());
+        // Add prefix 0 for token sent in NEW_TOKEN frame.
+        writer.WriteUInt8(0);
+        writer.WriteBytes(address_token.data(), address_token.length());
+        control_frame_manager_.WriteOrBufferNewToken(
+            absl::string_view(buffer.get(), buf_len));
+      }
+    }
   }
 }
 
@@ -2570,6 +2591,16 @@ void QuicSession::MigratePath(const QuicSocketAddress& self_address,
                               QuicPacketWriter* writer,
                               bool owns_writer) {
   connection_->MigratePath(self_address, peer_address, writer, owns_writer);
+}
+
+bool QuicSession::ValidateToken(absl::string_view token) const {
+  DCHECK_EQ(perspective_, Perspective::IS_SERVER);
+  if (token.empty() || token[0] != 0) {
+    // Validate the prefix for token received in NEW_TOKEN frame.
+    return false;
+  }
+  return GetCryptoStream()->ValidateAddressToken(
+      absl::string_view(token.data() + 1, token.length() - 1));
 }
 
 #undef ENDPOINT  // undef for jumbo builds

@@ -179,6 +179,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
     // Called when handshake done has been received.
     virtual void OnHandshakeDoneReceived() = 0;
 
+    // Called when new token has been received.
+    virtual void OnNewTokenReceived(absl::string_view token) = 0;
+
     // Called when application state is received.
     virtual void SetServerApplicationStateForResumption(
         std::unique_ptr<ApplicationState> application_state) = 0;
@@ -236,6 +239,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoClientStream
   void OnConnectionClosed(QuicErrorCode error,
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
+  void OnNewTokenReceived(absl::string_view token) override;
+  std::string GetAddressToken() const override;
+  bool ValidateAddressToken(absl::string_view token) const override;
   HandshakeState GetHandshakeState() const override;
   void SetServerApplicationStateForResumption(
       std::unique_ptr<ApplicationState> application_state) override;

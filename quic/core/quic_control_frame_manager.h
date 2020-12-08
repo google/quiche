@@ -89,6 +89,10 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   void WriteOrBufferAckFrequency(
       const QuicAckFrequencyFrame& ack_frequency_frame);
 
+  // Tries to send a NEW_TOKEN frame. Buffers the frame if it cannot be sent
+  // immediately.
+  void WriteOrBufferNewToken(absl::string_view token);
+
   // Sends a PING_FRAME. Do not send PING if there is buffered frames.
   void WritePing();
 

@@ -66,6 +66,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
   void OnMessageReceived(absl::string_view /*message*/) override {}
   void OnHandshakeDoneReceived() override {}
+  void OnNewTokenReceived(absl::string_view /*token*/) override {}
   void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
                           ConnectionCloseSource /*source*/) override {}
   void OnWriteBlocked() override {}
@@ -103,6 +104,9 @@ class QuicEndpoint : public QuicEndpointBase,
     return nullptr;
   }
   void BeforeConnectionCloseSent() override {}
+  bool ValidateToken(absl::string_view /*token*/) const override {
+    return true;
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 

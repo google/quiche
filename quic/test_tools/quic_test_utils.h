@@ -533,6 +533,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnGoAway, (const QuicGoAwayFrame& frame), (override));
   MOCK_METHOD(void, OnMessageReceived, (absl::string_view message), (override));
   MOCK_METHOD(void, OnHandshakeDoneReceived, (), (override));
+  MOCK_METHOD(void, OnNewTokenReceived, (absl::string_view token), (override));
   MOCK_METHOD(void,
               OnConnectionClosed,
               (const QuicConnectionCloseFrame& frame,
@@ -598,6 +599,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (),
               (override));
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
+  MOCK_METHOD(bool, ValidateToken, (absl::string_view), (const, override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
@@ -937,6 +939,11 @@ class MockQuicCryptoStream : public QuicCryptoStream {
   void OnOneRttPacketAcknowledged() override {}
   void OnHandshakePacketSent() override {}
   void OnHandshakeDoneReceived() override {}
+  void OnNewTokenReceived(absl::string_view /*token*/) override {}
+  std::string GetAddressToken() const override { return ""; }
+  bool ValidateAddressToken(absl::string_view /*token*/) const override {
+    return true;
+  }
   void OnConnectionClosed(QuicErrorCode /*error*/,
                           ConnectionCloseSource /*source*/) override {}
   HandshakeState GetHandshakeState() const override { return HANDSHAKE_START; }

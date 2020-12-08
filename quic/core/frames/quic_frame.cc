@@ -181,6 +181,7 @@ bool IsControlFrame(QuicFrameType type) {
     case STOP_SENDING_FRAME:
     case HANDSHAKE_DONE_FRAME:
     case ACK_FREQUENCY_FRAME:
+    case NEW_TOKEN_FRAME:
       return true;
     default:
       return false;
@@ -209,6 +210,8 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
       return frame.handshake_done_frame.control_frame_id;
     case ACK_FREQUENCY_FRAME:
       return frame.ack_frequency_frame->control_frame_id;
+    case NEW_TOKEN_FRAME:
+      return frame.new_token_frame->control_frame_id;
     default:
       return kInvalidControlFrameId;
   }
@@ -245,6 +248,9 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
       return;
     case ACK_FREQUENCY_FRAME:
       frame->ack_frequency_frame->control_frame_id = control_frame_id;
+      return;
+    case NEW_TOKEN_FRAME:
+      frame->new_token_frame->control_frame_id = control_frame_id;
       return;
     default:
       QUIC_BUG
@@ -285,6 +291,9 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       break;
     case ACK_FREQUENCY_FRAME:
       copy = QuicFrame(new QuicAckFrequencyFrame(*frame.ack_frequency_frame));
+      break;
+    case NEW_TOKEN_FRAME:
+      copy = QuicFrame(new QuicNewTokenFrame(*frame.new_token_frame));
       break;
     default:
       QUIC_BUG << "Try to copy a non-retransmittable control frame: " << frame;

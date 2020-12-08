@@ -2058,5 +2058,9 @@ bool QuicPacketCreator::AddPaddedFrameWithRetry(const QuicFrame& frame) {
   return true;
 }
 
+bool QuicPacketCreator::HasRetryToken() const {
+  return !retry_token_.empty();
+}
+
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

@@ -170,6 +170,11 @@ void QuicCryptoClientHandshaker::OnHandshakeDoneReceived() {
   DCHECK(false);
 }
 
+void QuicCryptoClientHandshaker::OnNewTokenReceived(
+    absl::string_view /*token*/) {
+  DCHECK(false);
+}
+
 size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
     EncryptionLevel level) const {
   return QuicCryptoHandshaker::BufferSizeLimitForLevel(level);

@@ -11,8 +11,9 @@
 namespace quic {
 
 QuicNewTokenFrame::QuicNewTokenFrame(QuicControlFrameId control_frame_id,
-                                     std::string token)
-    : control_frame_id(control_frame_id), token(token) {}
+                                     absl::string_view token)
+    : control_frame_id(control_frame_id),
+      token(std::string(token.data(), token.length())) {}
 
 std::ostream& operator<<(std::ostream& os, const QuicNewTokenFrame& s) {
   os << "{ control_frame_id: " << s.control_frame_id

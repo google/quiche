@@ -60,6 +60,9 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
      << s.num_failed_authentication_packets_received;
   os << " num_tls_server_zero_rtt_packets_received_after_discarding_decrypter: "
      << s.num_tls_server_zero_rtt_packets_received_after_discarding_decrypter;
+  os << " address_validated_via_decrypting_packet: "
+     << s.address_validated_via_decrypting_packet;
+  os << " address_validated_via_token: " << s.address_validated_via_token;
   os << " }";
 
   return os;

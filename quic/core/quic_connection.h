@@ -100,6 +100,9 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // Called when a HANDSHAKE_DONE frame has been received.
   virtual void OnHandshakeDoneReceived() = 0;
 
+  // Called when a NEW_TOKEN frame has been received.
+  virtual void OnNewTokenReceived(absl::string_view token) = 0;
+
   // Called when a MAX_STREAMS frame has been received from the peer.
   virtual bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) = 0;
 
@@ -214,6 +217,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionVisitorInterface {
   // frame is serialized, but only on the server and only if forward secure
   // encryption has already been established.
   virtual void BeforeConnectionCloseSent() = 0;
+
+  // Called by the server to validate |token| in received INITIAL packets.
+  // Consider the client address gets validated (and therefore remove
+  // amplification factor) once the |token| gets successfully validated.
+  virtual bool ValidateToken(absl::string_view token) const = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting
@@ -1155,6 +1163,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                    const QuicSocketAddress& peer_address,
                    QuicPacketWriter* writer,
                    bool owns_writer);
+
+  void SetSourceAddressTokenToSend(absl::string_view token);
 
  protected:
   // Calls cancel() on all the alarms owned by this connection.

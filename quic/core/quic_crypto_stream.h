@@ -104,6 +104,15 @@ class QUIC_EXPORT_PRIVATE QuicCryptoStream : public QuicStream {
   // Called when a handshake done frame has been received.
   virtual void OnHandshakeDoneReceived() = 0;
 
+  // Called when a new token frame has been received.
+  virtual void OnNewTokenReceived(absl::string_view token) = 0;
+
+  // Called to get an address token.
+  virtual std::string GetAddressToken() const = 0;
+
+  // Called to validate |token|.
+  virtual bool ValidateAddressToken(absl::string_view token) const = 0;
+
   // Returns current handshake state.
   virtual HandshakeState GetHandshakeState() const = 0;
 

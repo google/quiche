@@ -28,6 +28,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
       public QuicCryptoClientStream::HandshakerInterface,
       public TlsClientConnection::Delegate {
  public:
+  // |crypto_config| must outlive TlsClientHandshaker.
   TlsClientHandshaker(const QuicServerId& server_id,
                       QuicCryptoStream* stream,
                       QuicSession* session,
@@ -67,6 +68,7 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   void OnConnectionClosed(QuicErrorCode error,
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
+  void OnNewTokenReceived(absl::string_view token) override;
   void SetWriteSecret(EncryptionLevel level,
                       const SSL_CIPHER* cipher,
                       const std::vector<uint8_t>& write_secret) override;
@@ -151,6 +153,8 @@ class QUIC_EXPORT_PRIVATE TlsClientHandshaker
   // Contains the state for performing a resumption, if one is attempted. This
   // will always be non-null if a 0-RTT resumption is attempted.
   std::unique_ptr<QuicResumptionState> cached_state_;
+
+  QuicCryptoClientConfig* crypto_config_;  // Not owned.
 
   TlsClientConnection tls_connection_;
 

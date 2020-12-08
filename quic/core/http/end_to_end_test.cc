@@ -1440,6 +1440,56 @@ TEST_P(EndToEndTest, LargePostNoPacketLossWithDelayAndReordering) {
             client_->SendCustomSynchronousRequest(headers, body));
 }
 
+TEST_P(EndToEndTest, AddressToken) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->ReceivedInchoateReject());
+  EXPECT_FALSE(client_->client()->EarlyDataAccepted());
+  EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
+
+  client_->Disconnect();
+
+  // The 0-RTT handshake should succeed.
+  client_->Connect();
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  ASSERT_TRUE(client_->client()->connected());
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  EXPECT_TRUE(client_->client()->EarlyDataAccepted());
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
+      // Verify address is validated via validating token received in INITIAL
+      // packet.
+      EXPECT_FALSE(server_connection->GetStats()
+                       .address_validated_via_decrypting_packet);
+      EXPECT_TRUE(server_connection->GetStats().address_validated_via_token);
+    } else {
+      EXPECT_TRUE(server_connection->GetStats()
+                      .address_validated_via_decrypting_packet);
+      EXPECT_FALSE(server_connection->GetStats().address_validated_via_token);
+    }
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+
+  server_thread_->Resume();
+
+  client_->Disconnect();
+}
+
 TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.

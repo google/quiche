@@ -1151,6 +1151,7 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
     // Address is validated by successfully processing a HANDSHAKE or 1-RTT
     // packet.
     address_validated_ = true;
+    stats_.address_validated_via_decrypting_packet = true;
   }
   idle_network_detector_.OnPacketReceived(time_of_last_received_packet_);
 
@@ -1230,6 +1231,17 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   uber_received_packet_manager_.RecordPacketReceived(
       last_decrypted_packet_level_, last_header_,
       idle_network_detector_.time_of_last_received_packet());
+  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation, 2,
+                                 2);
+    if (EnforceAntiAmplificationLimit() && !header.retry_token.empty() &&
+        visitor_->ValidateToken(header.retry_token)) {
+      QUIC_DLOG(INFO) << ENDPOINT << "Address validated via token.";
+      QUIC_CODE_COUNT(quic_address_validated_via_token);
+      address_validated_ = true;
+      stats_.address_validated_via_token = true;
+    }
+  }
   DCHECK(connected_);
   return true;
 }
@@ -1724,6 +1736,17 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
   UpdatePacketContent(NEW_TOKEN_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewTokenFrame(frame);
+  }
+  if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
+    if (perspective_ == Perspective::IS_SERVER) {
+      CloseConnection(QUIC_INVALID_NEW_TOKEN,
+                      "Server received new token frame.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return false;
+    }
+    // NEW_TOKEN frame should insitgate ACKs.
+    MaybeUpdateAckTimeout();
+    visitor_->OnNewTokenReceived(frame.token);
   }
   return true;
 }
@@ -5451,6 +5474,15 @@ void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
 void QuicConnection::SetUnackedMapInitialCapacity() {
   sent_packet_manager_.ReserveUnackedPacketsInitialCapacity(
       GetUnackedMapInitialCapacity());
+}
+
+void QuicConnection::SetSourceAddressTokenToSend(absl::string_view token) {
+  DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  if (!packet_creator_.HasRetryToken()) {
+    // Ignore received tokens (via NEW_TOKEN frame) from previous connections
+    // when a RETRY token has been received.
+    packet_creator_.SetRetryToken(std::string(token.data(), token.length()));
+  }
 }
 
 #undef ENDPOINT  // undef for jumbo builds

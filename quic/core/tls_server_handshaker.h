@@ -27,8 +27,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
       public TlsServerConnection::Delegate,
       public QuicCryptoServerStreamBase {
  public:
+  // |crypto_config| must outlive TlsServerHandshaker.
   TlsServerHandshaker(QuicSession* session,
-                      const QuicCryptoServerConfig& crypto_config);
+                      const QuicCryptoServerConfig* crypto_config);
   TlsServerHandshaker(const TlsServerHandshaker&) = delete;
   TlsServerHandshaker& operator=(const TlsServerHandshaker&) = delete;
 
@@ -52,6 +53,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   void OnConnectionClosed(QuicErrorCode error,
                           ConnectionCloseSource source) override;
   void OnHandshakeDoneReceived() override;
+  std::string GetAddressToken() const override;
+  bool ValidateAddressToken(absl::string_view token) const override;
+  void OnNewTokenReceived(absl::string_view token) override;
   bool ShouldSendExpectCTHeader() const override;
   const ProofSource::Details* ProofSourceDetails() const override;
 
@@ -199,6 +203,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   TlsServerConnection tls_connection_;
   const bool use_early_select_cert_ =
       GetQuicReloadableFlag(quic_tls_use_early_select_cert);
+
+  const QuicCryptoServerConfig* crypto_config_;  // Unowned.
 };
 
 }  // namespace quic

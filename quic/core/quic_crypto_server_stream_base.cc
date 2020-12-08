@@ -38,7 +38,7 @@ std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
           crypto_config, compressed_certs_cache, session, helper));
     case PROTOCOL_TLS1_3:
       return std::unique_ptr<TlsServerHandshaker>(
-          new TlsServerHandshaker(session, *crypto_config));
+          new TlsServerHandshaker(session, crypto_config));
     case PROTOCOL_UNSUPPORTED:
       break;
   }

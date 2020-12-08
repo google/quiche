@@ -12895,6 +12895,72 @@ TEST_P(QuicConnectionTest,
   EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
 }
 
+TEST_P(QuicConnectionTest, NewTokenFrameInstigateAcks) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_token_based_address_validation, true);
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+
+  QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
+  EXPECT_CALL(visitor_, OnNewTokenReceived(_));
+  ProcessFramePacket(QuicFrame(new_token));
+
+  // Ensure that this has caused the ACK alarm to be set.
+  EXPECT_TRUE(connection_.HasPendingAcks());
+}
+
+TEST_P(QuicConnectionTest, ServerClosesConnectionOnNewTokenFrame) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_enable_token_based_address_validation, true);
+  set_perspective(Perspective::IS_SERVER);
+  QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
+  EXPECT_CALL(visitor_, OnNewTokenReceived(_)).Times(0);
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  ProcessFramePacket(QuicFrame(new_token));
+  EXPECT_FALSE(connection_.connected());
+}
+
+TEST_P(QuicConnectionTest, OverrideRetryTokenWithRetryPacket) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  std::string address_token = "TestAddressToken";
+  connection_.SetSourceAddressTokenToSend(address_token);
+  EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
+                QuicConnectionPeer::GetPacketCreator(&connection_)),
+            address_token);
+  // Passes valid retry and verify token gets overridden.
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
+}
+
+TEST_P(QuicConnectionTest, DonotOverrideRetryTokenWithAddressToken) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  // Passes valid retry and verify token gets overridden.
+  TestClientRetryHandling(/*invalid_retry_tag=*/false,
+                          /*missing_original_id_in_config=*/false,
+                          /*wrong_original_id_in_config=*/false,
+                          /*missing_retry_id_in_config=*/false,
+                          /*wrong_retry_id_in_config=*/false);
+  std::string retry_token = QuicPacketCreatorPeer::GetRetryToken(
+      QuicConnectionPeer::GetPacketCreator(&connection_));
+
+  std::string address_token = "TestAddressToken";
+  connection_.SetSourceAddressTokenToSend(address_token);
+  EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
+                QuicConnectionPeer::GetPacketCreator(&connection_)),
+            retry_token);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

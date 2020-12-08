@@ -112,6 +112,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void OnGoAway(const QuicGoAwayFrame& frame) override;
   void OnMessageReceived(absl::string_view message) override;
   void OnHandshakeDoneReceived() override;
+  void OnNewTokenReceived(absl::string_view token) override;
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   void OnBlockedFrame(const QuicBlockedFrame& frame) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
@@ -152,6 +153,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
       override;
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   void BeforeConnectionCloseSent() override {}
+  bool ValidateToken(absl::string_view token) const override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
@@ -584,6 +586,10 @@ class QUIC_EXPORT_PRIVATE QuicSession
   void SetUserAgentId(std::string user_agent_id) {
     user_agent_id_ = std::move(user_agent_id);
     connection()->OnUserAgentIdKnown();
+  }
+
+  void SetSourceAddressTokenToSend(absl::string_view token) {
+    connection()->SetSourceAddressTokenToSend(token);
   }
 
   const QuicClock* GetClock() const {

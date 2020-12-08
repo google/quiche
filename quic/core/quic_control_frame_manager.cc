@@ -131,6 +131,12 @@ void QuicControlFrameManager::WriteOrBufferAckFrequency(
                                           ack_frequency_frame.max_ack_delay)));
 }
 
+void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
+  QUIC_DVLOG(1) << "Writing NEW_TOKEN frame";
+  WriteOrBufferQuicFrame(
+      QuicFrame(new QuicNewTokenFrame(++last_control_frame_id_, token)));
+}
+
 void QuicControlFrameManager::WritePing() {
   QUIC_DVLOG(1) << "Writing PING_FRAME";
   if (HasBufferedFrames()) {
