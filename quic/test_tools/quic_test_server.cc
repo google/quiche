@@ -229,7 +229,7 @@ ImmediateGoAwaySession::ImmediateGoAwaySession(
 
 void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
   if (VersionUsesHttp3(transport_version())) {
-    SendHttp3GoAway();
+    SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "");
   } else {
     SendGoAway(QUIC_PEER_GOING_AWAY, "");
   }
@@ -253,7 +253,7 @@ void ImmediateGoAwaySession::OnNewEncryptionKeyAvailable(
                                                        std::move(encrypter));
   if (VersionUsesHttp3(transport_version())) {
     if (IsEncryptionEstablished() && !goaway_sent()) {
-      SendHttp3GoAway();
+      SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "");
     }
   }
 }

@@ -230,8 +230,9 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Write GOAWAY frame with maximum stream ID on the control stream.  Called to
   // initite graceful connection shutdown.  Do not use smaller stream ID, in
   // case client does not implement retry on GOAWAY.  Do not send GOAWAY if one
-  // has already been sent.
-  void SendHttp3GoAway();
+  // has already been sent. Send connection close with |error_code| and |reason|
+  // before encryption gets established.
+  void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason);
 
   // Same as SendHttp3GoAway().  TODO(bnc): remove when
   // gfe2_reloadable_flag_quic_goaway_with_max_stream_id flag is deprecated.

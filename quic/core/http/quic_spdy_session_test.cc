@@ -24,6 +24,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_config.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
+#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_stream.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
@@ -1101,6 +1102,21 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
   EXPECT_TRUE(session_.GetOrCreateStream(kTestStreamId));
 }
 
+TEST_P(QuicSpdySessionTestServer, SendGoAwayWithoutEncryption) {
+  SetQuicReloadableFlag(quic_encrypted_goaway, true);
+  if (VersionHasIetfQuicFrames(transport_version())) {
+    // HTTP/3 GOAWAY has different semantic and thus has its own test.
+    return;
+  }
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_PEER_GOING_AWAY, "Going Away.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(0);
+  session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
+  EXPECT_FALSE(session_.goaway_sent());
+}
+
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   if (!VersionUsesHttp3(transport_version())) {
     return;
@@ -1121,7 +1137,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
     // retried on a different connection.
     EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
   }
-  session_.SendHttp3GoAway();
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
   EXPECT_TRUE(session_.goaway_sent());
 
   // New incoming stream is not reset.
@@ -1132,7 +1148,20 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
   // No more GOAWAY frames are sent because they could not convey new
   // information to the client.
-  session_.SendHttp3GoAway();
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
+}
+
+TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayWithoutEncryption) {
+  SetQuicReloadableFlag(quic_encrypted_goaway, true);
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_PEER_GOING_AWAY, "Goaway",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
+  EXPECT_FALSE(session_.goaway_sent());
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
@@ -1159,12 +1188,12 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
     // starting with stream ID = 4 can be retried on a different connection.
     EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 4));
   }
-  session_.SendHttp3GoAway();
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
   EXPECT_TRUE(session_.goaway_sent());
 
   // No more GOAWAY frames are sent because they could not convey new
   // information to the client.
-  session_.SendHttp3GoAway();
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
 }
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3Shutdown) {
@@ -1212,7 +1241,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterShutdownNotice) {
 
   session_.SendHttp3Shutdown();
   EXPECT_TRUE(session_.goaway_sent());
-  session_.SendHttp3GoAway();
+  session_.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
 
   const QuicStreamId kTestStreamId =
       GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);

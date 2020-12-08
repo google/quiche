@@ -692,15 +692,25 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
   if (perspective() == Perspective::IS_SERVER &&
       frame.stream_count >= QuicUtils::GetMaxStreamCount()) {
     DCHECK_EQ(frame.stream_count, QuicUtils::GetMaxStreamCount());
-    SendHttp3GoAway();
+    SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "stream count too large");
   }
   return true;
 }
 
-void QuicSpdySession::SendHttp3GoAway() {
+void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
+                                      const std::string& reason) {
   DCHECK_EQ(perspective(), Perspective::IS_SERVER);
   DCHECK(VersionUsesHttp3(transport_version()));
-
+  if (GetQuicReloadableFlag(quic_encrypted_goaway)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_encrypted_goaway, 2, 2);
+    if (!IsEncryptionEstablished()) {
+      QUIC_CODE_COUNT(quic_h3_goaway_before_encryption_established);
+      connection()->CloseConnection(
+          error_code, reason,
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+  }
   QuicStreamId stream_id;
 
   if (goaway_with_max_stream_id_) {
@@ -747,7 +757,7 @@ void QuicSpdySession::SendHttp3GoAway() {
 
 void QuicSpdySession::SendHttp3Shutdown() {
   if (goaway_with_max_stream_id_) {
-    SendHttp3GoAway();
+    SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Server shutdown");
     return;
   }
 
