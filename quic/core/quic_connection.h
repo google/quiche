@@ -1163,6 +1163,12 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   void SetSourceAddressTokenToSend(absl::string_view token);
 
+  void SendPing() {
+    SendPingAtLevel(use_encryption_level_context_
+                        ? framer().GetEncryptionLevelToSendApplicationData()
+                        : encryption_level_);
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
