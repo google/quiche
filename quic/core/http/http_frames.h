@@ -15,7 +15,6 @@
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
 
 namespace quic {
@@ -88,7 +87,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
           SpdyUtils::H3SettingsToString(
               static_cast<Http3AndQpackSettingsIdentifiers>(it.first)),
           " = ", it.second, "; ");
-      QuicStrAppend(&s, setting);
+      absl::StrAppend(&s, setting);
     }
     return s;
   }

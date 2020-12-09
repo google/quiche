@@ -6,12 +6,12 @@
 
 #include <limits>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 
 namespace quic {
 
@@ -167,7 +167,7 @@ void QpackInstructionEncoder::DoWriteString(absl::string_view name,
   if (use_huffman_) {
     http2::HuffmanEncodeFast(string_to_write, string_length_, output);
   } else {
-    QuicStrAppend(output, string_to_write);
+    absl::StrAppend(output, string_to_write);
   }
 
   ++field_;

@@ -15,7 +15,6 @@
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -580,9 +579,9 @@ std::string ReceivedPacketInfo::ToString() const {
                    ", packet_length: ", packet.length(),
                    ", header_format: ", form, ", version_flag: ", version_flag);
   if (version_flag) {
-    QuicStrAppend(&output, ", version: ", ParsedQuicVersionToString(version));
+    absl::StrAppend(&output, ", version: ", ParsedQuicVersionToString(version));
   }
-  QuicStrAppend(
+  absl::StrAppend(
       &output,
       ", destination_connection_id: ", destination_connection_id.ToString(),
       ", source_connection_id: ", source_connection_id.ToString(), " }\n");

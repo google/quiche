@@ -44,7 +44,6 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_string_utils.h"
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 namespace quic {
@@ -839,7 +838,7 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   }
   std::string error_details = "Received public reset.";
   if (perspective_ == Perspective::IS_CLIENT && !packet.endpoint_id.empty()) {
-    QuicStrAppend(&error_details, " From ", packet.endpoint_id, ".");
+    absl::StrAppend(&error_details, " From ", packet.endpoint_id, ".");
   }
   QUIC_DLOG(INFO) << ENDPOINT << error_details;
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_public_reset);
