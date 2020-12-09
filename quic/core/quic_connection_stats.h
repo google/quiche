@@ -190,6 +190,8 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionStats {
   // True if address is validated via validating token received in INITIAL
   // packet.
   bool address_validated_via_token = false;
+
+  size_t ping_frames_sent = 0;
 };
 
 }  // namespace quic

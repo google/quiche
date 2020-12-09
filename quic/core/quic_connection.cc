@@ -2164,6 +2164,7 @@ bool QuicConnection::SendControlFrame(const QuicFrame& frame) {
   if (frame.type == PING_FRAME) {
     // Flush PING frame immediately.
     packet_creator_.FlushCurrentPacket();
+    stats_.ping_frames_sent++;
     if (debug_visitor_ != nullptr) {
       debug_visitor_->OnPingSent();
     }
