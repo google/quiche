@@ -243,4 +243,9 @@ QUIC_PROTOCOL_FLAG(bool,
                    "If true, QUIC server will disable TLS resumption by not "
                    "issuing or processing session tickets.")
 
+QUIC_PROTOCOL_FLAG(bool,
+                   quic_defer_send_in_response,
+                   true,
+                   "If true, QUIC servers will defer sending in response to "
+                   "incoming packets by default.")
 #endif

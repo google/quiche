@@ -672,6 +672,11 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kEACK, perspective_)) {
     bundle_retransmittable_with_pto_ack_ = true;
   }
+  if (GetQuicReloadableFlag(quic_dont_defer_sending) &&
+      config.HasClientSentConnectionOption(kDFER, perspective_)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_dont_defer_sending);
+    defer_send_in_response_to_packets_ = false;
+  }
   if (config.HasReceivedMaxPacketSize()) {
     peer_max_packet_size_ = config.ReceivedMaxPacketSize();
     MaybeUpdatePacketCreatorMaxPacketLengthAndPadding();

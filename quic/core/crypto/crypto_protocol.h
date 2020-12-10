@@ -270,6 +270,9 @@ const QuicTag kMPTH = TAG('M', 'P', 'T', 'H');   // Enable multipath.
 const QuicTag kNCMR = TAG('N', 'C', 'M', 'R');   // Do not attempt connection
                                                  // migration.
 
+// Allows disabling defer_send_in_response_to_packets in QuicConnection.
+const QuicTag kDFER = TAG('D', 'F', 'E', 'R');   // Do not defer sending.
+
 // Disable Pacing offload option.
 const QuicTag kNPCO = TAG('N', 'P', 'C', 'O');    // No pacing offload.
 
