@@ -125,8 +125,6 @@ const char* FrameTypeToString(SpdyFrameType frame_type) {
       return "PRIORITY";
     case SpdyFrameType::ALTSVC:
       return "ALTSVC";
-    case SpdyFrameType::EXTENSION:
-      return "EXTENSION (unspecified)";
   }
   return "UNKNOWN_FRAME_TYPE";
 }

@@ -100,12 +100,6 @@ enum class SpdyFrameType : uint8_t {
   // ALTSVC is a public extension.
   ALTSVC = 0x0a,
   MAX_FRAME_TYPE = ALTSVC,
-  // The specific value of EXTENSION is meaningless; it is a placeholder used
-  // within SpdyFramer's state machine when handling unknown frames via an
-  // extension API.
-  // TODO(birenroy): Remove the fake EXTENSION value from the SpdyFrameType
-  // enum.
-  EXTENSION = 0xff
 };
 
 // Flags on data packets.
