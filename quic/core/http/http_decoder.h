@@ -102,6 +102,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a PRIORITY_UPDATE frame has been successfully parsed.
     virtual bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) = 0;
 
+    // Called when an ACCEPT_CH frame has been received.
+    // |header_length| contains ACCEPT_CH frame length and payload length.
+    virtual bool OnAcceptChFrameStart(QuicByteCount header_length) = 0;
+
+    // Called when an ACCEPT_CH frame has been successfully parsed.
+    virtual bool OnAcceptChFrame(const AcceptChFrame& frame) = 0;
+
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
     // |header_length| and |payload_length| are the length of the frame header
@@ -174,6 +181,11 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // had been parsed completely.  Returns whether processing should continue.
   bool FinishParsing();
 
+  // Read payload of unknown frame from |reader| and call
+  // Visitor::OnUnknownFramePayload().  Returns true decoding should continue,
+  // false if it should be paused.
+  bool HandleUnknownFramePayload(QuicDataReader* reader);
+
   // Discards any remaining frame payload from |reader|.
   void DiscardFramePayload(QuicDataReader* reader);
 
@@ -206,6 +218,9 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // from |reader| into |frame|.
   bool ParseNewPriorityUpdateFrame(QuicDataReader* reader,
                                    PriorityUpdateFrame* frame);
+
+  // Parses the payload of an ACCEPT_CH frame from |reader| into |frame|.
+  bool ParseAcceptChFrame(QuicDataReader* reader, AcceptChFrame* frame);
 
   // Returns the max frame size of a given |frame_type|.
   QuicByteCount MaxFrameLength(uint64_t frame_type);

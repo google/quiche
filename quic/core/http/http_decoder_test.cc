@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Return;
@@ -104,6 +105,12 @@ class MockVisitor : public HttpDecoder::Visitor {
               (override));
 
   MOCK_METHOD(bool,
+              OnAcceptChFrameStart,
+              (QuicByteCount header_length),
+              (override));
+  MOCK_METHOD(bool, OnAcceptChFrame, (const AcceptChFrame& frame), (override));
+
+  MOCK_METHOD(bool,
               OnUnknownFrameStart,
               (uint64_t frame_type,
                QuicByteCount header_length,
@@ -138,6 +145,8 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnPriorityUpdateFrameStart(_))
         .WillByDefault(Return(true));
     ON_CALL(visitor_, OnPriorityUpdateFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnAcceptChFrameStart(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnAcceptChFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameStart(_, _, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnUnknownFrameEnd()).WillByDefault(Return(true));
@@ -1189,6 +1198,153 @@ TEST_F(HttpDecoderTest, CorruptNewPriorityUpdateFrame) {
     EXPECT_EQ(input.size(), processed_bytes);
     EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
     EXPECT_EQ(test_data.error_message, decoder.error_detail());
+  }
+}
+
+TEST_F(HttpDecoderTest, AcceptChFrame) {
+  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
+    return;
+  }
+
+  InSequence s;
+  std::string input1 = absl::HexStringToBytes(
+      "4089"  // type (ACCEPT_CH)
+      "00");  // length
+
+  AcceptChFrame accept_ch1;
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3)).WillOnce(Return(false));
+  absl::string_view remaining_input(input1);
+  QuicByteCount processed_bytes =
+      ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(3u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch1)).WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3));
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch1));
+  EXPECT_EQ(input1.size(), ProcessInput(input1));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3));
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch1));
+  ProcessInputCharByChar(input1);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  std::string input2 = absl::HexStringToBytes(
+      "4089"      // type (ACCEPT_CH)
+      "08"        // length
+      "03"        // length of origin
+      "666f6f"    // origin "foo"
+      "03"        // length of value
+      "626172");  // value "bar"
+
+  AcceptChFrame accept_ch2;
+  accept_ch2.entries.push_back({"foo", "bar"});
+
+  // Visitor pauses processing.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3)).WillOnce(Return(false));
+  remaining_input = input2;
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(3u, processed_bytes);
+  remaining_input = remaining_input.substr(processed_bytes);
+
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch2)).WillOnce(Return(false));
+  processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
+  EXPECT_EQ(remaining_input.size(), processed_bytes);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3));
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch2));
+  EXPECT_EQ(input2.size(), ProcessInput(input2));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(3));
+  EXPECT_CALL(visitor_, OnAcceptChFrame(accept_ch2));
+  ProcessInputCharByChar(input2);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+  EXPECT_EQ("", decoder_.error_detail());
+}
+
+TEST_F(HttpDecoderTest, CorruptAcceptChFrame) {
+  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
+    // TODO(bnc): merge this test into HttpDecoderTest.CorruptFrame when
+    // deprecating flag.
+    return;
+  }
+
+  EXPECT_CALL(visitor_, OnAcceptChFrameStart(_)).Times(AnyNumber());
+
+  struct {
+    const char* const input;
+    const char* const error_message;
+  } kTestData[] = {{"\x40\x89"  // type (ACCEPT_CH)
+                    "\x01"      // length
+                    "\x40",     // first byte of two-byte varint origin length
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x01"      // length
+                    "\x05",     // valid origin length but no origin string
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x04"      // length
+                    "\x05"      // valid origin length
+                    "foo",      // payload ends before origin ends
+                    "Unable to read ACCEPT_CH origin."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x04"      // length
+                    "\x03"      // valid origin length
+                    "foo",      // payload ends at end of origin: no value
+                    "Unable to read ACCEPT_CH value."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x05"      // length
+                    "\x03"      // valid origin length
+                    "foo"       // payload ends at end of origin: no value
+                    "\x40",     // first byte of two-byte varint value length
+                    "Unable to read ACCEPT_CH value."},
+                   {"\x40\x89"  // type (ACCEPT_CH)
+                    "\x08"      // length
+                    "\x03"      // valid origin length
+                    "foo"       // origin
+                    "\x05"      // valid value length
+                    "bar",      // payload ends before value ends
+                    "Unable to read ACCEPT_CH value."}};
+
+  for (const auto& test_data : kTestData) {
+    {
+      HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnError(&decoder));
+
+      absl::string_view input(test_data.input);
+      decoder.ProcessInput(input.data(), input.size());
+      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+      EXPECT_EQ(test_data.error_message, decoder.error_detail());
+    }
+    {
+      HttpDecoder decoder(&visitor_);
+      EXPECT_CALL(visitor_, OnError(&decoder));
+
+      absl::string_view input(test_data.input);
+      for (auto c : input) {
+        decoder.ProcessInput(&c, 1);
+      }
+      EXPECT_THAT(decoder.error(), IsError(QUIC_HTTP_FRAME_ERROR));
+      EXPECT_EQ(test_data.error_message, decoder.error_detail());
+    }
   }
 }
 

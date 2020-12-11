@@ -351,6 +351,8 @@ class TestSession : public QuicSpdySession {
                       GetEncryptionLevelToSendApplicationData());
   }
 
+  MOCK_METHOD(void, OnAcceptChFrame, (const AcceptChFrame&), (override));
+
   using QuicSession::closed_streams;
   using QuicSession::ShouldKeepConnectionAlive;
   using QuicSpdySession::ProcessPendingStream;
@@ -3258,6 +3260,57 @@ TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_RECEIVE_SPDY_SETTING, _, _));
   session_.OnSettingsFrame(frame);
+}
+
+TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
+  if (!VersionUsesHttp3(transport_version())) {
+    return;
+  }
+
+  if (!GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  // Create control stream.
+  QuicStreamId receive_control_stream_id =
+      GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  absl::string_view stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, /* fin = */ false, offset,
+                        stream_type);
+  offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
+
+  session_.OnStreamFrame(data1);
+  EXPECT_EQ(receive_control_stream_id,
+            QuicSpdySessionPeer::GetReceiveControlStream(&session_)->id());
+
+  // First frame has to be SETTINGS.
+  std::string serialized_settings = EncodeSettings({});
+  QuicStreamFrame data2(receive_control_stream_id, /* fin = */ false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+
+  session_.OnStreamFrame(data2);
+
+  // Receive ACCEPT_CH frame.
+  AcceptChFrame accept_ch;
+  accept_ch.entries.push_back({"foo", "bar"});
+  std::unique_ptr<char[]> buffer;
+  auto frame_length = HttpEncoder::SerializeAcceptChFrame(accept_ch, &buffer);
+  QuicStreamFrame data3(receive_control_stream_id, /* fin = */ false, offset,
+                        absl::string_view(buffer.get(), frame_length));
+
+  EXPECT_CALL(debug_visitor, OnAcceptChFrameReceived(accept_ch));
+  EXPECT_CALL(session_, OnAcceptChFrame(accept_ch));
+
+  session_.OnStreamFrame(data3);
 }
 
 }  // namespace

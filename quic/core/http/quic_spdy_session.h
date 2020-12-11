@@ -90,6 +90,7 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   virtual void OnMaxPushIdFrameReceived(const MaxPushIdFrame& /*frame*/) {}
   virtual void OnPriorityUpdateFrameReceived(
       const PriorityUpdateFrame& /*frame*/) {}
+  virtual void OnAcceptChFrameReceived(const AcceptChFrame& /*frame*/) {}
 
   // Incoming HTTP/3 frames on request or push streams.
   virtual void OnDataFrameReceived(QuicStreamId /*stream_id*/,
@@ -195,6 +196,10 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
   // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a push
   // stream.  Returns false and closes connection if |push_id| is invalid.
   bool OnPriorityUpdateForPushStream(QuicStreamId push_id, int urgency);
+
+  // Called when an HTTP/3 ACCEPT_CH frame has been received.
+  // This method will only be called for client sessions.
+  virtual void OnAcceptChFrame(const AcceptChFrame& /*frame*/) {}
 
   // Sends contents of |iov| to h2_deframer_, returns number of bytes processed.
   size_t ProcessHeaderData(const struct iovec& iov);
