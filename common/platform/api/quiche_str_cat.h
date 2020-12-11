@@ -12,12 +12,6 @@
 
 namespace quiche {
 
-// Merges given strings or numbers with no delimiter.
-template <typename... Args>
-inline std::string QuicheStrCat(const Args&... args) {
-  return quiche::QuicheStrCatImpl(std::forward<const Args&>(args)...);
-}
-
 template <typename... Args>
 inline std::string QuicheStringPrintf(const Args&... args) {
   return QuicheStringPrintfImpl(std::forward<const Args&>(args)...);
