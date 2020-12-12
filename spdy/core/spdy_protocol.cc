@@ -60,7 +60,31 @@ SpdyPriority Http2WeightToSpdy3Priority(int weight) {
 }
 
 bool IsDefinedFrameType(uint8_t frame_type_field) {
-  return frame_type_field <= SerializeFrameType(SpdyFrameType::MAX_FRAME_TYPE);
+  switch (static_cast<SpdyFrameType>(frame_type_field)) {
+    case SpdyFrameType::DATA:
+      return true;
+    case SpdyFrameType::HEADERS:
+      return true;
+    case SpdyFrameType::PRIORITY:
+      return true;
+    case SpdyFrameType::RST_STREAM:
+      return true;
+    case SpdyFrameType::SETTINGS:
+      return true;
+    case SpdyFrameType::PUSH_PROMISE:
+      return true;
+    case SpdyFrameType::PING:
+      return true;
+    case SpdyFrameType::GOAWAY:
+      return true;
+    case SpdyFrameType::WINDOW_UPDATE:
+      return true;
+    case SpdyFrameType::CONTINUATION:
+      return true;
+    case SpdyFrameType::ALTSVC:
+      return true;
+  }
+  return false;
 }
 
 SpdyFrameType ParseFrameType(uint8_t frame_type_field) {

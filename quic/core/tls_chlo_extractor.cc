@@ -348,6 +348,13 @@ void TlsChloExtractor::SetupSslHandle() {
   const int rv = SSL_set_ex_data(ssl_.get(), ex_data_index, this);
   CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
   SSL_set_accept_state(ssl_.get());
+
+  // Make sure we use the right TLS extension codepoint.
+  int use_legacy_extension = 0;
+  if (framer_->version().UsesLegacyTlsExtension()) {
+    use_legacy_extension = 1;
+  }
+  SSL_set_quic_use_legacy_codepoint(ssl_.get(), use_legacy_extension);
 }
 
 // Called by other methods to record any unrecoverable failures they experience.

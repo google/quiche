@@ -1110,6 +1110,10 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               OnPriorityUpdateFrameReceived,
               (const PriorityUpdateFrame&),
               (override));
+  MOCK_METHOD(void,
+              OnAcceptChFrameReceived,
+              (const AcceptChFrame&),
+              (override));
 
   MOCK_METHOD(void,
               OnDataFrameReceived,

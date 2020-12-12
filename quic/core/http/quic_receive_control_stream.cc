@@ -252,6 +252,34 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
   return true;
 }
 
+bool QuicReceiveControlStream::OnAcceptChFrameStart(
+    QuicByteCount /* header_length */) {
+  if (!settings_frame_received_) {
+    stream_delegate()->OnStreamError(
+        QUIC_HTTP_MISSING_SETTINGS_FRAME,
+        "ACCEPT_CH frame received before SETTINGS.");
+    return false;
+  }
+
+  if (spdy_session()->perspective() == Perspective::IS_SERVER) {
+    OnWrongFrame("ACCEPT_CH");
+    return false;
+  }
+
+  return true;
+}
+
+bool QuicReceiveControlStream::OnAcceptChFrame(const AcceptChFrame& frame) {
+  DCHECK_EQ(Perspective::IS_CLIENT, spdy_session()->perspective());
+
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnAcceptChFrameReceived(frame);
+  }
+
+  spdy_session()->OnAcceptChFrame(frame);
+  return true;
+}
+
 bool QuicReceiveControlStream::OnUnknownFrameStart(
     uint64_t frame_type,
     QuicByteCount /*header_length*/,

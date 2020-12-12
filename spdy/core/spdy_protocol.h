@@ -99,7 +99,6 @@ enum class SpdyFrameType : uint8_t {
   CONTINUATION = 0x09,
   // ALTSVC is a public extension.
   ALTSVC = 0x0a,
-  MAX_FRAME_TYPE = ALTSVC,
 };
 
 // Flags on data packets.

@@ -81,7 +81,6 @@ TEST_F(QuicTraceVisitorTest, ConnectionId) {
 TEST_F(QuicTraceVisitorTest, Version) {
   std::string version = trace_.protocol_version();
   ASSERT_EQ(4u, version.size());
-  EXPECT_NE(0, version[0]);
 }
 
 // Check that basic metadata about sent packets is recorded.

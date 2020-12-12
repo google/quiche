@@ -62,6 +62,13 @@ bool TlsClientHandshaker::CryptoConnect() {
     return false;
   }
 
+  // Make sure we use the right TLS extension codepoint.
+  int use_legacy_extension = 0;
+  if (session()->version().UsesLegacyTlsExtension()) {
+    use_legacy_extension = 1;
+  }
+  SSL_set_quic_use_legacy_codepoint(ssl(), use_legacy_extension);
+
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
   if (QUIC_DLOG_INFO_IS_ON() &&
