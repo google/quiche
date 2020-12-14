@@ -409,6 +409,13 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool IsInflightTooHigh(const Bbr2CongestionEvent& congestion_event,
                          int64_t max_loss_events) const;
 
+  // Check bandwidth growth in the past round. Must be called at the end of a
+  // round.
+  // Return true if the bandwidth growed as expected.
+  // Return false otherwise, if enough rounds have elapsed without expected
+  // growth, also sets |full_bandwidth_reached_| to true.
+  bool CheckBandwidthGrowth(const Bbr2CongestionEvent& congestion_event);
+
   QuicPacketNumber last_sent_packet() const {
     return round_trip_counter_.last_sent_packet();
   }
@@ -465,6 +472,15 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   float pacing_gain() const { return pacing_gain_; }
   void set_pacing_gain(float pacing_gain) { pacing_gain_ = pacing_gain; }
 
+  bool full_bandwidth_reached() const { return full_bandwidth_reached_; }
+  void set_full_bandwidth_reached() { full_bandwidth_reached_ = true; }
+  QuicBandwidth full_bandwidth_baseline() const {
+    return full_bandwidth_baseline_;
+  }
+  QuicRoundTripCount rounds_without_bandwidth_growth() const {
+    return rounds_without_bandwidth_growth_;
+  }
+
  private:
   const Bbr2Params& Params() const { return *params_; }
   const Bbr2Params* const params_;
@@ -502,6 +518,11 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
 
   float cwnd_gain_;
   float pacing_gain_;
+
+  // STARTUP-centric fields which experimentally used by PROBE_UP.
+  bool full_bandwidth_reached_ = false;
+  QuicBandwidth full_bandwidth_baseline_ = QuicBandwidth::Zero();
+  QuicRoundTripCount rounds_without_bandwidth_growth_ = 0;
 };
 
 enum class Bbr2Mode : uint8_t {

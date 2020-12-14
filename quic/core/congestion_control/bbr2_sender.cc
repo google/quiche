@@ -303,7 +303,7 @@ void Bbr2Sender::UpdatePacingRate(QuicByteCount bytes_acked) {
   }
 
   QuicBandwidth target_rate = model_.pacing_gain() * model_.BandwidthEstimate();
-  if (startup_.FullBandwidthReached()) {
+  if (model_.full_bandwidth_reached()) {
     pacing_rate_ = target_rate;
     return;
   }
@@ -317,7 +317,7 @@ void Bbr2Sender::UpdateCongestionWindow(QuicByteCount bytes_acked) {
   QuicByteCount target_cwnd = GetTargetCongestionWindow(model_.cwnd_gain());
 
   const QuicByteCount prior_cwnd = cwnd_;
-  if (startup_.FullBandwidthReached()) {
+  if (model_.full_bandwidth_reached()) {
     target_cwnd += model_.MaxAckHeight();
     cwnd_ = std::min(prior_cwnd + bytes_acked, target_cwnd);
   } else if (prior_cwnd < target_cwnd || prior_cwnd < 2 * initial_cwnd_) {
@@ -332,7 +332,7 @@ void Bbr2Sender::UpdateCongestionWindow(QuicByteCount bytes_acked) {
 
   QUIC_DVLOG(3) << this << " Updating CWND. target_cwnd:" << target_cwnd
                 << ", max_ack_height:" << model_.MaxAckHeight()
-                << ", full_bw:" << startup_.FullBandwidthReached()
+                << ", full_bw:" << model_.full_bandwidth_reached()
                 << ", bytes_acked:" << bytes_acked
                 << ", inflight_lo:" << model_.inflight_lo()
                 << ", inflight_hi:" << model_.inflight_hi() << ". (prior_cwnd) "

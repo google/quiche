@@ -45,8 +45,6 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
     return Bbr2Mode::STARTUP;
   }
 
-  bool FullBandwidthReached() const { return full_bandwidth_reached_; }
-
   struct QUIC_EXPORT_PRIVATE DebugState {
     bool full_bandwidth_reached;
     QuicBandwidth full_bandwidth_baseline = QuicBandwidth::Zero();
@@ -58,18 +56,7 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
  private:
   const Bbr2Params& Params() const;
 
-  // Check bandwidth growth in the past round. Must be called at the end of a
-  // round.
-  // Return true if the bandwidth growed as expected.
-  // Return false otherwise, if enough rounds have elapsed without expected
-  // growth, also sets |full_bandwidth_reached_| to true.
-  bool CheckBandwidthGrowth(const Bbr2CongestionEvent& congestion_event);
-
   void CheckExcessiveLosses(const Bbr2CongestionEvent& congestion_event);
-
-  bool full_bandwidth_reached_;
-  QuicBandwidth full_bandwidth_baseline_;
-  QuicRoundTripCount rounds_without_bandwidth_growth_;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(

@@ -311,4 +311,38 @@ QuicByteCount Bbr2NetworkModel::inflight_hi_with_headroom() const {
   return inflight_hi_ > headroom ? inflight_hi_ - headroom : 0;
 }
 
+bool Bbr2NetworkModel::CheckBandwidthGrowth(
+    const Bbr2CongestionEvent& congestion_event) {
+  DCHECK(!full_bandwidth_reached_);
+  DCHECK(congestion_event.end_of_round_trip);
+  if (congestion_event.last_sample_is_app_limited) {
+    // Return true such that when Params().always_exit_startup_on_excess_loss is
+    // false, we'll not check excess loss, which is the behavior of QUIC BBRv1.
+    return true;
+  }
+
+  QuicBandwidth threshold =
+      full_bandwidth_baseline_ * Params().startup_full_bw_threshold;
+
+  if (MaxBandwidth() >= threshold) {
+    QUIC_DVLOG(3) << " CheckBandwidthGrowth at end of round. max_bandwidth:"
+                  << MaxBandwidth() << ", threshold:" << threshold
+                  << " (Still growing)  @ " << congestion_event.event_time;
+    full_bandwidth_baseline_ = MaxBandwidth();
+    rounds_without_bandwidth_growth_ = 0;
+    return true;
+  }
+
+  ++rounds_without_bandwidth_growth_;
+  full_bandwidth_reached_ =
+      rounds_without_bandwidth_growth_ >= Params().startup_full_bw_rounds;
+  QUIC_DVLOG(3) << " CheckBandwidthGrowth at end of round. max_bandwidth:"
+                << MaxBandwidth() << ", threshold:" << threshold
+                << " rounds_without_growth:" << rounds_without_bandwidth_growth_
+                << " full_bw_reached:" << full_bandwidth_reached_ << "  @ "
+                << congestion_event.event_time;
+
+  return false;
+}
+
 }  // namespace quic
