@@ -168,12 +168,11 @@ void Bbr2NetworkModel::OnCongestionEventStart(
     inflight_latest_ = sample.sample_max_inflight;
   }
 
+  AdaptLowerBounds(*congestion_event);
+
   if (!congestion_event->end_of_round_trip) {
     return;
   }
-
-  // Per round-trip updates.
-  AdaptLowerBounds(*congestion_event);
 
   if (!sample.sample_max_bandwidth.IsZero()) {
     bandwidth_latest_ = sample.sample_max_bandwidth;
