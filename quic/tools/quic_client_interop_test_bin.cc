@@ -381,6 +381,8 @@ std::set<Feature> ServerSupport(std::string dns_host,
   CHECK(version.IsKnown());
   QuicEnableVersion(version);
 
+  std::cout << "Attempting interop with version " << version << std::endl;
+
   // Build the client, and try to connect.
   QuicSocketAddress addr = tools::LookupAddress(dns_host, absl::StrCat(port));
   if (!addr.IsInitialized()) {
