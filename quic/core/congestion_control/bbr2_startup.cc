@@ -8,6 +8,7 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h"
 #include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -22,6 +23,11 @@ Bbr2StartupMode::Bbr2StartupMode(const Bbr2Sender* sender,
   sender_->connection_stats_->slowstart_count = 1;
   sender_->connection_stats_->slowstart_duration = QuicTimeAccumulator();
   sender_->connection_stats_->slowstart_duration.Start(now);
+  if (sender->Params().bw_startup) {
+    // Enter() is never called for Startup, so the gains needs to be set here.
+    model_->set_pacing_gain(Params().startup_pacing_gain);
+    model_->set_cwnd_gain(Params().startup_cwnd_gain);
+  }
 }
 
 void Bbr2StartupMode::Enter(QuicTime /*now*/,
@@ -32,6 +38,8 @@ void Bbr2StartupMode::Enter(QuicTime /*now*/,
 void Bbr2StartupMode::Leave(QuicTime now,
                             const Bbr2CongestionEvent* /*congestion_event*/) {
   sender_->connection_stats_->slowstart_duration.Stop(now);
+  // Clear bandwidth_lo if it's set during STARTUP.
+  model_->clear_bandwidth_lo();
 }
 
 Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
@@ -50,8 +58,42 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
     }
   }
 
-  model_->set_pacing_gain(Params().startup_pacing_gain);
-  model_->set_cwnd_gain(Params().startup_cwnd_gain);
+  if (Params().decrease_startup_pacing_at_end_of_round) {
+    DCHECK_GT(model_->pacing_gain(), 0);
+    DCHECK(Params().bw_startup);
+    if (congestion_event.end_of_round_trip &&
+        !congestion_event.last_sample_is_app_limited) {
+      // Multiply by startup_pacing_gain, so if the bandwidth doubles,
+      // the pacing gain will be the full startup_pacing_gain.
+      if (max_bw_at_round_beginning_ > QuicBandwidth::Zero()) {
+        const float bandwidth_ratio =
+            std::max(1., model_->MaxBandwidth().ToBitsPerSecond() /
+                             static_cast<double>(
+                                 max_bw_at_round_beginning_.ToBitsPerSecond()));
+        // Even when bandwidth isn't increasing, use a gain large enough to
+        // cause a startup_full_bw_threshold increase.
+        const float new_gain =
+            ((bandwidth_ratio - 1) * (Params().startup_pacing_gain -
+                                      Params().startup_full_bw_threshold)) +
+            Params().startup_full_bw_threshold;
+        // Allow the pacing gain to decrease.
+        model_->set_pacing_gain(
+            std::min(Params().startup_pacing_gain, new_gain));
+        // Clear bandwidth_lo if it's less than the pacing rate.
+        // This avoids a constantly app-limited flow from having it's pacing
+        // gain effectively decreased below 1.25.
+        if (model_->bandwidth_lo() <
+            model_->MaxBandwidth() * model_->pacing_gain()) {
+          model_->clear_bandwidth_lo();
+        }
+      }
+      max_bw_at_round_beginning_ = model_->MaxBandwidth();
+    }
+  } else if (!Params().bw_startup) {
+    // When the flag is enabled, set these in the constructor.
+    model_->set_pacing_gain(Params().startup_pacing_gain);
+    model_->set_cwnd_gain(Params().startup_cwnd_gain);
+  }
 
   // TODO(wub): Maybe implement STARTUP => PROBE_RTT.
   return model_->full_bandwidth_reached() ? Bbr2Mode::DRAIN : Bbr2Mode::STARTUP;

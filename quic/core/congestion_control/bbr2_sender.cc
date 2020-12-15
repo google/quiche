@@ -133,6 +133,9 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kBBQ2)) {
     params_.startup_cwnd_gain = 2.885;
     params_.drain_cwnd_gain = 2.885;
+    if (params_.bw_startup) {
+      model_.set_cwnd_gain(params_.startup_cwnd_gain);
+    }
   }
   if (ContainsQuicTag(connection_options, kB2NE)) {
     params_.always_exit_startup_on_excess_loss = false;
@@ -155,6 +158,22 @@ void Bbr2Sender::ApplyConnectionOptions(
   }
   if (ContainsQuicTag(connection_options, kBSAO)) {
     model_.EnableOverestimateAvoidance();
+  }
+  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ6)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 1, 4);
+    params_.decrease_startup_pacing_at_end_of_round = true;
+  }
+  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ7)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 2, 4);
+    params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::MIN_RTT_REDUCTION;
+  }
+  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ8)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 3, 4);
+    params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::INFLIGHT_REDUCTION;
+  }
+  if (params_.bw_startup && ContainsQuicTag(connection_options, kBBQ9)) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_bw_startup, 4, 4);
+    params_.bw_lo_mode_ = Bbr2Params::QuicBandwidthLoMode::CWND_REDUCTION;
   }
 }
 
@@ -303,11 +322,14 @@ void Bbr2Sender::UpdatePacingRate(QuicByteCount bytes_acked) {
   }
 
   QuicBandwidth target_rate = model_.pacing_gain() * model_.BandwidthEstimate();
-  if (model_.full_bandwidth_reached()) {
+  if (model_.full_bandwidth_reached() ||
+      params_.decrease_startup_pacing_at_end_of_round ||
+      params_.bw_lo_mode_ != Bbr2Params::DEFAULT) {
     pacing_rate_ = target_rate;
     return;
   }
 
+  // By default, the pacing rate never decreases in STARTUP.
   if (target_rate > pacing_rate_) {
     pacing_rate_ = target_rate;
   }

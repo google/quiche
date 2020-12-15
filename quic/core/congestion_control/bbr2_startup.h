@@ -57,6 +57,8 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
   const Bbr2Params& Params() const;
 
   void CheckExcessiveLosses(const Bbr2CongestionEvent& congestion_event);
+  // Used when the pacing gain can decrease in STARTUP.
+  QuicBandwidth max_bw_at_round_beginning_ = QuicBandwidth::Zero();
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(

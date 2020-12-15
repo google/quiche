@@ -121,7 +121,11 @@ class DefaultTopologyParams {
 
 class Bbr2SimulatorTest : public QuicTest {
  protected:
-  Bbr2SimulatorTest() : simulator_(&random_) {}
+  Bbr2SimulatorTest() : simulator_(&random_) {
+    // Enable this for all tests because it moves where cwnd and pacing gain
+    // are initialized.
+    SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+  }
 
   void SetUp() override {
     if (GetQuicFlag(FLAGS_quic_bbr2_test_regression_mode) == "regress") {
@@ -583,7 +587,72 @@ TEST_F(Bbr2DefaultTopologyTest, PacketLossOnSmallBufferStartup) {
   CreateNetwork(params);
 
   DriveOutOfStartup(params);
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.20);
+  // Packet loss is smaller with a CWND gain of 2 than 2.889.
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
+}
+
+// Test the number of losses decreases with packet-conservation pacing.
+TEST_F(Bbr2DefaultTopologyTest, PacketLossBBQ6SmallBufferStartup) {
+  SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+  SetConnectionOption(kBBQ2);  // Increase CWND gain.
+  SetConnectionOption(kBBQ6);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.0575);
+  // bandwidth_lo is cleared exiting STARTUP.
+  EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
+            QuicBandwidth::Infinite());
+}
+
+// Test the number of losses decreases with min_rtt packet-conservation pacing.
+TEST_F(Bbr2DefaultTopologyTest, PacketLossBBQ7SmallBufferStartup) {
+  SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+  SetConnectionOption(kBBQ2);  // Increase CWND gain.
+  SetConnectionOption(kBBQ7);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.06);
+  // bandwidth_lo is cleared exiting STARTUP.
+  EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
+            QuicBandwidth::Infinite());
+}
+
+// Test the number of losses decreases with Inflight packet-conservation pacing.
+TEST_F(Bbr2DefaultTopologyTest, PacketLossBBQ8SmallBufferStartup) {
+  SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+  SetConnectionOption(kBBQ2);  // Increase CWND gain.
+  SetConnectionOption(kBBQ8);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.065);
+  // bandwidth_lo is cleared exiting STARTUP.
+  EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
+            QuicBandwidth::Infinite());
+}
+
+// Test the number of losses decreases with CWND packet-conservation pacing.
+TEST_F(Bbr2DefaultTopologyTest, PacketLossBBQ9SmallBufferStartup) {
+  SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+  SetConnectionOption(kBBQ2);  // Increase CWND gain.
+  SetConnectionOption(kBBQ9);
+  DefaultTopologyParams params;
+  params.switch_queue_capacity_in_bdp = 0.5;
+  CreateNetwork(params);
+
+  DriveOutOfStartup(params);
+  EXPECT_LE(sender_loss_rate_in_packets(), 0.065);
+  // bandwidth_lo is cleared exiting STARTUP.
+  EXPECT_EQ(sender_->ExportDebugState().bandwidth_lo,
+            QuicBandwidth::Infinite());
 }
 
 // Verify the behavior of the algorithm in the case when the connection sends

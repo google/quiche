@@ -195,6 +195,23 @@ struct QUIC_EXPORT_PRIVATE Bbr2Params {
 
   // Can be disabled by connection option 'B2RC'.
   bool enable_reno_coexistence = true;
+
+  // For experimentation to improve fast convergence upon loss.
+  enum QuicBandwidthLoMode : uint8_t {
+    DEFAULT = 0,
+    MIN_RTT_REDUCTION = 1,   // 'BBQ7'
+    INFLIGHT_REDUCTION = 2,  // 'BBQ8'
+    CWND_REDUCTION = 3,      // 'BBQ9'
+  };
+
+  // Different modes change bandwidth_lo_ differently upon loss.
+  QuicBandwidthLoMode bw_lo_mode_ = QuicBandwidthLoMode::DEFAULT;
+
+  // Set the pacing gain to 25% larger than the recent BW increase in STARTUP.
+  bool decrease_startup_pacing_at_end_of_round = false;
+
+  // Latch the flag for quic_bbr2_bw_startup.
+  const bool bw_startup = GetQuicReloadableFlag(quic_bbr2_bw_startup);
 };
 
 class QUIC_EXPORT_PRIVATE RoundTripCounter {

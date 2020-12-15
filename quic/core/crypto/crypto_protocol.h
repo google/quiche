@@ -108,6 +108,14 @@ const QuicTag kBBQ3 = TAG('B', 'B', 'Q', '3');   // BBR with ack aggregation
 const QuicTag kBBQ5 = TAG('B', 'B', 'Q', '5');   // Expire ack aggregation upon
                                                  // bandwidth increase in
                                                  // STARTUP.
+const QuicTag kBBQ6 = TAG('B', 'B', 'Q', '6');   // Reduce STARTUP gain to 25%
+                                                 // more than BW increase.
+const QuicTag kBBQ7 = TAG('B', 'B', 'Q', '7');   // Reduce bw_lo by
+                                                 // bytes_lost/min_rtt.
+const QuicTag kBBQ8 = TAG('B', 'B', 'Q', '8');   // Reduce bw_lo by
+                                                 // bw_lo * bytes_lost/inflight
+const QuicTag kBBQ9 = TAG('B', 'B', 'Q', '9');   // Reduce bw_lo by
+                                                 // bw_lo * bytes_lost/cwnd
 const QuicTag kRENO = TAG('R', 'E', 'N', 'O');   // Reno Congestion Control
 const QuicTag kTPCC = TAG('P', 'C', 'C', '\0');  // Performance-Oriented
                                                  // Congestion Control
