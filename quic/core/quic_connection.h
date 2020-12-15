@@ -1156,6 +1156,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool HasPendingPathValidation() const;
 
+  QuicPathValidationContext* GetPathValidationContext() const;
+
+  void CancelPathValidation();
+
   void MigratePath(const QuicSocketAddress& self_address,
                    const QuicSocketAddress& peer_address,
                    QuicPacketWriter* writer,

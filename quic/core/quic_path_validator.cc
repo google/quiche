@@ -94,6 +94,10 @@ bool QuicPathValidator::HasPendingPathValidation() const {
   return path_context_ != nullptr;
 }
 
+QuicPathValidationContext* QuicPathValidator::GetContext() const {
+  return path_context_.get();
+}
+
 const QuicPathFrameBuffer& QuicPathValidator::GeneratePathChallengePayload() {
   probing_data_.push_back(QuicPathFrameBuffer());
   random_->RandBytes(probing_data_.back().data(), sizeof(QuicPathFrameBuffer));

@@ -106,6 +106,8 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
 
   bool HasPendingPathValidation() const;
 
+  QuicPathValidationContext* GetContext() const;
+
   // Send another PATH_CHALLENGE on the same path. After retrying
   // |kMaxRetryTimes| times, fail the current path validation.
   void OnRetryTimeout();

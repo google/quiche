@@ -4000,7 +4000,7 @@ void QuicConnection::TearDownLocalConnectionState(
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
   CancelAllAlarms();
-  path_validator_.CancelPathValidation();
+  CancelPathValidation();
 }
 
 void QuicConnection::CancelAllAlarms() {
@@ -5445,6 +5445,14 @@ void QuicConnection::SendPingAtLevel(EncryptionLevel level) {
 
 bool QuicConnection::HasPendingPathValidation() const {
   return path_validator_.HasPendingPathValidation();
+}
+
+QuicPathValidationContext* QuicConnection::GetPathValidationContext() const {
+  return path_validator_.GetContext();
+}
+
+void QuicConnection::CancelPathValidation() {
+  path_validator_.CancelPathValidation();
 }
 
 void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
