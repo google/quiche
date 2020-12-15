@@ -51,9 +51,12 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
   if (!model_->full_bandwidth_reached() && congestion_event.end_of_round_trip) {
     // TCP BBR always exits upon excessive losses. QUIC BBRv1 does not exits
     // upon excessive losses, if enough bandwidth growth is observed.
-    bool has_enough_bw_growth = model_->CheckBandwidthGrowth(congestion_event);
+    Bbr2NetworkModel::BandwidthGrowth bw_growth =
+        model_->CheckBandwidthGrowth(congestion_event);
 
-    if (Params().always_exit_startup_on_excess_loss || !has_enough_bw_growth) {
+    if (Params().always_exit_startup_on_excess_loss ||
+        (bw_growth == Bbr2NetworkModel::NO_GROWTH ||
+         bw_growth == Bbr2NetworkModel::EXIT)) {
       CheckExcessiveLosses(congestion_event);
     }
   }
