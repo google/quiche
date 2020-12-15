@@ -765,6 +765,21 @@ SpdySerializedFrame SpdyFramer::SerializePriority(
   return builder.take();
 }
 
+SpdySerializedFrame SpdyFramer::SerializePriorityUpdate(
+    const SpdyPriorityUpdateIR& priority_update) const {
+  const size_t total_size = kPriorityUpdateFrameMinimumSize +
+                            priority_update.priority_field_value().size();
+  SpdyFrameBuilder builder(total_size);
+  builder.BeginNewFrame(SpdyFrameType::PRIORITY_UPDATE, kNoFlags,
+                        priority_update.stream_id());
+
+  builder.WriteUInt32(priority_update.prioritized_stream_id());
+  builder.WriteBytes(priority_update.priority_field_value().data(),
+                     priority_update.priority_field_value().size());
+  DCHECK_EQ(total_size, builder.length());
+  return builder.take();
+}
+
 SpdySerializedFrame SpdyFramer::SerializeUnknown(
     const SpdyUnknownIR& unknown) const {
   const size_t total_size = kFrameHeaderSize + unknown.payload().size();
@@ -817,6 +832,10 @@ class FrameSerializationVisitor : public SpdyFrameVisitor {
   }
   void VisitPriority(const SpdyPriorityIR& priority) override {
     frame_ = framer_->SerializePriority(priority);
+  }
+  void VisitPriorityUpdate(
+      const SpdyPriorityUpdateIR& priority_update) override {
+    frame_ = framer_->SerializePriorityUpdate(priority_update);
   }
   void VisitUnknown(const SpdyUnknownIR& unknown) override {
     frame_ = framer_->SerializeUnknown(unknown);
@@ -901,6 +920,11 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
   }
 
   void VisitPriority(const SpdyPriorityIR& /*priority*/) override {
+    flags_ = kNoFlags;
+  }
+
+  void VisitPriorityUpdate(
+      const SpdyPriorityUpdateIR& /*priority_update*/) override {
     flags_ = kNoFlags;
   }
 
@@ -1191,6 +1215,22 @@ bool SpdyFramer::SerializePriority(const SpdyPriorityIR& priority,
   return ok;
 }
 
+bool SpdyFramer::SerializePriorityUpdate(
+    const SpdyPriorityUpdateIR& priority_update,
+    ZeroCopyOutputBuffer* output) const {
+  const size_t total_size = kPriorityUpdateFrameMinimumSize +
+                            priority_update.priority_field_value().size();
+  SpdyFrameBuilder builder(total_size, output);
+  bool ok = builder.BeginNewFrame(SpdyFrameType::PRIORITY_UPDATE, kNoFlags,
+                                  priority_update.stream_id());
+
+  ok = ok && builder.WriteUInt32(priority_update.prioritized_stream_id());
+  ok = ok && builder.WriteBytes(priority_update.priority_field_value().data(),
+                                priority_update.priority_field_value().size());
+  DCHECK_EQ(total_size, builder.length());
+  return ok;
+}
+
 bool SpdyFramer::SerializeUnknown(const SpdyUnknownIR& unknown,
                                   ZeroCopyOutputBuffer* output) const {
   const size_t total_size = kFrameHeaderSize + unknown.payload().size();
@@ -1245,6 +1285,10 @@ class FrameSerializationVisitorWithOutput : public SpdyFrameVisitor {
   }
   void VisitPriority(const SpdyPriorityIR& priority) override {
     result_ = framer_->SerializePriority(priority, output_);
+  }
+  void VisitPriorityUpdate(
+      const SpdyPriorityUpdateIR& priority_update) override {
+    result_ = framer_->SerializePriorityUpdate(priority_update, output_);
   }
   void VisitUnknown(const SpdyUnknownIR& unknown) override {
     result_ = framer_->SerializeUnknown(unknown, output_);

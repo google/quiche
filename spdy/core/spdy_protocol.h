@@ -99,6 +99,7 @@ enum class SpdyFrameType : uint8_t {
   CONTINUATION = 0x09,
   // ALTSVC is a public extension.
   ALTSVC = 0x0a,
+  PRIORITY_UPDATE = 0x10,
 };
 
 // Flags on data packets.
@@ -307,6 +308,8 @@ const size_t kWindowUpdateFrameSize = kFrameHeaderSize + 4;
 const size_t kContinuationFrameMinimumSize = kFrameHeaderSize;
 // ALTSVC frame has origin_len (2 octets) field.
 const size_t kGetAltSvcFrameMinimumSize = kFrameHeaderSize + 2;
+// PRIORITY_UPDATE frame has prioritized_stream_id (4 octets) field.
+const size_t kPriorityUpdateFrameMinimumSize = kFrameHeaderSize + 4;
 
 // Maximum possible configurable size of a frame in octets.
 const size_t kMaxFrameSizeLimit = kSpdyMaxFrameSizeLimit + kFrameHeaderSize;
@@ -883,6 +886,32 @@ class QUICHE_EXPORT_PRIVATE SpdyPriorityIR : public SpdyFrameIR {
   bool exclusive_;
 };
 
+class QUICHE_EXPORT_PRIVATE SpdyPriorityUpdateIR : public SpdyFrameIR {
+ public:
+  SpdyPriorityUpdateIR(SpdyStreamId stream_id,
+                       SpdyStreamId prioritized_stream_id,
+                       std::string priority_field_value)
+      : SpdyFrameIR(stream_id),
+        prioritized_stream_id_(prioritized_stream_id),
+        priority_field_value_(std::move(priority_field_value)) {}
+  SpdyPriorityUpdateIR(const SpdyPriorityUpdateIR&) = delete;
+  SpdyPriorityUpdateIR& operator=(const SpdyPriorityUpdateIR&) = delete;
+  SpdyStreamId prioritized_stream_id() const { return prioritized_stream_id_; }
+  const std::string& priority_field_value() const {
+    return priority_field_value_;
+  }
+
+  void Visit(SpdyFrameVisitor* visitor) const override;
+
+  SpdyFrameType frame_type() const override;
+
+  size_t size() const override;
+
+ private:
+  SpdyStreamId prioritized_stream_id_;
+  std::string priority_field_value_;
+};
+
 // Represents a frame of unrecognized type.
 class QUICHE_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
  public:
@@ -1022,6 +1051,8 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameVisitor {
   virtual void VisitAltSvc(const SpdyAltSvcIR& altsvc) = 0;
   virtual void VisitPriority(const SpdyPriorityIR& priority) = 0;
   virtual void VisitData(const SpdyDataIR& data) = 0;
+  virtual void VisitPriorityUpdate(
+      const SpdyPriorityUpdateIR& priority_update) = 0;
   virtual void VisitUnknown(const SpdyUnknownIR& /*unknown*/) {
     // TODO(birenroy): make abstract.
   }

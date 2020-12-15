@@ -124,6 +124,11 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // the relative priority of the given stream.
   SpdySerializedFrame SerializePriority(const SpdyPriorityIR& priority) const;
 
+  // Serializes a PRIORITY_UPDATE frame.
+  // See https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html.
+  SpdySerializedFrame SerializePriorityUpdate(
+      const SpdyPriorityUpdateIR& priority_update) const;
+
   // Serializes an unknown frame given a frame header and payload.
   SpdySerializedFrame SerializeUnknown(const SpdyUnknownIR& unknown) const;
 
@@ -191,6 +196,11 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // the relative priority of the given stream.
   bool SerializePriority(const SpdyPriorityIR& priority,
                          ZeroCopyOutputBuffer* output) const;
+
+  // Serializes a PRIORITY_UPDATE frame.
+  // See https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html.
+  bool SerializePriorityUpdate(const SpdyPriorityUpdateIR& priority_update,
+                               ZeroCopyOutputBuffer* output) const;
 
   // Serializes an unknown frame given a frame header and payload.
   bool SerializeUnknown(const SpdyUnknownIR& unknown,

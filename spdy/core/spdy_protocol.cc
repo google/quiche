@@ -83,6 +83,8 @@ bool IsDefinedFrameType(uint8_t frame_type_field) {
       return true;
     case SpdyFrameType::ALTSVC:
       return true;
+    case SpdyFrameType::PRIORITY_UPDATE:
+      return true;
   }
   return false;
 }
@@ -149,6 +151,8 @@ const char* FrameTypeToString(SpdyFrameType frame_type) {
       return "PRIORITY";
     case SpdyFrameType::ALTSVC:
       return "ALTSVC";
+    case SpdyFrameType::PRIORITY_UPDATE:
+      return "PRIORITY_UPDATE";
   }
   return "UNKNOWN_FRAME_TYPE";
 }
@@ -557,6 +561,18 @@ SpdyFrameType SpdyPriorityIR::frame_type() const {
 
 size_t SpdyPriorityIR::size() const {
   return kPriorityFrameSize;
+}
+
+void SpdyPriorityUpdateIR::Visit(SpdyFrameVisitor* visitor) const {
+  return visitor->VisitPriorityUpdate(*this);
+}
+
+SpdyFrameType SpdyPriorityUpdateIR::frame_type() const {
+  return SpdyFrameType::PRIORITY_UPDATE;
+}
+
+size_t SpdyPriorityUpdateIR::size() const {
+  return kPriorityUpdateFrameMinimumSize + priority_field_value_.size();
 }
 
 void SpdyUnknownIR::Visit(SpdyFrameVisitor* visitor) const {

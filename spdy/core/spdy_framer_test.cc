@@ -2515,6 +2515,29 @@ TEST_P(SpdyFramerTest, CreatePriority) {
   CompareFrame(kDescription, frame, kFrameData, ABSL_ARRAYSIZE(kFrameData));
 }
 
+TEST_P(SpdyFramerTest, CreatePriorityUpdate) {
+  const char kDescription[] = "PRIORITY_UPDATE frame";
+  const unsigned char kType =
+      SerializeFrameType(SpdyFrameType::PRIORITY_UPDATE);
+  const unsigned char kFrameData[] = {
+      0x00,  0x00, 0x07,        // frame length
+      kType,                    // frame type
+      0x00,                     // flags
+      0x00,  0x00, 0x00, 0x00,  // stream ID, must be 0 for PRIORITY_UPDATE
+      0x00,  0x00, 0x00, 0x03,  // prioritized stream ID
+      'u',   '=',  '0'};        // priority field value
+  SpdyPriorityUpdateIR priority_update_ir(/* stream_id = */ 0,
+                                          /* prioritized_stream_id = */ 3,
+                                          /* priority_field_value = */ "u=0");
+  SpdySerializedFrame frame(framer_.SerializeFrame(priority_update_ir));
+  if (use_output_) {
+    EXPECT_EQ(framer_.SerializeFrame(priority_update_ir, &output_),
+              frame.size());
+    frame = SpdySerializedFrame(output_.Begin(), output_.Size(), false);
+  }
+  CompareFrame(kDescription, frame, kFrameData, ABSL_ARRAYSIZE(kFrameData));
+}
+
 TEST_P(SpdyFramerTest, CreateUnknown) {
   const char kDescription[] = "Unknown frame";
   const uint8_t kType = 0xaf;
