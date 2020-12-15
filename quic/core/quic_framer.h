@@ -705,6 +705,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
   }
   uint32_t peer_ack_delay_exponent() const { return peer_ack_delay_exponent_; }
 
+  void set_drop_incoming_retry_packets(bool drop_incoming_retry_packets) {
+    drop_incoming_retry_packets_ = drop_incoming_retry_packets;
+  }
+
  private:
   friend class test::QuicFramerPeer;
 
@@ -1150,6 +1154,9 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   // Indicates whether this framer supports multiple packet number spaces.
   bool supports_multiple_packet_number_spaces_;
+
+  // Indicates whether received RETRY packets should be dropped.
+  bool drop_incoming_retry_packets_ = false;
 
   // The length in bytes of the last packet number written to an IETF-framed
   // packet.

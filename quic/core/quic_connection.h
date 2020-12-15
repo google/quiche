@@ -1875,9 +1875,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // the source connection ID from that packet.
   absl::optional<QuicConnectionId> retry_source_connection_id_;
 
-  // Indicates whether received RETRY packets should be dropped.
-  bool drop_incoming_retry_packets_;
-
   // Bytes received before address validation. Only used when
   // EnforceAntiAmplificationLimit returns true.
   size_t bytes_received_before_address_validation_;

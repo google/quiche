@@ -1555,6 +1555,10 @@ bool QuicFramer::ProcessVersionNegotiationPacket(
 bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
                                     const QuicPacketHeader& header) {
   DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+  if (drop_incoming_retry_packets_) {
+    QUIC_DLOG(INFO) << "Ignoring received RETRY packet";
+    return true;
+  }
 
   if (version_.UsesTls()) {
     DCHECK(version_.HasLengthPrefixedConnectionIds()) << version_;

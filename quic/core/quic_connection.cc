@@ -356,7 +356,6 @@ QuicConnection::QuicConnection(
       processing_ack_frame_(false),
       supports_release_time_(false),
       release_time_into_future_(QuicTime::Delta::Zero()),
-      drop_incoming_retry_packets_(false),
       bytes_received_before_address_validation_(0),
       bytes_sent_before_address_validation_(0),
       address_validated_(false),
@@ -939,12 +938,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
       return;
     }
   }
-  if (drop_incoming_retry_packets_) {
-    QUIC_DLOG(ERROR) << "Ignoring RETRY with token "
-                     << absl::BytesToHexString(retry_token);
-    return;
-  }
-  drop_incoming_retry_packets_ = true;
+  framer_.set_drop_incoming_retry_packets(true);
   stats_.retry_packet_processed = true;
   QUIC_DLOG(INFO) << "Received RETRY, replacing connection ID "
                   << server_connection_id_ << " with " << new_connection_id
@@ -1000,7 +994,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
   // As soon as we receive an initial we start ignoring subsequent retries.
   if (header.version_flag && header.long_packet_type == INITIAL) {
-    drop_incoming_retry_packets_ = true;
+    framer_.set_drop_incoming_retry_packets(true);
   }
 
   QuicConnectionId server_connection_id =

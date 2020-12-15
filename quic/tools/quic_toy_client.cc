@@ -154,6 +154,13 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     bool,
+    multi_packet_chlo,
+    false,
+    "If true, add a transport parameter to make the ClientHello span two "
+    "packets. Only works with QUIC+TLS.");
+
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    bool,
     redirect_is_success,
     true,
     "If true, an HTTP response code of 3xx is considered to be a "
@@ -265,6 +272,15 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   if (!client_connection_options_string.empty()) {
     config.SetClientConnectionOptions(
         ParseQuicTagVector(client_connection_options_string));
+  }
+  if (GetQuicFlag(FLAGS_multi_packet_chlo)) {
+    // Make the ClientHello span multiple packets by adding a custom transport
+    // parameter.
+    constexpr auto kCustomParameter =
+        static_cast<TransportParameters::TransportParameterId>(0x173E);
+    std::string custom_value(2000, '?');
+    config.custom_transport_parameters_to_send()[kCustomParameter] =
+        custom_value;
   }
 
   int address_family_for_lookup = AF_UNSPEC;
