@@ -350,7 +350,11 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   return true;
 }
 
-bool TlsServerHandshaker::SetTransportParameters() {
+TlsServerHandshaker::SetTransportParametersResult
+TlsServerHandshaker::SetTransportParameters() {
+  SetTransportParametersResult result;
+  DCHECK(!result.success);
+
   TransportParameters server_params;
   server_params.perspective = Perspective::IS_SERVER;
   server_params.supported_versions =
@@ -359,31 +363,38 @@ bool TlsServerHandshaker::SetTransportParameters() {
       CreateQuicVersionLabel(session()->connection()->version());
 
   if (!handshaker_delegate()->FillTransportParameters(&server_params)) {
-    return false;
+    return result;
   }
 
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersSent(server_params);
 
-  std::vector<uint8_t> server_params_bytes;
-  if (!SerializeTransportParameters(session()->connection()->version(),
-                                    server_params, &server_params_bytes) ||
-      SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
-                                    server_params_bytes.size()) != 1) {
-    return false;
+  {  // Ensure |server_params_bytes| is not accessed out of the scope.
+    std::vector<uint8_t> server_params_bytes;
+    if (!SerializeTransportParameters(session()->connection()->version(),
+                                      server_params, &server_params_bytes) ||
+        SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
+                                      server_params_bytes.size()) != 1) {
+      return result;
+    }
+    result.quic_transport_params = std::move(server_params_bytes);
   }
+
   if (application_state_) {
     std::vector<uint8_t> early_data_context;
     if (!SerializeTransportParametersForTicket(
             server_params, *application_state_, &early_data_context)) {
       QUIC_BUG << "Failed to serialize Transport Parameters for ticket.";
-      return false;
+      result.early_data_context = std::vector<uint8_t>();
+      return result;
     }
     SSL_set_quic_early_data_context(ssl(), early_data_context.data(),
                                     early_data_context.size());
+    result.early_data_context = std::move(early_data_context);
     application_state_.reset(nullptr);
   }
-  return true;
+  result.success = true;
+  return result;
 }
 
 void TlsServerHandshaker::SetWriteSecret(
@@ -608,7 +619,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   OverrideQuicConfigDefaults(session()->config());
   session()->OnConfigNegotiated();
 
-  if (!SetTransportParameters()) {
+  if (!SetTransportParameters().success) {
     QUIC_LOG(ERROR) << "Failed to set transport parameters";
     return ssl_select_cert_error;
   }
@@ -672,7 +683,7 @@ int TlsServerHandshaker::SelectCertificate(int* out_alert) {
   OverrideQuicConfigDefaults(session()->config());
   session()->OnConfigNegotiated();
 
-  if (!SetTransportParameters()) {
+  if (!SetTransportParameters().success) {
     QUIC_LOG(ERROR) << "Failed to set transport parameters";
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }

@@ -165,7 +165,16 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
-  bool SetTransportParameters();
+  struct QUIC_NO_EXPORT SetTransportParametersResult {
+    bool success = false;
+    // Empty vector if QUIC transport params are not set successfully.
+    std::vector<uint8_t> quic_transport_params;
+    // absl::nullopt if there is no application state to begin with.
+    // Empty vector if application state is not set successfully.
+    absl::optional<std::vector<uint8_t>> early_data_context;
+  };
+
+  SetTransportParametersResult SetTransportParameters();
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
 
