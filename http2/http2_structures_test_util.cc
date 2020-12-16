@@ -14,41 +14,41 @@
 namespace http2 {
 namespace test {
 
-void Randomize(Http2FrameHeader* p, Http2Random* rng) {
-  p->payload_length = rng->Rand32() & 0xffffff;
-  p->type = static_cast<Http2FrameType>(rng->Rand8());
-  p->flags = static_cast<Http2FrameFlag>(rng->Rand8());
-  p->stream_id = rng->Rand32() & StreamIdMask();
+void Randomize(Http2FrameHeader* out, Http2Random* rng) {
+  out->payload_length = rng->Rand32() & 0xffffff;
+  out->type = static_cast<Http2FrameType>(rng->Rand8());
+  out->flags = static_cast<Http2FrameFlag>(rng->Rand8());
+  out->stream_id = rng->Rand32() & StreamIdMask();
 }
-void Randomize(Http2PriorityFields* p, Http2Random* rng) {
-  p->stream_dependency = rng->Rand32() & StreamIdMask();
-  p->weight = rng->Rand8() + 1;
-  p->is_exclusive = rng->OneIn(2);
+void Randomize(Http2PriorityFields* out, Http2Random* rng) {
+  out->stream_dependency = rng->Rand32() & StreamIdMask();
+  out->weight = rng->Rand8() + 1;
+  out->is_exclusive = rng->OneIn(2);
 }
-void Randomize(Http2RstStreamFields* p, Http2Random* rng) {
-  p->error_code = static_cast<Http2ErrorCode>(rng->Rand32());
+void Randomize(Http2RstStreamFields* out, Http2Random* rng) {
+  out->error_code = static_cast<Http2ErrorCode>(rng->Rand32());
 }
-void Randomize(Http2SettingFields* p, Http2Random* rng) {
-  p->parameter = static_cast<Http2SettingsParameter>(rng->Rand16());
-  p->value = rng->Rand32();
+void Randomize(Http2SettingFields* out, Http2Random* rng) {
+  out->parameter = static_cast<Http2SettingsParameter>(rng->Rand16());
+  out->value = rng->Rand32();
 }
-void Randomize(Http2PushPromiseFields* p, Http2Random* rng) {
-  p->promised_stream_id = rng->Rand32() & StreamIdMask();
+void Randomize(Http2PushPromiseFields* out, Http2Random* rng) {
+  out->promised_stream_id = rng->Rand32() & StreamIdMask();
 }
-void Randomize(Http2PingFields* p, Http2Random* rng) {
+void Randomize(Http2PingFields* out, Http2Random* rng) {
   for (int ndx = 0; ndx < 8; ++ndx) {
-    p->opaque_bytes[ndx] = rng->Rand8();
+    out->opaque_bytes[ndx] = rng->Rand8();
   }
 }
-void Randomize(Http2GoAwayFields* p, Http2Random* rng) {
-  p->last_stream_id = rng->Rand32() & StreamIdMask();
-  p->error_code = static_cast<Http2ErrorCode>(rng->Rand32());
+void Randomize(Http2GoAwayFields* out, Http2Random* rng) {
+  out->last_stream_id = rng->Rand32() & StreamIdMask();
+  out->error_code = static_cast<Http2ErrorCode>(rng->Rand32());
 }
-void Randomize(Http2WindowUpdateFields* p, Http2Random* rng) {
-  p->window_size_increment = rng->Rand32() & 0x7fffffff;
+void Randomize(Http2WindowUpdateFields* out, Http2Random* rng) {
+  out->window_size_increment = rng->Rand32() & 0x7fffffff;
 }
-void Randomize(Http2AltSvcFields* p, Http2Random* rng) {
-  p->origin_length = rng->Rand16();
+void Randomize(Http2AltSvcFields* out, Http2Random* rng) {
+  out->origin_length = rng->Rand16();
 }
 
 void ScrubFlagsOfHeader(Http2FrameHeader* header) {
