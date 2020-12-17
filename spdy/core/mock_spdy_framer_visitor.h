@@ -101,6 +101,11 @@ class MockSpdyFramerVisitor : public SpdyFramerVisitorInterface {
                int weight,
                bool exclusive),
               (override));
+  MOCK_METHOD(void,
+              OnPriorityUpdate,
+              (SpdyStreamId prioritized_stream_id,
+               absl::string_view priority_field_value),
+              (override));
   MOCK_METHOD(bool,
               OnUnknownFrame,
               (SpdyStreamId stream_id, uint8_t frame_type),

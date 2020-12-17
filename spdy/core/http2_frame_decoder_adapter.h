@@ -509,6 +509,13 @@ class QUICHE_EXPORT_PRIVATE SpdyFramerVisitorInterface {
                           int weight,
                           bool exclusive) = 0;
 
+  // Called when a PRIORITY_UPDATE frame is received on stream 0.
+  // |prioritized_stream_id| is the Prioritized Stream ID and
+  // |priority_field_value| is the Priority Field Value
+  // parsed from the frame payload.
+  virtual void OnPriorityUpdate(SpdyStreamId prioritized_stream_id,
+                                absl::string_view priority_field_value) = 0;
+
   // Called when a frame type we don't recognize is received.
   // Return true if this appears to be a valid extension frame, false otherwise.
   // We distinguish between extension frames and nonsense by checking

@@ -315,6 +315,12 @@ class QuicSpdySession::SpdyFramerVisitor
     session_->OnPriority(stream_id, spdy::SpdyStreamPrecedence(priority));
   }
 
+  void OnPriorityUpdate(SpdyStreamId /*prioritized_stream_id*/,
+                        absl::string_view /*priority_field_value*/) override {
+    // TODO(b/171470299): Parse and call
+    // QuicSpdySession::OnPriorityUpdateForRequestStream().
+  }
+
   bool OnUnknownFrame(SpdyStreamId /*stream_id*/,
                       uint8_t /*frame_type*/) override {
     CloseConnection("Unknown frame type received.",

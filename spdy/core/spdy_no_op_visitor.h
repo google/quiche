@@ -68,6 +68,8 @@ class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
                   SpdyStreamId /*parent_stream_id*/,
                   int /*weight*/,
                   bool /*exclusive*/) override {}
+  void OnPriorityUpdate(SpdyStreamId /*prioritized_stream_id*/,
+                        absl::string_view /*priority_field_value*/) override {}
   bool OnUnknownFrame(SpdyStreamId /*stream_id*/,
                       uint8_t /*frame_type*/) override;
 

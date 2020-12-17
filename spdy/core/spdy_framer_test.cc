@@ -428,6 +428,12 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
     ++priority_count_;
   }
 
+  void OnPriorityUpdate(SpdyStreamId prioritized_stream_id,
+                        absl::string_view priority_field_value) override {
+    SPDY_VLOG(1) << "OnPriorityUpdate(" << prioritized_stream_id << ", "
+                 << priority_field_value << ")";
+  }
+
   bool OnUnknownFrame(SpdyStreamId stream_id, uint8_t frame_type) override {
     SPDY_VLOG(1) << "OnUnknownFrame(" << stream_id << ", " << frame_type << ")";
     return on_unknown_frame_result_;
