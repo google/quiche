@@ -1681,19 +1681,26 @@ void QuicSession::OnTlsHandshakeComplete() {
         connection()->version().HasIetfQuicFrames()) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation,
                                    1, 2);
-      std::string address_token = GetCryptoStream()->GetAddressToken();
-      if (!address_token.empty()) {
-        const size_t buf_len = address_token.length() + 1;
-        auto buffer = std::make_unique<char[]>(buf_len);
-        QuicDataWriter writer(buf_len, buffer.get());
-        // Add prefix 0 for token sent in NEW_TOKEN frame.
-        writer.WriteUInt8(0);
-        writer.WriteBytes(address_token.data(), address_token.length());
-        control_frame_manager_.WriteOrBufferNewToken(
-            absl::string_view(buffer.get(), buf_len));
-      }
+      MaybeSendAddressToken();
     }
   }
+}
+
+void QuicSession::MaybeSendAddressToken() {
+  DCHECK(perspective_ == Perspective::IS_SERVER &&
+         connection()->version().HasIetfQuicFrames());
+  std::string address_token = GetCryptoStream()->GetAddressToken();
+  if (address_token.empty()) {
+    return;
+  }
+  const size_t buf_len = address_token.length() + 1;
+  auto buffer = std::make_unique<char[]>(buf_len);
+  QuicDataWriter writer(buf_len, buffer.get());
+  // Add prefix 0 for token sent in NEW_TOKEN frame.
+  writer.WriteUInt8(0);
+  writer.WriteBytes(address_token.data(), address_token.length());
+  control_frame_manager_.WriteOrBufferNewToken(
+      absl::string_view(buffer.get(), buf_len));
 }
 
 void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {

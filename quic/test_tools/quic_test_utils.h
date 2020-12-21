@@ -599,6 +599,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
               (override));
   MOCK_METHOD(void, BeforeConnectionCloseSent, (), (override));
   MOCK_METHOD(bool, ValidateToken, (absl::string_view), (const, override));
+  MOCK_METHOD(void, MaybeSendAddressToken, (), (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {

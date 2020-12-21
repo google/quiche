@@ -106,6 +106,7 @@ class QuicEndpoint : public QuicEndpointBase,
   bool ValidateToken(absl::string_view /*token*/) const override {
     return true;
   }
+  void MaybeSendAddressToken() override {}
 
   // End QuicConnectionVisitorInterface implementation.
 

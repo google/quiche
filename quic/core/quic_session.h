@@ -153,6 +153,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
   std::unique_ptr<QuicEncrypter> CreateCurrentOneRttEncrypter() override;
   void BeforeConnectionCloseSent() override {}
   bool ValidateToken(absl::string_view token) const override;
+  void MaybeSendAddressToken() override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,
