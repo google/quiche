@@ -257,6 +257,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_KEY_UPDATE_ERROR);
     RETURN_STRING_LITERAL(QUIC_AEAD_LIMIT_REACHED);
     RETURN_STRING_LITERAL(QUIC_MAX_AGE_TIMEOUT);
+    RETURN_STRING_LITERAL(QUIC_INVALID_PRIORITY_UPDATE);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -719,6 +720,9 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(AEAD_LIMIT_REACHED)};
     case QUIC_MAX_AGE_TIMEOUT:
       return {false, static_cast<uint64_t>(QuicHttp3ErrorCode::INTERNAL_ERROR)};
+    case QUIC_INVALID_PRIORITY_UPDATE:
+      return {false, static_cast<uint64_t>(
+                         QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR)};
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }

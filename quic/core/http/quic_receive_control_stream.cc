@@ -234,7 +234,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     int urgency;
     if (!absl::SimpleAtoi(value, &urgency) || urgency < 0 || urgency > 7) {
       stream_delegate()->OnStreamError(
-          QUIC_INVALID_STREAM_ID,
+          QUIC_INVALID_PRIORITY_UPDATE,
           "Invalid value for PRIORITY_UPDATE urgency parameter.");
       return false;
     }

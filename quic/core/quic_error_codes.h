@@ -566,8 +566,11 @@ enum QuicErrorCode {
   // Decrypted a 0-RTT packet with a higher packet number than a 1-RTT packet.
   QUIC_INVALID_0RTT_PACKET_NUMBER_OUT_OF_ORDER = 192,
 
+  // Received PRIORITY_UPDATE frame with invalid payload.
+  QUIC_INVALID_PRIORITY_UPDATE = 193,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 193,
+  QUIC_LAST_ERROR = 194,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
