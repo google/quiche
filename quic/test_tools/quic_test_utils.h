@@ -734,6 +734,7 @@ class MockQuicConnection : public QuicConnection {
               (const QuicPathFrameBuffer&,
                const QuicSocketAddress&,
                const QuicSocketAddress&,
+               const QuicSocketAddress&,
                QuicPacketWriter*),
               (override));
 
@@ -1658,8 +1659,11 @@ class MockQuicPathValidationContext : public QuicPathValidationContext {
  public:
   MockQuicPathValidationContext(const QuicSocketAddress& self_address,
                                 const QuicSocketAddress& peer_address,
+                                const QuicSocketAddress& effective_peer_address,
                                 QuicPacketWriter* writer)
-      : QuicPathValidationContext(self_address, peer_address),
+      : QuicPathValidationContext(self_address,
+                                  peer_address,
+                                  effective_peer_address),
         writer_(writer) {}
   QuicPacketWriter* WriterToUse() override { return writer_; }
 

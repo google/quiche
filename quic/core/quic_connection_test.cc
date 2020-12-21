@@ -6395,8 +6395,9 @@ TEST_P(QuicConnectionTest, WriterBlockedAfterServerSendsConnectivityProbe) {
     QuicPathFrameBuffer payload{
         {0xde, 0xad, 0xbe, 0xef, 0xba, 0xdc, 0x0f, 0xfe}};
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
-    connection_.SendPathChallenge(payload, connection_.self_address(),
-                                  connection_.peer_address(), writer_.get());
+    connection_.SendPathChallenge(
+        payload, connection_.self_address(), connection_.peer_address(),
+        connection_.effective_peer_address(), writer_.get());
   } else {
     connection_.SendConnectivityProbingPacket(writer_.get(),
                                               connection_.peer_address());

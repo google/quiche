@@ -31,7 +31,16 @@ class QUIC_EXPORT_PRIVATE QuicPathValidationContext {
  public:
   QuicPathValidationContext(const QuicSocketAddress& self_address,
                             const QuicSocketAddress& peer_address)
-      : self_address_(self_address), peer_address_(peer_address) {}
+      : self_address_(self_address),
+        peer_address_(peer_address),
+        effective_peer_address_(peer_address) {}
+
+  QuicPathValidationContext(const QuicSocketAddress& self_address,
+                            const QuicSocketAddress& peer_address,
+                            const QuicSocketAddress& effective_peer_address)
+      : self_address_(self_address),
+        peer_address_(peer_address),
+        effective_peer_address_(effective_peer_address) {}
 
   virtual ~QuicPathValidationContext() = default;
 
@@ -39,6 +48,9 @@ class QUIC_EXPORT_PRIVATE QuicPathValidationContext {
 
   const QuicSocketAddress& self_address() const { return self_address_; }
   const QuicSocketAddress& peer_address() const { return peer_address_; }
+  const QuicSocketAddress& effective_peer_address() const {
+    return effective_peer_address_;
+  }
 
  private:
   QUIC_EXPORT_PRIVATE friend std::ostream& operator<<(
@@ -46,7 +58,11 @@ class QUIC_EXPORT_PRIVATE QuicPathValidationContext {
       const QuicPathValidationContext& context);
 
   QuicSocketAddress self_address_;
+  // The address to send PATH_CHALLENGE.
   QuicSocketAddress peer_address_;
+  // The actual peer address which is different from |peer_address_| if the peer
+  // is behind a proxy.
+  QuicSocketAddress effective_peer_address_;
 };
 
 // Used to validate a path by sending up to 3 PATH_CHALLENGE frames before
@@ -64,10 +80,12 @@ class QUIC_EXPORT_PRIVATE QuicPathValidator {
     // Send a PATH_CHALLENGE with |data_buffer| as the frame payload using given
     // path information. Return false if the delegate doesn't want to continue
     // the validation.
-    virtual bool SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
-                                   const QuicSocketAddress& self_address,
-                                   const QuicSocketAddress& peer_address,
-                                   QuicPacketWriter* writer) = 0;
+    virtual bool SendPathChallenge(
+        const QuicPathFrameBuffer& data_buffer,
+        const QuicSocketAddress& self_address,
+        const QuicSocketAddress& peer_address,
+        const QuicSocketAddress& effective_peer_address,
+        QuicPacketWriter* writer) = 0;
     // Return the time to retry sending PATH_CHALLENGE again based on given peer
     // address and writer.
     virtual QuicTime GetRetryTimeout(const QuicSocketAddress& peer_address,

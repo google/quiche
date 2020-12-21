@@ -5380,10 +5380,12 @@ QuicTime QuicConnection::GetRetransmissionDeadline() const {
   return sent_packet_manager_.GetRetransmissionTime();
 }
 
-bool QuicConnection::SendPathChallenge(const QuicPathFrameBuffer& data_buffer,
-                                       const QuicSocketAddress& self_address,
-                                       const QuicSocketAddress& peer_address,
-                                       QuicPacketWriter* writer) {
+bool QuicConnection::SendPathChallenge(
+    const QuicPathFrameBuffer& data_buffer,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address,
+    const QuicSocketAddress& /*effective_peer_address*/,
+    QuicPacketWriter* writer) {
   if (writer == writer_) {
     {
       // It's on current path, add the PATH_CHALLENGE the same way as other

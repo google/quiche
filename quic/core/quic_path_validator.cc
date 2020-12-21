@@ -59,16 +59,22 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
       probing_data_.end()) {
     result_delegate_->OnPathValidationSuccess(std::move(path_context_));
     ResetPathValidation();
+  } else {
+    QUIC_DVLOG(1) << "PATH_RESPONSE with payload " << probing_data.data()
+                  << " doesn't match the probing data.";
   }
 }
 
 void QuicPathValidator::StartPathValidation(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<ResultDelegate> result_delegate) {
-  CancelPathValidation();
   DCHECK_NE(nullptr, context);
   QUIC_DLOG(INFO) << "Start validating path " << *context
                   << " via writer: " << context->WriterToUse();
+  if (path_context_ != nullptr) {
+    QUIC_BUG << "There is an on-going validation on path " << *path_context_;
+    ResetPathValidation();
+  }
 
   path_context_ = std::move(context);
   result_delegate_ = std::move(result_delegate);
@@ -87,6 +93,7 @@ void QuicPathValidator::CancelPathValidation() {
     return;
   }
   QUIC_DVLOG(1) << "Cancel validation on path" << *path_context_;
+  result_delegate_->OnPathValidationFailure(std::move(path_context_));
   ResetPathValidation();
 }
 
@@ -107,7 +114,6 @@ const QuicPathFrameBuffer& QuicPathValidator::GeneratePathChallengePayload() {
 void QuicPathValidator::OnRetryTimeout() {
   ++retry_count_;
   if (retry_count_ > kMaxRetryTimes) {
-    result_delegate_->OnPathValidationFailure(std::move(path_context_));
     CancelPathValidation();
     return;
   }
@@ -118,7 +124,8 @@ void QuicPathValidator::OnRetryTimeout() {
 void QuicPathValidator::SendPathChallengeAndSetAlarm() {
   bool should_continue = send_delegate_->SendPathChallenge(
       GeneratePathChallengePayload(), path_context_->self_address(),
-      path_context_->peer_address(), path_context_->WriterToUse());
+      path_context_->peer_address(), path_context_->effective_peer_address(),
+      path_context_->WriterToUse());
 
   if (!should_continue) {
     // The delegate doesn't want to continue the path validation.
