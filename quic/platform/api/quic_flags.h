@@ -10,18 +10,20 @@
 
 #include "net/quic/platform/impl/quic_flags_impl.h"
 
+#include "net/third_party/quiche/src/common/platform/api/quiche_flags.h"
+
+#define GetQuicReloadableFlag(flag) GetQuicheReloadableFlag(quic, flag)
+#define SetQuicReloadableFlag(flag, value) \
+  SetQuicheReloadableFlag(quic, flag, value)
+#define GetQuicRestartFlag(flag) GetQuicheRestartFlag(quic, flag)
+#define SetQuicRestartFlag(flag, value) SetQuicheRestartFlag(quic, flag, value)
+#define GetQuicFlag(flag) GetQuicheFlag(flag)
+#define SetQuicFlag(flag, value) SetQuicheFlag(flag, value)
+
 // Define a command-line flag that can be automatically set via
 // QuicParseCommandLineFlags().
 #define DEFINE_QUIC_COMMAND_LINE_FLAG(type, name, default_value, help) \
   DEFINE_QUIC_COMMAND_LINE_FLAG_IMPL(type, name, default_value, help)
-
-#define GetQuicReloadableFlag(flag) GetQuicReloadableFlagImpl(flag)
-#define SetQuicReloadableFlag(flag, value) \
-  SetQuicReloadableFlagImpl(flag, value)
-#define GetQuicRestartFlag(flag) GetQuicRestartFlagImpl(flag)
-#define SetQuicRestartFlag(flag, value) SetQuicRestartFlagImpl(flag, value)
-#define GetQuicFlag(flag) GetQuicFlagImpl(flag)
-#define SetQuicFlag(flag, value) SetQuicFlagImpl(flag, value)
 
 namespace quic {
 
