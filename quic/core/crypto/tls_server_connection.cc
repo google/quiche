@@ -22,7 +22,7 @@ bssl::UniquePtr<SSL_CTX> TlsServerConnection::CreateSslCtx(
   bssl::UniquePtr<SSL_CTX> ssl_ctx =
       TlsConnection::CreateSslCtx(SSL_VERIFY_NONE);
   SSL_CTX_set_tlsext_servername_callback(ssl_ctx.get(),
-                                         &SelectCertificateCallback);
+                                         &TlsExtServernameCallback);
   SSL_CTX_set_alpn_select_cb(ssl_ctx.get(), &SelectAlpnCallback, nullptr);
   // We don't actually need the TicketCrypter here, but we need to know
   // whether it's set.
@@ -72,10 +72,10 @@ ssl_select_cert_result_t TlsServerConnection::EarlySelectCertCallback(
 }
 
 // static
-int TlsServerConnection::SelectCertificateCallback(SSL* ssl,
-                                                   int* out_alert,
-                                                   void* /*arg*/) {
-  return ConnectionFromSsl(ssl)->delegate_->SelectCertificate(out_alert);
+int TlsServerConnection::TlsExtServernameCallback(SSL* ssl,
+                                                  int* out_alert,
+                                                  void* /*arg*/) {
+  return ConnectionFromSsl(ssl)->delegate_->TlsExtServernameCallback(out_alert);
 }
 
 // static

@@ -27,15 +27,18 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
     virtual ssl_select_cert_result_t EarlySelectCertCallback(
         const SSL_CLIENT_HELLO* client_hello) = 0;
 
-    // Configures the certificate to use on |ssl_| based on the SNI sent by the
-    // client. Returns an SSL_TLSEXT_ERR_* value (see
+    // Called after the ClientHello extensions have been successfully parsed.
+    // Returns an SSL_TLSEXT_ERR_* value (see
     // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_servername_callback).
     //
-    // If SelectCertificate returns SSL_TLSEXT_ERR_ALERT_FATAL, then it puts in
+    // On success, return SSL_TLSEXT_ERR_OK causes the server_name extension to
+    // be acknowledged in the ServerHello, or return SSL_TLSEXT_ERR_NOACK which
+    // causes it to be not acknowledged.
+    //
+    // If the function returns SSL_TLSEXT_ERR_ALERT_FATAL, then it puts in
     // |*out_alert| the TLS alert value that the server will send.
     //
-    // TODO(wub): Deprecate it after enabling --quic_tls_use_early_select_cert.
-    virtual int SelectCertificate(int* out_alert) = 0;
+    virtual int TlsExtServernameCallback(int* out_alert) = 0;
 
     // Selects which ALPN to use based on the list sent by the client.
     virtual int SelectAlpn(const uint8_t** out,
@@ -133,7 +136,7 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
 
   // These functions are registered as callbacks in BoringSSL and delegate their
   // implementation to the matching methods in Delegate above.
-  static int SelectCertificateCallback(SSL* ssl, int* out_alert, void* arg);
+  static int TlsExtServernameCallback(SSL* ssl, int* out_alert, void* arg);
   static int SelectAlpnCallback(SSL* ssl,
                                 const uint8_t** out,
                                 uint8_t* out_len,

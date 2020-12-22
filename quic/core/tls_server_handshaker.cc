@@ -639,7 +639,7 @@ bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   return true;
 }
 
-int TlsServerHandshaker::SelectCertificate(int* out_alert) {
+int TlsServerHandshaker::TlsExtServernameCallback(int* out_alert) {
   if (use_early_select_cert_) {
     return SSL_TLSEXT_ERR_OK;
   }

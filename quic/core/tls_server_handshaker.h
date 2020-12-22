@@ -112,7 +112,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // Used to select certificates and process transport parameters.
   ssl_select_cert_result_t EarlySelectCertCallback(
       const SSL_CLIENT_HELLO* client_hello) override;
-  int SelectCertificate(int* out_alert) override;
+  int TlsExtServernameCallback(int* out_alert) override;
   int SelectAlpn(const uint8_t** out,
                  uint8_t* out_len,
                  const uint8_t* in,
