@@ -46,9 +46,6 @@ class QuicDispatcherPeer {
   static QuicBufferedPacketStore* GetBufferedPackets(
       QuicDispatcher* dispatcher);
 
-  static const QuicDispatcher::SessionMap& session_map(
-      QuicDispatcher* dispatcher);
-
   static void set_new_sessions_allowed_per_event_loop(
       QuicDispatcher* dispatcher,
       size_t num_session_allowed);
@@ -69,6 +66,10 @@ class QuicDispatcherPeer {
 
   static std::string SelectAlpn(QuicDispatcher* dispatcher,
                                 const std::vector<std::string>& alpns);
+
+  // Get the first session in the session map. Returns nullptr if the map is
+  // empty.
+  static QuicSession* GetFirstSessionIfAny(QuicDispatcher* dispatcher);
 };
 
 }  // namespace test

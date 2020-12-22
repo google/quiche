@@ -4,6 +4,7 @@
 
 #include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -12,6 +13,7 @@
 #include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
 #include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
 #include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
+#include "net/third_party/quiche/src/quic/core/quic_session.h"
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_types.h"
 #include "net/third_party/quiche/src/quic/core/quic_utils.h"
@@ -791,6 +793,13 @@ void QuicDispatcher::StopAcceptingNewConnections() {
   // No more CHLO will arrive and buffered CHLOs shouldn't be able to create
   // connections.
   buffered_packets_.DiscardAllPackets();
+}
+
+void QuicDispatcher::PerformActionOnActiveSessions(
+    std::function<void(QuicSession*)> operation) const {
+  for (auto const& kv : session_map_) {
+    operation(kv.second.get());
+  }
 }
 
 std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()

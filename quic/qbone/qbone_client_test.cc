@@ -23,6 +23,7 @@
 #include "net/third_party/quiche/src/quic/qbone/qbone_server_session.h"
 #include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
+#include "net/third_party/quiche/src/quic/test_tools/quic_dispatcher_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/quic_server_peer.h"
 #include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
@@ -261,11 +262,9 @@ TEST_P(QboneClientTest, SendDataFromClient) {
   server_thread.Schedule([&server, &long_data]() {
     EXPECT_THAT(server->data()[0], testing::Eq(TestPacketOut("hello")));
     EXPECT_THAT(server->data()[1], testing::Eq(TestPacketOut("world")));
-    auto server_session =
-        static_cast<QboneServerSession*>(QuicServerPeer::GetDispatcher(server)
-                                             ->session_map()
-                                             .begin()
-                                             ->second.get());
+    auto server_session = static_cast<QboneServerSession*>(
+        QuicDispatcherPeer::GetFirstSessionIfAny(
+            QuicServerPeer::GetDispatcher(server)));
     server_session->ProcessPacketFromNetwork(
         TestPacketIn("Somethingsomething"));
     server_session->ProcessPacketFromNetwork(TestPacketIn(long_data));

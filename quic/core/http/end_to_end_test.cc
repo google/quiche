@@ -347,13 +347,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       ADD_FAILURE() << "Missing dispatcher";
       return nullptr;
     }
-    if (dispatcher->session_map().empty()) {
+    if (dispatcher->NumSessions() == 0) {
       ADD_FAILURE() << "Empty dispatcher session map";
       return nullptr;
     }
-    EXPECT_EQ(1u, dispatcher->session_map().size());
+    EXPECT_EQ(1u, dispatcher->NumSessions());
     return static_cast<QuicSpdySession*>(
-        dispatcher->session_map().begin()->second.get());
+        QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher));
   }
 
   bool Initialize() {
@@ -3535,11 +3535,9 @@ TEST_P(EndToEndTest, EarlyResponseFinRecording) {
 
   QuicDispatcher* dispatcher =
       QuicServerPeer::GetDispatcher(server_thread_->server());
-  QuicDispatcher::SessionMap const& map =
-      QuicDispatcherPeer::session_map(dispatcher);
-  auto it = map.begin();
-  EXPECT_TRUE(it != map.end());
-  QuicSession* server_session = it->second.get();
+  QuicSession* server_session =
+      QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher);
+  EXPECT_TRUE(server_session != nullptr);
 
   // The stream is not waiting for the arrival of the peer's final offset.
   EXPECT_EQ(
@@ -4132,7 +4130,7 @@ TEST_P(EndToEndTest,
     server_thread_->Resume();
     return;
   }
-  if (!dispatcher->session_map().empty()) {
+  if (dispatcher->NumSessions() > 0) {
     ADD_FAILURE() << "Dispatcher session map not empty";
     server_thread_->Resume();
     return;
@@ -4173,7 +4171,7 @@ TEST_P(EndToEndTest,
     server_thread_->Resume();
     return;
   }
-  if (!dispatcher->session_map().empty()) {
+  if (dispatcher->NumSessions() > 0) {
     ADD_FAILURE() << "Dispatcher session map not empty";
     server_thread_->Resume();
     return;
@@ -4780,7 +4778,7 @@ TEST_P(EndToEndTest, ConnectionCloseBeforeHandshakeComplete) {
     server_thread_->Resume();
     return;
   }
-  if (!dispatcher->session_map().empty()) {
+  if (dispatcher->NumSessions() > 0) {
     ADD_FAILURE() << "Dispatcher session map not empty";
     server_thread_->Resume();
     return;
@@ -4849,7 +4847,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
     server_thread_->Resume();
     return;
   }
-  if (!dispatcher->session_map().empty()) {
+  if (dispatcher->NumSessions() > 0) {
     ADD_FAILURE() << "Dispatcher session map not empty";
     server_thread_->Resume();
     return;

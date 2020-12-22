@@ -557,7 +557,7 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
   ProcessReceivedPacket(std::move(packets[0]), client_address, version_,
                         server_connection_id);
 
-  EXPECT_EQ(dispatcher_->session_map().size(), 0u)
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
       << "No session should be created before the rest of the CHLO arrives.";
 
   // Processing the second packet should create the new session.
@@ -574,7 +574,7 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
 
   ProcessReceivedPacket(std::move(packets[1]), client_address, version_,
                         server_connection_id);
-  EXPECT_EQ(dispatcher_->session_map().size(), 1u);
+  EXPECT_EQ(dispatcher_->NumSessions(), 1u);
 }
 
 TEST_P(QuicDispatcherTestAllVersions, TlsMultiPacketClientHello) {
@@ -641,7 +641,7 @@ TEST_P(QuicDispatcherTestAllVersions, LegacyVersionEncapsulation) {
 
   ProcessReceivedPacket(packets[0]->Clone(), client_address, version_,
                         server_connection_id);
-  EXPECT_EQ(dispatcher_->session_map().size(), 1u);
+  EXPECT_EQ(dispatcher_->NumSessions(), 1u);
 
   // Processing the same packet a second time should also be routed by the
   // dispatcher to the right connection (we expect ProcessUdpPacket to be
@@ -2011,7 +2011,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
                                 ReceivedPacketInfoConnectionIdEquals(conn_id)));
   // Process non-CHLO packet.
   ProcessUndecryptableEarlyPacket(conn_id);
-  EXPECT_EQ(0u, dispatcher_->session_map().size())
+  EXPECT_EQ(0u, dispatcher_->NumSessions())
       << "No session should be created before CHLO arrives.";
 
   // When CHLO arrives, a new session should be created, and all packets
@@ -2044,7 +2044,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
   for (size_t i = 1; i <= kDefaultMaxUndecryptablePackets + 1; ++i) {
     ProcessUndecryptableEarlyPacket(conn_id);
   }
-  EXPECT_EQ(0u, dispatcher_->session_map().size())
+  EXPECT_EQ(0u, dispatcher_->NumSessions())
       << "No session should be created before CHLO arrives.";
 
   // Pop out the last packet as it is also be dropped by the store.

@@ -8,6 +8,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_DISPATCHER_H_
 #define QUICHE_QUIC_CORE_QUIC_DISPATCHER_H_
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_blocked_writer_interface.h"
 #include "net/third_party/quiche/src/quic/core/quic_buffered_packet_store.h"
 #include "net/third_party/quiche/src/quic/core/quic_connection.h"
+#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
 #include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
 #include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
@@ -107,6 +109,8 @@ class QUIC_NO_EXPORT QuicDispatcher
                                  std::unique_ptr<QuicSession>,
                                  QuicConnectionIdHash>;
 
+  size_t NumSessions() const { return session_map_.size(); }
+
   const SessionMap& session_map() const { return session_map_; }
 
   // Deletes all sessions on the closed session list and clears the list.
@@ -132,6 +136,10 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Stop accepting new ConnectionIds, either as a part of the lame
   // duck process or because explicitly configured.
   void StopAcceptingNewConnections();
+
+  // Apply an operation for each session.
+  void PerformActionOnActiveSessions(
+      std::function<void(QuicSession*)> operation) const;
 
   bool accept_new_connections() const { return accept_new_connections_; }
 

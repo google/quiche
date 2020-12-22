@@ -74,12 +74,6 @@ QuicBufferedPacketStore* QuicDispatcherPeer::GetBufferedPackets(
 }
 
 // static
-const QuicDispatcher::SessionMap& QuicDispatcherPeer::session_map(
-    QuicDispatcher* dispatcher) {
-  return dispatcher->session_map();
-}
-
-// static
 void QuicDispatcherPeer::set_new_sessions_allowed_per_event_loop(
     QuicDispatcher* dispatcher,
     size_t num_session_allowed) {
@@ -117,6 +111,15 @@ std::string QuicDispatcherPeer::SelectAlpn(
     QuicDispatcher* dispatcher,
     const std::vector<std::string>& alpns) {
   return dispatcher->SelectAlpn(alpns);
+}
+
+// static
+QuicSession* QuicDispatcherPeer::GetFirstSessionIfAny(
+    QuicDispatcher* dispatcher) {
+  if (dispatcher->session_map_.empty()) {
+    return nullptr;
+  }
+  return dispatcher->session_map_.begin()->second.get();
 }
 
 }  // namespace test
