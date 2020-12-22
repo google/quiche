@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
+#include "net/third_party/quiche/src/http2/platform/api/http2_flag_utils.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_flags.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
 #include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"

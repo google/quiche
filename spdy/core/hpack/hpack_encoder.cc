@@ -14,6 +14,7 @@
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
 #include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_estimate_memory_usage.h"
+#include "net/third_party/quiche/src/spdy/platform/api/spdy_flag_utils.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_flags.h"
 #include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
 
