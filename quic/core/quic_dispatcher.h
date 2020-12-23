@@ -27,6 +27,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
 #include "net/third_party/quiche/src/quic/core/quic_version_manager.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -109,7 +110,17 @@ class QUIC_NO_EXPORT QuicDispatcher
                                  std::unique_ptr<QuicSession>,
                                  QuicConnectionIdHash>;
 
-  size_t NumSessions() const { return session_map_.size(); }
+  using ReferenceCountedSessionMap = QuicHashMap<QuicConnectionId,
+                                                 std::shared_ptr<QuicSession>,
+                                                 QuicConnectionIdHash>;
+
+  // TODO(haoyuewang) Update this function when multiple CIDs per connection are
+  // supported.
+  size_t NumSessions() const {
+    return use_reference_counted_session_map_
+               ? reference_counted_session_map_.size()
+               : session_map_.size();
+  }
 
   const SessionMap& session_map() const { return session_map_; }
 
@@ -141,7 +152,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   void PerformActionOnActiveSessions(
       std::function<void(QuicSession*)> operation) const;
 
+  // Get a snapshot of all sessions.
+  std::vector<std::shared_ptr<QuicSession>> GetSessionsSnapshot() const;
+
   bool accept_new_connections() const { return accept_new_connections_; }
+
+  bool use_reference_counted_session_map() const {
+    return use_reference_counted_session_map_;
+  }
 
  protected:
   virtual std::unique_ptr<QuicSession> CreateQuicSession(
@@ -359,12 +377,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   WriteBlockedList write_blocked_list_;
 
   SessionMap session_map_;
+  ReferenceCountedSessionMap reference_counted_session_map_;
 
   // Entity that manages connection_ids in time wait state.
   std::unique_ptr<QuicTimeWaitListManager> time_wait_list_manager_;
 
   // The list of closed but not-yet-deleted sessions.
   std::vector<std::unique_ptr<QuicSession>> closed_session_list_;
+  std::vector<std::shared_ptr<QuicSession>> closed_ref_counted_session_list_;
 
   // The helper used for all connections.
   std::unique_ptr<QuicConnectionHelperInterface> helper_;
@@ -416,6 +436,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // If true, change expected_server_connection_id_length_ to be the received
   // destination connection ID length of all IETF long headers.
   bool should_update_expected_server_connection_id_length_;
+
+  const bool use_reference_counted_session_map_ =
+      GetQuicRestartFlag(quic_use_reference_counted_sesssion_map);
 };
 
 }  // namespace quic
