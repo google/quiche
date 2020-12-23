@@ -41,6 +41,9 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
   MOCK_METHOD(void, AddBytesConsumed, (QuicByteCount bytes), (override));
 
   QuicStreamId id() const override { return 1; }
+  ParsedQuicVersion version() const override {
+    return CurrentSupportedVersions()[0];
+  }
 };
 
 namespace {
@@ -243,7 +246,11 @@ TEST_F(QuicStreamSequencerTest, BlockedThenFullFrameAndFinConsumed) {
 }
 
 TEST_F(QuicStreamSequencerTest, EmptyFrame) {
-  EXPECT_CALL(stream_, OnUnrecoverableError(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _));
+  if (!GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin) ||
+      !stream_.version().HasIetfQuicFrames()) {
+    EXPECT_CALL(stream_,
+                OnUnrecoverableError(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _));
+  }
   OnFrame(0, "");
   EXPECT_EQ(0u, NumBufferedBytes());
   EXPECT_EQ(0u, sequencer_->NumBytesConsumed());

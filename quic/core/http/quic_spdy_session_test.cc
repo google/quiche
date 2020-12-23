@@ -1907,10 +1907,12 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
       GetNthServerInitiatedUnidirectionalStreamId(transport_version(), 0);
   // A bad stream frame with no data and no fin.
   QuicStreamFrame data1(stream_id1, false, 0, 0);
-  EXPECT_CALL(*connection_, CloseConnection(_, _, _))
-      .WillOnce(
-          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  if (!GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin)) {
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _))
+        .WillOnce(
+            Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  }
   session_.OnStreamFrame(data1);
 }
 

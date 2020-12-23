@@ -179,6 +179,7 @@ class QUIC_NO_EXPORT TlsChloExtractor
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
   QuicStreamId id() const override { return 0; }
+  ParsedQuicVersion version() const override { return framer_->version(); }
 
  private:
   // Parses the length of the CHLO message by looking at the first four bytes.

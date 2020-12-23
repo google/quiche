@@ -1679,6 +1679,23 @@ TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
   stream_->OnStreamReset(rst);
 }
 
+// Regression test for b/176073284.
+TEST_P(QuicStreamTest, EmptyStreamFrameWithNoFin) {
+  Initialize();
+  QuicStreamFrame empty_stream_frame(stream_->id(), false, 0, "");
+  if (GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin) &&
+      stream_->version().HasIetfQuicFrames()) {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _, _))
+        .Times(0);
+  } else {
+    EXPECT_CALL(*connection_,
+                CloseConnection(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _, _));
+  }
+  EXPECT_CALL(*stream_, OnDataAvailable()).Times(0);
+  stream_->OnStreamFrame(empty_stream_frame);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -113,6 +113,7 @@ const int QuicStream::kDefaultUrgency;
 
 PendingStream::PendingStream(QuicStreamId id, QuicSession* session)
     : id_(id),
+      version_(session->version()),
       stream_delegate_(session),
       stream_bytes_read_(0),
       fin_received_(false),
@@ -155,6 +156,10 @@ void PendingStream::OnUnrecoverableError(QuicErrorCode error,
 
 QuicStreamId PendingStream::id() const {
   return id_;
+}
+
+ParsedQuicVersion PendingStream::version() const {
+  return version_;
 }
 
 void PendingStream::OnStreamFrame(const QuicStreamFrame& frame) {
@@ -895,6 +900,10 @@ void QuicStream::MaybeSendRstStream(QuicRstStreamErrorCode error) {
 bool QuicStream::HasBufferedData() const {
   DCHECK_GE(send_buffer_.stream_offset(), stream_bytes_written());
   return send_buffer_.stream_offset() > stream_bytes_written();
+}
+
+ParsedQuicVersion QuicStream::version() const {
+  return session_->version();
 }
 
 QuicTransportVersion QuicStream::transport_version() const {

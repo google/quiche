@@ -62,6 +62,7 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
   QuicStreamId id() const override;
+  ParsedQuicVersion version() const override;
 
   // Buffers the contents of |frame|. Frame must have a non-zero offset.
   // If the data violates flow control, the connection will be closed.
@@ -89,6 +90,9 @@ class QUIC_EXPORT_PRIVATE PendingStream
 
   // ID of this stream.
   QuicStreamId id_;
+
+  // QUIC version being used by this stream.
+  ParsedQuicVersion version_;
 
   // |stream_delegate_| must outlive this stream.
   StreamDelegateInterface* stream_delegate_;
@@ -146,6 +150,7 @@ class QUIC_EXPORT_PRIVATE QuicStream
 
   // QuicStreamSequencer::StreamInterface implementation.
   QuicStreamId id() const override { return id_; }
+  ParsedQuicVersion version() const override;
   // Called by the stream subclass after it has consumed the final incoming
   // data.
   void OnFinRead() override;

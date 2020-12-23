@@ -44,6 +44,9 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
                                       const std::string& details) = 0;
     // Returns the stream id of this stream.
     virtual QuicStreamId id() const = 0;
+
+    // Returns the QUIC version being used by this stream.
+    virtual ParsedQuicVersion version() const = 0;
   };
 
   explicit QuicStreamSequencer(StreamInterface* quic_stream);
