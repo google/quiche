@@ -7,12 +7,12 @@
 
 #include <memory>
 
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_thread.h"
-#include "net/third_party/quiche/src/quic/tools/quic_server.h"
+#include "quic/core/quic_config.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_mutex.h"
+#include "quic/platform/api/quic_socket_address.h"
+#include "quic/platform/api/quic_thread.h"
+#include "quic/tools/quic_server.h"
 
 namespace quic {
 namespace test {

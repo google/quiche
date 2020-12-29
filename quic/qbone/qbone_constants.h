@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_CONSTANTS_H_
 #define QUICHE_QUIC_QBONE_QBONE_CONSTANTS_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/ip_range.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/qbone/platform/ip_range.h"
 
 namespace quic {
 

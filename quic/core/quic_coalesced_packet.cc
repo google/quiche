@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_coalesced_packet.h"
+#include "quic/core/quic_coalesced_packet.h"
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 

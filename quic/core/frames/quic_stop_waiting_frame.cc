@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_stop_waiting_frame.h"
+#include "quic/core/frames/quic_stop_waiting_frame.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
+#include "quic/core/quic_constants.h"
 
 namespace quic {
 

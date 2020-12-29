@@ -8,8 +8,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

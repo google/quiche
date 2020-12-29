@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_UTILS_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_UTILS_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/core/quic_versions.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/quic_versions.h"
 
 namespace quic {
 

@@ -7,12 +7,12 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
-#include "net/third_party/quiche/src/quic/core/proto/source_address_token_proto.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_handshaker.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
+#include "quic/core/proto/source_address_token_proto.h"
+#include "quic/core/quic_crypto_handshaker.h"
+#include "quic/core/quic_crypto_server_stream_base.h"
+#include "quic/core/quic_session.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

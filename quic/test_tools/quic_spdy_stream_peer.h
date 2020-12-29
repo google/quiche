@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_STREAM_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_STREAM_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_ack_listener_interface.h"
-#include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "quic/core/quic_ack_listener_interface.h"
+#include "quic/core/quic_interval_set.h"
+#include "quic/platform/api/quic_containers.h"
 
 namespace quic {
 

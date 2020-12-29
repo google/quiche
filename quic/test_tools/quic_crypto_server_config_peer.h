@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CRYPTO_SERVER_CONFIG_PEER_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
+#include "quic/core/crypto/quic_crypto_server_config.h"
 
 namespace quic {
 namespace test {

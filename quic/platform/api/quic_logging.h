@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_LOGGING_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_LOGGING_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_logging.h"
 
 // Please note following QUIC_LOG are platform dependent:
 // INFO severity can be degraded (to VLOG(1) or DVLOG(1)).

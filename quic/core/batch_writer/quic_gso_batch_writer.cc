@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_gso_batch_writer.h"
+#include "quic/core/batch_writer/quic_gso_batch_writer.h"
 
 #include <time.h>
 #include <ctime>
 
-#include "net/third_party/quiche/src/quic/core/quic_linux_socket_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_server_stats.h"
+#include "quic/core/quic_linux_socket_utils.h"
+#include "quic/platform/api/quic_server_stats.h"
 
 namespace quic {
 

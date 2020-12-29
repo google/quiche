@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder.h"
+#include "http2/decoder/http2_frame_decoder.h"
 
-#include "net/third_party/quiche/src/http2/decoder/decode_status.h"
-#include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
-#include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_macros.h"
+#include "http2/decoder/decode_status.h"
+#include "http2/hpack/varint/hpack_varint_decoder.h"
+#include "http2/http2_constants.h"
+#include "http2/platform/api/http2_bug_tracker.h"
+#include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
 

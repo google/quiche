@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_TOOLS_FAKE_PROOF_VERIFIER_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
+#include "quic/core/crypto/proof_verifier.h"
 
 namespace quic {
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
+#include "quic/core/http/spdy_server_push_utils.h"
 
 #include "absl/strings/string_view.h"
 #include "url/gurl.h"

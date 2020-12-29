@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TLS_CLIENT_CONNECTION_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_CLIENT_CONNECTION_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
+#include "quic/core/crypto/tls_connection.h"
 
 namespace quic {
 

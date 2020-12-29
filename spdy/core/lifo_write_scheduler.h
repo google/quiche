@@ -11,8 +11,8 @@
 #include <string>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/spdy/core/write_scheduler.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
+#include "spdy/core/write_scheduler.h"
+#include "spdy/platform/api/spdy_containers.h"
 
 namespace spdy {
 

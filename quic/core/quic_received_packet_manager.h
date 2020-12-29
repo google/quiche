@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_CORE_QUIC_RECEIVED_PACKET_MANAGER_H_
 
 #include <cstddef>
-#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_framer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/frames/quic_ack_frequency_frame.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_framer.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

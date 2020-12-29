@@ -10,7 +10,7 @@
 
 #include "net/quic/platform/impl/quic_flags_impl.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flags.h"
+#include "common/platform/api/quiche_flags.h"
 
 #define GetQuicReloadableFlag(flag) GetQuicheReloadableFlag(quic, flag)
 #define SetQuicReloadableFlag(flag, value) \

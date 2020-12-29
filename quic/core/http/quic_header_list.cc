@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/quic_header_list.h"
+#include "quic/core/http/quic_header_list.h"
 
 #include <limits>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "quic/core/qpack/qpack_header_table.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 

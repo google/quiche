@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/icmp_reachable.h"
+#include "quic/qbone/bonnet/icmp_reachable.h"
 
 #include <netinet/ip6.h>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/mock_kernel.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/platform/mock_kernel.h"
 
 namespace quic {
 namespace {

@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_goaway_frame.h"
+#include "quic/core/frames/quic_goaway_frame.h"
 
 namespace quic {
 

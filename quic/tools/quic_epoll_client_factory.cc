@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/tools/quic_epoll_client_factory.h"
+#include "quic/tools/quic_epoll_client_factory.h"
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -11,9 +11,9 @@
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/core/quic_server_id.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "quic/core/quic_server_id.h"
+#include "quic/platform/api/quic_socket_address.h"
+#include "quic/tools/quic_client.h"
 
 namespace quic {
 

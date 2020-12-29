@@ -5,7 +5,7 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_FLAGS_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_FLAGS_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flags.h"
+#include "common/platform/api/quiche_flags.h"
 
 #define GetSpdyReloadableFlag(flag) GetQuicheReloadableFlag(spdy, flag)
 #define SetSpdyReloadableFlag(flag, value) \

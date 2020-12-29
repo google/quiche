@@ -5,7 +5,7 @@
 #ifndef QUICHE_HTTP2_PLATFORM_API_HTTP2_FLAG_UTILS_H_
 #define QUICHE_HTTP2_PLATFORM_API_HTTP2_FLAG_UTILS_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flag_utils.h"
+#include "common/platform/api/quiche_flag_utils.h"
 
 #define HTTP2_RELOADABLE_FLAG_COUNT QUICHE_RELOADABLE_FLAG_COUNT
 #define HTTP2_RELOADABLE_FLAG_COUNT_N QUICHE_RELOADABLE_FLAG_COUNT_N

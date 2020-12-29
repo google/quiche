@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
+#include "quic/tools/quic_simple_dispatcher.h"
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "quic/tools/quic_simple_server_session.h"
 
 namespace quic {
 

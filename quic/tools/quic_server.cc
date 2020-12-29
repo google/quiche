@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/tools/quic_server.h"
+#include "quic/tools/quic_server.h"
 
 #include <errno.h>
 #include <features.h>
@@ -14,23 +14,23 @@
 #include <cstdint>
 #include <memory>
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
-#include "net/third_party/quiche/src/quic/core/quic_data_reader.h"
-#include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
-#include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
-#include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/crypto/crypto_handshake.h"
+#include "quic/core/crypto/quic_random.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_crypto_stream.h"
+#include "quic/core/quic_data_reader.h"
+#include "quic/core/quic_default_packet_writer.h"
+#include "quic/core/quic_dispatcher.h"
+#include "quic/core/quic_epoll_alarm_factory.h"
+#include "quic/core/quic_epoll_connection_helper.h"
+#include "quic/core/quic_packet_reader.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_logging.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "quic/tools/quic_simple_crypto_server_stream_helper.h"
+#include "quic/tools/quic_simple_dispatcher.h"
+#include "quic/tools/quic_simple_server_backend.h"
 
 namespace quic {
 

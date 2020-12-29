@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_PLATFORM_NETLINK_INTERFACE_H_
 #define QUICHE_QUIC_QBONE_PLATFORM_NETLINK_INTERFACE_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/ip_range.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/qbone/platform/ip_range.h"
 
 namespace quic {
 

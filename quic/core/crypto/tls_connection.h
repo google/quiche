@@ -9,7 +9,7 @@
 
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

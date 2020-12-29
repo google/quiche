@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_FLOW_CONTROLLER_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_FLOW_CONTROLLER_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "quic/core/quic_packets.h"
 
 namespace quic {
 

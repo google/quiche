@@ -11,7 +11,7 @@
 #include <functional>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_ip_address.h"
 
 namespace quic {
 

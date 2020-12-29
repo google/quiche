@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_probe_rtt.h"
+#include "quic/core/congestion_control/bbr2_probe_rtt.h"
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/congestion_control/bbr2_sender.h"
+#include "quic/core/quic_time.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

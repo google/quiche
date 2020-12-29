@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
+#include "http2/hpack/hpack_string.h"
 
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "http2/platform/api/http2_logging.h"
 
 namespace http2 {
 

@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_QBONE_TUNNEL_INTERFACE_H_
 #define QUICHE_QUIC_QBONE_BONNET_QBONE_TUNNEL_INTERFACE_H_
 
-#include "net/third_party/quiche/src/quic/qbone/qbone_client.h"
+#include "quic/qbone/qbone_client.h"
 
 namespace quic {
 

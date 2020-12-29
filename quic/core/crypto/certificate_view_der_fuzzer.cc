@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
+#include "quic/core/crypto/certificate_view.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::string input(reinterpret_cast<const char*>(data), size);

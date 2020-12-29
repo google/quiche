@@ -10,9 +10,9 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "quic/core/crypto/certificate_view.h"
+#include "quic/core/crypto/proof_source.h"
+#include "quic/platform/api/quic_containers.h"
 
 namespace quic {
 

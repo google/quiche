@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_BAD_PACKET_WRITER_H_
 #define QUICHE_QUIC_TEST_TOOLS_BAD_PACKET_WRITER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer_wrapper.h"
+#include "quic/core/quic_packet_writer_wrapper.h"
 
 namespace quic {
 

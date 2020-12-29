@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_flow_controller_peer.h"
+#include "quic/test_tools/quic_flow_controller_peer.h"
 
 #include <list>
 
-#include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "quic/core/quic_flow_controller.h"
+#include "quic/core/quic_packets.h"
 
 namespace quic {
 namespace test {

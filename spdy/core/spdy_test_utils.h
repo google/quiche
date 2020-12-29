@@ -10,8 +10,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "spdy/core/spdy_header_block.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

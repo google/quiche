@@ -13,8 +13,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder_listener.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/hpack/decoder/hpack_string_decoder_listener.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

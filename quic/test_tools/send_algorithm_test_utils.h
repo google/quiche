@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SEND_ALGORITHM_TEST_UTILS_H_
 #define QUICHE_QUIC_TEST_TOOLS_SEND_ALGORITHM_TEST_UTILS_H_
 
-#include "net/third_party/quiche/src/quic/test_tools/send_algorithm_test_result.pb.h"
+#include "quic/test_tools/send_algorithm_test_result.pb.h"
 
 namespace quic {
 namespace test {

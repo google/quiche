@@ -7,8 +7,8 @@
 
 #include "absl/strings/string_view.h"
 #include "url/origin.h"
-#include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
-#include "net/third_party/quiche/src/quic/tools/quic_transport_simple_server_session.h"
+#include "quic/core/quic_dispatcher.h"
+#include "quic/tools/quic_transport_simple_server_session.h"
 
 namespace quic {
 

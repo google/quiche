@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_linux_socket_utils.h"
+#include "quic/core/quic_linux_socket_utils.h"
 
 #include <netinet/in.h>
 #include <stdint.h>
@@ -12,9 +12,9 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_mock_syscall_wrapper.h"
+#include "quic/core/quic_circular_deque.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/quic_mock_syscall_wrapper.h"
 
 using testing::_;
 using testing::InSequence;

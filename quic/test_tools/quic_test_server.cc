@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_server.h"
+#include "quic/test_tools/quic_test_server.h"
 
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
-#include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_crypto_server_stream_helper.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "quic/core/quic_epoll_alarm_factory.h"
+#include "quic/core/quic_epoll_connection_helper.h"
+#include "quic/platform/api/quic_ptr_util.h"
+#include "quic/tools/quic_simple_crypto_server_stream_helper.h"
+#include "quic/tools/quic_simple_dispatcher.h"
+#include "quic/tools/quic_simple_server_session.h"
 
 namespace quic {
 

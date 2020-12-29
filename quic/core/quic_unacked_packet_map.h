@@ -10,12 +10,12 @@
 #include <deque>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
-#include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "quic/core/quic_circular_deque.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_transmission_info.h"
+#include "quic/core/session_notifier_interface.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 

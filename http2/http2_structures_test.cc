@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "http2/http2_structures.h"
 
 // Tests are focused on Http2FrameHeader because it has by far the most
 // methods of any of the structures.
@@ -20,11 +20,11 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/http2_structures_test_util.h"
+#include "http2/platform/api/http2_string_utils.h"
+#include "http2/platform/api/http2_test_helpers.h"
+#include "http2/test_tools/http2_random.h"
+#include "common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;

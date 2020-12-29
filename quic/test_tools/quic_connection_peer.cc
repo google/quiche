@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
+#include "quic/test_tools/quic_connection_peer.h"
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_received_packet_manager.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_framer_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_sent_packet_manager_peer.h"
+#include "quic/core/congestion_control/send_algorithm_interface.h"
+#include "quic/core/quic_packet_writer.h"
+#include "quic/core/quic_received_packet_manager.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/test_tools/quic_framer_peer.h"
+#include "quic/test_tools/quic_sent_packet_manager_peer.h"
 
 namespace quic {
 namespace test {

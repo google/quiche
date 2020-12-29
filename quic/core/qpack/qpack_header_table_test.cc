@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
+#include "quic/core/qpack/qpack_header_table.h"
 
 #include <utility>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_static_table.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
+#include "quic/core/qpack/qpack_static_table.h"
+#include "quic/platform/api/quic_test.h"
+#include "spdy/core/hpack/hpack_entry.h"
 
 using ::testing::Mock;
 using ::testing::StrictMock;

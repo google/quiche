@@ -7,7 +7,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_export.h"
 #include "net/spdy/platform/impl/spdy_mem_slice_impl.h"
 
 namespace spdy {

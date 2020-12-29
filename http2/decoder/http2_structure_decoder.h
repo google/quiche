@@ -6,7 +6,7 @@
 #define QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_H_
 
 // Http2StructureDecoder is a class for decoding the fixed size structures in
-// the HTTP/2 spec, defined in net/third_party/quiche/src/http2/http2_structures.h. This class
+// the HTTP/2 spec, defined in http2/http2_structures.h. This class
 // is in aid of deciding whether to keep the SlowDecode methods which I
 // (jamessynge) now think may not be worth their complexity. In particular,
 // if most transport buffers are large, so it is rare that a structure is
@@ -15,12 +15,12 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
-#include "net/third_party/quiche/src/http2/decoder/decode_http2_structures.h"
-#include "net/third_party/quiche/src/http2/decoder/decode_status.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "http2/decoder/decode_buffer.h"
+#include "http2/decoder/decode_http2_structures.h"
+#include "http2/decoder/decode_status.h"
+#include "http2/http2_structures.h"
+#include "http2/platform/api/http2_logging.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {

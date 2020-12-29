@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
+#include "quic/core/quic_default_packet_writer.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
+#include "quic/core/quic_udp_socket.h"
 
 namespace quic {
 

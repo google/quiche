@@ -11,13 +11,13 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client_base.h"
+#include "quic/core/crypto/crypto_handshake.h"
+#include "quic/core/http/quic_client_push_promise_index.h"
+#include "quic/core/http/quic_spdy_client_session.h"
+#include "quic/core/http/quic_spdy_client_stream.h"
+#include "quic/core/quic_config.h"
+#include "quic/platform/api/quic_socket_address.h"
+#include "quic/tools/quic_client_base.h"
 
 namespace quic {
 

@@ -8,8 +8,8 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_PLATFORM_API_QUIC_MEM_SLICE_SPAN_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_mem_slice_span_impl.h"
 
 namespace quic {

@@ -18,8 +18,8 @@
 #include <ostream>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address_family.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_ip_address_family.h"
 
 namespace quic {
 

@@ -8,9 +8,9 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/core/quic_lru_cache.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/crypto/proof_source.h"
+#include "quic/core/quic_lru_cache.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

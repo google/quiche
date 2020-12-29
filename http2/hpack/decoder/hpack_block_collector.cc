@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_block_collector.h"
+#include "http2/hpack/decoder/hpack_block_collector.h"
 
 #include <algorithm>
 #include <memory>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
+#include "http2/platform/api/http2_logging.h"
+#include "http2/platform/api/http2_test_helpers.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;

@@ -7,8 +7,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 
@@ -171,6 +171,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_INVALID_PATH_CHALLENGE_DATA);
     RETURN_STRING_LITERAL(QUIC_INVALID_PATH_RESPONSE_DATA);
     RETURN_STRING_LITERAL(QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED);
+    RETURN_STRING_LITERAL(QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED);
     RETURN_STRING_LITERAL(QUIC_INVALID_MESSAGE_DATA);
     RETURN_STRING_LITERAL(IETF_QUIC_PROTOCOL_VIOLATION);
     RETURN_STRING_LITERAL(QUIC_INVALID_NEW_TOKEN);
@@ -507,6 +508,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
     case QUIC_CONNECTION_MIGRATION_INTERNAL_ERROR:
       return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED:
+      return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
+    case QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED:
       return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
     case QUIC_TOO_MANY_STREAM_DATA_INTERVALS:
       return {true, static_cast<uint64_t>(PROTOCOL_VIOLATION)};

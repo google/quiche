@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/platform/netlink.h"
+#include "quic/qbone/platform/netlink.h"
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/mock_kernel.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/platform/mock_kernel.h"
+#include "quic/qbone/qbone_constants.h"
 
 namespace quic {
 namespace {

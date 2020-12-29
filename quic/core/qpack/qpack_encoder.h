@@ -11,16 +11,16 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_blocking_manager.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder_stream_receiver.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_sender.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_exported_stats.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "quic/core/qpack/qpack_blocking_manager.h"
+#include "quic/core/qpack/qpack_decoder_stream_receiver.h"
+#include "quic/core/qpack/qpack_encoder_stream_sender.h"
+#include "quic/core/qpack/qpack_header_table.h"
+#include "quic/core/qpack/qpack_instructions.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_exported_stats.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 

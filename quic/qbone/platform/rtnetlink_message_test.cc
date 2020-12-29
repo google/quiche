@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/platform/rtnetlink_message.h"
+#include "quic/qbone/platform/rtnetlink_message.h"
 
 #include <net/if_arp.h>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace {

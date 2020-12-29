@@ -5,7 +5,7 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_FLAG_UTILS_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_FLAG_UTILS_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flag_utils.h"
+#include "common/platform/api/quiche_flag_utils.h"
 
 #define SPDY_RELOADABLE_FLAG_COUNT QUICHE_RELOADABLE_FLAG_COUNT
 #define SPDY_RELOADABLE_FLAG_COUNT_N QUICHE_RELOADABLE_FLAG_COUNT_N

@@ -7,15 +7,15 @@
 
 #include <ostream>
 
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
-#include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "quic/core/crypto/quic_random.h"
+#include "quic/core/quic_alarm.h"
+#include "quic/core/quic_alarm_factory.h"
+#include "quic/core/quic_arena_scoped_ptr.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_one_block_arena.h"
+#include "quic/core/quic_packet_writer.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_socket_address.h"
 #include "net/quic/platform/impl/quic_export_impl.h"
 
 namespace quic {

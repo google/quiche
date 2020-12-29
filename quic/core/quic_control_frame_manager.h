@@ -7,9 +7,9 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "quic/core/frames/quic_frame.h"
+#include "quic/core/quic_circular_deque.h"
+#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 

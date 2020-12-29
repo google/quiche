@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_ENCAPSULATED_CLIENT_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_ENCAPSULATED_CLIENT_SESSION_H_
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/masque/masque_client_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/http/quic_spdy_client_session.h"
+#include "quic/masque/masque_client_session.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

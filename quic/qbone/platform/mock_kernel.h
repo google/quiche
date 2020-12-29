@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_PLATFORM_MOCK_KERNEL_H_
 #define QUICHE_QUIC_QBONE_PLATFORM_MOCK_KERNEL_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/kernel_interface.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/platform/kernel_interface.h"
 
 namespace quic {
 

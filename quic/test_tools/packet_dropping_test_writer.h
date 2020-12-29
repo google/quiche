@@ -10,11 +10,11 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer_wrapper.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_client.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "quic/core/quic_alarm.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_packet_writer_wrapper.h"
+#include "quic/test_tools/quic_test_client.h"
+#include "quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {

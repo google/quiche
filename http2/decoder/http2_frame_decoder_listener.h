@@ -31,8 +31,8 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
+#include "http2/http2_constants.h"
+#include "http2/http2_structures.h"
 
 namespace http2 {
 

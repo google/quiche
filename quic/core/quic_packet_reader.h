@@ -8,12 +8,12 @@
 #define QUICHE_QUIC_CORE_QUIC_PACKET_READER_H_
 
 #include "absl/base/optimization.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_process_packet_interface.h"
-#include "net/third_party/quiche/src/quic/core/quic_udp_socket.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_process_packet_interface.h"
+#include "quic/core/quic_udp_socket.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_socket_address.h"
 
 namespace quic {
 

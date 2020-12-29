@@ -8,11 +8,11 @@
 #include <list>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_decoder.h"
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_decoder_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "quic/core/qpack/qpack_decoder.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/test_tools/qpack/qpack_decoder_test_utils.h"
+#include "quic/test_tools/qpack/qpack_test_utils.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 

@@ -8,8 +8,8 @@
 #include <string>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/actor.h"
+#include "quic/core/quic_packets.h"
+#include "quic/test_tools/simulator/actor.h"
 
 namespace quic {
 namespace simulator {

@@ -10,11 +10,11 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/quiche_endian.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
-#include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_bug_tracker.h"
+#include "common/platform/api/quiche_export.h"
+#include "common/quiche_endian.h"
+#include "spdy/core/spdy_protocol.h"
+#include "spdy/core/zero_copy_output_buffer.h"
+#include "spdy/platform/api/spdy_bug_tracker.h"
 
 namespace spdy {
 

@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_ACK_LISTENER_INTERFACE_H_
 #define QUICHE_QUIC_CORE_QUIC_ACK_LISTENER_INTERFACE_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
+#include "quic/core/quic_time.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_reference_counted.h"
 
 namespace quic {
 

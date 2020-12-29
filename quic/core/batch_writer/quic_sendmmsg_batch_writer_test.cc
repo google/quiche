@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_sendmmsg_batch_writer.h"
+#include "quic/core/batch_writer/quic_sendmmsg_batch_writer.h"
 
 namespace quic {
 namespace test {

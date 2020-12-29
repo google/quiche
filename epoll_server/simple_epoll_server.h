@@ -37,8 +37,8 @@
 
 #include <sys/epoll.h>
 
-#include "net/third_party/quiche/src/epoll_server/platform/api/epoll_export.h"
-#include "net/third_party/quiche/src/epoll_server/platform/api/epoll_logging.h"
+#include "epoll_server/platform/api/epoll_export.h"
+#include "epoll_server/platform/api/epoll_logging.h"
 
 namespace epoll_server {
 

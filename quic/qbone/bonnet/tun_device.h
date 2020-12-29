@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device_interface.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/kernel_interface.h"
+#include "quic/qbone/bonnet/tun_device_interface.h"
+#include "quic/qbone/platform/kernel_interface.h"
 
 namespace quic {
 

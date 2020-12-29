@@ -14,10 +14,10 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/ip_range.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/kernel_interface.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/netlink_interface.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/qbone/platform/ip_range.h"
+#include "quic/qbone/platform/kernel_interface.h"
+#include "quic/qbone/platform/netlink_interface.h"
 
 namespace quic {
 

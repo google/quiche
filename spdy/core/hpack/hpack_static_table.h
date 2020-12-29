@@ -5,8 +5,8 @@
 #ifndef QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 #define QUICHE_SPDY_CORE_HPACK_HPACK_STATIC_TABLE_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/hpack/hpack_header_table.h"
 
 namespace spdy {
 

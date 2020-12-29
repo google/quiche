@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/mock_quic_dispatcher.h"
+#include "quic/test_tools/mock_quic_dispatcher.h"
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {

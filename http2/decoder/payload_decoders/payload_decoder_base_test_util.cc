@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
+#include "http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
 
-#include "net/third_party/quiche/src/http2/decoder/frame_decoder_state_test_util.h"
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/decoder/frame_decoder_state_test_util.h"
+#include "http2/http2_structures_test_util.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

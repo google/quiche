@@ -10,13 +10,13 @@
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/pool.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
-#include "net/third_party/quiche/src/quic/core/crypto/tls_server_connection.h"
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_stream.h"
-#include "net/third_party/quiche/src/quic/core/tls_handshaker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/crypto/quic_crypto_server_config.h"
+#include "quic/core/crypto/tls_server_connection.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
+#include "quic/core/quic_crypto_server_stream_base.h"
+#include "quic/core/quic_crypto_stream.h"
+#include "quic/core/tls_handshaker.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

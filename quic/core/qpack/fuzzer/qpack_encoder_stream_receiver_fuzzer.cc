@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_encoder_stream_receiver.h"
+#include "quic/core/qpack/qpack_encoder_stream_receiver.h"
 
 #include <cstddef>
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_fuzzed_data_provider.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_fuzzed_data_provider.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 namespace test {

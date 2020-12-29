@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_HTTP_SPDY_SERVER_PUSH_UTILS_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "quic/platform/api/quic_export.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 

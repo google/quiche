@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/icmp_reachable.h"
+#include "quic/qbone/bonnet/icmp_reachable.h"
 
 #include <netinet/ip6.h>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
-#include "net/third_party/quiche/src/common/quiche_endian.h"
+#include "quic/core/crypto/quic_random.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_mutex.h"
+#include "quic/qbone/platform/icmp_packet.h"
+#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_endian.h"
 
 namespace quic {
 namespace {

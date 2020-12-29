@@ -22,8 +22,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_unordered_containers.h"
+#include "common/platform/api/quiche_logging.h"
+#include "common/platform/api/quiche_unordered_containers.h"
 
 namespace quiche {
 

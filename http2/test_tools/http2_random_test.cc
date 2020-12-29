@@ -1,8 +1,8 @@
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "http2/test_tools/http2_random.h"
 
 #include <set>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

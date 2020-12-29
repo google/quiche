@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/platform/api/spdy_containers.h"
 
 namespace spdy {
 

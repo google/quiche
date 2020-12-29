@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_connection_close_frame.h"
+#include "quic/core/frames/quic_connection_close_frame.h"
 
 #include <memory>
 
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_constants.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

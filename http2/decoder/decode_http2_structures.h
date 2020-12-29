@@ -7,9 +7,9 @@
 
 // Provides functions for decoding the fixed size structures in the HTTP/2 spec.
 
-#include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "http2/decoder/decode_buffer.h"
+#include "http2/http2_structures.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 

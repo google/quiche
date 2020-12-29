@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_padding_frame.h"
+#include "quic/core/frames/quic_padding_frame.h"
 
 namespace quic {
 

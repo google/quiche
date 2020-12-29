@@ -19,11 +19,11 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_collector.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_entry_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "http2/hpack/decoder/hpack_entry_collector.h"
+#include "http2/hpack/decoder/hpack_entry_decoder_listener.h"
+#include "http2/hpack/http2_hpack_constants.h"
+#include "http2/hpack/tools/hpack_block_builder.h"
+#include "http2/test_tools/http2_random.h"
 
 namespace http2 {
 namespace test {

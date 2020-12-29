@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_gso_batch_writer.h"
+#include "quic/core/batch_writer/quic_gso_batch_writer.h"
 
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_mock_syscall_wrapper.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/quic_mock_syscall_wrapper.h"
 
 using testing::_;
 using testing::Invoke;

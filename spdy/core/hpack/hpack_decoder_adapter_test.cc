@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
+#include "spdy/core/hpack/hpack_decoder_adapter.h"
 
 // Tests of HpackDecoderAdapter.
 
@@ -14,18 +14,18 @@
 #include <vector>
 
 #include "absl/base/macros.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_state.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
-#include "net/third_party/quiche/src/http2/hpack/tools/hpack_block_builder.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
-#include "net/third_party/quiche/src/spdy/core/recording_headers_handler.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_logging.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "http2/hpack/decoder/hpack_decoder_state.h"
+#include "http2/hpack/decoder/hpack_decoder_tables.h"
+#include "http2/hpack/tools/hpack_block_builder.h"
+#include "http2/test_tools/http2_random.h"
+#include "common/platform/api/quiche_test.h"
+#include "spdy/core/hpack/hpack_constants.h"
+#include "spdy/core/hpack/hpack_encoder.h"
+#include "spdy/core/hpack/hpack_output_stream.h"
+#include "spdy/core/recording_headers_handler.h"
+#include "spdy/core/spdy_test_utils.h"
+#include "spdy/platform/api/spdy_logging.h"
+#include "spdy/platform/api/spdy_string_utils.h"
 
 using ::http2::HpackEntryType;
 using ::http2::HpackString;

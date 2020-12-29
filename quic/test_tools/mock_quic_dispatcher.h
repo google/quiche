@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_DISPATCHER_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_DISPATCHER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_dispatcher.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "quic/core/crypto/quic_crypto_server_config.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/tools/quic_simple_dispatcher.h"
+#include "quic/tools/quic_simple_server_backend.h"
 
 namespace quic {
 namespace test {

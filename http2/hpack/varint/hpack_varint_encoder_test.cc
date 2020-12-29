@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_encoder.h"
+#include "http2/hpack/varint/hpack_varint_encoder.h"
 
 #include "absl/base/macros.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_string_utils.h"
+#include "http2/platform/api/http2_string_utils.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

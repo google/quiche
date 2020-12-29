@@ -13,12 +13,12 @@
 #include <cstdint>
 #include <string>
 
-#include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
-#include "net/third_party/quiche/src/http2/decoder/decode_status.h"
-#include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/hpack/varint/hpack_varint_decoder.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "http2/decoder/decode_buffer.h"
+#include "http2/decoder/decode_status.h"
+#include "http2/hpack/http2_hpack_constants.h"
+#include "http2/hpack/varint/hpack_varint_decoder.h"
+#include "http2/platform/api/http2_logging.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 

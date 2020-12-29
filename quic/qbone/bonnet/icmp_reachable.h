@@ -8,10 +8,10 @@
 #include <netinet/icmp6.h>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
-#include "net/third_party/quiche/src/quic/qbone/bonnet/icmp_reachable_interface.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/kernel_interface.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_mutex.h"
+#include "quic/qbone/bonnet/icmp_reachable_interface.h"
+#include "quic/qbone/platform/kernel_interface.h"
 
 namespace quic {
 

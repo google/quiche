@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_BACKEND_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_BACKEND_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "quic/core/quic_types.h"
+#include "quic/tools/quic_backend_response.h"
+#include "spdy/core/spdy_header_block.h"
 
 namespace quic {
 

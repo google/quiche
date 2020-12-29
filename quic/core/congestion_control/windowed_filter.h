@@ -31,7 +31,7 @@
 // turn is replaced by the third best. The newest sample replaces the third
 // best.
 
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "quic/core/quic_time.h"
 
 namespace quic {
 

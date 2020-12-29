@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
+#include "quic/core/crypto/certificate_view.h"
+#include "quic/core/crypto/proof_verifier.h"
+#include "quic/core/quic_clock.h"
 
 namespace quic {
 

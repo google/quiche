@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_BATCH_WRITER_BASE_H_
 
 #include <cstdint>
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_batch_writer_buffer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "quic/core/batch_writer/quic_batch_writer_buffer.h"
+#include "quic/core/quic_packet_writer.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_socket_address.h"
 
 namespace quic {
 

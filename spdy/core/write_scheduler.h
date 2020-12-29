@@ -10,8 +10,8 @@
 #include <tuple>
 #include <vector>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

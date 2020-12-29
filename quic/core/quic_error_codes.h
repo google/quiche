@@ -9,7 +9,7 @@
 #include <limits>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 
@@ -321,6 +321,7 @@ enum QuicErrorCode {
   QUIC_CONNECTION_MIGRATION_INTERNAL_ERROR = 100,
   // Network changed, but handshake is not confirmed yet.
   QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED = 111,
+  QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED = 194,
 
   // Stream frames arrived too discontiguously so that stream sequencer buffer
   // maintains too many intervals.
@@ -570,7 +571,7 @@ enum QuicErrorCode {
   QUIC_INVALID_PRIORITY_UPDATE = 193,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 194,
+  QUIC_LAST_ERROR = 195,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed

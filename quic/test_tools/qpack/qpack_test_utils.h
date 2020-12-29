@@ -9,8 +9,8 @@
 #include <functional>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/qpack/qpack_stream_sender_delegate.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace test {

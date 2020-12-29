@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_CACHE_H_
 
 #include <memory>
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
-#include "net/third_party/quiche/src/quic/core/crypto/transport_parameters.h"
+#include "quic/core/crypto/quic_crypto_client_config.h"
+#include "quic/core/crypto/transport_parameters.h"
 
 namespace quic {
 namespace test {

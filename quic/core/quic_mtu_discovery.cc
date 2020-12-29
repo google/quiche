@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_mtu_discovery.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_stack_trace.h"
+#include "quic/core/quic_mtu_discovery.h"
+#include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_stack_trace.h"
 
 namespace quic {
 

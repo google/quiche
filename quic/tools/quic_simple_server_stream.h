@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_SERVER_STREAM_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_server_stream_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
+#include "quic/core/http/quic_spdy_server_stream_base.h"
+#include "quic/core/quic_packets.h"
+#include "quic/tools/quic_backend_response.h"
+#include "quic/tools/quic_simple_server_backend.h"
+#include "spdy/core/spdy_framer.h"
 
 namespace quic {
 

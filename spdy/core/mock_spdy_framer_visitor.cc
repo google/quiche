@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/spdy/core/mock_spdy_framer_visitor.h"
+#include "spdy/core/mock_spdy_framer_visitor.h"
 
 namespace spdy {
 

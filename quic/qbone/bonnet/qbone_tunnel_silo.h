@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_QBONE_BONNET_QBONE_TUNNEL_SILO_H_
 
 #include "absl/synchronization/notification.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_thread.h"
-#include "net/third_party/quiche/src/quic/qbone/bonnet/qbone_tunnel_interface.h"
+#include "quic/platform/api/quic_thread.h"
+#include "quic/qbone/bonnet/qbone_tunnel_interface.h"
 
 namespace quic {
 

@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_CHLO_EXTRACTOR_H_
 #define QUICHE_QUIC_CORE_CHLO_EXTRACTOR_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "quic/core/crypto/crypto_handshake_message.h"
+#include "quic/core/quic_packets.h"
 
 namespace quic {
 

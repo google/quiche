@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
+#include "quic/core/quic_circular_deque.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <type_traits>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_test.h"
 
 using testing::ElementsAre;
 

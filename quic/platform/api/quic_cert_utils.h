@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_PLATFORM_API_QUIC_CERT_UTILS_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_cert_utils_impl.h"
 
 namespace quic {

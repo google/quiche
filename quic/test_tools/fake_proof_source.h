@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
+#include "quic/core/crypto/proof_source.h"
 
 namespace quic {
 namespace test {

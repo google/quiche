@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_secret_boxer.h"
+#include "quic/core/crypto/crypto_secret_boxer.h"
 
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/crypto/quic_random.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace test {

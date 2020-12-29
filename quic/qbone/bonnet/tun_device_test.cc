@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device.h"
+#include "quic/qbone/bonnet/tun_device.h"
 
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/mock_kernel.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/platform/mock_kernel.h"
 
 namespace quic {
 namespace {

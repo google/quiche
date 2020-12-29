@@ -13,11 +13,11 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/crypto/quic_compressed_certs_cache.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quic/core/http/quic_spdy_session.h"
+#include "quic/core/quic_crypto_server_stream_base.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

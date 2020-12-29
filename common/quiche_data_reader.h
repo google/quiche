@@ -10,9 +10,9 @@
 #include <limits>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
-#include "net/third_party/quiche/src/common/quiche_endian.h"
+#include "common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_logging.h"
+#include "common/quiche_endian.h"
 
 namespace quiche {
 

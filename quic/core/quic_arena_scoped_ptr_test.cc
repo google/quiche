@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"
+#include "quic/core/quic_arena_scoped_ptr.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_one_block_arena.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/quic_one_block_arena.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace {

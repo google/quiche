@@ -8,7 +8,7 @@
 #include <stddef.h>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace spdy {
 

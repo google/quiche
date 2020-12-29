@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_UBER_LOSS_ALGORITHM_H_
 
 #include "absl/types/optional.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "quic/core/congestion_control/general_loss_algorithm.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 

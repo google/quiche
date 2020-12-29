@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/crypto/proof_verifier.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

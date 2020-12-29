@@ -8,13 +8,13 @@
 #include <memory>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_connection_id.h"
+#include "quic/core/quic_packet_writer.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_socket_address.h"
 
 namespace quic {
 namespace test {

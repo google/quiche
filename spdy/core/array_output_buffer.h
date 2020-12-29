@@ -6,7 +6,7 @@
 #define QUICHE_SPDY_CORE_ARRAY_OUTPUT_BUFFER_H_
 
 #include <cstddef>
-#include "net/third_party/quiche/src/spdy/core/zero_copy_output_buffer.h"
+#include "spdy/core/zero_copy_output_buffer.h"
 
 namespace spdy {
 

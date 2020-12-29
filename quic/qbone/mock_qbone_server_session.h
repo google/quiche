@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_MOCK_QBONE_SERVER_SESSION_H_
 #define QUICHE_QUIC_QBONE_MOCK_QBONE_SERVER_SESSION_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_server_session.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/qbone_server_session.h"
 
 namespace quic {
 

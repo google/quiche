@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_SESSION_NOTIFIER_INTERFACE_H_
 #define QUICHE_QUIC_CORE_SESSION_NOTIFIER_INTERFACE_H_
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "quic/core/frames/quic_frame.h"
+#include "quic/core/quic_time.h"
 
 namespace quic {
 

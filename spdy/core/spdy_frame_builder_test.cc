@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/spdy/core/spdy_frame_builder.h"
+#include "spdy/core/spdy_frame_builder.h"
 
 #include <memory>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/core/array_output_buffer.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_test.h"
+#include "spdy/core/array_output_buffer.h"
+#include "spdy/core/spdy_framer.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace spdy {
 

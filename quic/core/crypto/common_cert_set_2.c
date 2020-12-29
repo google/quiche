@@ -1,8 +1,8 @@
 /* This file contains common certificates. It's designed to be #included in
  * another file, in a namespace. */
 
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set_2a.inc"
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set_2b.inc"
+#include "quic/core/crypto/common_cert_set_2a.inc"
+#include "quic/core/crypto/common_cert_set_2b.inc"
 
 static const size_t kNumCerts = 54;
 static const unsigned char* const kCerts[] = {

@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_EPOLL_CLIENT_H_
 
-#include "net/third_party/quiche/src/quic/masque/masque_client_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "quic/masque/masque_client_session.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/tools/quic_client.h"
 
 namespace quic {
 

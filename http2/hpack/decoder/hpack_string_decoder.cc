@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_string_decoder.h"
+#include "http2/hpack/decoder/hpack_string_decoder.h"
 
 #include "absl/strings/str_cat.h"
 

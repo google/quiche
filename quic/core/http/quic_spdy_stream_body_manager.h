@@ -7,11 +7,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_iovec.h"
+#include "quic/core/quic_circular_deque.h"
+#include "quic/core/quic_constants.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_iovec.h"
 
 namespace quic {
 

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
+#include "http2/http2_structures_test_util.h"
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/http2_constants_test_util.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "http2/http2_constants.h"
+#include "http2/http2_constants_test_util.h"
+#include "http2/http2_structures.h"
+#include "http2/test_tools/http2_random.h"
 
 namespace http2 {
 namespace test {

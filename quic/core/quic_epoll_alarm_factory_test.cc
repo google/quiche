@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
+#include "quic/core/quic_epoll_alarm_factory.h"
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll_test_tools.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/platform/api/quic_epoll_test_tools.h"
+#include "quic/platform/api/quic_test.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
 
 namespace quic {

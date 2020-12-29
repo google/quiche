@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_STREAM_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_STREAM_H_
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_stream.h"
+#include "quic/core/http/quic_spdy_client_stream.h"
 
 namespace quic {
 

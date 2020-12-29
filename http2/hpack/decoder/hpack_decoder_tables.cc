@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
+#include "http2/hpack/decoder/hpack_decoder_tables.h"
 
-#include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "http2/hpack/http2_hpack_constants.h"
+#include "http2/platform/api/http2_logging.h"
 
 namespace http2 {
 namespace {
@@ -19,7 +19,7 @@ std::vector<HpackStringPair>* MakeStaticTable() {
   DCHECK_EQ(ptr->size(), static_cast<size_t>(index)); \
   ptr->emplace_back(name, value)
 
-#include "net/third_party/quiche/src/http2/hpack/hpack_static_table_entries.inc"
+#include "http2/hpack/hpack_static_table_entries.inc"
 
 #undef STATIC_TABLE_ENTRY
 

@@ -8,7 +8,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Weverything"
 
-#include "net/third_party/quiche/src/quic/core/proto/crypto_server_config.pb.h"
+#include "quic/core/proto/crypto_server_config.pb.h"
 
 #pragma clang diagnostic pop
 

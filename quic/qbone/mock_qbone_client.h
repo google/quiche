@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_QBONE_MOCK_QBONE_CLIENT_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_client_interface.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/qbone_client_interface.h"
 
 namespace quic {
 

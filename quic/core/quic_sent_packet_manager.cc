@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_sent_packet_manager.h"
+#include "quic/core/quic_sent_packet_manager.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/general_loss_algorithm.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/pacing_sender.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/core/frames/quic_ack_frequency_frame.h"
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
-#include "net/third_party/quiche/src/quic/core/quic_transmission_info.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/core/quic_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flag_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
+#include "quic/core/congestion_control/general_loss_algorithm.h"
+#include "quic/core/congestion_control/pacing_sender.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/core/frames/quic_ack_frequency_frame.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
+#include "quic/core/quic_connection_stats.h"
+#include "quic/core/quic_constants.h"
+#include "quic/core/quic_packet_number.h"
+#include "quic/core/quic_transmission_info.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/quic_utils.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flag_utils.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_map_util.h"
 
 namespace quic {
 

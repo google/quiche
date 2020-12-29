@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/uber_loss_algorithm.h"
+#include "quic/core/congestion_control/uber_loss_algorithm.h"
 
 #include <algorithm>
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
 

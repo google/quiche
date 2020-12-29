@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_TOOLS_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_TOOLS_H_
 
-#include "net/third_party/quiche/src/quic/masque/masque_epoll_client.h"
+#include "quic/masque/masque_epoll_client.h"
 
 namespace quic {
 namespace tools {

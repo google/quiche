@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_COALESCED_PACKET_H_
 #define QUICHE_QUIC_CORE_QUIC_COALESCED_PACKET_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "quic/core/quic_packets.h"
 
 namespace quic {
 

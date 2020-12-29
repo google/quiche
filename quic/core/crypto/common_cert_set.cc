@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set.h"
+#include "quic/core/crypto/common_cert_set.h"
 
 #include <cstddef>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "quic/core/quic_utils.h"
 
 namespace quic {
 
 namespace common_cert_set_2 {
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set_2.c"
+#include "quic/core/crypto/common_cert_set_2.c"
 }
 
 namespace common_cert_set_3 {
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set_3.c"
+#include "quic/core/crypto/common_cert_set_3.c"
 }
 
 namespace {

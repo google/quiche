@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/test_ticket_crypter.h"
+#include "quic/test_tools/test_ticket_crypter.h"
 
 #include <cstring>
 
 #include "absl/base/macros.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "quic/core/crypto/quic_random.h"
 
 namespace quic {
 namespace test {

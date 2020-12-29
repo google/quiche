@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_PROCESSOR_TEST_TOOLS_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/qbone_packet_processor.h"
 
 namespace quic {
 

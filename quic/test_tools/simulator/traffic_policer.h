@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/packet_filter.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/port.h"
+#include "quic/test_tools/simulator/packet_filter.h"
+#include "quic/test_tools/simulator/port.h"
 
 namespace quic {
 namespace simulator {

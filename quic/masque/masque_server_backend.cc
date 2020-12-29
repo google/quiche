@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/masque/masque_server_backend.h"
+#include "quic/masque/masque_server_backend.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 

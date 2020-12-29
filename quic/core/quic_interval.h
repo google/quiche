@@ -63,7 +63,7 @@
 #include <utility>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

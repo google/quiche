@@ -7,8 +7,8 @@
 
 #include <iostream>
 
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_constants.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

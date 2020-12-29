@@ -7,12 +7,12 @@
 #include <ctime>
 #include <vector>
 
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_decoder_adapter.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_encoder.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
+#include "http2/test_tools/http2_random.h"
+#include "common/platform/api/quiche_test.h"
+#include "spdy/core/hpack/hpack_constants.h"
+#include "spdy/core/hpack/hpack_decoder_adapter.h"
+#include "spdy/core/hpack/hpack_encoder.h"
+#include "spdy/core/spdy_test_utils.h"
 
 namespace spdy {
 namespace test {

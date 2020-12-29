@@ -10,11 +10,11 @@
 // TODO(jamessynge): Sweep through all payload decoders, changing the names of
 // the PayloadState enums so that they are really states, and not actions.
 
-#include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
-#include "net/third_party/quiche/src/http2/decoder/decode_status.h"
-#include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "http2/decoder/decode_buffer.h"
+#include "http2/decoder/decode_status.h"
+#include "http2/decoder/frame_decoder_state.h"
+#include "http2/http2_structures.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 namespace test {

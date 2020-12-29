@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMULATOR_QUEUE_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_QUEUE_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
+#include "quic/core/quic_alarm.h"
+#include "quic/test_tools/simulator/link.h"
 
 namespace quic {
 namespace simulator {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
+#include "quic/test_tools/qpack/qpack_test_utils.h"
 
 #include <limits>
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
 namespace test {

@@ -24,17 +24,17 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "net/third_party/quiche/src/quic/core/quic_flow_controller.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
-#include "net/third_party/quiche/src/quic/core/stream_delegate_interface.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_reference_counted.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "quic/core/quic_flow_controller.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_stream_send_buffer.h"
+#include "quic/core/quic_stream_sequencer.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/session_notifier_interface.h"
+#include "quic/core/stream_delegate_interface.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_mem_slice_span.h"
+#include "quic/platform/api/quic_reference_counted.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace quic {
 

@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_STREAM_FRAME_DATA_PRODUCER_H_
 #define QUICHE_QUIC_CORE_QUIC_STREAM_FRAME_DATA_PRODUCER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

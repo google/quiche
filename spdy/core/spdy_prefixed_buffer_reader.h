@@ -7,8 +7,8 @@
 
 #include <stddef.h>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_pinnable_buffer_piece.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/spdy_pinnable_buffer_piece.h"
 
 namespace spdy {
 

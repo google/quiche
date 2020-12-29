@@ -4,12 +4,12 @@
 
 // Tests SimpleLinkedHashMap.
 
-#include "net/third_party/quiche/src/common/simple_linked_hash_map.h"
+#include "common/simple_linked_hash_map.h"
 
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test.h"
 
 using testing::Pair;
 using testing::Pointee;

@@ -7,9 +7,9 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "quic/core/http/spdy_utils.h"
+#include "quic/platform/api/quic_test.h"
+#include "common/platform/api/quiche_text_utils.h"
 
 using spdy::SpdyHeaderBlock;
 using testing::Pair;

@@ -6,7 +6,7 @@ syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
 
-import "cached_network_parameters.proto";
+import "quic/core/proto/cached_network_parameters.proto";
 
 package quic;
 

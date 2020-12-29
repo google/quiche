@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_path_challenge_frame.h"
+#include "quic/core/frames/quic_path_challenge_frame.h"
 
 #include "absl/strings/escaping.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

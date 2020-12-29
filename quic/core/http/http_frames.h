@@ -13,9 +13,9 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_framer.h"
+#include "quic/core/http/spdy_utils.h"
+#include "quic/core/quic_types.h"
+#include "spdy/core/spdy_framer.h"
 
 namespace quic {
 

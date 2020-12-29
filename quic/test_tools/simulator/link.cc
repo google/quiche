@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
+#include "quic/test_tools/simulator/link.h"
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "quic/test_tools/simulator/simulator.h"
+#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {

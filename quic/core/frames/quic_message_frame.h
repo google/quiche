@@ -5,11 +5,11 @@
 #ifndef QUICHE_QUIC_CORE_FRAMES_QUIC_MESSAGE_FRAME_H_
 #define QUICHE_QUIC_CORE_FRAMES_QUIC_MESSAGE_FRAME_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_mem_slice.h"
+#include "quic/platform/api/quic_mem_slice_span.h"
 
 namespace quic {
 

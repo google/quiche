@@ -7,11 +7,11 @@
 
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_interval.h"
-#include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
+#include "quic/core/frames/quic_stream_frame.h"
+#include "quic/core/quic_interval.h"
+#include "quic/core/quic_interval_set.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_containers.h"
 
 namespace quic {
 

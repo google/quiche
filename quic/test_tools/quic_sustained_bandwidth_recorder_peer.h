@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
+#include "quic/core/quic_packets.h"
 
 namespace quic {
 

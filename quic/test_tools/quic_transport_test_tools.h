@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TRANSPORT_TEST_TOOLS_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_client_session.h"
-#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/quic_transport/quic_transport_client_session.h"
+#include "quic/quic_transport/quic_transport_server_session.h"
 
 namespace quic {
 namespace test {

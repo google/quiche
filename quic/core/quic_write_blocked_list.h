@@ -9,16 +9,16 @@
 #include <cstdint>
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/spdy/core/fifo_write_scheduler.h"
-#include "net/third_party/quiche/src/spdy/core/http2_priority_write_scheduler.h"
-#include "net/third_party/quiche/src/spdy/core/lifo_write_scheduler.h"
-#include "net/third_party/quiche/src/spdy/core/priority_write_scheduler.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_map_util.h"
+#include "spdy/core/fifo_write_scheduler.h"
+#include "spdy/core/http2_priority_write_scheduler.h"
+#include "spdy/core/lifo_write_scheduler.h"
+#include "spdy/core/priority_write_scheduler.h"
 
 namespace quic {
 

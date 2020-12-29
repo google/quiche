@@ -16,10 +16,10 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
+#include "http2/decoder/http2_frame_decoder_listener.h"
+#include "http2/http2_constants.h"
+#include "http2/http2_structures.h"
+#include "http2/test_tools/frame_parts_collector.h"
 
 namespace http2 {
 namespace test {

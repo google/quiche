@@ -12,10 +12,10 @@
 
 #include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_containers.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_macros.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/hpack/hpack_entry.h"
+#include "spdy/platform/api/spdy_containers.h"
+#include "spdy/platform/api/spdy_macros.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 

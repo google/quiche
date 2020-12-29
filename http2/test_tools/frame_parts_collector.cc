@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
+#include "http2/test_tools/frame_parts_collector.h"
 
 #include <utility>
 
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/http2_structures_test_util.h"
+#include "http2/platform/api/http2_logging.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

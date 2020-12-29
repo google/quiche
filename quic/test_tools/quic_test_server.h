@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_SERVER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_SERVER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
-#include "net/third_party/quiche/src/quic/core/quic_session.h"
-#include "net/third_party/quiche/src/quic/tools/quic_server.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
+#include "quic/core/quic_dispatcher.h"
+#include "quic/core/quic_session.h"
+#include "quic/tools/quic_server.h"
+#include "quic/tools/quic_simple_server_backend.h"
+#include "quic/tools/quic_simple_server_session.h"
+#include "quic/tools/quic_simple_server_stream.h"
 
 namespace quic {
 

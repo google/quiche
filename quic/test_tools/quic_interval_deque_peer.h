@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_INTERVAL_DEQUE_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_INTERVAL_DEQUE_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_interval_deque.h"
+#include "quic/core/quic_interval_deque.h"
 
 namespace quic {
 

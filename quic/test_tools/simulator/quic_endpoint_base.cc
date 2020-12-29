@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/quic_endpoint_base.h"
+#include "quic/test_tools/simulator/quic_endpoint_base.h"
 
 #include <memory>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake_message.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test_output.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "quic/core/crypto/crypto_handshake_message.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/core/quic_connection.h"
+#include "quic/core/quic_data_writer.h"
+#include "quic/platform/api/quic_test_output.h"
+#include "quic/test_tools/quic_connection_peer.h"
+#include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/simulator/simulator.h"
+#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {

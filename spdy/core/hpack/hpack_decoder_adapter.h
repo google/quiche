@@ -14,15 +14,15 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
-#include "net/third_party/quiche/src/http2/hpack/hpack_string.h"
-#include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_headers_handler_interface.h"
+#include "http2/hpack/decoder/hpack_decoder.h"
+#include "http2/hpack/decoder/hpack_decoder_listener.h"
+#include "http2/hpack/decoder/hpack_decoder_tables.h"
+#include "http2/hpack/hpack_string.h"
+#include "http2/hpack/http2_hpack_constants.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/hpack/hpack_header_table.h"
+#include "spdy/core/spdy_header_block.h"
+#include "spdy/core/spdy_headers_handler_interface.h"
 
 namespace spdy {
 namespace test {

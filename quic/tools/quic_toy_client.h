@@ -8,7 +8,7 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_TOY_CLIENT_H_
 #define QUICHE_QUIC_TOOLS_QUIC_TOY_CLIENT_H_
 
-#include "net/third_party/quiche/src/quic/tools/quic_spdy_client_base.h"
+#include "quic/tools/quic_spdy_client_base.h"
 
 namespace quic {
 

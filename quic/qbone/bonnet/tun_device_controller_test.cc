@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device_controller.h"
+#include "quic/qbone/bonnet/tun_device_controller.h"
 
 #include <linux/if_addr.h>
 #include <linux/rtnetlink.h>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/mock_netlink.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_constants.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/platform/mock_netlink.h"
+#include "quic/qbone/qbone_constants.h"
 
 ABSL_DECLARE_FLAG(bool, qbone_tun_device_replace_default_routing_rules);
 

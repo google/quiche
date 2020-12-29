@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_string_buffer.h"
+#include "http2/hpack/decoder/hpack_decoder_string_buffer.h"
 
 #include <utility>
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_bug_tracker.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_estimate_memory_usage.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
+#include "http2/platform/api/http2_bug_tracker.h"
+#include "http2/platform/api/http2_estimate_memory_usage.h"
+#include "http2/platform/api/http2_logging.h"
 
 namespace http2 {
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/masque/masque_dispatcher.h"
-#include "net/third_party/quiche/src/quic/masque/masque_server_session.h"
+#include "quic/masque/masque_dispatcher.h"
+#include "quic/masque/masque_server_session.h"
 
 namespace quic {
 

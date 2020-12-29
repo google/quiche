@@ -7,12 +7,12 @@
 
 #include <map>
 
-#include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/actor.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/alarm_factory.h"
+#include "quic/core/quic_connection.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/test_tools/simulator/actor.h"
+#include "quic/test_tools/simulator/alarm_factory.h"
 
 namespace quic {
 namespace simulator {

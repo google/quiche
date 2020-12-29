@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_FLAG_UTILS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_FLAG_UTILS_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flag_utils.h"
+#include "common/platform/api/quiche_flag_utils.h"
 
 #define QUIC_RELOADABLE_FLAG_COUNT QUICHE_RELOADABLE_FLAG_COUNT
 #define QUIC_RELOADABLE_FLAG_COUNT_N QUICHE_RELOADABLE_FLAG_COUNT_N

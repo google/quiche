@@ -7,8 +7,8 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_time.h"
 
 namespace quic {
 namespace simulator {

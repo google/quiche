@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
+#include "quic/core/congestion_control/rtt_stats.h"
 
 #include <cmath>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mock_log.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/rtt_stats_peer.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_mock_log.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/rtt_stats_peer.h"
 
 using testing::_;
 using testing::Message;

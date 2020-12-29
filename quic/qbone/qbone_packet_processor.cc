@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
+#include "quic/qbone/qbone_packet_processor.h"
 
 #include <cstring>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/icmp_packet.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/internet_checksum.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/tcp_packet.h"
-#include "net/third_party/quiche/src/common/quiche_endian.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/qbone/platform/icmp_packet.h"
+#include "quic/qbone/platform/internet_checksum.h"
+#include "quic/qbone/platform/tcp_packet.h"
+#include "common/quiche_endian.h"
 
 namespace {
 

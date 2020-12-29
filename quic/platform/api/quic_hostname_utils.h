@@ -8,7 +8,7 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 #include "net/quic/platform/impl/quic_hostname_utils_impl.h"
 
 namespace quic {

@@ -6,9 +6,9 @@
 #include <iostream>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_offline_decoder.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/test_tools/qpack/qpack_offline_decoder.h"
 
 int main(int argc, char* argv[]) {
   const char* usage =

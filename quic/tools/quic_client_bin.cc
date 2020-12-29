@@ -44,9 +44,9 @@
 #include <memory>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
-#include "net/third_party/quiche/src/quic/tools/quic_epoll_client_factory.h"
-#include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
+#include "quic/platform/api/quic_system_event_loop.h"
+#include "quic/tools/quic_epoll_client_factory.h"
+#include "quic/tools/quic_toy_client.h"
 
 int main(int argc, char* argv[]) {
   QuicSystemEventLoop event_loop("quic_client");

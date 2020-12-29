@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_mutex.h"
 
 namespace quic {
 

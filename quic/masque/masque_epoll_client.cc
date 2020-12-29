@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/masque/masque_epoll_client.h"
-#include "net/third_party/quiche/src/quic/masque/masque_client_session.h"
-#include "net/third_party/quiche/src/quic/masque/masque_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ptr_util.h"
+#include "quic/masque/masque_epoll_client.h"
+#include "quic/masque/masque_client_session.h"
+#include "quic/masque/masque_utils.h"
+#include "quic/platform/api/quic_ptr_util.h"
 
 namespace quic {
 

@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "net/third_party/quiche/src/http2/http2_constants.h"
+#include "http2/http2_constants.h"
 
 namespace http2 {
 namespace test {

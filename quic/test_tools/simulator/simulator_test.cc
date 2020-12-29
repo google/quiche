@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/simulator.h"
+#include "quic/test_tools/simulator/simulator.h"
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/alarm_factory.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/link.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/packet_filter.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/queue.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/switch.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/traffic_policer.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/simulator/alarm_factory.h"
+#include "quic/test_tools/simulator/link.h"
+#include "quic/test_tools/simulator/packet_filter.h"
+#include "quic/test_tools/simulator/queue.h"
+#include "quic/test_tools/simulator/switch.h"
+#include "quic/test_tools/simulator/traffic_policer.h"
 
 using testing::_;
 using testing::Return;

@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_TOY_SERVER_H_
 #define QUICHE_QUIC_TOOLS_QUIC_TOY_SERVER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/quiche/src/quic/tools/quic_spdy_server_base.h"
+#include "quic/core/crypto/proof_source.h"
+#include "quic/tools/quic_simple_server_backend.h"
+#include "quic/tools/quic_spdy_server_base.h"
 
 namespace quic {
 

@@ -12,8 +12,8 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/spdy/core/http2_frame_decoder_adapter.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "spdy/core/http2_frame_decoder_adapter.h"
+#include "spdy/core/spdy_protocol.h"
 
 namespace spdy {
 namespace test {

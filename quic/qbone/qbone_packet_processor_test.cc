@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor.h"
+#include "quic/qbone/qbone_packet_processor.h"
 
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_packet_processor_test_tools.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/qbone_packet_processor_test_tools.h"
 
 namespace quic {
 namespace {

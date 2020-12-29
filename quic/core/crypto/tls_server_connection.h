@@ -6,8 +6,8 @@
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/core/crypto/tls_connection.h"
+#include "quic/core/crypto/proof_source.h"
+#include "quic/core/crypto/tls_connection.h"
 
 namespace quic {
 

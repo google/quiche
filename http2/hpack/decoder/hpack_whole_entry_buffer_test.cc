@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_whole_entry_buffer.h"
+#include "http2/hpack/decoder/hpack_whole_entry_buffer.h"
 
 // Tests of HpackWholeEntryBuffer: does it buffer correctly, and does it
 // detect Huffman decoding errors and oversize string errors?
 
-#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/platform/api/http2_test_helpers.h"
+#include "common/platform/api/quiche_test.h"
 
 using ::testing::_;
 using ::testing::AllOf;

@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/hpack/decoder/hpack_decoder_tables.h"
+#include "http2/hpack/decoder/hpack_decoder_tables.h"
 
 #include <algorithm>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "net/third_party/quiche/src/http2/hpack/http2_hpack_constants.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_test_helpers.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/http2/tools/random_util.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/hpack/http2_hpack_constants.h"
+#include "http2/platform/api/http2_logging.h"
+#include "http2/platform/api/http2_test_helpers.h"
+#include "http2/test_tools/http2_random.h"
+#include "http2/tools/random_util.h"
+#include "common/platform/api/quiche_test.h"
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
@@ -42,7 +42,7 @@ std::vector<StaticEntry> MakeSpecStaticEntries() {
   DCHECK_EQ(static_entries.size() + 1, static_cast<size_t>(index)); \
   static_entries.push_back({name, value, index});
 
-#include "net/third_party/quiche/src/http2/hpack/hpack_static_table_entries.inc"
+#include "http2/hpack/hpack_static_table_entries.inc"
 
 #undef STATIC_TABLE_ENTRY
 

@@ -5,9 +5,9 @@
 #ifndef QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
 #define QUICHE_HTTP2_DECODER_HTTP2_STRUCTURE_DECODER_TEST_UTIL_H_
 
-#include "net/third_party/quiche/src/http2/decoder/http2_structure_decoder.h"
+#include "http2/decoder/http2_structure_decoder.h"
 
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
+#include "http2/test_tools/http2_random.h"
 
 namespace http2 {
 namespace test {

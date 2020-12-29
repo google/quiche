@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_SERVER_BACKEND_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_SERVER_BACKEND_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/tools/quic_memory_cache_backend.h"
 
 namespace quic {
 

@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_TEST_TICKET_CRYPTER_H_
 #define QUICHE_QUIC_TEST_TOOLS_TEST_TICKET_CRYPTER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
+#include "quic/core/crypto/proof_source.h"
 
 namespace quic {
 namespace test {

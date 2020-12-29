@@ -12,12 +12,12 @@
 #include <memory>
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_reader.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client_base.h"
+#include "quic/core/http/quic_client_push_promise_index.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_packet_reader.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/tools/quic_client_base.h"
 
 namespace quic {
 

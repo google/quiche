@@ -7,8 +7,8 @@
 
 #include <memory>
 
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
+#include "quic/core/quic_alarm.h"
+#include "quic/core/quic_clock.h"
 
 namespace quic {
 

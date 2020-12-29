@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_CONTROLLER_H_
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/tun_device.h"
-#include "net/third_party/quiche/src/quic/qbone/platform/netlink_interface.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_control.pb.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_control_stream.h"
+#include "quic/qbone/bonnet/tun_device.h"
+#include "quic/qbone/platform/netlink_interface.h"
+#include "quic/qbone/qbone_control.pb.h"
+#include "quic/qbone/qbone_control_stream.h"
 
 namespace quic {
 

@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 #define QUICHE_QUIC_CORE_CRYPTO_AES_128_GCM_12_ENCRYPTER_H_
 
-#include "net/third_party/quiche/src/quic/core/crypto/aes_base_encrypter.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/crypto/aes_base_encrypter.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

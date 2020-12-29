@@ -7,10 +7,10 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_send_buffer.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream_sequencer.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_stream_send_buffer.h"
+#include "quic/core/quic_stream_sequencer.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

@@ -8,17 +8,17 @@
 #include <utility>
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_system_event_loop.h"
+#include "quic/core/quic_types.h"
+#include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/platform/api/quic_system_event_loop.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_connection_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_session_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
-#include "net/third_party/quiche/src/quic/tools/fake_proof_verifier.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client.h"
-#include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "quic/test_tools/quic_connection_peer.h"
+#include "quic/test_tools/quic_session_peer.h"
+#include "quic/test_tools/simple_session_cache.h"
+#include "quic/tools/fake_proof_verifier.h"
+#include "quic/tools/quic_client.h"
+#include "quic/tools/quic_url.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(std::string,
                               host,

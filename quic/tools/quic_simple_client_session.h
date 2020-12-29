@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_client_session.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_client_stream.h"
+#include "quic/core/http/quic_spdy_client_session.h"
+#include "quic/tools/quic_simple_client_stream.h"
 
 namespace quic {
 

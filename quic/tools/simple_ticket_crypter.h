@@ -6,9 +6,9 @@
 #define QUICHE_QUIC_TOOLS_SIMPLE_TICKET_CRYPTER_H_
 
 #include "third_party/boringssl/src/include/openssl/aead.h"
-#include "net/third_party/quiche/src/quic/core/crypto/proof_source.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
+#include "quic/core/crypto/proof_source.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_time.h"
 
 namespace quic {
 

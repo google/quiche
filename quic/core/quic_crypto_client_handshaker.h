@@ -7,12 +7,12 @@
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/crypto/proof_verifier.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_client_stream.h"
-#include "net/third_party/quiche/src/quic/core/quic_server_id.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_logging.h"
+#include "quic/core/crypto/proof_verifier.h"
+#include "quic/core/crypto/quic_crypto_client_config.h"
+#include "quic/core/quic_crypto_client_stream.h"
+#include "quic/core/quic_server_id.h"
+#include "quic/platform/api/quic_export.h"
+#include "common/platform/api/quiche_logging.h"
 
 namespace quic {
 

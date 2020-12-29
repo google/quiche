@@ -15,10 +15,10 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_protocol.h"
+#include "common/platform/api/quiche_export.h"
+#include "spdy/core/hpack/hpack_header_table.h"
+#include "spdy/core/hpack/hpack_output_stream.h"
+#include "spdy/core/spdy_protocol.h"
 
 // An HpackEncoder encodes header sets as outlined in
 // http://tools.ietf.org/html/rfc7541.

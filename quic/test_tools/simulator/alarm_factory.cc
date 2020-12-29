@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/simulator/alarm_factory.h"
+#include "quic/test_tools/simulator/alarm_factory.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_alarm.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_str_cat.h"
+#include "quic/core/quic_alarm.h"
+#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {

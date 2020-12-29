@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TOOLS_EPOLL_CLIENT_FACTORY_H_
 #define QUICHE_QUIC_TOOLS_EPOLL_CLIENT_FACTORY_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/tools/quic_toy_client.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/tools/quic_toy_client.h"
 
 namespace quic {
 

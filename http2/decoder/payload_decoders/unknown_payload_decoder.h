@@ -10,10 +10,10 @@
 //     Implementations MUST ignore and discard any frame that has
 //     a type that is unknown.
 
-#include "net/third_party/quiche/src/http2/decoder/decode_buffer.h"
-#include "net/third_party/quiche/src/http2/decoder/decode_status.h"
-#include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_export.h"
+#include "http2/decoder/decode_buffer.h"
+#include "http2/decoder/decode_status.h"
+#include "http2/decoder/frame_decoder_state.h"
+#include "common/platform/api/quiche_export.h"
 
 namespace http2 {
 

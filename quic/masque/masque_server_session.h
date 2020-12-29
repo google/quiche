@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_SERVER_SESSION_H_
 
-#include "net/third_party/quiche/src/quic/masque/masque_compression_engine.h"
-#include "net/third_party/quiche/src/quic/masque/masque_server_backend.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_session.h"
+#include "quic/masque/masque_compression_engine.h"
+#include "quic/masque/masque_server_backend.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/tools/quic_simple_server_session.h"
 
 namespace quic {
 

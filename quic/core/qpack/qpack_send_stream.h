@@ -8,9 +8,9 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_stream_sender_delegate.h"
-#include "net/third_party/quiche/src/quic/core/quic_stream.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/qpack/qpack_stream_sender_delegate.h"
+#include "quic/core/quic_stream.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

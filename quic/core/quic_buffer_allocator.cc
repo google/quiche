@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_buffer_allocator.h"
+#include "quic/core/quic_buffer_allocator.h"
 
 namespace quic {
 

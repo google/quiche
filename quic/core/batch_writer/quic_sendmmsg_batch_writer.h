@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_IMPL_QUIC_SENDMMSG_BATCH_WRITER_H_
 #define QUICHE_QUIC_PLATFORM_IMPL_QUIC_SENDMMSG_BATCH_WRITER_H_
 
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_batch_writer_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_linux_socket_utils.h"
+#include "quic/core/batch_writer/quic_batch_writer_base.h"
+#include "quic/core/quic_linux_socket_utils.h"
 
 namespace quic {
 

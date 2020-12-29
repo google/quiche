@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/value_splitting_header_list.h"
+#include "quic/core/qpack/value_splitting_header_list.h"
 #include "absl/strings/string_view.h"
 
 namespace quic {

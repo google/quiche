@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/decoder/payload_decoders/window_update_payload_decoder.h"
+#include "http2/decoder/payload_decoders/window_update_payload_decoder.h"
 
 #include <stddef.h>
 
-#include "net/third_party/quiche/src/http2/decoder/http2_frame_decoder_listener.h"
-#include "net/third_party/quiche/src/http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
-#include "net/third_party/quiche/src/http2/http2_constants.h"
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/test_tools/frame_parts.h"
-#include "net/third_party/quiche/src/http2/test_tools/frame_parts_collector.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/http2/tools/http2_frame_builder.h"
-#include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "http2/decoder/http2_frame_decoder_listener.h"
+#include "http2/decoder/payload_decoders/payload_decoder_base_test_util.h"
+#include "http2/http2_constants.h"
+#include "http2/http2_structures_test_util.h"
+#include "http2/platform/api/http2_logging.h"
+#include "http2/test_tools/frame_parts.h"
+#include "http2/test_tools/frame_parts_collector.h"
+#include "http2/test_tools/http2_random.h"
+#include "http2/tools/http2_frame_builder.h"
+#include "http2/tools/random_decoder_test.h"
+#include "common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace test {

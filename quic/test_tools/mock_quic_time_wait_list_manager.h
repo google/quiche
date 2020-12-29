@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_TIME_WAIT_LIST_MANAGER_H_
 #define QUICHE_QUIC_TEST_TOOLS_MOCK_QUIC_TIME_WAIT_LIST_MANAGER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_time_wait_list_manager.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/quic_time_wait_list_manager.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace test {

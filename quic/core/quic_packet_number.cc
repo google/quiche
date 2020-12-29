@@ -4,8 +4,8 @@
 
 #include <algorithm>
 
-#include "net/third_party/quiche/src/quic/core/quic_packet_number.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "quic/core/quic_packet_number.h"
+#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 

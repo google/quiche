@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMULATOR_ALARM_FACTORY_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_ALARM_FACTORY_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_alarm_factory.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/actor.h"
+#include "quic/core/quic_alarm_factory.h"
+#include "quic/test_tools/simulator/actor.h"
 
 namespace quic {
 namespace simulator {

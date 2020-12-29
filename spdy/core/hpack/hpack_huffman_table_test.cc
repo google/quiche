@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_huffman_table.h"
+#include "spdy/core/hpack/hpack_huffman_table.h"
 
 #include <string>
 #include <utility>
 
 #include "absl/base/macros.h"
-#include "net/third_party/quiche/src/http2/hpack/huffman/hpack_huffman_decoder.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_constants.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_output_stream.h"
-#include "net/third_party/quiche/src/spdy/platform/api/spdy_string_utils.h"
+#include "http2/hpack/huffman/hpack_huffman_decoder.h"
+#include "common/platform/api/quiche_test.h"
+#include "spdy/core/hpack/hpack_constants.h"
+#include "spdy/core/hpack/hpack_output_stream.h"
+#include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
 

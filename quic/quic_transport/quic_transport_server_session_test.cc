@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_server_session.h"
+#include "quic/quic_transport/quic_transport_server_session.h"
 
 #include <cstddef>
 #include <memory>
@@ -11,17 +11,17 @@
 #include "absl/strings/string_view.h"
 #include "url/gurl.h"
 #include "url/origin.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_compressed_certs_cache.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_server_config.h"
-#include "net/third_party/quiche/src/quic/core/frames/quic_stream_frame.h"
-#include "net/third_party/quiche/src/quic/core/quic_data_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_versions.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/quic_transport/quic_transport_protocol.h"
-#include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_transport_test_tools.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
+#include "quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quic/core/crypto/quic_crypto_server_config.h"
+#include "quic/core/frames/quic_stream_frame.h"
+#include "quic/core/quic_data_writer.h"
+#include "quic/core/quic_versions.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/quic_transport/quic_transport_protocol.h"
+#include "quic/test_tools/crypto_test_utils.h"
+#include "quic/test_tools/quic_test_utils.h"
+#include "quic/test_tools/quic_transport_test_tools.h"
+#include "common/platform/api/quiche_text_utils.h"
 
 namespace quic {
 namespace test {

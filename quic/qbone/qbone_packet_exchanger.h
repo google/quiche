@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_client_interface.h"
-#include "net/third_party/quiche/src/quic/qbone/qbone_packet_writer.h"
+#include "quic/core/quic_packets.h"
+#include "quic/qbone/qbone_client_interface.h"
+#include "quic/qbone/qbone_packet_writer.h"
 
 namespace quic {
 

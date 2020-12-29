@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_progressive_decoder.h"
+#include "quic/core/qpack/qpack_progressive_decoder.h"
 
 #include <algorithm>
 #include <limits>
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_index_conversions.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_instructions.h"
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_required_insert_count.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/qpack/qpack_index_conversions.h"
+#include "quic/core/qpack/qpack_instructions.h"
+#include "quic/core/qpack/qpack_required_insert_count.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

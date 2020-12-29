@@ -16,14 +16,14 @@
 #include <utility>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_session.h"
-#include "net/third_party/quiche/src/quic/core/quic_crypto_server_stream_base.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/quiche/src/quic/tools/quic_simple_server_stream.h"
+#include "quic/core/http/quic_server_session_base.h"
+#include "quic/core/http/quic_spdy_session.h"
+#include "quic/core/quic_crypto_server_stream_base.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/tools/quic_backend_response.h"
+#include "quic/tools/quic_simple_server_backend.h"
+#include "quic/tools/quic_simple_server_stream.h"
 
 namespace quic {
 

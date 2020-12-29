@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_spdy_stream_peer.h"
+#include "quic/test_tools/quic_spdy_stream_peer.h"
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_stream.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_test_utils.h"
+#include "quic/core/http/quic_spdy_stream.h"
+#include "quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 namespace test {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/packet_dropping_test_writer.h"
+#include "quic/test_tools/packet_dropping_test_writer.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/quic_epoll_connection_helper.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 namespace test {

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/qbone/bonnet/qbone_tunnel_silo.h"
+#include "quic/qbone/bonnet/qbone_tunnel_silo.h"
 
 #include "absl/synchronization/notification.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/qbone/bonnet/mock_qbone_tunnel.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/qbone/bonnet/mock_qbone_tunnel.h"
 
 namespace quic {
 namespace {

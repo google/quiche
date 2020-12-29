@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
+#include "quic/core/crypto/quic_decrypter.h"
 
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/tls1.h"
-#include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_12_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/aes_128_gcm_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/aes_256_gcm_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/chacha20_poly1305_tls_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/core/crypto/null_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_hkdf.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_bug_tracker.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/crypto/aes_128_gcm_12_decrypter.h"
+#include "quic/core/crypto/aes_128_gcm_decrypter.h"
+#include "quic/core/crypto/aes_256_gcm_decrypter.h"
+#include "quic/core/crypto/chacha20_poly1305_decrypter.h"
+#include "quic/core/crypto/chacha20_poly1305_tls_decrypter.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/core/crypto/null_decrypter.h"
+#include "quic/core/crypto/quic_hkdf.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

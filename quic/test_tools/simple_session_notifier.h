@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_circular_deque.h"
-#include "net/third_party/quiche/src/quic/core/quic_interval_set.h"
-#include "net/third_party/quiche/src/quic/core/session_notifier_interface.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/quic_circular_deque.h"
+#include "quic/core/quic_interval_set.h"
+#include "quic/core/session_notifier_interface.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 

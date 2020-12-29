@@ -5,7 +5,7 @@
 // an AssertionResult if the condition is not satisfied.
 #include "net/http2/platform/impl/http2_test_helpers_impl.h"
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
+#include "common/platform/api/quiche_test.h"
 
 #define VERIFY_AND_RETURN_SUCCESS(expression) \
   {                                           \

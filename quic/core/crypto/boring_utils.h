@@ -7,7 +7,7 @@
 
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

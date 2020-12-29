@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_UBER_QUIC_STREAM_ID_MANAGER_H_
 #define QUICHE_QUIC_CORE_UBER_QUIC_STREAM_ID_MANAGER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_stream_id_manager.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_stream_id_manager.h"
+#include "quic/core/quic_types.h"
 
 namespace quic {
 

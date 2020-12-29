@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_dispatcher_peer.h"
+#include "quic/test_tools/quic_dispatcher_peer.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer_wrapper.h"
+#include "quic/core/quic_dispatcher.h"
+#include "quic/core/quic_packet_writer_wrapper.h"
 
 namespace quic {
 namespace test {

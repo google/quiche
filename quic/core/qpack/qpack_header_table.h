@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_entry.h"
-#include "net/third_party/quiche/src/spdy/core/hpack/hpack_header_table.h"
+#include "quic/platform/api/quic_export.h"
+#include "spdy/core/hpack/hpack_entry.h"
+#include "spdy/core/hpack/hpack_header_table.h"
 
 namespace quic {
 

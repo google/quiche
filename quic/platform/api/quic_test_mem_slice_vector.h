@@ -7,7 +7,7 @@
 
 #include <utility>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice_span.h"
+#include "quic/platform/api/quic_mem_slice_span.h"
 #include "net/quic/platform/impl/quic_test_mem_slice_vector_impl.h"
 
 namespace quic {

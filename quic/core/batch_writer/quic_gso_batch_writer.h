@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_GSO_BATCH_WRITER_H_
 #define QUICHE_QUIC_PLATFORM_IMPL_BATCH_WRITER_QUIC_GSO_BATCH_WRITER_H_
 
-#include "net/third_party/quiche/src/quic/core/batch_writer/quic_batch_writer_base.h"
+#include "quic/core/batch_writer/quic_batch_writer_base.h"
 
 namespace quic {
 

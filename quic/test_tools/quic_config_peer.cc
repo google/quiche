@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/quic_config_peer.h"
+#include "quic/test_tools/quic_config_peer.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_config.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection_id.h"
+#include "quic/core/quic_config.h"
+#include "quic/core/quic_connection_id.h"
 
 namespace quic {
 namespace test {

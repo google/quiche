@@ -5,9 +5,9 @@
 #ifndef QUICHE_HTTP2_DECODER_FRAME_DECODER_STATE_TEST_UTIL_H_
 #define QUICHE_HTTP2_DECODER_FRAME_DECODER_STATE_TEST_UTIL_H_
 
-#include "net/third_party/quiche/src/http2/decoder/frame_decoder_state.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "http2/decoder/frame_decoder_state.h"
+#include "http2/http2_structures.h"
+#include "http2/tools/random_decoder_test.h"
 
 namespace http2 {
 namespace test {

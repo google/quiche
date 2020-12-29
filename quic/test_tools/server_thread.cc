@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/server_thread.h"
+#include "quic/test_tools/server_thread.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_dispatcher.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/test_tools/crypto_test_utils.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_dispatcher_peer.h"
-#include "net/third_party/quiche/src/quic/test_tools/quic_server_peer.h"
+#include "quic/core/quic_dispatcher.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/test_tools/crypto_test_utils.h"
+#include "quic/test_tools/quic_dispatcher_peer.h"
+#include "quic/test_tools/quic_server_peer.h"
 
 namespace quic {
 namespace test {

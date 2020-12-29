@@ -14,7 +14,7 @@
 #include <memory>
 #include <vector>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

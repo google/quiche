@@ -10,15 +10,15 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/proto/cached_network_parameters_proto.h"
-#include "net/third_party/quiche/src/quic/core/quic_framer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_creator.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_map_util.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/tools/quic_client.h"
+#include "quic/core/proto/cached_network_parameters_proto.h"
+#include "quic/core/quic_framer.h"
+#include "quic/core/quic_packet_creator.h"
+#include "quic/core/quic_packets.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/platform/api/quic_map_util.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/tools/quic_client.h"
 
 namespace quic {
 

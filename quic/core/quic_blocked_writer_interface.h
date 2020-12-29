@@ -9,7 +9,7 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_BLOCKED_WRITER_INTERFACE_H_
 #define QUICHE_QUIC_CORE_QUIC_BLOCKED_WRITER_INTERFACE_H_
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

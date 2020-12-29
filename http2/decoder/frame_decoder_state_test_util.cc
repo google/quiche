@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/http2/decoder/frame_decoder_state_test_util.h"
+#include "http2/decoder/frame_decoder_state_test_util.h"
 
-#include "net/third_party/quiche/src/http2/decoder/http2_structure_decoder_test_util.h"
-#include "net/third_party/quiche/src/http2/http2_structures.h"
-#include "net/third_party/quiche/src/http2/http2_structures_test_util.h"
-#include "net/third_party/quiche/src/http2/platform/api/http2_logging.h"
-#include "net/third_party/quiche/src/http2/test_tools/http2_random.h"
-#include "net/third_party/quiche/src/http2/tools/random_decoder_test.h"
+#include "http2/decoder/http2_structure_decoder_test_util.h"
+#include "http2/http2_structures.h"
+#include "http2/http2_structures_test_util.h"
+#include "http2/platform/api/http2_logging.h"
+#include "http2/test_tools/http2_random.h"
+#include "http2/tools/random_decoder_test.h"
 
 namespace http2 {
 namespace test {

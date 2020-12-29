@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_epoll_connection_helper.h"
+#include "quic/core/quic_epoll_connection_helper.h"
 
 #include <errno.h>
 #include <sys/socket.h>
 
-#include "net/third_party/quiche/src/quic/core/crypto/quic_random.h"
+#include "quic/core/crypto/quic_random.h"
 
 namespace quic {
 

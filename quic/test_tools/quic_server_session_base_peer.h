@@ -5,9 +5,9 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SERVER_SESSION_BASE_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SERVER_SESSION_BASE_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/http/quic_server_session_base.h"
+#include "quic/core/http/quic_server_session_base.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_utils.h"
+#include "quic/core/quic_utils.h"
 
 namespace quic {
 namespace test {

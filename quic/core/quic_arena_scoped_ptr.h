@@ -13,8 +13,8 @@
 
 #include <cstdint>  // for uintptr_t
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

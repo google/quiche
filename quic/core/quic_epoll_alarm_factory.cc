@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/quic_epoll_alarm_factory.h"
+#include "quic/core/quic_epoll_alarm_factory.h"
 
 #include <type_traits>
 
-#include "net/third_party/quiche/src/quic/core/quic_arena_scoped_ptr.h"
+#include "quic/core/quic_arena_scoped_ptr.h"
 
 namespace quic {
 namespace {

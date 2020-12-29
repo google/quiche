@@ -7,20 +7,20 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/bandwidth_sampler.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_drain.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_misc.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_probe_bw.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_probe_rtt.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr2_startup.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/rtt_stats.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
-#include "net/third_party/quiche/src/quic/core/congestion_control/windowed_filter.h"
-#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
+#include "quic/core/congestion_control/bandwidth_sampler.h"
+#include "quic/core/congestion_control/bbr2_drain.h"
+#include "quic/core/congestion_control/bbr2_misc.h"
+#include "quic/core/congestion_control/bbr2_probe_bw.h"
+#include "quic/core/congestion_control/bbr2_probe_rtt.h"
+#include "quic/core/congestion_control/bbr2_startup.h"
+#include "quic/core/congestion_control/bbr_sender.h"
+#include "quic/core/congestion_control/rtt_stats.h"
+#include "quic/core/congestion_control/send_algorithm_interface.h"
+#include "quic/core/congestion_control/windowed_filter.h"
+#include "quic/core/quic_bandwidth.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 
 namespace quic {
 

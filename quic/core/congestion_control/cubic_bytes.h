@@ -10,11 +10,11 @@
 
 #include <cstdint>
 
-#include "net/third_party/quiche/src/quic/core/quic_bandwidth.h"
-#include "net/third_party/quiche/src/quic/core/quic_clock.h"
-#include "net/third_party/quiche/src/quic/core/quic_connection_stats.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
+#include "quic/core/quic_bandwidth.h"
+#include "quic/core/quic_clock.h"
+#include "quic/core/quic_connection_stats.h"
+#include "quic/core/quic_time.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 

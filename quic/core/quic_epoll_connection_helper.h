@@ -11,14 +11,14 @@
 #include <sys/types.h>
 #include <set>
 
-#include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_default_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packet_writer.h"
-#include "net/third_party/quiche/src/quic/core/quic_packets.h"
-#include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_epoll.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_stream_buffer_allocator.h"
+#include "quic/core/quic_connection.h"
+#include "quic/core/quic_default_packet_writer.h"
+#include "quic/core/quic_packet_writer.h"
+#include "quic/core/quic_packets.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
+#include "quic/core/quic_time.h"
+#include "quic/platform/api/quic_epoll.h"
+#include "quic/platform/api/quic_stream_buffer_allocator.h"
 #include "net/quic/platform/impl/quic_epoll_clock.h"
 
 namespace quic {

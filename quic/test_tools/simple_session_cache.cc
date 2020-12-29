@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/simple_session_cache.h"
+#include "quic/test_tools/simple_session_cache.h"
 #include <memory>
-#include "net/third_party/quiche/src/quic/core/crypto/quic_crypto_client_config.h"
+#include "quic/core/crypto/quic_crypto_client_config.h"
 
 namespace quic {
 namespace test {

@@ -7,8 +7,8 @@
 
 #include <deque>
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_containers.h"
-#include "net/third_party/quiche/src/quic/test_tools/simulator/queue.h"
+#include "quic/platform/api/quic_containers.h"
+#include "quic/test_tools/simulator/queue.h"
 
 namespace quic {
 namespace simulator {

@@ -9,11 +9,11 @@
 
 #include <memory>
 
-#include "net/third_party/quiche/src/quic/masque/masque_epoll_server.h"
-#include "net/third_party/quiche/src/quic/masque/masque_server_backend.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
+#include "quic/masque/masque_epoll_server.h"
+#include "quic/masque/masque_server_backend.h"
+#include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/platform/api/quic_socket_address.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               port,

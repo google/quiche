@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_handshake.h"
+#include "quic/core/crypto/crypto_handshake.h"
 
-#include "net/third_party/quiche/src/quic/core/crypto/common_cert_set.h"
-#include "net/third_party/quiche/src/quic/core/crypto/key_exchange.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_decrypter.h"
-#include "net/third_party/quiche/src/quic/core/crypto/quic_encrypter.h"
+#include "quic/core/crypto/common_cert_set.h"
+#include "quic/core/crypto/key_exchange.h"
+#include "quic/core/crypto/quic_decrypter.h"
+#include "quic/core/crypto/quic_encrypter.h"
 
 namespace quic {
 

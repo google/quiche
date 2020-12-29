@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/crypto/certificate_view.h"
+#include "quic/core/crypto/certificate_view.h"
 
 #include <memory>
 #include <sstream>
@@ -13,12 +13,12 @@
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
-#include "net/third_party/quiche/src/quic/core/crypto/boring_utils.h"
-#include "net/third_party/quiche/src/quic/core/quic_time.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
-#include "net/third_party/quiche/src/quic/test_tools/test_certificates.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_time_utils.h"
+#include "quic/core/crypto/boring_utils.h"
+#include "quic/core/quic_time.h"
+#include "quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_test.h"
+#include "quic/test_tools/test_certificates.h"
+#include "common/platform/api/quiche_time_utils.h"
 
 namespace quic {
 namespace test {

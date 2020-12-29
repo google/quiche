@@ -24,7 +24,7 @@
 //      $TEST_QIF_DATA/netbsd.qif
 //
 
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_offline_decoder.h"
+#include "quic/test_tools/qpack/qpack_offline_decoder.h"
 
 #include <cstdint>
 #include <string>
@@ -34,12 +34,12 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_file_utils.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_test_utils.h"
-#include "net/third_party/quiche/src/common/platform/api/quiche_text_utils.h"
-#include "net/third_party/quiche/src/common/quiche_endian.h"
+#include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_file_utils.h"
+#include "quic/platform/api/quic_logging.h"
+#include "quic/test_tools/qpack/qpack_test_utils.h"
+#include "common/platform/api/quiche_text_utils.h"
+#include "common/quiche_endian.h"
 
 namespace quic {
 

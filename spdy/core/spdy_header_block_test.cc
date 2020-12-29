@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/spdy/core/spdy_header_block.h"
+#include "spdy/core/spdy_header_block.h"
 
 #include <memory>
 #include <utility>
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_test.h"
-#include "net/third_party/quiche/src/spdy/core/spdy_test_utils.h"
+#include "common/platform/api/quiche_test.h"
+#include "spdy/core/spdy_test_utils.h"
 
 using ::testing::ElementsAre;
 

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/quic_client_push_promise_index.h"
+#include "quic/core/http/quic_client_push_promise_index.h"
 
 #include <string>
 
-#include "net/third_party/quiche/src/quic/core/http/quic_client_promised_info.h"
-#include "net/third_party/quiche/src/quic/core/http/spdy_server_push_utils.h"
+#include "quic/core/http/quic_client_promised_info.h"
+#include "quic/core/http/spdy_server_push_utils.h"
 
 using spdy::SpdyHeaderBlock;
 

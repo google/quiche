@@ -6,7 +6,7 @@
 #define QUICHE_QUIC_QBONE_PLATFORM_IP_RANGE_H_
 
 #include "absl/strings/str_cat.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_ip_address.h"
+#include "quic/platform/api/quic_ip_address.h"
 
 namespace quic {
 

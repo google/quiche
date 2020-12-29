@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/platform/api/quic_mem_slice.h"
+#include "quic/platform/api/quic_mem_slice.h"
 
 #include <memory>
-#include "net/third_party/quiche/src/quic/core/quic_simple_buffer_allocator.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/quic_simple_buffer_allocator.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace test {

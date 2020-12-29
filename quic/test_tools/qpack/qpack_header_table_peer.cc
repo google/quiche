@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/test_tools/qpack/qpack_header_table_peer.h"
+#include "quic/test_tools/qpack/qpack_header_table_peer.h"
 
-#include "net/third_party/quiche/src/quic/core/qpack/qpack_header_table.h"
+#include "quic/core/qpack/qpack_header_table.h"
 
 namespace quic {
 namespace test {

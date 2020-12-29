@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_TRACE_VISITOR_H_
 #define QUICHE_QUIC_CORE_QUIC_TRACE_VISITOR_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_connection.h"
-#include "net/third_party/quiche/src/quic/core/quic_types.h"
+#include "quic/core/quic_connection.h"
+#include "quic/core/quic_types.h"
 #include "third_party/quic_trace/lib/quic_trace.pb.h"
 
 namespace quic {

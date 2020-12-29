@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/congestion_control/prr_sender.h"
+#include "quic/core/congestion_control/prr_sender.h"
 
 #include <algorithm>
 
-#include "net/third_party/quiche/src/quic/core/crypto/crypto_protocol.h"
-#include "net/third_party/quiche/src/quic/core/quic_constants.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_test.h"
+#include "quic/core/crypto/crypto_protocol.h"
+#include "quic/core/quic_constants.h"
+#include "quic/platform/api/quic_test.h"
 
 namespace quic {
 namespace test {

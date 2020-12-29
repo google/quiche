@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_UNACKED_PACKET_MAP_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_UNACKED_PACKET_MAP_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
+#include "quic/core/quic_unacked_packet_map.h"
 
 namespace quic {
 namespace test {

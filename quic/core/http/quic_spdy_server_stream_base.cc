@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/third_party/quiche/src/quic/core/http/quic_spdy_server_stream_base.h"
+#include "quic/core/http/quic_spdy_server_stream_base.h"
 
-#include "net/third_party/quiche/src/quic/core/quic_error_codes.h"
-#include "net/third_party/quiche/src/quic/core/quic_session.h"
-#include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_session.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 

@@ -5,7 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_PATH_VALIDATOR_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_PATH_VALIDATOR_PEER_H_
 
-#include "net/third_party/quiche/src/quic/core/quic_path_validator.h"
+#include "quic/core/quic_path_validator.h"
 
 namespace quic {
 namespace test {

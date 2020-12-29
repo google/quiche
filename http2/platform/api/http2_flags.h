@@ -5,7 +5,7 @@
 #ifndef QUICHE_HTTP2_PLATFORM_API_HTTP2_FLAGS_H_
 #define QUICHE_HTTP2_PLATFORM_API_HTTP2_FLAGS_H_
 
-#include "net/third_party/quiche/src/common/platform/api/quiche_flags.h"
+#include "common/platform/api/quiche_flags.h"
 
 #define GetHttp2ReloadableFlag(flag) GetQuicheReloadableFlag(http2, flag)
 #define SetHttp2ReloadableFlag(flag, value) \
