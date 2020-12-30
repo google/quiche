@@ -6,7 +6,7 @@
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_STRING_PIECE_H_
 
 #include "absl/strings/string_view.h"
-#include "common/platform/impl/quiche_string_piece_impl.h"
+#include "net/quiche/common/platform/impl/quiche_string_piece_impl.h"
 
 namespace quiche {
 
