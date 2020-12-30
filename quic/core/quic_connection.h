@@ -1264,6 +1264,27 @@ class QUIC_EXPORT_PRIVATE QuicConnection
  private:
   friend class test::QuicConnectionPeer;
 
+  struct QUIC_EXPORT_PRIVATE PendingPathChallenge {
+    QuicPathFrameBuffer received_path_challenge;
+    QuicSocketAddress peer_address;
+  };
+
+  struct QUIC_EXPORT_PRIVATE AlternativePathState {
+    AlternativePathState(const QuicSocketAddress& alternative_self_address,
+                         const QuicSocketAddress& alternative_peer_address)
+        : self_address(alternative_self_address),
+          peer_address(alternative_peer_address) {}
+
+    QuicSocketAddress self_address;
+    // The actual peer address behind the proxy if there is any.
+    QuicSocketAddress peer_address;
+    bool validated = false;
+    // Used by the sever to apply anti-amplification limit after this path
+    // becomes the default path if |peer_address| hasn't been validated.
+    QuicByteCount bytes_received_before_address_validation_ = 0;
+    QuicByteCount bytes_sent_before_address_validation_ = 0;
+  };
+
   using QueuedPacketList = std::list<SerializedPacket>;
 
   // BufferedPacket stores necessary information (encrypted buffer and self/peer
@@ -1542,7 +1563,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Called in IETF QUIC. Start peer migration if a non-probing frame is
   // received and the current packet number is largest received so far.
-  void MaybeStartIetfPeerMigration(QuicFrameType type);
+  void MaybeStartIetfPeerMigration();
 
   // Send PATH_RESPONSE to the given peer address.
   bool SendPathResponse(const QuicPathFrameBuffer& data_buffer,
@@ -1561,6 +1582,25 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                               const QuicSocketAddress& self_address,
                               const QuicSocketAddress& peer_address,
                               bool measure_rtt);
+
+  // Increment bytes sent/received on the most recent alternative path if the
+  // current packet is sent/received on that path.
+  void MaybeUpdateBytesSentToAlternativeAddress(
+      const QuicSocketAddress& peer_address,
+      QuicByteCount sent_packet_size);
+  void MaybeUpdateBytesReceivedFromAlternativeAddress(
+      QuicByteCount received_packet_size);
+
+  // Return true if the given self address and peer address is the same as the
+  // self address and peer address of the default path.
+  bool IsDefaultPath(const QuicSocketAddress& self_address,
+                     const QuicSocketAddress& peer_address) const;
+
+  // Return true if the given self address and peer address is the same as the
+  // self address and peer address of the most recent alternative path.
+  bool IsMostRecentAlternativePath(const QuicSocketAddress& self_address,
+                                   const QuicSocketAddress& peer_address) const;
+
   QuicFramer framer_;
 
   // Contents received in the current packet, especially used to identify
@@ -1866,8 +1906,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Buffer outstanding PATH_CHALLENGEs if socket write is blocked, future
   // OnCanWrite will attempt to respond with PATH_RESPONSEs using the retained
   // payload and peer addresses.
-  QuicCircularDeque<std::pair<QuicPathFrameBuffer, QuicSocketAddress>>
-      pending_path_challenge_payloads_;
+  QuicCircularDeque<PendingPathChallenge> pending_path_challenge_payloads_;
 
   // Set of connection IDs that should be accepted as destination on
   // received packets. This is conceptually a set but is implemented as a
@@ -1975,6 +2014,18 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   const bool use_encryption_level_context_;
 
   QuicPathValidator path_validator_;
+
+  // The most recent alternative path probed by an endpoint or its peer.
+  // It keeps track of the state of the probed path till it becomes the default
+  // path of the connection or replaced by a newer path under probing. The
+  // client starts to track it when it starts to validate the path. The server
+  // starts to track it when it receives a PATH_CHALLENGE in non-default path.
+  AlternativePathState most_recent_alternative_path_;
+
+  bool current_incoming_packet_received_bytes_counted_ = false;
+
+  bool count_bytes_on_alternative_path_seperately_ =
+      GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);
 };
 
 }  // namespace quic

@@ -370,7 +370,8 @@ QuicConnection::QuicConnection(
       use_encryption_level_context_(
           encrypted_control_frames_ &&
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
-      path_validator_(alarm_factory_, &arena_, this, random_generator_) {
+      path_validator_(alarm_factory_, &arena_, this, random_generator_),
+      most_recent_alternative_path_(QuicSocketAddress(), QuicSocketAddress()) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
 
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -2348,6 +2349,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketReceived(self_address, peer_address, packet);
   }
+  current_incoming_packet_received_bytes_counted_ = false;
   last_size_ = packet.length();
   current_packet_data_ = packet.data();
 
@@ -2375,7 +2377,15 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 
   stats_.bytes_received += packet.length();
   ++stats_.packets_received;
-  if (EnforceAntiAmplificationLimit()) {
+  if (!count_bytes_on_alternative_path_seperately_) {
+    if (EnforceAntiAmplificationLimit()) {
+      bytes_received_before_address_validation_ += last_size_;
+    }
+  } else if (IsDefaultPath(last_packet_destination_address_,
+                           last_packet_source_address_) &&
+             EnforceAntiAmplificationLimit()) {
+    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 1, 5);
+    current_incoming_packet_received_bytes_counted_ = true;
     bytes_received_before_address_validation_ += last_size_;
   }
 
@@ -2469,9 +2479,10 @@ void QuicConnection::OnCanWrite() {
   // evaluate if it's worth to send them before sending ACKs.
   while (!pending_path_challenge_payloads_.empty()) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 4, 5);
-    std::pair<QuicPathFrameBuffer, QuicSocketAddress> pair =
+    const PendingPathChallenge& pending_path_challenge =
         pending_path_challenge_payloads_.front();
-    if (!SendPathResponse(pair.first, pair.second)) {
+    if (!SendPathResponse(pending_path_challenge.received_path_challenge,
+                          pending_path_challenge.peer_address)) {
       break;
     }
     pending_path_challenge_payloads_.pop_front();
@@ -2683,7 +2694,18 @@ bool QuicConnection::ShouldGeneratePacket(
          QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
-  return CanWrite(retransmittable);
+  if (!count_bytes_on_alternative_path_seperately_) {
+    return CanWrite(retransmittable);
+  }
+  QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 4, 5);
+  if (IsDefaultPath(self_address_, packet_creator_.peer_address())) {
+    return CanWrite(retransmittable);
+  }
+  // This is checking on the alternative path with a different peer address. The
+  // self address and the writer used are the same as the default path. In the
+  // case of different self address and writer, writing packet would use a
+  // differnt code path without checking the states of the default writer.
+  return connected_ && !HandleWriteBlocked();
 }
 
 const QuicFrames QuicConnection::MaybeBundleAckOpportunistically() {
@@ -2739,7 +2761,9 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
   if (LimitedByAmplificationFactor()) {
     // Server is constrained by the amplification restriction.
     QUIC_CODE_COUNT(quic_throttled_by_amplification_limit);
-    QUIC_DVLOG(1) << ENDPOINT << "Constrained by amplification restriction";
+    QUIC_DVLOG(1) << ENDPOINT
+                  << "Constrained by amplification restriction to peer address "
+                  << direct_peer_address_;
     ++stats_.num_amplification_throttling;
     return false;
   }
@@ -2753,7 +2777,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  // Allow acks to be sent immediately.
+  // Allow acks and probing frames to be sent immediately.
   if (retransmittable == NO_RETRANSMITTABLE_DATA) {
     return true;
   }
@@ -2853,7 +2877,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
                         : " ack or probing only ")
                 << ", encryption level: " << packet->encryption_level
                 << ", encrypted length:" << encrypted_length
-                << ", fate: " << fate;
+                << ", fate: " << fate << " to peer " << packet->peer_address;
   QUIC_DVLOG(2) << ENDPOINT << packet->encryption_level << " packet number "
                 << packet_number << " of length " << encrypted_length << ": "
                 << std::endl
@@ -3069,9 +3093,22 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(1) << ENDPOINT << "time we began writing last sent packet: "
                 << packet_send_time.ToDebuggingValue();
 
-  if (EnforceAntiAmplificationLimit()) {
-    // Include bytes sent even if they are not in flight.
-    bytes_sent_before_address_validation_ += encrypted_length;
+  if (!count_bytes_on_alternative_path_seperately_) {
+    if (EnforceAntiAmplificationLimit()) {
+      // Include bytes sent even if they are not in flight.
+      bytes_sent_before_address_validation_ += encrypted_length;
+    }
+  } else {
+    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 2, 5);
+    if (IsDefaultPath(self_address_, send_to_address)) {
+      if (EnforceAntiAmplificationLimit()) {
+        // Include bytes sent even if they are not in flight.
+        bytes_sent_before_address_validation_ += encrypted_length;
+      }
+    } else {
+      MaybeUpdateBytesSentToAlternativeAddress(send_to_address,
+                                               encrypted_length);
+    }
   }
 
   // Do not measure rtt of this packet if it's not sent on current path.
@@ -4633,7 +4670,30 @@ void QuicConnection::CheckIfApplicationLimited() {
 
 void QuicConnection::UpdatePacketContent(QuicFrameType type) {
   if (version().HasIetfQuicFrames()) {
-    MaybeStartIetfPeerMigration(type);
+    if (!QuicUtils::IsProbingFrame(type)) {
+      MaybeStartIetfPeerMigration();
+      return;
+    }
+    QuicSocketAddress current_effective_peer_address =
+        GetEffectivePeerAddressFromCurrentPacket();
+    if (!count_bytes_on_alternative_path_seperately_ ||
+        IsDefaultPath(last_packet_destination_address_,
+                      last_packet_source_address_)) {
+      return;
+    }
+    QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
+    if (type == PATH_CHALLENGE_FRAME &&
+        !IsMostRecentAlternativePath(last_packet_destination_address_,
+                                     current_effective_peer_address)) {
+      // Only override most recent alternative path state upon a PATH_CHALLENGE.
+      QUIC_DVLOG(1)
+          << "The peer is probing a new path with effective peer address "
+          << current_effective_peer_address << ",  self address "
+          << last_packet_destination_address_;
+      most_recent_alternative_path_ = AlternativePathState(
+          last_packet_destination_address_, current_effective_peer_address);
+    }
+    MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);
     return;
   }
   // Packet content is tracked to identify connectivity probe in non-IETF
@@ -4697,9 +4757,9 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
   current_effective_peer_migration_type_ = NO_CHANGE;
 }
 
-void QuicConnection::MaybeStartIetfPeerMigration(QuicFrameType type) {
+void QuicConnection::MaybeStartIetfPeerMigration() {
   DCHECK(version().HasIetfQuicFrames());
-  if (!start_peer_migration_earlier_ || QuicUtils::IsProbingFrame(type)) {
+  if (!start_peer_migration_earlier_) {
     return;
   }
   QUIC_CODE_COUNT(quic_start_peer_migration_earlier);
@@ -5083,8 +5143,22 @@ bool QuicConnection::FlushCoalescedPacket() {
   // Account for added padding.
   if (length > coalesced_packet_.length()) {
     size_t padding_size = length - coalesced_packet_.length();
-    if (EnforceAntiAmplificationLimit()) {
-      bytes_sent_before_address_validation_ += padding_size;
+    if (!count_bytes_on_alternative_path_seperately_) {
+      if (EnforceAntiAmplificationLimit()) {
+        bytes_sent_before_address_validation_ += padding_size;
+      }
+    } else {
+      QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 5, 5);
+      if (IsDefaultPath(coalesced_packet_.self_address(),
+                        coalesced_packet_.peer_address())) {
+        if (EnforceAntiAmplificationLimit()) {
+          // Include bytes sent even if they are not in flight.
+          bytes_sent_before_address_validation_ += padding_size;
+        }
+      } else {
+        MaybeUpdateBytesSentToAlternativeAddress(
+            coalesced_packet_.peer_address(), padding_size);
+      }
     }
     stats_.bytes_sent += padding_size;
     if (coalesced_packet_.initial_packet() != nullptr &&
@@ -5414,6 +5488,7 @@ bool QuicConnection::SendPathChallenge(
       packet_creator_.SerializePathChallengeConnectivityProbingPacket(
           data_buffer);
   DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  DCHECK_EQ(self_address, most_recent_alternative_path_.self_address);
   WritePacketUsingWriter(std::move(probing_packet), writer, self_address,
                          peer_address, /*measure_rtt=*/false);
   return true;
@@ -5432,6 +5507,11 @@ QuicTime QuicConnection::GetRetryTimeout(
 void QuicConnection::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+  if (perspective_ == Perspective::IS_CLIENT &&
+      !IsDefaultPath(context->self_address(), context->peer_address())) {
+    most_recent_alternative_path_ =
+        AlternativePathState(context->self_address(), context->peer_address());
+  }
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate));
 }
@@ -5441,9 +5521,9 @@ bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,
   // Send PATH_RESPONSE using the provided peer address. If the creator has been
   // using a different peer address, it will flush before and after serializing
   // the current PATH_RESPONSE.
-  QUIC_DVLOG(1) << ENDPOINT << "Send PATH_RESPONSE to " << peer_address_to_send;
   QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
                                                       peer_address_to_send);
+  QUIC_DVLOG(1) << ENDPOINT << "Send PATH_RESPONSE to " << peer_address_to_send;
   return packet_creator_.AddPathResponseFrame(data_buffer);
 }
 
@@ -5494,6 +5574,75 @@ void QuicConnection::SetSourceAddressTokenToSend(absl::string_view token) {
     // when a RETRY token has been received.
     packet_creator_.SetRetryToken(std::string(token.data(), token.length()));
   }
+}
+
+void QuicConnection::MaybeUpdateBytesSentToAlternativeAddress(
+    const QuicSocketAddress& peer_address,
+    QuicByteCount sent_packet_size) {
+  if (!version().SupportsAntiAmplificationLimit() ||
+      perspective_ != Perspective::IS_SERVER) {
+    return;
+  }
+  DCHECK(!IsDefaultPath(self_address_, peer_address));
+  if (!IsMostRecentAlternativePath(self_address_, peer_address)) {
+    QUIC_DLOG(INFO) << "Wrote to uninteresting peer address: " << peer_address
+                    << " default direct_peer_address_ " << direct_peer_address_
+                    << " alternative path peer address "
+                    << most_recent_alternative_path_.peer_address;
+    return;
+  }
+  if (most_recent_alternative_path_.validated) {
+    return;
+  }
+  if (most_recent_alternative_path_.bytes_sent_before_address_validation_ >=
+      anti_amplification_factor_ *
+          most_recent_alternative_path_
+              .bytes_received_before_address_validation_) {
+    QUIC_LOG_FIRST_N(WARNING, 100)
+        << "Server sent more data than allowed to unverified alternative "
+           "peer address "
+        << peer_address << " bytes sent "
+        << most_recent_alternative_path_.bytes_sent_before_address_validation_
+        << ", bytes received "
+        << most_recent_alternative_path_
+               .bytes_received_before_address_validation_;
+  }
+  most_recent_alternative_path_.bytes_sent_before_address_validation_ +=
+      sent_packet_size;
+}
+
+void QuicConnection::MaybeUpdateBytesReceivedFromAlternativeAddress(
+    QuicByteCount received_packet_size) {
+  if (!version().SupportsAntiAmplificationLimit() ||
+      perspective_ != Perspective::IS_SERVER ||
+      !IsMostRecentAlternativePath(
+          last_packet_destination_address_,
+          GetEffectivePeerAddressFromCurrentPacket()) ||
+      current_incoming_packet_received_bytes_counted_) {
+    return;
+  }
+  // Only update bytes received if this probing frame is received on the most
+  // recent alternative path.
+  DCHECK(!IsDefaultPath(last_packet_destination_address_,
+                        GetEffectivePeerAddressFromCurrentPacket()));
+  if (!most_recent_alternative_path_.validated) {
+    most_recent_alternative_path_.bytes_received_before_address_validation_ +=
+        received_packet_size;
+  }
+  current_incoming_packet_received_bytes_counted_ = true;
+}
+
+bool QuicConnection::IsDefaultPath(
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address) const {
+  return direct_peer_address_ == peer_address && self_address_ == self_address;
+}
+
+bool QuicConnection::IsMostRecentAlternativePath(
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address) const {
+  return most_recent_alternative_path_.peer_address == peer_address &&
+         most_recent_alternative_path_.self_address == self_address;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

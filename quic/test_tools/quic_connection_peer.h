@@ -5,10 +5,12 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_CONNECTION_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_CONNECTION_PEER_H_
 
+#include <cstddef>
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_connection_stats.h"
 #include "quic/core/quic_packets.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_socket_address.h"
 
 namespace quic {
@@ -158,9 +160,7 @@ class QuicConnectionPeer {
 
   static size_t NumUndecryptablePackets(QuicConnection* connection);
 
-  static const QuicCircularDeque<
-      std::pair<QuicPathFrameBuffer, QuicSocketAddress>>&
-  pending_path_challenge_payloads(QuicConnection* connection);
+  static size_t NumPendingPathChallengesToResponse(QuicConnection* connection);
 
   static void SetConnectionClose(QuicConnection* connection);
 
@@ -170,6 +170,12 @@ class QuicConnectionPeer {
                                               const QuicSocketAddress& address);
 
   static QuicPathValidator* path_validator(QuicConnection* connection);
+
+  static QuicByteCount BytesSentOnMostRecentAlternativePath(
+      QuicConnection* connection);
+
+  static QuicByteCount BytesReceivedOnMostRecentAlternativePath(
+      QuicConnection* connection);
 };
 
 }  // namespace test

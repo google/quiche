@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_FLAGS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_FLAGS_H_
 
-#include "net/quiche/common/platform/impl/quiche_flags_impl.h"
+#include "common/platform/impl/quiche_flags_impl.h"
 
 #define GetQuicheReloadableFlag(module, flag) \
   GetQuicheReloadableFlagImpl(module, flag)

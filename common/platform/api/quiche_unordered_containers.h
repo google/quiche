@@ -7,7 +7,7 @@
 
 #include <functional>
 
-#include "net/quiche/common/platform/impl/quiche_unordered_containers_impl.h"
+#include "common/platform/impl/quiche_unordered_containers_impl.h"
 
 namespace quiche {
 

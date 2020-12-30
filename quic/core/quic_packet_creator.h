@@ -471,6 +471,8 @@ class QUIC_EXPORT_PRIVATE QuicPacketCreator {
   // Return true if retry_token_ is not empty.
   bool HasRetryToken() const;
 
+  const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 

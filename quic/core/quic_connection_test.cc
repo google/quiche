@@ -21,6 +21,7 @@
 #include "quic/core/crypto/quic_decrypter.h"
 #include "quic/core/crypto/quic_encrypter.h"
 #include "quic/core/frames/quic_connection_close_frame.h"
+#include "quic/core/frames/quic_path_response_frame.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_error_codes.h"
@@ -1843,6 +1844,50 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
 }
 
+class TestQuicPathValidationContext : public QuicPathValidationContext {
+ public:
+  TestQuicPathValidationContext(const QuicSocketAddress& self_address,
+                                const QuicSocketAddress& peer_address,
+
+                                QuicPacketWriter* writer)
+      : QuicPathValidationContext(self_address, peer_address),
+        writer_(writer) {}
+
+  QuicPacketWriter* WriterToUse() override { return writer_; }
+
+ private:
+  QuicPacketWriter* writer_;
+};
+
+class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
+ public:
+  TestValidationResultDelegate(const QuicSocketAddress& expected_self_address,
+                               const QuicSocketAddress& expected_peer_address,
+                               bool* success)
+      : QuicPathValidator::ResultDelegate(),
+        expected_self_address_(expected_self_address),
+        expected_peer_address_(expected_peer_address),
+        success_(success) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<QuicPathValidationContext> context) override {
+    EXPECT_EQ(expected_self_address_, context->self_address());
+    EXPECT_EQ(expected_peer_address_, context->peer_address());
+    *success_ = true;
+  }
+
+  void OnPathValidationFailure(
+      std::unique_ptr<QuicPathValidationContext> context) override {
+    EXPECT_EQ(expected_self_address_, context->self_address());
+    EXPECT_EQ(expected_peer_address_, context->peer_address());
+    *success_ = false;
+  }
+
+ private:
+  QuicSocketAddress expected_self_address_;
+  QuicSocketAddress expected_peer_address_;
+  bool* success_;
+};
+
 // Receive a path probe request at the server side, i.e.,
 // in non-IETF version: receive a padded PING packet with a peer addess change;
 // in IETF version: receive a packet contains PATH CHALLENGE with peer address
@@ -1868,7 +1913,6 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
       QuicEncryptedPacket(probing_packet->encrypted_buffer,
                           probing_packet->encrypted_length),
       clock_.Now()));
-
   uint64_t num_probing_received =
       connection_.GetStats().num_connectivity_probing_received;
   ProcessReceivedPacket(kSelfAddress, kNewPeerAddress, *received);
@@ -1877,6 +1921,58 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
             connection_.GetStats().num_connectivity_probing_received);
   EXPECT_EQ(kPeerAddress, connection_.peer_address());
   EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
+  if (GetParam().version.HasIetfQuicFrames() &&
+      connection_.use_path_validator() &&
+      GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately)) {
+    QuicByteCount bytes_sent =
+        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_);
+    EXPECT_LT(0u, bytes_sent);
+    EXPECT_EQ(received->length(),
+              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
+                  &connection_));
+
+    // Receiving one more probing packet should update the bytes count.
+    probing_packet = ConstructProbingPacket();
+    received.reset(ConstructReceivedPacket(
+        QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                            probing_packet->encrypted_length),
+        clock_.Now()));
+    ProcessReceivedPacket(kSelfAddress, kNewPeerAddress, *received);
+
+    EXPECT_EQ(num_probing_received + 2,
+              connection_.GetStats().num_connectivity_probing_received);
+    EXPECT_EQ(
+        2 * bytes_sent,
+        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_));
+    EXPECT_EQ(2 * received->length(),
+              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
+                  &connection_));
+
+    EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+        .Times(AtLeast(1u))
+        .WillOnce(Invoke(
+            [&]() { EXPECT_EQ(1u, writer_->path_challenge_frames().size()); }));
+
+    bool success = false;
+    connection_.ValidatePath(
+        std::make_unique<TestQuicPathValidationContext>(
+            connection_.self_address(), kNewPeerAddress, writer_.get()),
+        std::make_unique<TestValidationResultDelegate>(
+            connection_.self_address(), kNewPeerAddress, &success));
+    EXPECT_EQ(
+        3 * bytes_sent,
+        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_));
+
+    QuicFrames frames;
+    frames.push_back(QuicFrame(new QuicPathResponseFrame(
+        99, writer_->path_challenge_frames().front().data_buffer)));
+    ProcessFramesPacketWithAddresses(frames, connection_.self_address(),
+                                     kNewPeerAddress,
+                                     ENCRYPTION_FORWARD_SECURE);
+    EXPECT_EQ(3 * received->length(),
+              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
+                  &connection_));
+  }
 
   // Process another packet with the old peer address on server side will not
   // start peer migration.
@@ -11074,50 +11170,6 @@ TEST_P(QuicConnectionTest,
   EXPECT_TRUE(connection_.connected());
 }
 
-class TestQuicPathValidationContext : public QuicPathValidationContext {
- public:
-  TestQuicPathValidationContext(const QuicSocketAddress& self_address,
-                                const QuicSocketAddress& peer_address,
-
-                                QuicPacketWriter* writer)
-      : QuicPathValidationContext(self_address, peer_address),
-        writer_(writer) {}
-
-  QuicPacketWriter* WriterToUse() override { return writer_; }
-
- private:
-  QuicPacketWriter* writer_;
-};
-
-class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
- public:
-  TestValidationResultDelegate(const QuicSocketAddress& expected_self_address,
-                               const QuicSocketAddress& expected_peer_address,
-                               bool* success)
-      : QuicPathValidator::ResultDelegate(),
-        expected_self_address_(expected_self_address),
-        expected_peer_address_(expected_peer_address),
-        success_(success) {}
-  void OnPathValidationSuccess(
-      std::unique_ptr<QuicPathValidationContext> context) override {
-    EXPECT_EQ(expected_self_address_, context->self_address());
-    EXPECT_EQ(expected_peer_address_, context->peer_address());
-    *success_ = true;
-  }
-
-  void OnPathValidationFailure(
-      std::unique_ptr<QuicPathValidationContext> context) override {
-    EXPECT_EQ(expected_self_address_, context->self_address());
-    EXPECT_EQ(expected_peer_address_, context->peer_address());
-    *success_ = false;
-  }
-
- private:
-  QuicSocketAddress expected_self_address_;
-  QuicSocketAddress expected_peer_address_;
-  bool* success_;
-};
-
 TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
       !connection_.use_path_validator()) {
@@ -11197,7 +11249,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
       !connection_.send_path_response()) {
     return;
   }
-  PathProbeTestInit(Perspective::IS_SERVER);
+  PathProbeTestInit(Perspective::IS_CLIENT);
   if (version().SupportsAntiAmplificationLimit()) {
     QuicConnectionPeer::SetAddressValidated(&connection_);
   }
@@ -11319,7 +11371,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
       !connection_.use_path_validator()) {
     return;
   }
-  PathProbeTestInit(Perspective::IS_SERVER);
+  PathProbeTestInit(Perspective::IS_CLIENT);
 
   writer_->SetShouldWriteFail();
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
@@ -11351,7 +11403,7 @@ TEST_P(QuicConnectionTest,
       !connection_.use_path_validator()) {
     return;
   }
-  PathProbeTestInit(Perspective::IS_SERVER);
+  PathProbeTestInit(Perspective::IS_CLIENT);
 
   writer_->SetShouldWriteFail();
   writer_->SetWriteError(EMSGSIZE);
@@ -11616,8 +11668,7 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
                                    ENCRYPTION_FORWARD_SECURE);
 
   EXPECT_EQ(
-      1u,
-      QuicConnectionPeer::pending_path_challenge_payloads(&connection_).size());
+      1u, QuicConnectionPeer::NumPendingPathChallengesToResponse(&connection_));
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(AtLeast(1));
   writer_->SetWritable();
@@ -11632,8 +11683,8 @@ TEST_P(QuicConnectionTest, FailToWritePathResponse) {
   // PATH_RESPONSE should be sent in another packet to a different peer
   // address.
   EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-  EXPECT_TRUE(QuicConnectionPeer::pending_path_challenge_payloads(&connection_)
-                  .empty());
+  EXPECT_EQ(
+      0u, QuicConnectionPeer::NumPendingPathChallengesToResponse(&connection_));
 }
 
 // Regression test for b/168101557.

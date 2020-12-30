@@ -5,7 +5,7 @@
 #ifndef THIRD_PARTY_QUICHE_PLATFORM_API_QUICHE_EXPORT_H_
 #define THIRD_PARTY_QUICHE_PLATFORM_API_QUICHE_EXPORT_H_
 
-#include "net/quiche/common/platform/impl/quiche_export_impl.h"
+#include "common/platform/impl/quiche_export_impl.h"
 
 // quiche_export_impl.h defines the following macros:
 // - QUICHE_EXPORT is not meant to be used.

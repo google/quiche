@@ -9,6 +9,7 @@
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_received_packet_manager.h"
 #include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_socket_address.h"
 #include "quic/test_tools/quic_framer_peer.h"
 #include "quic/test_tools/quic_sent_packet_manager_peer.h"
 
@@ -384,10 +385,9 @@ size_t QuicConnectionPeer::NumUndecryptablePackets(QuicConnection* connection) {
 }
 
 // static
-const QuicCircularDeque<std::pair<QuicPathFrameBuffer, QuicSocketAddress>>&
-QuicConnectionPeer::pending_path_challenge_payloads(
+size_t QuicConnectionPeer::NumPendingPathChallengesToResponse(
     QuicConnection* connection) {
-  return connection->pending_path_challenge_payloads_;
+  return connection->pending_path_challenge_payloads_.size();
 }
 
 void QuicConnectionPeer::SetConnectionClose(QuicConnection* connection) {
@@ -410,6 +410,20 @@ void QuicConnectionPeer::SetLastPacketDestinationAddress(
 QuicPathValidator* QuicConnectionPeer::path_validator(
     QuicConnection* connection) {
   return &connection->path_validator_;
+}
+
+//  static
+QuicByteCount QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(
+    QuicConnection* connection) {
+  return connection->most_recent_alternative_path_
+      .bytes_sent_before_address_validation_;
+}
+
+//  static
+QuicByteCount QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
+    QuicConnection* connection) {
+  return connection->most_recent_alternative_path_
+      .bytes_sent_before_address_validation_;
 }
 
 }  // namespace test

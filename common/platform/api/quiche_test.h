@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 
-#include "net/quiche/common/platform/impl/quiche_test_impl.h"
+#include "common/platform/impl/quiche_test_impl.h"
 
 using QuicheTest = quiche::test::QuicheTest;
 
