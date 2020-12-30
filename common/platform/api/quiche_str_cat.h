@@ -8,7 +8,7 @@
 #include <string>
 #include <utility>
 
-#include "common/platform/impl/quiche_str_cat_impl.h"
+#include "net/quiche/common/platform/impl/quiche_str_cat_impl.h"
 
 namespace quiche {
 
