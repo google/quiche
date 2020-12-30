@@ -125,6 +125,24 @@ void SimpleSessionNotifier::WriteOrBufferPing() {
   WriteBufferedControlFrames();
 }
 
+void SimpleSessionNotifier::WriteOrBufferAckFrequency(
+    const QuicAckFrequencyFrame& ack_frequency_frame) {
+  QUIC_DVLOG(1) << "Writing ACK_FREQUENCY";
+  const bool had_buffered_data =
+      HasBufferedStreamData() || HasBufferedControlFrames();
+  QuicControlFrameId control_frame_id = ++last_control_frame_id_;
+  control_frames_.emplace_back((
+      QuicFrame(new QuicAckFrequencyFrame(control_frame_id,
+                                          /*sequence_number=*/control_frame_id,
+                                          ack_frequency_frame.packet_tolerance,
+                                          ack_frequency_frame.max_ack_delay))));
+  if (had_buffered_data) {
+    QUIC_DLOG(WARNING) << "Connection is write blocked";
+    return;
+  }
+  WriteBufferedControlFrames();
+}
+
 void SimpleSessionNotifier::NeuterUnencryptedData() {
   if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
     for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {

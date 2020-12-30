@@ -35,6 +35,10 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
   // Tries to write PING.
   void WriteOrBufferPing();
 
+  // Tries to write ACK_FREQUENCY.
+  void WriteOrBufferAckFrequency(
+      const QuicAckFrequencyFrame& ack_frequency_frame);
+
   // Tries to write CRYPTO data and returns the number of bytes written.
   size_t WriteCryptoData(EncryptionLevel level,
                          QuicByteCount data_length,

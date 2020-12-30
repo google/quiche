@@ -12750,7 +12750,7 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   ASSERT_FALSE(writer_->ack_frames().empty());
-  if (GetQuicReloadableFlag(quic_single_ack_in_packet)) {
+  if (GetQuicReloadableFlag(quic_single_ack_in_packet2)) {
     EXPECT_EQ(1u, writer_->ack_frames().size());
   } else {
     EXPECT_EQ(2u, writer_->ack_frames().size());
@@ -13068,6 +13068,33 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
                                   kNewPeerAddress, ENCRYPTION_INITIAL);
   EXPECT_FALSE(connection_.connected());
+}
+
+// Regresstion test for b/175685916
+TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
+  if (!version().HasIetfQuicFrames()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
+  SetQuicReloadableFlag(quic_single_ack_in_packet2, true);
+  set_perspective(Perspective::IS_SERVER);
+
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedMinAckDelayMs(&config, /*min_ack_delay_ms=*/1);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  QuicPacketCreatorPeer::SetPacketNumber(creator_, 200);
+
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
+  // Sending ACK_FREQUENCY bundles ACK. QuicConnectionPeer::SendPing
+  // will try to bundle ACK but there is no pending ACK.
+  EXPECT_CALL(visitor_, SendAckFrequency(_))
+      .WillOnce(Invoke(&notifier_,
+                       &SimpleSessionNotifier::WriteOrBufferAckFrequency));
+  QuicConnectionPeer::SendPing(&connection_);
 }
 
 }  // namespace
