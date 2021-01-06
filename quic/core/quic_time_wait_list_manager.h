@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "quic/core/quic_blocked_writer_interface.h"
+#include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_framer.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_packets.h"
@@ -31,10 +32,12 @@ class QuicTimeWaitListManagerPeer;
 struct QUIC_NO_EXPORT TimeWaitConnectionInfo {
   TimeWaitConnectionInfo(
       bool ietf_quic,
-      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets);
+      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+      std::vector<QuicConnectionId> active_connection_ids);
   TimeWaitConnectionInfo(
       bool ietf_quic,
       std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+      std::vector<QuicConnectionId> active_connection_ids,
       QuicTime::Delta srtt);
 
   TimeWaitConnectionInfo(const TimeWaitConnectionInfo& other) = delete;
@@ -44,6 +47,7 @@ struct QUIC_NO_EXPORT TimeWaitConnectionInfo {
 
   bool ietf_quic;
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
+  std::vector<QuicConnectionId> active_connection_ids;
   QuicTime::Delta srtt;
 };
 
@@ -278,7 +282,32 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   using ConnectionIdMap = QuicLinkedHashMap<QuicConnectionId,
                                             ConnectionIdData,
                                             QuicConnectionIdHash>;
+  // Do not use find/emplace/erase on this map directly. Use
+  // FindConnectionIdDataInMap, AddConnectionIdDateToMap,
+  // RemoveConnectionDataFromMap instead.
   ConnectionIdMap connection_id_map_;
+
+  // TODO(haoyuewang) Consider making connection_id_map_ a map of shared pointer
+  // and remove the indirect map.
+  // A connection can have multiple unretired ConnectionIds when it is closed.
+  // These Ids have the same ConnectionIdData entry in connection_id_map_. To
+  // find the entry, look up the cannoical ConnectionId in
+  // indirect_connection_id_map_ first, and look up connection_id_map_ with the
+  // cannoical ConnectionId.
+  QuicHashMap<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>
+      indirect_connection_id_map_;
+
+  // Find an iterator for the given connection_id. Returns
+  // connection_id_map_.end() if none found.
+  ConnectionIdMap::iterator FindConnectionIdDataInMap(
+      const QuicConnectionId& connection_id);
+  // Inserts a ConnectionIdData entry to connection_id_map_.
+  void AddConnectionIdDataToMap(const QuicConnectionId& canonical_connection_id,
+                                int num_packets,
+                                TimeWaitAction action,
+                                TimeWaitConnectionInfo info);
+  // Removes a ConnectionIdData entry in connection_id_map_.
+  void RemoveConnectionDataFromMap(ConnectionIdMap::iterator it);
 
   // Pending termination packets that need to be sent out to the peer when we
   // are given a chance to write by the dispatcher.
@@ -299,6 +328,11 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
 
   // Interface that manages blocked writers.
   Visitor* visitor_;
+
+  // When this is default true, remove the connection_id argument of
+  // AddConnectionIdToTimeWait.
+  bool use_indirect_connection_id_map_ =
+      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid);
 };
 
 }  // namespace quic

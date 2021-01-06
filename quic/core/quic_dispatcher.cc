@@ -160,7 +160,8 @@ class StatelessConnectionTerminator {
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         server_connection_id_,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-        TimeWaitConnectionInfo(ietf_quic, collector_.packets()));
+        TimeWaitConnectionInfo(ietf_quic, collector_.packets(),
+                               {server_connection_id_}));
   }
 
  private:
@@ -831,6 +832,7 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
       TimeWaitConnectionInfo(
           connection->version().HasIetfInvariantHeader(),
           connection->termination_packets(),
+          connection->GetActiveServerConnectionIds(),
           connection->sent_packet_manager().GetRttStats()->smoothed_rtt()));
 }
 
@@ -1072,7 +1074,8 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         server_connection_id, action,
-        TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr));
+        TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr,
+                               {server_connection_id}));
     return;
   }
 
@@ -1108,7 +1111,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       server_connection_id, QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
-                             &termination_packets));
+                             &termination_packets, {server_connection_id}));
 }
 
 bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(

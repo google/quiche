@@ -5562,6 +5562,11 @@ void QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   OnSuccessfulMigration();
 }
 
+std::vector<QuicConnectionId> QuicConnection::GetActiveServerConnectionIds()
+    const {
+  return {server_connection_id_};
+}
+
 void QuicConnection::SetUnackedMapInitialCapacity() {
   sent_packet_manager_.ReserveUnackedPacketsInitialCapacity(
       GetUnackedMapInitialCapacity());

@@ -1178,6 +1178,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                         : encryption_level_);
   }
 
+  virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
