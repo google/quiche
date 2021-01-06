@@ -81,6 +81,15 @@ class QUIC_EXPORT_PRIVATE QuicSession
     // Called when the session receives a STOP_SENDING for a stream from the
     // peer.
     virtual void OnStopSendingReceived(const QuicStopSendingFrame& frame) = 0;
+
+    // Called when a NewConnectionId frame has been sent.
+    virtual void OnNewConnectionIdSent(
+        const QuicConnectionId& server_connection_id,
+        const QuicConnectionId& new_connection_id) = 0;
+
+    // Called when a ConnectionId has been retired.
+    virtual void OnConnectionIdRetired(
+        const QuicConnectionId& server_connection_id) = 0;
   };
 
   // Does not take ownership of |connection| or |visitor|.

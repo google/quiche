@@ -16,7 +16,9 @@
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
 #include "quic/core/crypto/quic_random.h"
+#include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/quic_config.h"
+#include "quic/core/quic_connection.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_crypto_stream.h"
 #include "quic/core/quic_packet_writer_wrapper.h"
@@ -33,6 +35,7 @@
 #include "quic/test_tools/first_flight.h"
 #include "quic/test_tools/mock_quic_time_wait_list_manager.h"
 #include "quic/test_tools/quic_buffered_packet_store_peer.h"
+#include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_crypto_server_config_peer.h"
 #include "quic/test_tools/quic_dispatcher_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
@@ -183,7 +186,26 @@ class MockServerConnection : public MockQuicConnection {
                            helper,
                            alarm_factory,
                            Perspective::IS_SERVER),
-        dispatcher_(dispatcher) {}
+        dispatcher_(dispatcher),
+        active_connection_ids_({connection_id}) {}
+
+  void AddNewConnectionId(QuicConnectionId id) {
+    dispatcher_->OnNewConnectionIdSent(active_connection_ids_.back(), id);
+    QuicConnectionPeer::SetServerConnectionId(this, id);
+    active_connection_ids_.push_back(id);
+  }
+
+  void RetireConnectionId(QuicConnectionId id) {
+    auto it = std::find(active_connection_ids_.begin(),
+                        active_connection_ids_.end(), id);
+    DCHECK(it != active_connection_ids_.end());
+    dispatcher_->OnConnectionIdRetired(id);
+    active_connection_ids_.erase(it);
+  }
+
+  std::vector<QuicConnectionId> GetActiveServerConnectionIds() const override {
+    return active_connection_ids_;
+  }
 
   void UnregisterOnConnectionClosed() {
     QUIC_LOG(ERROR) << "Unregistering " << connection_id();
@@ -194,6 +216,7 @@ class MockServerConnection : public MockQuicConnection {
 
  private:
   QuicDispatcher* dispatcher_;
+  std::vector<QuicConnectionId> active_connection_ids_;
 };
 
 class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
@@ -1943,6 +1966,190 @@ TEST_P(QuicDispatcherWriteBlockedListTest,
   EXPECT_QUIC_BUG(dispatcher_->DeleteSessions(),
                   "QuicConnection was in WriteBlockedList before destruction");
   MarkSession1Deleted();
+}
+
+class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
+    : public QuicDispatcherTestBase {
+ public:
+  QuicDispatcherSupportMultipleConnectionIdPerConnectionTest()
+      : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {
+    SetQuicRestartFlag(quic_use_reference_counted_sesssion_map, true);
+    SetQuicRestartFlag(quic_time_wait_list_support_multiple_cid, true);
+    SetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection,
+                       true);
+    dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
+        &config_, &crypto_config_, &version_manager_,
+        mock_helper_.GetRandomGenerator());
+  }
+  void AddConnection1() {
+    QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
+    EXPECT_CALL(*dispatcher_,
+                CreateQuicSession(_, _, client_address, Eq(ExpectedAlpn()), _))
+        .WillOnce(Return(ByMove(CreateSession(
+            dispatcher_.get(), config_, TestConnectionId(1), client_address,
+            &helper_, &alarm_factory_, &crypto_config_,
+            QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+                ProcessUdpPacket(_, _, _))
+        .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+          ValidatePacket(TestConnectionId(1), packet);
+        })));
+    EXPECT_CALL(*dispatcher_,
+                ShouldCreateOrBufferPacketForConnection(
+                    ReceivedPacketInfoConnectionIdEquals(TestConnectionId(1))));
+    ProcessFirstFlight(client_address, TestConnectionId(1));
+  }
+
+  void AddConnection2() {
+    QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 2);
+    EXPECT_CALL(*dispatcher_,
+                CreateQuicSession(_, _, client_address, Eq(ExpectedAlpn()), _))
+        .WillOnce(Return(ByMove(CreateSession(
+            dispatcher_.get(), config_, TestConnectionId(2), client_address,
+            &helper_, &alarm_factory_, &crypto_config_,
+            QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_))));
+    EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
+                ProcessUdpPacket(_, _, _))
+        .WillOnce(WithArg<2>(Invoke([this](const QuicEncryptedPacket& packet) {
+          ValidatePacket(TestConnectionId(2), packet);
+        })));
+    EXPECT_CALL(*dispatcher_,
+                ShouldCreateOrBufferPacketForConnection(
+                    ReceivedPacketInfoConnectionIdEquals(TestConnectionId(2))));
+    ProcessFirstFlight(client_address, TestConnectionId(2));
+  }
+
+ protected:
+  MockQuicConnectionHelper helper_;
+  MockAlarmFactory alarm_factory_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    QuicDispatcherSupportMultipleConnectionIdPerConnectionTests,
+    QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+    ::testing::Values(CurrentSupportedVersions().front()),
+    ::testing::PrintToStringParamName());
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       OnNewConnectionIdSent) {
+  AddConnection1();
+  ASSERT_EQ(dispatcher_->NumSessions(), 1u);
+  ASSERT_THAT(session1_, testing::NotNull());
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+
+  {
+    mock_server_connection1->AddNewConnectionId(TestConnectionId(3));
+    EXPECT_EQ(dispatcher_->NumSessions(), 1u);
+    auto* session =
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(3));
+    ASSERT_EQ(session, session1_);
+  }
+
+  {
+    mock_server_connection1->AddNewConnectionId(TestConnectionId(4));
+    EXPECT_EQ(dispatcher_->NumSessions(), 1u);
+    auto* session =
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(4));
+    ASSERT_EQ(session, session1_);
+  }
+
+  EXPECT_CALL(*connection1(), CloseConnection(QUIC_PEER_GOING_AWAY, _, _));
+  // Would timed out unless all sessions have been removed from the session map.
+  dispatcher_->Shutdown();
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       RetireConnectionIdFromSingleConnection) {
+  AddConnection1();
+  ASSERT_EQ(dispatcher_->NumSessions(), 1u);
+  ASSERT_THAT(session1_, testing::NotNull());
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+
+  // Adds 1 new connection id every turn and retires 2 connection ids every
+  // other turn.
+  for (int i = 2; i < 10; ++i) {
+    mock_server_connection1->AddNewConnectionId(TestConnectionId(i));
+    ASSERT_EQ(
+        QuicDispatcherPeer::FindSession(dispatcher_.get(), TestConnectionId(i)),
+        session1_);
+    ASSERT_EQ(QuicDispatcherPeer::FindSession(dispatcher_.get(),
+                                              TestConnectionId(i - 1)),
+              session1_);
+    EXPECT_EQ(dispatcher_->NumSessions(), 1u);
+    if (i % 2 == 1) {
+      mock_server_connection1->RetireConnectionId(TestConnectionId(i - 2));
+      mock_server_connection1->RetireConnectionId(TestConnectionId(i - 1));
+    }
+  }
+
+  EXPECT_CALL(*connection1(), CloseConnection(QUIC_PEER_GOING_AWAY, _, _));
+  // Would timed out unless all sessions have been removed from the session map.
+  dispatcher_->Shutdown();
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       RetireConnectionIdFromMultipleConnections) {
+  AddConnection1();
+  AddConnection2();
+  ASSERT_EQ(dispatcher_->NumSessions(), 2u);
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+  MockServerConnection* mock_server_connection2 =
+      reinterpret_cast<MockServerConnection*>(connection2());
+
+  for (int i = 2; i < 10; ++i) {
+    mock_server_connection1->AddNewConnectionId(TestConnectionId(2 * i - 1));
+    mock_server_connection2->AddNewConnectionId(TestConnectionId(2 * i));
+    ASSERT_EQ(QuicDispatcherPeer::FindSession(dispatcher_.get(),
+                                              TestConnectionId(2 * i - 1)),
+              session1_);
+    ASSERT_EQ(QuicDispatcherPeer::FindSession(dispatcher_.get(),
+                                              TestConnectionId(2 * i)),
+              session2_);
+    EXPECT_EQ(dispatcher_->NumSessions(), 2u);
+    mock_server_connection1->RetireConnectionId(TestConnectionId(2 * i - 3));
+    mock_server_connection2->RetireConnectionId(TestConnectionId(2 * i - 2));
+  }
+
+  mock_server_connection1->AddNewConnectionId(TestConnectionId(19));
+  mock_server_connection2->AddNewConnectionId(TestConnectionId(20));
+  EXPECT_CALL(*connection1(), CloseConnection(QUIC_PEER_GOING_AWAY, _, _));
+  EXPECT_CALL(*connection2(), CloseConnection(QUIC_PEER_GOING_AWAY, _, _));
+  // Would timed out unless all sessions have been removed from the session map.
+  dispatcher_->Shutdown();
+}
+
+TEST_P(QuicDispatcherSupportMultipleConnectionIdPerConnectionTest,
+       TimeWaitListPoplulateCorrectly) {
+  QuicTimeWaitListManager* time_wait_list_manager =
+      QuicDispatcherPeer::GetTimeWaitListManager(dispatcher_.get());
+  AddConnection1();
+  MockServerConnection* mock_server_connection1 =
+      reinterpret_cast<MockServerConnection*>(connection1());
+
+  mock_server_connection1->AddNewConnectionId(TestConnectionId(2));
+  mock_server_connection1->AddNewConnectionId(TestConnectionId(3));
+  mock_server_connection1->AddNewConnectionId(TestConnectionId(4));
+  mock_server_connection1->RetireConnectionId(TestConnectionId(1));
+  mock_server_connection1->RetireConnectionId(TestConnectionId(2));
+
+  EXPECT_CALL(*connection1(), CloseConnection(QUIC_PEER_GOING_AWAY, _, _));
+  connection1()->CloseConnection(
+      QUIC_PEER_GOING_AWAY, "Close for testing",
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+
+  EXPECT_FALSE(
+      time_wait_list_manager->IsConnectionIdInTimeWait(TestConnectionId(1)));
+  EXPECT_FALSE(
+      time_wait_list_manager->IsConnectionIdInTimeWait(TestConnectionId(2)));
+  EXPECT_TRUE(
+      time_wait_list_manager->IsConnectionIdInTimeWait(TestConnectionId(3)));
+  EXPECT_TRUE(
+      time_wait_list_manager->IsConnectionIdInTimeWait(TestConnectionId(4)));
+
+  dispatcher_->Shutdown();
 }
 
 class BufferedPacketStoreTest : public QuicDispatcherTestBase {

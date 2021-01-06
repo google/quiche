@@ -35,6 +35,15 @@ class MockQuicSessionVisitor : public QuicTimeWaitListManager::Visitor {
               (const QuicStopSendingFrame& frame),
               (override));
   MOCK_METHOD(void,
+              OnNewConnectionIdSent,
+              (const QuicConnectionId& server_connection_id,
+               const QuicConnectionId& new_connection_id),
+              (override));
+  MOCK_METHOD(void,
+              OnConnectionIdRetired,
+              (const quic::QuicConnectionId& server_connection_id),
+              (override));
+  MOCK_METHOD(void,
               OnConnectionAddedToTimeWaitList,
               (QuicConnectionId connection_id),
               (override));

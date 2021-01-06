@@ -13,6 +13,7 @@
 #include "quic/core/chlo_extractor.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/crypto/quic_random.h"
+#include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_time_wait_list_manager.h"
@@ -154,14 +155,16 @@ class StatelessConnectionTerminator {
   // |error_code| and |error_details| and add the connection to time wait.
   void CloseConnection(QuicErrorCode error_code,
                        const std::string& error_details,
-                       bool ietf_quic) {
+                       bool ietf_quic,
+                       std::vector<QuicConnectionId> active_connection_ids) {
     SerializeConnectionClosePacket(error_code, error_details);
 
     time_wait_list_manager_->AddConnectionIdToTimeWait(
         server_connection_id_,
         QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
         TimeWaitConnectionInfo(ietf_quic, collector_.packets(),
-                               {server_connection_id_}));
+                               std::move(active_connection_ids),
+                               /*srtt=*/QuicTime::Delta::Zero()));
   }
 
  private:
@@ -323,6 +326,10 @@ QuicDispatcher::QuicDispatcher(
   if (use_reference_counted_session_map_) {
     QUIC_RESTART_FLAG_COUNT(quic_use_reference_counted_sesssion_map);
   }
+  if (support_multiple_cid_per_connection_) {
+    QUIC_RESTART_FLAG_COUNT(
+        quic_dispatcher_support_multiple_cid_per_connection);
+  }
   QUIC_BUG_IF(GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
@@ -333,6 +340,9 @@ QuicDispatcher::~QuicDispatcher() {
   if (use_reference_counted_session_map_) {
     reference_counted_session_map_.clear();
     closed_ref_counted_session_list_.clear();
+    if (support_multiple_cid_per_connection_) {
+      num_sessions_in_session_map_ = 0;
+    }
   } else {
     session_map_.clear();
     closed_session_list_.clear();
@@ -807,22 +817,35 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
       } else {
         QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
       }
-      action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
-      // This serializes a connection close termination packet with error code
-      // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
-      StatelesslyTerminateConnection(
-          connection->connection_id(),
-          connection->version().HasIetfInvariantHeader()
-              ? IETF_QUIC_LONG_HEADER_PACKET
-              : GOOGLE_QUIC_PACKET,
-          /*version_flag=*/true,
-          connection->version().HasLengthPrefixedConnectionIds(),
-          connection->version(), QUIC_HANDSHAKE_FAILED,
-          "Connection is closed by server before handshake confirmed",
-          // Although it is our intention to send termination packets, the
-          // |action| argument is not used by this call to
-          // StatelesslyTerminateConnection().
-          action);
+      if (support_multiple_cid_per_connection_) {
+        // This serializes a connection close termination packet with error code
+        // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
+        StatelessConnectionTerminator terminator(
+            server_connection_id, connection->version(), helper_.get(),
+            time_wait_list_manager_.get());
+        terminator.CloseConnection(
+            QUIC_HANDSHAKE_FAILED,
+            "Connection is closed by server before handshake confirmed",
+            connection->version().HasIetfInvariantHeader(),
+            connection->GetActiveServerConnectionIds());
+      } else {
+        action = QuicTimeWaitListManager::SEND_TERMINATION_PACKETS;
+        // This serializes a connection close termination packet with error code
+        // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
+        StatelesslyTerminateConnection(
+            connection->connection_id(),
+            connection->version().HasIetfInvariantHeader()
+                ? IETF_QUIC_LONG_HEADER_PACKET
+                : GOOGLE_QUIC_PACKET,
+            /*version_flag=*/true,
+            connection->version().HasLengthPrefixedConnectionIds(),
+            connection->version(), QUIC_HANDSHAKE_FAILED,
+            "Connection is closed by server before handshake confirmed",
+            // Although it is our intention to send termination packets, the
+            // |action| argument is not used by this call to
+            // StatelesslyTerminateConnection().
+            action);
+      }
       return;
     }
     QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_stateless_reset);
@@ -1001,7 +1024,15 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
       closed_ref_counted_session_list_.push_back(std::move(it->second));
     }
     CleanUpSession(it->first, connection, source);
-    reference_counted_session_map_.erase(it);
+    if (support_multiple_cid_per_connection_) {
+      for (const QuicConnectionId& cid :
+           connection->GetActiveServerConnectionIds()) {
+        reference_counted_session_map_.erase(cid);
+      }
+      --num_sessions_in_session_map_;
+    } else {
+      reference_counted_session_map_.erase(it);
+    }
   } else {
     auto it = session_map_.find(server_connection_id);
     if (it == session_map_.end()) {
@@ -1052,6 +1083,29 @@ void QuicDispatcher::OnRstStreamReceived(const QuicRstStreamFrame& /*frame*/) {}
 void QuicDispatcher::OnStopSendingReceived(
     const QuicStopSendingFrame& /*frame*/) {}
 
+void QuicDispatcher::OnNewConnectionIdSent(
+    const QuicConnectionId& server_connection_id,
+    const QuicConnectionId& new_connection_id) {
+  DCHECK(support_multiple_cid_per_connection_);
+  auto it = reference_counted_session_map_.find(server_connection_id);
+  if (it == reference_counted_session_map_.end()) {
+    QUIC_BUG << "Couldn't locate the session that issues the connection ID in "
+                "reference_counted_session_map_.  server_connection_id:"
+             << server_connection_id
+             << " new_connection_id: " << new_connection_id;
+    return;
+  }
+  auto insertion_result = reference_counted_session_map_.insert(
+      std::make_pair(new_connection_id, it->second));
+  DCHECK(insertion_result.second);
+}
+
+void QuicDispatcher::OnConnectionIdRetired(
+    const QuicConnectionId& server_connection_id) {
+  DCHECK(support_multiple_cid_per_connection_);
+  reference_counted_session_map_.erase(server_connection_id);
+}
+
 void QuicDispatcher::OnConnectionAddedToTimeWaitList(
     QuicConnectionId server_connection_id) {
   QUIC_DLOG(INFO) << "Connection " << server_connection_id
@@ -1091,8 +1145,9 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                                              helper_.get(),
                                              time_wait_list_manager_.get());
     // This also adds the connection to time wait list.
-    terminator.CloseConnection(error_code, error_details,
-                               format != GOOGLE_QUIC_PACKET);
+    terminator.CloseConnection(
+        error_code, error_details, format != GOOGLE_QUIC_PACKET,
+        /*active_connection_ids=*/{server_connection_id});
     return;
   }
 
@@ -1164,10 +1219,14 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
       auto insertion_result = reference_counted_session_map_.insert(
           std::make_pair(server_connection_id,
                          std::shared_ptr<QuicSession>(std::move(session))));
-      QUIC_BUG_IF(!insertion_result.second)
-          << "Tried to add a session to session_map with existing connection "
-             "id: "
-          << server_connection_id;
+      if (!insertion_result.second) {
+        QUIC_BUG
+            << "Tried to add a session to session_map with existing connection "
+               "id: "
+            << server_connection_id;
+      } else if (support_multiple_cid_per_connection_) {
+        ++num_sessions_in_session_map_;
+      }
       DeliverPacketsToSession(packets, insertion_result.first->second.get());
     } else {
       auto insertion_result = session_map_.insert(
@@ -1279,9 +1338,13 @@ void QuicDispatcher::ProcessChlo(const std::vector<std::string>& alpns,
         reference_counted_session_map_.insert(std::make_pair(
             packet_info->destination_connection_id,
             std::shared_ptr<QuicSession>(std::move(session.release()))));
-    QUIC_BUG_IF(!insertion_result.second)
-        << "Tried to add a session to session_map with existing connection id: "
-        << packet_info->destination_connection_id;
+    if (!insertion_result.second) {
+      QUIC_BUG << "Tried to add a session to session_map with existing "
+                  "connection id: "
+               << packet_info->destination_connection_id;
+    } else if (support_multiple_cid_per_connection_) {
+      ++num_sessions_in_session_map_;
+    }
     session_ptr = insertion_result.first->second.get();
   } else {
     auto insertion_result = session_map_.insert(std::make_pair(
@@ -1363,6 +1426,15 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
       packet_info.self_address, packet_info.peer_address,
       packet_info.destination_connection_id,
       packet_info.form != GOOGLE_QUIC_PACKET, GetPerPacketContext());
+}
+
+size_t QuicDispatcher::NumSessions() const {
+  if (support_multiple_cid_per_connection_) {
+    return num_sessions_in_session_map_;
+  }
+  return use_reference_counted_session_map_
+             ? reference_counted_session_map_.size()
+             : session_map_.size();
 }
 
 }  // namespace quic

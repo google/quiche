@@ -129,5 +129,19 @@ QuicSession* QuicDispatcherPeer::GetFirstSessionIfAny(
   }
 }
 
+// static
+const QuicSession* QuicDispatcherPeer::FindSession(
+    const QuicDispatcher* dispatcher,
+    QuicConnectionId id) {
+  if (dispatcher->use_reference_counted_session_map()) {
+    auto it = dispatcher->reference_counted_session_map_.find(id);
+    return (it == dispatcher->reference_counted_session_map_.end())
+               ? nullptr
+               : it->second.get();
+  }
+  auto it = dispatcher->session_map_.find(id);
+  return (it == dispatcher->session_map_.end()) ? nullptr : it->second.get();
+}
+
 }  // namespace test
 }  // namespace quic

@@ -100,6 +100,19 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Collects reset error code received on streams.
   void OnStopSendingReceived(const QuicStopSendingFrame& frame) override;
 
+  // QuicSession::Visitor interface implementation (via inheritance of
+  // QuicTimeWaitListManager::Visitor):
+  // Add the newly issued connection ID to the session map.
+  void OnNewConnectionIdSent(
+      const QuicConnectionId& server_connection_id,
+      const QuicConnectionId& new_connection_id) override;
+
+  // QuicSession::Visitor interface implementation (via inheritance of
+  // QuicTimeWaitListManager::Visitor):
+  // Remove the retired connection ID from the session map.
+  void OnConnectionIdRetired(
+      const QuicConnectionId& server_connection_id) override;
+
   // QuicTimeWaitListManager::Visitor interface implementation
   // Called whenever the time wait list manager adds a new connection to the
   // time-wait list.
@@ -114,13 +127,7 @@ class QUIC_NO_EXPORT QuicDispatcher
                                                  std::shared_ptr<QuicSession>,
                                                  QuicConnectionIdHash>;
 
-  // TODO(haoyuewang) Update this function when multiple CIDs per connection are
-  // supported.
-  size_t NumSessions() const {
-    return use_reference_counted_session_map_
-               ? reference_counted_session_map_.size()
-               : session_map_.size();
-  }
+  size_t NumSessions() const;
 
   const SessionMap& session_map() const { return session_map_; }
 
@@ -159,6 +166,10 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   bool use_reference_counted_session_map() const {
     return use_reference_counted_session_map_;
+  }
+
+  bool support_multiple_cid_per_connection() const {
+    return support_multiple_cid_per_connection_;
   }
 
  protected:
@@ -412,6 +423,9 @@ class QUIC_NO_EXPORT QuicDispatcher
   // TODO(fayang): consider removing last_error_.
   QuicErrorCode last_error_;
 
+  // Number of unique session in session map.
+  size_t num_sessions_in_session_map_ = 0;
+
   // A backward counter of how many new sessions can be create within current
   // event loop. When reaches 0, it means can't create sessions for now.
   int16_t new_sessions_allowed_per_event_loop_;
@@ -439,6 +453,10 @@ class QUIC_NO_EXPORT QuicDispatcher
 
   const bool use_reference_counted_session_map_ =
       GetQuicRestartFlag(quic_use_reference_counted_sesssion_map);
+  const bool support_multiple_cid_per_connection_ =
+      use_reference_counted_session_map_ &&
+      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid) &&
+      GetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection);
 };
 
 }  // namespace quic
