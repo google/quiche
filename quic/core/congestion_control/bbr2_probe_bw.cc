@@ -510,7 +510,7 @@ void Bbr2ProbeBwMode::EnterProbeDown(bool probed_too_high,
 
   cycle_.probe_up_bytes = std::numeric_limits<QuicByteCount>::max();
   cycle_.has_advanced_max_bw = false;
-  model_->RestartRound();
+  model_->RestartRoundEarly();
 }
 
 void Bbr2ProbeBwMode::EnterProbeCruise(QuicTime now) {
@@ -549,7 +549,7 @@ void Bbr2ProbeBwMode::EnterProbeRefill(uint64_t probe_up_rounds, QuicTime now) {
   model_->clear_inflight_lo();
   cycle_.probe_up_rounds = probe_up_rounds;
   cycle_.probe_up_acked = 0;
-  model_->RestartRound();
+  model_->RestartRoundEarly();
 }
 
 void Bbr2ProbeBwMode::EnterProbeUp(QuicTime now) {
@@ -564,7 +564,7 @@ void Bbr2ProbeBwMode::EnterProbeUp(QuicTime now) {
   cycle_.is_sample_from_probing = true;
   RaiseInflightHighSlope();
 
-  model_->RestartRound();
+  model_->RestartRoundEarly();
 }
 
 void Bbr2ProbeBwMode::ExitProbeDown() {

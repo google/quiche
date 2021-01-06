@@ -8,6 +8,7 @@
 #include "quic/core/quic_bandwidth.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -272,8 +273,13 @@ void Bbr2NetworkModel::OnCongestionEventFinish(
     QuicPacketNumber least_unacked_packet,
     const Bbr2CongestionEvent& congestion_event) {
   if (congestion_event.end_of_round_trip) {
-    bytes_lost_in_round_ = 0;
-    loss_events_in_round_ = 0;
+    if (!reset_max_bytes_delivered_) {
+      bytes_lost_in_round_ = 0;
+      loss_events_in_round_ = 0;
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_reset_max_bytes_delivered, 1, 2);
+      OnNewRound();
+    }
   }
 
   bandwidth_sampler_.RemoveObsoletePackets(least_unacked_packet);
@@ -347,11 +353,23 @@ bool Bbr2NetworkModel::IsInflightTooHigh(
   return false;
 }
 
-void Bbr2NetworkModel::RestartRound() {
+void Bbr2NetworkModel::RestartRoundEarly() {
+  if (!reset_max_bytes_delivered_) {
+    bytes_lost_in_round_ = 0;
+    loss_events_in_round_ = 0;
+    max_bytes_delivered_in_round_ = 0;
+  } else {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bbr2_reset_max_bytes_delivered, 2, 2);
+    OnNewRound();
+  }
+  round_trip_counter_.RestartRound();
+}
+
+void Bbr2NetworkModel::OnNewRound() {
+  DCHECK(reset_max_bytes_delivered_);
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
   max_bytes_delivered_in_round_ = 0;
-  round_trip_counter_.RestartRound();
 }
 
 void Bbr2NetworkModel::cap_inflight_lo(QuicByteCount cap) {

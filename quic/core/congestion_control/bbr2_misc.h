@@ -359,7 +359,7 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   void AdaptLowerBounds(const Bbr2CongestionEvent& congestion_event);
 
   // Restart the current round trip as if it is starting now.
-  void RestartRound();
+  void RestartRoundEarly();
 
   void AdvanceMaxBandwidthFilter() { max_bandwidth_filter_.Advance(); }
 
@@ -509,6 +509,9 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   }
 
  private:
+  // Called when a new round trip starts.
+  void OnNewRound();
+
   const Bbr2Params& Params() const { return *params_; }
   const Bbr2Params* const params_;
   RoundTripCounter round_trip_counter_;
@@ -550,6 +553,8 @@ class QUIC_EXPORT_PRIVATE Bbr2NetworkModel {
   bool full_bandwidth_reached_ = false;
   QuicBandwidth full_bandwidth_baseline_ = QuicBandwidth::Zero();
   QuicRoundTripCount rounds_without_bandwidth_growth_ = 0;
+  const bool reset_max_bytes_delivered_ =
+      GetQuicReloadableFlag(quic_bbr2_reset_max_bytes_delivered);
 };
 
 enum class Bbr2Mode : uint8_t {
