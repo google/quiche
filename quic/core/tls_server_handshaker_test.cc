@@ -15,12 +15,14 @@
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/core/tls_client_handshaker.h"
+#include "quic/core/tls_server_handshaker.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/crypto_test_utils.h"
 #include "quic/test_tools/failing_proof_source.h"
 #include "quic/test_tools/fake_proof_source.h"
+#include "quic/test_tools/fake_proof_source_handle.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_session_cache.h"
 #include "quic/test_tools/test_ticket_crypter.h"
@@ -64,6 +66,68 @@ std::vector<TestParams> GetTestParams() {
   }
   return params;
 }
+
+class TestTlsServerHandshaker : public TlsServerHandshaker {
+ public:
+  TestTlsServerHandshaker(QuicSession* session,
+                          const QuicCryptoServerConfig* crypto_config)
+      : TlsServerHandshaker(session, crypto_config),
+        proof_source_(crypto_config->proof_source()) {
+    ON_CALL(*this, MaybeCreateProofSourceHandle())
+        .WillByDefault(testing::Invoke(
+            this, &TestTlsServerHandshaker::RealMaybeCreateProofSourceHandle));
+  }
+
+  MOCK_METHOD(std::unique_ptr<ProofSourceHandle>,
+              MaybeCreateProofSourceHandle,
+              (),
+              (override));
+
+  void SetupProofSourceHandle(
+      FakeProofSourceHandle::Action select_cert_action,
+      FakeProofSourceHandle::Action compute_signature_action) {
+    EXPECT_CALL(*this, MaybeCreateProofSourceHandle())
+        .WillOnce(testing::Invoke(
+            [this, select_cert_action, compute_signature_action]() {
+              auto handle = std::make_unique<FakeProofSourceHandle>(
+                  proof_source_, this, select_cert_action,
+                  compute_signature_action);
+              fake_proof_source_handle_ = handle.get();
+              return handle;
+            }));
+  }
+
+  FakeProofSourceHandle* fake_proof_source_handle() {
+    return fake_proof_source_handle_;
+  }
+
+ private:
+  std::unique_ptr<ProofSourceHandle> RealMaybeCreateProofSourceHandle() {
+    return TlsServerHandshaker::MaybeCreateProofSourceHandle();
+  }
+
+  // Owned by TlsServerHandshaker.
+  FakeProofSourceHandle* fake_proof_source_handle_ = nullptr;
+  ProofSource* proof_source_ = nullptr;
+};
+
+class TlsServerHandshakerTestSession : public TestQuicSpdyServerSession {
+ public:
+  using TestQuicSpdyServerSession::TestQuicSpdyServerSession;
+
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
+      const QuicCryptoServerConfig* crypto_config,
+      QuicCompressedCertsCache* /*compressed_certs_cache*/) override {
+    if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
+      return std::make_unique<NiceMock<TestTlsServerHandshaker>>(this,
+                                                                 crypto_config);
+    }
+
+    CHECK(false) << "Unsupported handshake protocol: "
+                 << connection()->version().handshake_protocol;
+    return nullptr;
+  }
+};
 
 class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
  public:
@@ -109,6 +173,46 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
         std::make_unique<FailingProofSource>(), KeyExchangeSource::Default());
   }
 
+  void CreateTlsServerHandshakerTestSession(MockQuicConnectionHelper* helper,
+                                            MockAlarmFactory* alarm_factory) {
+    server_connection_ = new PacketSavingConnection(
+        helper, alarm_factory, Perspective::IS_SERVER,
+        ParsedVersionOfIndex(supported_versions_, 0));
+
+    TlsServerHandshakerTestSession* server_session =
+        new TlsServerHandshakerTestSession(
+            server_connection_, DefaultQuicConfig(), supported_versions_,
+            server_crypto_config_.get(), &server_compressed_certs_cache_);
+    server_session->Initialize();
+
+    // We advance the clock initially because the default time is zero and the
+    // strike register worries that we've just overflowed a uint32_t time.
+    server_connection_->AdvanceTime(QuicTime::Delta::FromSeconds(100000));
+
+    CHECK(server_session);
+    server_session_.reset(server_session);
+  }
+
+  void InitializeServerWithFakeProofSourceHandle() {
+    helpers_.push_back(std::make_unique<NiceMock<MockQuicConnectionHelper>>());
+    alarm_factories_.push_back(std::make_unique<MockAlarmFactory>());
+    CreateTlsServerHandshakerTestSession(helpers_.back().get(),
+                                         alarm_factories_.back().get());
+    server_handshaker_ = static_cast<NiceMock<TestTlsServerHandshaker>*>(
+        server_session_->GetMutableCryptoStream());
+    EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
+        .Times(testing::AnyNumber());
+    EXPECT_CALL(*server_session_, SelectAlpn(_))
+        .WillRepeatedly([this](const std::vector<absl::string_view>& alpns) {
+          return std::find(
+              alpns.cbegin(), alpns.cend(),
+              AlpnForVersion(server_session_->connection()->version()));
+        });
+    crypto_test_utils::SetupCryptoServerConfigForTest(
+        server_connection_->clock(), server_connection_->random_generator(),
+        server_crypto_config_.get());
+  }
+
   // Initializes the crypto server stream state for testing.  May be
   // called multiple times.
   void InitializeServer() {
@@ -122,15 +226,15 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
         &server_connection_, &server_session);
     CHECK(server_session);
     server_session_.reset(server_session);
+    server_handshaker_ = nullptr;
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
-        .WillRepeatedly(
-            [this](const std::vector<absl::string_view>& alpns) {
-              return std::find(
-                  alpns.cbegin(), alpns.cend(),
-                  AlpnForVersion(server_session_->connection()->version()));
-            });
+        .WillRepeatedly([this](const std::vector<absl::string_view>& alpns) {
+          return std::find(
+              alpns.cbegin(), alpns.cend(),
+              AlpnForVersion(server_session_->connection()->version()));
+        });
     crypto_test_utils::SetupCryptoServerConfigForTest(
         server_connection_->clock(), server_connection_->random_generator(),
         server_crypto_config_.get());
@@ -231,8 +335,10 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   // Server state.
   PacketSavingConnection* server_connection_;
   std::unique_ptr<TestQuicSpdyServerSession> server_session_;
+  // Only set when initialized with InitializeServerWithFakeProofSourceHandle.
+  NiceMock<TestTlsServerHandshaker>* server_handshaker_ = nullptr;
   TestTicketCrypter* ticket_crypter_;  // owned by proof_source_
-  FakeProofSource* proof_source_;  // owned by server_crypto_config_
+  FakeProofSource* proof_source_;      // owned by server_crypto_config_
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
   QuicCompressedCertsCache server_compressed_certs_cache_;
   QuicServerId server_id_;
@@ -267,7 +373,58 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncProofSource) {
+TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
+  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
+        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+    return;
+  }
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+
+  ExpectHandshakeSuccessful();
+}
+
+TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
+  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
+        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+    return;
+  }
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::FAIL_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  // Check that the server didn't send any handshake messages, because it failed
+  // to handshake.
+  EXPECT_EQ(moved_messages_counts_.second, 0u);
+}
+
+TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSignature) {
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it
@@ -285,7 +442,34 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncProofSource) {
   ExpectHandshakeSuccessful();
 }
 
-TEST_P(TlsServerHandshakerTest, CancelPendingProofSource) {
+TEST_P(TlsServerHandshakerTest, CancelPendingSelectCert) {
+  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
+        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+    return;
+  }
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  server_handshaker_->CancelOutstandingCallbacks();
+  ASSERT_FALSE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  // CompletePendingOperation should be noop.
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+}
+
+TEST_P(TlsServerHandshakerTest, CancelPendingSignature) {
   EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
   EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
   // Enable FakeProofSource to capture call to ComputeTlsSignature and run it

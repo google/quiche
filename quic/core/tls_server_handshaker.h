@@ -15,6 +15,7 @@
 #include "quic/core/proto/cached_network_parameters_proto.h"
 #include "quic/core/quic_crypto_server_stream_base.h"
 #include "quic/core/quic_crypto_stream.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/tls_handshaker.h"
 #include "quic/platform/api/quic_export.h"
 
@@ -25,6 +26,7 @@ namespace quic {
 class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     : public TlsHandshaker,
       public TlsServerConnection::Delegate,
+      public ProofSourceHandleCallback,
       public QuicCryptoServerStreamBase {
  public:
   // |crypto_config| must outlive TlsServerHandshaker.
@@ -79,6 +81,12 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                       const std::vector<uint8_t>& write_secret) override;
 
  protected:
+  // Creates a proof source handle for selecting cert and computing signature.
+  // Only called when |use_proof_source_handle_| is true.
+  virtual std::unique_ptr<ProofSourceHandle> MaybeCreateProofSourceHandle();
+
+  bool use_proof_source_handle() const { return use_proof_source_handle_; }
+
   // Hook to allow the server to override parts of the QuicConfig based on SNI
   // before we generate transport parameters.
   virtual void OverrideQuicConfigDefaults(QuicConfig* config);
@@ -136,6 +144,26 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                                              absl::string_view in) override;
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
+  // The status of cert selection. Only called after cert selection started.
+  QuicAsyncStatus SelectCertStatus() const;
+  // Whether |cert_verify_sig_| contains a valid signature.
+  // NOTE: BoringSSL queries the result of a async signature operation using
+  // PrivateKeyComplete(), a successful PrivateKeyComplete() will clear the
+  // content of |cert_verify_sig_|, this function should not be called after
+  // that.
+  bool HasValidSignature(size_t max_signature_size) const;
+
+  // ProofSourceHandleCallback implementation:
+  void OnSelectCertificateDone(bool ok,
+                               bool is_sync,
+                               const ProofSource::Chain* chain) override;
+
+  void OnComputeSignatureDone(
+      bool ok,
+      bool is_sync,
+      std::string signature,
+      std::unique_ptr<ProofSource::Details> details) override;
+
  private:
   class QUIC_EXPORT_PRIVATE SignatureCallback
       : public ProofSource::SignatureCallback {
@@ -165,6 +193,81 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
     TlsServerHandshaker* handshaker_;
   };
 
+  // DefaultProofSourceHandle delegates all operations to the shared proof
+  // source.
+  class QUIC_EXPORT_PRIVATE DefaultProofSourceHandle
+      : public ProofSourceHandle {
+   public:
+    DefaultProofSourceHandle(TlsServerHandshaker* handshaker,
+                             ProofSource* proof_source);
+
+    ~DefaultProofSourceHandle() override;
+
+    // Cancel the pending signature operation, if any.
+    void CancelPendingOperation() override;
+
+    // Delegates to proof_source_->GetCertChain.
+    // Returns QUIC_SUCCESS or QUIC_FAILURE. Never returns QUIC_PENDING.
+    QuicAsyncStatus SelectCertificate(
+        const QuicSocketAddress& server_address,
+        const QuicSocketAddress& client_address,
+        const std::string& hostname,
+        absl::string_view client_hello,
+        const std::string& alpn,
+        const std::vector<uint8_t>& quic_transport_params,
+        const absl::optional<std::vector<uint8_t>>& early_data_context)
+        override;
+
+    // Delegates to proof_source_->ComputeTlsSignature.
+    // Returns QUIC_SUCCESS, QUIC_FAILURE or QUIC_PENDING.
+    QuicAsyncStatus ComputeSignature(const QuicSocketAddress& server_address,
+                                     const QuicSocketAddress& client_address,
+                                     const std::string& hostname,
+                                     uint16_t signature_algorithm,
+                                     absl::string_view in,
+                                     size_t max_signature_size) override;
+
+   protected:
+    ProofSourceHandleCallback* callback() override { return handshaker_; }
+
+   private:
+    class QUIC_EXPORT_PRIVATE DefaultSignatureCallback
+        : public ProofSource::SignatureCallback {
+     public:
+      explicit DefaultSignatureCallback(DefaultProofSourceHandle* handle)
+          : handle_(handle) {}
+
+      void Run(bool ok,
+               std::string signature,
+               std::unique_ptr<ProofSource::Details> details) override {
+        if (handle_ == nullptr) {
+          // Operation has been canceled, or Run has been called.
+          return;
+        }
+        handle_->signature_callback_ = nullptr;
+        if (handle_->handshaker_ != nullptr) {
+          handle_->handshaker_->OnComputeSignatureDone(
+              ok, is_sync_, std::move(signature), std::move(details));
+        }
+      }
+
+      // If called, Cancel causes the pending callback to be a no-op.
+      void Cancel() { handle_ = nullptr; }
+
+      void set_is_sync(bool is_sync) { is_sync_ = is_sync; }
+
+     private:
+      DefaultProofSourceHandle* handle_;
+      // Set to false if handle_->ComputeSignature returns QUIC_PENDING.
+      bool is_sync_ = true;
+    };
+
+    // Not nullptr on construction. Set to nullptr when cancelled.
+    TlsServerHandshaker* handshaker_;  // Not owned.
+    ProofSource* proof_source_;        // Not owned.
+    DefaultSignatureCallback* signature_callback_ = nullptr;
+  };
+
   struct QUIC_NO_EXPORT SetTransportParametersResult {
     bool success = false;
     // Empty vector if QUIC transport params are not set successfully.
@@ -178,6 +281,7 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   bool ProcessTransportParameters(const SSL_CLIENT_HELLO* client_hello,
                                   std::string* error_details);
 
+  std::unique_ptr<ProofSourceHandle> proof_source_handle_;
   ProofSource* proof_source_;
   SignatureCallback* signature_callback_ = nullptr;
 
@@ -194,6 +298,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   // if we actually resumed a session with it - the presence of this ticket
   // indicates that the client attempted a resumption.
   bool ticket_received_ = false;
+
+  // nullopt means select cert hasn't started.
+  absl::optional<QuicAsyncStatus> select_cert_status_;
 
   std::string hostname_;
   std::string cert_verify_sig_;
@@ -212,6 +319,9 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   TlsServerConnection tls_connection_;
   const bool use_early_select_cert_ =
       GetQuicReloadableFlag(quic_tls_use_early_select_cert);
+  const bool use_proof_source_handle_ =
+      use_early_select_cert_ &&
+      GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source);
 
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
 };

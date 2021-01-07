@@ -19,6 +19,10 @@
 
 namespace quic {
 
+namespace test {
+class FakeProofSourceHandle;
+}  // namespace test
+
 // CryptoBuffers is a RAII class to own a std::vector<CRYPTO_BUFFER*> and the
 // buffers the elements point to.
 struct QUIC_EXPORT_PRIVATE CryptoBuffers {
@@ -209,6 +213,97 @@ class QUIC_EXPORT_PRIVATE ProofSource {
   // the ProofSource, and the caller does not take ownership of said
   // TicketCrypter.
   virtual TicketCrypter* GetTicketCrypter() = 0;
+};
+
+// ProofSourceHandleCallback is an interface that contains the callbacks when
+// the operations in ProofSourceHandle completes.
+// TODO(wub): Consider deprecating ProofSource by moving all functionalities of
+// ProofSource into ProofSourceHandle.
+class QUIC_EXPORT_PRIVATE ProofSourceHandleCallback {
+ public:
+  virtual ~ProofSourceHandleCallback() = default;
+
+  // Called when a ProofSourceHandle::SelectCertificate operation completes.
+  // |ok| indicates whether the operation was successful.
+  // |is_sync| indicates whether the operation completed synchronously, i.e.
+  //      whether it is completed before ProofSourceHandle::SelectCertificate
+  //      returned.
+  // |chain| the certificate chain in leaf-first order.
+  //
+  // When called asynchronously(is_sync=false), this method will be responsible
+  // to continue the handshake from where it left off.
+  virtual void OnSelectCertificateDone(bool ok,
+                                       bool is_sync,
+                                       const ProofSource::Chain* chain) = 0;
+
+  // Called when a ProofSourceHandle::ComputeSignature operation completes.
+  virtual void OnComputeSignatureDone(
+      bool ok,
+      bool is_sync,
+      std::string signature,
+      std::unique_ptr<ProofSource::Details> details) = 0;
+};
+
+// ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain
+// certificate chains and signatures that prove its identity.
+// The operations this interface supports are similar to those in ProofSource,
+// the main difference is that ProofSourceHandle is per-handshaker, so
+// an implementation can have states that are shared by multiple calls on the
+// same handle.
+//
+// A handle object is owned by a TlsServerHandshaker. Since there might be an
+// async operation pending when the handle destructs, an implementation must
+// ensure when such operations finish, their corresponding callback method won't
+// be invoked.
+//
+// A handle will have at most one async operation pending at a time.
+class QUIC_EXPORT_PRIVATE ProofSourceHandle {
+ public:
+  virtual ~ProofSourceHandle() = default;
+
+  // Cancel the pending operation, if any.
+  // Once called, any completion method on |callback()| won't be invoked.
+  virtual void CancelPendingOperation() = 0;
+
+  // Starts a select certificate operation. If the operation is not cancelled
+  // when it completes, callback()->OnSelectCertificateDone will be invoked.
+  //
+  // If the operation is handled synchronously:
+  // - QUIC_SUCCESS or QUIC_FAILURE will be returned.
+  // - callback()->OnSelectCertificateDone should be invoked before the function
+  //   returns.
+  //
+  // If the operation is handled asynchronously:
+  // - QUIC_PENDING will be returned.
+  // - When the operation is done, callback()->OnSelectCertificateDone should be
+  //   invoked.
+  virtual QuicAsyncStatus SelectCertificate(
+      const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
+      const std::string& hostname,
+      absl::string_view client_hello,
+      const std::string& alpn,
+      const std::vector<uint8_t>& quic_transport_params,
+      const absl::optional<std::vector<uint8_t>>& early_data_context) = 0;
+
+  // Starts a compute signature operation. If the operation is not cancelled
+  // when it completes, callback()->OnComputeSignatureDone will be invoked.
+  //
+  // See the comments of SelectCertificate for sync vs. async operations.
+  virtual QuicAsyncStatus ComputeSignature(
+      const QuicSocketAddress& server_address,
+      const QuicSocketAddress& client_address,
+      const std::string& hostname,
+      uint16_t signature_algorithm,
+      absl::string_view in,
+      size_t max_signature_size) = 0;
+
+ protected:
+  // Returns the object that will be notified when an operation completes.
+  virtual ProofSourceHandleCallback* callback() = 0;
+
+ private:
+  friend class test::FakeProofSourceHandle;
 };
 
 }  // namespace quic

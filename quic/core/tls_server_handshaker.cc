@@ -13,6 +13,8 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
 #include "quic/core/crypto/transport_parameters.h"
+#include "quic/core/quic_time.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_hostname_utils.h"
@@ -21,9 +23,88 @@
 
 namespace quic {
 
+TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
+    TlsServerHandshaker* handshaker,
+    ProofSource* proof_source)
+    : handshaker_(handshaker), proof_source_(proof_source) {}
+
+TlsServerHandshaker::DefaultProofSourceHandle::~DefaultProofSourceHandle() {
+  CancelPendingOperation();
+}
+
+void TlsServerHandshaker::DefaultProofSourceHandle::CancelPendingOperation() {
+  QUIC_DVLOG(1) << "CancelPendingOperation. is_signature_pending="
+                << (signature_callback_ != nullptr);
+  if (signature_callback_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_use_per_handshaker_proof_source, 3,
+                                 3);
+    signature_callback_->Cancel();
+    signature_callback_ = nullptr;
+  }
+}
+
+QuicAsyncStatus
+TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
+    const QuicSocketAddress& server_address,
+    const QuicSocketAddress& client_address,
+    const std::string& hostname,
+    absl::string_view /*client_hello*/,
+    const std::string& /*alpn*/,
+    const std::vector<uint8_t>& /*quic_transport_params*/,
+    const absl::optional<std::vector<uint8_t>>& /*early_data_context*/) {
+  if (!handshaker_ || !proof_source_) {
+    QUIC_BUG << "SelectCertificate called on a detached handle";
+    return QUIC_FAILURE;
+  }
+
+  QuicReferenceCountedPointer<ProofSource::Chain> chain =
+      proof_source_->GetCertChain(server_address, client_address, hostname);
+
+  handshaker_->OnSelectCertificateDone(
+      /*ok=*/true, /*is_sync=*/true, chain.get());
+  return handshaker_->SelectCertStatus();
+}
+
+QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
+    const QuicSocketAddress& server_address,
+    const QuicSocketAddress& client_address,
+    const std::string& hostname,
+    uint16_t signature_algorithm,
+    absl::string_view in,
+    size_t max_signature_size) {
+  if (!handshaker_ || !proof_source_) {
+    QUIC_BUG << "ComputeSignature called on a detached handle";
+    return QUIC_FAILURE;
+  }
+
+  if (signature_callback_) {
+    QUIC_BUG << "ComputeSignature called while pending";
+    return QUIC_FAILURE;
+  }
+
+  signature_callback_ = new DefaultSignatureCallback(this);
+  proof_source_->ComputeTlsSignature(
+      server_address, client_address, hostname, signature_algorithm, in,
+      std::unique_ptr<DefaultSignatureCallback>(signature_callback_));
+
+  if (signature_callback_) {
+    QUIC_DVLOG(1) << "ComputeTlsSignature is pending";
+    signature_callback_->set_is_sync(false);
+    return QUIC_PENDING;
+  }
+
+  bool success = handshaker_->HasValidSignature(max_signature_size);
+  QUIC_DVLOG(1) << "ComputeTlsSignature completed synchronously. success:"
+                << success;
+  // OnComputeSignatureDone should have been called by signature_callback_->Run.
+  return success ? QUIC_SUCCESS : QUIC_FAILURE;
+}
+
 TlsServerHandshaker::SignatureCallback::SignatureCallback(
     TlsServerHandshaker* handshaker)
-    : handshaker_(handshaker) {}
+    : handshaker_(handshaker) {
+  DCHECK(!handshaker_->use_proof_source_handle_);
+}
 
 void TlsServerHandshaker::SignatureCallback::Run(
     bool ok,
@@ -110,6 +191,9 @@ TlsServerHandshaker::~TlsServerHandshaker() {
 }
 
 void TlsServerHandshaker::CancelOutstandingCallbacks() {
+  if (use_proof_source_handle_ && proof_source_handle_) {
+    proof_source_handle_->CancelPendingOperation();
+  }
   if (signature_callback_) {
     signature_callback_->Cancel();
     signature_callback_ = nullptr;
@@ -118,6 +202,12 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
     ticket_decryption_callback_->Cancel();
     ticket_decryption_callback_ = nullptr;
   }
+}
+
+std::unique_ptr<ProofSourceHandle>
+TlsServerHandshaker::MaybeCreateProofSourceHandle() {
+  DCHECK(use_proof_source_handle_);
+  return std::make_unique<DefaultProofSourceHandle>(this, proof_source_);
 }
 
 bool TlsServerHandshaker::GetBase64SHA256ClientChannelID(
@@ -477,6 +567,19 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     size_t max_out,
     uint16_t sig_alg,
     absl::string_view in) {
+  if (use_proof_source_handle_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_use_per_handshaker_proof_source, 2,
+                                 3);
+    QuicAsyncStatus status = proof_source_handle_->ComputeSignature(
+        session()->connection()->self_address(),
+        session()->connection()->peer_address(), hostname_, sig_alg, in,
+        max_out);
+    if (status == QUIC_PENDING) {
+      set_expected_ssl_error(SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+    }
+    return PrivateKeyComplete(out, out_len, max_out);
+  }
+
   signature_callback_ = new SignatureCallback(this);
   proof_source_->ComputeTlsSignature(
       session()->connection()->self_address(),
@@ -496,7 +599,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
   if (expected_ssl_error() == SSL_ERROR_WANT_PRIVATE_KEY_OPERATION) {
     return ssl_private_key_retry;
   }
-  if (cert_verify_sig_.size() > max_out || cert_verify_sig_.empty()) {
+  if (!HasValidSignature(max_out)) {
     return ssl_private_key_failure;
   }
   *out_len = cert_verify_sig_.size();
@@ -504,6 +607,32 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeyComplete(
   cert_verify_sig_.clear();
   cert_verify_sig_.shrink_to_fit();
   return ssl_private_key_success;
+}
+
+void TlsServerHandshaker::OnComputeSignatureDone(
+    bool ok,
+    bool is_sync,
+    std::string signature,
+    std::unique_ptr<ProofSource::Details> details) {
+  QUIC_DVLOG(1) << "OnComputeSignatureDone. ok:" << ok
+                << ", is_sync:" << is_sync
+                << ", len(signature):" << signature.size();
+  DCHECK(use_proof_source_handle_);
+  if (ok) {
+    cert_verify_sig_ = std::move(signature);
+    proof_source_details_ = std::move(details);
+  }
+  const int last_expected_ssl_error = expected_ssl_error();
+  set_expected_ssl_error(SSL_ERROR_WANT_READ);
+  if (!is_sync) {
+    DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+    AdvanceHandshakeFromCallback();
+  }
+}
+
+bool TlsServerHandshaker::HasValidSignature(size_t max_signature_size) const {
+  return !cert_verify_sig_.empty() &&
+         cert_verify_sig_.size() <= max_signature_size;
 }
 
 size_t TlsServerHandshaker::SessionTicketMaxOverhead() {
@@ -579,6 +708,27 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
   QUIC_RELOADABLE_FLAG_COUNT(quic_tls_use_early_select_cert);
 
+  // EarlySelectCertCallback can be called twice from BoringSSL: If the first
+  // call returns ssl_select_cert_retry, when cert selection completes,
+  // SSL_do_handshake will call it again.
+  if (use_proof_source_handle_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_use_per_handshaker_proof_source, 1,
+                                 3);
+    if (select_cert_status_.has_value()) {
+      // This is the second call, return the result directly.
+      QUIC_DVLOG(1) << "EarlySelectCertCallback called to continue handshake, "
+                       "returning directly. success:"
+                    << (select_cert_status_.value() == QUIC_SUCCESS);
+      return (select_cert_status_.value() == QUIC_SUCCESS)
+                 ? ssl_select_cert_success
+                 : ssl_select_cert_error;
+    }
+
+    // This is the first call.
+    select_cert_status_ = QUIC_PENDING;
+    proof_source_handle_ = MaybeCreateProofSourceHandle();
+  }
+
   if (!pre_shared_key_.empty()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     QUIC_BUG << "QUIC server pre-shared keys not yet supported with TLS";
@@ -597,6 +747,45 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     }
   } else {
     QUIC_LOG(INFO) << "No hostname indicated in SNI";
+  }
+
+  if (use_proof_source_handle_) {
+    std::string error_details;
+    if (!ProcessTransportParameters(client_hello, &error_details)) {
+      CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+      return ssl_select_cert_error;
+    }
+    OverrideQuicConfigDefaults(session()->config());
+    session()->OnConfigNegotiated();
+
+    auto set_transport_params_result = SetTransportParameters();
+    if (!set_transport_params_result.success) {
+      QUIC_LOG(ERROR) << "Failed to set transport parameters";
+      return ssl_select_cert_error;
+    }
+
+    const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
+        session()->connection()->self_address(),
+        session()->connection()->peer_address(), hostname_,
+        absl::string_view(
+            reinterpret_cast<const char*>(client_hello->client_hello),
+            client_hello->client_hello_len),
+        AlpnForVersion(session()->version()),
+        set_transport_params_result.quic_transport_params,
+        set_transport_params_result.early_data_context);
+
+    DCHECK_EQ(status, SelectCertStatus());
+
+    if (status == QUIC_PENDING) {
+      set_expected_ssl_error(SSL_ERROR_PENDING_CERTIFICATE);
+      return ssl_select_cert_retry;
+    }
+
+    if (status == QUIC_FAILURE) {
+      return ssl_select_cert_error;
+    }
+
+    return ssl_select_cert_success;
   }
 
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
@@ -627,6 +816,38 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   QUIC_DLOG(INFO) << "Set " << chain->certs.size() << " certs for server "
                   << "with hostname " << hostname_;
   return ssl_select_cert_success;
+}
+
+void TlsServerHandshaker::OnSelectCertificateDone(
+    bool ok,
+    bool is_sync,
+    const ProofSource::Chain* chain) {
+  QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
+                << ", is_sync:" << is_sync;
+  DCHECK(use_proof_source_handle_);
+
+  select_cert_status_ = QUIC_FAILURE;
+  if (ok) {
+    if (chain && !chain->certs.empty()) {
+      tls_connection_.SetCertChain(chain->ToCryptoBuffers().value);
+      select_cert_status_ = QUIC_SUCCESS;
+    } else {
+      QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
+    }
+  }
+
+  if (!is_sync) {
+    AdvanceHandshakeFromCallback();
+  }
+}
+
+QuicAsyncStatus TlsServerHandshaker::SelectCertStatus() const {
+  if (!select_cert_status_.has_value()) {
+    QUIC_BUG << "SelectCertStatus should be called after select cert started";
+    return QUIC_PENDING;
+  }
+
+  return select_cert_status_.value();
 }
 
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
