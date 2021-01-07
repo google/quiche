@@ -8,6 +8,7 @@
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/frames/quic_goaway_frame.h"
 #include "quic/core/frames/quic_mtu_discovery_frame.h"
+#include "quic/core/frames/quic_new_connection_id_frame.h"
 #include "quic/core/frames/quic_padding_frame.h"
 #include "quic/core/frames/quic_ping_frame.h"
 #include "quic/core/frames/quic_rst_stream_frame.h"
@@ -104,7 +105,40 @@ TEST_F(QuicFramesTest, StopSendingFrameToString) {
       "{ control_frame_id: 1, stream_id: 321, error_code: 6, ietf_error_code: "
       "268 }\n",
       stream.str());
-  EXPECT_TRUE(IsControlFrame(frame.type));
+}
+
+TEST_F(QuicFramesTest, NewConnectionIdFrameToString) {
+  QuicNewConnectionIdFrame new_connection_id_frame;
+  QuicFrame frame(&new_connection_id_frame);
+  SetControlFrameId(1, &frame);
+  QuicFrame frame_copy = CopyRetransmittableControlFrame(frame);
+  EXPECT_EQ(1u, GetControlFrameId(frame_copy));
+  new_connection_id_frame.connection_id = TestConnectionId(2);
+  new_connection_id_frame.sequence_number = 2u;
+  new_connection_id_frame.retire_prior_to = 1u;
+  new_connection_id_frame.stateless_reset_token = MakeQuicUint128(0, 1);
+  std::ostringstream stream;
+  stream << new_connection_id_frame;
+  EXPECT_EQ(
+      "{ control_frame_id: 1, connection_id: 0000000000000002, "
+      "sequence_number: 2, retire_prior_to: 1 }\n",
+      stream.str());
+  EXPECT_TRUE(IsControlFrame(frame_copy.type));
+  DeleteFrame(&frame_copy);
+}
+
+TEST_F(QuicFramesTest, RetireConnectionIdFrameToString) {
+  QuicRetireConnectionIdFrame retire_connection_id_frame;
+  QuicFrame frame(&retire_connection_id_frame);
+  SetControlFrameId(1, &frame);
+  QuicFrame frame_copy = CopyRetransmittableControlFrame(frame);
+  EXPECT_EQ(1u, GetControlFrameId(frame_copy));
+  retire_connection_id_frame.sequence_number = 1u;
+  std::ostringstream stream;
+  stream << retire_connection_id_frame;
+  EXPECT_EQ("{ control_frame_id: 1, sequence_number: 1 }\n", stream.str());
+  EXPECT_TRUE(IsControlFrame(frame_copy.type));
+  DeleteFrame(&frame_copy);
 }
 
 TEST_F(QuicFramesTest, StreamsBlockedFrameToString) {

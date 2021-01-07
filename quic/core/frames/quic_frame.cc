@@ -4,6 +4,8 @@
 
 #include "quic/core/frames/quic_frame.h"
 
+#include "quic/core/frames/quic_new_connection_id_frame.h"
+#include "quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quic/core/quic_buffer_allocator.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_types.h"
@@ -179,6 +181,8 @@ bool IsControlFrame(QuicFrameType type) {
     case MAX_STREAMS_FRAME:
     case PING_FRAME:
     case STOP_SENDING_FRAME:
+    case NEW_CONNECTION_ID_FRAME:
+    case RETIRE_CONNECTION_ID_FRAME:
     case HANDSHAKE_DONE_FRAME:
     case ACK_FREQUENCY_FRAME:
     case NEW_TOKEN_FRAME:
@@ -206,6 +210,10 @@ QuicControlFrameId GetControlFrameId(const QuicFrame& frame) {
       return frame.ping_frame.control_frame_id;
     case STOP_SENDING_FRAME:
       return frame.stop_sending_frame->control_frame_id;
+    case NEW_CONNECTION_ID_FRAME:
+      return frame.new_connection_id_frame->control_frame_id;
+    case RETIRE_CONNECTION_ID_FRAME:
+      return frame.retire_connection_id_frame->control_frame_id;
     case HANDSHAKE_DONE_FRAME:
       return frame.handshake_done_frame.control_frame_id;
     case ACK_FREQUENCY_FRAME:
@@ -243,6 +251,12 @@ void SetControlFrameId(QuicControlFrameId control_frame_id, QuicFrame* frame) {
     case STOP_SENDING_FRAME:
       frame->stop_sending_frame->control_frame_id = control_frame_id;
       return;
+    case NEW_CONNECTION_ID_FRAME:
+      frame->new_connection_id_frame->control_frame_id = control_frame_id;
+      return;
+    case RETIRE_CONNECTION_ID_FRAME:
+      frame->retire_connection_id_frame->control_frame_id = control_frame_id;
+      return;
     case HANDSHAKE_DONE_FRAME:
       frame->handshake_done_frame.control_frame_id = control_frame_id;
       return;
@@ -278,6 +292,14 @@ QuicFrame CopyRetransmittableControlFrame(const QuicFrame& frame) {
       break;
     case STOP_SENDING_FRAME:
       copy = QuicFrame(new QuicStopSendingFrame(*frame.stop_sending_frame));
+      break;
+    case NEW_CONNECTION_ID_FRAME:
+      copy = QuicFrame(
+          new QuicNewConnectionIdFrame(*frame.new_connection_id_frame));
+      break;
+    case RETIRE_CONNECTION_ID_FRAME:
+      copy = QuicFrame(
+          new QuicRetireConnectionIdFrame(*frame.retire_connection_id_frame));
       break;
     case STREAMS_BLOCKED_FRAME:
       copy = QuicFrame(QuicStreamsBlockedFrame(frame.streams_blocked_frame));

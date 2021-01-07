@@ -5,10 +5,12 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONTROL_FRAME_MANAGER_H_
 #define QUICHE_QUIC_CORE_QUIC_CONTROL_FRAME_MANAGER_H_
 
+#include <cstdint>
 #include <string>
 
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/quic_circular_deque.h"
+#include "quic/core/quic_connection_id.h"
 #include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
@@ -88,6 +90,17 @@ class QUIC_EXPORT_PRIVATE QuicControlFrameManager {
   // sent immediately.
   void WriteOrBufferAckFrequency(
       const QuicAckFrequencyFrame& ack_frequency_frame);
+
+  // Tries to send a NEW_CONNECTION_ID frame. The frame is buffered if it cannot
+  // be sent immediately.
+  void WriteOrBufferNewConnectionId(const QuicConnectionId& connection_id,
+                                    uint64_t sequence_number,
+                                    uint64_t retire_prior_to,
+                                    QuicUint128 stateless_reset_token);
+
+  // Tries to send a RETIRE_CONNNECTION_ID frame. The frame is buffered if it
+  // cannot be sent immediately.
+  void WriteOrBufferRetireConnectionId(uint64_t sequence_number);
 
   // Tries to send a NEW_TOKEN frame. Buffers the frame if it cannot be sent
   // immediately.

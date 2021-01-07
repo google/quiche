@@ -8,6 +8,7 @@
 
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
+#include "quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_expect_bug.h"
 #include "quic/platform/api/quic_flags.h"
@@ -230,6 +231,39 @@ TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
       6, 6, 10, QuicTime::Delta::FromMilliseconds(24)};
   EXPECT_TRUE(
       manager_->OnControlFrameAcked(QuicFrame(&expected_ack_frequency)));
+}
+
+TEST_F(QuicControlFrameManagerTest, NewAndRetireConnectionIdFrames) {
+  Initialize();
+  InSequence s;
+
+  // Send other frames 1-5.
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .Times(5)
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+  manager_->OnCanWrite();
+
+  EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
+  EXPECT_CALL(*session_, WriteControlFrame(_, _))
+      .Times(2)
+      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+  // Send NewConnectionIdFrame as frame 6.
+  manager_->WriteOrBufferNewConnectionId(
+      TestConnectionId(3), /*sequence_number=*/2, /*retire_prior_to=*/1,
+      /*stateless_reset_token=*/MakeQuicUint128(1, 1));
+  // Send RetireConnectionIdFrame as frame 7.
+  manager_->WriteOrBufferRetireConnectionId(/*sequence_number=*/0);
+  manager_->OnCanWrite();
+
+  // Ack both frames.
+  QuicNewConnectionIdFrame new_connection_id_frame;
+  new_connection_id_frame.control_frame_id = 6;
+  QuicRetireConnectionIdFrame retire_connection_id_frame;
+  retire_connection_id_frame.control_frame_id = 7;
+  EXPECT_TRUE(
+      manager_->OnControlFrameAcked(QuicFrame(&new_connection_id_frame)));
+  EXPECT_TRUE(
+      manager_->OnControlFrameAcked(QuicFrame(&retire_connection_id_frame)));
 }
 
 TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {

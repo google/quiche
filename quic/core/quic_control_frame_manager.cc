@@ -9,9 +9,12 @@
 #include "absl/strings/str_cat.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/frames/quic_frame.h"
+#include "quic/core/frames/quic_new_connection_id_frame.h"
+#include "quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_types.h"
+#include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_map_util.h"
@@ -129,6 +132,24 @@ void QuicControlFrameManager::WriteOrBufferAckFrequency(
                                           /*sequence_number=*/control_frame_id,
                                           ack_frequency_frame.packet_tolerance,
                                           ack_frequency_frame.max_ack_delay)));
+}
+
+void QuicControlFrameManager::WriteOrBufferNewConnectionId(
+    const QuicConnectionId& connection_id,
+    uint64_t sequence_number,
+    uint64_t retire_prior_to,
+    QuicUint128 stateless_reset_token) {
+  QUIC_DVLOG(1) << "Writing NEW_CONNECTION_ID frame";
+  WriteOrBufferQuicFrame(QuicFrame(new QuicNewConnectionIdFrame(
+      ++last_control_frame_id_, connection_id, sequence_number,
+      stateless_reset_token, retire_prior_to)));
+}
+
+void QuicControlFrameManager::WriteOrBufferRetireConnectionId(
+    uint64_t sequence_number) {
+  QUIC_DVLOG(1) << "Writing RETIRE_CONNECTION_ID frame";
+  WriteOrBufferQuicFrame(QuicFrame(new QuicRetireConnectionIdFrame(
+      ++last_control_frame_id_, sequence_number)));
 }
 
 void QuicControlFrameManager::WriteOrBufferNewToken(absl::string_view token) {
