@@ -121,7 +121,9 @@ TEST(SpdyProtocolTest, ParseSettingsId) {
   EXPECT_FALSE(ParseSettingsId(7, &setting_id));
   EXPECT_TRUE(ParseSettingsId(8, &setting_id));
   EXPECT_EQ(SETTINGS_ENABLE_CONNECT_PROTOCOL, setting_id);
-  EXPECT_FALSE(ParseSettingsId(9, &setting_id));
+  EXPECT_TRUE(ParseSettingsId(9, &setting_id));
+  EXPECT_EQ(SETTINGS_DEPRECATE_HTTP2_PRIORITIES, setting_id);
+  EXPECT_FALSE(ParseSettingsId(10, &setting_id));
   EXPECT_FALSE(ParseSettingsId(0xFF44, &setting_id));
   EXPECT_TRUE(ParseSettingsId(0xFF45, &setting_id));
   EXPECT_EQ(SETTINGS_EXPERIMENT_SCHEDULER, setting_id);
@@ -142,7 +144,9 @@ TEST(SpdyProtocolTest, SettingsIdToString) {
       {SETTINGS_MAX_HEADER_LIST_SIZE, "SETTINGS_MAX_HEADER_LIST_SIZE"},
       {7, "SETTINGS_UNKNOWN_7"},
       {SETTINGS_ENABLE_CONNECT_PROTOCOL, "SETTINGS_ENABLE_CONNECT_PROTOCOL"},
-      {9, "SETTINGS_UNKNOWN_9"},
+      {SETTINGS_DEPRECATE_HTTP2_PRIORITIES,
+       "SETTINGS_DEPRECATE_HTTP2_PRIORITIES"},
+      {0xa, "SETTINGS_UNKNOWN_a"},
       {0xFF44, "SETTINGS_UNKNOWN_ff44"},
       {0xFF45, "SETTINGS_EXPERIMENT_SCHEDULER"},
       {0xFF46, "SETTINGS_UNKNOWN_ff46"}};

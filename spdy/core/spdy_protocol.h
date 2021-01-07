@@ -151,9 +151,12 @@ enum SpdyKnownSettingsId : SpdySettingsId {
   // The maximum size of header list that the sender is prepared to accept.
   SETTINGS_MAX_HEADER_LIST_SIZE = 0x6,
   // Enable Websockets over HTTP/2, see
-  // https://tools.ietf.org/html/draft-ietf-httpbis-h2-websockets-00.
+  // https://httpwg.org/specs/rfc8441.html
   SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x8,
-  SETTINGS_MAX = SETTINGS_ENABLE_CONNECT_PROTOCOL,
+  // Disable HTTP/2 priorities, see
+  // https://tools.ietf.org/html/draft-ietf-httpbis-priority-02.
+  SETTINGS_DEPRECATE_HTTP2_PRIORITIES = 0x9,
+  SETTINGS_MAX = SETTINGS_DEPRECATE_HTTP2_PRIORITIES,
   // Experimental setting used to configure an alternative write scheduler.
   SETTINGS_EXPERIMENT_SCHEDULER = 0xFF45,
 };
