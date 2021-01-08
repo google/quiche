@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_SEEKER_H_
-#define QUICHE_QUIC_CORE_QUIC_SEEKER_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_INTERVAL_DEQUE_H_
+#define QUICHE_QUIC_CORE_QUIC_INTERVAL_DEQUE_H_
 
 #include <algorithm>
 
@@ -389,4 +389,4 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::Search(
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QUIC_SEEKER_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_INTERVAL_DEQUE_H_
