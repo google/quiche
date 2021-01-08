@@ -101,6 +101,11 @@ class FrameParts : public Http2FrameDecoderListener {
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;
   void OnAltSvcEnd() override;
+  void OnPriorityUpdateStart(
+      const Http2FrameHeader& header,
+      const Http2PriorityUpdateFields& priority_update) override;
+  void OnPriorityUpdatePayload(const char* data, size_t len) override;
+  void OnPriorityUpdateEnd() override;
   void OnUnknownStart(const Http2FrameHeader& header) override;
   void OnUnknownPayload(const char* data, size_t len) override;
   void OnUnknownEnd() override;
@@ -180,6 +185,10 @@ class FrameParts : public Http2FrameDecoderListener {
       absl::optional<size_t> opt_window_update_increment) {
     opt_window_update_increment_ = opt_window_update_increment;
   }
+  void SetOptPriorityUpdate(
+      absl::optional<Http2PriorityUpdateFields> priority_update) {
+    opt_priority_update_ = priority_update;
+  }
 
   void SetHasFrameSizeError(bool has_frame_size_error) {
     has_frame_size_error_ = has_frame_size_error;
@@ -223,6 +232,7 @@ class FrameParts : public Http2FrameDecoderListener {
   absl::optional<Http2PushPromiseFields> opt_push_promise_;
   absl::optional<Http2PingFields> opt_ping_;
   absl::optional<Http2GoAwayFields> opt_goaway_;
+  absl::optional<Http2PriorityUpdateFields> opt_priority_update_;
 
   absl::optional<size_t> opt_pad_length_;
   absl::optional<size_t> opt_payload_length_;

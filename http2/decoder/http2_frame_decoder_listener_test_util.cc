@@ -168,6 +168,23 @@ void FailingHttp2FrameDecoderListener::OnAltSvcEnd() {
   FAIL() << "OnAltSvcEnd";
 }
 
+void FailingHttp2FrameDecoderListener::OnPriorityUpdateStart(
+    const Http2FrameHeader& header,
+    const Http2PriorityUpdateFields& priority_update) {
+  FAIL() << "OnPriorityUpdateStart: " << header << "; prioritized_stream_id: "
+         << priority_update.prioritized_stream_id;
+}
+
+void FailingHttp2FrameDecoderListener::OnPriorityUpdatePayload(
+    const char* /*data*/,
+    size_t len) {
+  FAIL() << "OnPriorityUpdatePayload: len=" << len;
+}
+
+void FailingHttp2FrameDecoderListener::OnPriorityUpdateEnd() {
+  FAIL() << "OnPriorityUpdateEnd";
+}
+
 void FailingHttp2FrameDecoderListener::OnUnknownStart(
     const Http2FrameHeader& header) {
   FAIL() << "OnUnknownStart: " << header;
@@ -442,6 +459,30 @@ void LoggingHttp2FrameDecoderListener::OnAltSvcEnd() {
   HTTP2_VLOG(1) << "OnAltSvcEnd";
   if (wrapped_ != nullptr) {
     wrapped_->OnAltSvcEnd();
+  }
+}
+
+void LoggingHttp2FrameDecoderListener::OnPriorityUpdateStart(
+    const Http2FrameHeader& header,
+    const Http2PriorityUpdateFields& priority_update) {
+  HTTP2_VLOG(1) << "OnPriorityUpdateStart";
+  if (wrapped_ != nullptr) {
+    wrapped_->OnPriorityUpdateStart(header, priority_update);
+  }
+}
+
+void LoggingHttp2FrameDecoderListener::OnPriorityUpdatePayload(const char* data,
+                                                               size_t len) {
+  HTTP2_VLOG(1) << "OnPriorityUpdatePayload";
+  if (wrapped_ != nullptr) {
+    wrapped_->OnPriorityUpdatePayload(data, len);
+  }
+}
+
+void LoggingHttp2FrameDecoderListener::OnPriorityUpdateEnd() {
+  HTTP2_VLOG(1) << "OnPriorityUpdateEnd";
+  if (wrapped_ != nullptr) {
+    wrapped_->OnPriorityUpdateEnd();
   }
 }
 

@@ -34,6 +34,7 @@ void Randomize(Http2PingFields* out, Http2Random* rng);
 void Randomize(Http2GoAwayFields* out, Http2Random* rng);
 void Randomize(Http2WindowUpdateFields* out, Http2Random* rng);
 void Randomize(Http2AltSvcFields* out, Http2Random* rng);
+void Randomize(Http2PriorityUpdateFields* out, Http2Random* rng);
 
 // Clear bits of header->flags that are known to be invalid for the
 // type. For unknown frame types, no change is made.

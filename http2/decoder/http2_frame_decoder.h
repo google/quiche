@@ -32,6 +32,7 @@
 #include "http2/decoder/payload_decoders/headers_payload_decoder.h"
 #include "http2/decoder/payload_decoders/ping_payload_decoder.h"
 #include "http2/decoder/payload_decoders/priority_payload_decoder.h"
+#include "http2/decoder/payload_decoders/priority_update_payload_decoder.h"
 #include "http2/decoder/payload_decoders/push_promise_payload_decoder.h"
 #include "http2/decoder/payload_decoders/rst_stream_payload_decoder.h"
 #include "http2/decoder/payload_decoders/settings_payload_decoder.h"
@@ -148,6 +149,7 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoder {
   DecodeStatus StartDecodingHeadersPayload(DecodeBuffer* db);
   DecodeStatus StartDecodingPingPayload(DecodeBuffer* db);
   DecodeStatus StartDecodingPriorityPayload(DecodeBuffer* db);
+  DecodeStatus StartDecodingPriorityUpdatePayload(DecodeBuffer* db);
   DecodeStatus StartDecodingPushPromisePayload(DecodeBuffer* db);
   DecodeStatus StartDecodingRstStreamPayload(DecodeBuffer* db);
   DecodeStatus StartDecodingSettingsPayload(DecodeBuffer* db);
@@ -169,6 +171,7 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoder {
   DecodeStatus ResumeDecodingHeadersPayload(DecodeBuffer* db);
   DecodeStatus ResumeDecodingPingPayload(DecodeBuffer* db);
   DecodeStatus ResumeDecodingPriorityPayload(DecodeBuffer* db);
+  DecodeStatus ResumeDecodingPriorityUpdatePayload(DecodeBuffer* db);
   DecodeStatus ResumeDecodingPushPromisePayload(DecodeBuffer* db);
   DecodeStatus ResumeDecodingRstStreamPayload(DecodeBuffer* db);
   DecodeStatus ResumeDecodingSettingsPayload(DecodeBuffer* db);
@@ -186,6 +189,7 @@ class QUICHE_EXPORT_PRIVATE Http2FrameDecoder {
     HeadersPayloadDecoder headers_payload_decoder_;
     PingPayloadDecoder ping_payload_decoder_;
     PriorityPayloadDecoder priority_payload_decoder_;
+    PriorityUpdatePayloadDecoder priority_payload_update_decoder_;
     PushPromisePayloadDecoder push_promise_payload_decoder_;
     RstStreamPayloadDecoder rst_stream_payload_decoder_;
     SettingsPayloadDecoder settings_payload_decoder_;

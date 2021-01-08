@@ -130,4 +130,22 @@ std::ostream& operator<<(std::ostream& out, const Http2AltSvcFields& v) {
   return out << "origin_length=" << v.origin_length;
 }
 
+// Http2PriorityUpdateFields:
+
+bool operator==(const Http2PriorityUpdateFields& a,
+                const Http2PriorityUpdateFields& b) {
+  return a.prioritized_stream_id == b.prioritized_stream_id;
+}
+
+std::string Http2PriorityUpdateFields::ToString() const {
+  std::stringstream ss;
+  ss << "prioritized_stream_id=" << prioritized_stream_id;
+  return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& out,
+                         const Http2PriorityUpdateFields& v) {
+  return out << v.ToString();
+}
+
 }  // namespace http2

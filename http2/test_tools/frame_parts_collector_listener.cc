@@ -196,6 +196,25 @@ void FramePartsCollectorListener::OnAltSvcEnd() {
   EndFrame()->OnAltSvcEnd();
 }
 
+void FramePartsCollectorListener::OnPriorityUpdateStart(
+    const Http2FrameHeader& header,
+    const Http2PriorityUpdateFields& priority_update) {
+  HTTP2_VLOG(1) << "OnPriorityUpdateStart header: " << header
+                << "; priority_update=" << priority_update;
+  StartFrame(header)->OnPriorityUpdateStart(header, priority_update);
+}
+
+void FramePartsCollectorListener::OnPriorityUpdatePayload(const char* data,
+                                                          size_t len) {
+  HTTP2_VLOG(1) << "OnPriorityUpdatePayload: len=" << len;
+  CurrentFrame()->OnPriorityUpdatePayload(data, len);
+}
+
+void FramePartsCollectorListener::OnPriorityUpdateEnd() {
+  HTTP2_VLOG(1) << "OnPriorityUpdateEnd";
+  EndFrame()->OnPriorityUpdateEnd();
+}
+
 void FramePartsCollectorListener::OnUnknownStart(
     const Http2FrameHeader& header) {
   HTTP2_VLOG(1) << "OnUnknownStart: " << header;

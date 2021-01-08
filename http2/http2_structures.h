@@ -321,6 +321,32 @@ QUICHE_EXPORT_PRIVATE inline bool operator!=(const Http2AltSvcFields& a,
 QUICHE_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
                                                const Http2AltSvcFields& v);
 
+// Http2PriorityUpdateFields:
+
+struct QUICHE_EXPORT_PRIVATE Http2PriorityUpdateFields {
+  Http2PriorityUpdateFields() {}
+  Http2PriorityUpdateFields(uint32_t prioritized_stream_id)
+      : prioritized_stream_id(prioritized_stream_id) {}
+  static constexpr size_t EncodedSize() { return 4; }
+
+  // Produce strings useful for debugging/logging messages.
+  std::string ToString() const;
+
+  // The 31-bit stream identifier of the stream whose priority is updated.
+  uint32_t prioritized_stream_id;
+};
+
+QUICHE_EXPORT_PRIVATE bool operator==(const Http2PriorityUpdateFields& a,
+                                      const Http2PriorityUpdateFields& b);
+QUICHE_EXPORT_PRIVATE inline bool operator!=(
+    const Http2PriorityUpdateFields& a,
+    const Http2PriorityUpdateFields& b) {
+  return !(a == b);
+}
+QUICHE_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream& out,
+    const Http2PriorityUpdateFields& v);
+
 }  // namespace http2
 
 #endif  // QUICHE_HTTP2_HTTP2_STRUCTURES_H_

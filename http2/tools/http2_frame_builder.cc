@@ -141,6 +141,10 @@ void Http2FrameBuilder::Append(const Http2AltSvcFields& v) {
   AppendUInt16(v.origin_length);
 }
 
+void Http2FrameBuilder::Append(const Http2PriorityUpdateFields& v) {
+  AppendUInt31(v.prioritized_stream_id);
+}
+
 // Methods for changing existing buffer contents.
 
 void Http2FrameBuilder::WriteAt(absl::string_view s, size_t offset) {

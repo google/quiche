@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 
+#include "http2/platform/api/http2_flags.h"
 #include "common/platform/api/quiche_export.h"
 
 namespace http2 {
@@ -28,8 +29,6 @@ constexpr uint32_t StreamIdMask() {
 
 // The value used to identify types of frames. Upper case to match the RFC.
 // The comments indicate which flags are valid for that frame type.
-// ALTSVC is defined in http://httpwg.org/http-extensions/alt-svc.html
-// (not yet final standard as of March 2016, but close).
 enum class Http2FrameType : uint8_t {
   DATA = 0,           // END_STREAM | PADDED
   HEADERS = 1,        // END_STREAM | END_HEADERS | PADDED | PRIORITY
@@ -41,11 +40,19 @@ enum class Http2FrameType : uint8_t {
   GOAWAY = 7,         //
   WINDOW_UPDATE = 8,  //
   CONTINUATION = 9,   // END_HEADERS
-  ALTSVC = 10,        //
+  // https://tools.ietf.org/html/rfc7838
+  ALTSVC = 10,  // no flags
+  // https://tools.ietf.org/html/draft-ietf-httpbis-priority-02
+  PRIORITY_UPDATE = 16,  // no flags
 };
 
 // Is the frame type known/supported?
 inline bool IsSupportedHttp2FrameType(uint32_t v) {
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame) &&
+      v == static_cast<uint32_t>(Http2FrameType::PRIORITY_UPDATE)) {
+    return true;
+  }
+
   return v <= static_cast<uint32_t>(Http2FrameType::ALTSVC);
 }
 inline bool IsSupportedHttp2FrameType(Http2FrameType v) {

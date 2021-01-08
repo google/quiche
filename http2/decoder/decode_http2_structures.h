@@ -28,6 +28,8 @@ QUICHE_EXPORT_PRIVATE void DoDecode(Http2GoAwayFields* out, DecodeBuffer* b);
 QUICHE_EXPORT_PRIVATE void DoDecode(Http2WindowUpdateFields* out,
                                     DecodeBuffer* b);
 QUICHE_EXPORT_PRIVATE void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b);
+QUICHE_EXPORT_PRIVATE void DoDecode(Http2PriorityUpdateFields* out,
+                                    DecodeBuffer* b);
 
 }  // namespace http2
 

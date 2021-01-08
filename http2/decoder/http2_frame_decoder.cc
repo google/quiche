@@ -8,6 +8,8 @@
 #include "http2/hpack/varint/hpack_varint_decoder.h"
 #include "http2/http2_constants.h"
 #include "http2/platform/api/http2_bug_tracker.h"
+#include "http2/platform/api/http2_flag_utils.h"
+#include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_macros.h"
 
 namespace http2 {
@@ -155,6 +157,15 @@ DecodeStatus Http2FrameDecoder::StartDecodingPayload(DecodeBuffer* db) {
       status = StartDecodingAltSvcPayload(&subset);
       break;
 
+    case Http2FrameType::PRIORITY_UPDATE:
+      if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+        HTTP2_RESTART_FLAG_COUNT_N(http2_parse_priority_update_frame, 1, 2);
+        status = StartDecodingPriorityUpdatePayload(&subset);
+      } else {
+        status = StartDecodingUnknownPayload(&subset);
+      }
+      break;
+
     default:
       status = StartDecodingUnknownPayload(&subset);
       break;
@@ -223,6 +234,15 @@ DecodeStatus Http2FrameDecoder::ResumeDecodingPayload(DecodeBuffer* db) {
 
     case Http2FrameType::ALTSVC:
       status = ResumeDecodingAltSvcPayload(&subset);
+      break;
+
+    case Http2FrameType::PRIORITY_UPDATE:
+      if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+        HTTP2_RESTART_FLAG_COUNT_N(http2_parse_priority_update_frame, 2, 2);
+        status = ResumeDecodingPriorityUpdatePayload(&subset);
+      } else {
+        status = ResumeDecodingUnknownPayload(&subset);
+      }
       break;
 
     default:
@@ -337,6 +357,21 @@ DecodeStatus Http2FrameDecoder::ResumeDecodingPriorityPayload(
             frame_decoder_state_.remaining_payload());
   return priority_payload_decoder_.ResumeDecodingPayload(&frame_decoder_state_,
                                                          db);
+}
+
+DecodeStatus Http2FrameDecoder::StartDecodingPriorityUpdatePayload(
+    DecodeBuffer* db) {
+  ClearFlags();
+  return priority_payload_update_decoder_.StartDecodingPayload(
+      &frame_decoder_state_, db);
+}
+DecodeStatus Http2FrameDecoder::ResumeDecodingPriorityUpdatePayload(
+    DecodeBuffer* db) {
+  // The frame is not paddable.
+  DCHECK_EQ(frame_decoder_state_.remaining_total_payload(),
+            frame_decoder_state_.remaining_payload());
+  return priority_payload_update_decoder_.ResumeDecodingPayload(
+      &frame_decoder_state_, db);
 }
 
 DecodeStatus Http2FrameDecoder::StartDecodingPushPromisePayload(

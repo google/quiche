@@ -4517,6 +4517,149 @@ TEST_P(SpdyFramerTest, ErrorOnAltSvcFrameWithInvalidValue) {
              deframer_.spdy_framer_error());
 }
 
+TEST_P(SpdyFramerTest, ReadPriorityUpdateFrame) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x07,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x00,  // stream ID, must be 0
+      0x00, 0x00, 0x00, 0x03,  // prioritized stream ID, must not be zero
+      'f',  'o',  'o'          // priority field value
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(visitor, OnPriorityUpdate(3, "foo"));
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(0, _)).WillOnce(testing::Return(true));
+  }
+
+  deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+  EXPECT_FALSE(deframer_.HasError());
+}
+
+TEST_P(SpdyFramerTest, ReadPriorityUpdateFrameWithEmptyPriorityFieldValue) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x04,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x00,  // stream ID, must be 0
+      0x00, 0x00, 0x00, 0x03   // prioritized stream ID, must not be zero
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(visitor, OnPriorityUpdate(3, ""));
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(0, _)).WillOnce(testing::Return(true));
+  }
+
+  deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+  EXPECT_FALSE(deframer_.HasError());
+}
+
+TEST_P(SpdyFramerTest, PriorityUpdateFrameWithEmptyPayload) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x00,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x00,  // stream ID, must be 0
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(
+        visitor,
+        OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME_SIZE, _));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_TRUE(deframer_.HasError());
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(0, _)).WillOnce(testing::Return(true));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_FALSE(deframer_.HasError());
+  }
+}
+
+TEST_P(SpdyFramerTest, PriorityUpdateFrameWithShortPayload) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x02,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x00,  // stream ID, must be 0
+      0x00, 0x01  // payload not long enough to hold 32 bits of prioritized
+                  // stream ID
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(
+        visitor,
+        OnError(Http2DecoderAdapter::SPDY_INVALID_CONTROL_FRAME_SIZE, _));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_TRUE(deframer_.HasError());
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(0, _)).WillOnce(testing::Return(true));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_FALSE(deframer_.HasError());
+  }
+}
+
+TEST_P(SpdyFramerTest, PriorityUpdateFrameOnIncorrectStream) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x04,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x01,  // invalid stream ID, must be 0
+      0x00, 0x00, 0x00, 0x01,  // prioritized stream ID, must not be zero
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(visitor,
+                OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_TRUE(deframer_.HasError());
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(1, _)).WillOnce(testing::Return(true));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_FALSE(deframer_.HasError());
+  }
+}
+
+TEST_P(SpdyFramerTest, PriorityUpdateFramePrioritizingIncorrectStream) {
+  const char kFrameData[] = {
+      0x00, 0x00, 0x04,        // payload length
+      0x10,                    // frame type PRIORITY_UPDATE
+      0x00,                    // flags
+      0x00, 0x00, 0x00, 0x00,  // stream ID, must be 0
+      0x00, 0x00, 0x00, 0x00,  // prioritized stream ID, must not be zero
+  };
+
+  testing::StrictMock<test::MockSpdyFramerVisitor> visitor;
+  deframer_.set_visitor(&visitor);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    EXPECT_CALL(visitor,
+                OnError(Http2DecoderAdapter::SPDY_INVALID_STREAM_ID, _));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_TRUE(deframer_.HasError());
+  } else {
+    EXPECT_CALL(visitor, OnUnknownFrame(0, _)).WillOnce(testing::Return(true));
+    deframer_.ProcessInput(kFrameData, sizeof(kFrameData));
+    EXPECT_FALSE(deframer_.HasError());
+  }
+}
+
 // Tests handling of PRIORITY frames.
 TEST_P(SpdyFramerTest, ReadPriority) {
   SpdyPriorityIR priority(/* stream_id = */ 3,

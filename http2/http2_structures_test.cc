@@ -535,6 +535,27 @@ TEST(Http2AltSvcTest, Misc) {
   EXPECT_TRUE(VerifyRandomCalls<Http2AltSvcFields>());
 }
 
+TEST(Http2PriorityUpdateFieldsTest, Eq) {
+  Http2PriorityUpdateFields u(/* prioritized_stream_id = */ 1);
+  Http2PriorityUpdateFields v(/* prioritized_stream_id = */ 3);
+
+  EXPECT_NE(u, v);
+  EXPECT_FALSE(u == v);
+  EXPECT_TRUE(u != v);
+
+  u = v;
+  EXPECT_EQ(u, v);
+  EXPECT_TRUE(u == v);
+  EXPECT_FALSE(u != v);
+}
+
+TEST(Http2PriorityUpdateFieldsTest, Misc) {
+  Http2PriorityUpdateFields u(/* prioritized_stream_id = */ 1);
+  EXPECT_EQ("prioritized_stream_id=1", u.ToString());
+
+  EXPECT_TRUE(VerifyRandomCalls<Http2PriorityUpdateFields>());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace http2

@@ -76,6 +76,7 @@ class Http2FrameBuilder {
   void Append(const Http2GoAwayFields& v);
   void Append(const Http2WindowUpdateFields& v);
   void Append(const Http2AltSvcFields& v);
+  void Append(const Http2PriorityUpdateFields& v);
 
   // Methods for changing existing buffer contents (mostly focused on updating
   // the payload length).

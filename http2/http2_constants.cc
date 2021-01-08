@@ -35,6 +35,8 @@ std::string Http2FrameTypeToString(Http2FrameType v) {
       return "CONTINUATION";
     case Http2FrameType::ALTSVC:
       return "ALTSVC";
+    case Http2FrameType::PRIORITY_UPDATE:
+      return "PRIORITY_UPDATE";
   }
   return absl::StrCat("UnknownFrameType(", static_cast<int>(v), ")");
 }

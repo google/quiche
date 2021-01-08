@@ -11,6 +11,7 @@
 
 #include "absl/strings/string_view.h"
 #include "http2/http2_constants.h"
+#include "http2/platform/api/http2_flags.h"
 #include "http2/platform/api/http2_logging.h"
 #include "http2/platform/api/http2_test_helpers.h"
 #include "http2/test_tools/frame_parts.h"
@@ -544,6 +545,29 @@ TEST_F(Http2FrameDecoderTest, AltSvcPayload) {
   FrameParts expected(header);
   expected.SetAltSvcExpected("abc", "def");
   EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
+}
+
+TEST_F(Http2FrameDecoderTest, PriorityUpdatePayload) {
+  const char kFrameData[] = {
+      '\x00', '\x00', '\x07',          // Payload length: 7
+      '\x10',                          // PRIORITY_UPDATE
+      '\x00',                          // Flags: none
+      '\x00', '\x00', '\x00', '\x00',  // Stream ID: 0
+      '\x00', '\x00', '\x00', '\x05',  // Prioritized Stream ID: 5
+      'a',    'b',    'c',             // Priority Field Value
+  };
+  Http2FrameHeader header(7, Http2FrameType::PRIORITY_UPDATE, 0, 0);
+
+  if (GetHttp2RestartFlag(http2_parse_priority_update_frame)) {
+    FrameParts expected(header, "abc");
+    expected.SetOptPriorityUpdate(Http2PriorityUpdateFields{5});
+    EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
+  } else {
+    FrameParts expected(header, absl::string_view("\x00\x00\x00\x05"
+                                                  "abc",
+                                                  7));
+    EXPECT_TRUE(DecodePayloadAndValidateSeveralWays(kFrameData, expected));
+  }
 }
 
 TEST_F(Http2FrameDecoderTest, UnknownPayload) {

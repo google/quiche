@@ -71,6 +71,11 @@ class FramePartsCollectorListener : public FramePartsCollector {
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;
   void OnAltSvcEnd() override;
+  void OnPriorityUpdateStart(
+      const Http2FrameHeader& header,
+      const Http2PriorityUpdateFields& priority_update) override;
+  void OnPriorityUpdatePayload(const char* data, size_t len) override;
+  void OnPriorityUpdateEnd() override;
   void OnUnknownStart(const Http2FrameHeader& header) override;
   void OnUnknownPayload(const char* data, size_t len) override;
   void OnUnknownEnd() override;

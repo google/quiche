@@ -209,6 +209,11 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   void OnAltSvcOriginData(const char* data, size_t len) override;
   void OnAltSvcValueData(const char* data, size_t len) override;
   void OnAltSvcEnd() override;
+  void OnPriorityUpdateStart(
+      const Http2FrameHeader& header,
+      const Http2PriorityUpdateFields& priority_update) override;
+  void OnPriorityUpdatePayload(const char* data, size_t len) override;
+  void OnPriorityUpdateEnd() override;
   void OnUnknownStart(const Http2FrameHeader& header) override;
   void OnUnknownPayload(const char* data, size_t len) override;
   void OnUnknownEnd() override;
@@ -274,6 +279,10 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   // Temporary buffers for the AltSvc fields.
   std::string alt_svc_origin_;
   std::string alt_svc_value_;
+
+  // Temporary buffers for PRIORITY_UPDATE fields.
+  uint32_t prioritized_stream_id_ = 0;
+  std::string priority_field_value_;
 
   // Listener used if we transition to an error state; the listener ignores all
   // the callbacks.

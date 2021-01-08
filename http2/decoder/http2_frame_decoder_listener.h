@@ -247,6 +247,28 @@ class Http2FrameDecoderListener {
   // via the above methods.
   virtual void OnAltSvcEnd() = 0;
 
+  // Called when an PRIORITY_UPDATE frame header and Prioritized Stream ID have
+  // been parsed.  Afterwards:
+  //   OnPriorityUpdatePayload will be called each time a portion of the
+  //     Priority Field Value field is available until all of it has been
+  //     provided;
+  //   OnPriorityUpdateEnd will be called last. If the frame has an empty
+  //     Priority Field Value, then this will be called immediately after
+  //     OnPriorityUpdateStart.
+  virtual void OnPriorityUpdateStart(
+      const Http2FrameHeader& header,
+      const Http2PriorityUpdateFields& priority_update) = 0;
+
+  // Called when the next portion of a PRIORITY_UPDATE frame's Priority Field
+  // Value field is received.
+  // |data| The start of |len| bytes of data.
+  // |len| The length of the data buffer. May be zero in some cases, which does
+  //     not mean anything special.
+  virtual void OnPriorityUpdatePayload(const char* data, size_t len) = 0;
+
+  // Called after an entire PRIORITY_UPDATE frame has been received.
+  virtual void OnPriorityUpdateEnd() = 0;
+
   // Called when the common frame header has been decoded, but the frame type
   // is unknown, after which:
   //   OnUnknownPayload is called as the payload of the frame is provided to the
@@ -341,6 +363,11 @@ class Http2FrameDecoderNoOpListener : public Http2FrameDecoderListener {
   void OnAltSvcOriginData(const char* /*data*/, size_t /*len*/) override {}
   void OnAltSvcValueData(const char* /*data*/, size_t /*len*/) override {}
   void OnAltSvcEnd() override {}
+  void OnPriorityUpdateStart(
+      const Http2FrameHeader& /*header*/,
+      const Http2PriorityUpdateFields& /*priority_update*/) override {}
+  void OnPriorityUpdatePayload(const char* /*data*/, size_t /*len*/) override {}
+  void OnPriorityUpdateEnd() override {}
   void OnUnknownStart(const Http2FrameHeader& /*header*/) override {}
   void OnUnknownPayload(const char* /*data*/, size_t /*len*/) override {}
   void OnUnknownEnd() override {}

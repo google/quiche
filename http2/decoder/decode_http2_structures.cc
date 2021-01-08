@@ -100,6 +100,15 @@ void DoDecode(Http2WindowUpdateFields* out, DecodeBuffer* b) {
   out->window_size_increment = b->DecodeUInt31();
 }
 
+// Http2PriorityUpdateFields decoding:
+
+void DoDecode(Http2PriorityUpdateFields* out, DecodeBuffer* b) {
+  DCHECK_NE(nullptr, out);
+  DCHECK_NE(nullptr, b);
+  DCHECK_LE(Http2PriorityUpdateFields::EncodedSize(), b->Remaining());
+  out->prioritized_stream_id = b->DecodeUInt31();
+}
+
 // Http2AltSvcFields decoding:
 
 void DoDecode(Http2AltSvcFields* out, DecodeBuffer* b) {

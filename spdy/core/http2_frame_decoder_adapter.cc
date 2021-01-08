@@ -717,6 +717,33 @@ void Http2DecoderAdapter::OnAltSvcEnd() {
   alt_svc_value_.shrink_to_fit();
 }
 
+void Http2DecoderAdapter::OnPriorityUpdateStart(
+    const Http2FrameHeader& header,
+    const Http2PriorityUpdateFields& priority_update) {
+  SPDY_DVLOG(1) << "OnPriorityUpdateStart: " << header
+                << "; prioritized_stream_id: "
+                << priority_update.prioritized_stream_id;
+  if (IsOkToStartFrame(header) && HasRequiredStreamIdZero(header) &&
+      HasRequiredStreamId(priority_update.prioritized_stream_id)) {
+    frame_header_ = header;
+    has_frame_header_ = true;
+    prioritized_stream_id_ = priority_update.prioritized_stream_id;
+  }
+}
+
+void Http2DecoderAdapter::OnPriorityUpdatePayload(const char* data,
+                                                  size_t len) {
+  SPDY_DVLOG(1) << "OnPriorityUpdatePayload: len=" << len;
+  priority_field_value_.append(data, len);
+}
+
+void Http2DecoderAdapter::OnPriorityUpdateEnd() {
+  SPDY_DVLOG(1) << "OnPriorityUpdateEnd: priority_field_value.size(): "
+                << priority_field_value_.size();
+  visitor()->OnPriorityUpdate(prioritized_stream_id_, priority_field_value_);
+  priority_field_value_.clear();
+}
+
 // Except for BLOCKED frames, all other unknown frames are either dropped or
 // passed to a registered extension.
 void Http2DecoderAdapter::OnUnknownStart(const Http2FrameHeader& header) {

@@ -50,6 +50,9 @@ void Randomize(Http2WindowUpdateFields* out, Http2Random* rng) {
 void Randomize(Http2AltSvcFields* out, Http2Random* rng) {
   out->origin_length = rng->Rand16();
 }
+void Randomize(Http2PriorityUpdateFields* out, Http2Random* rng) {
+  out->prioritized_stream_id = rng->Rand32() & StreamIdMask();
+}
 
 void ScrubFlagsOfHeader(Http2FrameHeader* header) {
   uint8_t invalid_mask = InvalidFlagMaskForFrameType(header->type);
