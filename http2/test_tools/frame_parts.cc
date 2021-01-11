@@ -382,7 +382,7 @@ void FrameParts::OnPriorityUpdateStart(
 void FrameParts::OnPriorityUpdatePayload(const char* data, size_t len) {
   HTTP2_VLOG(1) << "OnPriorityUpdatePayload: len=" << len;
   ASSERT_TRUE(InFrameOfType(Http2FrameType::PRIORITY_UPDATE)) << *this;
-  payload_.append(absl::string_view(data, len));
+  payload_.append(data, len);
 }
 
 void FrameParts::OnPriorityUpdateEnd() {
