@@ -332,7 +332,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // When this is default true, remove the connection_id argument of
   // AddConnectionIdToTimeWait.
   bool use_indirect_connection_id_map_ =
-      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid);
+      GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2);
 };
 
 }  // namespace quic

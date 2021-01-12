@@ -447,13 +447,14 @@ TEST_F(QuicTimeWaitListManagerTest, CleanUpOldConnectionIds) {
 
 TEST_F(QuicTimeWaitListManagerTest,
        CleanUpOldConnectionIdsForMultipleConnectionIdsPerConnection) {
-  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid)) {
+  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2)) {
     return;
   }
 
   connection_id_ = TestConnectionId(7);
   const size_t kConnectionCloseLength = 100;
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
+  EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(TestConnectionId(8)));
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(
@@ -711,13 +712,14 @@ TEST_F(QuicTimeWaitListManagerTest,
 
 TEST_F(QuicTimeWaitListManagerTest,
        SendConnectionClosePacketsForMultipleConnectionIds) {
-  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid)) {
+  if (!GetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2)) {
     return;
   }
 
   connection_id_ = TestConnectionId(7);
   const size_t kConnectionCloseLength = 100;
   EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(connection_id_));
+  EXPECT_CALL(visitor_, OnConnectionAddedToTimeWaitList(TestConnectionId(8)));
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
   termination_packets.push_back(
       std::unique_ptr<QuicEncryptedPacket>(new QuicEncryptedPacket(

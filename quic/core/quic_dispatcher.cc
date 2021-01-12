@@ -328,7 +328,7 @@ QuicDispatcher::QuicDispatcher(
   }
   if (support_multiple_cid_per_connection_) {
     QUIC_RESTART_FLAG_COUNT(
-        quic_dispatcher_support_multiple_cid_per_connection);
+        quic_dispatcher_support_multiple_cid_per_connection_v2);
   }
   QUIC_BUG_IF(GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";

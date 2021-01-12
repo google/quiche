@@ -1974,8 +1974,8 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
   QuicDispatcherSupportMultipleConnectionIdPerConnectionTest()
       : QuicDispatcherTestBase(crypto_test_utils::ProofSourceForTesting()) {
     SetQuicRestartFlag(quic_use_reference_counted_sesssion_map, true);
-    SetQuicRestartFlag(quic_time_wait_list_support_multiple_cid, true);
-    SetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection,
+    SetQuicRestartFlag(quic_time_wait_list_support_multiple_cid_v2, true);
+    SetQuicRestartFlag(quic_dispatcher_support_multiple_cid_per_connection_v2,
                        true);
     dispatcher_ = std::make_unique<NiceMock<TestDispatcher>>(
         &config_, &crypto_config_, &version_manager_,

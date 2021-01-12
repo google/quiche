@@ -82,7 +82,7 @@ QuicTimeWaitListManager::QuicTimeWaitListManager(
       writer_(writer),
       visitor_(visitor) {
   if (use_indirect_connection_id_map_) {
-    QUIC_RESTART_FLAG_COUNT(quic_time_wait_list_support_multiple_cid);
+    QUIC_RESTART_FLAG_COUNT(quic_time_wait_list_support_multiple_cid_v2);
   }
   SetConnectionIdCleanUpAlarm();
 }
@@ -153,9 +153,14 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
       GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
   DCHECK(connection_id_map_.empty() ||
          num_connections() < static_cast<size_t>(max_connections));
+  if (use_indirect_connection_id_map_ && new_connection_id) {
+    for (const auto& cid : info.active_connection_ids) {
+      visitor_->OnConnectionAddedToTimeWaitList(cid);
+    }
+  }
   AddConnectionIdDataToMap(canonical_connection_id, num_packets, action,
                            std::move(info));
-  if (new_connection_id) {
+  if (!use_indirect_connection_id_map_ && new_connection_id) {
     visitor_->OnConnectionAddedToTimeWaitList(canonical_connection_id);
   }
 }
