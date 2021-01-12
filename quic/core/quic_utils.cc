@@ -351,8 +351,6 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
       return PTO_RETRANSMITTED;
     case PROBING_RETRANSMISSION:
       return PROBE_RETRANSMITTED;
-    case ALL_INITIAL_RETRANSMISSION:
-      return UNACKABLE;
     default:
       QUIC_BUG << retransmission_type << " is not a retransmission_type";
       return UNACKABLE;

@@ -493,42 +493,6 @@ void QuicSentPacketManager::MaybeInvokeCongestionEvent(
   }
 }
 
-void QuicSentPacketManager::MarkInitialPacketsForRetransmission() {
-  if (unacked_packets_.use_circular_deque()) {
-    if (unacked_packets_.empty()) {
-      return;
-    }
-    QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-    QuicPacketNumber largest_sent_packet =
-        unacked_packets_.largest_sent_packet();
-    for (; packet_number <= largest_sent_packet; ++packet_number) {
-      QuicTransmissionInfo* transmission_info =
-          unacked_packets_.GetMutableTransmissionInfo(packet_number);
-      if (transmission_info->encryption_level == ENCRYPTION_INITIAL) {
-        if (transmission_info->in_flight) {
-          unacked_packets_.RemoveFromInFlight(transmission_info);
-        }
-        if (unacked_packets_.HasRetransmittableFrames(*transmission_info)) {
-          MarkForRetransmission(packet_number, ALL_INITIAL_RETRANSMISSION);
-        }
-      }
-    }
-  } else {
-    QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
-    for (QuicUnackedPacketMap::iterator it = unacked_packets_.begin();
-         it != unacked_packets_.end(); ++it, ++packet_number) {
-      if (it->encryption_level == ENCRYPTION_INITIAL) {
-        if (it->in_flight) {
-          unacked_packets_.RemoveFromInFlight(&*it);
-        }
-        if (unacked_packets_.HasRetransmittableFrames(*it)) {
-          MarkForRetransmission(packet_number, ALL_INITIAL_RETRANSMISSION);
-        }
-      }
-    }
-  }
-}
-
 void QuicSentPacketManager::MarkZeroRttPacketsForRetransmission() {
   if (unacked_packets_.use_circular_deque()) {
     if (unacked_packets_.empty()) {

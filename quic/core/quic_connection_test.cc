@@ -9976,9 +9976,6 @@ void QuicConnectionTest::TestClientRetryHandling(
   // Make sure the connection uses the connection ID from the test vectors,
   QuicConnectionPeer::SetServerConnectionId(&connection_,
                                             original_connection_id);
-  // Make sure our fake framer has the new post-retry INITIAL keys so that any
-  // retransmission triggered by retry can be decrypted.
-  writer_->framer()->framer()->SetInitialObfuscators(new_connection_id);
 
   // Process the RETRY packet.
   connection_.ProcessUdpPacket(
@@ -10001,6 +9998,8 @@ void QuicConnectionTest::TestClientRetryHandling(
   EXPECT_EQ(QuicPacketCreatorPeer::GetRetryToken(
                 QuicConnectionPeer::GetPacketCreator(&connection_)),
             retry_token);
+  // Make sure our fake framer has the new post-retry INITIAL keys.
+  writer_->framer()->framer()->SetInitialObfuscators(new_connection_id);
 
   // Test validating the original_connection_id from the config.
   QuicConfig received_config;
@@ -10095,50 +10094,6 @@ TEST_P(QuicConnectionTest, ClientParsesRetryWrongRetryId) {
                           /*wrong_original_id_in_config=*/false,
                           /*missing_retry_id_in_config=*/false,
                           /*wrong_retry_id_in_config=*/true);
-}
-
-TEST_P(QuicConnectionTest, ClientRetransmitsInitialPacketsOnRetry) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
-  if (!connection_.version().HasIetfQuicFrames()) {
-    // TestClientRetryHandling() currently only supports IETF draft versions.
-    return;
-  }
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-
-  connection_.SendCryptoStreamData();
-
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
-  TestClientRetryHandling(/*invalid_retry_tag=*/false,
-                          /*missing_original_id_in_config=*/false,
-                          /*wrong_original_id_in_config=*/false,
-                          /*missing_retry_id_in_config=*/false,
-                          /*wrong_retry_id_in_config=*/false);
-
-  // Verify that initial data is retransmitted immediately after receiving
-  // RETRY.
-  if (GetParam().ack_response == AckResponse::kImmediate) {
-    EXPECT_EQ(2u, writer_->packets_write_attempts());
-    EXPECT_EQ(1u, writer_->framer()->crypto_frames().size());
-  }
-}
-
-TEST_P(QuicConnectionTest, NoInitialPacketsRetransmissionOnInvalidRetry) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
-  if (!connection_.version().HasIetfQuicFrames()) {
-    return;
-  }
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
-
-  connection_.SendCryptoStreamData();
-
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
-  TestClientRetryHandling(/*invalid_retry_tag=*/true,
-                          /*missing_original_id_in_config=*/false,
-                          /*wrong_original_id_in_config=*/false,
-                          /*missing_retry_id_in_config=*/false,
-                          /*wrong_retry_id_in_config=*/false);
-
-  EXPECT_EQ(1u, writer_->packets_write_attempts());
 }
 
 TEST_P(QuicConnectionTest, ClientReceivesOriginalConnectionIdWithoutRetry) {

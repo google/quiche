@@ -3792,15 +3792,6 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
   manager_.NeuterUnencryptedPackets();
 }
 
-TEST_F(QuicSentPacketManagerTest, MarkInitialPacketsForRetransmission) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
-  SendCryptoPacket(1);
-  SendPingPacket(2, ENCRYPTION_HANDSHAKE);
-  // Only the INITIAL packet will be retransmitted.
-  EXPECT_CALL(notifier_, OnFrameLost(_)).Times(1);
-  manager_.MarkInitialPacketsForRetransmission();
-}
-
 TEST_F(QuicSentPacketManagerTest, NoPacketThresholdDetectionForRuntPackets) {
   EXPECT_TRUE(
       QuicSentPacketManagerPeer::UsePacketThresholdForRuntPackets(&manager_));

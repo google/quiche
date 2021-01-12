@@ -155,9 +155,6 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   // data needs to be encrypted with a new key.
   void MarkZeroRttPacketsForRetransmission();
 
-  // Request retransmission of all unacked INITIAL packets.
-  void MarkInitialPacketsForRetransmission();
-
   // Notify the sent packet manager of an external network measurement or
   // prediction for either |bandwidth| or |rtt|; either can be empty.
   void AdjustNetworkParameters(

@@ -173,8 +173,6 @@ enum TransmissionType : int8_t {
   TLP_RETRANSMISSION,           // Tail loss probes.
   PTO_RETRANSMISSION,           // Retransmission due to probe timeout.
   PROBING_RETRANSMISSION,       // Retransmission in order to probe bandwidth.
-  ALL_INITIAL_RETRANSMISSION,   // Retransmit all packets encrypted with INITIAL
-                                // key.
   LAST_TRANSMISSION_TYPE = PROBING_RETRANSMISSION,
 };
 
