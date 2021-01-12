@@ -128,4 +128,17 @@ RttStats::StandardDeviationCaculator::CalculateStandardDeviation() const {
   return QuicTime::Delta::FromMicroseconds(sqrt(m2));
 }
 
+void RttStats::CloneFrom(const RttStats& stats) {
+  latest_rtt_ = stats.latest_rtt_;
+  min_rtt_ = stats.min_rtt_;
+  smoothed_rtt_ = stats.smoothed_rtt_;
+  previous_srtt_ = stats.previous_srtt_;
+  mean_deviation_ = stats.mean_deviation_;
+  standard_deviation_calculator_ = stats.standard_deviation_calculator_;
+  calculate_standard_deviation_ = stats.calculate_standard_deviation_;
+  initial_rtt_ = stats.initial_rtt_;
+  last_update_time_ = stats.last_update_time_;
+  ignore_max_ack_delay_ = stats.ignore_max_ack_delay_;
+}
+
 }  // namespace quic

@@ -1632,6 +1632,16 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
                                               QuicSocketAddress());
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
+  RttStats* rtt_stats = const_cast<RttStats*>(manager_->GetRttStats());
+  QuicTime::Delta default_init_rtt = rtt_stats->initial_rtt();
+  rtt_stats->set_initial_rtt(default_init_rtt * 2);
+  EXPECT_EQ(2 * default_init_rtt, rtt_stats->initial_rtt());
+
+  QuicSentPacketManagerPeer::SetConsecutiveRtoCount(manager_, 1);
+  EXPECT_EQ(1u, manager_->GetConsecutiveRtoCount());
+  QuicSentPacketManagerPeer::SetConsecutiveTlpCount(manager_, 2);
+  EXPECT_EQ(2u, manager_->GetConsecutiveTlpCount());
+
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
@@ -1660,6 +1670,10 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
   EXPECT_EQ(kNewPeerAddress, connection_.effective_peer_address());
+  // PORT_CHANGE shouldn't state change in sent packet manager.
+  EXPECT_EQ(2 * default_init_rtt, rtt_stats->initial_rtt());
+  EXPECT_EQ(1u, manager_->GetConsecutiveRtoCount());
+  EXPECT_EQ(2u, manager_->GetConsecutiveTlpCount());
 }
 
 TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {

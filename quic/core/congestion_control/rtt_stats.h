@@ -111,6 +111,8 @@ class QUIC_EXPORT_PRIVATE RttStats {
     calculate_standard_deviation_ = true;
   }
 
+  void CloneFrom(const RttStats& stats);
+
  private:
   friend class test::RttStatsPeer;
 

@@ -237,6 +237,10 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   const RttStats* GetRttStats() const { return &rtt_stats_; }
 
+  void SetRttStats(const RttStats& rtt_stats) {
+    rtt_stats_.CloneFrom(rtt_stats);
+  }
+
   // Returns the estimated bandwidth calculated by the congestion algorithm.
   QuicBandwidth BandwidthEstimate() const {
     return send_algorithm_->BandwidthEstimate();
@@ -295,8 +299,12 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
     return unacked_packets_.bytes_in_flight();
   }
 
-  // Called when peer address changes and the connection migrates.
-  void OnConnectionMigration(AddressChangeType type);
+  // Called when peer address changes. Must be called IFF the address change is
+  // not NAT rebinding. If reset_send_algorithm is true, switch to a new send
+  // algorithm object and retransmit all the in-flight packets. Return the send
+  // algorithm object used on the previous path.
+  std::unique_ptr<SendAlgorithmInterface> OnConnectionMigration(
+      bool reset_send_algorithm);
 
   // Called when an ack frame is initially parsed.
   void OnAckFrameStart(QuicPacketNumber largest_acked,

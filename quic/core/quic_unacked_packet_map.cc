@@ -10,6 +10,7 @@
 
 #include "quic/core/quic_connection_stats.h"
 #include "quic/core/quic_packet_number.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"

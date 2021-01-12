@@ -173,7 +173,9 @@ enum TransmissionType : int8_t {
   TLP_RETRANSMISSION,           // Tail loss probes.
   PTO_RETRANSMISSION,           // Retransmission due to probe timeout.
   PROBING_RETRANSMISSION,       // Retransmission in order to probe bandwidth.
-  LAST_TRANSMISSION_TYPE = PROBING_RETRANSMISSION,
+  PATH_RETRANSMISSION,          // Retransmission proactively due to underlying
+                                // network change.
+  LAST_TRANSMISSION_TYPE = PATH_RETRANSMISSION,
 };
 
 QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(
@@ -530,10 +532,11 @@ enum SentPacketState : uint8_t {
   PTO_RETRANSMITTED,
   // This packet has been retransmitted for probing purpose.
   PROBE_RETRANSMITTED,
-  // Do not collect RTT sample if this packet is the largest_acked of an
-  // incoming ACK.
+  // This packet is sent on a different path or is a PING only packet.
+  // Do not update RTT stats and congestion control if the packet is the
+  // largest_acked of an incoming ACK.
   NOT_CONTRIBUTING_RTT,
-  LAST_PACKET_STATE = PROBE_RETRANSMITTED,
+  LAST_PACKET_STATE = NOT_CONTRIBUTING_RTT,
 };
 
 enum PacketHeaderFormat : uint8_t {

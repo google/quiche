@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/quic_connection_id.h"
+#include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_test.h"
 #include "quic/test_tools/quic_test_utils.h"
 
@@ -135,6 +136,8 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
       EXPECT_EQ(PTO_RETRANSMITTED, state);
     } else if (i == PROBING_RETRANSMISSION) {
       EXPECT_EQ(PROBE_RETRANSMITTED, state);
+    } else if (i == PATH_RETRANSMISSION) {
+      EXPECT_EQ(NOT_CONTRIBUTING_RTT, state);
     } else {
       DCHECK(false)
           << "No corresponding packet state according to transmission type: "

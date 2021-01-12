@@ -10,6 +10,7 @@
 
 #include "quic/core/congestion_control/general_loss_algorithm.h"
 #include "quic/core/congestion_control/pacing_sender.h"
+#include "quic/core/congestion_control/send_algorithm_interface.h"
 #include "quic/core/crypto/crypto_protocol.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
 #include "quic/core/proto/cached_network_parameters_proto.h"
@@ -1244,7 +1245,8 @@ bool QuicSentPacketManager::MaybeUpdateRTT(QuicPacketNumber largest_acked,
                                            QuicTime::Delta ack_delay_time,
                                            QuicTime ack_receive_time) {
   // We rely on ack_delay_time to compute an RTT estimate, so we
-  // only update rtt when the largest observed gets acked.
+  // only update rtt when the largest observed gets acked and the acked packet
+  // is not useless.
   if (!unacked_packets_.IsUnacked(largest_acked)) {
     return false;
   }
@@ -1256,6 +1258,9 @@ bool QuicSentPacketManager::MaybeUpdateRTT(QuicPacketNumber largest_acked,
   if (transmission_info.sent_time == QuicTime::Zero()) {
     QUIC_BUG << "Acked packet has zero sent time, largest_acked:"
              << largest_acked;
+    return false;
+  }
+  if (transmission_info.state == NOT_CONTRIBUTING_RTT) {
     return false;
   }
   if (transmission_info.sent_time > ack_receive_time) {
@@ -1544,17 +1549,37 @@ void QuicSentPacketManager::SetSendAlgorithm(
   pacing_sender_.set_sender(send_algorithm);
 }
 
-void QuicSentPacketManager::OnConnectionMigration(AddressChangeType type) {
-  if (type == PORT_CHANGE || type == IPV4_SUBNET_CHANGE) {
-    // Rtt and cwnd do not need to be reset when the peer address change is
-    // considered to be caused by NATs.
-    return;
-  }
+std::unique_ptr<SendAlgorithmInterface>
+QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
   consecutive_rto_count_ = 0;
   consecutive_tlp_count_ = 0;
   consecutive_pto_count_ = 0;
   rtt_stats_.OnConnectionMigration();
-  send_algorithm_->OnConnectionMigration();
+  if (!reset_send_algorithm) {
+    send_algorithm_->OnConnectionMigration();
+    return nullptr;
+  }
+
+  std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
+      std::move(send_algorithm_);
+  SetSendAlgorithm(old_send_algorithm->GetCongestionControlType());
+  // Treat all in flight packets sent to the old peer address as lost and
+  // retransmit them.
+  QuicPacketNumber packet_number = unacked_packets_.GetLeastUnacked();
+  for (auto it = unacked_packets_.begin(); it != unacked_packets_.end();
+       ++it, ++packet_number) {
+    if (it->in_flight) {
+      // Proactively retransmit any packet which is in flight on the old path.
+      // As a result, these packets will not contribute to congestion control.
+      unacked_packets_.RemoveFromInFlight(packet_number);
+      // Retransmitting these packets with PATH_CHANGE_RETRANSMISSION will mark
+      // them as useless, thus not contributing to RTT stats.
+      MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
+    } else {
+      it->state = NOT_CONTRIBUTING_RTT;
+    }
+  }
+  return old_send_algorithm;
 }
 
 void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,

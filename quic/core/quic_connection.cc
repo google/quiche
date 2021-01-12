@@ -4584,7 +4584,10 @@ void QuicConnection::OnConnectionMigration(AddressChangeType addr_change_type) {
     }
   }
   visitor_->OnConnectionMigration(addr_change_type);
-  sent_packet_manager_.OnConnectionMigration(addr_change_type);
+  if (addr_change_type != PORT_CHANGE &&
+      addr_change_type != IPV4_SUBNET_CHANGE) {
+    sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/false);
+  }
 }
 
 bool QuicConnection::IsCurrentPacketConnectivityProbing() const {

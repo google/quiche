@@ -170,7 +170,7 @@ const char* QuicUtils::SentPacketStateToString(SentPacketState state) {
     RETURN_STRING_LITERAL(RTO_RETRANSMITTED);
     RETURN_STRING_LITERAL(PTO_RETRANSMITTED);
     RETURN_STRING_LITERAL(PROBE_RETRANSMITTED);
-    RETURN_STRING_LITERAL(NOT_CONTRIBUTING_RTT)
+    RETURN_STRING_LITERAL(NOT_CONTRIBUTING_RTT);
   }
   return "INVALID_SENT_PACKET_STATE";
 }
@@ -351,6 +351,8 @@ SentPacketState QuicUtils::RetransmissionTypeToPacketState(
       return PTO_RETRANSMITTED;
     case PROBING_RETRANSMISSION:
       return PROBE_RETRANSMITTED;
+    case PATH_RETRANSMISSION:
+      return NOT_CONTRIBUTING_RTT;
     default:
       QUIC_BUG << retransmission_type << " is not a retransmission_type";
       return UNACKABLE;
