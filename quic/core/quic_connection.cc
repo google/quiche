@@ -1095,6 +1095,10 @@ void QuicConnection::OnSuccessfulMigration() {
     // probing, restart the path degrading and blackhole detection.
     OnForwardProgressMade();
   }
+  if (IsMostRecentAlternativePath(self_address_, effective_peer_address_)) {
+    // Reset alternative path state even if it is still under validation.
+    most_recent_alternative_path_.Clear();
+  }
   // TODO(b/159074035): notify SentPacketManger with RTT sample from probing and
   // reset cwnd if this is a successful network migration.
 }
@@ -5651,6 +5655,14 @@ bool QuicConnection::IsMostRecentAlternativePath(
     const QuicSocketAddress& peer_address) const {
   return most_recent_alternative_path_.peer_address == peer_address &&
          most_recent_alternative_path_.self_address == self_address;
+}
+
+void QuicConnection::AlternativePathState::Clear() {
+  self_address = QuicSocketAddress();
+  peer_address = QuicSocketAddress();
+  validated = false;
+  bytes_received_before_address_validation_ = 0;
+  bytes_sent_before_address_validation_ = 0;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

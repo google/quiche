@@ -12745,6 +12745,34 @@ TEST_P(QuicConnectionTest, MigratePath) {
   EXPECT_FALSE(connection_.IsPathDegrading());
 }
 
+TEST_P(QuicConnectionTest, MigrateToNewPathDuringValidation) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.use_path_validator()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_NE(kNewSelfAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _));
+  bool success = false;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          kNewSelfAddress, connection_.peer_address(), &success));
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_TRUE(QuicConnectionPeer::IsMostRecentAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+
+  connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
+                          &new_writer, /*owns_writer=*/false);
+  EXPECT_EQ(kNewSelfAddress, connection_.self_address());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+  EXPECT_FALSE(QuicConnectionPeer::IsMostRecentAlternativePath(
+      &connection_, kNewSelfAddress, connection_.peer_address()));
+}
+
 TEST_P(QuicConnectionTest, SingleAckInPacket) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));

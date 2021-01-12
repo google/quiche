@@ -1277,6 +1277,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
         : self_address(alternative_self_address),
           peer_address(alternative_peer_address) {}
 
+    // Reset all the members.
+    void Clear();
+
     QuicSocketAddress self_address;
     // The actual peer address behind the proxy if there is any.
     QuicSocketAddress peer_address;

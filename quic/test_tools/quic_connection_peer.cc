@@ -426,5 +426,13 @@ QuicByteCount QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
       .bytes_sent_before_address_validation_;
 }
 
+// static
+bool QuicConnectionPeer::IsMostRecentAlternativePath(
+    QuicConnection* connection,
+    const QuicSocketAddress& self_address,
+    const QuicSocketAddress& peer_address) {
+  return connection->IsMostRecentAlternativePath(self_address, peer_address);
+}
+
 }  // namespace test
 }  // namespace quic

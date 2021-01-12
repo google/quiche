@@ -176,6 +176,11 @@ class QuicConnectionPeer {
 
   static QuicByteCount BytesReceivedOnMostRecentAlternativePath(
       QuicConnection* connection);
+
+  static bool IsMostRecentAlternativePath(
+      QuicConnection* connection,
+      const QuicSocketAddress& self_address,
+      const QuicSocketAddress& peer_address);
 };
 
 }  // namespace test
