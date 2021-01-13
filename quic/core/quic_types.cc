@@ -215,6 +215,7 @@ std::string TransmissionTypeToString(TransmissionType transmission_type) {
     RETURN_STRING_LITERAL(PTO_RETRANSMISSION);
     RETURN_STRING_LITERAL(PROBING_RETRANSMISSION);
     RETURN_STRING_LITERAL(PATH_RETRANSMISSION);
+    RETURN_STRING_LITERAL(ALL_INITIAL_RETRANSMISSION);
     default:
       // Some varz rely on this behavior for statistic collection.
       if (transmission_type == LAST_TRANSMISSION_TYPE + 1) {

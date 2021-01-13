@@ -175,7 +175,9 @@ enum TransmissionType : int8_t {
   PROBING_RETRANSMISSION,       // Retransmission in order to probe bandwidth.
   PATH_RETRANSMISSION,          // Retransmission proactively due to underlying
                                 // network change.
-  LAST_TRANSMISSION_TYPE = PATH_RETRANSMISSION,
+  ALL_INITIAL_RETRANSMISSION,   // Retransmit all packets encrypted with INITIAL
+                                // key.
+  LAST_TRANSMISSION_TYPE = ALL_INITIAL_RETRANSMISSION,
 };
 
 QUIC_EXPORT_PRIVATE std::string TransmissionTypeToString(

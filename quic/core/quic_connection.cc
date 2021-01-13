@@ -957,6 +957,10 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
 
   // Reinstall initial crypters because the connection ID changed.
   InstallInitialCrypters(server_connection_id_);
+
+  if (GetQuicReloadableFlag(quic_retransmit_after_receiving_retry)) {
+    sent_packet_manager_.MarkInitialPacketsForRetransmission();
+  }
 }
 
 bool QuicConnection::HasIncomingConnectionId(QuicConnectionId connection_id) {
