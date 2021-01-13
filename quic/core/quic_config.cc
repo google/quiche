@@ -17,6 +17,7 @@
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_constants.h"
 #include "quic/core/quic_socket_address_coder.h"
+#include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flag_utils.h"
@@ -877,6 +878,20 @@ void QuicConfig::SetIPv6AlternateServerAddressToSend(
   alternate_server_address_ipv6_.SetSendValue(alternate_server_address_ipv6);
 }
 
+void QuicConfig::SetIPv6AlternateServerAddressToSend(
+    const QuicSocketAddress& alternate_server_address_ipv6,
+    const QuicConnectionId& connection_id,
+    QuicUint128 stateless_reset_token) {
+  if (!alternate_server_address_ipv6.host().IsIPv6()) {
+    QUIC_BUG << "Cannot use SetIPv6AlternateServerAddressToSend with "
+             << alternate_server_address_ipv6;
+    return;
+  }
+  alternate_server_address_ipv6_.SetSendValue(alternate_server_address_ipv6);
+  preferred_address_connection_id_and_token_ =
+      std::make_pair(connection_id, stateless_reset_token);
+}
+
 bool QuicConfig::HasReceivedIPv6AlternateServerAddress() const {
   return alternate_server_address_ipv6_.HasReceivedValue();
 }
@@ -896,6 +911,20 @@ void QuicConfig::SetIPv4AlternateServerAddressToSend(
   alternate_server_address_ipv4_.SetSendValue(alternate_server_address_ipv4);
 }
 
+void QuicConfig::SetIPv4AlternateServerAddressToSend(
+    const QuicSocketAddress& alternate_server_address_ipv4,
+    const QuicConnectionId& connection_id,
+    QuicUint128 stateless_reset_token) {
+  if (!alternate_server_address_ipv4.host().IsIPv4()) {
+    QUIC_BUG << "Cannot use SetIPv4AlternateServerAddressToSend with "
+             << alternate_server_address_ipv4;
+    return;
+  }
+  alternate_server_address_ipv4_.SetSendValue(alternate_server_address_ipv4);
+  preferred_address_connection_id_and_token_ =
+      std::make_pair(connection_id, stateless_reset_token);
+}
+
 bool QuicConfig::HasReceivedIPv4AlternateServerAddress() const {
   return alternate_server_address_ipv4_.HasReceivedValue();
 }
@@ -903,6 +932,18 @@ bool QuicConfig::HasReceivedIPv4AlternateServerAddress() const {
 const QuicSocketAddress& QuicConfig::ReceivedIPv4AlternateServerAddress()
     const {
   return alternate_server_address_ipv4_.GetReceivedValue();
+}
+
+bool QuicConfig::HasReceivedPreferredAddressConnectionIdAndToken() const {
+  return (HasReceivedIPv6AlternateServerAddress() ||
+          HasReceivedIPv4AlternateServerAddress()) &&
+         preferred_address_connection_id_and_token_.has_value();
+}
+
+const std::pair<QuicConnectionId, QuicUint128>&
+QuicConfig::ReceivedPreferredAddressConnectionIdAndToken() const {
+  DCHECK(HasReceivedPreferredAddressConnectionIdAndToken());
+  return *preferred_address_connection_id_and_token_;
 }
 
 void QuicConfig::SetOriginalConnectionIdToSend(
@@ -1202,6 +1243,15 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
       preferred_address.ipv4_socket_address =
           alternate_server_address_ipv4_.GetSendValue();
     }
+    if (preferred_address_connection_id_and_token_) {
+      preferred_address.connection_id =
+          preferred_address_connection_id_and_token_->first;
+      auto* begin = reinterpret_cast<const char*>(
+          &preferred_address_connection_id_and_token_->second);
+      auto* end =
+          begin + sizeof(preferred_address_connection_id_and_token_->second);
+      preferred_address.stateless_reset_token.assign(begin, end);
+    }
     params->preferred_address =
         std::make_unique<TransportParameters::PreferredAddress>(
             preferred_address);
@@ -1319,6 +1369,15 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
       if (params.preferred_address->ipv4_socket_address.port() != 0) {
         alternate_server_address_ipv4_.SetReceivedValue(
             params.preferred_address->ipv4_socket_address);
+      }
+      // TODO(haoyuewang) Treat 0 length connection ID sent in preferred_address
+      // as a connection error of type TRANSPORT_PARAMETER_ERROR when server
+      // fully supports it.
+      if (!params.preferred_address->connection_id.IsEmpty()) {
+        preferred_address_connection_id_and_token_ = std::make_pair(
+            params.preferred_address->connection_id,
+            *reinterpret_cast<const QuicUint128*>(
+                &params.preferred_address->stateless_reset_token.front()));
       }
     }
     if (params.min_ack_delay_us.value() != 0) {

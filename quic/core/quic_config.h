@@ -391,14 +391,27 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // IPv6 alternate server address.
   void SetIPv6AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv6);
+  void SetIPv6AlternateServerAddressToSend(
+      const QuicSocketAddress& alternate_server_address_ipv6,
+      const QuicConnectionId& connection_id,
+      QuicUint128 stateless_reset_token);
   bool HasReceivedIPv6AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv6AlternateServerAddress() const;
 
   // IPv4 alternate server address.
   void SetIPv4AlternateServerAddressToSend(
       const QuicSocketAddress& alternate_server_address_ipv4);
+  void SetIPv4AlternateServerAddressToSend(
+      const QuicSocketAddress& alternate_server_address_ipv4,
+      const QuicConnectionId& connection_id,
+      QuicUint128 stateless_reset_token);
   bool HasReceivedIPv4AlternateServerAddress() const;
   const QuicSocketAddress& ReceivedIPv4AlternateServerAddress() const;
+
+  // Preferred Address Connection ID and Token.
+  bool HasReceivedPreferredAddressConnectionIdAndToken() const;
+  const std::pair<QuicConnectionId, QuicUint128>&
+  ReceivedPreferredAddressConnectionIdAndToken() const;
 
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
@@ -589,6 +602,10 @@ class QUIC_EXPORT_PRIVATE QuicConfig {
   // Note that when QUIC_CRYPTO is in use, only one of the addresses is sent.
   QuicFixedSocketAddress alternate_server_address_ipv6_;
   QuicFixedSocketAddress alternate_server_address_ipv4_;
+  // Connection Id data to send from the server or receive at the client as part
+  // of the preferred address transport parameter.
+  absl::optional<std::pair<QuicConnectionId, QuicUint128>>
+      preferred_address_connection_id_and_token_;
 
   // Stateless reset token used in IETF public reset packet.
   // Uses the stateless_reset_token transport parameter in IETF QUIC.
