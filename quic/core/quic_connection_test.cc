@@ -8487,7 +8487,7 @@ TEST_P(QuicConnectionTest, ServerResponseToPathChallenge) {
                       sizeof(challenge_data)));
 }
 
-TEST_P(QuicConnectionTest, ClientResponseToPathChallenge) {
+TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaulSocket) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
       !connection_.send_path_response()) {
     return;
@@ -8526,6 +8526,57 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallenge) {
   EXPECT_EQ(0, memcmp(&challenge_data,
                       &(writer_->path_response_frames().front().data_buffer),
                       sizeof(challenge_data)));
+}
+
+TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.send_path_response()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+
+  QuicSocketAddress kNewSelfAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  bool success = false;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          kNewSelfAddress, connection_.peer_address(), &success));
+
+  // Receiving a PATH_CHALLENGE on the alternative path. Response to this
+  // PATH_CHALLENGE should be sent via the alternative writer.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(2u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_response_frames().size());
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
+  std::unique_ptr<QuicReceivedPacket> received(ConstructReceivedPacket(
+      QuicEncryptedPacket(probing_packet->encrypted_buffer,
+                          probing_packet->encrypted_length),
+      clock_.Now()));
+  ProcessReceivedPacket(kNewSelfAddress, kPeerAddress, *received);
+
+  QuicSocketAddress kNewerSelfAddress(QuicIpAddress::Loopback6(),
+                                      /*port=*/34567);
+  // Receiving a PATH_CHALLENGE on an unknown socket should be ignored.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0u);
+  ProcessReceivedPacket(kNewerSelfAddress, kPeerAddress, *received);
 }
 
 TEST_P(QuicConnectionTest,

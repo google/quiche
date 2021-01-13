@@ -5535,7 +5535,37 @@ bool QuicConnection::SendPathResponse(const QuicPathFrameBuffer& data_buffer,
   QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
                                                       peer_address_to_send);
   QUIC_DVLOG(1) << ENDPOINT << "Send PATH_RESPONSE to " << peer_address_to_send;
-  return packet_creator_.AddPathResponseFrame(data_buffer);
+  if (self_address_ == last_packet_destination_address_) {
+    // The PATH_CHALLENGE is received on the default socket. Respond on the same
+    // socket.
+    return packet_creator_.AddPathResponseFrame(data_buffer);
+  }
+
+  DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+  // This PATH_CHALLENGE is received on an alternative socket which should be
+  // used to send PATH_RESPONSE.
+  if (!path_validator_.HasPendingPathValidation() ||
+      path_validator_.GetContext()->self_address() !=
+          last_packet_destination_address_) {
+    // Ignore this PATH_CHALLENGE if it's received from an uninteresting socket.
+    return true;
+  }
+  QuicPacketWriter* writer = path_validator_.GetContext()->WriterToUse();
+
+  std::unique_ptr<SerializedPacket> probing_packet =
+      packet_creator_.SerializePathResponseConnectivityProbingPacket(
+          {data_buffer}, /*is_padded=*/true);
+  DCHECK_EQ(IsRetransmittable(*probing_packet), NO_RETRANSMITTABLE_DATA);
+  QUIC_DVLOG(1) << ENDPOINT
+                << "Send PATH_RESPONSE from alternative socket with address "
+                << last_packet_destination_address_;
+  // Ignore the return value to treat write error on the alternative writer as
+  // part of network error. If the writer becomes blocked, wait for the peer to
+  // send another PATH_CHALLENGE.
+  WritePacketUsingWriter(std::move(probing_packet), writer,
+                         last_packet_destination_address_, peer_address_to_send,
+                         /*measure_rtt=*/false);
+  return true;
 }
 
 void QuicConnection::UpdatePeerAddress(QuicSocketAddress peer_address) {
