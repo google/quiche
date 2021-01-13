@@ -1957,8 +1957,25 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
   // debug_visitor_.
   DCHECK(version().HasIetfInvariantHeader());
   DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  if (!visitor_->ValidateStatelessReset(last_packet_destination_address_,
-                                        last_packet_source_address_)) {
+
+  if (use_path_validator_) {
+    if (!IsDefaultPath(last_packet_destination_address_,
+                       last_packet_source_address_)) {
+      // This packet is received on a probing path. Do not close connection.
+      if (IsMostRecentAlternativePath(
+              last_packet_destination_address_,
+              GetEffectivePeerAddressFromCurrentPacket())) {
+        QUIC_BUG_IF(most_recent_alternative_path_.validated)
+            << "STATELESS_RESET received on alternate path after it's "
+               "validated.";
+        path_validator_.CancelPathValidation();
+      } else {
+        QUIC_BUG << "Received Stateless Reset on unknown socket.";
+      }
+      return;
+    }
+  } else if (!visitor_->ValidateStatelessReset(last_packet_destination_address_,
+                                               last_packet_source_address_)) {
     // This packet is received on a probing path. Do not close connection.
     return;
   }

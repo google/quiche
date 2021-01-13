@@ -6583,7 +6583,9 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
                                                 kTestStatelessResetToken));
   std::unique_ptr<QuicReceivedPacket> received(
       ConstructReceivedPacket(*packet, QuicTime::Zero()));
-  EXPECT_CALL(visitor_, ValidateStatelessReset(_, _)).WillOnce(Return(true));
+  if (!connection_.use_path_validator()) {
+    EXPECT_CALL(visitor_, ValidateStatelessReset(_, _)).WillOnce(Return(true));
+  }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_PEER))
       .WillOnce(Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *received);
@@ -11312,6 +11314,50 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(success);
+}
+
+TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.use_path_validator()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicUint128 kTestStatelessResetToken = 1010101;
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedStatelessResetToken(&config,
+                                                 kTestStatelessResetToken);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  connection_.SetFromConfig(config);
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_NE(kNewSelfAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  bool success = true;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          kNewSelfAddress, connection_.peer_address(), &success));
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+
+  std::unique_ptr<QuicEncryptedPacket> packet(
+      QuicFramer::BuildIetfStatelessResetPacket(connection_id_,
+                                                kTestStatelessResetToken));
+  std::unique_ptr<QuicReceivedPacket> received(
+      ConstructReceivedPacket(*packet, QuicTime::Zero()));
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(0);
+  connection_.ProcessUdpPacket(kNewSelfAddress, kPeerAddress, *received);
+  EXPECT_FALSE(connection_.HasPendingPathValidation());
+  EXPECT_FALSE(success);
 }
 
 // Tests that PATH_CHALLENGE is dropped if it is sent via a blocked alternative
