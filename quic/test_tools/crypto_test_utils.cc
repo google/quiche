@@ -400,17 +400,21 @@ std::pair<size_t, size_t> AdvanceHandshake(PacketSavingConnection* client_conn,
                                            PacketSavingConnection* server_conn,
                                            QuicCryptoStream* server,
                                            size_t server_i) {
-  QUIC_LOG(INFO) << "Processing "
-                 << client_conn->encrypted_packets_.size() - client_i
-                 << " packets client->server";
-  MovePackets(client_conn, &client_i, server, server_conn,
-              Perspective::IS_SERVER);
+  if (client_conn->encrypted_packets_.size() != client_i) {
+    QUIC_LOG(INFO) << "Processing "
+                   << client_conn->encrypted_packets_.size() - client_i
+                   << " packets client->server";
+    MovePackets(client_conn, &client_i, server, server_conn,
+                Perspective::IS_SERVER);
+  }
 
-  QUIC_LOG(INFO) << "Processing "
-                 << server_conn->encrypted_packets_.size() - server_i
-                 << " packets server->client";
-  MovePackets(server_conn, &server_i, client, client_conn,
-              Perspective::IS_CLIENT);
+  if (server_conn->encrypted_packets_.size() != server_i) {
+    QUIC_LOG(INFO) << "Processing "
+                   << server_conn->encrypted_packets_.size() - server_i
+                   << " packets server->client";
+    MovePackets(server_conn, &server_i, client, client_conn,
+                Perspective::IS_CLIENT);
+  }
 
   return std::make_pair(client_i, server_i);
 }
@@ -794,6 +798,9 @@ void MovePackets(PacketSavingConnection* source_conn,
     }
     for (const auto& crypto_frame : framer.crypto_frames()) {
       dest_stream->OnCryptoFrame(*crypto_frame);
+    }
+    if (!framer.connection_close_frames().empty() && dest_conn->connected()) {
+      dest_conn->OnConnectionCloseFrame(framer.connection_close_frames()[0]);
     }
   }
   *inout_packet_index = index;
