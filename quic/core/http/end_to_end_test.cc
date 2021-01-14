@@ -3054,9 +3054,9 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
   // We must pause the server's thread in order to call WritePacket without
   // race conditions.
   server_thread_->Pause();
-  server_writer_->WritePacket(
-      packet->data(), packet->length(), server_address_.host(),
-      client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
+  auto client_address = client_connection->self_address();
+  server_writer_->WritePacket(packet->data(), packet->length(),
+                              server_address_.host(), client_address, nullptr);
   server_thread_->Resume();
 
   // The request should fail.
@@ -3102,9 +3102,9 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   // We must pause the server's thread in order to call WritePacket without
   // race conditions.
   server_thread_->Pause();
-  server_writer_->WritePacket(
-      packet->data(), packet->length(), server_address_.host(),
-      client_->client()->network_helper()->GetLatestClientAddress(), nullptr);
+  auto client_address = client_connection->self_address();
+  server_writer_->WritePacket(packet->data(), packet->length(),
+                              server_address_.host(), client_address, nullptr);
   server_thread_->Resume();
 
   if (version_.HasIetfInvariantHeader()) {
