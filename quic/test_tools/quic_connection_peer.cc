@@ -304,10 +304,12 @@ void QuicConnectionPeer::SetAddressValidated(QuicConnection* connection) {
 }
 
 // static
-void QuicConnectionPeer::SendConnectionClosePacket(QuicConnection* connection,
-                                                   QuicErrorCode error,
-                                                   const std::string& details) {
-  connection->SendConnectionClosePacket(error, details);
+void QuicConnectionPeer::SendConnectionClosePacket(
+    QuicConnection* connection,
+    QuicIetfTransportErrorCodes ietf_error,
+    QuicErrorCode error,
+    const std::string& details) {
+  connection->SendConnectionClosePacket(error, ietf_error, details);
 }
 
 // static

@@ -340,7 +340,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectionClose) {
   QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
-      creator_.transport_version(), QUIC_NO_ERROR, "error",
+      creator_.transport_version(), QUIC_NO_ERROR, NO_IETF_QUIC_ERROR, "error",
       /*transport_close_frame_type=*/0);
 
   QuicFrames frames;
@@ -3554,7 +3554,8 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   const QuicErrorCode kQuicErrorCode = QUIC_PACKET_WRITE_ERROR;
 
   QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
-      framer_.transport_version(), kQuicErrorCode, std::string(error_details),
+      framer_.transport_version(), kQuicErrorCode, NO_IETF_QUIC_ERROR,
+      std::string(error_details),
       /*transport_close_frame_type=*/0);
   creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame),
                                               /*bundle_ack=*/false);

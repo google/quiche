@@ -2174,7 +2174,7 @@ TEST_P(QuicSessionTestClient, InvalidStreamFlowControlWindowInHandshake) {
   EXPECT_CALL(*connection_, CloseConnection(_, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
 
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();

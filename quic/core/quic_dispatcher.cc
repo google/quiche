@@ -170,9 +170,10 @@ class StatelessConnectionTerminator {
  private:
   void SerializeConnectionClosePacket(QuicErrorCode error_code,
                                       const std::string& error_details) {
-    QuicConnectionCloseFrame* frame = new QuicConnectionCloseFrame(
-        framer_.transport_version(), error_code, error_details,
-        /*transport_close_frame_type=*/0);
+    QuicConnectionCloseFrame* frame =
+        new QuicConnectionCloseFrame(framer_.transport_version(), error_code,
+                                     NO_IETF_QUIC_ERROR, error_details,
+                                     /*transport_close_frame_type=*/0);
 
     if (!creator_.AddFrame(QuicFrame(frame), NOT_RETRANSMISSION)) {
       QUIC_BUG << "Unable to add frame to an empty packet";

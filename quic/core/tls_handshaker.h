@@ -59,6 +59,11 @@ class QUIC_EXPORT_PRIVATE TlsHandshaker : public TlsConnection::Delegate,
   void AdvanceHandshake();
 
   void CloseConnection(QuicErrorCode error, const std::string& reason_phrase);
+  // Closes the connection, specifying the wire error code |ietf_error|
+  // explicitly.
+  void CloseConnection(QuicErrorCode error,
+                       QuicIetfTransportErrorCodes ietf_error,
+                       const std::string& reason_phrase);
 
   void OnConnectionClosed(QuicErrorCode error, ConnectionCloseSource source);
 

@@ -1211,7 +1211,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
     QuicErrorCode kQuicErrorCode = QUIC_PEER_GOING_AWAY;
     QuicConnectionCloseFrame qccf(peer_framer_.transport_version(),
-                                  kQuicErrorCode, "",
+                                  kQuicErrorCode, NO_IETF_QUIC_ERROR, "",
                                   /*transport_close_frame_type=*/0);
     QuicFrames frames;
     frames.push_back(QuicFrame(&qccf));
@@ -6776,7 +6776,7 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   // close. If doing IETF QUIC then set fields appropriately for CC/T or CC/A,
   // depending on the mapping.
   QuicConnectionCloseFrame qccf(peer_framer_.transport_version(),
-                                kQuicErrorCode, "",
+                                kQuicErrorCode, NO_IETF_QUIC_ERROR, "",
                                 /*transport_close_frame_type=*/0);
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
@@ -9028,7 +9028,7 @@ TEST_P(QuicConnectionTest, CheckConnectedBeforeFlush) {
   const QuicErrorCode kErrorCode = QUIC_INTERNAL_ERROR;
   std::unique_ptr<QuicConnectionCloseFrame> connection_close_frame(
       new QuicConnectionCloseFrame(connection_.transport_version(), kErrorCode,
-                                   "",
+                                   NO_IETF_QUIC_ERROR, "",
                                    /*transport_close_frame_type=*/0));
 
   // Received 2 packets.

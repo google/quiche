@@ -61,6 +61,9 @@ class QUIC_EXPORT_PRIVATE PendingStream
   void Reset(QuicRstStreamErrorCode error) override;
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            QuicIetfTransportErrorCodes ietf_error,
+                            const std::string& details) override;
   QuicStreamId id() const override;
   ParsedQuicVersion version() const override;
 
@@ -162,6 +165,9 @@ class QUIC_EXPORT_PRIVATE QuicStream
   // Called by the subclass or the sequencer to close the entire connection from
   // this end.
   void OnUnrecoverableError(QuicErrorCode error,
+                            const std::string& details) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            QuicIetfTransportErrorCodes ietf_error,
                             const std::string& details) override;
 
   // Called by the session when a (potentially duplicate) stream frame has been

@@ -42,6 +42,11 @@ class QUIC_EXPORT_PRIVATE QuicStreamSequencer {
     // being closed.
     virtual void OnUnrecoverableError(QuicErrorCode error,
                                       const std::string& details) = 0;
+    // Called when an error has occurred which should result in the connection
+    // being closed, specifying the wire error code |ietf_error| explicitly.
+    virtual void OnUnrecoverableError(QuicErrorCode error,
+                                      QuicIetfTransportErrorCodes ietf_error,
+                                      const std::string& details) = 0;
     // Returns the stream id of this stream.
     virtual QuicStreamId id() const = 0;
 

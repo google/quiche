@@ -119,6 +119,14 @@ void TlsHandshaker::CloseConnection(QuicErrorCode error,
   is_connection_closed_ = true;
 }
 
+void TlsHandshaker::CloseConnection(QuicErrorCode error,
+                                    QuicIetfTransportErrorCodes ietf_error,
+                                    const std::string& reason_phrase) {
+  DCHECK(!reason_phrase.empty());
+  stream()->OnUnrecoverableError(error, ietf_error, reason_phrase);
+  is_connection_closed_ = true;
+}
+
 void TlsHandshaker::OnConnectionClosed(QuicErrorCode /*error*/,
                                        ConnectionCloseSource /*source*/) {
   is_connection_closed_ = true;
@@ -290,17 +298,19 @@ void TlsHandshaker::WriteMessage(EncryptionLevel level,
 void TlsHandshaker::FlushFlight() {}
 
 void TlsHandshaker::SendAlert(EncryptionLevel level, uint8_t desc) {
-  // TODO(b/151676147): Alerts should be sent on the wire as a varint QUIC error
-  // code computed to be 0x100 | desc (draft-ietf-quic-tls-27, section 4.9).
-  // This puts it in the range reserved for CRYPTO_ERROR
-  // (draft-ietf-quic-transport-27, section 20). However, according to
-  // quic_error_codes.h, this QUIC implementation only sends 1-byte error codes
-  // right now.
   std::string error_details = absl::StrCat(
       "TLS handshake failure (", EncryptionLevelToString(level), ") ",
       static_cast<int>(desc), ": ", SSL_alert_desc_string_long(desc));
   QUIC_DLOG(ERROR) << error_details;
-  CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+  if (GetQuicReloadableFlag(quic_send_tls_crypto_error_code)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_send_tls_crypto_error_code);
+    CloseConnection(
+        TlsAlertToQuicErrorCode(desc),
+        static_cast<QuicIetfTransportErrorCodes>(CRYPTO_ERROR_FIRST + desc),
+        error_details);
+  } else {
+    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+  }
 }
 
 }  // namespace quic

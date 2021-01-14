@@ -154,6 +154,12 @@ void PendingStream::OnUnrecoverableError(QuicErrorCode error,
   stream_delegate_->OnStreamError(error, details);
 }
 
+void PendingStream::OnUnrecoverableError(QuicErrorCode error,
+                                         QuicIetfTransportErrorCodes ietf_error,
+                                         const std::string& details) {
+  stream_delegate_->OnStreamError(error, ietf_error, details);
+}
+
 QuicStreamId PendingStream::id() const {
   return id_;
 }
@@ -619,6 +625,12 @@ void QuicStream::Reset(QuicRstStreamErrorCode error) {
 void QuicStream::OnUnrecoverableError(QuicErrorCode error,
                                       const std::string& details) {
   stream_delegate_->OnStreamError(error, details);
+}
+
+void QuicStream::OnUnrecoverableError(QuicErrorCode error,
+                                      QuicIetfTransportErrorCodes ietf_error,
+                                      const std::string& details) {
+  stream_delegate_->OnStreamError(error, ietf_error, details);
 }
 
 const spdy::SpdyStreamPrecedence& QuicStream::precedence() const {

@@ -679,7 +679,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
             connection_->ReallyCloseConnection(error, error_details,
                                                connection_close_behavior);
           })));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _))
       .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
                               ConnectionCloseSource source) {
@@ -2110,7 +2110,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
             connection_->ReallyCloseConnection(error, error_details,
                                                connection_close_behavior);
           })));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _))
       .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
                               ConnectionCloseSource source) {
@@ -2151,7 +2151,7 @@ TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
               connection_->ReallyCloseConnection(error, error_details,
                                                  connection_close_behavior);
             })));
-    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
     EXPECT_CALL(*session_, OnConnectionClosed(_, _))
         .WillOnce(Invoke([this](const QuicConnectionCloseFrame& frame,
                                 ConnectionCloseSource source) {
@@ -2959,7 +2959,7 @@ TEST_P(QuicSpdyStreamTest, StopProcessingIfConnectionClosed) {
               CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_SPDY_STREAM, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(*session_, OnConnectionClosed(_, _));
 
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), /* fin = */ false,

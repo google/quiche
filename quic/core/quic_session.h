@@ -303,6 +303,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Implement StreamDelegateInterface.
   void OnStreamError(QuicErrorCode error_code,
                      std::string error_details) override;
+  void OnStreamError(QuicErrorCode error_code,
+                     QuicIetfTransportErrorCodes ietf_error,
+                     std::string error_details) override;
   // Sets priority in the write blocked list.
   void RegisterStreamPriority(
       QuicStreamId id,

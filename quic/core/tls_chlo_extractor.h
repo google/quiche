@@ -178,6 +178,9 @@ class QUIC_NO_EXPORT TlsChloExtractor
   void Reset(QuicRstStreamErrorCode /*error*/) override {}
   void OnUnrecoverableError(QuicErrorCode error,
                             const std::string& details) override;
+  void OnUnrecoverableError(QuicErrorCode error,
+                            QuicIetfTransportErrorCodes ietf_error,
+                            const std::string& details) override;
   QuicStreamId id() const override { return 0; }
   ParsedQuicVersion version() const override { return framer_->version(); }
 

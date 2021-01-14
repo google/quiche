@@ -570,8 +570,21 @@ enum QuicErrorCode {
   // Received PRIORITY_UPDATE frame with invalid payload.
   QUIC_INVALID_PRIORITY_UPDATE = 193,
 
+  // Maps to specific errors from the CRYPTO_ERROR range from
+  // https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#name-transport-error-codes
+  // This attempts to choose a subset of the most interesting errors rather
+  // than mapping every possible CRYPTO_ERROR code.
+  QUIC_TLS_BAD_CERTIFICATE = 195,
+  QUIC_TLS_UNSUPPORTED_CERTIFICATE = 196,
+  QUIC_TLS_CERTIFICATE_REVOKED = 197,
+  QUIC_TLS_CERTIFICATE_EXPIRED = 198,
+  QUIC_TLS_CERTIFICATE_UNKNOWN = 199,
+  QUIC_TLS_INTERNAL_ERROR = 200,
+  QUIC_TLS_UNRECOGNIZED_NAME = 201,
+  QUIC_TLS_CERTIFICATE_REQUIRED = 202,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 195,
+  QUIC_LAST_ERROR = 203,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
@@ -579,6 +592,9 @@ enum QuicErrorCode {
 static_assert(static_cast<uint64_t>(QUIC_LAST_ERROR) <=
                   static_cast<uint64_t>(std::numeric_limits<uint32_t>::max()),
               "QuicErrorCode exceeds four octets");
+
+// Convert TLS alert code to QuicErrorCode.
+QUIC_EXPORT_PRIVATE QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc);
 
 // Returns the name of the QuicRstStreamErrorCode as a char*
 QUIC_EXPORT_PRIVATE const char* QuicRstStreamErrorCodeToString(

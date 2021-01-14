@@ -14,6 +14,7 @@ namespace quic {
 QuicConnectionCloseFrame::QuicConnectionCloseFrame(
     QuicTransportVersion transport_version,
     QuicErrorCode error_code,
+    QuicIetfTransportErrorCodes ietf_error,
     std::string error_phrase,
     uint64_t frame_type)
     : quic_error_code(error_code), error_details(error_phrase) {
@@ -25,7 +26,11 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
   }
   QuicErrorCodeToIetfMapping mapping =
       QuicErrorCodeToTransportErrorCode(error_code);
-  wire_error_code = mapping.error_code;
+  if (ietf_error != NO_IETF_QUIC_ERROR) {
+    wire_error_code = ietf_error;
+  } else {
+    wire_error_code = mapping.error_code;
+  }
   if (mapping.is_transport_close) {
     // Maps to a transport close
     close_type = IETF_QUIC_TRANSPORT_CONNECTION_CLOSE;

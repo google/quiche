@@ -848,8 +848,8 @@ void QuicConnection::OnPublicResetPacket(const QuicPublicResetPacket& packet) {
   }
   QUIC_DLOG(INFO) << ENDPOINT << error_details;
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_public_reset);
-  TearDownLocalConnectionState(QUIC_PUBLIC_RESET, error_details,
-                               ConnectionCloseSource::FROM_PEER);
+  TearDownLocalConnectionState(QUIC_PUBLIC_RESET, NO_IETF_QUIC_ERROR,
+                               error_details, ConnectionCloseSource::FROM_PEER);
 }
 
 bool QuicConnection::OnProtocolVersionMismatch(
@@ -1982,8 +1982,8 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
 
   const std::string error_details = "Received stateless reset.";
   QUIC_CODE_COUNT(quic_tear_down_local_connection_on_stateless_reset);
-  TearDownLocalConnectionState(QUIC_PUBLIC_RESET, error_details,
-                               ConnectionCloseSource::FROM_PEER);
+  TearDownLocalConnectionState(QUIC_PUBLIC_RESET, NO_IETF_QUIC_ERROR,
+                               error_details, ConnectionCloseSource::FROM_PEER);
 }
 
 void QuicConnection::OnKeyUpdate(KeyUpdateReason reason) {
@@ -3909,6 +3909,15 @@ void QuicConnection::MaybeProcessCoalescedPackets() {
 
 void QuicConnection::CloseConnection(
     QuicErrorCode error,
+    const std::string& details,
+    ConnectionCloseBehavior connection_close_behavior) {
+  CloseConnection(error, NO_IETF_QUIC_ERROR, details,
+                  connection_close_behavior);
+}
+
+void QuicConnection::CloseConnection(
+    QuicErrorCode error,
+    QuicIetfTransportErrorCodes ietf_error,
     const std::string& error_details,
     ConnectionCloseBehavior connection_close_behavior) {
   DCHECK(!error_details.empty());
@@ -3917,20 +3926,29 @@ void QuicConnection::CloseConnection(
     return;
   }
 
-  QUIC_DLOG(INFO) << ENDPOINT << "Closing connection: " << connection_id()
-                  << ", with error: " << QuicErrorCodeToString(error) << " ("
-                  << error << "), and details:  " << error_details;
-
-  if (connection_close_behavior != ConnectionCloseBehavior::SILENT_CLOSE) {
-    SendConnectionClosePacket(error, error_details);
+  if (ietf_error != NO_IETF_QUIC_ERROR) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Closing connection: " << connection_id()
+                    << ", with wire error: " << ietf_error
+                    << ", error: " << QuicErrorCodeToString(error)
+                    << ", and details:  " << error_details;
+  } else {
+    QUIC_DLOG(INFO) << ENDPOINT << "Closing connection: " << connection_id()
+                    << ", with error: " << QuicErrorCodeToString(error) << " ("
+                    << error << "), and details:  " << error_details;
   }
 
-  TearDownLocalConnectionState(error, error_details,
+  if (connection_close_behavior != ConnectionCloseBehavior::SILENT_CLOSE) {
+    SendConnectionClosePacket(error, ietf_error, error_details);
+  }
+
+  TearDownLocalConnectionState(error, ietf_error, error_details,
                                ConnectionCloseSource::FROM_SELF);
 }
 
-void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
-                                               const std::string& details) {
+void QuicConnection::SendConnectionClosePacket(
+    QuicErrorCode error,
+    QuicIetfTransportErrorCodes ietf_error,
+    const std::string& details) {
   // Always use the current path to send CONNECTION_CLOSE.
   QuicPacketCreator::ScopedPeerAddressContext context(&packet_creator_,
                                                       peer_address());
@@ -3961,7 +3979,8 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
     }
     QuicConnectionCloseFrame* frame;
 
-    frame = new QuicConnectionCloseFrame(transport_version(), error, details,
+    frame = new QuicConnectionCloseFrame(transport_version(), error, ietf_error,
+                                         details,
                                          framer_.current_received_frame_type());
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
@@ -4014,9 +4033,9 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
       visitor_->BeforeConnectionCloseSent();
     }
 
-    auto* frame =
-        new QuicConnectionCloseFrame(transport_version(), error, details,
-                                     framer_.current_received_frame_type());
+    auto* frame = new QuicConnectionCloseFrame(
+        transport_version(), error, ietf_error, details,
+        framer_.current_received_frame_type());
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
   }
@@ -4033,9 +4052,11 @@ void QuicConnection::SendConnectionClosePacket(QuicErrorCode error,
 
 void QuicConnection::TearDownLocalConnectionState(
     QuicErrorCode error,
+    QuicIetfTransportErrorCodes ietf_error,
     const std::string& error_details,
     ConnectionCloseSource source) {
-  QuicConnectionCloseFrame frame(transport_version(), error, error_details,
+  QuicConnectionCloseFrame frame(transport_version(), error, ietf_error,
+                                 error_details,
                                  framer_.current_received_frame_type());
   return TearDownLocalConnectionState(frame, source);
 }

@@ -37,6 +37,12 @@ class MockStream : public QuicStreamSequencer::StreamInterface {
               OnUnrecoverableError,
               (QuicErrorCode error, const std::string& details),
               (override));
+  MOCK_METHOD(void,
+              OnUnrecoverableError,
+              (QuicErrorCode error,
+               QuicIetfTransportErrorCodes ietf_error,
+               const std::string& details),
+              (override));
   MOCK_METHOD(void, Reset, (QuicRstStreamErrorCode error), (override));
   MOCK_METHOD(void, AddBytesConsumed, (QuicByteCount bytes), (override));
 

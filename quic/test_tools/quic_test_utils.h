@@ -697,8 +697,17 @@ class MockQuicConnection : public QuicConnection {
                ConnectionCloseBehavior connection_close_behavior),
               (override));
   MOCK_METHOD(void,
+              CloseConnection,
+              (QuicErrorCode error,
+               QuicIetfTransportErrorCodes ietf_error,
+               const std::string& details,
+               ConnectionCloseBehavior connection_close_behavior),
+              (override));
+  MOCK_METHOD(void,
               SendConnectionClosePacket,
-              (QuicErrorCode error, const std::string& details),
+              (QuicErrorCode error,
+               QuicIetfTransportErrorCodes ietf_error,
+               const std::string& details),
               (override));
   MOCK_METHOD(void, OnCanWrite, (), (override));
   MOCK_METHOD(void,
@@ -749,12 +758,17 @@ class MockQuicConnection : public QuicConnection {
       QuicErrorCode error,
       const std::string& details,
       ConnectionCloseBehavior connection_close_behavior) {
-    QuicConnection::CloseConnection(error, details, connection_close_behavior);
+    // Call the 4-param method directly instead of the 3-param method, so that
+    // it doesn't invoke the virtual 4-param method causing the mock 4-param
+    // method to trigger.
+    QuicConnection::CloseConnection(error, NO_IETF_QUIC_ERROR, details,
+                                    connection_close_behavior);
   }
 
   void ReallySendConnectionClosePacket(QuicErrorCode error,
+                                       QuicIetfTransportErrorCodes ietf_error,
                                        const std::string& details) {
-    QuicConnection::SendConnectionClosePacket(error, details);
+    QuicConnection::SendConnectionClosePacket(error, ietf_error, details);
   }
 
   void ReallyProcessUdpPacket(const QuicSocketAddress& self_address,

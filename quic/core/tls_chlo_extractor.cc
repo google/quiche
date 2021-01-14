@@ -142,6 +142,15 @@ void TlsChloExtractor::OnUnrecoverableError(QuicErrorCode error,
       "Crypto stream error ", QuicErrorCodeToString(error), ": ", details));
 }
 
+void TlsChloExtractor::OnUnrecoverableError(
+    QuicErrorCode error,
+    QuicIetfTransportErrorCodes ietf_error,
+    const std::string& details) {
+  HandleUnrecoverableError(absl::StrCat(
+      "Crypto stream error ", QuicErrorCodeToString(error), "(",
+      QuicIetfTransportErrorCodeString(ietf_error), "): ", details));
+}
+
 // This is called by the framer if it sees a CRYPTO frame during parsing.
 bool TlsChloExtractor::OnCryptoFrame(const QuicCryptoFrame& frame) {
   if (frame.level != ENCRYPTION_INITIAL) {

@@ -1915,7 +1915,7 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
     EXPECT_CALL(*connection_, CloseConnection(_, _, _))
         .WillOnce(
             Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+    EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   }
   session_.OnStreamFrame(data1);
 }
@@ -3194,7 +3194,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
   EXPECT_CALL(*connection_, CloseConnection(QUIC_NO_ERROR, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(QUIC_NO_ERROR, _))
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(QUIC_NO_ERROR, _, _))
       .WillOnce(Invoke(connection_,
                        &MockQuicConnection::ReallySendConnectionClosePacket));
   connection_->CloseConnection(

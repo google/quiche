@@ -529,6 +529,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
       QuicErrorCode error,
       const std::string& details,
       ConnectionCloseBehavior connection_close_behavior);
+  // Closes the connection, specifying the wire error code |ietf_error|
+  // explicitly.
+  virtual void CloseConnection(
+      QuicErrorCode error,
+      QuicIetfTransportErrorCodes ietf_error,
+      const std::string& details,
+      ConnectionCloseBehavior connection_close_behavior);
 
   QuicConnectionStats& mutable_stats() { return stats_; }
 
@@ -1229,7 +1236,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Sends a connection close packet to the peer and includes an ACK if the ACK
   // is not empty, the |error| is not PACKET_WRITE_ERROR, and it fits.
+  // |ietf_error| may optionally be be used to directly specify the wire
+  // error code. Otherwise if |ietf_error| is NO_IETF_QUIC_ERROR, the
+  // QuicErrorCodeToTransportErrorCode mapping of |error| will be used.
   virtual void SendConnectionClosePacket(QuicErrorCode error,
+                                         QuicIetfTransportErrorCodes ietf_error,
                                          const std::string& details);
 
   // Returns true if the packet should be discarded and not sent.
@@ -1331,7 +1342,11 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Does not send a connection close frame to the peer. It should only be
   // called by CloseConnection or OnConnectionCloseFrame, OnPublicResetPacket,
   // and OnAuthenticatedIetfStatelessResetPacket.
+  // |ietf_error| may optionally be be used to directly specify the wire
+  // error code. Otherwise if |ietf_error| is NO_IETF_QUIC_ERROR, the
+  // QuicErrorCodeToTransportErrorCode mapping of |error| will be used.
   void TearDownLocalConnectionState(QuicErrorCode error,
+                                    QuicIetfTransportErrorCodes ietf_error,
                                     const std::string& details,
                                     ConnectionCloseSource source);
   void TearDownLocalConnectionState(const QuicConnectionCloseFrame& frame,

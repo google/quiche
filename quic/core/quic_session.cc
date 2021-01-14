@@ -976,6 +976,14 @@ void QuicSession::OnStreamError(QuicErrorCode error_code,
       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
 }
 
+void QuicSession::OnStreamError(QuicErrorCode error_code,
+                                QuicIetfTransportErrorCodes ietf_error,
+                                std::string error_details) {
+  connection_->CloseConnection(
+      error_code, ietf_error, error_details,
+      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+}
+
 void QuicSession::SendMaxStreams(QuicStreamCount stream_count,
                                  bool unidirectional) {
   if (!is_configured_) {

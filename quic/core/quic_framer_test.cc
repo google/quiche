@@ -7820,8 +7820,9 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicConnectionCloseFrame close_frame(
-      framer_.transport_version(), QUIC_INTERNAL_ERROR, "because I can", 0x05);
+  QuicConnectionCloseFrame close_frame(framer_.transport_version(),
+                                       QUIC_INTERNAL_ERROR, NO_IETF_QUIC_ERROR,
+                                       "because I can", 0x05);
   QuicFrames frames = {QuicFrame(&close_frame)};
 
   // clang-format off
@@ -7921,7 +7922,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
       static_cast<QuicErrorCode>(
           VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x01
                                                                 : 0x05060708),
-      "because I can", 0x05);
+      NO_IETF_QUIC_ERROR, "because I can", 0x05);
   // Set this so that it is "there" for both Google QUIC and IETF QUIC
   // framing. It better not show up for Google QUIC!
   close_frame.quic_error_code = static_cast<QuicErrorCode>(0x4567);
@@ -8023,7 +8024,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   header.packet_number = kPacketNumber;
 
   QuicConnectionCloseFrame close_frame(framer_.transport_version(),
-                                       QUIC_INTERNAL_ERROR,
+                                       QUIC_INTERNAL_ERROR, NO_IETF_QUIC_ERROR,
                                        std::string(2048, 'A'), 0x05);
   QuicFrames frames = {QuicFrame(&close_frame)};
 
@@ -11463,9 +11464,10 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
                 framer_.transport_version(), QuicFrame(&rst_stream)));
 
   std::string error_detail(2048, 'e');
-  QuicConnectionCloseFrame connection_close(
-      framer_.transport_version(), QUIC_NETWORK_IDLE_TIMEOUT, error_detail,
-      /*transport_close_frame_type=*/0);
+  QuicConnectionCloseFrame connection_close(framer_.transport_version(),
+                                            QUIC_NETWORK_IDLE_TIMEOUT,
+                                            NO_IETF_QUIC_ERROR, error_detail,
+                                            /*transport_close_frame_type=*/0);
 
   EXPECT_EQ(QuicFramer::GetConnectionCloseFrameSize(framer_.transport_version(),
                                                     connection_close),

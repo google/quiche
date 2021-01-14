@@ -259,6 +259,14 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_AEAD_LIMIT_REACHED);
     RETURN_STRING_LITERAL(QUIC_MAX_AGE_TIMEOUT);
     RETURN_STRING_LITERAL(QUIC_INVALID_PRIORITY_UPDATE);
+    RETURN_STRING_LITERAL(QUIC_TLS_BAD_CERTIFICATE);
+    RETURN_STRING_LITERAL(QUIC_TLS_UNSUPPORTED_CERTIFICATE);
+    RETURN_STRING_LITERAL(QUIC_TLS_CERTIFICATE_REVOKED);
+    RETURN_STRING_LITERAL(QUIC_TLS_CERTIFICATE_EXPIRED);
+    RETURN_STRING_LITERAL(QUIC_TLS_CERTIFICATE_UNKNOWN);
+    RETURN_STRING_LITERAL(QUIC_TLS_INTERNAL_ERROR);
+    RETURN_STRING_LITERAL(QUIC_TLS_UNRECOGNIZED_NAME);
+    RETURN_STRING_LITERAL(QUIC_TLS_CERTIFICATE_REQUIRED);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -726,11 +734,59 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
     case QUIC_INVALID_PRIORITY_UPDATE:
       return {false, static_cast<uint64_t>(
                          QuicHttp3ErrorCode::GENERAL_PROTOCOL_ERROR)};
+    case QUIC_TLS_BAD_CERTIFICATE:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_BAD_CERTIFICATE)};
+    case QUIC_TLS_UNSUPPORTED_CERTIFICATE:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_UNSUPPORTED_CERTIFICATE)};
+    case QUIC_TLS_CERTIFICATE_REVOKED:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_CERTIFICATE_REVOKED)};
+    case QUIC_TLS_CERTIFICATE_EXPIRED:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_CERTIFICATE_EXPIRED)};
+    case QUIC_TLS_CERTIFICATE_UNKNOWN:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_CERTIFICATE_UNKNOWN)};
+    case QUIC_TLS_INTERNAL_ERROR:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_INTERNAL_ERROR)};
+    case QUIC_TLS_UNRECOGNIZED_NAME:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_UNRECOGNIZED_NAME)};
+    case QUIC_TLS_CERTIFICATE_REQUIRED:
+      return {true, static_cast<uint64_t>(CRYPTO_ERROR_FIRST +
+                                          SSL_AD_CERTIFICATE_REQUIRED)};
+
     case QUIC_LAST_ERROR:
       return {false, static_cast<uint64_t>(QUIC_LAST_ERROR)};
   }
   // This function should not be called with unknown error code.
   return {true, static_cast<uint64_t>(INTERNAL_ERROR)};
+}
+
+QuicErrorCode TlsAlertToQuicErrorCode(uint8_t desc) {
+  switch (desc) {
+    case SSL_AD_BAD_CERTIFICATE:
+      return QUIC_TLS_BAD_CERTIFICATE;
+    case SSL_AD_UNSUPPORTED_CERTIFICATE:
+      return QUIC_TLS_UNSUPPORTED_CERTIFICATE;
+    case SSL_AD_CERTIFICATE_REVOKED:
+      return QUIC_TLS_CERTIFICATE_REVOKED;
+    case SSL_AD_CERTIFICATE_EXPIRED:
+      return QUIC_TLS_CERTIFICATE_EXPIRED;
+    case SSL_AD_CERTIFICATE_UNKNOWN:
+      return QUIC_TLS_CERTIFICATE_UNKNOWN;
+    case SSL_AD_INTERNAL_ERROR:
+      return QUIC_TLS_INTERNAL_ERROR;
+    case SSL_AD_UNRECOGNIZED_NAME:
+      return QUIC_TLS_UNRECOGNIZED_NAME;
+    case SSL_AD_CERTIFICATE_REQUIRED:
+      return QUIC_TLS_CERTIFICATE_REQUIRED;
+    default:
+      return QUIC_HANDSHAKE_FAILED;
+  }
 }
 
 // Convert a QuicRstStreamErrorCode to an application error code to be used in

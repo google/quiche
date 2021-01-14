@@ -209,7 +209,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveSettingsTwice) {
                       "Settings frames are received twice.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   // Receive second SETTINGS frame.
@@ -264,7 +264,7 @@ TEST_P(QuicReceiveControlStreamTest,
                       "PRIORITY_UPDATE frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   receive_control_stream_->OnStreamFrame(data);
@@ -315,7 +315,7 @@ TEST_P(QuicReceiveControlStreamTest, PushPromiseOnControlStreamShouldClose) {
       CloseConnection(QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM, _, _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
   receive_control_stream_->OnStreamFrame(frame);
 }
@@ -388,7 +388,7 @@ TEST_P(QuicReceiveControlStreamTest, CancelPushFrameBeforeSettings) {
                               "CANCEL_PUSH frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   receive_control_stream_->OnStreamFrame(
@@ -409,7 +409,7 @@ TEST_P(QuicReceiveControlStreamTest, AcceptChFrameBeforeSettings) {
                               _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   receive_control_stream_->OnStreamFrame(
@@ -447,7 +447,7 @@ TEST_P(QuicReceiveControlStreamTest, ReceiveAcceptChFrame) {
                           "ACCEPT_CH frame received on control stream", _))
           .WillOnce(
               Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-      EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+      EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
       EXPECT_CALL(session_, OnConnectionClosed(_, _));
     }
   } else {
@@ -471,7 +471,7 @@ TEST_P(QuicReceiveControlStreamTest, UnknownFrameBeforeSettings) {
                               "Unknown frame received before SETTINGS.", _))
       .WillOnce(
           Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
-  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _));
   EXPECT_CALL(session_, OnConnectionClosed(_, _));
 
   receive_control_stream_->OnStreamFrame(

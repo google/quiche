@@ -130,6 +130,7 @@ class QuicConnectionPeer {
   static void SetAddressValidated(QuicConnection* connection);
 
   static void SendConnectionClosePacket(QuicConnection* connection,
+                                        QuicIetfTransportErrorCodes ietf_error,
                                         QuicErrorCode error,
                                         const std::string& details);
 

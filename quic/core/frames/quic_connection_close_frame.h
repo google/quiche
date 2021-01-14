@@ -22,8 +22,12 @@ struct QUIC_EXPORT_PRIVATE QuicConnectionCloseFrame {
   // and the mapping of error_code. THIS IS THE PREFERRED C'TOR
   // TO USE IF YOU NEED TO CREATE A CONNECTION-CLOSE-FRAME AND
   // HAVE IT BE CORRECT FOR THE VERSION AND CODE MAPPINGS.
+  // |ietf_error| may optionally be be used to directly specify the wire
+  // error code. Otherwise if |ietf_error| is NO_IETF_QUIC_ERROR, the
+  // QuicErrorCodeToTransportErrorCode mapping of |error_code| will be used.
   QuicConnectionCloseFrame(QuicTransportVersion transport_version,
                            QuicErrorCode error_code,
+                           QuicIetfTransportErrorCodes ietf_error,
                            std::string error_phrase,
                            uint64_t transport_close_frame_type);
 
