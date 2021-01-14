@@ -62,7 +62,13 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
 
   handshaker_->OnSelectCertificateDone(
       /*ok=*/true, /*is_sync=*/true, chain.get());
-  return handshaker_->SelectCertStatus();
+  if (!handshaker_->select_cert_status().has_value()) {
+    QUIC_BUG
+        << "select_cert_status() has no value after a synchronous select cert";
+    // Return success to continue the handshake.
+    return QUIC_SUCCESS;
+  }
+  return handshaker_->select_cert_status().value();
 }
 
 QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
@@ -567,6 +573,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     size_t max_out,
     uint16_t sig_alg,
     absl::string_view in) {
+  DCHECK_EQ(expected_ssl_error(), SSL_ERROR_WANT_READ);
   if (use_proof_source_handle_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_use_per_handshaker_proof_source, 2,
                                  3);
@@ -774,7 +781,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
         set_transport_params_result.quic_transport_params,
         set_transport_params_result.early_data_context);
 
-    DCHECK_EQ(status, SelectCertStatus());
+    DCHECK_EQ(status, select_cert_status().value());
 
     if (status == QUIC_PENDING) {
       set_expected_ssl_error(SSL_ERROR_PENDING_CERTIFICATE);
@@ -835,19 +842,12 @@ void TlsServerHandshaker::OnSelectCertificateDone(
       QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
     }
   }
-
+  const int last_expected_ssl_error = expected_ssl_error();
+  set_expected_ssl_error(SSL_ERROR_WANT_READ);
   if (!is_sync) {
+    DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_PENDING_CERTIFICATE);
     AdvanceHandshakeFromCallback();
   }
-}
-
-QuicAsyncStatus TlsServerHandshaker::SelectCertStatus() const {
-  if (!select_cert_status_.has_value()) {
-    QUIC_BUG << "SelectCertStatus should be called after select cert started";
-    return QUIC_PENDING;
-  }
-
-  return select_cert_status_.value();
 }
 
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {

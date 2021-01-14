@@ -139,8 +139,10 @@ void FakeProofSourceHandle::CompletePendingOperation() {
 
   if (select_cert_op_.has_value()) {
     select_cert_op_->Run();
+    select_cert_op_.reset();
   } else if (compute_signature_op_.has_value()) {
     compute_signature_op_->Run();
+    compute_signature_op_.reset();
   }
 }
 

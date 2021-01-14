@@ -144,8 +144,10 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                                              absl::string_view in) override;
   TlsConnection::Delegate* ConnectionDelegate() override { return this; }
 
-  // The status of cert selection. Only called after cert selection started.
-  QuicAsyncStatus SelectCertStatus() const;
+  // The status of cert selection. nullopt means it hasn't started.
+  const absl::optional<QuicAsyncStatus>& select_cert_status() const {
+    return select_cert_status_;
+  }
   // Whether |cert_verify_sig_| contains a valid signature.
   // NOTE: BoringSSL queries the result of a async signature operation using
   // PrivateKeyComplete(), a successful PrivateKeyComplete() will clear the

@@ -101,6 +101,8 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
     return fake_proof_source_handle_;
   }
 
+  using TlsServerHandshaker::expected_ssl_error;
+
  private:
   std::unique_ptr<ProofSourceHandle> RealMaybeCreateProofSourceHandle() {
     return TlsServerHandshaker::MaybeCreateProofSourceHandle();
@@ -422,6 +424,47 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
   // Check that the server didn't send any handshake messages, because it failed
   // to handshake.
   EXPECT_EQ(moved_messages_counts_.second, 0u);
+}
+
+TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertAndSignature) {
+  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
+        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+    return;
+  }
+
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_ASYNC);
+
+  EXPECT_CALL(*client_connection_, CloseConnection(_, _, _)).Times(0);
+  EXPECT_CALL(*server_connection_, CloseConnection(_, _, _)).Times(0);
+
+  // Start handshake.
+  AdvanceHandshakeWithFakeClient();
+
+  // A select cert operation is now pending.
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  EXPECT_EQ(server_handshaker_->expected_ssl_error(),
+            SSL_ERROR_PENDING_CERTIFICATE);
+
+  // Complete the pending select cert. It should advance the handshake to
+  // compute a signature, which will also be saved as a pending operation.
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  // A compute signature operation is now pending.
+  ASSERT_TRUE(
+      server_handshaker_->fake_proof_source_handle()->HasPendingOperation());
+  EXPECT_EQ(server_handshaker_->expected_ssl_error(),
+            SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+
+  server_handshaker_->fake_proof_source_handle()->CompletePendingOperation();
+
+  CompleteCryptoHandshake();
+
+  ExpectHandshakeSuccessful();
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSignature) {
