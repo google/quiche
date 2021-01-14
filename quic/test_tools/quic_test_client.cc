@@ -658,7 +658,9 @@ void QuicTestClient::ResetConnection() {
 
 void QuicTestClient::Disconnect() {
   ClearPerConnectionState();
-  client_->Disconnect();
+  if (client_->initialized()) {
+    client_->Disconnect();
+  }
   connect_attempted_ = false;
 }
 
