@@ -11316,6 +11316,55 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   EXPECT_TRUE(success);
 }
 
+TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
+      !connection_.use_path_validator()) {
+    return;
+  }
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_NE(kNewSelfAddress, connection_.self_address());
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+        EXPECT_EQ(1u, new_writer.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress.host(),
+                  new_writer.last_write_source_address());
+      }));
+  bool success = true;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress, connection_.peer_address(), &new_writer),
+      std::make_unique<TestValidationResultDelegate>(
+          kNewSelfAddress, connection_.peer_address(), &success));
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+
+  // Start another path validation request.
+  const QuicSocketAddress kNewSelfAddress2(QuicIpAddress::Any4(), 12346);
+  EXPECT_NE(kNewSelfAddress2, connection_.self_address());
+  TestPacketWriter new_writer2(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .Times(AtLeast(1u))
+      .WillOnce(Invoke([&]() {
+        EXPECT_EQ(1u, new_writer2.packets_write_attempts());
+        EXPECT_EQ(1u, new_writer2.path_challenge_frames().size());
+        EXPECT_EQ(1u, new_writer2.padding_frames().size());
+        EXPECT_EQ(kNewSelfAddress2.host(),
+                  new_writer2.last_write_source_address());
+      }));
+  bool success2 = false;
+  connection_.ValidatePath(
+      std::make_unique<TestQuicPathValidationContext>(
+          kNewSelfAddress2, connection_.peer_address(), &new_writer2),
+      std::make_unique<TestValidationResultDelegate>(
+          kNewSelfAddress2, connection_.peer_address(), &success2));
+  EXPECT_FALSE(success);
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+}
+
 TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
       !connection_.use_path_validator()) {

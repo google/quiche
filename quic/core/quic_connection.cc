@@ -5561,6 +5561,10 @@ void QuicConnection::ValidatePath(
     most_recent_alternative_path_ =
         AlternativePathState(context->self_address(), context->peer_address());
   }
+  if (path_validator_.HasPendingPathValidation()) {
+    // Cancel and fail any earlier validation.
+    path_validator_.CancelPathValidation();
+  }
   path_validator_.StartPathValidation(std::move(context),
                                       std::move(result_delegate));
 }
