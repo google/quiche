@@ -2042,6 +2042,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // starts to track it when it receives a PATH_CHALLENGE in non-default path.
   AlternativePathState most_recent_alternative_path_;
 
+  // This field is used to debug b/177312785.
+  QuicFrameType most_recent_frame_type_;
+
   bool current_incoming_packet_received_bytes_counted_ = false;
 
   bool count_bytes_on_alternative_path_seperately_ =

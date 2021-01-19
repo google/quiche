@@ -371,7 +371,8 @@ QuicConnection::QuicConnection(
           encrypted_control_frames_ &&
           GetQuicReloadableFlag(quic_use_encryption_level_context)),
       path_validator_(alarm_factory_, &arena_, this, random_generator_),
-      most_recent_alternative_path_(QuicSocketAddress(), QuicSocketAddress()) {
+      most_recent_alternative_path_(QuicSocketAddress(), QuicSocketAddress()),
+      most_recent_frame_type_(NUM_FRAME_TYPES) {
   QUIC_BUG_IF(!start_peer_migration_earlier_ && send_path_response_);
 
   DCHECK(perspective_ == Perspective::IS_CLIENT ||
@@ -1186,6 +1187,7 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   }
 
   // Initialize the current packet content state.
+  most_recent_frame_type_ = NUM_FRAME_TYPES;
   current_packet_content_ = NO_FRAMES_RECEIVED;
   is_current_packet_connectivity_probing_ = false;
   has_path_challenge_in_current_packet_ = false;
@@ -1254,7 +1256,9 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 }
 
 bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing STREAM frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1290,7 +1294,9 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing CRYPTO frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a CRYPTO frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1306,7 +1312,9 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
 
 bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
                                      QuicTime::Delta ack_delay_time) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing ACK frame start when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   if (processing_ack_frame_) {
     CloseConnection(QUIC_INVALID_ACK_DATA,
@@ -1350,7 +1358,9 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
 }
 
 bool QuicConnection::OnAckRange(QuicPacketNumber start, QuicPacketNumber end) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing ACK frame range when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   QUIC_DVLOG(1) << ENDPOINT << "OnAckRange: [" << start << ", " << end << ")";
 
   if (GetLargestReceivedPacketWithAck().IsInitialized() &&
@@ -1365,7 +1375,9 @@ bool QuicConnection::OnAckRange(QuicPacketNumber start, QuicPacketNumber end) {
 
 bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
                                     QuicTime timestamp) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_) << "Processing ACK frame time stamp when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
   QUIC_DVLOG(1) << ENDPOINT << "OnAckTimestamp: [" << packet_number << ", "
                 << timestamp.ToDebuggingValue() << ")";
 
@@ -1380,7 +1392,9 @@ bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
 }
 
 bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing ACK frame end when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   QUIC_DVLOG(1) << ENDPOINT << "OnAckFrameEnd, start: " << start;
 
   if (GetLargestReceivedPacketWithAck().IsInitialized() &&
@@ -1435,12 +1449,13 @@ bool QuicConnection::OnAckFrameEnd(QuicPacketNumber start) {
   PostProcessAfterAckFrame(send_stop_waiting,
                            ack_result == PACKETS_NEWLY_ACKED);
   processing_ack_frame_ = false;
-
   return connected_;
 }
 
 bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing STOP_WAITING frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a stop waiting frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1474,7 +1489,9 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 }
 
 bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing PADDING frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   UpdatePacketContent(PADDING_FRAME);
 
   if (debug_visitor_ != nullptr) {
@@ -1484,7 +1501,9 @@ bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
 }
 
 bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing PING frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   UpdatePacketContent(PING_FRAME);
 
   if (debug_visitor_ != nullptr) {
@@ -1524,7 +1543,9 @@ const char* QuicConnection::ValidateStopWaitingFrame(
 }
 
 bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing RST_STREAM frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1543,7 +1564,9 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 }
 
 bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing STOP_SENDING frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1562,6 +1585,9 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 }
 
 bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing PATH_CHALLENGE frame when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
   if (has_path_challenge_in_current_packet_) {
     DCHECK(send_path_response_);
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_send_path_response, 2, 5);
@@ -1601,6 +1627,9 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
 }
 
 bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing PATH_RESPONSE frame when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
   UpdatePacketContent(PATH_RESPONSE_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathResponseFrame(frame);
@@ -1623,7 +1652,9 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
 
 bool QuicConnection::OnConnectionCloseFrame(
     const QuicConnectionCloseFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_) << "Processing CONNECTION_CLOSE frame when "
+                              "connection is closed. Last frame: "
+                           << most_recent_frame_type_;
 
   // Since a connection close frame was received, this is not a connectivity
   // probe. A probe only contains a PING and full padding.
@@ -1669,6 +1700,9 @@ bool QuicConnection::OnConnectionCloseFrame(
 }
 
 bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
+  QUIC_BUG_IF(!connected_)
+      << "Processing MAX_STREAMS frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   UpdatePacketContent(MAX_STREAMS_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
@@ -1678,6 +1712,9 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
 
 bool QuicConnection::OnStreamsBlockedFrame(
     const QuicStreamsBlockedFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing STREAMS_BLOCKED frame when "
+                              "connection is closed. Last frame: "
+                           << most_recent_frame_type_;
   UpdatePacketContent(STREAMS_BLOCKED_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
@@ -1686,7 +1723,9 @@ bool QuicConnection::OnStreamsBlockedFrame(
 }
 
 bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing GOAWAY frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a go away frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1705,7 +1744,9 @@ bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
 }
 
 bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_) << "Processing WINDOW_UPDATE frame when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
 
   // Since a window update frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1723,6 +1764,9 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
 bool QuicConnection::OnNewConnectionIdFrame(
     const QuicNewConnectionIdFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing NEW_CONNECTION_ID frame when "
+                              "connection is closed. Last frame: "
+                           << most_recent_frame_type_;
   UpdatePacketContent(NEW_CONNECTION_ID_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewConnectionIdFrame(frame);
@@ -1732,6 +1776,9 @@ bool QuicConnection::OnNewConnectionIdFrame(
 
 bool QuicConnection::OnRetireConnectionIdFrame(
     const QuicRetireConnectionIdFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing RETIRE_CONNECTION_ID frame when "
+                              "connection is closed. Last frame: "
+                           << most_recent_frame_type_;
   UpdatePacketContent(RETIRE_CONNECTION_ID_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRetireConnectionIdFrame(frame);
@@ -1740,6 +1787,9 @@ bool QuicConnection::OnRetireConnectionIdFrame(
 }
 
 bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
+  QUIC_BUG_IF(!connected_)
+      << "Processing NEW_TOKEN frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
   UpdatePacketContent(NEW_TOKEN_FRAME);
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewTokenFrame(frame);
@@ -1759,7 +1809,9 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
 }
 
 bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing MESSAGE frame when connection is closed. Last frame: "
+      << most_recent_frame_type_;
 
   // Since a message frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -1775,7 +1827,9 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 }
 
 bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_) << "Processing HANDSHAKE_DONE frame when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
   if (!version().UsesTls()) {
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
                     "Handshake done frame is unsupported",
@@ -1803,6 +1857,9 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
 }
 
 bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
+  QUIC_BUG_IF(!connected_) << "Processing ACK_FREQUENCY frame when connection "
+                              "is closed. Last frame: "
+                           << most_recent_frame_type_;
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnAckFrequencyFrame(frame);
   }
@@ -1825,7 +1882,9 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
 }
 
 bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
-  DCHECK(connected_);
+  QUIC_BUG_IF(!connected_)
+      << "Processing BLOCKED frame when connection is closed. Last frame was "
+      << most_recent_frame_type_;
 
   // Since a blocked frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
@@ -4719,6 +4778,7 @@ void QuicConnection::CheckIfApplicationLimited() {
 }
 
 void QuicConnection::UpdatePacketContent(QuicFrameType type) {
+  most_recent_frame_type_ = type;
   if (version().HasIetfQuicFrames()) {
     if (!QuicUtils::IsProbingFrame(type)) {
       MaybeStartIetfPeerMigration();
