@@ -4618,20 +4618,21 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
   active_effective_peer_migration_type_ = type;
 
   // TODO(wub): Move these calls to OnEffectivePeerMigrationValidated.
-  OnConnectionMigration(type);
+  OnConnectionMigration();
 }
 
-void QuicConnection::OnConnectionMigration(AddressChangeType addr_change_type) {
+void QuicConnection::OnConnectionMigration() {
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
       debug_visitor_->OnPeerAddressChange(
-          addr_change_type, now - stats_.handshake_completion_time);
+          active_effective_peer_migration_type_,
+          now - stats_.handshake_completion_time);
     }
   }
-  visitor_->OnConnectionMigration(addr_change_type);
-  if (addr_change_type != PORT_CHANGE &&
-      addr_change_type != IPV4_SUBNET_CHANGE) {
+  visitor_->OnConnectionMigration(active_effective_peer_migration_type_);
+  if (active_effective_peer_migration_type_ != PORT_CHANGE &&
+      active_effective_peer_migration_type_ != IPV4_SUBNET_CHANGE) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/false);
   }
 }

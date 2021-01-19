@@ -1255,7 +1255,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Notify various components(SendPacketManager, Session etc.) that this
   // connection has been migrated.
-  virtual void OnConnectionMigration(AddressChangeType addr_change_type);
+  virtual void OnConnectionMigration();
 
   // Return whether the packet being processed is a connectivity probing.
   // A packet is a connectivity probing if it is a padded ping packet with self
