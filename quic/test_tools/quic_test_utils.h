@@ -1110,6 +1110,11 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               (override));
 
   MOCK_METHOD(void,
+              OnAcceptChFrameReceivedViaAlps,
+              (const AcceptChFrame&),
+              (override));
+
+  MOCK_METHOD(void,
               OnCancelPushFrameReceived,
               (const CancelPushFrame&),
               (override));

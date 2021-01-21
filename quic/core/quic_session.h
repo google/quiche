@@ -279,6 +279,11 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // Called by the QuicCryptoStream when a new QuicConfig has been negotiated.
   virtual void OnConfigNegotiated();
 
+  // Called by the TLS handshaker when ALPS data is received.
+  // Returns an error message if an error has occurred, or nullopt otherwise.
+  virtual absl::optional<std::string> OnAlpsData(const uint8_t* alps_data,
+                                                 size_t alps_length);
+
   // From HandshakerDelegateInterface
   bool OnNewDecryptionKeyAvailable(EncryptionLevel level,
                                    std::unique_ptr<QuicDecrypter> decrypter,

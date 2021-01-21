@@ -3319,6 +3319,28 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
   session_.OnStreamFrame(data3);
 }
 
+TEST_P(QuicSpdySessionTestClient, OnAlpsData) {
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_.set_debug_visitor(&debug_visitor);
+
+  AcceptChFrame accept_ch_frame{{{"foo", "bar"}}};
+  std::string serialized_accept_ch_frame = absl::HexStringToBytes(
+      "4089"      // type (ACCEPT_CH)
+      "08"        // length
+      "03"        // length of origin
+      "666f6f"    // origin "foo"
+      "03"        // length of value
+      "626172");  // value "bar"
+
+  if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
+    EXPECT_CALL(debug_visitor, OnAcceptChFrameReceivedViaAlps(accept_ch_frame));
+  }
+
+  session_.OnAlpsData(
+      reinterpret_cast<const uint8_t*>(serialized_accept_ch_frame.data()),
+      serialized_accept_ch_frame.size());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

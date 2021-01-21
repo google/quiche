@@ -83,6 +83,9 @@ class QUIC_EXPORT_PRIVATE Http3DebugVisitor {
   // Called when peer's QPACK decoder stream type is received.
   virtual void OnPeerQpackDecoderStreamCreated(QuicStreamId /*stream_id*/) = 0;
 
+  // Incoming HTTP/3 frames in ALPS TLS extension.
+  virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/) {}
+
   // Incoming HTTP/3 frames on the control stream.
   virtual void OnCancelPushFrameReceived(const CancelPushFrame& /*frame*/) {}
   virtual void OnSettingsFrameReceived(const SettingsFrame& /*frame*/) = 0;
@@ -405,6 +408,13 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Decode SETTINGS from |cached_state| and apply it to the session.
   bool ResumeApplicationState(ApplicationState* cached_state) override;
+
+  absl::optional<std::string> OnAlpsData(const uint8_t* alps_data,
+                                         size_t alps_length) override;
+
+  // Called when ACCEPT_CH frame is parsed out of data received in TLS ALPS
+  // extension.
+  virtual void OnAcceptChFrameReceivedViaAlps(const AcceptChFrame& /*frame*/);
 
  protected:
   // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and

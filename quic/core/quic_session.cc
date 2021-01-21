@@ -1364,6 +1364,12 @@ void QuicSession::OnConfigNegotiated() {
   }
 }
 
+absl::optional<std::string> QuicSession::OnAlpsData(
+    const uint8_t* /*alps_data*/,
+    size_t /*alps_length*/) {
+  return absl::nullopt;
+}
+
 void QuicSession::AdjustInitialFlowControlWindows(size_t stream_window) {
   const float session_window_multiplier =
       config_.GetInitialStreamFlowControlWindowToSend()

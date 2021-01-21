@@ -15,6 +15,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
+#include "quic/core/http/http_decoder.h"
+#include "quic/core/http/http_frames.h"
 #include "quic/core/http/quic_headers_stream.h"
 #include "quic/core/quic_error_codes.h"
 #include "quic/core/quic_types.h"
@@ -84,6 +86,84 @@ class HeaderTableDebugVisitor : public HpackHeaderTable::DebugVisitorInterface {
  private:
   const QuicClock* clock_;
   std::unique_ptr<QuicHpackDebugVisitor> headers_stream_hpack_visitor_;
+};
+
+// Class to forward ACCEPT_CH frame to QuicSpdySession,
+// and ignore every other frame.
+class AlpsFrameDecoder : public HttpDecoder::Visitor {
+ public:
+  explicit AlpsFrameDecoder(QuicSpdySession* session) : session_(session) {}
+  ~AlpsFrameDecoder() override = default;
+
+  // HttpDecoder::Visitor implementation.
+  void OnError(HttpDecoder* /*decoder*/) override {}
+  bool OnCancelPushFrame(const CancelPushFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnMaxPushIdFrame(const MaxPushIdFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnGoAwayFrame(const GoAwayFrame& /*frame*/) override { return true; }
+  bool OnSettingsFrameStart(QuicByteCount /*header_length*/) override {
+    return true;
+  }
+  bool OnSettingsFrame(const SettingsFrame& /*frame*/) override { return true; }
+  bool OnDataFrameStart(QuicByteCount /*header_length*/, QuicByteCount
+                        /*payload_length*/) override {
+    return true;
+  }
+  bool OnDataFramePayload(absl::string_view /*payload*/) override {
+    return true;
+  }
+  bool OnDataFrameEnd() override { return true; }
+  bool OnHeadersFrameStart(QuicByteCount /*header_length*/,
+                           QuicByteCount /*payload_length*/) override {
+    return true;
+  }
+  bool OnHeadersFramePayload(absl::string_view /*payload*/) override {
+    return true;
+  }
+  bool OnHeadersFrameEnd() override { return true; }
+  bool OnPushPromiseFrameStart(QuicByteCount /*header_length*/) override {
+    return true;
+  }
+  bool OnPushPromiseFramePushId(
+      PushId /*push_id*/,
+      QuicByteCount
+      /*push_id_length*/,
+      QuicByteCount /*header_block_length*/) override {
+    return true;
+  }
+  bool OnPushPromiseFramePayload(absl::string_view /*payload*/) override {
+    return true;
+  }
+  bool OnPushPromiseFrameEnd() override { return true; }
+  bool OnPriorityUpdateFrameStart(QuicByteCount /*header_length*/) override {
+    return true;
+  }
+  bool OnPriorityUpdateFrame(const PriorityUpdateFrame& /*frame*/) override {
+    return true;
+  }
+  bool OnAcceptChFrameStart(QuicByteCount /*header_length*/) override {
+    return true;
+  }
+  bool OnAcceptChFrame(const AcceptChFrame& frame) override {
+    session_->OnAcceptChFrameReceivedViaAlps(frame);
+    return true;
+  }
+  bool OnUnknownFrameStart(uint64_t /*frame_type*/,
+                           QuicByteCount
+                           /*header_length*/,
+                           QuicByteCount /*payload_length*/) override {
+    return true;
+  }
+  bool OnUnknownFramePayload(absl::string_view /*payload*/) override {
+    return true;
+  }
+  bool OnUnknownFrameEnd() override { return true; }
+
+ private:
+  QuicSpdySession* const session_;
 };
 
 }  // namespace
@@ -976,6 +1056,26 @@ bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
     OnSetting(setting.first, setting.second);
   }
   return true;
+}
+
+absl::optional<std::string> QuicSpdySession::OnAlpsData(
+    const uint8_t* alps_data,
+    size_t alps_length) {
+  AlpsFrameDecoder alps_frame_decoder(this);
+  HttpDecoder decoder(&alps_frame_decoder);
+  decoder.ProcessInput(reinterpret_cast<const char*>(alps_data), alps_length);
+  if (decoder.error() != QUIC_NO_ERROR) {
+    return decoder.error_detail();
+  }
+
+  return absl::nullopt;
+}
+
+void QuicSpdySession::OnAcceptChFrameReceivedViaAlps(
+    const AcceptChFrame& frame) {
+  if (debug_visitor_) {
+    debug_visitor_->OnAcceptChFrameReceivedViaAlps(frame);
+  }
 }
 
 bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
