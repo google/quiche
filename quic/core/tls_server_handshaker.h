@@ -80,6 +80,11 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
                       const SSL_CIPHER* cipher,
                       const std::vector<uint8_t>& write_secret) override;
 
+  // Called with normalized SNI hostname as |origin|.  Return value will be sent
+  // in an ACCEPT_CH frame in the TLS ALPS extension, unless empty.
+  virtual std::string GetAcceptChValueForOrigin(
+      const std::string& origin) const;
+
  protected:
   // Creates a proof source handle for selecting cert and computing signature.
   // Only called when |use_proof_source_handle_| is true.

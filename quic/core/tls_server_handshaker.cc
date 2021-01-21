@@ -512,6 +512,11 @@ void TlsServerHandshaker::SetWriteSecret(
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
 }
 
+std::string TlsServerHandshaker::GetAcceptChValueForOrigin(
+    const std::string& /*origin*/) const {
+  return {};
+}
+
 void TlsServerHandshaker::FinishHandshake() {
   if (SSL_in_early_data(ssl())) {
     // If the server accepts early data, SSL_do_handshake returns success twice:
