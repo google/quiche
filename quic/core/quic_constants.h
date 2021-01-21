@@ -209,6 +209,10 @@ const size_t kDiversificationNonceSize = 32;
 // This will likely have to be tuned.
 const QuicPacketCount kMaxPacketGap = 5000;
 
+// The max number of sequence number intervals that
+// QuicPeerIssuedConnetionIdManager can maintain.
+const size_t kMaxNumConnectionIdSequenceNumberIntervals = 20;
+
 // The maximum number of random padding bytes to add.
 const QuicByteCount kMaxNumRandomPaddingBytes = 256;
 
