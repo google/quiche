@@ -13,9 +13,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quic/core/http/spdy_utils.h"
+#include "quic/core/http/http_constants.h"
 #include "quic/core/quic_types.h"
-#include "spdy/core/spdy_framer.h"
 
 namespace quic {
 
@@ -84,7 +83,7 @@ struct QUIC_EXPORT_PRIVATE SettingsFrame {
     std::string s;
     for (auto it : values) {
       std::string setting = absl::StrCat(
-          SpdyUtils::H3SettingsToString(
+          H3SettingsToString(
               static_cast<Http3AndQpackSettingsIdentifiers>(it.first)),
           " = ", it.second, "; ");
       absl::StrAppend(&s, setting);

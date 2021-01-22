@@ -51,10 +51,6 @@ class QUIC_EXPORT_PRIVATE SpdyUtils {
   // which must be fully-qualified.
   static bool PopulateHeaderBlockFromUrl(const std::string url,
                                          spdy::SpdyHeaderBlock* headers);
-
-  // Returns HTTP/3 SETTINGS identifier as a string.
-  static std::string H3SettingsToString(
-      Http3AndQpackSettingsIdentifiers identifier);
 };
 
 }  // namespace quic

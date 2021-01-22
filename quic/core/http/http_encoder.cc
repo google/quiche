@@ -9,6 +9,8 @@
 #include "quic/core/crypto/quic_random.h"
 #include "quic/core/quic_data_writer.h"
 #include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_logging.h"
 
