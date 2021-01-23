@@ -68,7 +68,7 @@ void QuicPathValidator::OnPathResponse(const QuicPathFrameBuffer& probing_data,
 void QuicPathValidator::StartPathValidation(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<ResultDelegate> result_delegate) {
-  DCHECK_NE(nullptr, context);
+  DCHECK(context);
   QUIC_DLOG(INFO) << "Start validating path " << *context
                   << " via writer: " << context->WriterToUse();
   if (path_context_ != nullptr) {
