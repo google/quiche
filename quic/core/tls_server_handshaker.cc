@@ -13,6 +13,8 @@
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/quic_crypto_server_config.h"
 #include "quic/core/crypto/transport_parameters.h"
+#include "quic/core/http/http_encoder.h"
+#include "quic/core/http/http_frames.h"
 #include "quic/core/quic_time.h"
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_flag_utils.h"
@@ -956,6 +958,30 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
   if (selected_alpn == alpns.end()) {
     QUIC_DLOG(ERROR) << "No known ALPN provided by client";
     return SSL_TLSEXT_ERR_NOACK;
+  }
+
+  // Enable ALPS for the selected ALPN protocol.
+  if (GetQuicReloadableFlag(quic_enable_alps_server)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_alps_server);
+
+    const uint8_t* alps_data = nullptr;
+    size_t alps_length = 0;
+    std::unique_ptr<char[]> buffer;
+
+    const std::string& origin = crypto_negotiated_params_->sni;
+    std::string accept_ch_value = GetAcceptChValueForOrigin(origin);
+    if (!accept_ch_value.empty()) {
+      AcceptChFrame frame{{{origin, accept_ch_value}}};
+      alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
+      alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
+    }
+
+    if (SSL_add_application_settings(
+            ssl(), reinterpret_cast<const uint8_t*>(selected_alpn->data()),
+            selected_alpn->size(), alps_data, alps_length) != 1) {
+      QUIC_DLOG(ERROR) << "Failed to enable ALPS";
+      return SSL_TLSEXT_ERR_NOACK;
+    }
   }
 
   session()->OnAlpnSelected(*selected_alpn);
