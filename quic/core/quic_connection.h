@@ -54,6 +54,7 @@
 #include "quic/core/uber_received_packet_manager.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_export.h"
+#include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
 #include "common/platform/api/quiche_str_cat.h"
 
@@ -1450,7 +1451,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // starts effective peer migration if current packet is confirmed not a
   // connectivity probe and |current_effective_peer_migration_type_| indicates
   // effective peer address change.
-  void UpdatePacketContent(QuicFrameType type);
+  // Returns true if connection is still alive.
+  ABSL_MUST_USE_RESULT bool UpdatePacketContent(QuicFrameType type);
 
   // Called when last received ack frame has been processed.
   // |send_stop_waiting| indicates whether a stop waiting needs to be sent.
@@ -2049,6 +2051,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool count_bytes_on_alternative_path_seperately_ =
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);
+
+  bool update_packet_content_returns_connected_ =
+      GetQuicReloadableFlag(quic_update_packet_content_returns_connected);
 };
 
 }  // namespace quic

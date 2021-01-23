@@ -1262,7 +1262,9 @@ bool QuicConnection::OnStreamFrame(const QuicStreamFrame& frame) {
 
   // Since a stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(STREAM_FRAME);
+  if (!UpdatePacketContent(STREAM_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamFrame(frame);
@@ -1300,7 +1302,9 @@ bool QuicConnection::OnCryptoFrame(const QuicCryptoFrame& frame) {
 
   // Since a CRYPTO frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(CRYPTO_FRAME);
+  if (!UpdatePacketContent(CRYPTO_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnCryptoFrame(frame);
@@ -1325,7 +1329,9 @@ bool QuicConnection::OnAckFrameStart(QuicPacketNumber largest_acked,
 
   // Since an ack frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(ACK_FRAME);
+  if (!UpdatePacketContent(ACK_FRAME)) {
+    return false;
+  }
 
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnAckFrameStart, largest_acked: " << largest_acked;
@@ -1459,7 +1465,9 @@ bool QuicConnection::OnStopWaitingFrame(const QuicStopWaitingFrame& frame) {
 
   // Since a stop waiting frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(STOP_WAITING_FRAME);
+  if (!UpdatePacketContent(STOP_WAITING_FRAME)) {
+    return false;
+  }
 
   if (no_stop_waiting_frames_) {
     return true;
@@ -1492,7 +1500,9 @@ bool QuicConnection::OnPaddingFrame(const QuicPaddingFrame& frame) {
   QUIC_BUG_IF(!connected_)
       << "Processing PADDING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
-  UpdatePacketContent(PADDING_FRAME);
+  if (!UpdatePacketContent(PADDING_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPaddingFrame(frame);
@@ -1504,7 +1514,9 @@ bool QuicConnection::OnPingFrame(const QuicPingFrame& frame) {
   QUIC_BUG_IF(!connected_)
       << "Processing PING frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
-  UpdatePacketContent(PING_FRAME);
+  if (!UpdatePacketContent(PING_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     QuicTime::Delta ping_received_delay = QuicTime::Delta::Zero();
@@ -1549,7 +1561,9 @@ bool QuicConnection::OnRstStreamFrame(const QuicRstStreamFrame& frame) {
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(RST_STREAM_FRAME);
+  if (!UpdatePacketContent(RST_STREAM_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRstStreamFrame(frame);
@@ -1570,7 +1584,9 @@ bool QuicConnection::OnStopSendingFrame(const QuicStopSendingFrame& frame) {
 
   // Since a reset stream frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(STOP_SENDING_FRAME);
+  if (!UpdatePacketContent(STOP_SENDING_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStopSendingFrame(frame);
@@ -1594,7 +1610,9 @@ bool QuicConnection::OnPathChallengeFrame(const QuicPathChallengeFrame& frame) {
     // Only respond to the 1st PATH_CHALLENGE.
     return true;
   }
-  UpdatePacketContent(PATH_CHALLENGE_FRAME);
+  if (!UpdatePacketContent(PATH_CHALLENGE_FRAME)) {
+    return false;
+  }
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathChallengeFrame(frame);
   }
@@ -1630,7 +1648,9 @@ bool QuicConnection::OnPathResponseFrame(const QuicPathResponseFrame& frame) {
   QUIC_BUG_IF(!connected_) << "Processing PATH_RESPONSE frame when connection "
                               "is closed. Last frame: "
                            << most_recent_frame_type_;
-  UpdatePacketContent(PATH_RESPONSE_FRAME);
+  if (!UpdatePacketContent(PATH_RESPONSE_FRAME)) {
+    return false;
+  }
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPathResponseFrame(frame);
   }
@@ -1658,7 +1678,9 @@ bool QuicConnection::OnConnectionCloseFrame(
 
   // Since a connection close frame was received, this is not a connectivity
   // probe. A probe only contains a PING and full padding.
-  UpdatePacketContent(CONNECTION_CLOSE_FRAME);
+  if (!UpdatePacketContent(CONNECTION_CLOSE_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnConnectionCloseFrame(frame);
@@ -1703,7 +1725,10 @@ bool QuicConnection::OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) {
   QUIC_BUG_IF(!connected_)
       << "Processing MAX_STREAMS frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
-  UpdatePacketContent(MAX_STREAMS_FRAME);
+  if (!UpdatePacketContent(MAX_STREAMS_FRAME)) {
+    return false;
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMaxStreamsFrame(frame);
   }
@@ -1715,7 +1740,10 @@ bool QuicConnection::OnStreamsBlockedFrame(
   QUIC_BUG_IF(!connected_) << "Processing STREAMS_BLOCKED frame when "
                               "connection is closed. Last frame: "
                            << most_recent_frame_type_;
-  UpdatePacketContent(STREAMS_BLOCKED_FRAME);
+  if (!UpdatePacketContent(STREAMS_BLOCKED_FRAME)) {
+    return false;
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnStreamsBlockedFrame(frame);
   }
@@ -1729,7 +1757,9 @@ bool QuicConnection::OnGoAwayFrame(const QuicGoAwayFrame& frame) {
 
   // Since a go away frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(GOAWAY_FRAME);
+  if (!UpdatePacketContent(GOAWAY_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnGoAwayFrame(frame);
@@ -1750,7 +1780,9 @@ bool QuicConnection::OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) {
 
   // Since a window update frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(WINDOW_UPDATE_FRAME);
+  if (!UpdatePacketContent(WINDOW_UPDATE_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnWindowUpdateFrame(
@@ -1767,7 +1799,10 @@ bool QuicConnection::OnNewConnectionIdFrame(
   QUIC_BUG_IF(!connected_) << "Processing NEW_CONNECTION_ID frame when "
                               "connection is closed. Last frame: "
                            << most_recent_frame_type_;
-  UpdatePacketContent(NEW_CONNECTION_ID_FRAME);
+  if (!UpdatePacketContent(NEW_CONNECTION_ID_FRAME)) {
+    return false;
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewConnectionIdFrame(frame);
   }
@@ -1779,7 +1814,10 @@ bool QuicConnection::OnRetireConnectionIdFrame(
   QUIC_BUG_IF(!connected_) << "Processing RETIRE_CONNECTION_ID frame when "
                               "connection is closed. Last frame: "
                            << most_recent_frame_type_;
-  UpdatePacketContent(RETIRE_CONNECTION_ID_FRAME);
+  if (!UpdatePacketContent(RETIRE_CONNECTION_ID_FRAME)) {
+    return false;
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnRetireConnectionIdFrame(frame);
   }
@@ -1790,7 +1828,10 @@ bool QuicConnection::OnNewTokenFrame(const QuicNewTokenFrame& frame) {
   QUIC_BUG_IF(!connected_)
       << "Processing NEW_TOKEN frame when connection is closed. Last frame: "
       << most_recent_frame_type_;
-  UpdatePacketContent(NEW_TOKEN_FRAME);
+  if (!UpdatePacketContent(NEW_TOKEN_FRAME)) {
+    return false;
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnNewTokenFrame(frame);
   }
@@ -1815,7 +1856,9 @@ bool QuicConnection::OnMessageFrame(const QuicMessageFrame& frame) {
 
   // Since a message frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(MESSAGE_FRAME);
+  if (!UpdatePacketContent(MESSAGE_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnMessageFrame(frame);
@@ -1846,7 +1889,9 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
 
   // Since a handshake done frame was received, this is not a connectivity
   // probe. A probe only contains a PING and full padding.
-  UpdatePacketContent(HANDSHAKE_DONE_FRAME);
+  if (!UpdatePacketContent(HANDSHAKE_DONE_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnHandshakeDoneFrame(frame);
@@ -1863,7 +1908,10 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnAckFrequencyFrame(frame);
   }
-  UpdatePacketContent(ACK_FREQUENCY_FRAME);
+  if (!UpdatePacketContent(ACK_FREQUENCY_FRAME)) {
+    return false;
+  }
+
   if (!can_receive_ack_frequency_frame_) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
     return false;
@@ -1888,7 +1936,9 @@ bool QuicConnection::OnBlockedFrame(const QuicBlockedFrame& frame) {
 
   // Since a blocked frame was received, this is not a connectivity probe.
   // A probe only contains a PING and full padding.
-  UpdatePacketContent(BLOCKED_FRAME);
+  if (!UpdatePacketContent(BLOCKED_FRAME)) {
+    return false;
+  }
 
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnBlockedFrame(frame);
@@ -4777,19 +4827,22 @@ void QuicConnection::CheckIfApplicationLimited() {
   sent_packet_manager_.OnApplicationLimited();
 }
 
-void QuicConnection::UpdatePacketContent(QuicFrameType type) {
+bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
+  if (update_packet_content_returns_connected_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_update_packet_content_returns_connected);
+  }
   most_recent_frame_type_ = type;
   if (version().HasIetfQuicFrames()) {
     if (!QuicUtils::IsProbingFrame(type)) {
       MaybeStartIetfPeerMigration();
-      return;
+      return !update_packet_content_returns_connected_ || connected_;
     }
     QuicSocketAddress current_effective_peer_address =
         GetEffectivePeerAddressFromCurrentPacket();
     if (!count_bytes_on_alternative_path_seperately_ ||
         IsDefaultPath(last_packet_destination_address_,
                       last_packet_source_address_)) {
-      return;
+      return !update_packet_content_returns_connected_ || connected_;
     }
     QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 3, 5);
     if (type == PATH_CHALLENGE_FRAME &&
@@ -4804,7 +4857,7 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
           last_packet_destination_address_, current_effective_peer_address);
     }
     MaybeUpdateBytesReceivedFromAlternativeAddress(last_size_);
-    return;
+    return !update_packet_content_returns_connected_ || connected_;
   }
   // Packet content is tracked to identify connectivity probe in non-IETF
   // version, where a connectivity probe is defined as
@@ -4815,13 +4868,13 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
     // We have already learned the current packet is not a connectivity
     // probing packet. Peer migration should have already been started earlier
     // if needed.
-    return;
+    return !update_packet_content_returns_connected_ || connected_;
   }
 
   if (type == PING_FRAME) {
     if (current_packet_content_ == NO_FRAMES_RECEIVED) {
       current_packet_content_ = FIRST_FRAME_IS_PING;
-      return;
+      return !update_packet_content_returns_connected_ || connected_;
     }
   }
 
@@ -4851,7 +4904,7 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
           << last_packet_destination_address_
           << ", self_address_:" << self_address_;
     }
-    return;
+    return !update_packet_content_returns_connected_ || connected_;
   }
 
   current_packet_content_ = NOT_PADDED_PING;
@@ -4865,6 +4918,7 @@ void QuicConnection::UpdatePacketContent(QuicFrameType type) {
     }
   }
   current_effective_peer_migration_type_ = NO_CHANGE;
+  return !update_packet_content_returns_connected_ || connected_;
 }
 
 void QuicConnection::MaybeStartIetfPeerMigration() {

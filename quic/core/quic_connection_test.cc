@@ -13265,6 +13265,7 @@ TEST_P(QuicConnectionTest,
       QUIC_INVALID_0RTT_PACKET_NUMBER_OUT_OF_ORDER);
 }
 
+// Regression test for b/177312785
 TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   if (!VersionHasIetfQuicFrames(version().transport_version) ||
       !GetQuicReloadableFlag(quic_start_peer_migration_earlier)) {
@@ -13294,12 +13295,22 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
 
   // Process another packet with a different peer address on server side will
   // close connection.
+  QuicAckFrame frame = InitAckFrame(1);
   EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0u);
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kNewPeerAddress, ENCRYPTION_INITIAL);
+  if (!GetQuicReloadableFlag(quic_update_packet_content_returns_connected)) {
+    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
+    EXPECT_QUIC_BUG(
+        ProcessFramePacketWithAddresses(QuicFrame(&frame), kSelfAddress,
+                                        kNewPeerAddress, ENCRYPTION_INITIAL),
+        "");
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _)).Times(0);
+    ProcessFramePacketWithAddresses(QuicFrame(&frame), kSelfAddress,
+                                    kNewPeerAddress, ENCRYPTION_INITIAL);
+  }
   EXPECT_FALSE(connection_.connected());
 }
 
