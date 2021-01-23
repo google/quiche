@@ -7,6 +7,7 @@
 #include <cstring>
 #include <string>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
 #include "quic/core/crypto/quic_crypto_client_config.h"
@@ -167,6 +168,19 @@ bool TlsClientHandshaker::SetAlpn() {
                     alpn_writer.data(), alpn_writer.length()));
     return false;
   }
+
+  // Enable ALPS.
+  if (enable_alps_) {
+    for (const std::string& alpn_string : alpns) {
+      if (SSL_add_application_settings(
+              ssl(), reinterpret_cast<const uint8_t*>(alpn_string.data()),
+              alpn_string.size(), nullptr, /* settings_len = */ 0) != 1) {
+        QUIC_BUG << "Failed to enable ALPS.";
+        return false;
+      }
+    }
+  }
+
   QUIC_DLOG(INFO) << "Client using ALPN: '" << alpns[0] << "'";
   return true;
 }
@@ -475,6 +489,23 @@ void TlsClientHandshaker::FinishHandshake() {
   session()->OnAlpnSelected(received_alpn_string);
   QUIC_DLOG(INFO) << "Client: server selected ALPN: '" << received_alpn_string
                   << "'";
+
+  // Parse ALPS extension.
+  if (enable_alps_) {
+    const uint8_t* alps_data;
+    size_t alps_length;
+    SSL_get0_peer_application_settings(ssl(), &alps_data, &alps_length);
+    if (alps_length > 0) {
+      auto error = session()->OnAlpsData(alps_data, alps_length);
+      if (error) {
+        CloseConnection(
+            QUIC_HANDSHAKE_FAILED,
+            absl::StrCat("Error processing ALPS data: ", error.value()));
+        return;
+      }
+    }
+  }
+
   state_ = HANDSHAKE_COMPLETE;
   handshaker_delegate()->OnTlsHandshakeComplete();
 }
