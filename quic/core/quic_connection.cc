@@ -1153,7 +1153,7 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
           clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay() * 3);
     }
   }
-  if (EnforceAntiAmplificationLimit() &&
+  if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
       (last_decrypted_packet_level_ == ENCRYPTION_HANDSHAKE ||
        last_decrypted_packet_level_ == ENCRYPTION_FORWARD_SECURE)) {
     // Address is validated by successfully processing a HANDSHAKE or 1-RTT
@@ -1243,7 +1243,8 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
   if (GetQuicReloadableFlag(quic_enable_token_based_address_validation)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_enable_token_based_address_validation, 2,
                                  2);
-    if (EnforceAntiAmplificationLimit() && !header.retry_token.empty() &&
+    if (EnforceAntiAmplificationLimit() && !IsHandshakeConfirmed() &&
+        !header.retry_token.empty() &&
         visitor_->ValidateToken(header.retry_token)) {
       QUIC_DLOG(INFO) << ENDPOINT << "Address validated via token.";
       QUIC_CODE_COUNT(quic_address_validated_via_token);
