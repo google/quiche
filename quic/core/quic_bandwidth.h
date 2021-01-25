@@ -55,11 +55,6 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
   // Create a new QuicBandwidth based on the bytes per the elapsed delta.
   static inline QuicBandwidth FromBytesAndTimeDelta(QuicByteCount bytes,
                                                     QuicTime::Delta delta) {
-    if (!GetQuicReloadableFlag(quic_round_up_tiny_bandwidth)) {
-      return QuicBandwidth((8 * bytes * kNumMicrosPerSecond) /
-                           delta.ToMicroseconds());
-    }
-
     if (bytes == 0) {
       return QuicBandwidth(0);
     }
@@ -67,7 +62,6 @@ class QUIC_EXPORT_PRIVATE QuicBandwidth {
     // 1 bit is 1000000 micro bits.
     int64_t num_micro_bits = 8 * bytes * kNumMicrosPerSecond;
     if (num_micro_bits < delta.ToMicroseconds()) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_round_up_tiny_bandwidth);
       return QuicBandwidth(1);
     }
 

@@ -62,14 +62,9 @@ TEST_F(QuicBandwidthTest, TimeDelta) {
   EXPECT_EQ(QuicBandwidth::Zero(), QuicBandwidth::FromBytesAndTimeDelta(
                                        0, QuicTime::Delta::FromSeconds(9)));
 
-  if (GetQuicReloadableFlag(quic_round_up_tiny_bandwidth)) {
-    EXPECT_EQ(QuicBandwidth::FromBitsPerSecond(1),
-              QuicBandwidth::FromBytesAndTimeDelta(
-                  1, QuicTime::Delta::FromSeconds(9)));
-  } else {
-    EXPECT_EQ(QuicBandwidth::Zero(), QuicBandwidth::FromBytesAndTimeDelta(
-                                         1, QuicTime::Delta::FromSeconds(9)));
-  }
+  EXPECT_EQ(
+      QuicBandwidth::FromBitsPerSecond(1),
+      QuicBandwidth::FromBytesAndTimeDelta(1, QuicTime::Delta::FromSeconds(9)));
 }
 
 TEST_F(QuicBandwidthTest, Scale) {
