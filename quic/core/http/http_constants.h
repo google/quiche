@@ -9,6 +9,7 @@
 #include <string>
 
 #include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_export.h"
 
 namespace quic {
 
@@ -36,7 +37,8 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
 };
 
 // Returns HTTP/3 SETTINGS identifier as a string.
-std::string H3SettingsToString(Http3AndQpackSettingsIdentifiers identifier);
+QUIC_EXPORT std::string H3SettingsToString(
+    Http3AndQpackSettingsIdentifiers identifier);
 
 // Default maximum dynamic table capacity, communicated via
 // SETTINGS_QPACK_MAX_TABLE_CAPACITY.
