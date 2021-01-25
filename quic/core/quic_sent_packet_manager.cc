@@ -661,7 +661,9 @@ void QuicSentPacketManager::MarkForRetransmission(
   QUIC_BUG_IF(transmission_type != LOSS_RETRANSMISSION &&
               transmission_type != RTO_RETRANSMISSION &&
               !unacked_packets_.HasRetransmittableFrames(*transmission_info))
-      << "transmission_type: " << transmission_type;
+      << "packet number " << packet_number
+      << " transmission_type: " << transmission_type << " transmission_info "
+      << transmission_info->DebugString();
   // Handshake packets should never be sent as probing retransmissions.
   DCHECK(!transmission_info->has_crypto_handshake ||
          transmission_type != PROBING_RETRANSMISSION);
@@ -1610,10 +1612,12 @@ QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
       unacked_packets_.RemoveFromInFlight(packet_number);
       // Retransmitting these packets with PATH_CHANGE_RETRANSMISSION will mark
       // them as useless, thus not contributing to RTT stats.
-      MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
-    } else {
-      it->state = NOT_CONTRIBUTING_RTT;
+      if (unacked_packets_.HasRetransmittableFrames(packet_number)) {
+        MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
+        DCHECK_EQ(it->state, NOT_CONTRIBUTING_RTT);
+      }
     }
+    it->state = NOT_CONTRIBUTING_RTT;
   }
   return old_send_algorithm;
 }
