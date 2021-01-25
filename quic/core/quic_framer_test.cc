@@ -4605,15 +4605,8 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithUnknownErrorCode) {
   } else {
     // For Google QUIC frame, |quic_error_code| and |wire_error_code| has the
     // same value.
-    if (GetQuicReloadableFlag(quic_do_not_clip_received_error_code)) {
-      EXPECT_EQ(0xC0DEu, visitor_.connection_close_frame_.wire_error_code);
-      EXPECT_EQ(0xC0DEu, visitor_.connection_close_frame_.quic_error_code);
-    } else {
-      EXPECT_EQ(QUIC_LAST_ERROR,
-                visitor_.connection_close_frame_.wire_error_code);
-      EXPECT_EQ(QUIC_LAST_ERROR,
-                visitor_.connection_close_frame_.quic_error_code);
-    }
+    EXPECT_EQ(0xC0DEu, visitor_.connection_close_frame_.wire_error_code);
+    EXPECT_EQ(0xC0DEu, visitor_.connection_close_frame_.quic_error_code);
   }
 
   ASSERT_EQ(0u, visitor_.ack_frames_.size());
@@ -5053,11 +5046,7 @@ TEST_P(QuicFramerTest, GoAwayFrameWithUnknownErrorCode) {
       PACKET_8BYTE_CONNECTION_ID, PACKET_0BYTE_CONNECTION_ID));
 
   EXPECT_EQ(kStreamId, visitor_.goaway_frame_.last_good_stream_id);
-  if (GetQuicReloadableFlag(quic_do_not_clip_received_error_code)) {
-    EXPECT_EQ(0xC0DE, visitor_.goaway_frame_.error_code);
-  } else {
-    EXPECT_EQ(QUIC_LAST_ERROR, visitor_.goaway_frame_.error_code);
-  }
+  EXPECT_EQ(0xC0DE, visitor_.goaway_frame_.error_code);
   EXPECT_EQ("because I can", visitor_.goaway_frame_.reason_phrase);
 
   CheckFramingBoundaries(fragments, QUIC_INVALID_GOAWAY_DATA);
