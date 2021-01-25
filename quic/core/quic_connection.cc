@@ -4194,7 +4194,9 @@ void QuicConnection::TearDownLocalConnectionState(
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
   CancelAllAlarms();
-  CancelPathValidation();
+  if (use_path_validator_) {
+    CancelPathValidation();
+  }
 }
 
 void QuicConnection::CancelAllAlarms() {
@@ -5679,6 +5681,7 @@ QuicTime QuicConnection::GetRetryTimeout(
 void QuicConnection::ValidatePath(
     std::unique_ptr<QuicPathValidationContext> context,
     std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate) {
+  DCHECK(use_path_validator_);
   if (perspective_ == Perspective::IS_CLIENT &&
       !IsDefaultPath(context->self_address(), context->peer_address())) {
     most_recent_alternative_path_ =
@@ -5744,14 +5747,17 @@ void QuicConnection::SendPingAtLevel(EncryptionLevel level) {
 }
 
 bool QuicConnection::HasPendingPathValidation() const {
+  DCHECK(use_path_validator_);
   return path_validator_.HasPendingPathValidation();
 }
 
 QuicPathValidationContext* QuicConnection::GetPathValidationContext() const {
+  DCHECK(use_path_validator_);
   return path_validator_.GetContext();
 }
 
 void QuicConnection::CancelPathValidation() {
+  DCHECK(use_path_validator_);
   path_validator_.CancelPathValidation();
 }
 
