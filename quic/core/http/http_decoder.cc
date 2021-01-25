@@ -235,14 +235,7 @@ bool HttpDecoder::ReadFrameLength(QuicDataReader* reader) {
       continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM):
-      if (GetQuicReloadableFlag(quic_new_priority_update_frame)) {
-        QUIC_CODE_COUNT_N(quic_new_priority_update_frame, 2, 2);
-        continue_processing =
-            visitor_->OnPriorityUpdateFrameStart(header_length);
-      } else {
-        continue_processing = visitor_->OnUnknownFrameStart(
-            current_frame_type_, header_length, current_frame_length_);
-      }
+      continue_processing = visitor_->OnPriorityUpdateFrameStart(header_length);
       break;
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH):
       if (GetQuicReloadableFlag(quic_parse_accept_ch_frame)) {
@@ -382,13 +375,9 @@ bool HttpDecoder::ReadFramePayload(QuicDataReader* reader) {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      if (GetQuicReloadableFlag(quic_new_priority_update_frame)) {
-        // TODO(bnc): Avoid buffering if the entire frame is present, and
-        // instead parse directly out of |reader|.
-        BufferFramePayload(reader);
-      } else {
-        continue_processing = HandleUnknownFramePayload(reader);
-      }
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      BufferFramePayload(reader);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {
@@ -499,18 +488,14 @@ bool HttpDecoder::FinishParsing() {
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::PRIORITY_UPDATE_REQUEST_STREAM): {
-      if (GetQuicReloadableFlag(quic_new_priority_update_frame)) {
-        // TODO(bnc): Avoid buffering if the entire frame is present, and
-        // instead parse directly out of |reader|.
-        PriorityUpdateFrame frame;
-        QuicDataReader reader(buffer_.data(), current_frame_length_);
-        if (!ParseNewPriorityUpdateFrame(&reader, &frame)) {
-          return false;
-        }
-        continue_processing = visitor_->OnPriorityUpdateFrame(frame);
-      } else {
-        continue_processing = visitor_->OnUnknownFrameEnd();
+      // TODO(bnc): Avoid buffering if the entire frame is present, and
+      // instead parse directly out of |reader|.
+      PriorityUpdateFrame frame;
+      QuicDataReader reader(buffer_.data(), current_frame_length_);
+      if (!ParseNewPriorityUpdateFrame(&reader, &frame)) {
+        return false;
       }
+      continue_processing = visitor_->OnPriorityUpdateFrame(frame);
       break;
     }
     case static_cast<uint64_t>(HttpFrameType::ACCEPT_CH): {

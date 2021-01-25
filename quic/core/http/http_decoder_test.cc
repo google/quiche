@@ -1048,10 +1048,6 @@ TEST_F(HttpDecoderTest, PriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, NewPriorityUpdateFrame) {
-  if (!GetQuicReloadableFlag(quic_new_priority_update_frame)) {
-    return;
-  }
-
   InSequence s;
   std::string input1 = absl::HexStringToBytes(
       "800f0700"  // type (PRIORITY_UPDATE)
@@ -1168,10 +1164,6 @@ TEST_F(HttpDecoderTest, CorruptPriorityUpdateFrame) {
 }
 
 TEST_F(HttpDecoderTest, CorruptNewPriorityUpdateFrame) {
-  if (!GetQuicReloadableFlag(quic_new_priority_update_frame)) {
-    return;
-  }
-
   std::string payload =
       absl::HexStringToBytes("4005");  // prioritized element id
   struct {
