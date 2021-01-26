@@ -2512,7 +2512,7 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 
   stats_.bytes_received += packet.length();
   ++stats_.packets_received;
-  if (!count_bytes_on_alternative_path_seperately_) {
+  if (!count_bytes_on_alternative_path_separately_) {
     if (EnforceAntiAmplificationLimit()) {
       bytes_received_before_address_validation_ += last_size_;
     }
@@ -2829,7 +2829,7 @@ bool QuicConnection::ShouldGeneratePacket(
          QuicVersionUsesCryptoFrames(transport_version()))
       << ENDPOINT
       << "Handshake in STREAM frames should not check ShouldGeneratePacket";
-  if (!count_bytes_on_alternative_path_seperately_) {
+  if (!count_bytes_on_alternative_path_separately_) {
     return CanWrite(retransmittable);
   }
   QUIC_CODE_COUNT_N(quic_count_bytes_on_alternative_path_seperately, 4, 5);
@@ -3228,7 +3228,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
   QUIC_DVLOG(1) << ENDPOINT << "time we began writing last sent packet: "
                 << packet_send_time.ToDebuggingValue();
 
-  if (!count_bytes_on_alternative_path_seperately_) {
+  if (!count_bytes_on_alternative_path_separately_) {
     if (EnforceAntiAmplificationLimit()) {
       // Include bytes sent even if they are not in flight.
       bytes_sent_before_address_validation_ += encrypted_length;
@@ -4842,7 +4842,7 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
     }
     QuicSocketAddress current_effective_peer_address =
         GetEffectivePeerAddressFromCurrentPacket();
-    if (!count_bytes_on_alternative_path_seperately_ ||
+    if (!count_bytes_on_alternative_path_separately_ ||
         IsDefaultPath(last_packet_destination_address_,
                       last_packet_source_address_)) {
       return !update_packet_content_returns_connected_ || connected_;
@@ -5317,7 +5317,7 @@ bool QuicConnection::FlushCoalescedPacket() {
   // Account for added padding.
   if (length > coalesced_packet_.length()) {
     size_t padding_size = length - coalesced_packet_.length();
-    if (!count_bytes_on_alternative_path_seperately_) {
+    if (!count_bytes_on_alternative_path_separately_) {
       if (EnforceAntiAmplificationLimit()) {
         bytes_sent_before_address_validation_ += padding_size;
       }
@@ -5811,20 +5811,20 @@ void QuicConnection::MaybeUpdateBytesSentToAlternativeAddress(
   if (most_recent_alternative_path_.validated) {
     return;
   }
-  if (most_recent_alternative_path_.bytes_sent_before_address_validation_ >=
+  if (most_recent_alternative_path_.bytes_sent_before_address_validation >=
       anti_amplification_factor_ *
           most_recent_alternative_path_
-              .bytes_received_before_address_validation_) {
+              .bytes_received_before_address_validation) {
     QUIC_LOG_FIRST_N(WARNING, 100)
         << "Server sent more data than allowed to unverified alternative "
            "peer address "
         << peer_address << " bytes sent "
-        << most_recent_alternative_path_.bytes_sent_before_address_validation_
+        << most_recent_alternative_path_.bytes_sent_before_address_validation
         << ", bytes received "
         << most_recent_alternative_path_
-               .bytes_received_before_address_validation_;
+               .bytes_received_before_address_validation;
   }
-  most_recent_alternative_path_.bytes_sent_before_address_validation_ +=
+  most_recent_alternative_path_.bytes_sent_before_address_validation +=
       sent_packet_size;
 }
 
@@ -5843,7 +5843,7 @@ void QuicConnection::MaybeUpdateBytesReceivedFromAlternativeAddress(
   DCHECK(!IsDefaultPath(last_packet_destination_address_,
                         GetEffectivePeerAddressFromCurrentPacket()));
   if (!most_recent_alternative_path_.validated) {
-    most_recent_alternative_path_.bytes_received_before_address_validation_ +=
+    most_recent_alternative_path_.bytes_received_before_address_validation +=
         received_packet_size;
   }
   current_incoming_packet_received_bytes_counted_ = true;
@@ -5866,8 +5866,8 @@ void QuicConnection::AlternativePathState::Clear() {
   self_address = QuicSocketAddress();
   peer_address = QuicSocketAddress();
   validated = false;
-  bytes_received_before_address_validation_ = 0;
-  bytes_sent_before_address_validation_ = 0;
+  bytes_received_before_address_validation = 0;
+  bytes_sent_before_address_validation = 0;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

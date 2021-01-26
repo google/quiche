@@ -1983,7 +1983,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
     ProcessFramesPacketWithAddresses(frames, connection_.self_address(),
                                      kNewPeerAddress,
                                      ENCRYPTION_FORWARD_SECURE);
-    EXPECT_EQ(3 * received->length(),
+    EXPECT_LT(2 * received->length(),
               QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
                   &connection_));
   }
@@ -11553,8 +11553,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
   {
     // Add a flusher to force flush, otherwise the frames will remain in the
     // packet creator.
-    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     bool success = false;
+    QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.ValidatePath(
         std::make_unique<TestQuicPathValidationContext>(
             connection_.self_address(), connection_.peer_address(),

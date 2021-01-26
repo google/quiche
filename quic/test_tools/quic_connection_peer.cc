@@ -418,14 +418,14 @@ QuicPathValidator* QuicConnectionPeer::path_validator(
 QuicByteCount QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(
     QuicConnection* connection) {
   return connection->most_recent_alternative_path_
-      .bytes_sent_before_address_validation_;
+      .bytes_sent_before_address_validation;
 }
 
 //  static
 QuicByteCount QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
     QuicConnection* connection) {
   return connection->most_recent_alternative_path_
-      .bytes_sent_before_address_validation_;
+      .bytes_received_before_address_validation;
 }
 
 // static

@@ -1298,8 +1298,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
     bool validated = false;
     // Used by the sever to apply anti-amplification limit after this path
     // becomes the default path if |peer_address| hasn't been validated.
-    QuicByteCount bytes_received_before_address_validation_ = 0;
-    QuicByteCount bytes_sent_before_address_validation_ = 0;
+    QuicByteCount bytes_received_before_address_validation = 0;
+    QuicByteCount bytes_sent_before_address_validation = 0;
   };
 
   using QueuedPacketList = std::list<SerializedPacket>;
@@ -2049,7 +2049,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool current_incoming_packet_received_bytes_counted_ = false;
 
-  bool count_bytes_on_alternative_path_seperately_ =
+  bool count_bytes_on_alternative_path_separately_ =
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately);
 
   bool update_packet_content_returns_connected_ =
