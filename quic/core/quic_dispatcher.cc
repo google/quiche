@@ -487,16 +487,10 @@ bool QuicDispatcher::MaybeDispatchPacket(
   // connection ID that is at least 64 bits long. After that initial
   // connection ID, the dispatcher picks a new one of its expected length.
   // Therefore we should never receive a connection ID that is smaller
-  // than 64 bits and smaller than what we expect.
-  bool should_check_short_connection_ids = true;
-  if (GetQuicReloadableFlag(
-          quic_send_version_negotiation_for_short_connection_ids)) {
-    QUIC_RELOADABLE_FLAG_COUNT(
-        quic_send_version_negotiation_for_short_connection_ids);
-    should_check_short_connection_ids =
-        packet_info.version_flag && packet_info.version.IsKnown();
-  }
-  if (should_check_short_connection_ids &&
+  // than 64 bits and smaller than what we expect. Unless the version is
+  // unknown, in which case we allow short connection IDs for version
+  // negotiation because that version could allow those.
+  if (packet_info.version_flag && packet_info.version.IsKnown() &&
       server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
       server_connection_id.length() < expected_server_connection_id_length_ &&
       !allow_short_initial_server_connection_ids_) {

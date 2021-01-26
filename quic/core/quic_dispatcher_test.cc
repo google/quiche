@@ -1101,8 +1101,6 @@ void QuicDispatcherTestBase::
     TestVersionNegotiationForUnknownVersionInvalidShortInitialConnectionId(
         const QuicConnectionId& server_connection_id,
         const QuicConnectionId& client_connection_id) {
-  SetQuicReloadableFlag(quic_send_version_negotiation_for_short_connection_ids,
-                        true);
   CreateTimeWaitListManager();
 
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
