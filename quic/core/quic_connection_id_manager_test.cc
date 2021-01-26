@@ -19,6 +19,11 @@ class QuicConnectionIdManagerPeer {
       QuicPeerIssuedConnectionIdManager* manager) {
     return manager->retire_connection_id_alarm_.get();
   }
+
+  static QuicAlarm* GetRetireSelfIssuedConnectionIdAlarm(
+      QuicSelfIssuedConnectionIdManager* manager) {
+    return manager->retire_connection_id_alarm_.get();
+  }
 };
 
 namespace {
@@ -26,8 +31,11 @@ namespace {
 using ::quic::test::IsError;
 using ::quic::test::IsQuicNoError;
 using ::quic::test::TestConnectionId;
+using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::IsNull;
+using ::testing::Return;
+using ::testing::StrictMock;
 
 class TestPeerIssuedConnectionIdManagerVisitor
     : public QuicConnectionIdManagerVisitorInterface {
@@ -64,6 +72,14 @@ class TestPeerIssuedConnectionIdManagerVisitor
     return current_peer_issued_connection_id_;
   }
 
+  bool SendNewConnectionId(const QuicNewConnectionIdFrame& /*frame*/) override {
+    return false;
+  }
+  void OnNewConnectionIdIssued(
+      const QuicConnectionId& /*connection_id*/) override {}
+  void OnSelfIssuedConnectionIdRetired(
+      const QuicConnectionId& /*connection_id*/) override {}
+
  private:
   QuicPeerIssuedConnectionIdManager* peer_issued_connection_id_manager_ =
       nullptr;
@@ -75,14 +91,14 @@ class QuicPeerIssuedConnectionIdManagerTest : public QuicTest {
  public:
   QuicPeerIssuedConnectionIdManagerTest()
       : peer_issued_cid_manager_(/*active_connection_id_limit=*/2,
-                                 initial_connection_id,
+                                 initial_connection_id_,
                                  &clock_,
                                  &alarm_factory_,
                                  &cid_manager_visitor_) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
     cid_manager_visitor_.SetPeerIssuedConnectionIdManager(
         &peer_issued_cid_manager_);
-    cid_manager_visitor_.SetCurrentPeerConnectionId(initial_connection_id);
+    cid_manager_visitor_.SetCurrentPeerConnectionId(initial_connection_id_);
     retire_peer_issued_cid_alarm_ =
         QuicConnectionIdManagerPeer::GetRetirePeerIssuedConnectionIdAlarm(
             &peer_issued_cid_manager_);
@@ -92,7 +108,7 @@ class QuicPeerIssuedConnectionIdManagerTest : public QuicTest {
   MockClock clock_;
   test::MockAlarmFactory alarm_factory_;
   TestPeerIssuedConnectionIdManagerVisitor cid_manager_visitor_;
-  QuicConnectionId initial_connection_id = TestConnectionId(0);
+  QuicConnectionId initial_connection_id_ = TestConnectionId(0);
   QuicPeerIssuedConnectionIdManager peer_issued_cid_manager_;
   QuicAlarm* retire_peer_issued_cid_alarm_ = nullptr;
   std::string error_details_;
@@ -499,6 +515,435 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
   ASSERT_THAT(
       peer_issued_cid_manager_.OnNewConnectionIdFrame(frame, &error_details_),
       IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+}
+
+class TestSelfIssuedConnectionIdManagerVisitor
+    : public QuicConnectionIdManagerVisitorInterface {
+ public:
+  void OnPeerIssuedConnectionIdRetired() override {}
+
+  MOCK_METHOD(bool,
+              SendNewConnectionId,
+              (const QuicNewConnectionIdFrame& frame),
+              (override));
+  MOCK_METHOD(void,
+              OnNewConnectionIdIssued,
+              (const QuicConnectionId& connection_id),
+              (override));
+  MOCK_METHOD(void,
+              OnSelfIssuedConnectionIdRetired,
+              (const QuicConnectionId& connection_id),
+              (override));
+};
+
+class QuicSelfIssuedConnectionIdManagerTest : public QuicTest {
+ public:
+  QuicSelfIssuedConnectionIdManagerTest()
+      : cid_manager_(/*active_connection_id_limit*/ 2,
+                     initial_connection_id_,
+                     &clock_,
+                     &alarm_factory_,
+                     &cid_manager_visitor_) {
+    clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+    retire_self_issued_cid_alarm_ =
+        QuicConnectionIdManagerPeer::GetRetireSelfIssuedConnectionIdAlarm(
+            &cid_manager_);
+  }
+
+ protected:
+  MockClock clock_;
+  test::MockAlarmFactory alarm_factory_;
+  TestSelfIssuedConnectionIdManagerVisitor cid_manager_visitor_;
+  QuicConnectionId initial_connection_id_ = TestConnectionId(0);
+  StrictMock<QuicSelfIssuedConnectionIdManager> cid_manager_;
+  QuicAlarm* retire_self_issued_cid_alarm_ = nullptr;
+  std::string error_details_;
+  QuicTime::Delta pto_delay_ = QuicTime::Delta::FromMilliseconds(10);
+};
+
+MATCHER_P3(ExpectedNewConnectionIdFrame,
+           connection_id,
+           sequence_number,
+           retire_prior_to,
+           "") {
+  return (arg.connection_id == connection_id) &&
+         (arg.sequence_number == sequence_number) &&
+         (arg.retire_prior_to == retire_prior_to);
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       RetireSelfIssuedConnectionIdInOrder) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  QuicConnectionId cid2 = cid_manager_.GenerateNewConnectionId(cid1);
+  QuicConnectionId cid3 = cid_manager_.GenerateNewConnectionId(cid2);
+  QuicConnectionId cid4 = cid_manager_.GenerateNewConnectionId(cid3);
+  QuicConnectionId cid5 = cid_manager_.GenerateNewConnectionId(cid4);
+
+  // Sends CID #1 to peer.
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid1));
+  EXPECT_CALL(cid_manager_visitor_,
+              SendNewConnectionId(ExpectedNewConnectionIdFrame(cid1, 1u, 0u)))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  {
+    // Peer retires CID #0;
+    // Sends CID #2 and asks peer to retire CIDs prior to #1.
+    // Outcome: (#1, #2) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid2));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid2, 2u, 1u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 0u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #1;
+    // Sends CID #3 and asks peer to retire CIDs prior to #2.
+    // Outcome: (#2, #3) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid3));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid3, 3u, 2u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 1u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #2;
+    // Sends CID #4 and asks peer to retire CIDs prior to #3.
+    // Outcome: (#3, #4) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid4));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid4, 4u, 3u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 2u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #3;
+    // Sends CID #5 and asks peer to retire CIDs prior to #4.
+    // Outcome: (#4, #5) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid5));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid5, 5u, 4u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 3u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       RetireSelfIssuedConnectionIdOutOfOrder) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  QuicConnectionId cid2 = cid_manager_.GenerateNewConnectionId(cid1);
+  QuicConnectionId cid3 = cid_manager_.GenerateNewConnectionId(cid2);
+  QuicConnectionId cid4 = cid_manager_.GenerateNewConnectionId(cid3);
+
+  // Sends CID #1 to peer.
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid1));
+  EXPECT_CALL(cid_manager_visitor_,
+              SendNewConnectionId(ExpectedNewConnectionIdFrame(cid1, 1u, 0u)))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  {
+    // Peer retires CID #1;
+    // Sends CID #2 and asks peer to retire CIDs prior to #0.
+    // Outcome: (#0, #2) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid2));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid2, 2u, 0u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 1u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #1 again. This is a no-op.
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 1u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #0;
+    // Sends CID #3 and asks peer to retire CIDs prior to #2.
+    // Outcome: (#2, #3) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid3));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid3, 3u, 2u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 0u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #3;
+    // Sends CID #4 and asks peer to retire CIDs prior to #2.
+    // Outcome: (#2, #4) are active.
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid4));
+    EXPECT_CALL(cid_manager_visitor_,
+                SendNewConnectionId(ExpectedNewConnectionIdFrame(cid4, 4u, 2u)))
+        .WillOnce(Return(true));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 3u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+
+  {
+    // Peer retires CID #0 again. This is a no-op.
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = 0u;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+  }
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       ScheduleConnectionIdRetirementOneAtATime) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  QuicConnectionId cid2 = cid_manager_.GenerateNewConnectionId(cid1);
+  QuicConnectionId cid3 = cid_manager_.GenerateNewConnectionId(cid2);
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_)).Times(3);
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .Times(3)
+      .WillRepeatedly(Return(true));
+  QuicTime::Delta connection_id_expire_timeout = 3 * pto_delay_;
+  QuicRetireConnectionIdFrame retire_cid_frame;
+
+  // CID #1 is sent to peer.
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  // CID #0's retirement is scheduled and CID #2 is sent to peer.
+  retire_cid_frame.sequence_number = 0u;
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsQuicNoError());
+  // While CID #0's retirement is scheduled, it is not retired yet.
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid0, cid1, cid2));
+  EXPECT_TRUE(retire_self_issued_cid_alarm_->IsSet());
+  EXPECT_EQ(retire_self_issued_cid_alarm_->deadline(),
+            clock_.ApproximateNow() + connection_id_expire_timeout);
+
+  // CID #0 is actually retired.
+  EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid0));
+  clock_.AdvanceTime(connection_id_expire_timeout);
+  alarm_factory_.FireAlarm(retire_self_issued_cid_alarm_);
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid1, cid2));
+  EXPECT_FALSE(retire_self_issued_cid_alarm_->IsSet());
+
+  // CID #1's retirement is scheduled and CID #3 is sent to peer.
+  retire_cid_frame.sequence_number = 1u;
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsQuicNoError());
+  // While CID #1's retirement is scheduled, it is not retired yet.
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid1, cid2, cid3));
+  EXPECT_TRUE(retire_self_issued_cid_alarm_->IsSet());
+  EXPECT_EQ(retire_self_issued_cid_alarm_->deadline(),
+            clock_.ApproximateNow() + connection_id_expire_timeout);
+
+  // CID #1 is actually retired.
+  EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid1));
+  clock_.AdvanceTime(connection_id_expire_timeout);
+  alarm_factory_.FireAlarm(retire_self_issued_cid_alarm_);
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid2, cid3));
+  EXPECT_FALSE(retire_self_issued_cid_alarm_->IsSet());
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       ScheduleMultipleConnectionIdRetirement) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  QuicConnectionId cid2 = cid_manager_.GenerateNewConnectionId(cid1);
+  QuicConnectionId cid3 = cid_manager_.GenerateNewConnectionId(cid2);
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_)).Times(3);
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .Times(3)
+      .WillRepeatedly(Return(true));
+  QuicTime::Delta connection_id_expire_timeout = 3 * pto_delay_;
+  QuicRetireConnectionIdFrame retire_cid_frame;
+
+  // CID #1 is sent to peer.
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  // CID #0's retirement is scheduled and CID #2 is sent to peer.
+  retire_cid_frame.sequence_number = 0u;
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsQuicNoError());
+
+  clock_.AdvanceTime(connection_id_expire_timeout * 0.25);
+
+  // CID #1's retirement is scheduled and CID #3 is sent to peer.
+  retire_cid_frame.sequence_number = 1u;
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsQuicNoError());
+
+  // While CID #0, #1s retirement is scheduled, they are not retired yet.
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid0, cid1, cid2, cid3));
+  EXPECT_TRUE(retire_self_issued_cid_alarm_->IsSet());
+  EXPECT_EQ(retire_self_issued_cid_alarm_->deadline(),
+            clock_.ApproximateNow() + connection_id_expire_timeout * 0.75);
+
+  // CID #0 is actually retired.
+  EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid0));
+  clock_.AdvanceTime(connection_id_expire_timeout * 0.75);
+  alarm_factory_.FireAlarm(retire_self_issued_cid_alarm_);
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid1, cid2, cid3));
+  EXPECT_TRUE(retire_self_issued_cid_alarm_->IsSet());
+  EXPECT_EQ(retire_self_issued_cid_alarm_->deadline(),
+            clock_.ApproximateNow() + connection_id_expire_timeout * 0.25);
+
+  // CID #1 is actually retired.
+  EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid1));
+  clock_.AdvanceTime(connection_id_expire_timeout * 0.25);
+  alarm_factory_.FireAlarm(retire_self_issued_cid_alarm_);
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid2, cid3));
+  EXPECT_FALSE(retire_self_issued_cid_alarm_->IsSet());
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       AllExpiredConnectionIdsAreRetiredInOneBatch) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  QuicConnectionId cid2 = cid_manager_.GenerateNewConnectionId(cid1);
+  QuicConnectionId cid3 = cid_manager_.GenerateNewConnectionId(cid2);
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_)).Times(3);
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .Times(3)
+      .WillRepeatedly(Return(true));
+  QuicTime::Delta connection_id_expire_timeout = 3 * pto_delay_;
+  QuicRetireConnectionIdFrame retire_cid_frame;
+
+  // CID #1 is sent to peer.
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  // CID #0's retirement is scheduled and CID #2 is sent to peer.
+  retire_cid_frame.sequence_number = 0u;
+  cid_manager_.OnRetireConnectionIdFrame(retire_cid_frame, pto_delay_,
+                                         &error_details_);
+
+  clock_.AdvanceTime(connection_id_expire_timeout * 0.1);
+
+  // CID #1's retirement is scheduled and CID #3 is sent to peer.
+  retire_cid_frame.sequence_number = 1u;
+  cid_manager_.OnRetireConnectionIdFrame(retire_cid_frame, pto_delay_,
+                                         &error_details_);
+
+  {
+    // CID #0 & #1 are retired in a single alarm fire.
+    clock_.AdvanceTime(connection_id_expire_timeout);
+    testing::InSequence s;
+    EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid0));
+    EXPECT_CALL(cid_manager_visitor_, OnSelfIssuedConnectionIdRetired(cid1));
+    alarm_factory_.FireAlarm(retire_self_issued_cid_alarm_);
+    EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+                ElementsAre(cid2, cid3));
+    EXPECT_FALSE(retire_self_issued_cid_alarm_->IsSet());
+  }
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       ErrorWhenRetireConnectionIdNeverIssued) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+
+  // CID #1 is sent to peer.
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_)).Times(1);
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  // CID #2 is never issued.
+  QuicRetireConnectionIdFrame retire_cid_frame;
+  retire_cid_frame.sequence_number = 2u;
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       ErrorWhenTooManyConnectionIdWaitingToBeRetired) {
+  // CID #0 & #1 are issued.
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_));
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+
+  // Add 8 connection IDs to the to-be-retired list.
+  QuicConnectionId last_connection_id =
+      cid_manager_.GenerateNewConnectionId(initial_connection_id_);
+  for (int i = 0; i < 8; ++i) {
+    EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_));
+    EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_));
+    QuicRetireConnectionIdFrame retire_cid_frame;
+    retire_cid_frame.sequence_number = i;
+    ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                    retire_cid_frame, pto_delay_, &error_details_),
+                IsQuicNoError());
+    last_connection_id =
+        cid_manager_.GenerateNewConnectionId(last_connection_id);
+  }
+  QuicRetireConnectionIdFrame retire_cid_frame;
+  retire_cid_frame.sequence_number = 8u;
+  // This would have push the number of to-be-retired connection IDs over its
+  // limit.
+  ASSERT_THAT(cid_manager_.OnRetireConnectionIdFrame(
+                  retire_cid_frame, pto_delay_, &error_details_),
+              IsError(QUIC_TOO_MANY_CONNECTION_ID_WAITING_TO_RETIRE));
+}
+
+TEST_F(QuicSelfIssuedConnectionIdManagerTest,
+       DoNotIssueConnectionIdVoluntarilyIfOneHasIssuedForPerferredAddress) {
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = cid_manager_.GenerateNewConnectionId(cid0);
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(cid1));
+  ASSERT_THAT(cid_manager_.IssueNewConnectionIdForPreferredAddress(),
+              ExpectedNewConnectionIdFrame(cid1, 1u, 0u));
+  EXPECT_THAT(cid_manager_.GetUnretiredConnectionIds(),
+              ElementsAre(cid0, cid1));
+
+  EXPECT_CALL(cid_manager_visitor_, OnNewConnectionIdIssued(_)).Times(0);
+  EXPECT_CALL(cid_manager_visitor_, SendNewConnectionId(_)).Times(0);
+  cid_manager_.MaybeSendNewConnectionIds();
 }
 
 }  // namespace

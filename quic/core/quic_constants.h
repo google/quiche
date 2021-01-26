@@ -279,6 +279,9 @@ const float kAckDecimationDelay = 0.25;
 // The default alarm granularity assumed by QUIC code.
 const QuicTime::Delta kAlarmGranularity = QuicTime::Delta::FromMilliseconds(1);
 
+// Maximum number of unretired connection IDs a connection can have.
+const size_t kMaxNumConnectonIdsInUse = 10u;
+
 // Packet number of first sending packet of a connection. Please note, this
 // cannot be used as first received packet because peer can choose its starting
 // packet number.

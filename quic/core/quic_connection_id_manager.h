@@ -4,17 +4,19 @@
 
 // QuicPeerIssuedConnectionIdManager handles the states associated with receving
 // and retiring peer issued connection Ids.
-// TODO(haoyuewang) Implements QuicSelfIssuedConnectionIdManager.
-// QuicConnectionIdManager handles the states associated with connection Ids
-// issued by the current end point.
+// QuicSelfIssuedConnectionIdManager handles the states associated with
+// connection Ids issued by the current end point.
 
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_MANAGER_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_MANAGER_H_
 
+#include <cstddef>
 #include <memory>
 #include "quic/core/frames/quic_new_connection_id_frame.h"
+#include "quic/core/frames/quic_retire_connection_id_frame.h"
 #include "quic/core/quic_alarm.h"
 #include "quic/core/quic_alarm_factory.h"
+#include "quic/core/quic_clock.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_interval_set.h"
 #include "quic/platform/api/quic_uint128.h"
@@ -38,6 +40,11 @@ class QUIC_EXPORT_PRIVATE QuicConnectionIdManagerVisitorInterface {
  public:
   virtual ~QuicConnectionIdManagerVisitorInterface() = default;
   virtual void OnPeerIssuedConnectionIdRetired() = 0;
+  virtual bool SendNewConnectionId(const QuicNewConnectionIdFrame& frame) = 0;
+  virtual void OnNewConnectionIdIssued(
+      const QuicConnectionId& connection_id) = 0;
+  virtual void OnSelfIssuedConnectionIdRetired(
+      const QuicConnectionId& connection_id) = 0;
 };
 
 class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
@@ -89,6 +96,62 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   // the peer.
   QuicIntervalSet<uint64_t> recent_new_connection_id_sequence_numbers_;
   uint64_t max_new_connection_id_frame_retire_prior_to_ = 0u;
+};
+
+class QUIC_EXPORT_PRIVATE QuicSelfIssuedConnectionIdManager {
+ public:
+  QuicSelfIssuedConnectionIdManager(
+      size_t active_connection_id_limit,
+      const QuicConnectionId& initial_connection_id,
+      const QuicClock* clock,
+      QuicAlarmFactory* alarm_factory,
+      QuicConnectionIdManagerVisitorInterface* visitor);
+
+  virtual ~QuicSelfIssuedConnectionIdManager();
+
+  QuicNewConnectionIdFrame IssueNewConnectionIdForPreferredAddress();
+
+  QuicErrorCode OnRetireConnectionIdFrame(
+      const QuicRetireConnectionIdFrame& frame,
+      QuicTime::Delta pto_delay,
+      std::string* error_detail);
+
+  std::vector<QuicConnectionId> GetUnretiredConnectionIds() const;
+
+  // Called when the retire_connection_id alarm_ fires. Removes the to be
+  // retired connection ID locally.
+  void RetireConnectionId();
+
+  // Sends new connection IDs if more can be sent.
+  void MaybeSendNewConnectionIds();
+
+  virtual QuicConnectionId GenerateNewConnectionId(
+      const QuicConnectionId& old_connection_id) const;
+
+ private:
+  friend class QuicConnectionIdManagerPeer;
+
+  QuicNewConnectionIdFrame IssueNewConnectionId();
+
+  // This should be set to the min of:
+  // (1) # of connection atcive IDs that peer can maintain.
+  // (2) maximum # of active connection IDs self plans to issue.
+  size_t active_connection_id_limit_;
+  const QuicClock* clock_;
+  QuicConnectionIdManagerVisitorInterface* visitor_;
+  // This tracks connection IDs issued to the peer but not retired by the peer.
+  // Each pair is a connection ID and its sequence number.
+  std::vector<std::pair<QuicConnectionId, uint64_t>> active_connection_ids_;
+  // This tracks connection IDs retired by the peer but has not been retired
+  // locally. Each pair is a connection ID and the time by which it should be
+  // retired.
+  std::vector<std::pair<QuicConnectionId, QuicTime>>
+      to_be_retired_connection_ids_;
+  // An alarm that fires when a connection ID should be retired.
+  std::unique_ptr<QuicAlarm> retire_connection_id_alarm_;
+  // State of the last issued connection Id.
+  QuicConnectionId last_connection_id_;
+  uint64_t next_connection_id_sequence_number_;
 };
 
 }  // namespace quic

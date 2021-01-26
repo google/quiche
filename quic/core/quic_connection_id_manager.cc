@@ -8,6 +8,7 @@
 #include "quic/core/quic_clock.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_error_codes.h"
+#include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_uint128.h"
 
 namespace quic {
@@ -59,6 +60,7 @@ QuicPeerIssuedConnectionIdManager::QuicPeerIssuedConnectionIdManager(
       clock_(clock),
       retire_connection_id_alarm_(alarm_factory->CreateAlarm(
           new RetirePeerIssuedConnectionIdAlarm(visitor))) {
+  DCHECK_GE(active_connection_id_limit_, 2u);
   DCHECK(!initial_peer_issued_connection_id.IsEmpty());
   active_connection_id_data_.emplace_back(initial_peer_issued_connection_id,
                                           /*sequence_number=*/0u,
@@ -202,6 +204,161 @@ std::vector<uint64_t> QuicPeerIssuedConnectionIdManager::
   }
   to_be_retired_connection_id_data_.clear();
   return result;
+}
+
+namespace {
+
+class RetireSelfIssuedConnectionIdAlarmDelegate : public QuicAlarm::Delegate {
+ public:
+  explicit RetireSelfIssuedConnectionIdAlarmDelegate(
+      QuicSelfIssuedConnectionIdManager* connection_id_manager)
+      : connection_id_manager_(connection_id_manager) {}
+  RetireSelfIssuedConnectionIdAlarmDelegate(
+      const RetireSelfIssuedConnectionIdAlarmDelegate&) = delete;
+  RetireSelfIssuedConnectionIdAlarmDelegate& operator=(
+      const RetireSelfIssuedConnectionIdAlarmDelegate&) = delete;
+
+  void OnAlarm() override { connection_id_manager_->RetireConnectionId(); }
+
+ private:
+  QuicSelfIssuedConnectionIdManager* connection_id_manager_;
+};
+
+}  // namespace
+
+QuicSelfIssuedConnectionIdManager::QuicSelfIssuedConnectionIdManager(
+    size_t active_connection_id_limit,
+    const QuicConnectionId& initial_connection_id,
+    const QuicClock* clock,
+    QuicAlarmFactory* alarm_factory,
+    QuicConnectionIdManagerVisitorInterface* visitor)
+    : active_connection_id_limit_(active_connection_id_limit),
+      clock_(clock),
+      visitor_(visitor),
+      retire_connection_id_alarm_(alarm_factory->CreateAlarm(
+          new RetireSelfIssuedConnectionIdAlarmDelegate(this))),
+      last_connection_id_(initial_connection_id),
+      next_connection_id_sequence_number_(1u) {
+  active_connection_ids_.emplace_back(initial_connection_id, 0u);
+}
+
+QuicSelfIssuedConnectionIdManager::~QuicSelfIssuedConnectionIdManager() {
+  retire_connection_id_alarm_->Cancel();
+}
+
+QuicConnectionId QuicSelfIssuedConnectionIdManager::GenerateNewConnectionId(
+    const QuicConnectionId& old_connection_id) const {
+  return QuicUtils::CreateReplacementConnectionId(old_connection_id);
+}
+
+QuicNewConnectionIdFrame
+QuicSelfIssuedConnectionIdManager::IssueNewConnectionId() {
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = GenerateNewConnectionId(last_connection_id_);
+  frame.sequence_number = next_connection_id_sequence_number_++;
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  visitor_->OnNewConnectionIdIssued(frame.connection_id);
+  active_connection_ids_.emplace_back(frame.connection_id,
+                                      frame.sequence_number);
+  frame.retire_prior_to = active_connection_ids_.front().second;
+  last_connection_id_ = frame.connection_id;
+  return frame;
+}
+
+QuicNewConnectionIdFrame
+QuicSelfIssuedConnectionIdManager::IssueNewConnectionIdForPreferredAddress() {
+  QuicNewConnectionIdFrame frame = IssueNewConnectionId();
+  DCHECK_EQ(frame.sequence_number, 1u);
+  return frame;
+}
+
+QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
+    const QuicRetireConnectionIdFrame& frame,
+    QuicTime::Delta pto_delay,
+    std::string* error_detail) {
+  DCHECK(!active_connection_ids_.empty());
+  if (frame.sequence_number > active_connection_ids_.back().second) {
+    *error_detail = "To be retired connecton ID is never issued.";
+    return IETF_QUIC_PROTOCOL_VIOLATION;
+  }
+
+  auto it =
+      std::find_if(active_connection_ids_.begin(), active_connection_ids_.end(),
+                   [&frame](const std::pair<QuicConnectionId, uint64_t>& p) {
+                     return p.second == frame.sequence_number;
+                   });
+  // The corresponding connection ID has been retired. Ignore.
+  if (it == active_connection_ids_.end()) {
+    return QUIC_NO_ERROR;
+  }
+
+  if (to_be_retired_connection_ids_.size() + active_connection_ids_.size() >=
+      kMaxNumConnectonIdsInUse) {
+    // Close connection if the number of connection IDs in use will exeed the
+    // limit, i.e., peer retires connection ID too fast.
+    *error_detail = "There are too many connection IDs in use.";
+    return QUIC_TOO_MANY_CONNECTION_ID_WAITING_TO_RETIRE;
+  }
+
+  QuicTime retirement_time = clock_->ApproximateNow() + 3 * pto_delay;
+  if (!to_be_retired_connection_ids_.empty()) {
+    retirement_time =
+        std::max(retirement_time, to_be_retired_connection_ids_.back().second);
+  }
+
+  to_be_retired_connection_ids_.emplace_back(it->first, retirement_time);
+  if (!retire_connection_id_alarm_->IsSet()) {
+    retire_connection_id_alarm_->Set(retirement_time);
+  }
+
+  active_connection_ids_.erase(it);
+  MaybeSendNewConnectionIds();
+
+  return QUIC_NO_ERROR;
+}
+
+std::vector<QuicConnectionId>
+QuicSelfIssuedConnectionIdManager::GetUnretiredConnectionIds() const {
+  std::vector<QuicConnectionId> unretired_ids;
+  for (const auto& cid_pair : to_be_retired_connection_ids_) {
+    unretired_ids.push_back(cid_pair.first);
+  }
+  for (const auto& cid_pair : active_connection_ids_) {
+    unretired_ids.push_back(cid_pair.first);
+  }
+  return unretired_ids;
+}
+
+void QuicSelfIssuedConnectionIdManager::RetireConnectionId() {
+  if (to_be_retired_connection_ids_.empty()) {
+    QUIC_BUG
+        << "retire_connection_id_alarm fired but there is no connection ID "
+           "to be retired.";
+    return;
+  }
+  QuicTime now = clock_->ApproximateNow();
+  auto it = to_be_retired_connection_ids_.begin();
+  do {
+    visitor_->OnSelfIssuedConnectionIdRetired(it->first);
+    ++it;
+  } while (it != to_be_retired_connection_ids_.end() && it->second <= now);
+  to_be_retired_connection_ids_.erase(to_be_retired_connection_ids_.begin(),
+                                      it);
+  // Set the alarm again if there is another connection ID to be removed.
+  if (!to_be_retired_connection_ids_.empty()) {
+    retire_connection_id_alarm_->Set(
+        to_be_retired_connection_ids_.front().second);
+  }
+}
+
+void QuicSelfIssuedConnectionIdManager::MaybeSendNewConnectionIds() {
+  while (active_connection_ids_.size() < active_connection_id_limit_) {
+    QuicNewConnectionIdFrame frame = IssueNewConnectionId();
+    if (!visitor_->SendNewConnectionId(frame)) {
+      break;
+    }
+  }
 }
 
 }  // namespace quic

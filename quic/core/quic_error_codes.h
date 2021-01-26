@@ -350,6 +350,8 @@ enum QuicErrorCode {
   QUIC_INVALID_NEW_CONNECTION_ID_DATA = 107,
   // More connection IDs than allowed are issued.
   QUIC_CONNECTION_ID_LIMIT_ERROR = 203,
+  // The peer retires connection IDs too quickly.
+  QUIC_TOO_MANY_CONNECTION_ID_WAITING_TO_RETIRE = 204,
   // Received a MAX STREAM DATA frame with errors.
   QUIC_INVALID_STOP_SENDING_FRAME_DATA = 108,
   // Error deframing PATH CHALLENGE or PATH RESPONSE frames.
@@ -586,7 +588,7 @@ enum QuicErrorCode {
   QUIC_TLS_CERTIFICATE_REQUIRED = 202,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 204,
+  QUIC_LAST_ERROR = 205,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
