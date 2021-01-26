@@ -2844,14 +2844,25 @@ TEST_P(QuicConnectionTest, TooManySentPackets) {
     SendStreamDataToPeer(1, "foo", 3 * i, NO_FIN, nullptr);
   }
 
-  // Ack packet 1, which leaves more than the limit outstanding.
-  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
 
-  // Nack the first packet and ack the rest, leaving a huge gap.
-  QuicAckFrame frame1 = ConstructAckFrame(num_packets, 1);
-  ProcessAckPacket(&frame1);
+  ProcessFramePacket(QuicFrame(QuicPingFrame()));
+
+  if (!GetQuicReloadableFlag(
+          quic_close_connection_with_too_many_outstanding_packets)) {
+    // When the flag is false, the ping packet processed above shouldn't cause
+    // the connection to close. But the ack packet below will.
+    EXPECT_TRUE(connection_.connected());
+
+    // Ack packet 1, which leaves more than the limit outstanding.
+    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _));
+
+    // Nack the first packet and ack the rest, leaving a huge gap.
+    QuicAckFrame frame1 = ConstructAckFrame(num_packets, 1);
+    ProcessAckPacket(&frame1);
+  }
+
   TestConnectionCloseQuicErrorCode(QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS);
 }
 

@@ -2140,11 +2140,24 @@ void QuicConnection::ClearLastFrames() {
 }
 
 void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
+  bool should_close;
+  if (GetQuicReloadableFlag(
+          quic_close_connection_with_too_many_outstanding_packets)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_close_connection_with_too_many_outstanding_packets);
+    should_close =
+        sent_packet_manager_.GetLargestSentPacket().IsInitialized() &&
+        sent_packet_manager_.GetLargestSentPacket() >
+            sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_;
+  } else {
+    should_close =
+        sent_packet_manager_.GetLargestObserved().IsInitialized() &&
+        sent_packet_manager_.GetLargestObserved() >
+            sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_;
+  }
   // This occurs if we don't discard old packets we've seen fast enough. It's
   // possible largest observed is less than leaset unacked.
-  if (sent_packet_manager_.GetLargestObserved().IsInitialized() &&
-      sent_packet_manager_.GetLargestObserved() >
-          sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_) {
+  if (should_close) {
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
         absl::StrCat("More than ", max_tracked_packets_,

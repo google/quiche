@@ -125,6 +125,9 @@ class Bbr2SimulatorTest : public QuicTest {
     // Enable this for all tests because it moves where cwnd and pacing gain
     // are initialized.
     SetQuicReloadableFlag(quic_bbr2_bw_startup, true);
+    // Prevent the server(receiver), which only sends acks, from closing
+    // connection due to too many outstanding packets.
+    SetQuicFlag(FLAGS_quic_max_tracked_packet_count, 1000000);
   }
 
   void SetUp() override {
