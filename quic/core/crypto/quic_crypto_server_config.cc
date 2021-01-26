@@ -44,7 +44,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
-#include "quic/platform/api/quic_cert_utils.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_hostname_utils.h"
@@ -1516,27 +1515,15 @@ void QuicCryptoServerConfig::BuildRejection(
             context.signed_config()->chain->certs;
         std::string ca_subject;
         if (!certs.empty()) {
-          if (GetQuicReloadableFlag(
-                  quic_extract_x509_subject_using_certificate_view)) {
-            QUIC_RELOADABLE_FLAG_COUNT_N(
-                quic_extract_x509_subject_using_certificate_view, 1, 2);
             std::unique_ptr<CertificateView> view =
                 CertificateView::ParseSingleCertificate(certs[0]);
             if (view != nullptr) {
               absl::optional<std::string> maybe_ca_subject =
                   view->GetHumanReadableSubject();
               if (maybe_ca_subject.has_value()) {
-                QUIC_RELOADABLE_FLAG_COUNT_N(
-                    quic_extract_x509_subject_using_certificate_view, 2, 2);
                 ca_subject = *maybe_ca_subject;
               }
             }
-          } else {
-            absl::string_view ca_subject_view;
-            QuicCertUtils::ExtractSubjectNameFromDERCert(certs[0],
-                                                         &ca_subject_view);
-            ca_subject = std::string(ca_subject_view);
-          }
         }
         QUIC_LOG_EVERY_N_SEC(WARNING, 60)
             << "SCT is expected but it is empty. sni: '"
