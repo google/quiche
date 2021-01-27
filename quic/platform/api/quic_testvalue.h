@@ -6,7 +6,9 @@
 #define QUICHE_QUIC_PLATFORM_API_QUIC_TESTVALUE_H_
 
 #include "absl/strings/string_view.h"
-#include "net/quic/platform/impl/quic_testvalue_impl.h"
+
+// TODO(b/178613777): move into the common QUICHE platform.
+#include "quiche_platform_impl/quic_testvalue_impl.h"
 
 namespace quic {
 
