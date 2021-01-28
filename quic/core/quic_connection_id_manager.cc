@@ -48,6 +48,15 @@ std::vector<QuicConnectionIdData>::const_iterator FindConnectionIdData(
                       });
 }
 
+std::vector<QuicConnectionIdData>::iterator FindConnectionIdData(
+    std::vector<QuicConnectionIdData>* cid_data_vector,
+    const QuicConnectionId& cid) {
+  return std::find_if(cid_data_vector->begin(), cid_data_vector->end(),
+                      [&cid](const QuicConnectionIdData& cid_data) {
+                        return cid == cid_data.connection_id;
+                      });
+}
+
 }  // namespace
 
 QuicPeerIssuedConnectionIdManager::QuicPeerIssuedConnectionIdManager(
@@ -204,6 +213,22 @@ std::vector<uint64_t> QuicPeerIssuedConnectionIdManager::
   }
   to_be_retired_connection_id_data_.clear();
   return result;
+}
+
+void QuicPeerIssuedConnectionIdManager::ReplaceConnectionId(
+    const QuicConnectionId& old_connection_id,
+    const QuicConnectionId& new_connection_id) {
+  auto it1 =
+      FindConnectionIdData(&active_connection_id_data_, old_connection_id);
+  if (it1 != active_connection_id_data_.end()) {
+    it1->connection_id = new_connection_id;
+    return;
+  }
+  auto it2 = FindConnectionIdData(&to_be_retired_connection_id_data_,
+                                  old_connection_id);
+  if (it2 != to_be_retired_connection_id_data_.end()) {
+    it2->connection_id = new_connection_id;
+  }
 }
 
 namespace {

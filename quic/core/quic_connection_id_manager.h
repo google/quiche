@@ -77,6 +77,11 @@ class QUIC_EXPORT_PRIVATE QuicPeerIssuedConnectionIdManager {
   // it is safe to retires these Ids.
   std::vector<uint64_t> ConsumeToBeRetiredConnectionIdSequenceNumbers();
 
+  // If old_connection_id is still tracked by QuicPeerIssuedConnectionIdManager,
+  // replace it with new_connection_id. Otherwise, this is a no-op.
+  void ReplaceConnectionId(const QuicConnectionId& old_connection_id,
+                           const QuicConnectionId& new_connection_id);
+
  private:
   friend class QuicConnectionIdManagerPeer;
 

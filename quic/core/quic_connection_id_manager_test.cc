@@ -517,6 +517,17 @@ TEST_F(QuicPeerIssuedConnectionIdManagerTest,
       IsError(IETF_QUIC_PROTOCOL_VIOLATION));
 }
 
+TEST_F(QuicPeerIssuedConnectionIdManagerTest, ReplaceConnectionId) {
+  ASSERT_TRUE(
+      peer_issued_cid_manager_.IsConnectionIdActive(initial_connection_id_));
+  peer_issued_cid_manager_.ReplaceConnectionId(initial_connection_id_,
+                                               TestConnectionId(1));
+  EXPECT_FALSE(
+      peer_issued_cid_manager_.IsConnectionIdActive(initial_connection_id_));
+  EXPECT_TRUE(
+      peer_issued_cid_manager_.IsConnectionIdActive(TestConnectionId(1)));
+}
+
 class TestSelfIssuedConnectionIdManagerVisitor
     : public QuicConnectionIdManagerVisitorInterface {
  public:
