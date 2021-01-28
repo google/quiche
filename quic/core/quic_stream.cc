@@ -1458,16 +1458,10 @@ void QuicStream::UpdateReceiveWindowSize(QuicStreamOffset size) {
 // static
 spdy::SpdyStreamPrecedence QuicStream::CalculateDefaultPriority(
     const QuicSession* session) {
-  if (VersionUsesHttp3(session->transport_version())) {
-    return spdy::SpdyStreamPrecedence(kDefaultUrgency);
-  }
-
-  if (session->use_http2_priority_write_scheduler()) {
-    return spdy::SpdyStreamPrecedence(0, spdy::kHttp2DefaultStreamWeight,
-                                      false);
-  }
-
-  return spdy::SpdyStreamPrecedence(QuicStream::kDefaultPriority);
+  return spdy::SpdyStreamPrecedence(
+      VersionUsesHttp3(session->transport_version())
+          ? kDefaultUrgency
+          : QuicStream::kDefaultPriority);
 }
 
 }  // namespace quic

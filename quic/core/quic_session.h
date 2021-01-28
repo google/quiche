@@ -543,10 +543,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   inline ParsedQuicVersion version() const { return connection_->version(); }
 
-  bool use_http2_priority_write_scheduler() const {
-    return use_http2_priority_write_scheduler_;
-  }
-
   bool is_configured() const { return is_configured_; }
 
   // Called to neuter crypto data of encryption |level|.
@@ -941,16 +937,9 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   absl::optional<std::string> user_agent_id_;
 
-  // If true, write_blocked_streams_ uses HTTP2 (tree-style) priority write
-  // scheduler.
-  bool use_http2_priority_write_scheduler_;
-
   // Initialized to false. Set to true when the session has been properly
   // configured and is ready for general operation.
   bool is_configured_;
-
-  // If true, enables round robin scheduling.
-  bool enable_round_robin_scheduling_;
 
   // Whether the session has received a 0-RTT rejection (QUIC+TLS only).
   bool was_zero_rtt_rejected_;

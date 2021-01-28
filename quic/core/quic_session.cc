@@ -111,9 +111,7 @@ QuicSession::QuicSession(
       datagram_queue_(this, std::move(datagram_observer)),
       closed_streams_clean_up_alarm_(nullptr),
       supported_versions_(supported_versions),
-      use_http2_priority_write_scheduler_(false),
       is_configured_(false),
-      enable_round_robin_scheduling_(false),
       was_zero_rtt_rejected_(false),
       liveness_testing_in_progress_(false) {
   closed_streams_clean_up_alarm_ =
@@ -613,9 +611,7 @@ void QuicSession::OnCanWrite() {
                << ", finished_writes: " << i
                << ", connected: " << connection_->connected()
                << ", connection level flow control blocked: "
-               << flow_controller_.IsBlocked() << ", scheduler type: "
-               << spdy::WriteSchedulerTypeToString(
-                      write_blocked_streams_.scheduler_type());
+               << flow_controller_.IsBlocked();
       for (QuicStreamId id : last_writing_stream_ids) {
         QUIC_LOG(WARNING) << "last_writing_stream_id: " << id;
       }
@@ -1271,32 +1267,6 @@ void QuicSession::OnConfigNegotiated() {
       if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kIFWA)) {
         AdjustInitialFlowControlWindows(1024 * 1024);
       }
-      if (GetQuicReloadableFlag(quic_deprecate_http2_priority_experiment)) {
-        QUIC_CODE_COUNT(quic_deprecate_http2_priority_experiment);
-      } else {
-        if (ContainsQuicTag(config_.ReceivedConnectionOptions(), kH2PR) &&
-            !VersionHasIetfQuicFrames(transport_version())) {
-          // Enable HTTP2 (tree-style) priority write scheduler.
-          use_http2_priority_write_scheduler_ =
-              write_blocked_streams_.SwitchWriteScheduler(
-                  spdy::WriteSchedulerType::HTTP2, transport_version());
-        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
-                                   kFIFO)) {
-          // Enable FIFO write scheduler.
-          write_blocked_streams_.SwitchWriteScheduler(
-              spdy::WriteSchedulerType::FIFO, transport_version());
-        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
-                                   kLIFO)) {
-          // Enable LIFO write scheduler.
-          write_blocked_streams_.SwitchWriteScheduler(
-              spdy::WriteSchedulerType::LIFO, transport_version());
-        } else if (ContainsQuicTag(config_.ReceivedConnectionOptions(),
-                                   kRRWS) &&
-                   write_blocked_streams_.scheduler_type() ==
-                       spdy::WriteSchedulerType::SPDY) {
-          enable_round_robin_scheduling_ = true;
-        }
-      }
     }
 
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
@@ -1807,13 +1777,6 @@ void QuicSession::RegisterStreamPriority(
     QuicStreamId id,
     bool is_static,
     const spdy::SpdyStreamPrecedence& precedence) {
-  if (enable_round_robin_scheduling_) {
-    // Ignore provided precedence, instead, put all streams at the same priority
-    // bucket.
-    write_blocked_streams()->RegisterStream(
-        id, is_static, spdy::SpdyStreamPrecedence(spdy::kV3LowestPriority));
-    return;
-  }
   write_blocked_streams()->RegisterStream(id, is_static, precedence);
 }
 
@@ -1824,10 +1787,6 @@ void QuicSession::UnregisterStreamPriority(QuicStreamId id, bool is_static) {
 void QuicSession::UpdateStreamPriority(
     QuicStreamId id,
     const spdy::SpdyStreamPrecedence& new_precedence) {
-  if (enable_round_robin_scheduling_) {
-    // Ignore updated precedence.
-    return;
-  }
   write_blocked_streams()->UpdateStreamPriority(id, new_precedence);
 }
 

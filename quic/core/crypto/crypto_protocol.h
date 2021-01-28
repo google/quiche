@@ -28,7 +28,7 @@ using ServerConfigID = std::string;
 
 // The following tags have been deprecated and should not be reused:
 // "1CON", "BBQ4", "NCON", "RCID", "SREJ", "TBKP", "TB10", "SCLS", "SMHL",
-// "QNZR", "B2HI"
+// "QNZR", "B2HI", "H2PR", "FIFO", "LIFO", "RRWS"
 
 // clang-format off
 const QuicTag kCHLO = TAG('C', 'H', 'L', 'O');   // Client hello
@@ -336,14 +336,6 @@ const QuicTag k10AF = TAG('1', '0', 'A', 'F');  // 10 anti amplification factor.
 // Enable path MTU discovery experiment.
 const QuicTag kMTUH = TAG('M', 'T', 'U', 'H');  // High-target MTU discovery.
 const QuicTag kMTUL = TAG('M', 'T', 'U', 'L');  // Low-target MTU discovery.
-
-// Enable Priority scheme experiment.
-const QuicTag kH2PR = TAG('H', '2', 'P', 'R');  // HTTP2 priorities.
-const QuicTag kFIFO = TAG('F', 'I', 'F', 'O');  // Stream with the smallest ID
-                                                // has the highest priority.
-const QuicTag kLIFO = TAG('L', 'I', 'F', 'O');  // Stream with the largest ID
-                                                // has the highest priority.
-const QuicTag kRRWS = TAG('R', 'R', 'W', 'S');  // Round robin write scheduling.
 
 const QuicTag kNSLC = TAG('N', 'S', 'L', 'C');  // Always send connection close
                                                 // for idle timeout.

@@ -324,8 +324,8 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnHeaders(SpdyStreamId stream_id,
                  bool has_priority,
                  int weight,
-                 SpdyStreamId parent_stream_id,
-                 bool exclusive,
+                 SpdyStreamId /* parent_stream_id */,
+                 bool /* exclusive */,
                  bool fin,
                  bool /*end*/) override {
     if (!session_->IsConnected()) {
@@ -341,13 +341,6 @@ class QuicSpdySession::SpdyFramerVisitor
     QUIC_BUG_IF(session_->destruction_indicator() != 123456789)
         << "QuicSpdyStream use after free. "
         << session_->destruction_indicator() << QuicStackTrace();
-
-    if (session_->use_http2_priority_write_scheduler()) {
-      session_->OnHeaders(
-          stream_id, has_priority,
-          spdy::SpdyStreamPrecedence(parent_stream_id, weight, exclusive), fin);
-      return;
-    }
 
     SpdyPriority priority =
         has_priority ? Http2WeightToSpdy3Priority(weight) : 0;
@@ -379,16 +372,11 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnContinuation(SpdyStreamId /*stream_id*/, bool /*end*/) override {}
 
   void OnPriority(SpdyStreamId stream_id,
-                  SpdyStreamId parent_id,
+                  SpdyStreamId /* parent_id */,
                   int weight,
-                  bool exclusive) override {
+                  bool /* exclusive */) override {
     DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (!session_->IsConnected()) {
-      return;
-    }
-    if (session_->use_http2_priority_write_scheduler()) {
-      session_->OnPriority(
-          stream_id, spdy::SpdyStreamPrecedence(parent_id, weight, exclusive));
       return;
     }
     SpdyPriority priority = Http2WeightToSpdy3Priority(weight);

@@ -15,73 +15,37 @@ namespace quic {
 namespace test {
 namespace {
 
-const bool kExclusiveBit = true;
-
 class QuicWriteBlockedListTest : public QuicTestWithParam<bool> {
  public:
   QuicWriteBlockedListTest()
-      : write_blocked_list_(AllSupportedVersions()[0].transport_version) {
-    if (GetParam()) {
-      write_blocked_list_.SwitchWriteScheduler(
-          spdy::WriteSchedulerType::HTTP2,
-          AllSupportedVersions()[0].transport_version);
-    }
-  }
+      : write_blocked_list_(AllSupportedVersions()[0].transport_version) {}
 
  protected:
   QuicWriteBlockedList write_blocked_list_;
 };
 
-INSTANTIATE_TEST_SUITE_P(Tests,
-                         QuicWriteBlockedListTest,
-                         ::testing::Bool(),
-                         ::testing::PrintToStringParamName());
-
-TEST_P(QuicWriteBlockedListTest, PriorityOrder) {
-  if (GetParam()) {
-    /*
-         0
-         |
-         23
-         |
-         17
-         |
-         40
-    */
-    write_blocked_list_.RegisterStream(
-        17, false,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        40, false,
-        spdy::SpdyStreamPrecedence(17, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        23, false,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        1, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        3, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
-    // Mark streams blocked in roughly reverse priority order, and
-    // verify that streams are sorted.
-    write_blocked_list_.RegisterStream(
-        40, false, spdy::SpdyStreamPrecedence(kV3LowestPriority));
-    write_blocked_list_.RegisterStream(
-        23, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        17, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
+TEST_F(QuicWriteBlockedListTest, PriorityOrder) {
+  /*
+       0
+       |
+       23
+       |
+       17
+       |
+       40
+  */
+  // Mark streams blocked in roughly reverse priority order, and
+  // verify that streams are sorted.
+  write_blocked_list_.RegisterStream(
+      40, false, spdy::SpdyStreamPrecedence(kV3LowestPriority));
+  write_blocked_list_.RegisterStream(
+      23, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      17, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
   write_blocked_list_.AddStream(40);
   EXPECT_TRUE(write_blocked_list_.IsStreamBlocked(40));
@@ -120,16 +84,9 @@ TEST_P(QuicWriteBlockedListTest, PriorityOrder) {
   EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
 }
 
-TEST_P(QuicWriteBlockedListTest, CryptoStream) {
-  if (GetParam()) {
-    write_blocked_list_.RegisterStream(
-        1, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
-    write_blocked_list_.RegisterStream(
-        1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
+TEST_F(QuicWriteBlockedListTest, CryptoStream) {
+  write_blocked_list_.RegisterStream(
+      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
   write_blocked_list_.AddStream(1);
 
   EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
@@ -139,16 +96,9 @@ TEST_P(QuicWriteBlockedListTest, CryptoStream) {
   EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
 }
 
-TEST_P(QuicWriteBlockedListTest, HeadersStream) {
-  if (GetParam()) {
-    write_blocked_list_.RegisterStream(
-        3, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
-    write_blocked_list_.RegisterStream(
-        3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
+TEST_F(QuicWriteBlockedListTest, HeadersStream) {
+  write_blocked_list_.RegisterStream(
+      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
   write_blocked_list_.AddStream(3);
 
   EXPECT_EQ(1u, write_blocked_list_.NumBlockedStreams());
@@ -158,22 +108,11 @@ TEST_P(QuicWriteBlockedListTest, HeadersStream) {
   EXPECT_FALSE(write_blocked_list_.HasWriteBlockedSpecialStream());
 }
 
-TEST_P(QuicWriteBlockedListTest, VerifyHeadersStream) {
-  if (GetParam()) {
-    write_blocked_list_.RegisterStream(
-        5, false,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        3, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
-    write_blocked_list_.RegisterStream(
-        5, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
+TEST_F(QuicWriteBlockedListTest, VerifyHeadersStream) {
+  write_blocked_list_.RegisterStream(
+      5, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
   write_blocked_list_.AddStream(5);
   write_blocked_list_.AddStream(3);
 
@@ -189,20 +128,13 @@ TEST_P(QuicWriteBlockedListTest, VerifyHeadersStream) {
   EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
 }
 
-TEST_P(QuicWriteBlockedListTest, NoDuplicateEntries) {
+TEST_F(QuicWriteBlockedListTest, NoDuplicateEntries) {
   // Test that QuicWriteBlockedList doesn't allow duplicate entries.
   // Try to add a stream to the write blocked list multiple times at the same
   // priority.
   const QuicStreamId kBlockedId = 3 + 2;
-  if (GetParam()) {
-    write_blocked_list_.RegisterStream(
-        kBlockedId, false,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
     write_blocked_list_.RegisterStream(
         kBlockedId, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);
   write_blocked_list_.AddStream(kBlockedId);
@@ -217,10 +149,7 @@ TEST_P(QuicWriteBlockedListTest, NoDuplicateEntries) {
   EXPECT_FALSE(write_blocked_list_.HasWriteBlockedDataStreams());
 }
 
-TEST_P(QuicWriteBlockedListTest, BatchingWrites) {
-  if (GetParam()) {
-    return;
-  }
+TEST_F(QuicWriteBlockedListTest, BatchingWrites) {
   const QuicStreamId id1 = 3 + 2;
   const QuicStreamId id2 = id1 + 2;
   const QuicStreamId id3 = id2 + 2;
@@ -273,62 +202,31 @@ TEST_P(QuicWriteBlockedListTest, BatchingWrites) {
   EXPECT_EQ(id1, write_blocked_list_.PopFront());
 }
 
-TEST_P(QuicWriteBlockedListTest, Ceding) {
-  if (GetParam()) {
-    /*
-         0
-         |
-         15
-         |
-         16
-         |
-         5
-         |
-         4
-         |
-         7
-    */
-    write_blocked_list_.RegisterStream(
-        15, false,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        16, false,
-        spdy::SpdyStreamPrecedence(15, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        4, false,
-        spdy::SpdyStreamPrecedence(16, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        5, false,
-        spdy::SpdyStreamPrecedence(16, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        7, false,
-        spdy::SpdyStreamPrecedence(4, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        1, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-    write_blocked_list_.RegisterStream(
-        3, true,
-        spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight,
-                                   kExclusiveBit));
-  } else {
-    write_blocked_list_.RegisterStream(
-        15, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        16, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(5, false, spdy::SpdyStreamPrecedence(5));
-    write_blocked_list_.RegisterStream(4, false, spdy::SpdyStreamPrecedence(5));
-    write_blocked_list_.RegisterStream(7, false, spdy::SpdyStreamPrecedence(7));
-    write_blocked_list_.RegisterStream(
-        1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-    write_blocked_list_.RegisterStream(
-        3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
-  }
+TEST_F(QuicWriteBlockedListTest, Ceding) {
+  /*
+       0
+       |
+       15
+       |
+       16
+       |
+       5
+       |
+       4
+       |
+       7
+  */
+  write_blocked_list_.RegisterStream(
+      15, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      16, false, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(5, false, spdy::SpdyStreamPrecedence(5));
+  write_blocked_list_.RegisterStream(4, false, spdy::SpdyStreamPrecedence(5));
+  write_blocked_list_.RegisterStream(7, false, spdy::SpdyStreamPrecedence(7));
+  write_blocked_list_.RegisterStream(
+      1, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  write_blocked_list_.RegisterStream(
+      3, true, spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
   // When nothing is on the list, nothing yields.
   EXPECT_FALSE(write_blocked_list_.ShouldYield(5));
@@ -364,66 +262,6 @@ TEST_P(QuicWriteBlockedListTest, Ceding) {
   EXPECT_TRUE(write_blocked_list_.ShouldYield(15));
   EXPECT_TRUE(write_blocked_list_.ShouldYield(3));
   EXPECT_FALSE(write_blocked_list_.ShouldYield(1));
-}
-
-TEST_P(QuicWriteBlockedListTest, UpdateStreamPriority) {
-  if (!GetParam()) {
-    return;
-  }
-  /*
-       0
-       |
-       5
-       |
-       7
-       |
-       9
-       |
-       11
-  */
-  write_blocked_list_.RegisterStream(
-      5, false,
-      spdy::SpdyStreamPrecedence(0, kHttp2DefaultStreamWeight, kExclusiveBit));
-  write_blocked_list_.RegisterStream(
-      7, false,
-      spdy::SpdyStreamPrecedence(5, kHttp2DefaultStreamWeight, kExclusiveBit));
-  write_blocked_list_.RegisterStream(
-      9, false,
-      spdy::SpdyStreamPrecedence(7, kHttp2DefaultStreamWeight, kExclusiveBit));
-  write_blocked_list_.RegisterStream(
-      11, false,
-      spdy::SpdyStreamPrecedence(9, kHttp2DefaultStreamWeight, kExclusiveBit));
-
-  write_blocked_list_.AddStream(7);
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(5));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(9));
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(11));
-
-  // Update 9's priority.
-  if (GetParam()) {
-    /*
-         0
-         |
-         5
-        / \
-       7   9
-           |
-           11
-    */
-    write_blocked_list_.UpdateStreamPriority(
-        9, spdy::SpdyStreamPrecedence(5, kHttp2DefaultStreamWeight,
-                                      kExclusiveBit));
-  } else {
-    write_blocked_list_.UpdateStreamPriority(9, spdy::SpdyStreamPrecedence(1));
-  }
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(5));
-  // Verify 9 now does not yield to 7.
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(9));
-  EXPECT_FALSE(write_blocked_list_.ShouldYield(11));
-
-  write_blocked_list_.AddStream(9);
-  // Verify 11 yield to 9.
-  EXPECT_TRUE(write_blocked_list_.ShouldYield(11));
 }
 
 }  // namespace
