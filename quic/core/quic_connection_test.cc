@@ -1396,6 +1396,10 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     // Prevent packets from being coalesced.
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+    if (version().SupportsAntiAmplificationLimit() &&
+        perspective == Perspective::IS_SERVER) {
+      QuicConnectionPeer::SetAddressValidated(&connection_);
+    }
     // Clear direct_peer_address.
     QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
     // Clear effective_peer_address, it is the same as direct_peer_address for
@@ -8543,7 +8547,7 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnDefaulSocket) {
 
 TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+      !connection_.use_path_validator()) {
     return;
   }
   PathProbeTestInit(Perspective::IS_CLIENT);
@@ -11462,13 +11466,10 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
 //  and the writer is blocked.
 TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
   if (!VersionHasIetfQuicFrames(connection_.version().transport_version) ||
-      !connection_.send_path_response()) {
+      !connection_.use_path_validator()) {
     return;
   }
-  PathProbeTestInit(Perspective::IS_CLIENT);
-  if (version().SupportsAntiAmplificationLimit()) {
-    QuicConnectionPeer::SetAddressValidated(&connection_);
-  }
+  PathProbeTestInit(Perspective::IS_SERVER);
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
   writer_->BlockOnNextWrite();
   // 1st time is after writer returns WRITE_STATUS_BLOCKED. 2nd time is in
