@@ -25,8 +25,6 @@
 
 namespace spdy {
 
-class HpackHuffmanTable;
-
 namespace test {
 class HpackEncoderPeer;
 }  // namespace test
@@ -141,14 +139,11 @@ class QUICHE_EXPORT_PRIVATE HpackEncoder {
   HpackHeaderTable header_table_;
   HpackOutputStream output_stream_;
 
-  const HpackHuffmanTable& huffman_table_;
   size_t min_table_size_setting_received_;
   HeaderListener listener_;
   IndexingPolicy should_index_;
   bool enable_compression_;
   bool should_emit_table_size_;
-  // Latched value of gfe2_reloadable_flag_http2_use_fast_huffman_encoder.
-  const bool use_fast_huffman_encoder_;
 };
 
 }  // namespace spdy
