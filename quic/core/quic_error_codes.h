@@ -398,7 +398,6 @@ enum QuicErrorCode {
   QUIC_QPACK_DECOMPRESSION_FAILED = 126,
 
   // Obsolete generic QPACK encoder and decoder stream error codes.
-  // (Obsoleted by gfe2_reloadable_flag_quic_granular_qpack_error_codes.)
   QUIC_QPACK_ENCODER_STREAM_ERROR = 127,
   QUIC_QPACK_DECODER_STREAM_ERROR = 128,
 

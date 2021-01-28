@@ -2828,13 +2828,10 @@ TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
 
   QuicStreamFrame frame(stream_id, /* fin = */ false, /* offset = */ 0, data);
 
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(
-          GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-              ? QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX
-              : QUIC_QPACK_ENCODER_STREAM_ERROR,
-          "Encoder stream error: Invalid relative index.", _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(
+                  QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX,
+                  "Encoder stream error: Invalid relative index.", _));
   session_.OnStreamFrame(frame);
 }
 
@@ -2854,9 +2851,7 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
 
   EXPECT_CALL(
       *connection_,
-      CloseConnection(GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-                          ? QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT
-                          : QUIC_QPACK_DECODER_STREAM_ERROR,
+      CloseConnection(QUIC_QPACK_DECODER_STREAM_INVALID_ZERO_INCREMENT,
                       "Decoder stream error: Invalid increment value 0.", _));
   session_.OnStreamFrame(frame);
 }

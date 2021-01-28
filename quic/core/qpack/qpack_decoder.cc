@@ -154,14 +154,8 @@ void QpackDecoder::OnSetDynamicTableCapacity(uint64_t capacity) {
 
 void QpackDecoder::OnErrorDetected(QuicErrorCode error_code,
                                    absl::string_view error_message) {
-  if (GetQuicReloadableFlag(quic_granular_qpack_error_codes)) {
-    QUIC_CODE_COUNT_N(quic_granular_qpack_error_codes, 2, 2);
-    encoder_stream_error_delegate_->OnEncoderStreamError(error_code,
-                                                         error_message);
-  } else {
-    encoder_stream_error_delegate_->OnEncoderStreamError(
-        QUIC_QPACK_ENCODER_STREAM_ERROR, error_message);
-  }
+  encoder_stream_error_delegate_->OnEncoderStreamError(error_code,
+                                                       error_message);
 }
 
 std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(

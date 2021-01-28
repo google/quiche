@@ -440,12 +440,10 @@ TEST_P(QpackDecoderTest, DecreasingDynamicTableCapacityEvictsEntries) {
 }
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorEntryTooLarge) {
-  EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(
-                  GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-                      ? QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL
-                      : QUIC_QPACK_ENCODER_STREAM_ERROR,
-                  Eq("Error inserting literal entry.")));
+  EXPECT_CALL(
+      encoder_stream_error_delegate_,
+      OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_ERROR_INSERTING_LITERAL,
+                           Eq("Error inserting literal entry.")));
 
   // Set dynamic table capacity to 34.
   DecodeEncoderStreamData(absl::HexStringToBytes("3f03"));
@@ -454,25 +452,20 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorEntryTooLarge) {
 }
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidStaticTableEntry) {
-  EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(
-                  GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-                      ? QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY
-                      : QUIC_QPACK_ENCODER_STREAM_ERROR,
-                  Eq("Invalid static table entry.")));
+  EXPECT_CALL(
+      encoder_stream_error_delegate_,
+      OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_INVALID_STATIC_ENTRY,
+                           Eq("Invalid static table entry.")));
 
   // Address invalid static table entry index 99.
   DecodeEncoderStreamData(absl::HexStringToBytes("ff2400"));
 }
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
-  EXPECT_CALL(
-      encoder_stream_error_delegate_,
-      OnEncoderStreamError(
-          GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-              ? QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX
-              : QUIC_QPACK_ENCODER_STREAM_ERROR,
-          Eq("Invalid relative index.")));
+  EXPECT_CALL(encoder_stream_error_delegate_,
+              OnEncoderStreamError(
+                  QUIC_QPACK_ENCODER_STREAM_INSERTION_INVALID_RELATIVE_INDEX,
+                  Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(absl::HexStringToBytes(
       "3fe107"          // Set dynamic table capacity to 1024.
@@ -483,13 +476,10 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorInvalidDynamicTableEntry) {
 }
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
-  EXPECT_CALL(
-      encoder_stream_error_delegate_,
-      OnEncoderStreamError(
-          GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-              ? QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX
-              : QUIC_QPACK_ENCODER_STREAM_ERROR,
-          Eq("Invalid relative index.")));
+  EXPECT_CALL(encoder_stream_error_delegate_,
+              OnEncoderStreamError(
+                  QUIC_QPACK_ENCODER_STREAM_DUPLICATE_INVALID_RELATIVE_INDEX,
+                  Eq("Invalid relative index.")));
 
   DecodeEncoderStreamData(absl::HexStringToBytes(
       "3fe107"          // Set dynamic table capacity to 1024.
@@ -501,11 +491,8 @@ TEST_P(QpackDecoderTest, EncoderStreamErrorDuplicateInvalidEntry) {
 
 TEST_P(QpackDecoderTest, EncoderStreamErrorTooLargeInteger) {
   EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(
-                  GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-                      ? QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE
-                      : QUIC_QPACK_ENCODER_STREAM_ERROR,
-                  Eq("Encoded integer too large.")));
+              OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_INTEGER_TOO_LARGE,
+                                   Eq("Encoded integer too large.")));
 
   DecodeEncoderStreamData(absl::HexStringToBytes("3fffffffffffffffffffff"));
 }
@@ -608,12 +595,10 @@ TEST_P(QpackDecoderTest, EvictedDynamicTableEntry) {
 }
 
 TEST_P(QpackDecoderTest, TableCapacityMustNotExceedMaximum) {
-  EXPECT_CALL(encoder_stream_error_delegate_,
-              OnEncoderStreamError(
-                  GetQuicReloadableFlag(quic_granular_qpack_error_codes)
-                      ? QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY
-                      : QUIC_QPACK_ENCODER_STREAM_ERROR,
-                  Eq("Error updating dynamic table capacity.")));
+  EXPECT_CALL(
+      encoder_stream_error_delegate_,
+      OnEncoderStreamError(QUIC_QPACK_ENCODER_STREAM_SET_DYNAMIC_TABLE_CAPACITY,
+                           Eq("Error updating dynamic table capacity.")));
 
   // Try to update dynamic table capacity to 2048, which exceeds the maximum.
   DecodeEncoderStreamData(absl::HexStringToBytes("3fe10f"));
