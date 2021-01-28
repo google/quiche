@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "absl/base/macros.h"
-#include "spdy/core/hpack/hpack_huffman_table.h"
 #include "spdy/core/hpack/hpack_static_table.h"
 #include "spdy/platform/api/spdy_logging.h"
 
@@ -360,17 +359,6 @@ const std::vector<HpackStaticEntry>& HpackStaticTableVector() {
 }
 
 #undef STATIC_ENTRY
-
-const HpackHuffmanTable& ObtainHpackHuffmanTable() {
-  static const HpackHuffmanTable* const shared_huffman_table = []() {
-    auto* table = new HpackHuffmanTable();
-    CHECK(table->Initialize(HpackHuffmanCodeVector().data(),
-                            HpackHuffmanCodeVector().size()));
-    CHECK(table->IsInitialized());
-    return table;
-  }();
-  return *shared_huffman_table;
-}
 
 const HpackStaticTable& ObtainHpackStaticTable() {
   static const HpackStaticTable* const shared_static_table = []() {

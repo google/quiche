@@ -11,7 +11,6 @@
 #include "http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "spdy/core/hpack/hpack_constants.h"
 #include "spdy/core/hpack/hpack_header_table.h"
-#include "spdy/core/hpack/hpack_huffman_table.h"
 #include "spdy/core/hpack/hpack_output_stream.h"
 #include "spdy/platform/api/spdy_estimate_memory_usage.h"
 #include "spdy/platform/api/spdy_flag_utils.h"
