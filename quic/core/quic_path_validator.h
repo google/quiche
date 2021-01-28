@@ -15,8 +15,8 @@
 #include "quic/core/quic_one_block_arena.h"
 #include "quic/core/quic_packet_writer.h"
 #include "quic/core/quic_types.h"
+#include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_socket_address.h"
-#include "net/quic/platform/impl/quic_export_impl.h"
 
 namespace quic {
 

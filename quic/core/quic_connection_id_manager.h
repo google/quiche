@@ -19,8 +19,8 @@
 #include "quic/core/quic_clock.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_interval_set.h"
+#include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_uint128.h"
-#include "net/quic/platform/impl/quic_export_impl.h"
 
 namespace quic {
 

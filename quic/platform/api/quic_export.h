@@ -5,13 +5,17 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_EXPORT_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_EXPORT_H_
 
-#include "net/quic/platform/impl/quic_export_impl.h"
+#include "quiche_platform_impl/quiche_export_impl.h"
 
-// quic_export_impl.h defines the following macros:
-// - QUIC_EXPORT is not meant to be used.
-// - QUIC_EXPORT_PRIVATE is meant for QUIC functionality that is built in
-//   Chromium as part of //net, and not fully contained in headers.
-// - QUIC_NO_EXPORT is meant for QUIC functionality that is either fully defined
-//   in a header, or is built in Chromium as part of tests or tools.
+// QUIC_EXPORT is not meant to be used.
+#define QUIC_EXPORT QUICHE_EXPORT_IMPL
+
+// QUIC_EXPORT_PRIVATE is meant for QUIC functionality that is built in Chromium
+// as part of //net, and not fully contained in headers.
+#define QUIC_EXPORT_PRIVATE QUICHE_EXPORT_PRIVATE_IMPL
+
+// QUIC_NO_EXPORT is meant for QUIC functionality that is either fully defined
+// in a header, or is built in Chromium as part of tests or tools.
+#define QUIC_NO_EXPORT QUICHE_NO_EXPORT_IMPL
 
 #endif  // QUICHE_QUIC_PLATFORM_API_QUIC_EXPORT_H_

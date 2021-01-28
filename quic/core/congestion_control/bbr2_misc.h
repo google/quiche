@@ -16,7 +16,6 @@
 #include "quic/core/quic_types.h"
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
-#include "net/quic/platform/impl/quic_export_impl.h"
 
 namespace quic {
 
