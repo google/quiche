@@ -81,9 +81,6 @@ QuicTimeWaitListManager::QuicTimeWaitListManager(
       clock_(clock),
       writer_(writer),
       visitor_(visitor) {
-  if (use_indirect_connection_id_map_) {
-    QUIC_RESTART_FLAG_COUNT(quic_time_wait_list_support_multiple_cid_v2);
-  }
   SetConnectionIdCleanUpAlarm();
 }
 
@@ -110,6 +107,8 @@ void QuicTimeWaitListManager::AddConnectionIdDataToMap(
     TimeWaitAction action,
     TimeWaitConnectionInfo info) {
   if (use_indirect_connection_id_map_) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_time_wait_list_support_multiple_cid_v2, 1,
+                              3);
     for (const auto& cid : info.active_connection_ids) {
       indirect_connection_id_map_[cid] = canonical_connection_id;
     }
@@ -123,6 +122,8 @@ void QuicTimeWaitListManager::AddConnectionIdDataToMap(
 void QuicTimeWaitListManager::RemoveConnectionDataFromMap(
     ConnectionIdMap::iterator it) {
   if (use_indirect_connection_id_map_) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_time_wait_list_support_multiple_cid_v2, 2,
+                              3);
     for (const auto& cid : it->second.info.active_connection_ids) {
       indirect_connection_id_map_.erase(cid);
     }
@@ -154,6 +155,8 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
   DCHECK(connection_id_map_.empty() ||
          num_connections() < static_cast<size_t>(max_connections));
   if (use_indirect_connection_id_map_ && new_connection_id) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_time_wait_list_support_multiple_cid_v2, 3,
+                              3);
     for (const auto& cid : info.active_connection_ids) {
       visitor_->OnConnectionAddedToTimeWaitList(cid);
     }
