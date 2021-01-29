@@ -327,10 +327,6 @@ QuicDispatcher::QuicDispatcher(
   if (use_reference_counted_session_map_) {
     QUIC_RESTART_FLAG_COUNT(quic_use_reference_counted_sesssion_map);
   }
-  if (support_multiple_cid_per_connection_) {
-    QUIC_RESTART_FLAG_COUNT(
-        quic_dispatcher_support_multiple_cid_per_connection_v2);
-  }
   QUIC_BUG_IF(GetSupportedVersions().empty())
       << "Trying to create dispatcher without any supported versions";
   QUIC_DLOG(INFO) << "Created QuicDispatcher with versions: "
@@ -813,6 +809,8 @@ void QuicDispatcher::CleanUpSession(QuicConnectionId server_connection_id,
         QUIC_CODE_COUNT(quic_v44_add_to_time_wait_list_with_handshake_failed);
       }
       if (support_multiple_cid_per_connection_) {
+        QUIC_RESTART_FLAG_COUNT_N(
+            quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
         // This serializes a connection close termination packet with error code
         // QUIC_HANDSHAKE_FAILED and adds the connection to the time wait list.
         StatelessConnectionTerminator terminator(
@@ -1020,6 +1018,8 @@ void QuicDispatcher::OnConnectionClosed(QuicConnectionId server_connection_id,
     }
     CleanUpSession(it->first, connection, source);
     if (support_multiple_cid_per_connection_) {
+      QUIC_RESTART_FLAG_COUNT_N(
+          quic_dispatcher_support_multiple_cid_per_connection_v2, 1, 2);
       for (const QuicConnectionId& cid :
            connection->GetActiveServerConnectionIds()) {
         reference_counted_session_map_.erase(cid);
