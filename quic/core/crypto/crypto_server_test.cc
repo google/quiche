@@ -454,7 +454,7 @@ TEST_P(CryptoServerTest, RejectTooLarge) {
 
 TEST_P(CryptoServerTest, RejectNotTooLarge) {
   // When the CHLO packet is large enough, ensure that a full REJ is sent.
-  chlo_packet_size_ *= 2;
+  chlo_packet_size_ *= 5;
 
   CryptoHandshakeMessage msg =
       crypto_test_utils::CreateCHLO({{"PDMD", "X509"},
