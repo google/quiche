@@ -1652,7 +1652,7 @@ TEST_P(QuicConnectionTest, PeerAddressChangeAtServer) {
       .WillOnce(Invoke(
           [=]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
       .WillOnce(Invoke([=]() {
-        EXPECT_EQ((GetQuicReloadableFlag(quic_start_peer_migration_earlier) ||
+        EXPECT_EQ((connection_.start_peer_migration_earlier() ||
                            !GetParam().version.HasIetfQuicFrames()
                        ? kNewPeerAddress
                        : kPeerAddress),
@@ -13280,7 +13280,7 @@ TEST_P(QuicConnectionTest,
 // Regression test for b/177312785
 TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   if (!VersionHasIetfQuicFrames(version().transport_version) ||
-      !GetQuicReloadableFlag(quic_start_peer_migration_earlier)) {
+      !connection_.start_peer_migration_earlier()) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
@@ -13298,7 +13298,7 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_FALSE(connection_.effective_peer_address().IsInitialized());
 
   const QuicSocketAddress kNewPeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
+      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
   ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
                                   ENCRYPTION_INITIAL);
@@ -13311,7 +13311,7 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   EXPECT_CALL(visitor_,
               OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
-  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0u);
+  EXPECT_CALL(visitor_, OnConnectionMigration(_)).Times(0u);
   if (!GetQuicReloadableFlag(quic_update_packet_content_returns_connected)) {
     EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _));
     EXPECT_QUIC_BUG(

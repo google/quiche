@@ -4942,20 +4942,12 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
   if (!start_peer_migration_earlier_) {
     return;
   }
-  QUIC_CODE_COUNT(quic_start_peer_migration_earlier);
+  QUIC_CODE_COUNT(quic_start_peer_migration_earlier_2);
   if (current_effective_peer_migration_type_ != NO_CHANGE &&
+      current_effective_peer_migration_type_ != PORT_CHANGE &&
       !IsHandshakeConfirmed()) {
-    QUIC_LOG_EVERY_N_SEC(INFO, 60)
-        << ENDPOINT << "Effective peer's ip:port changed from "
-        << effective_peer_address_.ToString() << " to "
-        << GetEffectivePeerAddressFromCurrentPacket().ToString()
-        << " before handshake confirmed, "
-           "current_effective_peer_migration_type_: "
-        << current_effective_peer_migration_type_;
     // Peer migrated before handshake gets confirmed.
-    CloseConnection((current_effective_peer_migration_type_ == PORT_CHANGE
-                         ? QUIC_PEER_PORT_CHANGE_HANDSHAKE_UNCONFIRMED
-                         : QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED),
+    CloseConnection(QUIC_CONNECTION_MIGRATION_HANDSHAKE_UNCONFIRMED,
                     "Peer address changed before handshake is confirmed.",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
