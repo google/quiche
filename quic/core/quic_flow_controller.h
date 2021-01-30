@@ -100,7 +100,7 @@ class QUIC_EXPORT_PRIVATE QuicFlowController
   }
 
   void set_receive_window_size_limit(QuicByteCount receive_window_size_limit) {
-    DCHECK_GE(receive_window_size_limit, receive_window_size_limit_);
+    QUICHE_DCHECK_GE(receive_window_size_limit, receive_window_size_limit_);
     receive_window_size_limit_ = receive_window_size_limit;
   }
 

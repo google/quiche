@@ -34,7 +34,8 @@ class QUIC_EXPORT_PRIVATE Bbr2StartupMode final : public Bbr2ModeBase {
 
   Limits<QuicByteCount> GetCwndLimits() const override {
     // Inflight_lo is never set in STARTUP.
-    DCHECK_EQ(Bbr2NetworkModel::inflight_lo_default(), model_->inflight_lo());
+    QUICHE_DCHECK_EQ(Bbr2NetworkModel::inflight_lo_default(),
+                     model_->inflight_lo());
     return NoGreaterThan(model_->inflight_lo());
   }
 

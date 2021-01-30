@@ -45,7 +45,7 @@ static bool CreateSocket(int family, QuicSocketAddress* address, int* fd) {
   if (family == AF_INET) {
     *address = QuicSocketAddress(QuicIpAddress::Loopback4(), 0);
   } else {
-    DCHECK_EQ(family, AF_INET6);
+    QUICHE_DCHECK_EQ(family, AF_INET6);
     *address = QuicSocketAddress(QuicIpAddress::Loopback6(), 0);
   }
 

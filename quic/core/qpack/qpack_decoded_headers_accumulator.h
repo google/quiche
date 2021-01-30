@@ -90,7 +90,7 @@ class QUIC_EXPORT_PRIVATE QpackDecodedHeadersAccumulator
   // Input data is still fed to QpackProgressiveDecoder.
   bool header_list_size_limit_exceeded_;
 
-  // The following two members are only used for DCHECKs.
+  // The following two members are only used for QUICHE_DCHECKs.
 
   // True if headers have been completedly and successfully decoded.
   bool headers_decoded_;

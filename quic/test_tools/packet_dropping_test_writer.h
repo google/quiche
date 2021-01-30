@@ -93,22 +93,22 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // to WRITE_STATUS_BLOCKED.
   void set_fake_blocked_socket_percentage(
       int32_t fake_blocked_socket_percentage) {
-    DCHECK(clock_);
+    QUICHE_DCHECK(clock_);
     QuicWriterMutexLock lock(&config_mutex_);
     fake_blocked_socket_percentage_ = fake_blocked_socket_percentage;
   }
 
   // The percent of time a packet is simulated as being reordered.
   void set_fake_reorder_percentage(int32_t fake_packet_reorder_percentage) {
-    DCHECK(clock_);
+    QUICHE_DCHECK(clock_);
     QuicWriterMutexLock lock(&config_mutex_);
-    DCHECK(!fake_packet_delay_.IsZero());
+    QUICHE_DCHECK(!fake_packet_delay_.IsZero());
     fake_packet_reorder_percentage_ = fake_packet_reorder_percentage;
   }
 
   // The delay before writing this packet.
   void set_fake_packet_delay(QuicTime::Delta fake_packet_delay) {
-    DCHECK(clock_);
+    QUICHE_DCHECK(clock_);
     QuicWriterMutexLock lock(&config_mutex_);
     fake_packet_delay_ = fake_packet_delay;
   }
@@ -119,7 +119,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   // dropped.
   void set_max_bandwidth_and_buffer_size(QuicBandwidth fake_bandwidth,
                                          QuicByteCount buffer_size) {
-    DCHECK(clock_);
+    QUICHE_DCHECK(clock_);
     QuicWriterMutexLock lock(&config_mutex_);
     fake_bandwidth_ = fake_bandwidth;
     buffer_size_ = buffer_size;

@@ -128,7 +128,8 @@ struct QUIC_EXPORT_PRIVATE QuicAckFrame {
 // have been observed, return 0.
 inline QUIC_EXPORT_PRIVATE QuicPacketNumber
 LargestAcked(const QuicAckFrame& frame) {
-  DCHECK(frame.packets.Empty() || frame.packets.Max() == frame.largest_acked);
+  QUICHE_DCHECK(frame.packets.Empty() ||
+                frame.packets.Max() == frame.largest_acked);
   return frame.largest_acked;
 }
 

@@ -213,7 +213,8 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
                               QuicTransportVersion transport_version)
       : handshake_protocol(handshake_protocol),
         transport_version(transport_version) {
-    DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
+    QUICHE_DCHECK(
+        ParsedQuicVersionIsValid(handshake_protocol, transport_version))
         << QuicVersionToString(transport_version) << " "
         << HandshakeProtocolToString(handshake_protocol);
   }
@@ -222,8 +223,8 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
       : ParsedQuicVersion(other.handshake_protocol, other.transport_version) {}
 
   ParsedQuicVersion& operator=(const ParsedQuicVersion& other) {
-    DCHECK(ParsedQuicVersionIsValid(other.handshake_protocol,
-                                    other.transport_version))
+    QUICHE_DCHECK(ParsedQuicVersionIsValid(other.handshake_protocol,
+                                           other.transport_version))
         << QuicVersionToString(other.transport_version) << " "
         << HandshakeProtocolToString(other.handshake_protocol);
     if (this != &other) {

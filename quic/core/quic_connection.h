@@ -583,7 +583,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Set the packet writer.
   void SetQuicPacketWriter(QuicPacketWriter* writer, bool owns_writer) {
-    DCHECK(writer != nullptr);
+    QUICHE_DCHECK(writer != nullptr);
     if (writer_ != nullptr && owns_writer_) {
       delete writer_;
     }
@@ -719,7 +719,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // Used in Chromium, but not internally.
   // Must only be called before ping_alarm_ is set.
   void set_ping_timeout(QuicTime::Delta ping_timeout) {
-    DCHECK(!ping_alarm_->IsSet());
+    QUICHE_DCHECK(!ping_alarm_->IsSet());
     ping_timeout_ = ping_timeout;
   }
   const QuicTime::Delta ping_timeout() const { return ping_timeout_; }
@@ -727,7 +727,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   // data in flight, allowing for a more aggressive ping alarm in that case.
   void set_initial_retransmittable_on_wire_timeout(
       QuicTime::Delta retransmittable_on_wire_timeout) {
-    DCHECK(!ping_alarm_->IsSet());
+    QUICHE_DCHECK(!ping_alarm_->IsSet());
     initial_retransmittable_on_wire_timeout_ = retransmittable_on_wire_timeout;
   }
   const QuicTime::Delta initial_retransmittable_on_wire_timeout() const {
@@ -758,7 +758,7 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   // Must only be called on client connections.
   const ParsedQuicVersionVector& server_supported_versions() const {
-    DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
+    QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
     return server_supported_versions_;
   }
 
@@ -810,10 +810,10 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   void SetDefaultEncryptionLevel(EncryptionLevel level);
 
   // SetDecrypter sets the primary decrypter, replacing any that already exists.
-  // If an alternative decrypter is in place then the function DCHECKs. This is
-  // intended for cases where one knows that future packets will be using the
-  // new decrypter and the previous decrypter is now obsolete. |level| indicates
-  // the encryption level of the new decrypter.
+  // If an alternative decrypter is in place then the function QUICHE_DCHECKs.
+  // This is intended for cases where one knows that future packets will be
+  // using the new decrypter and the previous decrypter is now obsolete. |level|
+  // indicates the encryption level of the new decrypter.
   void SetDecrypter(EncryptionLevel level,
                     std::unique_ptr<QuicDecrypter> decrypter);
 

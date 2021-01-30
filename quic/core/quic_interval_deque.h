@@ -198,12 +198,12 @@ class QUIC_NO_EXPORT QuicIntervalDeque {
     Iterator operator+(difference_type amount) const {
       Iterator copy = *this;
       copy.index_ += amount;
-      DCHECK(copy.index_ < copy.deque_->size());
+      QUICHE_DCHECK(copy.index_ < copy.deque_->size());
       return copy;
     }
     Iterator& operator+=(difference_type amount) {
       index_ += amount;
-      DCHECK(index_ < deque_->size());
+      QUICHE_DCHECK(index_ < deque_->size());
       return *this;
     }
     difference_type operator-(const Iterator& rhs) const {
@@ -311,7 +311,7 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
   }
 
   const std::size_t cached_index = cached_index_.value();
-  DCHECK(cached_index < container_.size());
+  QUICHE_DCHECK(cached_index < container_.size());
 
   const QuicInterval<size_t> cached_interval =
       container_[cached_index].interval();

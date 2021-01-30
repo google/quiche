@@ -30,7 +30,7 @@ class Switch {
   // Returns Endpoint associated with the port under number |port_number|.  Just
   // like on most real switches, port numbering starts with 1.
   inline Endpoint* port(SwitchPortNumber port_number) {
-    DCHECK_NE(port_number, 0u);
+    QUICHE_DCHECK_NE(port_number, 0u);
     return &ports_[port_number - 1];
   }
 

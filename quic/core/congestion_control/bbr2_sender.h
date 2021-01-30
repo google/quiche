@@ -147,12 +147,12 @@ class QUIC_EXPORT_PRIVATE Bbr2Sender final : public SendAlgorithmInterface {
 
   // Helper function for BBR2_MODE_DISPATCH.
   Bbr2ProbeRttMode& probe_rtt_or_die() {
-    DCHECK_EQ(mode_, Bbr2Mode::PROBE_RTT);
+    QUICHE_DCHECK_EQ(mode_, Bbr2Mode::PROBE_RTT);
     return probe_rtt_;
   }
 
   const Bbr2ProbeRttMode& probe_rtt_or_die() const {
-    DCHECK_EQ(mode_, Bbr2Mode::PROBE_RTT);
+    QUICHE_DCHECK_EQ(mode_, Bbr2Mode::PROBE_RTT);
     return probe_rtt_;
   }
 

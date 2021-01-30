@@ -143,7 +143,7 @@ class QUIC_EXPORT_PRIVATE QpackInstructionDecoder {
   http2::HpackHuffmanDecoder huffman_decoder_;
 
   // True if a decoding error has been detected by QpackInstructionDecoder.
-  // Only used in DCHECKs.
+  // Only used in QUICHE_DCHECKs.
   bool error_detected_;
 
   // Decoding state.

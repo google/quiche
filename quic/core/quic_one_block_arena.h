@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 // An arena that consists of a single inlined block of |ArenaSize|. Useful to
-// avoid repeated calls to malloc/new and to improve memory locality. DCHECK's
-// if an allocation out of the arena ever fails in debug builds; falls back to
-// heap allocation in release builds.
+// avoid repeated calls to malloc/new and to improve memory locality.
+// QUICHE_DCHECK's if an allocation out of the arena ever fails in debug builds;
+// falls back to heap allocation in release builds.
 
 #ifndef QUICHE_QUIC_CORE_QUIC_ONE_BLOCK_ARENA_H_
 #define QUICHE_QUIC_CORE_QUIC_ONE_BLOCK_ARENA_H_
@@ -33,7 +33,7 @@ class QUIC_EXPORT_PRIVATE QuicOneBlockArena {
   // controlled by QuicArenaScopedPtr.
   template <typename T, typename... Args>
   QuicArenaScopedPtr<T> New(Args&&... args) {
-    DCHECK_LT(AlignedSize<T>(), ArenaSize)
+    QUICHE_DCHECK_LT(AlignedSize<T>(), ArenaSize)
         << "Object is too large for the arena.";
     static_assert(alignof(T) > 1,
                   "Objects added to the arena must be at least 2B aligned.");

@@ -356,8 +356,8 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
       EncryptionLevel decrypted_packet_level) const;
 
   void SetNetworkChangeVisitor(NetworkChangeVisitor* visitor) {
-    DCHECK(!network_change_visitor_);
-    DCHECK(visitor);
+    QUICHE_DCHECK(!network_change_visitor_);
+    QUICHE_DCHECK(visitor);
     network_change_visitor_ = visitor;
   }
 
@@ -386,7 +386,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
   }
 
   QuicPacketNumber largest_packet_peer_knows_is_acked() const {
-    DCHECK(!supports_multiple_packet_number_spaces());
+    QUICHE_DCHECK(!supports_multiple_packet_number_spaces());
     return largest_packet_peer_knows_is_acked_;
   }
 
@@ -398,7 +398,7 @@ class QUIC_EXPORT_PRIVATE QuicSentPacketManager {
 
   void set_peer_max_ack_delay(QuicTime::Delta peer_max_ack_delay) {
     // The delayed ack time should never be more than one half the min RTO time.
-    DCHECK_LE(peer_max_ack_delay, (min_rto_timeout_ * 0.5));
+    QUICHE_DCHECK_LE(peer_max_ack_delay, (min_rto_timeout_ * 0.5));
     peer_max_ack_delay_ = peer_max_ack_delay;
   }
 

@@ -369,7 +369,7 @@ class QUIC_EXPORT_PRIVATE BandwidthSampler : public BandwidthSamplerInterface {
   class QUIC_NO_EXPORT RecentAckPoints {
    public:
     void Update(QuicTime ack_time, QuicByteCount total_bytes_acked) {
-      DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
+      QUICHE_DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
 
       if (ack_time < ack_points_[1].ack_time) {
         // This can only happen when time goes backwards, we use the smaller

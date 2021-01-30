@@ -62,7 +62,7 @@ class QUIC_EXPORT_PRIVATE CryptoUtils {
 
     Mode mode() const { return mode_; }
     DiversificationNonce* nonce() const {
-      DCHECK_EQ(mode_, NOW);
+      QUICHE_DCHECK_EQ(mode_, NOW);
       return nonce_;
     }
 

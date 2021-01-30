@@ -49,27 +49,27 @@ class QUIC_EXPORT_PRIVATE GeneralLossAlgorithm : public LossDetectionInterface {
                             QuicPacketNumber previous_largest_acked) override;
 
   void OnConfigNegotiated() override {
-    DCHECK(false)
+    QUICHE_DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnConfigNegotiated";
   }
 
   void OnMinRttAvailable() override {
-    DCHECK(false)
+    QUICHE_DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnMinRttAvailable";
   }
 
   void OnUserAgentIdKnown() override {
-    DCHECK(false)
+    QUICHE_DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnUserAgentIdKnown";
   }
 
   void OnConnectionClosed() override {
-    DCHECK(false)
+    QUICHE_DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnConnectionClosed";
   }
 
   void OnReorderingDetected() override {
-    DCHECK(false)
+    QUICHE_DCHECK(false)
         << "Unexpected call to GeneralLossAlgorithm::OnReorderingDetected";
   }
 

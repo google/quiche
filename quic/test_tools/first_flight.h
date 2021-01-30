@@ -37,7 +37,7 @@ class QUIC_NO_EXPORT DelegatedPacketWriter : public QuicPacketWriter {
   // |delegate| MUST be valid for the duration of the DelegatedPacketWriter's
   // lifetime.
   explicit DelegatedPacketWriter(Delegate* delegate) : delegate_(delegate) {
-    CHECK_NE(delegate_, nullptr);
+    QUICHE_CHECK_NE(delegate_, nullptr);
   }
 
   // Overrides for QuicPacketWriter.

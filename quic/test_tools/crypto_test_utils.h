@@ -147,7 +147,7 @@ void FillInDummyReject(CryptoHandshakeMessage* rej);
 
 // ParseTag returns a QuicTag from parsing |tagstr|. |tagstr| may either be
 // in the format "EXMP" (i.e. ASCII format), or "#11223344" (an explicit hex
-// format). It CHECK fails if there's a parse error.
+// format). It QUICHE_CHECK fails if there's a parse error.
 QuicTag ParseTag(const char* tagstr);
 
 // Message constructs a CHLO message from a provided vector of tag/value pairs.

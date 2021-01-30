@@ -174,7 +174,7 @@ class QUIC_EXPORT_PRIVATE QuicMMsgHdr {
                      BufferedWrite>::value,
         "Must iterate over a collection of BufferedWrite.");
 
-    DCHECK_LE(0, num_msgs_);
+    QUICHE_DCHECK_LE(0, num_msgs_);
     if (num_msgs_ == 0) {
       return;
     }

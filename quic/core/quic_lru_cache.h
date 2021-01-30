@@ -11,6 +11,7 @@
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flag_utils.h"
 #include "quic/platform/api/quic_flags.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 
@@ -37,7 +38,7 @@ class QUIC_NO_EXPORT QuicLRUCache {
     if (cache_.size() > capacity_) {
       cache_.pop_front();
     }
-    DCHECK_LE(cache_.size(), capacity_);
+    QUICHE_DCHECK_LE(cache_.size(), capacity_);
   }
 
   // If cache contains an entry for |key|, return a pointer to it. This returned
@@ -52,7 +53,7 @@ class QUIC_NO_EXPORT QuicLRUCache {
     std::unique_ptr<V> value = std::move(it->second);
     cache_.erase(it);
     auto result = cache_.emplace(key, std::move(value));
-    DCHECK(result.second);
+    QUICHE_DCHECK(result.second);
     return result.first->second.get();
   }
 

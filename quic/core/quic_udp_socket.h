@@ -66,7 +66,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   bool HasValue(QuicUdpPacketInfoBit bit) const { return bitmask_.IsSet(bit); }
 
   QuicPacketCount dropped_packets() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::DROPPED_PACKETS));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::DROPPED_PACKETS));
     return dropped_packets_;
   }
 
@@ -76,7 +76,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   const QuicIpAddress& self_v4_ip() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::V4_SELF_IP));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V4_SELF_IP));
     return self_v4_ip_;
   }
 
@@ -86,7 +86,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   const QuicIpAddress& self_v6_ip() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::V6_SELF_IP));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::V6_SELF_IP));
     return self_v6_ip_;
   }
 
@@ -104,7 +104,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   const QuicSocketAddress& peer_address() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS));
     return peer_address_;
   }
 
@@ -114,7 +114,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   QuicWallTime receive_timestamp() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::RECV_TIMESTAMP));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::RECV_TIMESTAMP));
     return receive_timestamp_;
   }
 
@@ -124,7 +124,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   int ttl() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::TTL));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::TTL));
     return ttl_;
   }
 
@@ -134,7 +134,7 @@ class QUIC_EXPORT_PRIVATE QuicUdpPacketInfo {
   }
 
   BufferSpan google_packet_headers() const {
-    DCHECK(HasValue(QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER));
+    QUICHE_DCHECK(HasValue(QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER));
     return google_packet_headers_;
   }
 

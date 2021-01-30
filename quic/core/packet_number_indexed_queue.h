@@ -152,8 +152,8 @@ bool PacketNumberIndexedQueue<T>::Emplace(QuicPacketNumber packet_number,
   }
 
   if (IsEmpty()) {
-    DCHECK(entries_.empty());
-    DCHECK(!first_packet_.IsInitialized());
+    QUICHE_DCHECK(entries_.empty());
+    QUICHE_DCHECK(!first_packet_.IsInitialized());
 
     entries_.emplace_back(std::forward<Args>(args)...);
     number_of_present_entries_ = 1;
@@ -174,7 +174,7 @@ bool PacketNumberIndexedQueue<T>::Emplace(QuicPacketNumber packet_number,
 
   number_of_present_entries_++;
   entries_.emplace_back(std::forward<Args>(args)...);
-  DCHECK_EQ(packet_number, last_packet());
+  QUICHE_DCHECK_EQ(packet_number, last_packet());
   return true;
 }
 

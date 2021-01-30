@@ -115,8 +115,8 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // Called when a packet is received for a connection_id that is in time wait
   // state. Sends a public reset packet to the peer which sent this
   // connection_id. Sending of the public reset packet is throttled by using
-  // exponential back off. DCHECKs for the connection_id to be in time wait
-  // state. virtual to override in tests.
+  // exponential back off. QUICHE_DCHECKs for the connection_id to be in time
+  // wait state. virtual to override in tests.
   virtual void ProcessPacket(
       const QuicSocketAddress& self_address,
       const QuicSocketAddress& peer_address,

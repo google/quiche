@@ -299,8 +299,8 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
 
   void set_version(const ParsedQuicVersion version);
 
-  // Does not DCHECK for supported version. Used by tests to set unsupported
-  // version to trigger version negotiation.
+  // Does not QUICHE_DCHECK for supported version. Used by tests to set
+  // unsupported version to trigger version negotiation.
   void set_version_for_tests(const ParsedQuicVersion version) {
     version_ = version;
   }
@@ -520,10 +520,10 @@ class QUIC_EXPORT_PRIVATE QuicFramer {
                                QuicDataWriter* writer);
 
   // SetDecrypter sets the primary decrypter, replacing any that already exists.
-  // If an alternative decrypter is in place then the function DCHECKs. This is
-  // intended for cases where one knows that future packets will be using the
-  // new decrypter and the previous decrypter is now obsolete. |level| indicates
-  // the encryption level of the new decrypter.
+  // If an alternative decrypter is in place then the function QUICHE_DCHECKs.
+  // This is intended for cases where one knows that future packets will be
+  // using the new decrypter and the previous decrypter is now obsolete. |level|
+  // indicates the encryption level of the new decrypter.
   void SetDecrypter(EncryptionLevel level,
                     std::unique_ptr<QuicDecrypter> decrypter);
 

@@ -161,7 +161,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   // Remove the first interval.
   // REQUIRES: !Empty()
   void PopFront() {
-    DCHECK(!Empty());
+    QUICHE_DCHECK(!Empty());
     intervals_.erase(intervals_.begin());
   }
 
@@ -379,7 +379,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   // Returns true if this set is valid (i.e. all intervals in it are non-empty,
   // non-adjacent, and mutually disjoint). Currently this is used as an
   // integrity check by the Intersection() and Difference() methods, but is only
-  // invoked for debug builds (via DCHECK).
+  // invoked for debug builds (via QUICHE_DCHECK).
   bool Valid() const;
 
   // Finds the first interval that potentially intersects 'other'.
@@ -711,7 +711,7 @@ bool QuicIntervalSet<T>::FindNextIntersectingPairImpl(X* x,
                                                       const_iterator* mine,
                                                       const_iterator* theirs,
                                                       Func on_hole) {
-  CHECK(x != nullptr);
+  QUICHE_CHECK(x != nullptr);
   if ((*mine == x->intervals_.end()) || (*theirs == y.intervals_.end())) {
     return false;
   }
@@ -767,15 +767,15 @@ void QuicIntervalSet<T>::Intersection(const QuicIntervalSet& other) {
            i.Intersects(*theirs, &intersection)) {
       std::pair<typename Set::iterator, bool> ins =
           intervals_.insert(intersection);
-      DCHECK(ins.second);
+      QUICHE_DCHECK(ins.second);
       mine = ins.first;
       ++theirs;
     }
-    DCHECK(mine != intervals_.end());
+    QUICHE_DCHECK(mine != intervals_.end());
     --theirs;
     ++mine;
   }
-  DCHECK(Valid());
+  QUICHE_DCHECK(Valid());
 }
 
 template <typename T>
@@ -833,16 +833,16 @@ void QuicIntervalSet<T>::Difference(const QuicIntervalSet& other) {
     if (!lo.Empty()) {
       // We have a low end.  This can't intersect anything else.
       std::pair<typename Set::iterator, bool> ins = intervals_.insert(lo);
-      DCHECK(ins.second);
+      QUICHE_DCHECK(ins.second);
     }
 
     if (!hi.Empty()) {
       std::pair<typename Set::iterator, bool> ins = intervals_.insert(hi);
-      DCHECK(ins.second);
+      QUICHE_DCHECK(ins.second);
       mine = ins.first;
     }
   }
-  DCHECK(Valid());
+  QUICHE_DCHECK(Valid());
 }
 
 template <typename T>
@@ -893,7 +893,7 @@ void QuicIntervalSet<T>::Compact(const typename Set::iterator& begin,
       intervals_.erase(prev);
       intervals_.erase(it);
       std::pair<typename Set::iterator, bool> ins = intervals_.insert(i);
-      DCHECK(ins.second);
+      QUICHE_DCHECK(ins.second);
       prev = ins.first;
     } else {
       prev = it;
@@ -1055,7 +1055,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   // Remove the first interval.
   // REQUIRES: !Empty()
   void PopFront() {
-    DCHECK(!Empty());
+    QUICHE_DCHECK(!Empty());
     intervals_.erase(intervals_.begin());
   }
 
@@ -1282,7 +1282,7 @@ class QUIC_NO_EXPORT QuicIntervalSet {
   // Returns true if this set is valid (i.e. all intervals in it are non-empty,
   // non-adjacent, and mutually disjoint). Currently this is used as an
   // integrity check by the Intersection() and Difference() methods, but is only
-  // invoked for debug builds (via DCHECK).
+  // invoked for debug builds (via QUICHE_DCHECK).
   bool Valid() const;
 
   // Finds the first interval that potentially intersects 'other'.
@@ -1548,7 +1548,7 @@ bool QuicIntervalSet<T>::FindNextIntersectingPairImpl(X* x,
                                                       const_iterator* mine,
                                                       const_iterator* theirs,
                                                       Func on_hole) {
-  CHECK(x != nullptr);
+  QUICHE_CHECK(x != nullptr);
   if ((*mine == x->intervals_.end()) || (*theirs == y.intervals_.end())) {
     return false;
   }
@@ -1603,15 +1603,15 @@ void QuicIntervalSet<T>::Intersection(const QuicIntervalSet& other) {
     while (theirs != other.intervals_.end() &&
            i.Intersects(*theirs, &intersection)) {
       std::pair<const_iterator, bool> ins = intervals_.insert(intersection);
-      DCHECK(ins.second);
+      QUICHE_DCHECK(ins.second);
       mine = ins.first;
       ++theirs;
     }
-    DCHECK(mine != intervals_.end());
+    QUICHE_DCHECK(mine != intervals_.end());
     --theirs;
     ++mine;
   }
-  DCHECK(Valid());
+  QUICHE_DCHECK(Valid());
 }
 
 template <typename T>
@@ -1667,8 +1667,8 @@ void QuicIntervalSet<T>::Difference(const QuicIntervalSet& other) {
     // Loop invariants:
     //   myinterval is nonempty.
     //   mine points at a range that is a suffix of myinterval.
-    DCHECK(!myinterval.Empty());
-    DCHECK(myinterval.max() == mine->max());
+    QUICHE_DCHECK(!myinterval.Empty());
+    QUICHE_DCHECK(myinterval.max() == mine->max());
 
     // There are 3 cases.
     //  myinterval is completely before theirs (treat theirs==end() as if it is
@@ -1705,7 +1705,7 @@ void QuicIntervalSet<T>::Difference(const QuicIntervalSet& other) {
     }
   }
   std::swap(result, intervals_);
-  DCHECK(Valid());
+  QUICHE_DCHECK(Valid());
 }
 
 template <typename T>

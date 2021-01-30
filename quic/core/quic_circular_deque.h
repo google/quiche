@@ -163,23 +163,23 @@ class QUIC_NO_EXPORT QuicCircularDeque {
         : deque_(deque), index_(index) {}
 
     void Increment() {
-      DCHECK_LE(ExternalPosition() + 1, deque_->size());
+      QUICHE_DCHECK_LE(ExternalPosition() + 1, deque_->size());
       index_ = deque_->index_next(index_);
     }
 
     void Decrement() {
-      DCHECK_GE(ExternalPosition(), 1u);
+      QUICHE_DCHECK_GE(ExternalPosition(), 1u);
       index_ = deque_->index_prev(index_);
     }
 
     void IncrementBy(difference_type delta) {
       if (delta >= 0) {
         // After increment we are before or at end().
-        DCHECK_LE(static_cast<size_type>(ExternalPosition() + delta),
-                  deque_->size());
+        QUICHE_DCHECK_LE(static_cast<size_type>(ExternalPosition() + delta),
+                         deque_->size());
       } else {
         // After decrement we are after or at begin().
-        DCHECK_GE(ExternalPosition(), static_cast<size_type>(-delta));
+        QUICHE_DCHECK_GE(ExternalPosition(), static_cast<size_type>(-delta));
       }
       index_ = deque_->index_increment_by(index_, delta);
     }
@@ -324,7 +324,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   reference at(size_type pos) {
-    DCHECK(pos < size()) << "pos:" << pos << ", size():" << size();
+    QUICHE_DCHECK(pos < size()) << "pos:" << pos << ", size():" << size();
     size_type index = begin_ + pos;
     if (index < data_capacity()) {
       return *index_to_address(index);
@@ -341,7 +341,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   const_reference operator[](size_type pos) const { return at(pos); }
 
   reference front() {
-    DCHECK(!empty());
+    QUICHE_DCHECK(!empty());
     return *index_to_address(begin_);
   }
 
@@ -350,7 +350,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   reference back() {
-    DCHECK(!empty());
+    QUICHE_DCHECK(!empty());
     return *(index_to_address(end_ == 0 ? data_capacity() - 1 : end_ - 1));
   }
 
@@ -429,7 +429,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   void pop_front() {
-    DCHECK(!empty());
+    QUICHE_DCHECK(!empty());
     DestroyByIndex(begin_);
     begin_ = index_next(begin_);
     MaybeShrinkCapacity();
@@ -445,7 +445,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   }
 
   void pop_back() {
-    DCHECK(!empty());
+    QUICHE_DCHECK(!empty());
     end_ = index_prev(end_);
     DestroyByIndex(end_);
     MaybeShrinkCapacity();
@@ -471,7 +471,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
       // When propagate_on_container_swap is false, it is undefined behavior, by
       // c++ standard, to swap between two AllocatorAwareContainer(s) with
       // unequal allocators.
-      DCHECK(get_allocator() == other.get_allocator())
+      QUICHE_DCHECK(get_allocator() == other.get_allocator())
           << "Undefined swap behavior";
       swap(allocator_and_data_.data, other.allocator_and_data_.data);
       swap(allocator_and_data_.data_capacity,
@@ -558,7 +558,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
     DestroyRange(begin_, end_);
 
     if (data_capacity() > 0) {
-      DCHECK_NE(nullptr, allocator_and_data_.data);
+      QUICHE_DCHECK_NE(nullptr, allocator_and_data_.data);
       AllocatorTraits::deallocate(allocator_and_data_.allocator(),
                                   allocator_and_data_.data, data_capacity());
     }
@@ -590,7 +590,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
 
   void Relocate(size_t new_capacity) {
     const size_t num_elements = size();
-    DCHECK_GT(new_capacity, num_elements)
+    QUICHE_DCHECK_GT(new_capacity, num_elements)
         << "new_capacity:" << new_capacity << ", num_elements:" << num_elements;
 
     size_t new_data_capacity = new_capacity + 1;
@@ -621,9 +621,9 @@ class QUIC_NO_EXPORT QuicCircularDeque {
   template <typename T_ = T>
   typename std::enable_if<std::is_trivially_copyable<T_>::value, void>::type
   RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
-    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    QUICHE_DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
     pointer src = index_to_address(begin);
-    DCHECK_NE(src, nullptr);
+    QUICHE_DCHECK_NE(src, nullptr);
     memcpy(dest, src, sizeof(T) * (end - begin));
     DestroyRange(begin, end);
   }
@@ -633,7 +633,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
                               std::is_move_constructible<T_>::value,
                           void>::type
   RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
-    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    QUICHE_DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
     pointer src = index_to_address(begin);
     pointer src_end = index_to_address(end);
     while (src != src_end) {
@@ -649,7 +649,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
                               !std::is_move_constructible<T_>::value,
                           void>::type
   RelocateUnwrappedRange(size_type begin, size_type end, pointer dest) const {
-    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    QUICHE_DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
     pointer src = index_to_address(begin);
     pointer src_end = index_to_address(end);
     while (src != src_end) {
@@ -692,7 +692,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
 
   // Should only be called from DestroyRange.
   void DestroyUnwrappedRange(size_type begin, size_type end) const {
-    DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
+    QUICHE_DCHECK_LE(begin, end) << "begin:" << begin << ", end:" << end;
     for (; begin != end; ++begin) {
       DestroyByIndex(begin);
     }
@@ -728,7 +728,7 @@ class QUIC_NO_EXPORT QuicCircularDeque {
       return index;
     }
 
-    DCHECK_LT(static_cast<size_type>(std::abs(delta)), data_capacity());
+    QUICHE_DCHECK_LT(static_cast<size_type>(std::abs(delta)), data_capacity());
     return (index + data_capacity() + delta) % data_capacity();
   }
 

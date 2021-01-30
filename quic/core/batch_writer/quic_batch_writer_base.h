@@ -75,7 +75,8 @@ class QUIC_EXPORT_PRIVATE QuicBatchWriterBase : public QuicPacketWriter {
   };
   virtual ReleaseTime GetReleaseTime(
       const PerPacketOptions* /*options*/) const {
-    DCHECK(false) << "Should not be called since release time is unsupported.";
+    QUICHE_DCHECK(false)
+        << "Should not be called since release time is unsupported.";
     return ReleaseTime{0, QuicTime::Delta::Zero()};
   }
 

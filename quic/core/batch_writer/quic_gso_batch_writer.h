@@ -61,8 +61,8 @@ class QUIC_EXPORT_PRIVATE QuicGsoBatchWriter : public QuicUdpBatchWriter {
 
   template <size_t CmsgSpace, typename CmsgBuilderT>
   FlushImplResult InternalFlushImpl(CmsgBuilderT cmsg_builder) {
-    DCHECK(!IsWriteBlocked());
-    DCHECK(!buffered_writes().empty());
+    QUICHE_DCHECK(!IsWriteBlocked());
+    QUICHE_DCHECK(!buffered_writes().empty());
 
     FlushImplResult result = {WriteResult(WRITE_STATUS_OK, 0),
                               /*num_packets_sent=*/0, /*bytes_written=*/0};

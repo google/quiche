@@ -185,14 +185,14 @@ void QuicArenaScopedPtr<T>::reset(T* value) {
       delete get();
     }
   }
-  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(value) & kFromArenaMask);
+  QUICHE_DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(value) & kFromArenaMask);
   value_ = value;
 }
 
 template <typename T>
 QuicArenaScopedPtr<T>::QuicArenaScopedPtr(void* value, ConstructFrom from_arena)
     : value_(value) {
-  DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(value_) & kFromArenaMask);
+  QUICHE_DCHECK_EQ(0u, reinterpret_cast<uintptr_t>(value_) & kFromArenaMask);
   switch (from_arena) {
     case ConstructFrom::kHeap:
       break;

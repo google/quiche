@@ -175,8 +175,8 @@ class QuicSpdyClientBase : public QuicClientBase,
                            bool fin,
                            QuicSpdyClientBase* client)
         : QuicDataToResend(std::move(headers), body, fin), client_(client) {
-      DCHECK(headers_);
-      DCHECK(client);
+      QUICHE_DCHECK(headers_);
+      QUICHE_DCHECK(client);
     }
 
     ClientQuicDataToResend(const ClientQuicDataToResend&) = delete;
