@@ -1188,10 +1188,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   virtual std::vector<QuicConnectionId> GetActiveServerConnectionIds() const;
 
-  bool start_peer_migration_earlier() const {
-    return start_peer_migration_earlier_;
-  }
-
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1999,6 +1995,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
   size_t anti_amplification_factor_ =
       GetQuicFlag(FLAGS_quic_anti_amplification_factor);
 
+  bool start_peer_migration_earlier_ =
+      GetQuicReloadableFlag(quic_start_peer_migration_earlier);
+
   // latch --gfe2_reloadable_flag_quic_send_path_response and
   // --gfe2_reloadable_flag_quic_start_peer_migration_earlier.
   bool send_path_response_ = start_peer_migration_earlier_ &&
@@ -2055,10 +2054,6 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   bool update_packet_content_returns_connected_ =
       GetQuicReloadableFlag(quic_update_packet_content_returns_connected);
-
-  bool start_peer_migration_earlier_ =
-      update_packet_content_returns_connected_ &&
-      GetQuicReloadableFlag(quic_start_peer_migration_earlier_2);
 };
 
 }  // namespace quic
