@@ -284,22 +284,17 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   const QuicBandwidth& bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 
-  if (!params.quic_bbr_donot_inject_bandwidth && !bandwidth.IsZero()) {
-    max_bandwidth_.Update(bandwidth, round_trip_count_);
-  }
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
     min_rtt_ = rtt;
   }
 
-  if (params.quic_fix_bbr_cwnd_in_bandwidth_resumption && mode_ == STARTUP) {
+  if (mode_ == STARTUP) {
     if (bandwidth.IsZero()) {
       // Ignore bad bandwidth samples.
       return;
     }
 
-    auto cwnd_bootstrapping_rtt = params.quic_bbr_donot_inject_bandwidth
-                                      ? GetMinRtt()
-                                      : rtt_stats_->SmoothedOrInitialRtt();
+    auto cwnd_bootstrapping_rtt = GetMinRtt();
     if (params.max_initial_congestion_window > 0) {
       max_congestion_window_with_network_parameters_adjusted_ =
           params.max_initial_congestion_window * kDefaultTCPMSS;
@@ -330,13 +325,12 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       set_high_cwnd_gain(kDerivedHighCWNDGain);
     }
     congestion_window_ = new_cwnd;
-    if (params.quic_bbr_fix_pacing_rate) {
-      // Pace at the rate of new_cwnd / RTT.
-      QuicBandwidth new_pacing_rate =
-          QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
-      pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
-      detect_overshooting_ = true;
-    }
+
+    // Pace at the rate of new_cwnd / RTT.
+    QuicBandwidth new_pacing_rate =
+        QuicBandwidth::FromBytesAndTimeDelta(congestion_window_, GetMinRtt());
+    pacing_rate_ = std::max(pacing_rate_, new_pacing_rate);
+    detect_overshooting_ = true;
   }
 }
 
@@ -525,7 +519,7 @@ bool BbrSender::MaybeUpdateMinRtt(QuicTime now,
     min_rtt_ = sample_min_rtt;
     min_rtt_timestamp_ = now;
   }
-  DCHECK(!min_rtt_.IsZero());
+  QUICHE_DCHECK(!min_rtt_.IsZero());
 
   return min_rtt_expired;
 }
@@ -592,7 +586,7 @@ void BbrSender::CheckIfFullBandwidthReached(
   rounds_without_bandwidth_gain_++;
   if ((rounds_without_bandwidth_gain_ >= num_startup_rtts_) ||
       ShouldExitStartupDueToLoss(last_packet_send_state)) {
-    DCHECK(has_non_app_limited_sample_);
+    QUICHE_DCHECK(has_non_app_limited_sample_);
     is_at_full_bandwidth_ = true;
   }
 }
@@ -611,7 +605,7 @@ void BbrSender::MaybeExitStartupOrDrain(QuicTime now) {
 }
 
 void BbrSender::OnExitStartup(QuicTime now) {
-  DCHECK_EQ(mode_, STARTUP);
+  QUICHE_DCHECK_EQ(mode_, STARTUP);
   if (stats_) {
     stats_->slowstart_duration.Stop(now);
   }
