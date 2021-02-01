@@ -130,7 +130,7 @@ const QpackStaticTable& ObtainQpackStaticTable() {
     auto* table = new QpackStaticTable();
     table->Initialize(QpackStaticTableVector().data(),
                       QpackStaticTableVector().size());
-    CHECK(table->IsInitialized());
+    QUICHE_CHECK(table->IsInitialized());
     return table;
   }();
   return *shared_static_table;

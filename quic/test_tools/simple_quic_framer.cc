@@ -101,7 +101,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override {
-    DCHECK(!ack_frames_.empty());
+    QUICHE_DCHECK(!ack_frames_.empty());
     ack_frames_[ack_frames_.size() - 1].packets.AddRange(start, end);
     return true;
   }

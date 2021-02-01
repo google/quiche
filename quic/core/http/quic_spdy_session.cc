@@ -180,12 +180,12 @@ class QuicSpdySession::SpdyFramerVisitor
 
   SpdyHeadersHandlerInterface* OnHeaderFrameStart(
       SpdyStreamId /* stream_id */) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     return &header_list_;
   }
 
   void OnHeaderFrameEnd(SpdyStreamId /* stream_id */) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
 
     LogHeaderCompressionRatioHistogram(
         /* using_qpack = */ false,
@@ -201,7 +201,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnStreamFrameData(SpdyStreamId /*stream_id*/,
                          const char* /*data*/,
                          size_t /*len*/) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -290,7 +290,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnDataFrameHeader(SpdyStreamId /*stream_id*/,
                          size_t /*length*/,
                          bool /*fin*/) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     CloseConnection("SPDY DATA frame received.",
                     QUIC_INVALID_HEADERS_STREAM_DATA);
   }
@@ -302,12 +302,12 @@ class QuicSpdySession::SpdyFramerVisitor
   }
 
   void OnSetting(SpdySettingsId id, uint32_t value) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     session_->OnSetting(id, value);
   }
 
   void OnSettingsEnd() override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
   }
 
   void OnPing(SpdyPingId /*unique_id*/, bool /*is_ack*/) override {
@@ -357,7 +357,7 @@ class QuicSpdySession::SpdyFramerVisitor
   void OnPushPromise(SpdyStreamId stream_id,
                      SpdyStreamId promised_stream_id,
                      bool /*end*/) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (session_->perspective() != Perspective::IS_CLIENT) {
       CloseConnection("PUSH_PROMISE not supported.",
                       QUIC_INVALID_HEADERS_STREAM_DATA);
@@ -375,7 +375,7 @@ class QuicSpdySession::SpdyFramerVisitor
                   SpdyStreamId /* parent_id */,
                   int weight,
                   bool /* exclusive */) override {
-    DCHECK(!VersionUsesHttp3(session_->transport_version()));
+    QUICHE_DCHECK(!VersionUsesHttp3(session_->transport_version()));
     if (!session_->IsConnected()) {
       return;
     }
@@ -507,12 +507,12 @@ void QuicSpdySession::Initialize() {
           QuicUtils::GetHeadersStreamId(transport_version()));
     } else {
       QuicStreamId headers_stream_id = GetNextOutgoingBidirectionalStreamId();
-      DCHECK_EQ(headers_stream_id,
-                QuicUtils::GetHeadersStreamId(transport_version()));
+      QUICHE_DCHECK_EQ(headers_stream_id,
+                       QuicUtils::GetHeadersStreamId(transport_version()));
     }
     auto headers_stream = std::make_unique<QuicHeadersStream>((this));
-    DCHECK_EQ(QuicUtils::GetHeadersStreamId(transport_version()),
-              headers_stream->id());
+    QUICHE_DCHECK_EQ(QuicUtils::GetHeadersStreamId(transport_version()),
+                     headers_stream->id());
 
     headers_stream_ = headers_stream.get();
     ActivateStream(std::move(headers_stream));
@@ -542,7 +542,7 @@ void QuicSpdySession::FillSettingsFrame() {
 
 void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
                                            absl::string_view error_message) {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
       error_code, absl::StrCat("Decoder stream error: ", error_message));
@@ -550,7 +550,7 @@ void QuicSpdySession::OnDecoderStreamError(QuicErrorCode error_code,
 
 void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
                                            absl::string_view error_message) {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   CloseConnectionWithDetails(
       error_code, absl::StrCat("Encoder stream error: ", error_message));
@@ -690,7 +690,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStream(
     bool fin,
     const spdy::SpdyStreamPrecedence& precedence,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  DCHECK(!VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
   return WriteHeadersOnHeadersStreamImpl(
       id, std::move(headers), fin,
@@ -703,7 +703,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
                                       QuicStreamId parent_stream_id,
                                       int weight,
                                       bool exclusive) {
-  DCHECK(!VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
   SpdyPriorityIR priority_frame(id, parent_stream_id, weight, exclusive);
   SpdySerializedFrame frame(spdy_framer_.SerializeFrame(priority_frame));
   headers_stream()->WriteOrBufferData(
@@ -713,7 +713,7 @@ size_t QuicSpdySession::WritePriority(QuicStreamId id,
 
 void QuicSpdySession::WriteHttp3PriorityUpdate(
     const PriorityUpdateFrame& priority_update) {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   send_control_stream_->WritePriorityUpdate(priority_update);
 }
@@ -765,7 +765,7 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
   // goaway.
   if (perspective() == Perspective::IS_SERVER &&
       frame.stream_count >= QuicUtils::GetMaxStreamCount()) {
-    DCHECK_EQ(frame.stream_count, QuicUtils::GetMaxStreamCount());
+    QUICHE_DCHECK_EQ(frame.stream_count, QuicUtils::GetMaxStreamCount());
     SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "stream count too large");
   }
   return true;
@@ -773,8 +773,8 @@ bool QuicSpdySession::OnStreamsBlockedFrame(
 
 void QuicSpdySession::SendHttp3GoAway(QuicErrorCode error_code,
                                       const std::string& reason) {
-  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   if (GetQuicReloadableFlag(quic_encrypted_goaway)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_encrypted_goaway, 2, 2);
     if (!IsEncryptionEstablished()) {
@@ -835,8 +835,8 @@ void QuicSpdySession::SendHttp3Shutdown() {
     return;
   }
 
-  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QuicStreamCount advertised_max_incoming_bidirectional_streams =
       GetAdvertisedMaxIncomingBidirectionalStreams();
   const QuicStreamId stream_id =
@@ -915,13 +915,13 @@ void QuicSpdySession::SendInitialData() {
 }
 
 QpackEncoder* QuicSpdySession::qpack_encoder() {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   return qpack_encoder_.get();
 }
 
 QpackDecoder* QuicSpdySession::qpack_decoder() {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   return qpack_decoder_.get();
 }
@@ -964,7 +964,8 @@ void QuicSpdySession::OnNewEncryptionKeyAvailable(
 
 // True if there are open HTTP requests.
 bool QuicSpdySession::ShouldKeepConnectionAlive() const {
-  DCHECK(VersionUsesHttp3(transport_version()) || 0u == pending_streams_size());
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()) ||
+                0u == pending_streams_size());
   return GetNumActiveStreams() + pending_streams_size() > 0;
 }
 
@@ -983,7 +984,7 @@ size_t QuicSpdySession::WriteHeadersOnHeadersStreamImpl(
     int weight,
     bool exclusive,
     QuicReferenceCountedPointer<QuicAckListenerInterface> ack_listener) {
-  DCHECK(!VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
 
   const QuicByteCount uncompressed_size = headers.TotalBytesUsed();
   SpdyHeadersIR headers_frame(id, std::move(headers));
@@ -1027,8 +1028,8 @@ void QuicSpdySession::OnPromiseHeaderList(
 }
 
 bool QuicSpdySession::ResumeApplicationState(ApplicationState* cached_state) {
-  DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_CLIENT);
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   SettingsFrame out;
   if (!HttpDecoder::DecodeSettings(
@@ -1067,7 +1068,7 @@ void QuicSpdySession::OnAcceptChFrameReceivedViaAlps(
 }
 
 bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSettingsFrameReceived(frame);
   }
@@ -1251,18 +1252,20 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id,
       return;
     }
   }
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()), stream_id_);
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
-            promised_stream_id_);
+  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
+                   stream_id_);
+  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
+                   promised_stream_id_);
   stream_id_ = stream_id;
   fin_ = fin;
 }
 
 void QuicSpdySession::OnPushPromise(SpdyStreamId stream_id,
                                     SpdyStreamId promised_stream_id) {
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()), stream_id_);
-  DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
-            promised_stream_id_);
+  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
+                   stream_id_);
+  QUICHE_DCHECK_EQ(QuicUtils::GetInvalidStreamId(transport_version()),
+                   promised_stream_id_);
   stream_id_ = stream_id;
   promised_stream_id_ = promised_stream_id;
 }
@@ -1284,8 +1287,8 @@ void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {
                 << ": " << header_list.DebugString();
   // This code path is only executed for push promise in IETF QUIC.
   if (VersionUsesHttp3(transport_version())) {
-    DCHECK(promised_stream_id_ !=
-           QuicUtils::GetInvalidStreamId(transport_version()));
+    QUICHE_DCHECK(promised_stream_id_ !=
+                  QuicUtils::GetInvalidStreamId(transport_version()));
   }
   if (promised_stream_id_ ==
       QuicUtils::GetInvalidStreamId(transport_version())) {
@@ -1330,8 +1333,8 @@ bool QuicSpdySession::HasActiveRequestStreams() const {
 }
 
 bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
-  DCHECK(VersionUsesHttp3(transport_version()));
-  DCHECK(connection()->connected());
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(connection()->connected());
   struct iovec iov;
   if (!pending->sequencer()->GetReadableRegion(&iov)) {
     // The first byte hasn't been received yet.
@@ -1417,7 +1420,7 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
 }
 
 void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   if (!send_control_stream_ && CanOpenNextOutgoingUnidirectionalStream()) {
     auto send_control = std::make_unique<QuicSendControlStream>(
         GetNextOutgoingUnidirectionalStreamId(), this, settings_);
@@ -1463,7 +1466,7 @@ void QuicSpdySession::BeforeConnectionCloseSent() {
     return;
   }
 
-  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
 
   QUIC_CODE_COUNT(quic_send_goaway_with_connection_close);
 
@@ -1505,10 +1508,10 @@ void QuicSpdySession::OnCanCreateNewOutgoingStream(bool unidirectional) {
 }
 
 void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
-  DCHECK(VersionUsesHttp3(transport_version()));
-  DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
   if (max_push_id_.has_value()) {
-    DCHECK_GE(max_push_id, max_push_id_.value());
+    QUICHE_DCHECK_GE(max_push_id, max_push_id_.value());
   }
 
   if (!max_push_id_.has_value() && max_push_id == 0) {
@@ -1537,8 +1540,8 @@ void QuicSpdySession::SetMaxPushId(PushId max_push_id) {
 }
 
 bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
-  DCHECK(VersionUsesHttp3(transport_version()));
-  DCHECK_EQ(Perspective::IS_SERVER, perspective());
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(Perspective::IS_SERVER, perspective());
 
   if (max_push_id_.has_value()) {
     QUIC_DVLOG(1) << "Setting max_push_id to:  " << max_push_id
@@ -1569,16 +1572,16 @@ bool QuicSpdySession::OnMaxPushIdFrame(PushId max_push_id) {
 }
 
 void QuicSpdySession::SendMaxPushId() {
-  DCHECK(VersionUsesHttp3(transport_version()));
-  DCHECK_EQ(Perspective::IS_CLIENT, perspective());
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
 
   send_control_stream_->SendMaxPushIdFrame(max_push_id_.value());
   http3_max_push_id_sent_ = true;
 }
 
 void QuicSpdySession::EnableServerPush() {
-  DCHECK(VersionUsesHttp3(transport_version()));
-  DCHECK_EQ(perspective(), Perspective::IS_SERVER);
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK_EQ(perspective(), Perspective::IS_SERVER);
 
   ietf_server_push_enabled_ = true;
 }
@@ -1596,7 +1599,7 @@ bool QuicSpdySession::goaway_sent() const {
 }
 
 bool QuicSpdySession::CanCreatePushStreamWithId(PushId push_id) {
-  DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
 
   return ietf_server_push_enabled_ && max_push_id_.has_value() &&
          max_push_id_.value() >= push_id;

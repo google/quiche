@@ -30,10 +30,10 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
   if (length_ == 0) {
 #ifndef NDEBUG
     for (const auto& buffer : encrypted_buffers_) {
-      DCHECK(buffer.empty());
+      QUICHE_DCHECK(buffer.empty());
     }
 #endif
-    DCHECK(initial_packet_ == nullptr);
+    QUICHE_DCHECK(initial_packet_ == nullptr);
     // This is the first packet, set max_packet_length and self/peer
     // addresses.
     max_packet_length_ = current_max_packet_length;

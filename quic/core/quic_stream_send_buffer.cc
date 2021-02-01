@@ -58,7 +58,7 @@ void QuicStreamSendBuffer::SaveStreamData(const struct iovec* iov,
                                           int iov_count,
                                           size_t iov_offset,
                                           QuicByteCount data_length) {
-  DCHECK_LT(0u, data_length);
+  QUICHE_DCHECK_LT(0u, data_length);
   // Latch the maximum data slice size.
   const QuicByteCount max_data_slice_size =
       GetQuicFlag(FLAGS_quic_send_buffer_max_data_slice_size);

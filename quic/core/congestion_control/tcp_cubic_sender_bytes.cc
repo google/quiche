@@ -178,8 +178,8 @@ void TcpCubicSenderBytes::OnPacketSent(
     // PRR is used when in recovery.
     prr_.OnPacketSent(bytes);
   }
-  DCHECK(!largest_sent_packet_number_.IsInitialized() ||
-         largest_sent_packet_number_ < packet_number);
+  QUICHE_DCHECK(!largest_sent_packet_number_.IsInitialized() ||
+                largest_sent_packet_number_ < packet_number);
   largest_sent_packet_number_ = packet_number;
   hybrid_slow_start_.OnPacketSent(packet_number);
 }
@@ -323,7 +323,7 @@ void TcpCubicSenderBytes::OnPacketLost(QuicPacketNumber packet_number,
 
   // TODO(b/77268641): Separate out all of slow start into a separate class.
   if (slow_start_large_reduction_ && InSlowStart()) {
-    DCHECK_LT(kDefaultTCPMSS, congestion_window_);
+    QUICHE_DCHECK_LT(kDefaultTCPMSS, congestion_window_);
     if (congestion_window_ >= 2 * initial_tcp_congestion_window_) {
       min_slow_start_exit_window_ = congestion_window_ / 2;
     }

@@ -77,7 +77,7 @@ void QuicSpdyClientBase::InitializeSession() {
 }
 
 void QuicSpdyClientBase::OnClose(QuicSpdyStream* stream) {
-  DCHECK(stream != nullptr);
+  QUICHE_DCHECK(stream != nullptr);
   QuicSpdyClientStream* client_stream =
       static_cast<QuicSpdyClientStream*>(stream);
 

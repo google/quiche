@@ -87,13 +87,13 @@ bool CryptoFramer::ProcessInput(absl::string_view input,
 }
 
 bool CryptoFramer::ProcessInput(absl::string_view input) {
-  DCHECK_EQ(QUIC_NO_ERROR, error_);
+  QUICHE_DCHECK_EQ(QUIC_NO_ERROR, error_);
   if (error_ != QUIC_NO_ERROR) {
     return false;
   }
   error_ = Process(input);
   if (error_ != QUIC_NO_ERROR) {
-    DCHECK(!error_detail_.empty());
+    QUICHE_DCHECK(!error_detail_.empty());
     visitor_->OnError(this);
     return false;
   }
@@ -160,15 +160,15 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
   std::unique_ptr<char[]> buffer(new char[len]);
   QuicDataWriter writer(len, buffer.get(), quiche::HOST_BYTE_ORDER);
   if (!writer.WriteTag(message.tag())) {
-    DCHECK(false) << "Failed to write message tag.";
+    QUICHE_DCHECK(false) << "Failed to write message tag.";
     return nullptr;
   }
   if (!writer.WriteUInt16(static_cast<uint16_t>(num_entries))) {
-    DCHECK(false) << "Failed to write size.";
+    QUICHE_DCHECK(false) << "Failed to write size.";
     return nullptr;
   }
   if (!writer.WriteUInt16(0)) {
-    DCHECK(false) << "Failed to write padding.";
+    QUICHE_DCHECK(false) << "Failed to write padding.";
     return nullptr;
   }
 
@@ -180,7 +180,8 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
       // Existing PAD tags are only checked when padding needs to be added
       // because parts of the code may need to reserialize received messages
       // and those messages may, legitimately include padding.
-      DCHECK(false) << "Message needed padding but already contained a PAD tag";
+      QUICHE_DCHECK(false)
+          << "Message needed padding but already contained a PAD tag";
       return nullptr;
     }
 
@@ -192,12 +193,12 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
     }
 
     if (!writer.WriteTag(it->first)) {
-      DCHECK(false) << "Failed to write tag.";
+      QUICHE_DCHECK(false) << "Failed to write tag.";
       return nullptr;
     }
     end_offset += it->second.length();
     if (!writer.WriteUInt32(end_offset)) {
-      DCHECK(false) << "Failed to write end offset.";
+      QUICHE_DCHECK(false) << "Failed to write end offset.";
       return nullptr;
     }
   }
@@ -214,20 +215,20 @@ std::unique_ptr<QuicData> CryptoFramer::ConstructHandshakeMessage(
     if (it->first > kPAD && need_pad_value) {
       need_pad_value = false;
       if (!writer.WriteRepeatedByte('-', pad_length)) {
-        DCHECK(false) << "Failed to write padding.";
+        QUICHE_DCHECK(false) << "Failed to write padding.";
         return nullptr;
       }
     }
 
     if (!writer.WriteBytes(it->second.data(), it->second.length())) {
-      DCHECK(false) << "Failed to write value.";
+      QUICHE_DCHECK(false) << "Failed to write value.";
       return nullptr;
     }
   }
 
   if (need_pad_value) {
     if (!writer.WriteRepeatedByte('-', pad_length)) {
-      DCHECK(false) << "Failed to write padding.";
+      QUICHE_DCHECK(false) << "Failed to write padding.";
       return nullptr;
     }
   }
@@ -321,7 +322,7 @@ QuicErrorCode CryptoFramer::Process(absl::string_view input) {
       for (const std::pair<QuicTag, size_t>& item : tags_and_lengths_) {
         absl::string_view value;
         if (!reader.ReadStringPiece(&value, item.second)) {
-          DCHECK(process_truncated_messages_);
+          QUICHE_DCHECK(process_truncated_messages_);
           // Store an empty value.
           message_.SetStringPiece(item.first, "");
           continue;
@@ -343,12 +344,12 @@ bool CryptoFramer::WritePadTag(QuicDataWriter* writer,
                                size_t pad_length,
                                uint32_t* end_offset) {
   if (!writer->WriteTag(kPAD)) {
-    DCHECK(false) << "Failed to write tag.";
+    QUICHE_DCHECK(false) << "Failed to write tag.";
     return false;
   }
   *end_offset += pad_length;
   if (!writer->WriteUInt32(*end_offset)) {
-    DCHECK(false) << "Failed to write end offset.";
+    QUICHE_DCHECK(false) << "Failed to write end offset.";
     return false;
   }
   return true;

@@ -58,7 +58,7 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
   void OnDecodingCompleted() override {
     // Will delete |this|.
     size_t result = processing_decoders_->erase(stream_id_);
-    CHECK_EQ(1u, result);
+    QUICHE_CHECK_EQ(1u, result);
   }
 
   void OnDecodingErrorDetected(absl::string_view /*error_message*/) override {

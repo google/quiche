@@ -196,7 +196,7 @@ absl::optional<quic::QuicWallTime> ParseDerTime(unsigned tag,
   }
 
   if (tag == CBS_ASN1_UTCTIME) {
-    DCHECK_LE(year, 100u);
+    QUICHE_DCHECK_LE(year, 100u);
     year += (year >= 50) ? 1900 : 2000;
   }
 

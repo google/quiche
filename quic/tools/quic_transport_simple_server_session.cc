@@ -51,7 +51,7 @@ class BidirectionalEchoVisitor : public QuicTransportStream::Visitor {
 
   void OnFinRead() override {
     bool success = stream_->SendFin();
-    DCHECK(success);
+    QUICHE_DCHECK(success);
   }
 
   void OnCanWrite() override {
@@ -79,7 +79,7 @@ class UnidirectionalEchoReadVisitor : public QuicTransportStream::Visitor {
 
   void OnCanRead() override {
     bool success = stream_->Read(&buffer_);
-    DCHECK(success);
+    QUICHE_DCHECK(success);
   }
 
   void OnFinRead() override {
@@ -114,7 +114,7 @@ class UnidirectionalEchoWriteVisitor : public QuicTransportStream::Visitor {
     }
     data_ = "";
     bool fin_sent = stream_->SendFin();
-    DCHECK(fin_sent);
+    QUICHE_DCHECK(fin_sent);
   }
 
  private:

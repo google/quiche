@@ -255,7 +255,7 @@ QuicCryptoServerConfig::QuicCryptoServerConfig(
       pad_shlo_(true),
       validate_chlo_size_(true),
       validate_source_address_token_(true) {
-  DCHECK(proof_source_.get());
+  QUICHE_DCHECK(proof_source_.get());
   source_address_token_boxer_.SetKeys(
       {DeriveSourceAddressTokenKey(source_address_token_secret)});
 
@@ -287,7 +287,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
 
   std::string encoded_public_values;
   // First three bytes encode the length of the public value.
-  DCHECK_LT(curve25519_public_value.size(), (1U << 24));
+  QUICHE_DCHECK_LT(curve25519_public_value.size(), (1U << 24));
   encoded_public_values.push_back(
       static_cast<char>(curve25519_public_value.size()));
   encoded_public_values.push_back(
@@ -304,7 +304,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
         P256KeyExchange::New(p256_private_key));
     absl::string_view p256_public_value = p256->public_value();
 
-    DCHECK_LT(p256_public_value.size(), (1U << 24));
+    QUICHE_DCHECK_LT(p256_public_value.size(), (1U << 24));
     encoded_public_values.push_back(
         static_cast<char>(p256_public_value.size()));
     encoded_public_values.push_back(
@@ -338,7 +338,7 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
   if (options.orbit.size() == sizeof(orbit_bytes)) {
     memcpy(orbit_bytes, options.orbit.data(), sizeof(orbit_bytes));
   } else {
-    DCHECK(options.orbit.empty());
+    QUICHE_DCHECK(options.orbit.empty());
     rand->RandBytes(orbit_bytes, sizeof(orbit_bytes));
   }
   msg.SetStringPiece(kORBT,
@@ -416,9 +416,9 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
 
     configs_[config->id] = config;
     SelectNewPrimaryConfig(now);
-    DCHECK(primary_config_.get());
-    DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
-              primary_config_.get());
+    QUICHE_DCHECK(primary_config_.get());
+    QUICHE_DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
+                     primary_config_.get());
   }
 
   return msg;
@@ -506,9 +506,9 @@ bool QuicCryptoServerConfig::SetConfigs(
   configs_ = std::move(new_configs);
   fallback_config_ = fallback_config;
   SelectNewPrimaryConfig(now);
-  DCHECK(primary_config_.get());
-  DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
-            primary_config_.get());
+  QUICHE_DCHECK(primary_config_.get());
+  QUICHE_DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
+                   primary_config_.get());
 
   return true;
 }
@@ -672,7 +672,7 @@ void QuicCryptoServerConfig::ProcessClientHello(
     QuicByteCount total_framing_overhead,
     QuicByteCount chlo_packet_size,
     std::unique_ptr<ProcessClientHelloResultCallback> done_cb) const {
-  DCHECK(done_cb);
+  QUICHE_DCHECK(done_cb);
   auto context = std::make_unique<ProcessClientHelloContext>(
       validate_chlo_result, reject_only, connection_id, server_address,
       client_address, version, supported_versions, clock, rand,
@@ -720,7 +720,7 @@ void QuicCryptoServerConfig::ProcessClientHello(
     auto cb = std::make_unique<ProcessClientHelloCallback>(
         this, std::move(context), configs);
 
-    DCHECK(proof_source_.get());
+    QUICHE_DCHECK(proof_source_.get());
     proof_source_->GetProof(server_address, client_address, sni,
                             configs.primary->serialized, transport_version,
                             chlo_hash, std::move(cb));
@@ -862,7 +862,7 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
   hkdf_suffix.append(client_hello_serialized.data(),
                      client_hello_serialized.length());
   hkdf_suffix.append(configs.requested->serialized);
-  DCHECK(proof_source_.get());
+  QUICHE_DCHECK(proof_source_.get());
   if (context->signed_config()->chain->certs.empty()) {
     context->Fail(QUIC_CRYPTO_INTERNAL_ERROR, "Failed to get certs");
     return;
@@ -1085,9 +1085,9 @@ bool QuicCryptoServerConfig::GetCurrentConfigs(
     configs_lock_.ReaderUnlock();
     configs_lock_.WriterLock();
     SelectNewPrimaryConfig(now);
-    DCHECK(primary_config_.get());
-    DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
-              primary_config_.get());
+    QUICHE_DCHECK(primary_config_.get());
+    QUICHE_DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
+                     primary_config_.get());
     configs_lock_.WriterUnlock();
     configs_lock_.ReaderLock();
   }
@@ -1450,7 +1450,7 @@ void QuicCryptoServerConfig::BuildRejection(
   }
 
   // Send client the reject reason for debugging purposes.
-  DCHECK_LT(0u, reject_reasons.size());
+  QUICHE_DCHECK_LT(0u, reject_reasons.size());
   out->SetVector(kRREJ, reject_reasons);
 
   // The client may have requested a certificate chain.
@@ -1479,7 +1479,7 @@ void QuicCryptoServerConfig::BuildRejection(
       context.params()->client_common_set_hashes,
       context.params()->client_cached_cert_hashes, config.common_cert_sets);
 
-  DCHECK_GT(context.chlo_packet_size(), context.client_hello().size());
+  QUICHE_DCHECK_GT(context.chlo_packet_size(), context.client_hello().size());
   // kREJOverheadBytes is a very rough estimate of how much of a REJ
   // message is taken up by things other than the certificates.
   // STK: 56 bytes
@@ -1549,7 +1549,7 @@ std::string QuicCryptoServerConfig::CompressChain(
     const std::string& client_cached_cert_hashes,
     const CommonCertSets* common_sets) {
   // Check whether the compressed certs is available in the cache.
-  DCHECK(compressed_certs_cache);
+  QUICHE_DCHECK(compressed_certs_cache);
   const std::string* cached_value = compressed_certs_cache->GetCompressedCert(
       chain, client_common_set_hashes, client_cached_cert_hashes);
   if (cached_value) {

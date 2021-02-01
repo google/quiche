@@ -72,12 +72,12 @@ class QuicReceivedPacketManagerTest : public QuicTest {
   }
 
   void CheckAckTimeout(QuicTime time) {
-    DCHECK(HasPendingAck());
-    DCHECK_EQ(received_manager_.ack_timeout(), time);
+    QUICHE_DCHECK(HasPendingAck());
+    QUICHE_DCHECK_EQ(received_manager_.ack_timeout(), time);
     if (time <= clock_.ApproximateNow()) {
       // ACK timeout expires, send an ACK.
       received_manager_.ResetAckStates();
-      DCHECK(!HasPendingAck());
+      QUICHE_DCHECK(!HasPendingAck());
     }
   }
 

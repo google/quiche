@@ -29,7 +29,7 @@ std::string PrintToString(const TestParam& p) {
     case TestParam::kFromArena:
       return "arena";
   }
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return "?";
 }
 
@@ -40,11 +40,11 @@ class QuicArenaScopedPtrParamTest : public QuicTestWithParam<TestParam> {
     switch (GetParam()) {
       case TestParam::kFromHeap:
         ptr = QuicArenaScopedPtr<TestObject>(new TestObject(value));
-        CHECK(!ptr.is_from_arena());
+        QUICHE_CHECK(!ptr.is_from_arena());
         break;
       case TestParam::kFromArena:
         ptr = arena_.New<TestObject>(value);
-        CHECK(ptr.is_from_arena());
+        QUICHE_CHECK(ptr.is_from_arena());
         break;
     }
     return ptr;

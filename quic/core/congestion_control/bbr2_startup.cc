@@ -62,8 +62,8 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
   }
 
   if (Params().decrease_startup_pacing_at_end_of_round) {
-    DCHECK_GT(model_->pacing_gain(), 0);
-    DCHECK(Params().bw_startup);
+    QUICHE_DCHECK_GT(model_->pacing_gain(), 0);
+    QUICHE_DCHECK(Params().bw_startup);
     if (congestion_event.end_of_round_trip &&
         !congestion_event.last_sample_is_app_limited) {
       // Multiply by startup_pacing_gain, so if the bandwidth doubles,
@@ -104,7 +104,7 @@ Bbr2Mode Bbr2StartupMode::OnCongestionEvent(
 
 void Bbr2StartupMode::CheckExcessiveLosses(
     const Bbr2CongestionEvent& congestion_event) {
-  DCHECK(congestion_event.end_of_round_trip);
+  QUICHE_DCHECK(congestion_event.end_of_round_trip);
 
   if (model_->full_bandwidth_reached()) {
     return;

@@ -118,7 +118,7 @@ TEST_F(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   StartListening();
   bool more_chlos = true;
   MockQuicSimpleDispatcher* dispatcher_ = server_.mock_dispatcher();
-  DCHECK(dispatcher_ != nullptr);
+  QUICHE_DCHECK(dispatcher_ != nullptr);
   EXPECT_CALL(*dispatcher_, OnCanWrite()).Times(testing::AnyNumber());
   EXPECT_CALL(*dispatcher_, ProcessBufferedChlos(_)).Times(2);
   EXPECT_CALL(*dispatcher_, HasPendingWrites()).Times(testing::AnyNumber());

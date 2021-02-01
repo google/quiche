@@ -15,7 +15,7 @@ QpackDecoderStreamReceiver::QpackDecoderStreamReceiver(Delegate* delegate)
     : instruction_decoder_(QpackDecoderStreamLanguage(), this),
       delegate_(delegate),
       error_detected_(false) {
-  DCHECK(delegate_);
+  QUICHE_DCHECK(delegate_);
 }
 
 void QpackDecoderStreamReceiver::Decode(absl::string_view data) {
@@ -38,7 +38,7 @@ bool QpackDecoderStreamReceiver::OnInstructionDecoded(
     return true;
   }
 
-  DCHECK_EQ(instruction, StreamCancellationInstruction());
+  QUICHE_DCHECK_EQ(instruction, StreamCancellationInstruction());
   delegate_->OnStreamCancellation(instruction_decoder_.varint());
   return true;
 }
@@ -46,7 +46,7 @@ bool QpackDecoderStreamReceiver::OnInstructionDecoded(
 void QpackDecoderStreamReceiver::OnInstructionDecodingError(
     QpackInstructionDecoder::ErrorCode error_code,
     absl::string_view error_message) {
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!error_detected_);
 
   error_detected_ = true;
 

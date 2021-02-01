@@ -38,12 +38,12 @@ QbonePacketProcessor::QbonePacketProcessor(QuicIpAddress self_ip,
       stats_(stats),
       filter_(new Filter) {
   memcpy(self_ip_.s6_addr, self_ip.ToPackedString().data(), kIPv6AddressSize);
-  DCHECK_LE(client_ip_subnet_length, kIPv6AddressSize * 8);
+  QUICHE_DCHECK_LE(client_ip_subnet_length, kIPv6AddressSize * 8);
   client_ip_subnet_length_ = client_ip_subnet_length;
 
-  DCHECK(IpAddressFamily::IP_V6 == self_ip.address_family());
-  DCHECK(IpAddressFamily::IP_V6 == client_ip.address_family());
-  DCHECK(self_ip != kInvalidIpAddress);
+  QUICHE_DCHECK(IpAddressFamily::IP_V6 == self_ip.address_family());
+  QUICHE_DCHECK(IpAddressFamily::IP_V6 == client_ip.address_family());
+  QUICHE_DCHECK(self_ip != kInvalidIpAddress);
 }
 
 QbonePacketProcessor::OutputInterface::~OutputInterface() {}
@@ -201,7 +201,7 @@ QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
       address_reject_code = ICMP6_DST_UNREACH_NOROUTE;
       break;
   }
-  DCHECK(ip_parse_result);
+  QUICHE_DCHECK(ip_parse_result);
   if (!client_ip_.InSameSubnet(address_to_check, client_ip_subnet_length_)) {
     QUIC_DVLOG(1)
         << "Dropped packet: source/destination address is not client's";

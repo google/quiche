@@ -32,7 +32,8 @@ WriteResult PacketReorderingWriter::WritePacket(
     return wr;
   }
   // Still have packet to wait.
-  DCHECK_LT(0u, num_packets_to_wait_) << "Only allow one packet to be delayed";
+  QUICHE_DCHECK_LT(0u, num_packets_to_wait_)
+      << "Only allow one packet to be delayed";
   delayed_data_ = std::string(buffer, buf_len);
   delayed_self_address_ = self_address;
   delayed_peer_address_ = peer_address;
@@ -44,7 +45,7 @@ WriteResult PacketReorderingWriter::WritePacket(
 }
 
 void PacketReorderingWriter::SetDelay(size_t num_packets_to_wait) {
-  DCHECK_GT(num_packets_to_wait, 0u);
+  QUICHE_DCHECK_GT(num_packets_to_wait, 0u);
   num_packets_to_wait_ = num_packets_to_wait;
   delay_next_ = true;
 }

@@ -21,7 +21,7 @@ class Alarm : public QuicAlarm {
   ~Alarm() override {}
 
   void SetImpl() override {
-    DCHECK(deadline().IsInitialized());
+    QUICHE_DCHECK(deadline().IsInitialized());
     adapter_.Set(deadline());
   }
 
@@ -41,7 +41,7 @@ class Alarm : public QuicAlarm {
     void Cancel() { Unschedule(); }
 
     void Act() override {
-      DCHECK(clock_->Now() >= parent_->deadline());
+      QUICHE_DCHECK(clock_->Now() >= parent_->deadline());
       parent_->Fire();
     }
 

@@ -52,10 +52,10 @@ bool QuicDataWriter::WriteUFloat16(uint64_t value) {
       }
     }
 
-    DCHECK_GE(exponent, 1);
-    DCHECK_LE(exponent, kUFloat16MaxExponent);
-    DCHECK_GE(value, UINT64_C(1) << kUFloat16MantissaBits);
-    DCHECK_LT(value, UINT64_C(1) << kUFloat16MantissaEffectiveBits);
+    QUICHE_DCHECK_GE(exponent, 1);
+    QUICHE_DCHECK_LE(exponent, kUFloat16MaxExponent);
+    QUICHE_DCHECK_GE(value, UINT64_C(1) << kUFloat16MantissaBits);
+    QUICHE_DCHECK_LT(value, UINT64_C(1) << kUFloat16MantissaEffectiveBits);
 
     // Hidden bit (position 11) is set. We should remove it and increment the
     // exponent. Equivalently, we just add it to the exponent.
@@ -111,7 +111,7 @@ bool QuicDataWriter::WriteRandomBytes(QuicRandom* random, size_t length) {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataWriter::WriteVarInt62(uint64_t value) {
-  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
+  QUICHE_DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining_bytes = remaining();
   char* next = buffer() + length();
@@ -182,7 +182,7 @@ bool QuicDataWriter::WriteVarInt62(uint64_t value) {
 bool QuicDataWriter::WriteVarInt62(
     uint64_t value,
     QuicVariableLengthIntegerLength write_length) {
-  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
+  QUICHE_DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining_bytes = remaining();
   if (remaining_bytes < write_length) {

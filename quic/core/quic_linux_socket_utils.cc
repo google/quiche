@@ -25,7 +25,7 @@ QuicMsgHdr::QuicMsgHdr(const char* buffer,
       cbuf_size_(cbuf_size),
       cmsg_(nullptr) {
   // Only support unconnected sockets.
-  DCHECK(peer_address.IsInitialized());
+  QUICHE_DCHECK(peer_address.IsInitialized());
 
   raw_peer_address_ = peer_address.generic_address();
   hdr_.msg_name = &raw_peer_address_;
@@ -61,19 +61,19 @@ void* QuicMsgHdr::GetNextCmsgDataInternal(int cmsg_level,
   // msg_controllen needs to be increased first, otherwise CMSG_NXTHDR will
   // return nullptr.
   hdr_.msg_controllen += CMSG_SPACE(data_size);
-  DCHECK_LE(hdr_.msg_controllen, cbuf_size_);
+  QUICHE_DCHECK_LE(hdr_.msg_controllen, cbuf_size_);
 
   if (cmsg_ == nullptr) {
-    DCHECK_EQ(nullptr, hdr_.msg_control);
+    QUICHE_DCHECK_EQ(nullptr, hdr_.msg_control);
     memset(cbuf_, 0, cbuf_size_);
     hdr_.msg_control = cbuf_;
     cmsg_ = CMSG_FIRSTHDR(&hdr_);
   } else {
-    DCHECK_NE(nullptr, hdr_.msg_control);
+    QUICHE_DCHECK_NE(nullptr, hdr_.msg_control);
     cmsg_ = CMSG_NXTHDR(&hdr_, cmsg_);
   }
 
-  DCHECK_NE(nullptr, cmsg_) << "Insufficient control buffer space";
+  QUICHE_DCHECK_NE(nullptr, cmsg_) << "Insufficient control buffer space";
 
   cmsg_->cmsg_len = CMSG_LEN(data_size);
   cmsg_->cmsg_level = cmsg_level;
@@ -95,7 +95,7 @@ void QuicMMsgHdr::InitOneHeader(int i, const BufferedWrite& buffered_write) {
   hdr->msg_controllen = 0;
 
   // Only support unconnected sockets.
-  DCHECK(buffered_write.peer_address.IsInitialized());
+  QUICHE_DCHECK(buffered_write.peer_address.IsInitialized());
 
   sockaddr_storage* peer_address_storage = GetPeerAddressStorage(i);
   *peer_address_storage = buffered_write.peer_address.generic_address();
@@ -131,18 +131,18 @@ void* QuicMMsgHdr::GetNextCmsgDataInternal(int i,
   // msg_controllen needs to be increased first, otherwise CMSG_NXTHDR will
   // return nullptr.
   hdr->msg_controllen += CMSG_SPACE(data_size);
-  DCHECK_LE(hdr->msg_controllen, cbuf_size_);
+  QUICHE_DCHECK_LE(hdr->msg_controllen, cbuf_size_);
 
   if (cmsg == nullptr) {
-    DCHECK_EQ(nullptr, hdr->msg_control);
+    QUICHE_DCHECK_EQ(nullptr, hdr->msg_control);
     hdr->msg_control = GetCbuf(i);
     cmsg = CMSG_FIRSTHDR(hdr);
   } else {
-    DCHECK_NE(nullptr, hdr->msg_control);
+    QUICHE_DCHECK_NE(nullptr, hdr->msg_control);
     cmsg = CMSG_NXTHDR(hdr, cmsg);
   }
 
-  DCHECK_NE(nullptr, cmsg) << "Insufficient control buffer space";
+  QUICHE_DCHECK_NE(nullptr, cmsg) << "Insufficient control buffer space";
 
   cmsg->cmsg_len = CMSG_LEN(data_size);
   cmsg->cmsg_level = cmsg_level;
@@ -152,8 +152,8 @@ void* QuicMMsgHdr::GetNextCmsgDataInternal(int i,
 }
 
 int QuicMMsgHdr::num_bytes_sent(int num_packets_sent) {
-  DCHECK_LE(0, num_packets_sent);
-  DCHECK_LE(num_packets_sent, num_msgs_);
+  QUICHE_DCHECK_LE(0, num_packets_sent);
+  QUICHE_DCHECK_LE(num_packets_sent, num_msgs_);
 
   int bytes_sent = 0;
   iovec* iov = GetIov(0);
@@ -219,7 +219,7 @@ bool QuicLinuxSocketUtils::GetTtlFromMsghdr(struct msghdr* hdr, int* ttl) {
 void QuicLinuxSocketUtils::SetIpInfoInCmsgData(
     const QuicIpAddress& self_address,
     void* cmsg_data) {
-  DCHECK(self_address.IsInitialized());
+  QUICHE_DCHECK(self_address.IsInitialized());
   const std::string& address_str = self_address.ToPackedString();
   if (self_address.IsIPv4()) {
     in_pktinfo* pktinfo = static_cast<in_pktinfo*>(cmsg_data);

@@ -1286,7 +1286,7 @@ class MultiSenderTopologyParams {
   QuicBandwidth BottleneckBandwidth() const {
     // Make sure all local links have a higher bandwidth than the test link.
     for (size_t i = 0; i < local_links.size(); ++i) {
-      CHECK_GT(local_links[i].bandwidth, test_link.bandwidth);
+      QUICHE_CHECK_GT(local_links[i].bandwidth, test_link.bandwidth);
     }
     return test_link.bandwidth;
   }

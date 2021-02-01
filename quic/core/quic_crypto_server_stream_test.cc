@@ -90,7 +90,7 @@ class QuicCryptoServerStreamTest : public QuicTest {
         helpers_.back().get(), alarm_factories_.back().get(),
         &server_crypto_config_, &server_compressed_certs_cache_,
         &server_connection_, &server_session);
-    CHECK(server_session);
+    QUICHE_CHECK(server_session);
     server_session_.reset(server_session);
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
         .Times(testing::AnyNumber());
@@ -124,13 +124,13 @@ class QuicCryptoServerStreamTest : public QuicTest {
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         helpers_.back().get(), alarm_factories_.back().get(),
         &client_crypto_config_, &client_connection_, &client_session);
-    CHECK(client_session);
+    QUICHE_CHECK(client_session);
     client_session_.reset(client_session);
   }
 
   int CompleteCryptoHandshake() {
-    CHECK(server_connection_);
-    CHECK(server_session_ != nullptr);
+    QUICHE_CHECK(server_connection_);
+    QUICHE_CHECK(server_session_ != nullptr);
 
     return crypto_test_utils::HandshakeWithFakeClient(
         helpers_.back().get(), alarm_factories_.back().get(),
@@ -141,8 +141,8 @@ class QuicCryptoServerStreamTest : public QuicTest {
   // Performs a single round of handshake message-exchange between the
   // client and server.
   void AdvanceHandshakeWithFakeClient() {
-    CHECK(server_connection_);
-    CHECK(client_session_ != nullptr);
+    QUICHE_CHECK(server_connection_);
+    QUICHE_CHECK(client_session_ != nullptr);
 
     EXPECT_CALL(*client_session_, OnProofValid(_)).Times(testing::AnyNumber());
     EXPECT_CALL(*client_session_, OnProofVerifyDetailsAvailable(_))

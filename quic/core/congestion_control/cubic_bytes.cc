@@ -153,8 +153,8 @@ QuicByteCount CubicBytes::CongestionWindowAfterAck(
                                           kCubeScale;
 
   const bool add_delta = elapsed_time > time_to_origin_point_;
-  DCHECK(add_delta ||
-         (origin_point_congestion_window_ > delta_congestion_window));
+  QUICHE_DCHECK(add_delta ||
+                (origin_point_congestion_window_ > delta_congestion_window));
   QuicByteCount target_congestion_window =
       add_delta ? origin_point_congestion_window_ + delta_congestion_window
                 : origin_point_congestion_window_ - delta_congestion_window;
@@ -163,7 +163,7 @@ QuicByteCount CubicBytes::CongestionWindowAfterAck(
       std::min(target_congestion_window,
                current_congestion_window + acked_bytes_count_ / 2);
 
-  DCHECK_LT(0u, estimated_tcp_congestion_window_);
+  QUICHE_DCHECK_LT(0u, estimated_tcp_congestion_window_);
   // Increase the window by approximately Alpha * 1 MSS of bytes every
   // time we ack an estimated tcp window of bytes.  For small
   // congestion windows (less than 25), the formula below will

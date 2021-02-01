@@ -16,8 +16,8 @@ namespace quic {
 RoundTripCounter::RoundTripCounter() : round_trip_count_(0) {}
 
 void RoundTripCounter::OnPacketSent(QuicPacketNumber packet_number) {
-  DCHECK(!last_sent_packet_.IsInitialized() ||
-         last_sent_packet_ < packet_number);
+  QUICHE_DCHECK(!last_sent_packet_.IsInitialized() ||
+                last_sent_packet_ < packet_number);
   last_sent_packet_ = packet_number;
 }
 
@@ -188,7 +188,7 @@ void Bbr2NetworkModel::OnCongestionEventStart(
 void Bbr2NetworkModel::AdaptLowerBounds(
     const Bbr2CongestionEvent& congestion_event) {
   if (Params().bw_lo_mode_ != Bbr2Params::DEFAULT) {
-    DCHECK(Params().bw_startup);
+    QUICHE_DCHECK(Params().bw_startup);
     if (congestion_event.bytes_lost == 0) {
       return;
     }
@@ -366,7 +366,7 @@ void Bbr2NetworkModel::RestartRoundEarly() {
 }
 
 void Bbr2NetworkModel::OnNewRound() {
-  DCHECK(reset_max_bytes_delivered_);
+  QUICHE_DCHECK(reset_max_bytes_delivered_);
   bytes_lost_in_round_ = 0;
   loss_events_in_round_ = 0;
   max_bytes_delivered_in_round_ = 0;
@@ -389,8 +389,8 @@ QuicByteCount Bbr2NetworkModel::inflight_hi_with_headroom() const {
 
 Bbr2NetworkModel::BandwidthGrowth Bbr2NetworkModel::CheckBandwidthGrowth(
     const Bbr2CongestionEvent& congestion_event) {
-  DCHECK(!full_bandwidth_reached_);
-  DCHECK(congestion_event.end_of_round_trip);
+  QUICHE_DCHECK(!full_bandwidth_reached_);
+  QUICHE_DCHECK(congestion_event.end_of_round_trip);
   if (congestion_event.last_sample_is_app_limited) {
     return APP_LIMITED;
   }

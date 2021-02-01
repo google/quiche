@@ -900,7 +900,7 @@ class QuicStreamSequencerBufferRandomIOTest
       start_chopping_offset += chunk_size;
       ++iterations;
     }
-    DCHECK(start_chopping_offset == bytes_to_buffer_);
+    QUICHE_DCHECK(start_chopping_offset == bytes_to_buffer_);
     size_t chunk_num = iterations;
 
     // Randomly change the sequence of in-ordered OffsetSizePairs to make a

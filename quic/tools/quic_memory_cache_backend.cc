@@ -105,7 +105,7 @@ void QuicMemoryCacheBackend::ResourceFile::Read() {
 
 void QuicMemoryCacheBackend::ResourceFile::SetHostPathFromBase(
     absl::string_view base) {
-  DCHECK(base[0] != '/') << base;
+  QUICHE_DCHECK(base[0] != '/') << base;
   size_t path_start = base.find_first_of('/');
   if (path_start == absl::string_view::npos) {
     host_ = std::string(base);
@@ -359,7 +359,8 @@ void QuicMemoryCacheBackend::AddResponseImpl(
     Http2HeaderBlock response_trailers) {
   QuicWriterMutexLock lock(&response_mutex_);
 
-  DCHECK(!host.empty()) << "Host must be populated, e.g. \"www.google.com\"";
+  QUICHE_DCHECK(!host.empty())
+      << "Host must be populated, e.g. \"www.google.com\"";
   std::string key = GetKey(host, path);
   if (QuicContainsKey(responses_, key)) {
     QUIC_BUG << "Response for '" << key << "' already exists!";

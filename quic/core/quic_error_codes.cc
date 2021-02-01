@@ -313,7 +313,7 @@ std::string QuicIetfTransportErrorCodeString(QuicIetfTransportErrorCodes c) {
     // change behavior and are only here to make the compiler happy.
     case CRYPTO_ERROR_FIRST:
     case CRYPTO_ERROR_LAST:
-      DCHECK(false) << "Unexpected error " << static_cast<uint64_t>(c);
+      QUICHE_DCHECK(false) << "Unexpected error " << static_cast<uint64_t>(c);
       break;
   }
 

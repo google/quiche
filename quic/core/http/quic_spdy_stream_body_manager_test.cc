@@ -260,7 +260,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
       std::vector<iovec> iovecs;
       size_t offset = 0;
       for (size_t iov_length : iov_lengths[call_index]) {
-        CHECK(offset + iov_length <= buffer.size());
+        QUICHE_CHECK(offset + iov_length <= buffer.size());
         iovecs.push_back({&buffer[offset], iov_length});
         offset += iov_length;
       }

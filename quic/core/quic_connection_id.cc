@@ -68,7 +68,7 @@ QuicConnectionId::QuicConnectionId(const char* data, uint8_t length) {
     return;
   }
   data_long_ = reinterpret_cast<char*>(malloc(length_));
-  CHECK_NE(nullptr, data_long_);
+  QUICHE_CHECK_NE(nullptr, data_long_);
   memcpy(data_long_, data, length_);
 }
 
@@ -113,13 +113,13 @@ void QuicConnectionId::set_length(uint8_t length) {
       // Copy data from data_short_ to data_long_.
       memcpy(temporary_data, data_short_, length_);
       data_long_ = reinterpret_cast<char*>(malloc(length));
-      CHECK_NE(nullptr, data_long_);
+      QUICHE_CHECK_NE(nullptr, data_long_);
       memcpy(data_long_, temporary_data, length_);
     } else {
       // Resize data_long_.
       char* realloc_result =
           reinterpret_cast<char*>(realloc(data_long_, length));
-      CHECK_NE(nullptr, realloc_result);
+      QUICHE_CHECK_NE(nullptr, realloc_result);
       data_long_ = realloc_result;
     }
   } else if (length_ > sizeof(data_short_)) {

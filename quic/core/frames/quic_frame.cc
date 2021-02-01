@@ -96,7 +96,7 @@ void DeleteFrame(QuicFrame* frame) {
       frame->type != STOP_WAITING_FRAME &&
       frame->type != STREAMS_BLOCKED_FRAME && frame->type != STREAM_FRAME &&
       frame->type != HANDSHAKE_DONE_FRAME) {
-    CHECK(!frame->delete_forbidden) << *frame;
+    QUICHE_CHECK(!frame->delete_forbidden) << *frame;
   }
 #endif  // QUIC_FRAME_DEBUG
   switch (frame->type) {
@@ -156,7 +156,7 @@ void DeleteFrame(QuicFrame* frame) {
       delete frame->ack_frequency_frame;
       break;
     case NUM_FRAME_TYPES:
-      DCHECK(false) << "Cannot delete type: " << frame->type;
+      QUICHE_DCHECK(false) << "Cannot delete type: " << frame->type;
   }
 }
 

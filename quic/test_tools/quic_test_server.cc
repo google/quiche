@@ -127,23 +127,23 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
 
   void SetSessionFactory(QuicTestServer::SessionFactory* factory) {
     QuicWriterMutexLock lock(&factory_lock_);
-    DCHECK(session_factory_ == nullptr);
-    DCHECK(stream_factory_ == nullptr);
-    DCHECK(crypto_stream_factory_ == nullptr);
+    QUICHE_DCHECK(session_factory_ == nullptr);
+    QUICHE_DCHECK(stream_factory_ == nullptr);
+    QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
     session_factory_ = factory;
   }
 
   void SetStreamFactory(QuicTestServer::StreamFactory* factory) {
     QuicWriterMutexLock lock(&factory_lock_);
-    DCHECK(session_factory_ == nullptr);
-    DCHECK(stream_factory_ == nullptr);
+    QUICHE_DCHECK(session_factory_ == nullptr);
+    QUICHE_DCHECK(stream_factory_ == nullptr);
     stream_factory_ = factory;
   }
 
   void SetCryptoStreamFactory(QuicTestServer::CryptoStreamFactory* factory) {
     QuicWriterMutexLock lock(&factory_lock_);
-    DCHECK(session_factory_ == nullptr);
-    DCHECK(crypto_stream_factory_ == nullptr);
+    QUICHE_DCHECK(session_factory_ == nullptr);
+    QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
     crypto_stream_factory_ = factory;
   }
 
@@ -195,7 +195,7 @@ QuicDispatcher* QuicTestServer::CreateQuicDispatcher() {
 }
 
 void QuicTestServer::SetSessionFactory(SessionFactory* factory) {
-  DCHECK(dispatcher());
+  QUICHE_DCHECK(dispatcher());
   static_cast<QuicTestDispatcher*>(dispatcher())->SetSessionFactory(factory);
 }
 

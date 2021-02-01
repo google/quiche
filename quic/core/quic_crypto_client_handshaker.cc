@@ -167,12 +167,12 @@ HandshakeState QuicCryptoClientHandshaker::GetHandshakeState() const {
 }
 
 void QuicCryptoClientHandshaker::OnHandshakeDoneReceived() {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 void QuicCryptoClientHandshaker::OnNewTokenReceived(
     absl::string_view /*token*/) {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 size_t QuicCryptoClientHandshaker::BufferSizeLimitForLevel(
@@ -187,14 +187,14 @@ bool QuicCryptoClientHandshaker::KeyUpdateSupportedLocally() const {
 std::unique_ptr<QuicDecrypter>
 QuicCryptoClientHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   // Key update is only defined in QUIC+TLS.
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 
 std::unique_ptr<QuicEncrypter>
 QuicCryptoClientHandshaker::CreateCurrentOneRttEncrypter() {
   // Key update is only defined in QUIC+TLS.
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 
@@ -206,7 +206,7 @@ void QuicCryptoClientHandshaker::OnConnectionClosed(
 
 void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
     const CryptoHandshakeMessage& server_config_update) {
-  DCHECK(server_config_update.tag() == kSCUP);
+  QUICHE_DCHECK(server_config_update.tag() == kSCUP);
   std::string error_details;
   QuicCryptoClientConfig::CachedState* cached =
       crypto_config_->LookupOrCreate(server_id_);
@@ -221,7 +221,7 @@ void QuicCryptoClientHandshaker::HandleServerConfigUpdateMessage(
     return;
   }
 
-  DCHECK(one_rtt_keys_available());
+  QUICHE_DCHECK(one_rtt_keys_available());
   if (proof_verify_callback_) {
     proof_verify_callback_->Cancel();
   }
@@ -236,7 +236,7 @@ void QuicCryptoClientHandshaker::DoHandshakeLoop(
 
   QuicAsyncStatus rv = QUIC_SUCCESS;
   do {
-    CHECK_NE(STATE_NONE, next_state_);
+    QUICHE_CHECK_NE(STATE_NONE, next_state_);
     const State state = next_state_;
     next_state_ = STATE_IDLE;
     rv = QUIC_SUCCESS;
@@ -284,7 +284,7 @@ void QuicCryptoClientHandshaker::DoInitialize(
     // This allows us to respond to CA trust changes or certificate
     // expiration because it may have been a while since we last verified
     // the proof.
-    DCHECK(crypto_config_->proof_verifier());
+    QUICHE_DCHECK(crypto_config_->proof_verifier());
     // Track proof verification time when cached server config is used.
     proof_verify_start_time_ = session()->connection()->clock()->Now();
     chlo_hash_ = cached->chlo_hash();
@@ -310,8 +310,8 @@ void QuicCryptoClientHandshaker::DoSendCHLO(
   num_client_hellos_++;
 
   CryptoHandshakeMessage out;
-  DCHECK(session() != nullptr);
-  DCHECK(session()->config() != nullptr);
+  QUICHE_DCHECK(session() != nullptr);
+  QUICHE_DCHECK(session()->config() != nullptr);
   // Send all the options, regardless of whether we're sending an
   // inchoate or subsequent hello.
   session()->config()->ToHandshakeMessage(&out, session()->transport_version());
@@ -463,7 +463,7 @@ void QuicCryptoClientHandshaker::DoReceiveREJ(
 QuicAsyncStatus QuicCryptoClientHandshaker::DoVerifyProof(
     QuicCryptoClientConfig::CachedState* cached) {
   ProofVerifier* verifier = crypto_config_->proof_verifier();
-  DCHECK(verifier);
+  QUICHE_DCHECK(verifier);
   next_state_ = STATE_VERIFY_PROOF_COMPLETE;
   generation_counter_ = cached->generation_counter();
 
@@ -614,7 +614,7 @@ void QuicCryptoClientHandshaker::DoInitializeServerConfigUpdate(
   bool update_ignored = false;
   if (!cached->IsEmpty() && !cached->signature().empty()) {
     // Note that we verify the proof even if the cached proof is valid.
-    DCHECK(crypto_config_->proof_verifier());
+    QUICHE_DCHECK(crypto_config_->proof_verifier());
     next_state_ = STATE_VERIFY_PROOF;
   } else {
     update_ignored = true;

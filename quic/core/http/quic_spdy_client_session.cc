@@ -103,7 +103,7 @@ const QuicCryptoClientStreamBase* QuicSpdyClientSession::GetCryptoStream()
 }
 
 void QuicSpdyClientSession::CryptoConnect() {
-  DCHECK(flow_controller());
+  QUICHE_DCHECK(flow_controller());
   crypto_stream_->CryptoConnect();
 }
 

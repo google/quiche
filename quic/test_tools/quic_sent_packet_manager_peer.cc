@@ -82,7 +82,7 @@ RttStats* QuicSentPacketManagerPeer::GetRttStats(
 bool QuicSentPacketManagerPeer::IsRetransmission(
     QuicSentPacketManager* sent_packet_manager,
     uint64_t packet_number) {
-  DCHECK(HasRetransmittableFrames(sent_packet_manager, packet_number));
+  QUICHE_DCHECK(HasRetransmittableFrames(sent_packet_manager, packet_number));
   if (!HasRetransmittableFrames(sent_packet_manager, packet_number)) {
     return false;
   }

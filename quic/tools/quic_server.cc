@@ -82,7 +82,7 @@ QuicServer::QuicServer(
       quic_simple_server_backend_(quic_simple_server_backend),
       expected_server_connection_id_length_(
           expected_server_connection_id_length) {
-  DCHECK(quic_simple_server_backend_);
+  QUICHE_DCHECK(quic_simple_server_backend_);
   Initialize();
 }
 
@@ -190,7 +190,7 @@ void QuicServer::Shutdown() {
 }
 
 void QuicServer::OnEvent(int fd, QuicEpollEvent* event) {
-  DCHECK_EQ(fd, fd_);
+  QUICHE_DCHECK_EQ(fd, fd_);
   event->out_ready_mask = 0;
 
   if (event->in_events & EPOLLIN) {

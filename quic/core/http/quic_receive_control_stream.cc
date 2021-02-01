@@ -45,7 +45,7 @@ void QuicReceiveControlStream::OnDataAvailable() {
   iovec iov;
   while (!reading_stopped() && decoder_.error() == QUIC_NO_ERROR &&
          sequencer()->GetReadableRegion(&iov)) {
-    DCHECK(!sequencer()->IsClosed());
+    QUICHE_DCHECK(!sequencer()->IsClosed());
 
     QuicByteCount processed_bytes = decoder_.ProcessInput(
         reinterpret_cast<const char*>(iov.iov_base), iov.iov_len);
@@ -57,7 +57,7 @@ void QuicReceiveControlStream::OnDataAvailable() {
 
     // The only reason QuicReceiveControlStream pauses HttpDecoder is an error,
     // in which case the connection would have already been closed.
-    DCHECK_EQ(iov.iov_len, processed_bytes);
+    QUICHE_DCHECK_EQ(iov.iov_len, processed_bytes);
   }
 }
 
@@ -270,7 +270,7 @@ bool QuicReceiveControlStream::OnAcceptChFrameStart(
 }
 
 bool QuicReceiveControlStream::OnAcceptChFrame(const AcceptChFrame& frame) {
-  DCHECK_EQ(Perspective::IS_CLIENT, spdy_session()->perspective());
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, spdy_session()->perspective());
 
   if (spdy_session()->debug_visitor()) {
     spdy_session()->debug_visitor()->OnAcceptChFrameReceived(frame);

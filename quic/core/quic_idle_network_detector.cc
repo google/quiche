@@ -112,7 +112,7 @@ void QuicIdleNetworkDetector::SetAlarm() {
 
 void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
     QuicTime::Delta pto_delay) {
-  DCHECK(shorter_idle_timeout_on_sent_packet_);
+  QUICHE_DCHECK(shorter_idle_timeout_on_sent_packet_);
   if (!handshake_timeout_.IsInfinite() || !alarm_->IsSet()) {
     SetAlarm();
     return;

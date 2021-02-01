@@ -24,7 +24,7 @@ class MasquePacketWriter : public QuicPacketWriter {
                           const QuicIpAddress& /*self_address*/,
                           const QuicSocketAddress& peer_address,
                           PerPacketOptions* /*options*/) override {
-    DCHECK(peer_address.IsInitialized());
+    QUICHE_DCHECK(peer_address.IsInitialized());
     QUIC_DVLOG(1) << "MasquePacketWriter trying to write " << buf_len
                   << " bytes to " << peer_address;
     absl::string_view packet(buffer, buf_len);

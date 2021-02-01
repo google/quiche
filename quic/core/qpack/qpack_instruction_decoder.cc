@@ -34,8 +34,8 @@ QpackInstructionDecoder::QpackInstructionDecoder(const QpackLanguage* language,
       state_(State::kStartInstruction) {}
 
 bool QpackInstructionDecoder::Decode(absl::string_view data) {
-  DCHECK(!data.empty());
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!data.empty());
+  QUICHE_DCHECK(!error_detected_);
 
   while (true) {
     bool success = true;
@@ -73,9 +73,9 @@ bool QpackInstructionDecoder::Decode(absl::string_view data) {
     }
 
     // |success| must be false if an error is detected.
-    DCHECK(!error_detected_);
+    QUICHE_DCHECK(!error_detected_);
 
-    DCHECK_LE(bytes_consumed, data.size());
+    QUICHE_DCHECK_LE(bytes_consumed, data.size());
 
     data = absl::string_view(data.data() + bytes_consumed,
                              data.size() - bytes_consumed);
@@ -95,7 +95,7 @@ bool QpackInstructionDecoder::AtInstructionBoundary() const {
 }
 
 bool QpackInstructionDecoder::DoStartInstruction(absl::string_view data) {
-  DCHECK(!data.empty());
+  QUICHE_DCHECK(!data.empty());
 
   instruction_ = LookupOpcode(data[0]);
   field_ = instruction_->fields.begin();
@@ -133,7 +133,7 @@ bool QpackInstructionDecoder::DoStartField() {
 }
 
 bool QpackInstructionDecoder::DoReadBit(absl::string_view data) {
-  DCHECK(!data.empty());
+  QUICHE_DCHECK(!data.empty());
 
   switch (field_->type) {
     case QpackInstructionFieldType::kSbit: {
@@ -148,7 +148,7 @@ bool QpackInstructionDecoder::DoReadBit(absl::string_view data) {
     case QpackInstructionFieldType::kName:
     case QpackInstructionFieldType::kValue: {
       const uint8_t prefix_length = field_->param;
-      DCHECK_GE(7, prefix_length);
+      QUICHE_DCHECK_GE(7, prefix_length);
       const uint8_t bitmask = 1 << prefix_length;
       is_huffman_encoded_ = (data[0] & bitmask) == bitmask;
 
@@ -164,11 +164,11 @@ bool QpackInstructionDecoder::DoReadBit(absl::string_view data) {
 
 bool QpackInstructionDecoder::DoVarintStart(absl::string_view data,
                                             size_t* bytes_consumed) {
-  DCHECK(!data.empty());
-  DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
-         field_->type == QpackInstructionFieldType::kVarint2 ||
-         field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
+  QUICHE_DCHECK(!data.empty());
+  QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
+                field_->type == QpackInstructionFieldType::kVarint2 ||
+                field_->type == QpackInstructionFieldType::kName ||
+                field_->type == QpackInstructionFieldType::kValue);
 
   http2::DecodeBuffer buffer(data.data() + 1, data.size() - 1);
   http2::DecodeStatus status =
@@ -193,11 +193,11 @@ bool QpackInstructionDecoder::DoVarintStart(absl::string_view data,
 
 bool QpackInstructionDecoder::DoVarintResume(absl::string_view data,
                                              size_t* bytes_consumed) {
-  DCHECK(!data.empty());
-  DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
-         field_->type == QpackInstructionFieldType::kVarint2 ||
-         field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
+  QUICHE_DCHECK(!data.empty());
+  QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
+                field_->type == QpackInstructionFieldType::kVarint2 ||
+                field_->type == QpackInstructionFieldType::kName ||
+                field_->type == QpackInstructionFieldType::kValue);
 
   http2::DecodeBuffer buffer(data);
   http2::DecodeStatus status = varint_decoder_.Resume(&buffer);
@@ -208,8 +208,8 @@ bool QpackInstructionDecoder::DoVarintResume(absl::string_view data,
       state_ = State::kVarintDone;
       return true;
     case http2::DecodeStatus::kDecodeInProgress:
-      DCHECK_EQ(*bytes_consumed, data.size());
-      DCHECK(buffer.Empty());
+      QUICHE_DCHECK_EQ(*bytes_consumed, data.size());
+      QUICHE_DCHECK(buffer.Empty());
       return true;
     case http2::DecodeStatus::kDecodeError:
       OnError(ErrorCode::INTEGER_TOO_LARGE, "Encoded integer too large.");
@@ -221,10 +221,10 @@ bool QpackInstructionDecoder::DoVarintResume(absl::string_view data,
 }
 
 bool QpackInstructionDecoder::DoVarintDone() {
-  DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
-         field_->type == QpackInstructionFieldType::kVarint2 ||
-         field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
+  QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kVarint ||
+                field_->type == QpackInstructionFieldType::kVarint2 ||
+                field_->type == QpackInstructionFieldType::kName ||
+                field_->type == QpackInstructionFieldType::kValue);
 
   if (field_->type == QpackInstructionFieldType::kVarint) {
     varint_ = varint_decoder_.value();
@@ -266,18 +266,18 @@ bool QpackInstructionDecoder::DoVarintDone() {
 
 bool QpackInstructionDecoder::DoReadString(absl::string_view data,
                                            size_t* bytes_consumed) {
-  DCHECK(!data.empty());
-  DCHECK(field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
+  QUICHE_DCHECK(!data.empty());
+  QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kName ||
+                field_->type == QpackInstructionFieldType::kValue);
 
   std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;
-  DCHECK_LT(string->size(), string_length_);
+  QUICHE_DCHECK_LT(string->size(), string_length_);
 
   *bytes_consumed = std::min(string_length_ - string->size(), data.size());
   string->append(data.data(), *bytes_consumed);
 
-  DCHECK_LE(string->size(), string_length_);
+  QUICHE_DCHECK_LE(string->size(), string_length_);
   if (string->size() == string_length_) {
     state_ = State::kReadStringDone;
   }
@@ -285,12 +285,12 @@ bool QpackInstructionDecoder::DoReadString(absl::string_view data,
 }
 
 bool QpackInstructionDecoder::DoReadStringDone() {
-  DCHECK(field_->type == QpackInstructionFieldType::kName ||
-         field_->type == QpackInstructionFieldType::kValue);
+  QUICHE_DCHECK(field_->type == QpackInstructionFieldType::kName ||
+                field_->type == QpackInstructionFieldType::kValue);
 
   std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;
-  DCHECK_EQ(string->size(), string_length_);
+  QUICHE_DCHECK_EQ(string->size(), string_length_);
 
   if (is_huffman_encoded_) {
     huffman_decoder_.Reset();
@@ -319,13 +319,13 @@ const QpackInstruction* QpackInstructionDecoder::LookupOpcode(
   }
   // |language_| should be defined such that instruction opcodes cover every
   // possible input.
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 
 void QpackInstructionDecoder::OnError(ErrorCode error_code,
                                       absl::string_view error_message) {
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!error_detected_);
 
   error_detected_ = true;
   delegate_->OnInstructionDecodingError(error_code, error_message);

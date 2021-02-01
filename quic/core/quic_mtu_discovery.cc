@@ -17,7 +17,7 @@ QuicConnectionMtuDiscoverer::QuicConnectionMtuDiscoverer(
 void QuicConnectionMtuDiscoverer::Enable(
     QuicByteCount max_packet_length,
     QuicByteCount target_max_packet_length) {
-  DCHECK(!IsEnabled());
+  QUICHE_DCHECK(!IsEnabled());
 
   if (target_max_packet_length <= max_packet_length) {
     QUIC_DVLOG(1) << "MtuDiscoverer not enabled. target_max_packet_length:"
@@ -28,7 +28,7 @@ void QuicConnectionMtuDiscoverer::Enable(
 
   min_probe_length_ = max_packet_length;
   max_probe_length_ = target_max_packet_length;
-  DCHECK(IsEnabled());
+  QUICHE_DCHECK(IsEnabled());
 
   QUIC_DVLOG(1) << "MtuDiscoverer enabled. min:" << min_probe_length_
                 << ", max:" << max_probe_length_
@@ -70,7 +70,7 @@ bool QuicConnectionMtuDiscoverer::ShouldProbeMtu(
 
 QuicPacketLength QuicConnectionMtuDiscoverer::GetUpdatedMtuProbeSize(
     QuicPacketNumber largest_sent_packet) {
-  DCHECK(ShouldProbeMtu(largest_sent_packet));
+  QUICHE_DCHECK(ShouldProbeMtu(largest_sent_packet));
 
   QuicPacketLength probe_packet_length = next_probe_packet_length();
   if (probe_packet_length == last_probe_length_) {
@@ -78,7 +78,7 @@ QuicPacketLength QuicConnectionMtuDiscoverer::GetUpdatedMtuProbeSize(
     // previous one exceeded MTU, we need to decrease the probe packet length.
     max_probe_length_ = probe_packet_length;
   } else {
-    DCHECK_GT(probe_packet_length, last_probe_length_);
+    QUICHE_DCHECK_GT(probe_packet_length, last_probe_length_);
   }
   last_probe_length_ = next_probe_packet_length();
 
@@ -93,14 +93,14 @@ QuicPacketLength QuicConnectionMtuDiscoverer::GetUpdatedMtuProbeSize(
                 << ", New packets_between_probes_:" << packets_between_probes_
                 << ", next_probe_at_:" << next_probe_at_
                 << ", remaining_probe_count_:" << remaining_probe_count_;
-  DCHECK(!ShouldProbeMtu(largest_sent_packet));
+  QUICHE_DCHECK(!ShouldProbeMtu(largest_sent_packet));
   return last_probe_length_;
 }
 
 QuicPacketLength QuicConnectionMtuDiscoverer::next_probe_packet_length() const {
-  DCHECK_NE(min_probe_length_, 0);
-  DCHECK_NE(max_probe_length_, 0);
-  DCHECK_GE(max_probe_length_, min_probe_length_);
+  QUICHE_DCHECK_NE(min_probe_length_, 0);
+  QUICHE_DCHECK_NE(max_probe_length_, 0);
+  QUICHE_DCHECK_GE(max_probe_length_, min_probe_length_);
 
   const QuicPacketLength normal_next_probe_length =
       (min_probe_length_ + max_probe_length_ + 1) / 2;
@@ -121,7 +121,7 @@ void QuicConnectionMtuDiscoverer::OnMaxPacketLengthUpdated(
     return;
   }
 
-  DCHECK_EQ(old_value, min_probe_length_);
+  QUICHE_DCHECK_EQ(old_value, min_probe_length_);
   min_probe_length_ = new_value;
 }
 

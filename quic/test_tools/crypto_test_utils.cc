@@ -263,7 +263,7 @@ int HandshakeWithFakeServer(QuicConfig* server_quic_config,
       });
 
   // The client's handshake must have been started already.
-  CHECK_NE(0u, client_conn->encrypted_packets_.size());
+  QUICHE_CHECK_NE(0u, client_conn->encrypted_packets_.size());
 
   CommunicateHandshakeMessages(client_conn, client, server_conn,
                                server_session.GetMutableCryptoStream());
@@ -292,7 +292,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
                          return version.handshake_protocol != PROTOCOL_TLS1_3;
                        }),
         supported_versions.end());
-    CHECK(!options.only_quic_crypto_versions);
+    QUICHE_CHECK(!options.only_quic_crypto_versions);
   } else if (options.only_quic_crypto_versions) {
     supported_versions.erase(
         std::remove_if(supported_versions.begin(), supported_versions.end(),
@@ -326,7 +326,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
             {AlpnForVersion(client_conn->version())})));
   }
   client_session.GetMutableCryptoStream()->CryptoConnect();
-  CHECK_EQ(1u, client_conn->encrypted_packets_.size());
+  QUICHE_CHECK_EQ(1u, client_conn->encrypted_packets_.size());
 
   CommunicateHandshakeMessages(client_conn,
                                client_session.GetMutableCryptoStream(),
@@ -459,7 +459,7 @@ uint64_t LeafCertHashForTesting() {
       AllSupportedVersionsWithQuicCrypto().front().transport_version, "",
       std::unique_ptr<ProofSource::Callback>(new Callback(&ok, &chain)));
   if (!ok || chain->certs.empty()) {
-    DCHECK(false) << "Proof generation failed";
+    QUICHE_DCHECK(false) << "Proof generation failed";
     return 0;
   }
 
@@ -655,26 +655,26 @@ void CompareClientAndServerKeys(QuicCryptoClientStream* client,
 
 QuicTag ParseTag(const char* tagstr) {
   const size_t len = strlen(tagstr);
-  CHECK_NE(0u, len);
+  QUICHE_CHECK_NE(0u, len);
 
   QuicTag tag = 0;
 
   if (tagstr[0] == '#') {
-    CHECK_EQ(static_cast<size_t>(1 + 2 * 4), len);
+    QUICHE_CHECK_EQ(static_cast<size_t>(1 + 2 * 4), len);
     tagstr++;
 
     for (size_t i = 0; i < 8; i++) {
       tag <<= 4;
 
       uint8_t v = 0;
-      CHECK(HexChar(tagstr[i], &v));
+      QUICHE_CHECK(HexChar(tagstr[i], &v));
       tag |= v;
     }
 
     return tag;
   }
 
-  CHECK_LE(len, 4u);
+  QUICHE_CHECK_LE(len, 4u);
   for (size_t i = 0; i < 4; i++) {
     tag >>= 8;
     if (i < len) {
@@ -723,7 +723,7 @@ CryptoHandshakeMessage CreateCHLO(
       CryptoFramer::ConstructHandshakeMessage(msg);
   std::unique_ptr<CryptoHandshakeMessage> parsed(
       CryptoFramer::ParseMessage(bytes->AsStringPiece()));
-  CHECK(parsed);
+  QUICHE_CHECK(parsed);
 
   return *parsed;
 }
@@ -840,7 +840,7 @@ std::string GenerateClientNonceHex(const QuicClock* clock,
   std::unique_ptr<CryptoHandshakeMessage> msg =
       crypto_config->AddConfig(primary_config, clock->WallNow());
   absl::string_view orbit;
-  CHECK(msg->GetStringPiece(kORBT, &orbit));
+  QUICHE_CHECK(msg->GetStringPiece(kORBT, &orbit));
   std::string nonce;
   CryptoUtils::GenerateNonce(clock->WallNow(), QuicRandom::GetInstance(), orbit,
                              &nonce);

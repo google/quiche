@@ -222,7 +222,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     uint16_t payload_size = data_provider.ConsumeIntegralInRange<uint16_t>(
         min_payload_size, max_payload_size);
 
-    CHECK_NE(last_remaining_bytes, data_provider.remaining_bytes())
+    QUICHE_CHECK_NE(last_remaining_bytes, data_provider.remaining_bytes())
         << "Check fail to avoid an infinite loop. ConsumeIntegralInRange("
         << min_payload_size << ", " << max_payload_size
         << ") did not consume any bytes. remaining_bytes:"
@@ -230,28 +230,30 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     std::vector<char> payload_buffer =
         data_provider.ConsumeBytes<char>(payload_size);
-    CHECK_GE(packet_buffer.size(),
-             GetPacketHeaderSize(sender_framer.transport_version(), header) +
-                 payload_buffer.size());
+    QUICHE_CHECK_GE(
+        packet_buffer.size(),
+        GetPacketHeaderSize(sender_framer.transport_version(), header) +
+            payload_buffer.size());
 
     // Serialize the null-encrypted packet into |packet_buffer|.
     QuicDataWriter writer(packet_buffer.size(), packet_buffer.data());
     size_t length_field_offset = 0;
-    CHECK(sender_framer.AppendPacketHeader(header, &writer,
-                                           &length_field_offset));
+    QUICHE_CHECK(sender_framer.AppendPacketHeader(header, &writer,
+                                                  &length_field_offset));
 
-    CHECK(writer.WriteBytes(payload_buffer.data(), payload_buffer.size()));
+    QUICHE_CHECK(
+        writer.WriteBytes(payload_buffer.data(), payload_buffer.size()));
 
     EncryptionLevel encryption_level =
         quic::test::HeaderToEncryptionLevel(header);
-    CHECK(sender_framer.WriteIetfLongHeaderLength(
+    QUICHE_CHECK(sender_framer.WriteIetfLongHeaderLength(
         header, &writer, length_field_offset, encryption_level));
 
     size_t encrypted_length = sender_framer.EncryptInPlace(
         encryption_level, header.packet_number,
         GetStartOfEncryptedData(sender_framer.transport_version(), header),
         writer.length(), packet_buffer.size(), packet_buffer.data());
-    CHECK_NE(encrypted_length, 0u);
+    QUICHE_CHECK_NE(encrypted_length, 0u);
 
     // Use receiver's framer to process the packet. Ensure both
     // ProcessPublicHeader and DecryptPayload were called and succeeded.
@@ -265,14 +267,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     receiver_framer.ProcessPacket(packet);
 
-    DCHECK_EQ(process_public_header_success_count + 1,
-              receiver_framer_visitor.process_public_header_success_count_)
+    QUICHE_DCHECK_EQ(
+        process_public_header_success_count + 1,
+        receiver_framer_visitor.process_public_header_success_count_)
         << "ProcessPublicHeader failed. error:"
         << QuicErrorCodeToString(receiver_framer.error())
         << ", error_detail:" << receiver_framer.detailed_error()
         << ". header:" << header;
-    DCHECK_EQ(decrypted_packet_count + 1,
-              receiver_framer_visitor.decrypted_packet_count_)
+    QUICHE_DCHECK_EQ(decrypted_packet_count + 1,
+                     receiver_framer_visitor.decrypted_packet_count_)
         << "Packet was not decrypted. error:"
         << QuicErrorCodeToString(receiver_framer.error())
         << ", error_detail:" << receiver_framer.detailed_error()

@@ -65,121 +65,121 @@ void SetVersionFlag(const ParsedQuicVersion& version, bool should_enable) {
 }  // namespace
 
 bool ParsedQuicVersion::IsKnown() const {
-  DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
+  QUICHE_DCHECK(ParsedQuicVersionIsValid(handshake_protocol, transport_version))
       << QuicVersionToString(transport_version) << " "
       << HandshakeProtocolToString(handshake_protocol);
   return transport_version != QUIC_VERSION_UNSUPPORTED;
 }
 
 bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::UsesInitialObfuscators() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // Initial obfuscators were added in version 50.
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // Low flow-control limits are used for all IETF versions.
   return UsesHttp3();
 }
 
 bool ParsedQuicVersion::HasHeaderProtection() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // Header protection was added in version 50.
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::SupportsRetry() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // Retry was added in version 47.
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::AllowsVariableLengthConnectionIds() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionAllowsVariableLengthConnectionIds(transport_version);
 }
 
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // Client connection IDs were added in version 49.
   return transport_version > QUIC_VERSION_46;
 }
 
 bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionHasLengthPrefixedConnectionIds(transport_version);
 }
 
 bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   // The anti-amplification limit is used for all IETF versions.
   return UsesHttp3();
 }
 
 bool ParsedQuicVersion::CanSendCoalescedPackets() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return HasLongHeaderLengths() && UsesTls();
 }
 
 bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionSupportsGoogleAltSvcFormat(transport_version);
 }
 
 bool ParsedQuicVersion::HasIetfInvariantHeader() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionHasIetfInvariantHeader(transport_version);
 }
 
 bool ParsedQuicVersion::SupportsMessageFrames() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionSupportsMessageFrames(transport_version);
 }
 
 bool ParsedQuicVersion::UsesHttp3() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionUsesHttp3(transport_version);
 }
 
 bool ParsedQuicVersion::HasLongHeaderLengths() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return QuicVersionHasLongHeaderLengths(transport_version);
 }
 
 bool ParsedQuicVersion::UsesCryptoFrames() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return QuicVersionUsesCryptoFrames(transport_version);
 }
 
 bool ParsedQuicVersion::HasIetfQuicFrames() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return VersionHasIetfQuicFrames(transport_version);
 }
 
 bool ParsedQuicVersion::UsesTls() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return handshake_protocol == PROTOCOL_TLS1_3;
 }
 
 bool ParsedQuicVersion::UsesQuicCrypto() const {
-  DCHECK(IsKnown());
+  QUICHE_DCHECK(IsKnown());
   return handshake_protocol == PROTOCOL_QUIC_CRYPTO;
 }
 
 bool VersionHasLengthPrefixedConnectionIds(
     QuicTransportVersion transport_version) {
-  DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
+  QUICHE_DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
   // Length-prefixed connection IDs were added in version 49.
   return transport_version > QUIC_VERSION_46;
 }
@@ -479,7 +479,7 @@ std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
     return "0";
   }
   if (version == ParsedQuicVersion::Draft29()) {
-    DCHECK(version.UsesHttp3());
+    QUICHE_DCHECK(version.UsesHttp3());
     return "draft29";
   }
 
@@ -522,7 +522,7 @@ bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
 
 bool VersionAllowsVariableLengthConnectionIds(
     QuicTransportVersion transport_version) {
-  DCHECK_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
+  QUICHE_DCHECK_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
   return transport_version > QUIC_VERSION_46;
 }
 

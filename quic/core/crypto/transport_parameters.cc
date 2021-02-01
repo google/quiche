@@ -179,9 +179,9 @@ TransportParameters::IntegerParameter::IntegerParameter(
       min_value_(min_value),
       max_value_(max_value),
       has_been_read_(false) {
-  DCHECK_LE(min_value, default_value);
-  DCHECK_LE(default_value, max_value);
-  DCHECK_LE(max_value, kVarInt62MaxValue);
+  QUICHE_DCHECK_LE(min_value, default_value);
+  QUICHE_DCHECK_LE(default_value, max_value);
+  QUICHE_DCHECK_LE(max_value, kVarInt62MaxValue);
 }
 
 TransportParameters::IntegerParameter::IntegerParameter(
@@ -206,7 +206,7 @@ bool TransportParameters::IntegerParameter::IsValid() const {
 
 bool TransportParameters::IntegerParameter::Write(
     QuicDataWriter* writer) const {
-  DCHECK(IsValid());
+  QUICHE_DCHECK(IsValid());
   if (value_ == default_value_) {
     // Do not write if the value is default.
     return true;
@@ -532,8 +532,8 @@ bool TransportParameters::operator!=(const TransportParameters& rhs) const {
 }
 
 bool TransportParameters::AreValid(std::string* error_details) const {
-  DCHECK(perspective == Perspective::IS_CLIENT ||
-         perspective == Perspective::IS_SERVER);
+  QUICHE_DCHECK(perspective == Perspective::IS_CLIENT ||
+                perspective == Perspective::IS_SERVER);
   if (perspective == Perspective::IS_CLIENT && !stateless_reset_token.empty()) {
     *error_details = "Client cannot send stateless reset token";
     return false;
@@ -693,7 +693,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
 
   // original_destination_connection_id
   if (in.original_destination_connection_id.has_value()) {
-    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
     QuicConnectionId original_destination_connection_id =
         in.original_destination_connection_id.value();
     if (!writer.WriteVarInt62(
@@ -714,8 +714,9 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
 
   // stateless_reset_token
   if (!in.stateless_reset_token.empty()) {
-    DCHECK_EQ(kStatelessResetTokenLength, in.stateless_reset_token.size());
-    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    QUICHE_DCHECK_EQ(kStatelessResetTokenLength,
+                     in.stateless_reset_token.size());
+    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
     if (!writer.WriteVarInt62(TransportParameters::kStatelessResetToken) ||
         !writer.WriteStringPieceVarInt62(absl::string_view(
             reinterpret_cast<const char*>(in.stateless_reset_token.data()),
@@ -804,7 +805,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
 
   // retry_source_connection_id
   if (in.retry_source_connection_id.has_value()) {
-    DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
+    QUICHE_DCHECK_EQ(Perspective::IS_SERVER, in.perspective);
     QuicConnectionId retry_source_connection_id =
         in.retry_source_connection_id.value();
     if (!writer.WriteVarInt62(TransportParameters::kRetrySourceConnectionId) ||
@@ -921,7 +922,7 @@ bool SerializeTransportParameters(ParsedQuicVersion /*version*/,
     TransportParameters::TransportParameterId grease_id =
         static_cast<TransportParameters::TransportParameterId>(grease_id64);
     const size_t grease_length = random->RandUint64() % kMaxGreaseLength;
-    DCHECK_GE(kMaxGreaseLength, grease_length);
+    QUICHE_DCHECK_GE(kMaxGreaseLength, grease_length);
     char grease_contents[kMaxGreaseLength];
     random->RandBytes(grease_contents, grease_length);
     if (!writer.WriteVarInt62(grease_id) ||
@@ -1213,7 +1214,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         break;
     }
     if (!parse_success) {
-      DCHECK(!error_details->empty());
+      QUICHE_DCHECK(!error_details->empty());
       return false;
     }
     if (!value_reader.IsDoneReading()) {
@@ -1225,7 +1226,7 @@ bool ParseTransportParameters(ParsedQuicVersion version,
   }
 
   if (!out->AreValid(error_details)) {
-    DCHECK(!error_details->empty());
+    QUICHE_DCHECK(!error_details->empty());
     return false;
   }
 

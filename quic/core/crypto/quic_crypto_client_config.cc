@@ -70,7 +70,7 @@ QuicCryptoClientConfig::QuicCryptoClientConfig(
       session_cache_(std::move(session_cache)),
       ssl_ctx_(TlsClientConnection::CreateSslCtx(
           !GetQuicFlag(FLAGS_quic_disable_client_tls_zero_rtt))) {
-  DCHECK(proof_verifier_.get());
+  QUICHE_DCHECK(proof_verifier_.get());
   SetDefaults();
 }
 
@@ -98,7 +98,7 @@ bool QuicCryptoClientConfig::CachedState::IsComplete(QuicWallTime now) const {
   if (!scfg) {
     // Should be impossible short of cache corruption.
     RecordInchoateClientHelloReason(SERVER_CONFIG_CORRUPTED);
-    DCHECK(false);
+    QUICHE_DCHECK(false);
     return false;
   }
 
@@ -129,7 +129,7 @@ QuicCryptoClientConfig::CachedState::GetServerConfig() const {
 
   if (!scfg_) {
     scfg_ = CryptoFramer::ParseMessage(server_config_);
-    DCHECK(scfg_.get());
+    QUICHE_DCHECK(scfg_.get());
   }
   return scfg_.get();
 }
@@ -266,7 +266,7 @@ bool QuicCryptoClientConfig::CachedState::Initialize(
     absl::string_view signature,
     QuicWallTime now,
     QuicWallTime expiration_time) {
-  DCHECK(server_config_.empty());
+  QUICHE_DCHECK(server_config_.empty());
 
   if (server_config.empty()) {
     RecordDiskCacheServerConfigState(SERVER_CONFIG_EMPTY);
@@ -347,8 +347,8 @@ void QuicCryptoClientConfig::CachedState::SetProofVerifyDetails(
 
 void QuicCryptoClientConfig::CachedState::InitializeFrom(
     const QuicCryptoClientConfig::CachedState& other) {
-  DCHECK(server_config_.empty());
-  DCHECK(!server_config_valid_);
+  QUICHE_DCHECK(server_config_.empty());
+  QUICHE_DCHECK(!server_config_valid_);
   server_config_ = other.server_config_;
   source_address_token_ = other.source_address_token_;
   certs_ = other.certs_;
@@ -494,7 +494,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     CryptoHandshakeMessage* out,
     std::string* error_details) const {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   QUIC_BUG_IF(!QuicUtils::IsConnectionIdValidForVersion(
       connection_id, preferred_version.transport_version))
       << "FillClientHello: attempted to use connection ID " << connection_id
@@ -574,7 +574,7 @@ QuicErrorCode QuicCryptoClientConfig::FillClientHello(
           P256KeyExchange::New(P256KeyExchange::NewPrivateKey());
       break;
     default:
-      DCHECK(false);
+      QUICHE_DCHECK(false);
       *error_details = "Configured to support an unknown key exchange";
       return QUIC_CRYPTO_INTERNAL_ERROR;
   }
@@ -639,7 +639,7 @@ QuicErrorCode QuicCryptoClientConfig::CacheNewServerConfig(
     const std::vector<std::string>& cached_certs,
     CachedState* cached,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   absl::string_view scfg;
   if (!message.GetStringPiece(kSCFG, &scfg)) {
@@ -711,7 +711,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessRejection(
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   if (rej.tag() != kREJ) {
     *error_details = "Message is not REJ";
@@ -741,7 +741,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerHello(
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   QuicErrorCode valid = CryptoUtils::ValidateServerHello(
       server_hello, negotiated_versions, error_details);
@@ -804,7 +804,7 @@ QuicErrorCode QuicCryptoClientConfig::ProcessServerConfigUpdate(
     CachedState* cached,
     QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters> out_params,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   if (server_config_update.tag() != kSCUP) {
     *error_details = "ServerConfigUpdate must have kSCUP tag.";
@@ -855,7 +855,7 @@ void QuicCryptoClientConfig::AddCanonicalSuffix(const std::string& suffix) {
 bool QuicCryptoClientConfig::PopulateFromCanonicalConfig(
     const QuicServerId& server_id,
     CachedState* server_state) {
-  DCHECK(server_state->IsEmpty());
+  QUICHE_DCHECK(server_state->IsEmpty());
   size_t i = 0;
   for (; i < canonical_suffixes_.size(); ++i) {
     if (absl::EndsWithIgnoreCase(server_id.host(), canonical_suffixes_[i])) {

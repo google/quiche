@@ -45,12 +45,12 @@ size_t CryptoSecretBoxer::GetKeySize() {
 static const EVP_AEAD* (*const kAEAD)() = EVP_aead_aes_256_gcm_siv;
 
 void CryptoSecretBoxer::SetKeys(const std::vector<std::string>& keys) {
-  DCHECK(!keys.empty());
+  QUICHE_DCHECK(!keys.empty());
   const EVP_AEAD* const aead = kAEAD();
   std::unique_ptr<State> new_state(new State);
 
   for (const std::string& key : keys) {
-    DCHECK_EQ(kBoxKeySize, key.size());
+    QUICHE_DCHECK_EQ(kBoxKeySize, key.size());
     bssl::UniquePtr<EVP_AEAD_CTX> ctx(
         EVP_AEAD_CTX_new(aead, reinterpret_cast<const uint8_t*>(key.data()),
                          key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH));
@@ -100,7 +100,7 @@ std::string CryptoSecretBoxer::Box(QuicRandom* rand,
     }
   }
 
-  DCHECK_EQ(out_len, bytes_written);
+  QUICHE_DCHECK_EQ(out_len, bytes_written);
   return ret;
 }
 

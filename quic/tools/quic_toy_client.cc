@@ -337,7 +337,7 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   // Construct the string body from flags, if provided.
   std::string body = GetQuicFlag(FLAGS_body);
   if (!GetQuicFlag(FLAGS_body_hex).empty()) {
-    DCHECK(GetQuicFlag(FLAGS_body).empty())
+    QUICHE_DCHECK(GetQuicFlag(FLAGS_body).empty())
         << "Only set one of --body and --body_hex.";
     body = absl::HexStringToBytes(GetQuicFlag(FLAGS_body_hex));
   }

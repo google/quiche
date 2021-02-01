@@ -12,8 +12,8 @@ QuicAlarm::QuicAlarm(QuicArenaScopedPtr<Delegate> delegate)
 QuicAlarm::~QuicAlarm() {}
 
 void QuicAlarm::Set(QuicTime new_deadline) {
-  DCHECK(!IsSet());
-  DCHECK(new_deadline.IsInitialized());
+  QUICHE_DCHECK(!IsSet());
+  QUICHE_DCHECK(new_deadline.IsInitialized());
   deadline_ = new_deadline;
   SetImpl();
 }

@@ -16,7 +16,7 @@ ParsedQuicVersionVector MasqueSupportedVersions() {
       break;
     }
   }
-  CHECK(version.IsKnown());
+  QUICHE_CHECK(version.IsKnown());
   QuicEnableVersion(version);
   return {version};
 }

@@ -23,7 +23,7 @@ void QpackReceiveStream::OnStreamReset(const QuicRstStreamFrame& /*frame*/) {
 void QpackReceiveStream::OnDataAvailable() {
   iovec iov;
   while (!reading_stopped() && sequencer()->GetReadableRegion(&iov)) {
-    DCHECK(!sequencer()->IsClosed());
+    QUICHE_DCHECK(!sequencer()->IsClosed());
 
     receiver_->Decode(absl::string_view(
         reinterpret_cast<const char*>(iov.iov_base), iov.iov_len));

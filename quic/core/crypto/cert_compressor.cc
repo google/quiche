@@ -308,7 +308,7 @@ std::string ZlibDictForEntries(const std::vector<CertEntry>& entries,
   zlib_dict += std::string(reinterpret_cast<const char*>(kCommonCertSubstrings),
                            sizeof(kCommonCertSubstrings));
 
-  DCHECK_EQ(zlib_dict.size(), zlib_dict_size);
+  QUICHE_DCHECK_EQ(zlib_dict.size(), zlib_dict_size);
 
   return zlib_dict;
 }
@@ -456,7 +456,7 @@ std::string CertCompressor::CompressChain(
     const CommonCertSets* common_sets) {
   const std::vector<CertEntry> entries = MatchCerts(
       certs, client_common_set_hashes, client_cached_cert_hashes, common_sets);
-  DCHECK_EQ(entries.size(), certs.size());
+  QUICHE_DCHECK_EQ(entries.size(), certs.size());
 
   size_t uncompressed_size = 0;
   for (size_t i = 0; i < entries.size(); i++) {
@@ -472,7 +472,7 @@ std::string CertCompressor::CompressChain(
   if (uncompressed_size > 0) {
     memset(&z, 0, sizeof(z));
     int rv = deflateInit(&z, Z_DEFAULT_COMPRESSION);
-    DCHECK_EQ(Z_OK, rv);
+    QUICHE_DCHECK_EQ(Z_OK, rv);
     if (rv != Z_OK) {
       return "";
     }
@@ -482,7 +482,7 @@ std::string CertCompressor::CompressChain(
 
     rv = deflateSetDictionary(
         &z, reinterpret_cast<const uint8_t*>(&zlib_dict[0]), zlib_dict.size());
-    DCHECK_EQ(Z_OK, rv);
+    QUICHE_DCHECK_EQ(Z_OK, rv);
     if (rv != Z_OK) {
       return "";
     }
@@ -522,8 +522,8 @@ std::string CertCompressor::CompressChain(
     z.next_in = reinterpret_cast<uint8_t*>(&length32);
     z.avail_in = sizeof(length32);
     rv = deflate(&z, Z_NO_FLUSH);
-    DCHECK_EQ(Z_OK, rv);
-    DCHECK_EQ(0u, z.avail_in);
+    QUICHE_DCHECK_EQ(Z_OK, rv);
+    QUICHE_DCHECK_EQ(0u, z.avail_in);
     if (rv != Z_OK || z.avail_in) {
       return "";
     }
@@ -532,8 +532,8 @@ std::string CertCompressor::CompressChain(
         const_cast<uint8_t*>(reinterpret_cast<const uint8_t*>(certs[i].data()));
     z.avail_in = certs[i].size();
     rv = deflate(&z, Z_NO_FLUSH);
-    DCHECK_EQ(Z_OK, rv);
-    DCHECK_EQ(0u, z.avail_in);
+    QUICHE_DCHECK_EQ(Z_OK, rv);
+    QUICHE_DCHECK_EQ(0u, z.avail_in);
     if (rv != Z_OK || z.avail_in) {
       return "";
     }
@@ -541,7 +541,7 @@ std::string CertCompressor::CompressChain(
 
   z.avail_in = 0;
   rv = deflate(&z, Z_FINISH);
-  DCHECK_EQ(Z_STREAM_END, rv);
+  QUICHE_DCHECK_EQ(Z_STREAM_END, rv);
   if (rv != Z_STREAM_END) {
     return "";
   }
@@ -560,7 +560,7 @@ bool CertCompressor::DecompressChain(
   if (!ParseEntries(&in, cached_certs, common_sets, &entries, out_certs)) {
     return false;
   }
-  DCHECK_EQ(entries.size(), out_certs->size());
+  QUICHE_DCHECK_EQ(entries.size(), out_certs->size());
 
   std::unique_ptr<uint8_t[]> uncompressed_data;
   absl::string_view uncompressed;

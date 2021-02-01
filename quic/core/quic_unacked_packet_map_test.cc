@@ -136,7 +136,7 @@ class QuicUnackedPacketMapTest : public QuicTestWithParam<Perspective> {
   void RetransmitAndSendPacket(uint64_t old_packet_number,
                                uint64_t new_packet_number,
                                TransmissionType transmission_type) {
-    DCHECK(unacked_packets_.HasRetransmittableFrames(
+    QUICHE_DCHECK(unacked_packets_.HasRetransmittableFrames(
         QuicPacketNumber(old_packet_number)));
     QuicTransmissionInfo* info = unacked_packets_.GetMutableTransmissionInfo(
         QuicPacketNumber(old_packet_number));

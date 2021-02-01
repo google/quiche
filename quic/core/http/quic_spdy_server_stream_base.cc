@@ -25,7 +25,7 @@ void QuicSpdyServerStreamBase::CloseWriteSide() {
       !rst_sent()) {
     // Early cancel the stream if it has stopped reading before receiving FIN
     // or RST.
-    DCHECK(fin_sent() || !session()->connection()->connected());
+    QUICHE_DCHECK(fin_sent() || !session()->connection()->connected());
     // Tell the peer to stop sending further data.
     QUIC_DVLOG(1) << " Server: Send QUIC_STREAM_NO_ERROR on stream " << id();
     if (session()->split_up_send_rst()) {
@@ -41,7 +41,7 @@ void QuicSpdyServerStreamBase::CloseWriteSide() {
 void QuicSpdyServerStreamBase::StopReading() {
   if (!fin_received() && !rst_received() && write_side_closed() &&
       !rst_sent()) {
-    DCHECK(fin_sent());
+    QUICHE_DCHECK(fin_sent());
     // Tell the peer to stop sending further data.
     QUIC_DVLOG(1) << " Server: Send QUIC_STREAM_NO_ERROR on stream " << id();
     if (session()->split_up_send_rst()) {

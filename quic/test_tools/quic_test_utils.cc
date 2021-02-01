@@ -71,7 +71,7 @@ QuicConnectionId TestConnectionIdNineBytesLong(uint64_t connection_number) {
 }
 
 uint64_t TestConnectionIdToUInt64(QuicConnectionId connection_id) {
-  DCHECK_EQ(connection_id.length(), kQuicDefaultConnectionIdLength);
+  QUICHE_DCHECK_EQ(connection_id.length(), kQuicDefaultConnectionIdLength);
   uint64_t connection_id64_net = 0;
   memcpy(&connection_id64_net, connection_id.data(),
          std::min<size_t>(static_cast<size_t>(connection_id.length()),
@@ -97,13 +97,13 @@ QuicServerId TestServerId() {
 }
 
 QuicAckFrame InitAckFrame(const std::vector<QuicAckBlock>& ack_blocks) {
-  DCHECK_GT(ack_blocks.size(), 0u);
+  QUICHE_DCHECK_GT(ack_blocks.size(), 0u);
 
   QuicAckFrame ack;
   QuicPacketNumber end_of_previous_block(1);
   for (const QuicAckBlock& block : ack_blocks) {
-    DCHECK_GE(block.start, end_of_previous_block);
-    DCHECK_GT(block.limit, block.start);
+    QUICHE_DCHECK_GE(block.start, end_of_previous_block);
+    QUICHE_DCHECK_GT(block.limit, block.start);
     ack.packets.AddRange(block.start, block.limit);
     end_of_previous_block = block.limit;
   }
@@ -170,13 +170,13 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
       framer->GetMaxPlaintextSize(kMaxOutgoingPacketSize);
   size_t packet_size = GetPacketHeaderSize(framer->transport_version(), header);
   for (size_t i = 0; i < frames.size(); ++i) {
-    DCHECK_LE(packet_size, max_plaintext_size);
+    QUICHE_DCHECK_LE(packet_size, max_plaintext_size);
     bool first_frame = i == 0;
     bool last_frame = i == frames.size() - 1;
     const size_t frame_size = framer->GetSerializedFrameLength(
         frames[i], max_plaintext_size - packet_size, first_frame, last_frame,
         header.packet_number_length);
-    DCHECK(frame_size);
+    QUICHE_DCHECK(frame_size);
     packet_size += frame_size;
   }
   return BuildUnsizedDataPacket(framer, header, frames, packet_size);
@@ -191,7 +191,7 @@ std::unique_ptr<QuicPacket> BuildUnsizedDataPacket(
   EncryptionLevel level = HeaderToEncryptionLevel(header);
   size_t length =
       framer->BuildDataPacket(header, frames, buffer, packet_size, level);
-  DCHECK_NE(0u, length);
+  QUICHE_DCHECK_NE(0u, length);
   // Re-construct the data packet with data ownership.
   return std::make_unique<QuicPacket>(
       buffer, length, /* owns_buffer */ true,
@@ -638,11 +638,11 @@ QuicConsumedData MockQuicSession::ConsumeData(
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);
-    DCHECK(stream);
+    QUICHE_DCHECK(stream);
     QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
     stream->WriteStreamData(offset, write_length, &writer);
   } else {
-    DCHECK(state != NO_FIN);
+    QUICHE_DCHECK(state != NO_FIN);
   }
   return QuicConsumedData(write_length, state != NO_FIN);
 }
@@ -727,11 +727,11 @@ QuicConsumedData MockQuicSpdySession::ConsumeData(
   if (write_length > 0) {
     auto buf = std::make_unique<char[]>(write_length);
     QuicStream* stream = GetOrCreateStream(id);
-    DCHECK(stream);
+    QUICHE_DCHECK(stream);
     QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
     stream->WriteStreamData(offset, write_length, &writer);
   } else {
-    DCHECK(state != NO_FIN);
+    QUICHE_DCHECK(state != NO_FIN);
   }
   return QuicConsumedData(write_length, state != NO_FIN);
 }
@@ -1208,10 +1208,10 @@ void CreateClientSessionForTest(
     QuicCryptoClientConfig* crypto_client_config,
     PacketSavingConnection** client_connection,
     TestQuicSpdyClientSession** client_session) {
-  CHECK(crypto_client_config);
-  CHECK(client_connection);
-  CHECK(client_session);
-  CHECK(!connection_start_time.IsZero())
+  QUICHE_CHECK(crypto_client_config);
+  QUICHE_CHECK(client_connection);
+  QUICHE_CHECK(client_session);
+  QUICHE_CHECK(!connection_start_time.IsZero())
       << "Connections must start at non-zero times, otherwise the "
       << "strike-register will be unhappy.";
 
@@ -1234,10 +1234,10 @@ void CreateServerSessionForTest(
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
     TestQuicSpdyServerSession** server_session) {
-  CHECK(server_crypto_config);
-  CHECK(server_connection);
-  CHECK(server_session);
-  CHECK(!connection_start_time.IsZero())
+  QUICHE_CHECK(server_crypto_config);
+  QUICHE_CHECK(server_connection);
+  QUICHE_CHECK(server_session);
+  QUICHE_CHECK(!connection_start_time.IsZero())
       << "Connections must start at non-zero times, otherwise the "
       << "strike-register will be unhappy.";
 

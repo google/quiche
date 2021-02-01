@@ -20,7 +20,7 @@ namespace quic {
 QuicPacketReader::QuicPacketReader()
     : read_buffers_(kNumPacketsPerReadMmsgCall),
       read_results_(kNumPacketsPerReadMmsgCall) {
-  DCHECK_EQ(read_buffers_.size(), read_results_.size());
+  QUICHE_DCHECK_EQ(read_buffers_.size(), read_results_.size());
   for (size_t i = 0; i < read_results_.size(); ++i) {
     read_results_[i].packet_buffer.buffer = read_buffers_[i].packet_buffer;
     read_results_[i].packet_buffer.buffer_len =

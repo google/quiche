@@ -99,8 +99,8 @@ QuicPacketLength QuicLegacyVersionEncapsulator::Encapsulate(
   outer_chlo.SetStringPiece(kSNI, sni);
   outer_chlo.SetStringPiece(kQLVE, inner_packet);
   const QuicData& serialized_outer_chlo = outer_chlo.GetSerialized();
-  DCHECK(!LegacyVersionForEncapsulation().UsesCryptoFrames());
-  DCHECK(LegacyVersionForEncapsulation().UsesQuicCrypto());
+  QUICHE_DCHECK(!LegacyVersionForEncapsulation().UsesCryptoFrames());
+  QUICHE_DCHECK(LegacyVersionForEncapsulation().UsesQuicCrypto());
   QuicStreamFrame outer_stream_frame(
       QuicUtils::GetCryptoStreamId(
           LegacyVersionForEncapsulation().transport_version),

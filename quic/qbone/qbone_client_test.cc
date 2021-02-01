@@ -128,7 +128,7 @@ class QuicQboneDispatcher : public QuicDispatcher {
       const QuicSocketAddress& peer_address,
       absl::string_view alpn,
       const quic::ParsedQuicVersion& version) override {
-    CHECK_EQ(alpn, "qbone");
+    QUICHE_CHECK_EQ(alpn, "qbone");
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
         /* owns_writer= */ false, Perspective::IS_SERVER,

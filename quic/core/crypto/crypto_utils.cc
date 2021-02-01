@@ -504,7 +504,7 @@ bool CryptoUtils::DeriveKeys(const ParsedQuicVersion& version,
       break;
     }
     default:
-      DCHECK(false);
+      QUICHE_DCHECK(false);
   }
 
   if (subkey_secret != nullptr) {
@@ -552,7 +552,7 @@ QuicErrorCode CryptoUtils::ValidateServerHello(
     const CryptoHandshakeMessage& server_hello,
     const ParsedQuicVersionVector& negotiated_versions,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   if (server_hello.tag() != kSHLO) {
     *error_details = "Bad tag";

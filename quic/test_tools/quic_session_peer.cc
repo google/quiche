@@ -53,7 +53,7 @@ void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
@@ -63,7 +63,7 @@ void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
 void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
@@ -84,7 +84,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
 void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
@@ -94,7 +94,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
 void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
     QuicSession* session,
     uint32_t max_streams) {
-  DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(

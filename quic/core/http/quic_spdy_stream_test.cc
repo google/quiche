@@ -479,7 +479,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     // Even though integers can be encoded with different lengths,
     // QuicDataWriter is expected to produce an encoding in Write*() of length
     // promised in GetVarInt62Len().
-    DCHECK_EQ(length, writer.length());
+    QUICHE_DCHECK_EQ(length, writer.length());
 
     return frame;
   }

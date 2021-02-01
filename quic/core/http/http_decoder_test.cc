@@ -177,7 +177,7 @@ class HttpDecoderTest : public QuicTest {
     QuicByteCount processed_bytes = ProcessInput(input_with_garbage_appended);
 
     // Guaranteed by HttpDecoder::ProcessInput() contract.
-    DCHECK_LE(processed_bytes, input_with_garbage_appended.size());
+    QUICHE_DCHECK_LE(processed_bytes, input_with_garbage_appended.size());
 
     // Caller should set up visitor to pause decoding
     // before HttpDecoder would read garbage.

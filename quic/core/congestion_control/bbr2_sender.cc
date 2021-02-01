@@ -90,7 +90,7 @@ Bbr2Sender::Bbr2Sender(QuicTime now,
   QUIC_DVLOG(2) << this << " Initializing Bbr2Sender. mode:" << mode_
                 << ", PacingRate:" << pacing_rate_ << ", Cwnd:" << cwnd_
                 << ", CwndLimits:" << cwnd_limits() << "  @ " << now;
-  DCHECK_EQ(mode_, Bbr2Mode::STARTUP);
+  QUICHE_DCHECK_EQ(mode_, Bbr2Mode::STARTUP);
 }
 
 void Bbr2Sender::SetFromConfig(const QuicConfig& config,

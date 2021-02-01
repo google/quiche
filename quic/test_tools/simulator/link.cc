@@ -35,7 +35,7 @@ OneWayLink::QueuedPacket::QueuedPacket(QueuedPacket&& other) = default;
 OneWayLink::QueuedPacket::~QueuedPacket() {}
 
 void OneWayLink::AcceptPacket(std::unique_ptr<Packet> packet) {
-  DCHECK(TimeUntilAvailable().IsZero());
+  QUICHE_DCHECK(TimeUntilAvailable().IsZero());
   QuicTime::Delta transfer_time = bandwidth_.TransferTime(packet->size);
   next_write_at_ = clock_->Now() + transfer_time;
 
@@ -60,8 +60,8 @@ QuicTime::Delta OneWayLink::TimeUntilAvailable() {
 }
 
 void OneWayLink::Act() {
-  DCHECK(!packets_in_transit_.empty());
-  DCHECK(packets_in_transit_.front().dequeue_time >= clock_->Now());
+  QUICHE_DCHECK(!packets_in_transit_.empty());
+  QUICHE_DCHECK(packets_in_transit_.front().dequeue_time >= clock_->Now());
 
   sink_->AcceptPacket(std::move(packets_in_transit_.front().packet));
   packets_in_transit_.pop_front();

@@ -89,7 +89,7 @@ void QboneServerSession::SendPacketToClient(absl::string_view packet) {
 }
 
 void QboneServerSession::SendPacketToNetwork(absl::string_view packet) {
-  DCHECK(writer_ != nullptr);
+  QUICHE_DCHECK(writer_ != nullptr);
   writer_->WritePacketToNetwork(packet.data(), packet.size());
 }
 

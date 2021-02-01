@@ -126,8 +126,8 @@ void QuicCryptoServerStream::OnHandshakeMessage(
       CryptoUtils::HashHandshakeMessage(message, Perspective::IS_SERVER);
 
   std::unique_ptr<ValidateCallback> cb(new ValidateCallback(this));
-  DCHECK(validate_client_hello_cb_ == nullptr);
-  DCHECK(process_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(validate_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(process_client_hello_cb_ == nullptr);
   validate_client_hello_cb_ = cb.get();
   crypto_config_->ValidateClientHello(
       message, GetClientAddress(), session()->connection()->self_address(),
@@ -140,8 +140,8 @@ void QuicCryptoServerStream::FinishProcessingHandshakeMessage(
         result,
     std::unique_ptr<ProofSource::Details> details) {
   // Clear the callback that got us here.
-  DCHECK(validate_client_hello_cb_ != nullptr);
-  DCHECK(process_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(validate_client_hello_cb_ != nullptr);
+  QUICHE_DCHECK(process_client_hello_cb_ == nullptr);
   validate_client_hello_cb_ = nullptr;
 
   std::unique_ptr<ProcessClientHelloCallback> cb(
@@ -159,8 +159,8 @@ void QuicCryptoServerStream::
         std::unique_ptr<DiversificationNonce> diversification_nonce,
         std::unique_ptr<ProofSource::Details> proof_source_details) {
   // Clear the callback that got us here.
-  DCHECK(process_client_hello_cb_ != nullptr);
-  DCHECK(validate_client_hello_cb_ == nullptr);
+  QUICHE_DCHECK(process_client_hello_cb_ != nullptr);
+  QUICHE_DCHECK(validate_client_hello_cb_ == nullptr);
   process_client_hello_cb_ = nullptr;
   proof_source_details_ = std::move(proof_source_details);
 
@@ -276,7 +276,7 @@ void QuicCryptoServerStream::FinishSendServerConfigUpdate(
     bool ok,
     const CryptoHandshakeMessage& message) {
   // Clear the callback that got us here.
-  DCHECK(send_server_config_update_cb_ != nullptr);
+  QUICHE_DCHECK(send_server_config_update_cb_ != nullptr);
   send_server_config_update_cb_ = nullptr;
 
   if (!ok) {
@@ -337,21 +337,21 @@ void QuicCryptoServerStream::OnPacketDecrypted(EncryptionLevel level) {
 }
 
 void QuicCryptoServerStream::OnHandshakeDoneReceived() {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 void QuicCryptoServerStream::OnNewTokenReceived(absl::string_view /*token*/) {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 std::string QuicCryptoServerStream::GetAddressToken() const {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return "";
 }
 
 bool QuicCryptoServerStream::ValidateAddressToken(
     absl::string_view /*token*/) const {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return false;
 }
 
@@ -428,14 +428,14 @@ bool QuicCryptoServerStream::KeyUpdateSupportedLocally() const {
 std::unique_ptr<QuicDecrypter>
 QuicCryptoServerStream::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   // Key update is only defined in QUIC+TLS.
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 
 std::unique_ptr<QuicEncrypter>
 QuicCryptoServerStream::CreateCurrentOneRttEncrypter() {
   // Key update is only defined in QUIC+TLS.
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 

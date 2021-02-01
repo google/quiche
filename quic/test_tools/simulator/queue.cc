@@ -59,9 +59,9 @@ void Queue::AcceptPacket(std::unique_ptr<Packet> packet) {
 }
 
 void Queue::Act() {
-  DCHECK(!queue_.empty());
+  QUICHE_DCHECK(!queue_.empty());
   if (tx_port_->TimeUntilAvailable().IsZero()) {
-    DCHECK(bytes_queued_ >= queue_.front().packet->size);
+    QUICHE_DCHECK(bytes_queued_ >= queue_.front().packet->size);
     bytes_queued_ -= queue_.front().packet->size;
 
     tx_port_->AcceptPacket(std::move(queue_.front().packet));
@@ -76,10 +76,10 @@ void Queue::Act() {
 
 void Queue::EnableAggregation(QuicByteCount aggregation_threshold,
                               QuicTime::Delta aggregation_timeout) {
-  DCHECK_EQ(bytes_queued_, 0u);
-  DCHECK_GT(aggregation_threshold, 0u);
-  DCHECK(!aggregation_timeout.IsZero());
-  DCHECK(!aggregation_timeout.IsInfinite());
+  QUICHE_DCHECK_EQ(bytes_queued_, 0u);
+  QUICHE_DCHECK_GT(aggregation_threshold, 0u);
+  QUICHE_DCHECK(!aggregation_timeout.IsZero());
+  QUICHE_DCHECK(!aggregation_timeout.IsInfinite());
 
   aggregation_threshold_ = aggregation_threshold;
   aggregation_timeout_ = aggregation_timeout;
@@ -109,7 +109,7 @@ void Queue::NextBundle() {
 
 void Queue::ScheduleNextPacketDequeue() {
   if (queue_.empty()) {
-    DCHECK_EQ(bytes_queued_, 0u);
+    QUICHE_DCHECK_EQ(bytes_queued_, 0u);
     return;
   }
 

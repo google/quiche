@@ -63,7 +63,7 @@ QuicDatagramFlowId MasqueCompressionEngine::FindOrCreateCompressionContext(
     }
 
     flow_id = kv.first;
-    DCHECK_NE(flow_id, kFlowId0);
+    QUICHE_DCHECK_NE(flow_id, kFlowId0);
     *validated = context.validated;
     QUIC_DVLOG(1) << "Compressing using " << (*validated ? "" : "un")
                   << "validated flow_id " << flow_id << " to "
@@ -133,9 +133,9 @@ bool MasqueCompressionEngine::WriteCompressedPacketToSlice(
       return false;
     }
     QuicIpAddress peer_ip = server_address.host();
-    DCHECK(peer_ip.IsInitialized());
+    QUICHE_DCHECK(peer_ip.IsInitialized());
     std::string peer_ip_bytes = peer_ip.ToPackedString();
-    DCHECK(!peer_ip_bytes.empty());
+    QUICHE_DCHECK(!peer_ip_bytes.empty());
     uint8_t address_id;
     if (peer_ip.address_family() == IpAddressFamily::IP_V6) {
       address_id = MasqueAddressFamilyIPv6;
@@ -229,7 +229,7 @@ void MasqueCompressionEngine::CompressAndSendPacket(
   QUIC_DVLOG(2) << "Compressing client " << client_connection_id << " server "
                 << server_connection_id << "\n"
                 << quiche::QuicheTextUtils::HexDump(packet);
-  DCHECK(server_address.IsInitialized());
+  QUICHE_DCHECK(server_address.IsInitialized());
   if (packet.empty()) {
     QUIC_BUG << "Tried to send empty packet";
     return;

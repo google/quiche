@@ -17,10 +17,10 @@ bool QpackBlockingManager::OnHeaderAcknowledgement(QuicStreamId stream_id) {
     return false;
   }
 
-  DCHECK(!it->second.empty());
+  QUICHE_DCHECK(!it->second.empty());
 
   const IndexSet& indices = it->second.front();
-  DCHECK(!indices.empty());
+  QUICHE_DCHECK(!indices.empty());
 
   const uint64_t required_index_count = RequiredInsertCount(indices);
   if (known_received_count_ < required_index_count) {
@@ -62,7 +62,7 @@ bool QpackBlockingManager::OnInsertCountIncrement(uint64_t increment) {
 
 void QpackBlockingManager::OnHeaderBlockSent(QuicStreamId stream_id,
                                              IndexSet indices) {
-  DCHECK(!indices.empty());
+  QUICHE_DCHECK(!indices.empty());
 
   IncreaseReferenceCounts(indices);
   header_blocks_[stream_id].push_back(std::move(indices));
@@ -145,8 +145,8 @@ void QpackBlockingManager::IncreaseReferenceCounts(const IndexSet& indices) {
 void QpackBlockingManager::DecreaseReferenceCounts(const IndexSet& indices) {
   for (const uint64_t index : indices) {
     auto it = entry_reference_counts_.find(index);
-    DCHECK(it != entry_reference_counts_.end());
-    DCHECK_NE(0u, it->second);
+    QUICHE_DCHECK(it != entry_reference_counts_.end());
+    QUICHE_DCHECK_NE(0u, it->second);
 
     if (it->second == 1) {
       entry_reference_counts_.erase(it);

@@ -223,7 +223,7 @@ bool TlsClientHandshaker::ProcessTransportParameters(
           session()->connection()->version(), Perspective::IS_SERVER,
           param_bytes, param_bytes_len, received_transport_params_.get(),
           &parse_error_details)) {
-    DCHECK(!parse_error_details.empty());
+    QUICHE_DCHECK(!parse_error_details.empty());
     *error_details =
         "Unable to parse server's transport parameters: " + parse_error_details;
     return false;
@@ -256,7 +256,7 @@ bool TlsClientHandshaker::ProcessTransportParameters(
       handshaker_delegate()->ProcessTransportParameters(
           *received_transport_params_, /* is_resumption = */ false,
           error_details) != QUIC_NO_ERROR) {
-    DCHECK(!error_details->empty());
+    QUICHE_DCHECK(!error_details->empty());
     return false;
   }
 
@@ -395,7 +395,7 @@ void TlsClientHandshaker::SetWriteSecret(
 }
 
 void TlsClientHandshaker::OnHandshakeConfirmed() {
-  DCHECK(one_rtt_keys_available());
+  QUICHE_DCHECK(one_rtt_keys_available());
   if (state_ >= HANDSHAKE_CONFIRMED) {
     return;
   }
@@ -457,7 +457,7 @@ void TlsClientHandshaker::FinishHandshake() {
 
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
-    DCHECK(!error_details.empty());
+    QUICHE_DCHECK(!error_details.empty());
     CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
     return;
   }
@@ -528,7 +528,7 @@ bool TlsClientHandshaker::ShouldCloseConnectionOnUnexpectedError(
 
 void TlsClientHandshaker::HandleZeroRttReject() {
   QUIC_LOG(INFO) << "0-RTT handshake attempted but was rejected by the server";
-  DCHECK(session_cache_);
+  QUICHE_DCHECK(session_cache_);
   // Disable encrytion to block outgoing data until 1-RTT keys are available.
   encryption_established_ = false;
   handshaker_delegate()->OnZeroRttRejected(EarlyDataReason());
@@ -569,7 +569,7 @@ void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
 
 void TlsClientHandshaker::SetServerApplicationStateForResumption(
     std::unique_ptr<ApplicationState> application_state) {
-  DCHECK(one_rtt_keys_available());
+  QUICHE_DCHECK(one_rtt_keys_available());
   received_application_state_ = std::move(application_state);
   // At least one tls session is cached before application state is received. So
   // insert now.

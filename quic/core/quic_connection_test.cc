@@ -105,10 +105,10 @@ QuicLongHeaderType EncryptionlevelToLongHeaderType(EncryptionLevel level) {
     case ENCRYPTION_ZERO_RTT:
       return ZERO_RTT_PROTECTED;
     case ENCRYPTION_FORWARD_SECURE:
-      DCHECK(false);
+      QUICHE_DCHECK(false);
       return INVALID_PACKET_TYPE;
     default:
-      DCHECK(false);
+      QUICHE_DCHECK(false);
       return INVALID_PACKET_TYPE;
   }
 }
@@ -295,7 +295,7 @@ class TestConnection : public QuicConnection {
                                               QuicStreamOffset offset,
                                               StreamSendingState state) {
     ScopedPacketFlusher flusher(this);
-    DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
+    QUICHE_DCHECK(encryption_level >= ENCRYPTION_ZERO_RTT);
     SetEncrypter(encryption_level, std::make_unique<TaggingEncrypter>(0x01));
     SetDefaultEncryptionLevel(encryption_level);
     struct iovec iov;
@@ -474,7 +474,7 @@ class TestConnection : public QuicConnection {
   }
 
   void PathDegradingTimeout() {
-    DCHECK(PathDegradingDetectionInProgress());
+    QUICHE_DCHECK(PathDegradingDetectionInProgress());
     GetBlackholeDetectorAlarm()->Fire();
   }
 
@@ -511,8 +511,8 @@ class TestConnection : public QuicConnection {
     if (QuicConnectionPeer::GetSentPacketManager(this)->pto_enabled()) {
       // PTO mode is default enabled for T099. And TLP/RTO related tests are
       // stale.
-      DCHECK(PROTOCOL_TLS1_3 == version().handshake_protocol ||
-             GetQuicReloadableFlag(quic_default_on_pto));
+      QUICHE_DCHECK(PROTOCOL_TLS1_3 == version().handshake_protocol ||
+                    GetQuicReloadableFlag(quic_default_on_pto));
       return true;
     }
     return false;
@@ -799,7 +799,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                         QuicSocketAddress self_address,
                                         QuicSocketAddress peer_address,
                                         EncryptionLevel level) {
-    DCHECK(peer_framer_.HasEncrypterOfEncryptionLevel(level));
+    QUICHE_DCHECK(peer_framer_.HasEncrypterOfEncryptionLevel(level));
     peer_creator_.set_encryption_level(level);
     QuicPacketCreatorPeer::SetSendVersionInPacket(
         &peer_creator_,
@@ -835,14 +835,14 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     size_t length = peer_framer_.BuildDataPacket(
         header, frames, encrypted_buffer, kMaxOutgoingPacketSize,
         ENCRYPTION_INITIAL);
-    DCHECK_GT(length, 0u);
+    QUICHE_DCHECK_GT(length, 0u);
 
     const size_t encrypted_length = peer_framer_.EncryptInPlace(
         ENCRYPTION_INITIAL, header.packet_number,
         GetStartOfEncryptedData(peer_framer_.version().transport_version,
                                 header),
         length, kMaxOutgoingPacketSize, encrypted_buffer);
-    DCHECK_GT(encrypted_length, 0u);
+    QUICHE_DCHECK_GT(encrypted_length, 0u);
 
     connection_.ProcessUdpPacket(
         kSelfAddress, kPeerAddress,
@@ -941,7 +941,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       size_t encrypted_length = peer_framer_.EncryptPayload(
           packet.level, QuicPacketNumber(packet.packet_number),
           *constructed_packet, buffer, kMaxOutgoingPacketSize);
-      DCHECK_LE(coalesced_size + encrypted_length, kMaxOutgoingPacketSize);
+      QUICHE_DCHECK_LE(coalesced_size + encrypted_length,
+                       kMaxOutgoingPacketSize);
       memcpy(coalesced_buffer + coalesced_size, buffer, encrypted_length);
       coalesced_size += encrypted_length;
     }

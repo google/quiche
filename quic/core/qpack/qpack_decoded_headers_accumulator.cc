@@ -29,7 +29,7 @@ QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
 
 void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
                                                      absl::string_view value) {
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!error_detected_);
 
   uncompressed_header_bytes_without_overhead_ += name.size() + value.size();
 
@@ -49,8 +49,8 @@ void QpackDecodedHeadersAccumulator::OnHeaderDecoded(absl::string_view name,
 }
 
 void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
-  DCHECK(!headers_decoded_);
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!headers_decoded_);
+  QUICHE_DCHECK(!error_detected_);
 
   headers_decoded_ = true;
 
@@ -64,8 +64,8 @@ void QpackDecodedHeadersAccumulator::OnDecodingCompleted() {
 
 void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
     absl::string_view error_message) {
-  DCHECK(!error_detected_);
-  DCHECK(!headers_decoded_);
+  QUICHE_DCHECK(!error_detected_);
+  QUICHE_DCHECK(!headers_decoded_);
 
   error_detected_ = true;
   // Might destroy |this|.
@@ -73,7 +73,7 @@ void QpackDecodedHeadersAccumulator::OnDecodingErrorDetected(
 }
 
 void QpackDecodedHeadersAccumulator::Decode(absl::string_view data) {
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!error_detected_);
 
   compressed_header_bytes_ += data.size();
   // Might destroy |this|.
@@ -81,8 +81,8 @@ void QpackDecodedHeadersAccumulator::Decode(absl::string_view data) {
 }
 
 void QpackDecodedHeadersAccumulator::EndHeaderBlock() {
-  DCHECK(!error_detected_);
-  DCHECK(!headers_decoded_);
+  QUICHE_DCHECK(!error_detected_);
+  QUICHE_DCHECK(!headers_decoded_);
 
   // Might destroy |this|.
   decoder_->EndHeaderBlock();

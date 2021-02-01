@@ -43,7 +43,7 @@ QuicHKDF::QuicHKDF(absl::string_view secret,
       2 * client_key_bytes_to_generate + client_iv_bytes_to_generate +
       2 * server_key_bytes_to_generate + server_iv_bytes_to_generate +
       subkey_secret_bytes_to_generate;
-  DCHECK_LT(material_length, kMaxKeyMaterialSize);
+  QUICHE_DCHECK_LT(material_length, kMaxKeyMaterialSize);
 
   output_.resize(material_length);
   // On Windows, when the size of output_ is zero, dereference of 0'th element

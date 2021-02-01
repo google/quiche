@@ -37,7 +37,7 @@ QuicByteCount GetTotalLength(QuicByteCount payload_length, HttpFrameType type) {
 QuicByteCount HttpEncoder::SerializeDataFrameHeader(
     QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
-  DCHECK_NE(0u, payload_length);
+  QUICHE_DCHECK_NE(0u, payload_length);
   QuicByteCount header_length = QuicDataWriter::GetVarInt62Len(payload_length) +
                                 QuicDataWriter::GetVarInt62Len(
                                     static_cast<uint64_t>(HttpFrameType::DATA));
@@ -57,7 +57,7 @@ QuicByteCount HttpEncoder::SerializeDataFrameHeader(
 QuicByteCount HttpEncoder::SerializeHeadersFrameHeader(
     QuicByteCount payload_length,
     std::unique_ptr<char[]>* output) {
-  DCHECK_NE(0u, payload_length);
+  QUICHE_DCHECK_NE(0u, payload_length);
   QuicByteCount header_length =
       QuicDataWriter::GetVarInt62Len(payload_length) +
       QuicDataWriter::GetVarInt62Len(

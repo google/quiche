@@ -32,7 +32,7 @@ QuicBufferAllocator* QuicEpollConnectionHelper::GetStreamSendBufferAllocator() {
   if (allocator_type_ == QuicAllocator::BUFFER_POOL) {
     return &stream_buffer_allocator_;
   } else {
-    DCHECK(allocator_type_ == QuicAllocator::SIMPLE);
+    QUICHE_DCHECK(allocator_type_ == QuicAllocator::SIMPLE);
     return &simple_buffer_allocator_;
   }
 }

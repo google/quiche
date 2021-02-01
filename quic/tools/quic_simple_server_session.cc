@@ -35,7 +35,7 @@ QuicSimpleServerSession::QuicSimpleServerSession(
       highest_promised_stream_id_(
           QuicUtils::GetInvalidStreamId(connection->transport_version())),
       quic_simple_server_backend_(quic_simple_server_backend) {
-  DCHECK(quic_simple_server_backend_);
+  QUICHE_DCHECK(quic_simple_server_backend_);
 }
 
 QuicSimpleServerSession::~QuicSimpleServerSession() {
@@ -115,7 +115,7 @@ QuicSpdyStream* QuicSimpleServerSession::CreateIncomingStream(
 
 QuicSimpleServerStream*
 QuicSimpleServerSession::CreateOutgoingBidirectionalStream() {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 
@@ -206,8 +206,8 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
   while (!promised_streams_.empty() &&
          ShouldCreateOutgoingUnidirectionalStream()) {
     PromisedStreamInfo& promised_info = promised_streams_.front();
-    DCHECK_EQ(next_outgoing_unidirectional_stream_id(),
-              promised_info.stream_id);
+    QUICHE_DCHECK_EQ(next_outgoing_unidirectional_stream_id(),
+                     promised_info.stream_id);
 
     if (promised_info.is_cancelled) {
       // This stream has been reset by client. Skip this stream id.
@@ -219,8 +219,8 @@ void QuicSimpleServerSession::HandlePromisedPushRequests() {
     QuicSimpleServerStream* promised_stream =
         static_cast<QuicSimpleServerStream*>(
             CreateOutgoingUnidirectionalStream());
-    DCHECK_NE(promised_stream, nullptr);
-    DCHECK_EQ(promised_info.stream_id, promised_stream->id());
+    QUICHE_DCHECK_NE(promised_stream, nullptr);
+    QUICHE_DCHECK_EQ(promised_info.stream_id, promised_stream->id());
     QUIC_DLOG(INFO) << "created server push stream " << promised_stream->id();
 
     promised_stream->SetPriority(promised_info.precedence);
@@ -245,7 +245,7 @@ void QuicSimpleServerSession::MaybeInitializeHttp3UnidirectionalStreams() {
   size_t previous_static_stream_count = num_static_streams();
   QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams();
   size_t current_static_stream_count = num_static_streams();
-  DCHECK_GE(current_static_stream_count, previous_static_stream_count);
+  QUICHE_DCHECK_GE(current_static_stream_count, previous_static_stream_count);
   highest_promised_stream_id_ +=
       QuicUtils::StreamIdDelta(transport_version()) *
       (current_static_stream_count - previous_static_stream_count);

@@ -125,8 +125,8 @@ class TlsServerHandshakerTestSession : public TestQuicSpdyServerSession {
                                                                  crypto_config);
     }
 
-    CHECK(false) << "Unsupported handshake protocol: "
-                 << connection()->version().handshake_protocol;
+    QUICHE_CHECK(false) << "Unsupported handshake protocol: "
+                        << connection()->version().handshake_protocol;
     return nullptr;
   }
 };
@@ -191,7 +191,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     // strike register worries that we've just overflowed a uint32_t time.
     server_connection_->AdvanceTime(QuicTime::Delta::FromSeconds(100000));
 
-    CHECK(server_session);
+    QUICHE_CHECK(server_session);
     server_session_.reset(server_session);
   }
 
@@ -226,7 +226,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
         helpers_.back().get(), alarm_factories_.back().get(),
         server_crypto_config_.get(), &server_compressed_certs_cache_,
         &server_connection_, &server_session);
-    CHECK(server_session);
+    QUICHE_CHECK(server_session);
     server_session_.reset(server_session);
     server_handshaker_ = nullptr;
     EXPECT_CALL(*server_session_->helper(), CanAcceptClientHello(_, _, _, _, _))
@@ -264,7 +264,7 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
         AlpnForVersion(client_connection_->version());
     ON_CALL(*client_session, GetAlpnsToOffer())
         .WillByDefault(Return(std::vector<std::string>({default_alpn})));
-    CHECK(client_session);
+    QUICHE_CHECK(client_session);
     client_session_.reset(client_session);
     moved_messages_counts_ = {0, 0};
   }
@@ -282,8 +282,8 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
   // Performs a single round of handshake message-exchange between the
   // client and server.
   void AdvanceHandshakeWithFakeClient() {
-    CHECK(server_connection_);
-    CHECK(client_session_ != nullptr);
+    QUICHE_CHECK(server_connection_);
+    QUICHE_CHECK(client_session_ != nullptr);
 
     EXPECT_CALL(*client_session_, OnProofValid(_)).Times(testing::AnyNumber());
     EXPECT_CALL(*client_session_, OnProofVerifyDetailsAvailable(_))

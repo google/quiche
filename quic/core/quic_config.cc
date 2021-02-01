@@ -37,7 +37,7 @@ QuicErrorCode ReadUint32(const CryptoHandshakeMessage& msg,
                          uint32_t default_value,
                          uint32_t* out,
                          std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   QuicErrorCode error = msg.GetUint32(tag, out);
   switch (error) {
     case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
@@ -112,7 +112,7 @@ QuicErrorCode QuicFixedUint32::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   if (tag_ == 0) {
     *error_details =
         "This parameter does not support reading from CryptoHandshakeMessage";
@@ -201,7 +201,7 @@ QuicErrorCode QuicFixedUint62::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   uint32_t receive_value32;
   QuicErrorCode error = peer_hello.GetUint32(tag_, &receive_value32);
   // GetUint32 is guaranteed to always initialize receive_value32.
@@ -269,7 +269,7 @@ QuicErrorCode QuicFixedUint128::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   QuicErrorCode error = peer_hello.GetUint128(tag_, &receive_value_);
   switch (error) {
     case QUIC_CRYPTO_MESSAGE_PARAMETER_NOT_FOUND:
@@ -339,7 +339,7 @@ QuicErrorCode QuicFixedTagVector::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType /*hello_type*/,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
   QuicTagVector values;
   QuicErrorCode error = peer_hello.GetTaglist(tag_, &values);
   switch (error) {
@@ -942,7 +942,7 @@ bool QuicConfig::HasReceivedPreferredAddressConnectionIdAndToken() const {
 
 const std::pair<QuicConnectionId, QuicUint128>&
 QuicConfig::ReceivedPreferredAddressConnectionIdAndToken() const {
-  DCHECK(HasReceivedPreferredAddressConnectionIdAndToken());
+  QUICHE_DCHECK(HasReceivedPreferredAddressConnectionIdAndToken());
   return *preferred_address_connection_id_and_token_;
 }
 
@@ -1092,7 +1092,7 @@ QuicErrorCode QuicConfig::ProcessPeerHello(
     const CryptoHandshakeMessage& peer_hello,
     HelloType hello_type,
     std::string* error_details) {
-  DCHECK(error_details != nullptr);
+  QUICHE_DCHECK(error_details != nullptr);
 
   QuicErrorCode error = QUIC_NO_ERROR;
   if (error == QUIC_NO_ERROR) {

@@ -270,8 +270,8 @@ void QuicControlFrameManager::OnCanWrite() {
 
 bool QuicControlFrameManager::RetransmitControlFrame(const QuicFrame& frame,
                                                      TransmissionType type) {
-  DCHECK(type == PTO_RETRANSMISSION || type == RTO_RETRANSMISSION ||
-         type == TLP_RETRANSMISSION || type == PROBING_RETRANSMISSION);
+  QUICHE_DCHECK(type == PTO_RETRANSMISSION || type == RTO_RETRANSMISSION ||
+                type == TLP_RETRANSMISSION || type == PROBING_RETRANSMISSION);
   QuicControlFrameId id = GetControlFrameId(frame);
   if (id == kInvalidControlFrameId) {
     // Frame does not have a valid control frame ID, ignore it. Returns true

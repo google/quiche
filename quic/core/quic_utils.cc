@@ -244,8 +244,8 @@ void QuicUtils::CopyToBuffer(const struct iovec* iov,
     iov_offset -= iov[iovnum].iov_len;
     ++iovnum;
   }
-  DCHECK_LE(iovnum, iov_count);
-  DCHECK_LE(iov_offset, iov[iovnum].iov_len);
+  QUICHE_DCHECK_LE(iovnum, iov_count);
+  QUICHE_DCHECK_LE(iov_offset, iov[iovnum].iov_len);
   if (iovnum >= iov_count || buffer_length == 0) {
     return;
   }
@@ -397,7 +397,7 @@ bool QuicUtils::IsCryptoStreamId(QuicTransportVersion version,
 
 // static
 QuicStreamId QuicUtils::GetHeadersStreamId(QuicTransportVersion version) {
-  DCHECK(!VersionUsesHttp3(version));
+  QUICHE_DCHECK(!VersionUsesHttp3(version));
   return GetFirstBidirectionalStreamId(version, Perspective::IS_CLIENT);
 }
 
@@ -435,7 +435,7 @@ bool QuicUtils::IsOutgoingStreamId(ParsedQuicVersion version,
 // static
 bool QuicUtils::IsBidirectionalStreamId(QuicStreamId id,
                                         ParsedQuicVersion version) {
-  DCHECK(version.HasIetfQuicFrames());
+  QUICHE_DCHECK(version.HasIetfQuicFrames());
   return id % 4 < 2;
 }
 
@@ -444,26 +444,26 @@ StreamType QuicUtils::GetStreamType(QuicStreamId id,
                                     Perspective perspective,
                                     bool peer_initiated,
                                     ParsedQuicVersion version) {
-  DCHECK(version.HasIetfQuicFrames());
+  QUICHE_DCHECK(version.HasIetfQuicFrames());
   if (IsBidirectionalStreamId(id, version)) {
     return BIDIRECTIONAL;
   }
 
   if (peer_initiated) {
     if (perspective == Perspective::IS_SERVER) {
-      DCHECK_EQ(2u, id % 4);
+      QUICHE_DCHECK_EQ(2u, id % 4);
     } else {
-      DCHECK_EQ(Perspective::IS_CLIENT, perspective);
-      DCHECK_EQ(3u, id % 4);
+      QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective);
+      QUICHE_DCHECK_EQ(3u, id % 4);
     }
     return READ_UNIDIRECTIONAL;
   }
 
   if (perspective == Perspective::IS_SERVER) {
-    DCHECK_EQ(3u, id % 4);
+    QUICHE_DCHECK_EQ(3u, id % 4);
   } else {
-    DCHECK_EQ(Perspective::IS_CLIENT, perspective);
-    DCHECK_EQ(2u, id % 4);
+    QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective);
+    QUICHE_DCHECK_EQ(2u, id % 4);
   }
   return WRITE_UNIDIRECTIONAL;
 }
@@ -665,7 +665,7 @@ EncryptionLevel QuicUtils::GetEncryptionLevel(
     case APPLICATION_DATA:
       return ENCRYPTION_FORWARD_SECURE;
     default:
-      DCHECK(false);
+      QUICHE_DCHECK(false);
       return NUM_ENCRYPTION_LEVELS;
   }
 }

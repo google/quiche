@@ -60,8 +60,8 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
     const QuicSocketAddress& peer_address,
     const PerPacketOptions* options,
     uint64_t release_time) {
-  DCHECK(Invariants());
-  DCHECK_LE(buf_len, kMaxOutgoingPacketSize);
+  QUICHE_DCHECK(Invariants());
+  QUICHE_DCHECK_LE(buf_len, kMaxOutgoingPacketSize);
 
   PushResult result = {/*succeeded=*/false, /*buffer_copied=*/false};
   char* next_write_location = GetNextWriteLocation();
@@ -91,7 +91,7 @@ QuicBatchWriterBuffer::PushResult QuicBatchWriterBuffer::PushBufferedWrite(
       options ? options->Clone() : std::unique_ptr<PerPacketOptions>(),
       release_time);
 
-  DCHECK(Invariants());
+  QUICHE_DCHECK(Invariants());
 
   result.succeeded = true;
   return result;
@@ -105,9 +105,10 @@ void QuicBatchWriterBuffer::UndoLastPush() {
 
 QuicBatchWriterBuffer::PopResult QuicBatchWriterBuffer::PopBufferedWrite(
     int32_t num_buffered_writes) {
-  DCHECK(Invariants());
-  DCHECK_GE(num_buffered_writes, 0);
-  DCHECK_LE(static_cast<size_t>(num_buffered_writes), buffered_writes_.size());
+  QUICHE_DCHECK(Invariants());
+  QUICHE_DCHECK_GE(num_buffered_writes, 0);
+  QUICHE_DCHECK_LE(static_cast<size_t>(num_buffered_writes),
+                   buffered_writes_.size());
 
   PopResult result = {/*num_buffers_popped=*/0,
                       /*moved_remaining_buffers=*/false};
@@ -135,9 +136,9 @@ QuicBatchWriterBuffer::PopResult QuicBatchWriterBuffer::PopBufferedWrite(
       buffered_write.buffer -= distance_to_move;
     }
 
-    DCHECK_EQ(buffer_, buffered_writes_.front().buffer);
+    QUICHE_DCHECK_EQ(buffer_, buffered_writes_.front().buffer);
   }
-  DCHECK(Invariants());
+  QUICHE_DCHECK(Invariants());
 
   return result;
 }

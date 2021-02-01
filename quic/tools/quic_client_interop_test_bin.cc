@@ -378,7 +378,7 @@ std::set<Feature> ServerSupport(std::string dns_host,
       break;
     }
   }
-  CHECK(version.IsKnown());
+  QUICHE_CHECK(version.IsKnown());
   QuicEnableVersion(version);
 
   std::cout << "Attempting interop with version " << version << std::endl;

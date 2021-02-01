@@ -38,7 +38,7 @@ QpackEncoder::QpackEncoder(
       decoder_stream_receiver_(this),
       maximum_blocked_streams_(0),
       header_list_count_(0) {
-  DCHECK(decoder_stream_error_delegate_);
+  QUICHE_DCHECK(decoder_stream_error_delegate_);
 }
 
 QpackEncoder::~QpackEncoder() {}
@@ -275,8 +275,8 @@ QpackEncoder::Instructions QpackEncoder::FirstPassEncode(
 
   const QuicByteCount encoder_stream_buffered_byte_count =
       encoder_stream_sender_.BufferedByteCount();
-  DCHECK_GE(encoder_stream_buffered_byte_count,
-            initial_encoder_stream_buffered_byte_count);
+  QUICHE_DCHECK_GE(encoder_stream_buffered_byte_count,
+                   initial_encoder_stream_buffered_byte_count);
   if (encoder_stream_sent_byte_count) {
     *encoder_stream_sent_byte_count =
         encoder_stream_buffered_byte_count -
@@ -392,7 +392,7 @@ void QpackEncoder::SetDynamicTableCapacity(uint64_t dynamic_table_capacity) {
   // instructions are written.
 
   bool success = header_table_.SetDynamicTableCapacity(dynamic_table_capacity);
-  DCHECK(success);
+  QUICHE_DCHECK(success);
 }
 
 bool QpackEncoder::SetMaximumBlockedStreams(uint64_t maximum_blocked_streams) {

@@ -35,7 +35,7 @@ PacingSender::PacingSender()
 PacingSender::~PacingSender() {}
 
 void PacingSender::set_sender(SendAlgorithmInterface* sender) {
-  DCHECK(sender != nullptr);
+  QUICHE_DCHECK(sender != nullptr);
   sender_ = sender;
 }
 
@@ -44,7 +44,7 @@ void PacingSender::OnCongestionEvent(bool rtt_updated,
                                      QuicTime event_time,
                                      const AckedPacketVector& acked_packets,
                                      const LostPacketVector& lost_packets) {
-  DCHECK(sender_ != nullptr);
+  QUICHE_DCHECK(sender_ != nullptr);
   if (!lost_packets.empty()) {
     // Clear any burst tokens when entering recovery.
     burst_tokens_ = 0;
@@ -59,7 +59,7 @@ void PacingSender::OnPacketSent(
     QuicPacketNumber packet_number,
     QuicByteCount bytes,
     HasRetransmittableData has_retransmittable_data) {
-  DCHECK(sender_ != nullptr);
+  QUICHE_DCHECK(sender_ != nullptr);
   sender_->OnPacketSent(sent_time, bytes_in_flight, packet_number, bytes,
                         has_retransmittable_data);
   if (has_retransmittable_data != HAS_RETRANSMITTABLE_DATA) {
@@ -130,7 +130,7 @@ void PacingSender::SetBurstTokens(uint32_t burst_tokens) {
 QuicTime::Delta PacingSender::TimeUntilSend(
     QuicTime now,
     QuicByteCount bytes_in_flight) const {
-  DCHECK(sender_ != nullptr);
+  QUICHE_DCHECK(sender_ != nullptr);
 
   if (!sender_->CanSend(bytes_in_flight)) {
     // The underlying sender prevents sending.
@@ -158,7 +158,7 @@ QuicTime::Delta PacingSender::TimeUntilSend(
 }
 
 QuicBandwidth PacingSender::PacingRate(QuicByteCount bytes_in_flight) const {
-  DCHECK(sender_ != nullptr);
+  QUICHE_DCHECK(sender_ != nullptr);
   if (!max_pacing_rate_.IsZero()) {
     return QuicBandwidth::FromBitsPerSecond(
         std::min(max_pacing_rate_.ToBitsPerSecond(),

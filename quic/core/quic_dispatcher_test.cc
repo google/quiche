@@ -198,7 +198,7 @@ class MockServerConnection : public MockQuicConnection {
   void RetireConnectionId(QuicConnectionId id) {
     auto it = std::find(active_connection_ids_.begin(),
                         active_connection_ids_.end(), id);
-    DCHECK(it != active_connection_ids_.end());
+    QUICHE_DCHECK(it != active_connection_ids_.end());
     dispatcher_->OnConnectionIdRetired(id);
     active_connection_ids_.erase(it);
   }
@@ -800,9 +800,9 @@ TEST_P(QuicDispatcherTestOneVersion, NoVersionNegotiationWithSmallPacket) {
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
-  DCHECK_LE(1200u, chlo.length());
+  QUICHE_DCHECK_LE(1200u, chlo.length());
   std::string truncated_chlo = chlo.substr(0, 1100);
-  DCHECK_EQ(1100u, truncated_chlo.length());
+  QUICHE_DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true,
                 QuicVersionReservedForNegotiation(), truncated_chlo, false,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);
@@ -824,9 +824,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
   // under 1200 bytes after framing, packet, and encryption overhead.
-  DCHECK_LE(1200u, chlo.length());
+  QUICHE_DCHECK_LE(1200u, chlo.length());
   std::string truncated_chlo = chlo.substr(0, 1100);
-  DCHECK_EQ(1100u, truncated_chlo.length());
+  QUICHE_DCHECK_EQ(1100u, truncated_chlo.length());
   ProcessPacket(client_address, TestConnectionId(1), true,
                 QuicVersionReservedForNegotiation(), truncated_chlo, true,
                 CONNECTION_ID_PRESENT, PACKET_4BYTE_PACKET_NUMBER, 1);

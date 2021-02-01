@@ -45,16 +45,16 @@ bool QuicDataReader::ReadUFloat16(uint64_t* result) {
   // After the fast pass, the exponent is at least one (offset by one).
   // Un-offset the exponent.
   --exponent;
-  DCHECK_GE(exponent, 1);
-  DCHECK_LE(exponent, kUFloat16MaxExponent);
+  QUICHE_DCHECK_GE(exponent, 1);
+  QUICHE_DCHECK_LE(exponent, kUFloat16MaxExponent);
   // Here we need to clear the exponent and set the hidden bit. We have already
   // decremented the exponent, so when we subtract it, it leaves behind the
   // hidden bit.
   *result -= exponent << kUFloat16MantissaBits;
   *result <<= exponent;
-  DCHECK_GE(*result,
-            static_cast<uint64_t>(1 << kUFloat16MantissaEffectiveBits));
-  DCHECK_LE(*result, kUFloat16MaxValue);
+  QUICHE_DCHECK_GE(*result,
+                   static_cast<uint64_t>(1 << kUFloat16MantissaEffectiveBits));
+  QUICHE_DCHECK_LE(*result, kUFloat16MaxValue);
   return true;
 }
 
@@ -72,7 +72,7 @@ bool QuicDataReader::ReadConnectionId(QuicConnectionId* connection_id,
   connection_id->set_length(length);
   const bool ok =
       ReadBytes(connection_id->mutable_data(), connection_id->length());
-  DCHECK(ok);
+  QUICHE_DCHECK(ok);
   return ok;
 }
 
@@ -86,7 +86,7 @@ bool QuicDataReader::ReadLengthPrefixedConnectionId(
 }
 
 QuicVariableLengthIntegerLength QuicDataReader::PeekVarInt62Length() {
-  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
+  QUICHE_DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
   const unsigned char* next =
       reinterpret_cast<const unsigned char*>(data() + pos());
   if (BytesRemaining() == 0) {
@@ -113,7 +113,7 @@ QuicVariableLengthIntegerLength QuicDataReader::PeekVarInt62Length() {
 // Low-level optimization is useful here because this function will be
 // called frequently, leading to outsize benefits.
 bool QuicDataReader::ReadVarInt62(uint64_t* result) {
-  DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
+  QUICHE_DCHECK_EQ(endianness(), quiche::NETWORK_BYTE_ORDER);
 
   size_t remaining = BytesRemaining();
   const unsigned char* next =

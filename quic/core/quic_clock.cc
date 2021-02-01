@@ -38,7 +38,7 @@ QuicTime::Delta QuicClock::ComputeCalibrationOffset() const {
 }
 
 void QuicClock::SetCalibrationOffset(QuicTime::Delta offset) {
-  DCHECK(!is_calibrated_) << "A clock should only be calibrated once";
+  QUICHE_DCHECK(!is_calibrated_) << "A clock should only be calibrated once";
   calibration_offset_ = offset;
   is_calibrated_ = true;
 }

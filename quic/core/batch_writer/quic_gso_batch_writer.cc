@@ -101,7 +101,7 @@ QuicGsoBatchWriter::CanBatchResult QuicGsoBatchWriter::CanBatch(
 
 QuicGsoBatchWriter::ReleaseTime QuicGsoBatchWriter::GetReleaseTime(
     const PerPacketOptions* options) const {
-  DCHECK(SupportsReleaseTime());
+  QUICHE_DCHECK(SupportsReleaseTime());
 
   if (options == nullptr) {
     return {0, QuicTime::Delta::Zero()};

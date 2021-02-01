@@ -19,8 +19,8 @@ WriteResult QuicDefaultPacketWriter::WritePacket(
     const QuicIpAddress& self_address,
     const QuicSocketAddress& peer_address,
     PerPacketOptions* options) {
-  DCHECK(!write_blocked_);
-  DCHECK(nullptr == options)
+  QUICHE_DCHECK(!write_blocked_);
+  QUICHE_DCHECK(nullptr == options)
       << "QuicDefaultPacketWriter does not accept any options.";
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(peer_address);

@@ -110,7 +110,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
     undecryptable_packets_.back().second.ietf_quic = ietf_quic;
     undecryptable_packets_.back().second.version = version;
   }
-  CHECK(QuicContainsKey(undecryptable_packets_, connection_id));
+  QUICHE_CHECK(QuicContainsKey(undecryptable_packets_, connection_id));
   BufferedPacketList& queue =
       undecryptable_packets_.find(connection_id)->second;
 
@@ -243,7 +243,7 @@ BufferedPacketList QuicBufferedPacketStore::DeliverPacketsForNextConnection(
   connections_with_chlo_.pop_front();
 
   BufferedPacketList packets = DeliverPackets(*connection_id);
-  DCHECK(!packets.buffered_packets.empty())
+  QUICHE_DCHECK(!packets.buffered_packets.empty())
       << "Try to deliver connectons without CHLO";
   return packets;
 }
@@ -258,8 +258,8 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     const ParsedQuicVersion& version,
     const QuicReceivedPacket& packet,
     std::vector<std::string>* out_alpns) {
-  DCHECK_NE(out_alpns, nullptr);
-  DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+  QUICHE_DCHECK_NE(out_alpns, nullptr);
+  QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
   auto it = undecryptable_packets_.find(connection_id);
   if (it == undecryptable_packets_.end()) {
     QUIC_BUG << "Cannot ingest packet for unknown connection ID "

@@ -36,8 +36,8 @@ class ProofSourceX509Test : public QuicTest {
             CertificatePrivateKey::LoadFromDer(kTestCertificatePrivateKey)),
         wildcard_key_(CertificatePrivateKey::LoadFromDer(
             kWildcardCertificatePrivateKey)) {
-    CHECK(test_key_ != nullptr);
-    CHECK(wildcard_key_ != nullptr);
+    QUICHE_CHECK(test_key_ != nullptr);
+    QUICHE_CHECK(wildcard_key_ != nullptr);
   }
 
  protected:

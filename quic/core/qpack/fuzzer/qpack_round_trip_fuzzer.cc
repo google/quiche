@@ -37,8 +37,8 @@ class EncodingEndpoint {
 
   ~EncodingEndpoint() {
     // Every reference should be acknowledged.
-    CHECK_EQ(std::numeric_limits<uint64_t>::max(),
-             QpackEncoderPeer::smallest_blocking_index(&encoder_));
+    QUICHE_CHECK_EQ(std::numeric_limits<uint64_t>::max(),
+                    QpackEncoderPeer::smallest_blocking_index(&encoder_));
   }
 
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
@@ -67,7 +67,8 @@ class EncodingEndpoint {
 
     void OnDecoderStreamError(QuicErrorCode error_code,
                               absl::string_view error_message) override {
-      CHECK(false) << QuicErrorCodeToString(error_code) << " " << error_message;
+      QUICHE_CHECK(false) << QuicErrorCodeToString(error_code) << " "
+                          << error_message;
     }
   };
 
@@ -102,7 +103,7 @@ class DelayedHeaderBlockTransmitter {
                                 QuicFuzzedDataProvider* provider)
       : visitor_(visitor), provider_(provider) {}
 
-  ~DelayedHeaderBlockTransmitter() { CHECK(header_blocks_.empty()); }
+  ~DelayedHeaderBlockTransmitter() { QUICHE_CHECK(header_blocks_.empty()); }
 
   // Enqueues |encoded_header_block| for delayed transmission.
   void SendEncodedHeaderBlock(QuicStreamId stream_id,
@@ -111,7 +112,7 @@ class DelayedHeaderBlockTransmitter {
     if (it == header_blocks_.end() || it->first != stream_id) {
       it = header_blocks_.insert(it, {stream_id, {}});
     }
-    CHECK_EQ(stream_id, it->first);
+    QUICHE_CHECK_EQ(stream_id, it->first);
     it->second.push(HeaderBlock(std::move(encoded_header_block)));
   }
 
@@ -140,13 +141,13 @@ class DelayedHeaderBlockTransmitter {
       visitor_->OnHeaderBlockStart(stream_id);
     }
 
-    DCHECK_NE(0u, header_block.RemainingLength());
+    QUICHE_DCHECK_NE(0u, header_block.RemainingLength());
 
     size_t length = provider_->ConsumeIntegralInRange<size_t>(
         1, header_block.RemainingLength());
     visitor_->OnHeaderBlockFragment(stream_id, header_block.Consume(length));
 
-    DCHECK_NE(0u, header_block.ConsumedLength());
+    QUICHE_DCHECK_NE(0u, header_block.ConsumedLength());
 
     if (header_block.RemainingLength() == 0) {
       visitor_->OnHeaderBlockEnd(stream_id);
@@ -170,20 +171,20 @@ class DelayedHeaderBlockTransmitter {
       HeaderBlock& header_block = header_block_queue.front();
 
       if (header_block.ConsumedLength() == 0) {
-        CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
+        QUICHE_CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
         visitor_->OnHeaderBlockStart(stream_id);
       }
 
-      DCHECK_NE(0u, header_block.RemainingLength());
+      QUICHE_DCHECK_NE(0u, header_block.RemainingLength());
 
       visitor_->OnHeaderBlockFragment(stream_id,
                                       header_block.ConsumeRemaining());
 
-      DCHECK_NE(0u, header_block.ConsumedLength());
-      DCHECK_EQ(0u, header_block.RemainingLength());
+      QUICHE_DCHECK_NE(0u, header_block.ConsumedLength());
+      QUICHE_DCHECK_EQ(0u, header_block.RemainingLength());
 
       visitor_->OnHeaderBlockEnd(stream_id);
-      CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
+      QUICHE_CHECK(!visitor_->IsDecodingInProgressOnStream(stream_id));
 
       header_block_queue.pop();
       if (header_block_queue.empty()) {
@@ -199,7 +200,7 @@ class DelayedHeaderBlockTransmitter {
     explicit HeaderBlock(std::string data)
         : data_(std::move(data)), offset_(0) {
       // Valid QPACK header block cannot be empty.
-      DCHECK(!data_.empty());
+      QUICHE_DCHECK(!data_.empty());
     }
 
     size_t ConsumedLength() const { return offset_; }
@@ -207,8 +208,8 @@ class DelayedHeaderBlockTransmitter {
     size_t RemainingLength() const { return data_.length() - offset_; }
 
     absl::string_view Consume(size_t length) {
-      DCHECK_NE(0u, length);
-      DCHECK_LE(length, RemainingLength());
+      QUICHE_DCHECK_NE(0u, length);
+      QUICHE_DCHECK_LE(length, RemainingLength());
 
       absl::string_view consumed = absl::string_view(&data_[offset_], length);
       offset_ += length;
@@ -270,15 +271,15 @@ class VerifyingDecoder : public QpackDecodedHeadersAccumulator::Visitor {
   void OnHeadersDecoded(QuicHeaderList headers,
                         bool header_list_size_limit_exceeded) override {
     // Verify headers.
-    CHECK(!header_list_size_limit_exceeded);
-    CHECK(expected_header_list_ == headers);
+    QUICHE_CHECK(!header_list_size_limit_exceeded);
+    QUICHE_CHECK(expected_header_list_ == headers);
 
     // Might destroy |this|.
     visitor_->OnHeaderBlockDecoded(stream_id_);
   }
 
   void OnHeaderDecodingError(absl::string_view error_message) override {
-    CHECK(false) << error_message;
+    QUICHE_CHECK(false) << error_message;
   }
 
   void Decode(absl::string_view data) { accumulator_.Decode(data); }
@@ -306,8 +307,8 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
 
   ~DecodingEndpoint() override {
     // All decoding must have been completed.
-    CHECK(expected_header_lists_.empty());
-    CHECK(verifying_decoders_.empty());
+    QUICHE_CHECK(expected_header_lists_.empty());
+    QUICHE_CHECK(verifying_decoders_.empty());
   }
 
   void set_qpack_stream_sender_delegate(QpackStreamSenderDelegate* delegate) {
@@ -324,14 +325,14 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
     if (it == expected_header_lists_.end() || it->first != stream_id) {
       it = expected_header_lists_.insert(it, {stream_id, {}});
     }
-    CHECK_EQ(stream_id, it->first);
+    QUICHE_CHECK_EQ(stream_id, it->first);
     it->second.push(std::move(expected_header_list));
   }
 
   // VerifyingDecoder::Visitor implementation.
   void OnHeaderBlockDecoded(QuicStreamId stream_id) override {
     auto result = verifying_decoders_.erase(stream_id);
-    CHECK_EQ(1u, result);
+    QUICHE_CHECK_EQ(1u, result);
   }
 
   // DelayedHeaderBlockTransmitter::Visitor implementation.
@@ -340,9 +341,9 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
   }
 
   void OnHeaderBlockStart(QuicStreamId stream_id) override {
-    CHECK(!IsDecodingInProgressOnStream(stream_id));
+    QUICHE_CHECK(!IsDecodingInProgressOnStream(stream_id));
     auto it = expected_header_lists_.find(stream_id);
-    CHECK(it != expected_header_lists_.end());
+    QUICHE_CHECK(it != expected_header_lists_.end());
 
     auto& header_list_queue = it->second;
     QuicHeaderList expected_header_list = std::move(header_list_queue.front());
@@ -356,19 +357,19 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
         stream_id, this, &decoder_, std::move(expected_header_list));
     auto result =
         verifying_decoders_.insert({stream_id, std::move(verifying_decoder)});
-    CHECK(result.second);
+    QUICHE_CHECK(result.second);
   }
 
   void OnHeaderBlockFragment(QuicStreamId stream_id,
                              absl::string_view data) override {
     auto it = verifying_decoders_.find(stream_id);
-    CHECK(it != verifying_decoders_.end());
+    QUICHE_CHECK(it != verifying_decoders_.end());
     it->second->Decode(data);
   }
 
   void OnHeaderBlockEnd(QuicStreamId stream_id) override {
     auto it = verifying_decoders_.find(stream_id);
-    CHECK(it != verifying_decoders_.end());
+    QUICHE_CHECK(it != verifying_decoders_.end());
     it->second->EndHeaderBlock();
   }
 
@@ -381,7 +382,8 @@ class DecodingEndpoint : public DelayedHeaderBlockTransmitter::Visitor,
 
     void OnEncoderStreamError(QuicErrorCode error_code,
                               absl::string_view error_message) override {
-      CHECK(false) << QuicErrorCodeToString(error_code) << " " << error_message;
+      QUICHE_CHECK(false) << QuicErrorCodeToString(error_code) << " "
+                          << error_message;
     }
   };
 
@@ -407,7 +409,7 @@ class DelayedStreamDataTransmitter : public QpackStreamSenderDelegate {
                                QuicFuzzedDataProvider* provider)
       : receiver_(receiver), provider_(provider) {}
 
-  ~DelayedStreamDataTransmitter() { CHECK(stream_data.empty()); }
+  ~DelayedStreamDataTransmitter() { QUICHE_CHECK(stream_data.empty()); }
 
   // QpackStreamSenderDelegate implementation.
   void WriteStreamData(absl::string_view data) override {

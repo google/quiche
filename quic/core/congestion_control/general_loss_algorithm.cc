@@ -79,8 +79,8 @@ LossDetectionInterface::DetectionStats GeneralLossAlgorithm::DetectLosses(
   }
   // Clear least_in_flight_.
   least_in_flight_.Clear();
-  DCHECK_EQ(packet_number_space_,
-            unacked_packets.GetPacketNumberSpace(largest_newly_acked));
+  QUICHE_DCHECK_EQ(packet_number_space_,
+                   unacked_packets.GetPacketNumberSpace(largest_newly_acked));
   for (; it != unacked_packets.end() && packet_number <= largest_newly_acked;
        ++it, ++packet_number) {
     if (unacked_packets.GetPacketNumberSpace(it->encryption_level) !=
@@ -169,7 +169,7 @@ void GeneralLossAlgorithm::SpuriousLossDetected(
   }
 
   if (use_adaptive_reordering_threshold_) {
-    DCHECK_LT(packet_number, previous_largest_acked);
+    QUICHE_DCHECK_LT(packet_number, previous_largest_acked);
     // Increase reordering_threshold_ such that packet_number would not have
     // been declared lost.
     reordering_threshold_ = std::max(

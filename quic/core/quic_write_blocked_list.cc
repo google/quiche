@@ -66,9 +66,9 @@ void QuicWriteBlockedList::RegisterStream(
     QuicStreamId stream_id,
     bool is_static_stream,
     const spdy::SpdyStreamPrecedence& precedence) {
-  DCHECK(!priority_write_scheduler_.StreamRegistered(stream_id))
+  QUICHE_DCHECK(!priority_write_scheduler_.StreamRegistered(stream_id))
       << "stream " << stream_id << " already registered";
-  DCHECK(precedence.is_spdy3_priority());
+  QUICHE_DCHECK(precedence.is_spdy3_priority());
   if (is_static_stream) {
     static_stream_collection_.Register(stream_id);
     return;
@@ -89,8 +89,8 @@ void QuicWriteBlockedList::UnregisterStream(QuicStreamId stream_id,
 void QuicWriteBlockedList::UpdateStreamPriority(
     QuicStreamId stream_id,
     const spdy::SpdyStreamPrecedence& new_precedence) {
-  DCHECK(!static_stream_collection_.IsRegistered(stream_id));
-  DCHECK(new_precedence.is_spdy3_priority());
+  QUICHE_DCHECK(!static_stream_collection_.IsRegistered(stream_id));
+  QUICHE_DCHECK(new_precedence.is_spdy3_priority());
   priority_write_scheduler_.UpdateStreamPrecedence(stream_id, new_precedence);
 }
 
@@ -126,7 +126,7 @@ bool QuicWriteBlockedList::IsStreamBlocked(QuicStreamId stream_id) const {
 }
 
 void QuicWriteBlockedList::StaticStreamCollection::Register(QuicStreamId id) {
-  DCHECK(!IsRegistered(id));
+  QUICHE_DCHECK(!IsRegistered(id));
   streams_.push_back({id, false});
 }
 
@@ -150,7 +150,7 @@ void QuicWriteBlockedList::StaticStreamCollection::Unregister(QuicStreamId id) {
       return;
     }
   }
-  DCHECK(false) << "Erasing a non-exist stream with id " << id;
+  QUICHE_DCHECK(false) << "Erasing a non-exist stream with id " << id;
 }
 
 bool QuicWriteBlockedList::StaticStreamCollection::SetBlocked(QuicStreamId id) {

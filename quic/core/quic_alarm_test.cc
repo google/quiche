@@ -24,7 +24,7 @@ class DestructiveDelegate : public QuicAlarm::Delegate {
   void set_alarm(QuicAlarm* alarm) { alarm_ = alarm; }
 
   void OnAlarm() override {
-    DCHECK(alarm_);
+    QUICHE_DCHECK(alarm_);
     delete alarm_;
   }
 
@@ -46,12 +46,12 @@ class TestAlarm : public QuicAlarm {
 
  protected:
   void SetImpl() override {
-    DCHECK(deadline().IsInitialized());
+    QUICHE_DCHECK(deadline().IsInitialized());
     scheduled_ = true;
   }
 
   void CancelImpl() override {
-    DCHECK(!deadline().IsInitialized());
+    QUICHE_DCHECK(!deadline().IsInitialized());
     scheduled_ = false;
   }
 

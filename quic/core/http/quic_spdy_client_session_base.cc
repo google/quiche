@@ -155,7 +155,7 @@ bool QuicSpdyClientSessionBase::HandlePromised(QuicStreamId /* associated_id */,
   promised_by_id_[promised_id] = std::move(promised_owner);
   bool result = promised->OnPromiseHeaders(headers);
   if (result) {
-    DCHECK(promised_by_id_.find(promised_id) != promised_by_id_.end());
+    QUICHE_DCHECK(promised_by_id_.find(promised_id) != promised_by_id_.end());
   }
   return result;
 }
@@ -206,7 +206,7 @@ void QuicSpdyClientSessionBase::OnPushStreamTimedOut(
 void QuicSpdyClientSessionBase::ResetPromised(
     QuicStreamId id,
     QuicRstStreamErrorCode error_code) {
-  DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
+  QUICHE_DCHECK(QuicUtils::IsServerInitiatedStreamId(transport_version(), id));
   ResetStream(id, error_code);
   if (!IsOpenStream(id) && !IsClosedStream(id)) {
     MaybeIncreaseLargestPeerStreamId(id);

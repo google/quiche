@@ -153,7 +153,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
               largest_sent_packet_ >= packet_number)
       << "largest_sent_packet_: " << largest_sent_packet_
       << ", packet_number: " << packet_number;
-  DCHECK_GE(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_GE(packet_number, least_unacked_ + unacked_packets_size());
   while (least_unacked_ + unacked_packets_size() < packet_number) {
     unacked_packets_push_back(QuicTransmissionInfo());
     unacked_packets_back().state = NEVER_SENT;
@@ -207,8 +207,8 @@ void QuicUnackedPacketMap::RemoveObsoletePackets() {
 
 bool QuicUnackedPacketMap::HasRetransmittableFrames(
     QuicPacketNumber packet_number) const {
-  DCHECK_GE(packet_number, least_unacked_);
-  DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_GE(packet_number, least_unacked_);
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
   return HasRetransmittableFrames(
       unacked_packets_at(packet_number - least_unacked_));
 }
@@ -235,8 +235,8 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
 
 void QuicUnackedPacketMap::RemoveRetransmittability(
     QuicPacketNumber packet_number) {
-  DCHECK_GE(packet_number, least_unacked_);
-  DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_GE(packet_number, least_unacked_);
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
   QuicTransmissionInfo* info =
       &unacked_packets_at(packet_number - least_unacked_);
   RemoveRetransmittability(info);
@@ -244,7 +244,8 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
 
 void QuicUnackedPacketMap::IncreaseLargestAcked(
     QuicPacketNumber largest_acked) {
-  DCHECK(!largest_acked_.IsInitialized() || largest_acked_ <= largest_acked);
+  QUICHE_DCHECK(!largest_acked_.IsInitialized() ||
+                largest_acked_ <= largest_acked);
   largest_acked_ = largest_acked;
 }
 
@@ -325,8 +326,8 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
 }
 
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicPacketNumber packet_number) {
-  DCHECK_GE(packet_number, least_unacked_);
-  DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_GE(packet_number, least_unacked_);
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
   QuicTransmissionInfo* info =
       &unacked_packets_at(packet_number - least_unacked_);
   RemoveFromInFlight(info);
@@ -351,11 +352,12 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       // send algorithm).
       // TODO(b/148868195): use NotifyFramesNeutered.
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
-      DCHECK(!HasRetransmittableFrames(*it));
+      QUICHE_DCHECK(!HasRetransmittableFrames(*it));
     }
   }
-  DCHECK(!supports_multiple_packet_number_spaces_ ||
-         last_inflight_packets_sent_time_[INITIAL_DATA] == QuicTime::Zero());
+  QUICHE_DCHECK(!supports_multiple_packet_number_spaces_ ||
+                last_inflight_packets_sent_time_[INITIAL_DATA] ==
+                    QuicTime::Zero());
   return neutered_packets;
 }
 
@@ -377,8 +379,9 @@ QuicUnackedPacketMap::NeuterHandshakePackets() {
       NotifyFramesAcked(*it, QuicTime::Delta::Zero(), QuicTime::Zero());
     }
   }
-  DCHECK(!supports_multiple_packet_number_spaces() ||
-         last_inflight_packets_sent_time_[HANDSHAKE_DATA] == QuicTime::Zero());
+  QUICHE_DCHECK(!supports_multiple_packet_number_spaces() ||
+                last_inflight_packets_sent_time_[HANDSHAKE_DATA] ==
+                    QuicTime::Zero());
   return neutered_packets;
 }
 
@@ -593,13 +596,13 @@ QuicUnackedPacketMap::GetLargestSentRetransmittableOfPacketNumberSpace(
 
 const QuicTransmissionInfo*
 QuicUnackedPacketMap::GetFirstInFlightTransmissionInfo() const {
-  DCHECK(HasInFlightPackets());
+  QUICHE_DCHECK(HasInFlightPackets());
   for (auto it = begin(); it != end(); ++it) {
     if (it->in_flight) {
       return &(*it);
     }
   }
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return nullptr;
 }
 

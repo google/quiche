@@ -22,7 +22,7 @@ QpackDecoder::QpackDecoder(
       encoder_stream_receiver_(this),
       maximum_blocked_streams_(maximum_blocked_streams),
       known_received_count_(0) {
-  DCHECK(encoder_stream_error_delegate_);
+  QUICHE_DCHECK(encoder_stream_error_delegate_);
 
   header_table_.SetMaximumDynamicTableCapacity(maximum_dynamic_table_capacity);
 }
@@ -38,13 +38,13 @@ void QpackDecoder::OnStreamReset(QuicStreamId stream_id) {
 
 bool QpackDecoder::OnStreamBlocked(QuicStreamId stream_id) {
   auto result = blocked_streams_.insert(stream_id);
-  DCHECK(result.second);
+  QUICHE_DCHECK(result.second);
   return blocked_streams_.size() <= maximum_blocked_streams_;
 }
 
 void QpackDecoder::OnStreamUnblocked(QuicStreamId stream_id) {
   size_t result = blocked_streams_.erase(stream_id);
-  DCHECK_EQ(1u, result);
+  QUICHE_DCHECK_EQ(1u, result);
 }
 
 void QpackDecoder::OnDecodingCompleted(QuicStreamId stream_id,

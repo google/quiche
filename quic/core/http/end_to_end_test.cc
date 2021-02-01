@@ -4543,7 +4543,8 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
   }
 
   void HoldNextPacket() {
-    DCHECK(packet_content_.empty()) << "There is already one packet on hold.";
+    QUICHE_DCHECK(packet_content_.empty())
+        << "There is already one packet on hold.";
     hold_next_packet_ = true;
   }
 

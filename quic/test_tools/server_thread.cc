@@ -61,7 +61,7 @@ int ServerThread::GetPort() {
 }
 
 void ServerThread::Schedule(std::function<void()> action) {
-  DCHECK(!quit_.HasBeenNotified());
+  QUICHE_DCHECK(!quit_.HasBeenNotified());
   QuicWriterMutexLock lock(&scheduled_actions_lock_);
   scheduled_actions_.push_back(std::move(action));
 }
@@ -89,14 +89,14 @@ bool ServerThread::WaitUntil(std::function<bool()> termination_predicate,
 }
 
 void ServerThread::Pause() {
-  DCHECK(!pause_.HasBeenNotified());
+  QUICHE_DCHECK(!pause_.HasBeenNotified());
   pause_.Notify();
   paused_.WaitForNotification();
 }
 
 void ServerThread::Resume() {
-  DCHECK(!resume_.HasBeenNotified());
-  DCHECK(pause_.HasBeenNotified());
+  QUICHE_DCHECK(!resume_.HasBeenNotified());
+  QUICHE_DCHECK(pause_.HasBeenNotified());
   resume_.Notify();
 }
 

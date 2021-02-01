@@ -29,7 +29,8 @@ const char* kPathToFds = "/proc/self/fd";
 std::string ReadLink(const std::string& path) {
   std::string result(PATH_MAX, '\0');
   ssize_t result_size = readlink(path.c_str(), &result[0], result.size());
-  CHECK(result_size > 0 && static_cast<size_t>(result_size) < result.size());
+  QUICHE_CHECK(result_size > 0 &&
+               static_cast<size_t>(result_size) < result.size());
   result.resize(result_size);
   return result;
 }

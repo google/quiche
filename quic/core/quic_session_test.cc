@@ -367,7 +367,7 @@ class TestSession : public QuicSession {
   }
 
   QuicConsumedData SendLargeFakeData(QuicStream* stream, int bytes) {
-    DCHECK(writev_consumes_all_data_);
+    QUICHE_DCHECK(writev_consumes_all_data_);
     return WritevData(stream->id(), bytes, 0, FIN, NOT_RETRANSMISSION,
                       GetEncryptionLevelToSendApplicationData());
   }

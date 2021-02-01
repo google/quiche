@@ -141,7 +141,7 @@ TEST_F(QuicUtilsTest, RetransmissionTypeToPacketState) {
     } else if (i == ALL_INITIAL_RETRANSMISSION) {
       EXPECT_EQ(UNACKABLE, state);
     } else {
-      DCHECK(false)
+      QUICHE_DCHECK(false)
           << "No corresponding packet state according to transmission type: "
           << i;
     }

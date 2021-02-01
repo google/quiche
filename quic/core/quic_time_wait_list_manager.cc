@@ -135,13 +135,13 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
     QuicConnectionId connection_id,
     TimeWaitAction action,
     TimeWaitConnectionInfo info) {
-  DCHECK(!info.active_connection_ids.empty());
+  QUICHE_DCHECK(!info.active_connection_ids.empty());
   const QuicConnectionId& canonical_connection_id =
       use_indirect_connection_id_map_ ? info.active_connection_ids.front()
                                       : connection_id;
-  DCHECK(action != SEND_TERMINATION_PACKETS ||
-         !info.termination_packets.empty());
-  DCHECK(action != DO_NOTHING || info.ietf_quic);
+  QUICHE_DCHECK(action != SEND_TERMINATION_PACKETS ||
+                !info.termination_packets.empty());
+  QUICHE_DCHECK(action != DO_NOTHING || info.ietf_quic);
   int num_packets = 0;
   auto it = FindConnectionIdDataInMap(canonical_connection_id);
   const bool new_connection_id = it == connection_id_map_.end();
@@ -152,8 +152,8 @@ void QuicTimeWaitListManager::AddConnectionIdToTimeWait(
   TrimTimeWaitListIfNeeded();
   int64_t max_connections =
       GetQuicFlag(FLAGS_quic_time_wait_list_max_connections);
-  DCHECK(connection_id_map_.empty() ||
-         num_connections() < static_cast<size_t>(max_connections));
+  QUICHE_DCHECK(connection_id_map_.empty() ||
+                num_connections() < static_cast<size_t>(max_connections));
   if (use_indirect_connection_id_map_ && new_connection_id) {
     QUIC_RESTART_FLAG_COUNT_N(quic_time_wait_list_support_multiple_cid_v2, 3,
                               3);
@@ -193,11 +193,11 @@ void QuicTimeWaitListManager::ProcessPacket(
     QuicConnectionId connection_id,
     PacketHeaderFormat header_format,
     std::unique_ptr<QuicPerPacketContext> packet_context) {
-  DCHECK(IsConnectionIdInTimeWait(connection_id));
+  QUICHE_DCHECK(IsConnectionIdInTimeWait(connection_id));
   // TODO(satyamshekhar): Think about handling packets from different peer
   // addresses.
   auto it = FindConnectionIdDataInMap(connection_id);
-  DCHECK(it != connection_id_map_.end());
+  QUICHE_DCHECK(it != connection_id_map_.end());
   // Increment the received packet count.
   ConnectionIdData* connection_data = &it->second;
   ++(connection_data->num_packets);
@@ -278,7 +278,7 @@ void QuicTimeWaitListManager::ProcessPacket(
       return;
     case DO_NOTHING:
       QUIC_CODE_COUNT(quic_time_wait_list_do_nothing);
-      DCHECK(connection_data->info.ietf_quic);
+      QUICHE_DCHECK(connection_data->info.ietf_quic);
   }
 }
 
@@ -402,7 +402,7 @@ bool QuicTimeWaitListManager::WriteToWire(QueuedPacket* queued_packet) {
 
   if (IsWriteBlockedStatus(result.status)) {
     // If blocked and unbuffered, return false to retry sending.
-    DCHECK(writer_->IsWriteBlocked());
+    QUICHE_DCHECK(writer_->IsWriteBlocked());
     visitor_->OnWriteBlocked(this);
     return result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED;
   } else if (IsWriteError(result.status)) {

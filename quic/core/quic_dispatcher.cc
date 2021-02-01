@@ -82,12 +82,12 @@ class PacketCollector : public QuicPacketCreator::DelegateInterface,
 
   bool ShouldGeneratePacket(HasRetransmittableData /*retransmittable*/,
                             IsHandshake /*handshake*/) override {
-    DCHECK(false);
+    QUICHE_DCHECK(false);
     return true;
   }
 
   const QuicFrames MaybeBundleAckOpportunistically() override {
-    DCHECK(false);
+    QUICHE_DCHECK(false);
     return {};
   }
 
@@ -181,7 +181,7 @@ class StatelessConnectionTerminator {
       return;
     }
     creator_.FlushCurrentPacket();
-    DCHECK_EQ(1u, collector_.packets()->size());
+    QUICHE_DCHECK_EQ(1u, collector_.packets()->size());
   }
 
   QuicConnectionId server_connection_id_;
@@ -347,7 +347,7 @@ QuicDispatcher::~QuicDispatcher() {
 }
 
 void QuicDispatcher::InitializeWithWriter(QuicPacketWriter* writer) {
-  DCHECK(writer_ == nullptr);
+  QUICHE_DCHECK(writer_ == nullptr);
   writer_.reset(writer);
   time_wait_list_manager_.reset(CreateQuicTimeWaitListManager());
 }
@@ -424,24 +424,27 @@ QuicConnectionId QuicDispatcher::MaybeReplaceServerConnectionId(
   if (server_connection_id_length == expected_server_connection_id_length_) {
     return server_connection_id;
   }
-  DCHECK(version.AllowsVariableLengthConnectionIds());
+  QUICHE_DCHECK(version.AllowsVariableLengthConnectionIds());
   QuicConnectionId new_connection_id;
   if (server_connection_id_length < expected_server_connection_id_length_) {
     new_connection_id = ReplaceShortServerConnectionId(
         version, server_connection_id, expected_server_connection_id_length_);
     // Verify that ReplaceShortServerConnectionId is deterministic.
-    DCHECK_EQ(new_connection_id, ReplaceShortServerConnectionId(
-                                     version, server_connection_id,
-                                     expected_server_connection_id_length_));
+    QUICHE_DCHECK_EQ(
+        new_connection_id,
+        ReplaceShortServerConnectionId(version, server_connection_id,
+                                       expected_server_connection_id_length_));
   } else {
     new_connection_id = ReplaceLongServerConnectionId(
         version, server_connection_id, expected_server_connection_id_length_);
     // Verify that ReplaceLongServerConnectionId is deterministic.
-    DCHECK_EQ(new_connection_id, ReplaceLongServerConnectionId(
-                                     version, server_connection_id,
-                                     expected_server_connection_id_length_));
+    QUICHE_DCHECK_EQ(
+        new_connection_id,
+        ReplaceLongServerConnectionId(version, server_connection_id,
+                                      expected_server_connection_id_length_));
   }
-  DCHECK_EQ(expected_server_connection_id_length_, new_connection_id.length());
+  QUICHE_DCHECK_EQ(expected_server_connection_id_length_,
+                   new_connection_id.length());
 
   QUIC_DLOG(INFO) << "Replacing incoming connection ID " << server_connection_id
                   << " with " << new_connection_id;
@@ -452,8 +455,8 @@ QuicConnectionId QuicDispatcher::ReplaceShortServerConnectionId(
     const ParsedQuicVersion& /*version*/,
     const QuicConnectionId& server_connection_id,
     uint8_t expected_server_connection_id_length) const {
-  DCHECK_LT(server_connection_id.length(),
-            expected_server_connection_id_length);
+  QUICHE_DCHECK_LT(server_connection_id.length(),
+                   expected_server_connection_id_length);
   return QuicUtils::CreateReplacementConnectionId(
       server_connection_id, expected_server_connection_id_length);
 }
@@ -462,8 +465,8 @@ QuicConnectionId QuicDispatcher::ReplaceLongServerConnectionId(
     const ParsedQuicVersion& /*version*/,
     const QuicConnectionId& server_connection_id,
     uint8_t expected_server_connection_id_length) const {
-  DCHECK_GT(server_connection_id.length(),
-            expected_server_connection_id_length);
+  QUICHE_DCHECK_GT(server_connection_id.length(),
+                   expected_server_connection_id_length);
   return QuicUtils::CreateReplacementConnectionId(
       server_connection_id, expected_server_connection_id_length);
 }
@@ -490,8 +493,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
       server_connection_id.length() < kQuicMinimumInitialConnectionIdLength &&
       server_connection_id.length() < expected_server_connection_id_length_ &&
       !allow_short_initial_server_connection_ids_) {
-    DCHECK(packet_info.version_flag);
-    DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
+    QUICHE_DCHECK(packet_info.version_flag);
+    QUICHE_DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);
@@ -505,7 +508,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
   if (use_reference_counted_session_map_) {
     auto it = reference_counted_session_map_.find(server_connection_id);
     if (it != reference_counted_session_map_.end()) {
-      DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
+      QUICHE_DCHECK(
+          !buffered_packets_.HasBufferedPackets(server_connection_id));
       if (packet_info.version_flag &&
           packet_info.version != it->second->version() &&
           packet_info.version == LegacyVersionForEncapsulation()) {
@@ -530,7 +534,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
   } else {
     auto it = session_map_.find(server_connection_id);
     if (it != session_map_.end()) {
-      DCHECK(!buffered_packets_.HasBufferedPackets(server_connection_id));
+      QUICHE_DCHECK(
+          !buffered_packets_.HasBufferedPackets(server_connection_id));
       if (packet_info.version_flag &&
           packet_info.version != it->second->version() &&
           packet_info.version == LegacyVersionForEncapsulation()) {
@@ -567,7 +572,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
         // Search for the replacement.
         auto it2 = reference_counted_session_map_.find(replaced_connection_id);
         if (it2 != reference_counted_session_map_.end()) {
-          DCHECK(!buffered_packets_.HasBufferedPackets(replaced_connection_id));
+          QUICHE_DCHECK(
+              !buffered_packets_.HasBufferedPackets(replaced_connection_id));
           it2->second->ProcessUdpPacket(packet_info.self_address,
                                         packet_info.peer_address,
                                         packet_info.packet);
@@ -577,7 +583,8 @@ bool QuicDispatcher::MaybeDispatchPacket(
         // Search for the replacement.
         auto it2 = session_map_.find(replaced_connection_id);
         if (it2 != session_map_.end()) {
-          DCHECK(!buffered_packets_.HasBufferedPackets(replaced_connection_id));
+          QUICHE_DCHECK(
+              !buffered_packets_.HasBufferedPackets(replaced_connection_id));
           it2->second->ProcessUdpPacket(packet_info.self_address,
                                         packet_info.peer_address,
                                         packet_info.packet);
@@ -748,7 +755,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           QUIC_HANDSHAKE_FAILED, "Reject connection",
           quic::QuicTimeWaitListManager::SEND_STATELESS_RESET);
 
-      DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
+      QUICHE_DCHECK(time_wait_list_manager_->IsConnectionIdInTimeWait(
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
           packet_info->self_address, packet_info->peer_address,
@@ -884,7 +891,7 @@ void QuicDispatcher::PerformActionOnActiveSessions(
 // Get a snapshot of all sessions.
 std::vector<std::shared_ptr<QuicSession>> QuicDispatcher::GetSessionsSnapshot()
     const {
-  DCHECK(use_reference_counted_session_map_);
+  QUICHE_DCHECK(use_reference_counted_session_map_);
   std::vector<std::shared_ptr<QuicSession>> snapshot;
   snapshot.reserve(reference_counted_session_map_.size());
   absl::flat_hash_set<QuicSession*> visited_session;
@@ -937,7 +944,7 @@ void QuicDispatcher::OnCanWrite() {
   const size_t num_blocked_writers_before = write_blocked_list_.size();
   WriteBlockedList temp_list;
   temp_list.swap(write_blocked_list_);
-  DCHECK(write_blocked_list_.empty());
+  QUICHE_DCHECK(write_blocked_list_.empty());
 
   // Give each blocked writer a chance to write what they indended to write.
   // If they are blocked again, they will call |OnWriteBlocked| to add
@@ -970,8 +977,9 @@ void QuicDispatcher::Shutdown() {
           QUIC_PEER_GOING_AWAY, "Server shutdown imminent",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       // Validate that the session removes itself from the session map on close.
-      DCHECK(reference_counted_session_map_.empty() ||
-             reference_counted_session_map_.begin()->second.get() != session);
+      QUICHE_DCHECK(reference_counted_session_map_.empty() ||
+                    reference_counted_session_map_.begin()->second.get() !=
+                        session);
     }
   } else {
     while (!session_map_.empty()) {
@@ -980,8 +988,8 @@ void QuicDispatcher::Shutdown() {
           QUIC_PEER_GOING_AWAY, "Server shutdown imminent",
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
       // Validate that the session removes itself from the session map on close.
-      DCHECK(session_map_.empty() ||
-             session_map_.begin()->second.get() != session);
+      QUICHE_DCHECK(session_map_.empty() ||
+                    session_map_.begin()->second.get() != session);
     }
   }
   DeleteSessions();
@@ -1062,7 +1070,7 @@ void QuicDispatcher::OnWriteBlocked(
     QuicBlockedWriterInterface* blocked_writer) {
   if (!blocked_writer->IsWriterBlocked()) {
     // It is a programming error if this ever happens. When we are sure it is
-    // not happening, replace it with a DCHECK.
+    // not happening, replace it with a QUICHE_DCHECK.
     QUIC_BUG
         << "Tried to add writer into blocked list when it shouldn't be added";
     // Return without adding the connection to the blocked list, to avoid
@@ -1081,7 +1089,7 @@ void QuicDispatcher::OnStopSendingReceived(
 void QuicDispatcher::OnNewConnectionIdSent(
     const QuicConnectionId& server_connection_id,
     const QuicConnectionId& new_connection_id) {
-  DCHECK(support_multiple_cid_per_connection_);
+  QUICHE_DCHECK(support_multiple_cid_per_connection_);
   auto it = reference_counted_session_map_.find(server_connection_id);
   if (it == reference_counted_session_map_.end()) {
     QUIC_BUG << "Couldn't locate the session that issues the connection ID in "
@@ -1092,12 +1100,12 @@ void QuicDispatcher::OnNewConnectionIdSent(
   }
   auto insertion_result = reference_counted_session_map_.insert(
       std::make_pair(new_connection_id, it->second));
-  DCHECK(insertion_result.second);
+  QUICHE_DCHECK(insertion_result.second);
 }
 
 void QuicDispatcher::OnConnectionIdRetired(
     const QuicConnectionId& server_connection_id) {
-  DCHECK(support_multiple_cid_per_connection_);
+  QUICHE_DCHECK(support_multiple_cid_per_connection_);
   reference_counted_session_map_.erase(server_connection_id);
 }
 
@@ -1405,7 +1413,7 @@ bool QuicDispatcher::IsSupportedVersion(const ParsedQuicVersion version) {
 
 void QuicDispatcher::MaybeResetPacketsWithNoVersion(
     const ReceivedPacketInfo& packet_info) {
-  DCHECK(!packet_info.version_flag);
+  QUICHE_DCHECK(!packet_info.version_flag);
   const size_t MinValidPacketLength =
       kPacketHeaderTypeSize + expected_server_connection_id_length_ +
       PACKET_1BYTE_PACKET_NUMBER + /*payload size=*/1 + /*tag size=*/12;

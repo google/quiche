@@ -32,8 +32,8 @@ QuicSendmmsgBatchWriter::FlushImplResult QuicSendmmsgBatchWriter::FlushImpl() {
 QuicSendmmsgBatchWriter::FlushImplResult
 QuicSendmmsgBatchWriter::InternalFlushImpl(size_t cmsg_space,
                                            const CmsgBuilder& cmsg_builder) {
-  DCHECK(!IsWriteBlocked());
-  DCHECK(!buffered_writes().empty());
+  QUICHE_DCHECK(!IsWriteBlocked());
+  QUICHE_DCHECK(!buffered_writes().empty());
 
   FlushImplResult result = {WriteResult(WRITE_STATUS_OK, 0),
                             /*num_packets_sent=*/0, /*bytes_written=*/0};
@@ -52,7 +52,7 @@ QuicSendmmsgBatchWriter::InternalFlushImpl(size_t cmsg_space,
                   << " packets. WriteResult=" << write_result;
 
     if (write_result.status != WRITE_STATUS_OK) {
-      DCHECK_EQ(0, num_packets_sent);
+      QUICHE_DCHECK_EQ(0, num_packets_sent);
       break;
     } else if (num_packets_sent == 0) {
       QUIC_BUG << "WriteMultiplePackets returned OK, but no packets were sent.";

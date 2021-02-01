@@ -48,11 +48,11 @@ class QuicTraceVisitorTest : public QuicTest {
     client.AddBytesToTransfer(kTransferSize);
     bool simulator_result = simulator.RunUntilOrTimeout(
         [&]() { return server.bytes_received() >= kTransferSize; }, kDeadline);
-    CHECK(simulator_result);
+    QUICHE_CHECK(simulator_result);
 
     // Save the trace and ensure some loss was observed.
     trace_.Swap(visitor.trace());
-    CHECK_NE(0u, client.connection()->GetStats().packets_retransmitted);
+    QUICHE_CHECK_NE(0u, client.connection()->GetStats().packets_retransmitted);
     packets_sent_ = client.connection()->GetStats().packets_sent;
   }
 

@@ -114,7 +114,7 @@ void TlsHandshaker::AdvanceHandshake() {
 
 void TlsHandshaker::CloseConnection(QuicErrorCode error,
                                     const std::string& reason_phrase) {
-  DCHECK(!reason_phrase.empty());
+  QUICHE_DCHECK(!reason_phrase.empty());
   stream()->OnUnrecoverableError(error, reason_phrase);
   is_connection_closed_ = true;
 }
@@ -122,7 +122,7 @@ void TlsHandshaker::CloseConnection(QuicErrorCode error,
 void TlsHandshaker::CloseConnection(QuicErrorCode error,
                                     QuicIetfTransportErrorCodes ietf_error,
                                     const std::string& reason_phrase) {
-  DCHECK(!reason_phrase.empty());
+  QUICHE_DCHECK(!reason_phrase.empty());
   stream()->OnUnrecoverableError(error, ietf_error, reason_phrase);
   is_connection_closed_ = true;
 }
@@ -212,7 +212,7 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
       absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
                         header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
-    DCHECK(latest_write_secret_.empty());
+    QUICHE_DCHECK(latest_write_secret_.empty());
     latest_write_secret_ = write_secret;
     one_rtt_write_header_protection_key_ = header_protection_key;
   }
@@ -235,7 +235,7 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
       absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
                         header_protection_key.size()));
   if (level == ENCRYPTION_FORWARD_SECURE) {
-    DCHECK(latest_read_secret_.empty());
+    QUICHE_DCHECK(latest_read_secret_.empty());
     latest_read_secret_ = read_secret;
     one_rtt_read_header_protection_key_ = header_protection_key;
   }

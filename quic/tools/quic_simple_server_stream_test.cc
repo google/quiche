@@ -80,7 +80,7 @@ class TestStream : public QuicSimpleServerStream {
 
   absl::string_view GetHeader(absl::string_view key) const {
     auto it = request_headers_.find(key);
-    DCHECK(it != request_headers_.end());
+    QUICHE_DCHECK(it != request_headers_.end());
     return it->second;
   }
 
@@ -211,11 +211,11 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
     if (write_length > 0) {
       auto buf = std::make_unique<char[]>(write_length);
       QuicStream* stream = GetOrCreateStream(id);
-      DCHECK(stream);
+      QUICHE_DCHECK(stream);
       QuicDataWriter writer(write_length, buf.get(), quiche::HOST_BYTE_ORDER);
       stream->WriteStreamData(offset, write_length, &writer);
     } else {
-      DCHECK(state != NO_FIN);
+      QUICHE_DCHECK(state != NO_FIN);
     }
     return QuicConsumedData(write_length, state != NO_FIN);
   }

@@ -218,7 +218,7 @@ bool QpackOfflineDecoder::DecodeHeaderBlocksFromFile(
   }
 
   if (!decoders_.empty()) {
-    DCHECK(!decoders_.front().headers_handler->decoding_completed());
+    QUICHE_DCHECK(!decoders_.front().headers_handler->decoding_completed());
 
     QUIC_LOG(ERROR) << "Blocked decoding uncomplete after reading entire"
                        " file, on stream "

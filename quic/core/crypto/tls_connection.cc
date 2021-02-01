@@ -36,7 +36,7 @@ class SslIndexSingleton {
     CRYPTO_library_init();
     ssl_ex_data_index_connection_ =
         SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
-    CHECK_LE(0, ssl_ex_data_index_connection_);
+    QUICHE_CHECK_LE(0, ssl_ex_data_index_connection_);
   }
 
   SslIndexSingleton(const SslIndexSingleton&) = delete;

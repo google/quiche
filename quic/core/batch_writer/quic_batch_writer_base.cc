@@ -141,12 +141,12 @@ QuicBatchWriterBase::FlushImplResult QuicBatchWriterBase::CheckedFlush() {
 
   // Either flush_result.write_result.status is not WRITE_STATUS_OK, or it is
   // WRITE_STATUS_OK and batch_buffer is empty.
-  DCHECK(flush_result.write_result.status != WRITE_STATUS_OK ||
-         buffered_writes().empty());
+  QUICHE_DCHECK(flush_result.write_result.status != WRITE_STATUS_OK ||
+                buffered_writes().empty());
 
   // Flush should never return WRITE_STATUS_BLOCKED_DATA_BUFFERED.
-  DCHECK(flush_result.write_result.status !=
-         WRITE_STATUS_BLOCKED_DATA_BUFFERED);
+  QUICHE_DCHECK(flush_result.write_result.status !=
+                WRITE_STATUS_BLOCKED_DATA_BUFFERED);
 
   return flush_result;
 }

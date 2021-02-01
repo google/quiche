@@ -124,7 +124,7 @@ TEST(RtnetlinkMessageTest, AddressMessageCanBeCreatedForNewOperation) {
                                      seq, pid, &interface_address_header);
 
   QuicIpAddress ip;
-  CHECK(ip.FromString("10.0.100.3"));
+  QUICHE_CHECK(ip.FromString("10.0.100.3"));
   message.AppendAttribute(IFA_ADDRESS, ip.ToPackedString().c_str(),
                           ip.ToPackedString().size());
 
@@ -181,7 +181,7 @@ TEST(RtnetlinkMessageTest, RouteMessageCanBeCreatedFromNewOperation) {
                                    pid, &route_message_header);
 
   QuicIpAddress preferred_source;
-  CHECK(preferred_source.FromString("ff80::1"));
+  QUICHE_CHECK(preferred_source.FromString("ff80::1"));
   message.AppendAttribute(RTA_PREFSRC,
                           preferred_source.ToPackedString().c_str(),
                           preferred_source.ToPackedString().size());

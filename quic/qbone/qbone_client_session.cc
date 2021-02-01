@@ -42,7 +42,8 @@ void QboneClientSession::Initialize() {
       ->CryptoConnect();
   // Register the reserved control stream.
   QuicStreamId next_id = GetNextOutgoingBidirectionalStreamId();
-  DCHECK_EQ(next_id, QboneConstants::GetControlStreamId(transport_version()));
+  QUICHE_DCHECK_EQ(next_id,
+                   QboneConstants::GetControlStreamId(transport_version()));
   auto control_stream =
       std::make_unique<QboneClientControlStream>(this, handler_);
   control_stream_ = control_stream.get();

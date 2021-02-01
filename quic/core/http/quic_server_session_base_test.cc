@@ -95,7 +95,7 @@ class TestServerSession : public QuicServerSessionBase {
   }
 
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override {
-    DCHECK(false);
+    QUICHE_DCHECK(false);
     return nullptr;
   }
 

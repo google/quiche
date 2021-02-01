@@ -30,17 +30,18 @@ bool QpackDecodeRequiredInsertCount(uint64_t encoded_required_insert_count,
 
   // |max_entries| is calculated by dividing an unsigned 64-bit integer by 32,
   // precluding all calculations in this method from overflowing.
-  DCHECK_LE(max_entries, std::numeric_limits<uint64_t>::max() / 32);
+  QUICHE_DCHECK_LE(max_entries, std::numeric_limits<uint64_t>::max() / 32);
 
   if (encoded_required_insert_count > 2 * max_entries) {
     return false;
   }
 
   *required_insert_count = encoded_required_insert_count - 1;
-  DCHECK_LT(*required_insert_count, std::numeric_limits<uint64_t>::max() / 16);
+  QUICHE_DCHECK_LT(*required_insert_count,
+                   std::numeric_limits<uint64_t>::max() / 16);
 
   uint64_t current_wrapped = total_number_of_inserts % (2 * max_entries);
-  DCHECK_LT(current_wrapped, std::numeric_limits<uint64_t>::max() / 16);
+  QUICHE_DCHECK_LT(current_wrapped, std::numeric_limits<uint64_t>::max() / 16);
 
   if (current_wrapped >= *required_insert_count + max_entries) {
     // Required Insert Count wrapped around 1 extra time.

@@ -18,7 +18,7 @@ Bbr2Mode Bbr2DrainMode::OnCongestionEvent(
   model_->set_pacing_gain(Params().drain_pacing_gain);
 
   // Only STARTUP can transition to DRAIN, both of them use the same cwnd gain.
-  DCHECK_EQ(model_->cwnd_gain(), Params().drain_cwnd_gain);
+  QUICHE_DCHECK_EQ(model_->cwnd_gain(), Params().drain_cwnd_gain);
   model_->set_cwnd_gain(Params().drain_cwnd_gain);
 
   QuicByteCount drain_target = DrainTarget();

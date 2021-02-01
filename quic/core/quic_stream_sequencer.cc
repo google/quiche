@@ -47,7 +47,7 @@ QuicStreamSequencer::~QuicStreamSequencer() {
 }
 
 void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
-  DCHECK_LE(frame.offset + frame.data_length, close_offset_);
+  QUICHE_DCHECK_LE(frame.offset + frame.data_length, close_offset_);
   ++num_frames_received_;
   const QuicStreamOffset byte_offset = frame.offset;
   const size_t data_len = frame.data_length;
@@ -59,7 +59,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
   if (GetQuicReloadableFlag(quic_accept_empty_stream_frame_with_no_fin)) {
     QUIC_RELOADABLE_FLAG_COUNT(quic_accept_empty_stream_frame_with_no_fin);
     if (stream_->version().HasIetfQuicFrames() && data_len == 0) {
-      DCHECK(!frame.fin);
+      QUICHE_DCHECK(!frame.fin);
       // Ignore empty frame with no fin.
       return;
     }
@@ -178,23 +178,23 @@ void QuicStreamSequencer::MaybeCloseStream() {
 }
 
 int QuicStreamSequencer::GetReadableRegions(iovec* iov, size_t iov_len) const {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   return buffered_frames_.GetReadableRegions(iov, iov_len);
 }
 
 bool QuicStreamSequencer::GetReadableRegion(iovec* iov) const {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   return buffered_frames_.GetReadableRegion(iov);
 }
 
 bool QuicStreamSequencer::PeekRegion(QuicStreamOffset offset,
                                      iovec* iov) const {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   return buffered_frames_.PeekRegion(offset, iov);
 }
 
 void QuicStreamSequencer::Read(std::string* buffer) {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   buffer->resize(buffer->size() + ReadableBytes());
   iovec iov;
   iov.iov_len = ReadableBytes();
@@ -203,7 +203,7 @@ void QuicStreamSequencer::Read(std::string* buffer) {
 }
 
 size_t QuicStreamSequencer::Readv(const struct iovec* iov, size_t iov_len) {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   std::string error_details;
   size_t bytes_read;
   QuicErrorCode read_error =
@@ -232,7 +232,7 @@ bool QuicStreamSequencer::IsClosed() const {
 }
 
 void QuicStreamSequencer::MarkConsumed(size_t num_bytes_consumed) {
-  DCHECK(!blocked_);
+  QUICHE_DCHECK(!blocked_);
   bool result = buffered_frames_.MarkConsumed(num_bytes_consumed);
   if (!result) {
     QUIC_BUG << "Invalid argument to MarkConsumed."
@@ -274,7 +274,7 @@ void QuicStreamSequencer::ReleaseBufferIfEmpty() {
 }
 
 void QuicStreamSequencer::FlushBufferedFrames() {
-  DCHECK(ignore_read_data_);
+  QUICHE_DCHECK(ignore_read_data_);
   size_t bytes_flushed = buffered_frames_.FlushBufferedFrames();
   QUIC_DVLOG(1) << "Flushing buffered data at offset "
                 << buffered_frames_.BytesConsumed() << " length "

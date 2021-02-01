@@ -104,7 +104,7 @@ void QuicSendControlStream::WritePriorityUpdate(
 }
 
 void QuicSendControlStream::SendMaxPushIdFrame(PushId max_push_id) {
-  DCHECK_EQ(Perspective::IS_CLIENT, session()->perspective());
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, session()->perspective());
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   MaybeSendSettingsFrame();
 

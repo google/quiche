@@ -110,7 +110,7 @@ void QuicClientEpollNetworkHelper::CleanUpUDPSocketImpl(int fd) {
   if (fd > -1) {
     epoll_server_->UnregisterFD(fd);
     int rc = close(fd);
-    DCHECK_EQ(0, rc);
+    QUICHE_DCHECK_EQ(0, rc);
   }
 }
 

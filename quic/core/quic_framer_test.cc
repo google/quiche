@@ -364,7 +364,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override {
-    DCHECK(!ack_frames_.empty());
+    QUICHE_DCHECK(!ack_frames_.empty());
     ack_frames_[ack_frames_.size() - 1]->packets.AddRange(start, end);
     if (VersionHasIetfQuicFrames(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
@@ -433,7 +433,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     handshake_done_frames_.push_back(
         std::make_unique<QuicHandshakeDoneFrame>(frame));
-    DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
     EXPECT_EQ(IETF_HANDSHAKE_DONE, framer_->current_received_frame_type());
     return true;
   }
@@ -442,7 +442,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     ack_frequency_frames_.emplace_back(
         std::make_unique<QuicAckFrequencyFrame>(frame));
-    DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
     EXPECT_EQ(IETF_ACK_FREQUENCY, framer_->current_received_frame_type());
     return true;
   }
@@ -2762,7 +2762,7 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
   // If IETF frames are in use then we must also have the IETF
   // header invariants.
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    DCHECK(framer_.version().HasIetfInvariantHeader());
+    QUICHE_DCHECK(framer_.version().HasIetfInvariantHeader());
   }
 
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);

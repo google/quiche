@@ -21,18 +21,18 @@ class QuicEpollAlarm : public QuicAlarm {
 
  protected:
   void SetImpl() override {
-    DCHECK(deadline().IsInitialized());
+    QUICHE_DCHECK(deadline().IsInitialized());
     epoll_server_->RegisterAlarm(
         (deadline() - QuicTime::Zero()).ToMicroseconds(), &epoll_alarm_impl_);
   }
 
   void CancelImpl() override {
-    DCHECK(!deadline().IsInitialized());
+    QUICHE_DCHECK(!deadline().IsInitialized());
     epoll_alarm_impl_.UnregisterIfRegistered();
   }
 
   void UpdateImpl() override {
-    DCHECK(deadline().IsInitialized());
+    QUICHE_DCHECK(deadline().IsInitialized());
     int64_t epoll_deadline = (deadline() - QuicTime::Zero()).ToMicroseconds();
     if (epoll_alarm_impl_.registered()) {
       epoll_alarm_impl_.ReregisterAlarm(epoll_deadline);

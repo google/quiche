@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "quic/core/qpack/value_splitting_header_list.h"
+
 #include "absl/strings/string_view.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 namespace {
@@ -61,7 +63,7 @@ const ValueSplittingHeaderList::value_type*
 }
 
 void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
-  DCHECK(value_start_ != absl::string_view::npos);
+  QUICHE_DCHECK(value_start_ != absl::string_view::npos);
 
   if (header_list_iterator_ == header_list_->end()) {
     return;
@@ -91,7 +93,7 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
 ValueSplittingHeaderList::ValueSplittingHeaderList(
     const spdy::Http2HeaderBlock* header_list)
     : header_list_(header_list) {
-  DCHECK(header_list_);
+  QUICHE_DCHECK(header_list_);
 }
 
 ValueSplittingHeaderList::const_iterator ValueSplittingHeaderList::begin()

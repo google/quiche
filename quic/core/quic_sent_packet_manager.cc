@@ -594,7 +594,7 @@ void QuicSentPacketManager::NeuterHandshakePackets() {
 
 bool QuicSentPacketManager::ShouldAddMaxAckDelay(
     PacketNumberSpace space) const {
-  DCHECK(pto_enabled_);
+  QUICHE_DCHECK(pto_enabled_);
   if (supports_multiple_packet_number_spaces() && space != APPLICATION_DATA) {
     // When the PTO is armed for Initial or Handshake packet number spaces,
     // the max_ack_delay is 0.
@@ -631,7 +631,7 @@ bool QuicSentPacketManager::ShouldAddMaxAckDelay(
 
 QuicTime QuicSentPacketManager::GetEarliestPacketSentTimeForPto(
     PacketNumberSpace* packet_number_space) const {
-  DCHECK(supports_multiple_packet_number_spaces());
+  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
   QuicTime earliest_sent_time = QuicTime::Zero();
   for (int8_t i = 0; i < NUM_PACKET_NUMBER_SPACES; ++i) {
     const QuicTime sent_time = unacked_packets_.GetLastInFlightPacketSentTime(
@@ -665,8 +665,8 @@ void QuicSentPacketManager::MarkForRetransmission(
       << " transmission_type: " << transmission_type << " transmission_info "
       << transmission_info->DebugString();
   // Handshake packets should never be sent as probing retransmissions.
-  DCHECK(!transmission_info->has_crypto_handshake ||
-         transmission_type != PROBING_RETRANSMISSION);
+  QUICHE_DCHECK(!transmission_info->has_crypto_handshake ||
+                transmission_type != PROBING_RETRANSMISSION);
 
   HandleRetransmission(transmission_type, transmission_info);
 
@@ -826,8 +826,8 @@ bool QuicSentPacketManager::OnPacketSent(
     bool measure_rtt) {
   const SerializedPacket& packet = *mutable_packet;
   QuicPacketNumber packet_number = packet.packet_number;
-  DCHECK_LE(FirstSendingPacketNumber(), packet_number);
-  DCHECK(!unacked_packets_.IsUnacked(packet_number));
+  QUICHE_DCHECK_LE(FirstSendingPacketNumber(), packet_number);
+  QUICHE_DCHECK(!unacked_packets_.IsUnacked(packet_number));
   QUIC_BUG_IF(packet.encrypted_length == 0) << "Cannot send empty packets.";
   if (pending_timer_transmission_count_ > 0) {
     --pending_timer_transmission_count_;
@@ -876,9 +876,9 @@ bool QuicSentPacketManager::OnPacketSent(
 
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::OnRetransmissionTimeout() {
-  DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && !handshake_finished_));
-  DCHECK_EQ(0u, pending_timer_transmission_count_);
+  QUICHE_DCHECK(unacked_packets_.HasInFlightPackets() ||
+                (handshake_mode_disabled_ && !handshake_finished_));
+  QUICHE_DCHECK_EQ(0u, pending_timer_transmission_count_);
   // Handshake retransmission, timer based loss detection, TLP, and RTO are
   // implemented with a single alarm. The handshake alarm is set when the
   // handshake has not completed, the loss alarm is set when the loss detection
@@ -886,7 +886,7 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
   // The TLP alarm is always set to run for under an RTO.
   switch (GetRetransmissionMode()) {
     case HANDSHAKE_MODE:
-      DCHECK(!handshake_mode_disabled_);
+      QUICHE_DCHECK(!handshake_mode_disabled_);
       ++stats_->crypto_retransmit_count;
       RetransmitCryptoPackets();
       return HANDSHAKE_MODE;
@@ -924,7 +924,7 @@ QuicSentPacketManager::OnRetransmissionTimeout() {
 }
 
 void QuicSentPacketManager::RetransmitCryptoPackets() {
-  DCHECK_EQ(HANDSHAKE_MODE, GetRetransmissionMode());
+  QUICHE_DCHECK_EQ(HANDSHAKE_MODE, GetRetransmissionMode());
   ++consecutive_crypto_retransmission_count_;
   bool packet_retransmitted = false;
   std::vector<QuicPacketNumber> crypto_retransmissions;
@@ -965,14 +965,15 @@ void QuicSentPacketManager::RetransmitCryptoPackets() {
       ++pending_timer_transmission_count_;
     }
   }
-  DCHECK(packet_retransmitted) << "No crypto packets found to retransmit.";
+  QUICHE_DCHECK(packet_retransmitted)
+      << "No crypto packets found to retransmit.";
   for (QuicPacketNumber retransmission : crypto_retransmissions) {
     MarkForRetransmission(retransmission, HANDSHAKE_RETRANSMISSION);
   }
 }
 
 bool QuicSentPacketManager::MaybeRetransmitTailLossProbe() {
-  DCHECK(!pto_enabled_);
+  QUICHE_DCHECK(!pto_enabled_);
   if (pending_timer_transmission_count_ == 0) {
     return false;
   }
@@ -1022,7 +1023,7 @@ bool QuicSentPacketManager::MaybeRetransmitOldestPacket(TransmissionType type) {
 }
 
 void QuicSentPacketManager::RetransmitRtoPackets() {
-  DCHECK(!pto_enabled_);
+  QUICHE_DCHECK(!pto_enabled_);
   QUIC_BUG_IF(pending_timer_transmission_count_ > 0)
       << "Retransmissions already queued:" << pending_timer_transmission_count_;
   // Mark two packets for retransmission.
@@ -1038,7 +1039,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
         if (transmission_info->state == OUTSTANDING &&
             unacked_packets_.HasRetransmittableFrames(*transmission_info) &&
             pending_timer_transmission_count_ < max_rto_packets_) {
-          DCHECK(transmission_info->in_flight);
+          QUICHE_DCHECK(transmission_info->in_flight);
           retransmissions.push_back(packet_number);
           ++pending_timer_transmission_count_;
         }
@@ -1051,7 +1052,7 @@ void QuicSentPacketManager::RetransmitRtoPackets() {
       if (it->state == OUTSTANDING &&
           unacked_packets_.HasRetransmittableFrames(*it) &&
           pending_timer_transmission_count_ < max_rto_packets_) {
-        DCHECK(it->in_flight);
+        QUICHE_DCHECK(it->in_flight);
         retransmissions.push_back(packet_number);
         ++pending_timer_transmission_count_;
       }
@@ -1104,7 +1105,7 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
             (!supports_multiple_packet_number_spaces() ||
              unacked_packets_.GetPacketNumberSpace(
                  transmission_info->encryption_level) == packet_number_space)) {
-          DCHECK(transmission_info->in_flight);
+          QUICHE_DCHECK(transmission_info->in_flight);
           probing_packets.push_back(packet_number);
           if (probing_packets.size() == pending_timer_transmission_count_) {
             break;
@@ -1121,7 +1122,7 @@ void QuicSentPacketManager::MaybeSendProbePackets() {
           (!supports_multiple_packet_number_spaces() ||
            unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
                packet_number_space)) {
-        DCHECK(it->in_flight);
+        QUICHE_DCHECK(it->in_flight);
         probing_packets.push_back(packet_number);
         if (probing_packets.size() == pending_timer_transmission_count_) {
           break;
@@ -1173,7 +1174,7 @@ void QuicSentPacketManager::StartExponentialBackoffAfterNthPto(
 
 void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
     PacketNumberSpace space) {
-  DCHECK(supports_multiple_packet_number_spaces());
+  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
   if (!unacked_packets_.GetLastInFlightPacketSentTime(space).IsInitialized()) {
     // No in flight data of space.
     return;
@@ -1192,7 +1193,7 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
           unacked_packets_.HasRetransmittableFrames(*transmission_info) &&
           unacked_packets_.GetPacketNumberSpace(
               transmission_info->encryption_level) == space) {
-        DCHECK(transmission_info->in_flight);
+        QUICHE_DCHECK(transmission_info->in_flight);
         if (pending_timer_transmission_count_ == 0) {
           pending_timer_transmission_count_ = 1;
         }
@@ -1208,7 +1209,7 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
           unacked_packets_.HasRetransmittableFrames(*it) &&
           unacked_packets_.GetPacketNumberSpace(it->encryption_level) ==
               space) {
-        DCHECK(it->in_flight);
+        QUICHE_DCHECK(it->in_flight);
         if (pending_timer_transmission_count_ == 0) {
           pending_timer_transmission_count_ = 1;
         }
@@ -1221,8 +1222,8 @@ void QuicSentPacketManager::RetransmitDataOfSpaceIfAny(
 
 QuicSentPacketManager::RetransmissionTimeoutMode
 QuicSentPacketManager::GetRetransmissionMode() const {
-  DCHECK(unacked_packets_.HasInFlightPackets() ||
-         (handshake_mode_disabled_ && !handshake_finished_));
+  QUICHE_DCHECK(unacked_packets_.HasInFlightPackets() ||
+                (handshake_mode_disabled_ && !handshake_finished_));
   if (!handshake_mode_disabled_ && !handshake_finished_ &&
       unacked_packets_.HasPendingCryptoPackets()) {
     return HANDSHAKE_MODE;
@@ -1243,8 +1244,8 @@ QuicSentPacketManager::GetRetransmissionMode() const {
 
 void QuicSentPacketManager::InvokeLossDetection(QuicTime time) {
   if (!packets_acked_.empty()) {
-    DCHECK_LE(packets_acked_.front().packet_number,
-              packets_acked_.back().packet_number);
+    QUICHE_DCHECK_LE(packets_acked_.front().packet_number,
+                     packets_acked_.back().packet_number);
     largest_newly_acked_ = packets_acked_.back().packet_number;
   }
   LossDetectionInterface::DetectionStats detection_stats =
@@ -1357,7 +1358,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
     case LOSS_MODE:
       return loss_algorithm_->GetLossTimeout();
     case TLP_MODE: {
-      DCHECK(!pto_enabled_);
+      QUICHE_DCHECK(!pto_enabled_);
       // TODO(ianswett): When CWND is available, it would be preferable to
       // set the timer based on the earliest retransmittable packet.
       // Base the updated timer on the send time of the last packet.
@@ -1368,7 +1369,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
       return std::max(clock_->ApproximateNow(), tlp_time);
     }
     case RTO_MODE: {
-      DCHECK(!pto_enabled_);
+      QUICHE_DCHECK(!pto_enabled_);
       // The RTO is based on the first outstanding packet.
       const QuicTime sent_time =
           unacked_packets_.GetLastInFlightPacketSentTime();
@@ -1433,7 +1434,7 @@ const QuicTime QuicSentPacketManager::GetRetransmissionTime() const {
           earliest_right_edge + GetProbeTimeoutDelay(packet_number_space));
     }
   }
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return QuicTime::Zero();
 }
 
@@ -1519,7 +1520,7 @@ const QuicTime::Delta QuicSentPacketManager::GetRetransmissionDelay() const {
 
 const QuicTime::Delta QuicSentPacketManager::GetProbeTimeoutDelay(
     PacketNumberSpace space) const {
-  DCHECK(pto_enabled_);
+  QUICHE_DCHECK(pto_enabled_);
   if (rtt_stats_.smoothed_rtt().IsZero()) {
     // Respect kMinHandshakeTimeoutMs to avoid a potential amplification attack.
     QUIC_BUG_IF(rtt_stats_.initial_rtt().IsZero());
@@ -1614,7 +1615,7 @@ QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
       // them as useless, thus not contributing to RTT stats.
       if (unacked_packets_.HasRetransmittableFrames(packet_number)) {
         MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
-        DCHECK_EQ(it->state, NOT_CONTRIBUTING_RTT);
+        QUICHE_DCHECK_EQ(it->state, NOT_CONTRIBUTING_RTT);
       }
     }
     it->state = NOT_CONTRIBUTING_RTT;
@@ -1625,8 +1626,8 @@ QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
 void QuicSentPacketManager::OnAckFrameStart(QuicPacketNumber largest_acked,
                                             QuicTime::Delta ack_delay_time,
                                             QuicTime ack_receive_time) {
-  DCHECK(packets_acked_.empty());
-  DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
+  QUICHE_DCHECK(packets_acked_.empty());
+  QUICHE_DCHECK_LE(largest_acked, unacked_packets_.largest_sent_packet());
   if (ack_delay_time > peer_max_ack_delay()) {
     ack_delay_time = peer_max_ack_delay();
   }
@@ -1799,7 +1800,7 @@ void QuicSentPacketManager::EnableMultiplePacketNumberSpacesSupport() {
 
 QuicPacketNumber QuicSentPacketManager::GetLargestAckedPacket(
     EncryptionLevel decrypted_packet_level) const {
-  DCHECK(supports_multiple_packet_number_spaces());
+  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
   return unacked_packets_.GetLargestAckedOfPacketNumberSpace(
       QuicUtils::GetPacketNumberSpace(decrypted_packet_level));
 }
@@ -1827,7 +1828,7 @@ QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
 
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
-  DCHECK(supports_multiple_packet_number_spaces());
+  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
   return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
       decrypted_packet_level)];
 }

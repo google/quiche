@@ -140,7 +140,7 @@ int FakeProofSource::NumPendingCallbacks() const {
 }
 
 void FakeProofSource::InvokePendingCallback(int n) {
-  CHECK(NumPendingCallbacks() > n);
+  QUICHE_CHECK(NumPendingCallbacks() > n);
 
   pending_ops_[n]->Run();
 

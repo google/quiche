@@ -164,12 +164,12 @@ class MockableQuicClientEpollNetworkHelper
   }
 
   void UseWriter(QuicPacketWriterWrapper* writer) {
-    CHECK(test_writer_ == nullptr);
+    QUICHE_CHECK(test_writer_ == nullptr);
     test_writer_ = writer;
   }
 
   void set_peer_address(const QuicSocketAddress& address) {
-    CHECK(test_writer_ != nullptr);
+    QUICHE_CHECK(test_writer_ != nullptr);
     test_writer_->set_peer_address(address);
   }
 
@@ -834,24 +834,24 @@ void QuicTestClient::UseWriter(QuicPacketWriterWrapper* writer) {
 }
 
 void QuicTestClient::UseConnectionId(QuicConnectionId server_connection_id) {
-  DCHECK(!connected());
+  QUICHE_DCHECK(!connected());
   client_->UseConnectionId(server_connection_id);
 }
 
 void QuicTestClient::UseConnectionIdLength(int server_connection_id_length) {
-  DCHECK(!connected());
+  QUICHE_DCHECK(!connected());
   client_->UseConnectionIdLength(server_connection_id_length);
 }
 
 void QuicTestClient::UseClientConnectionId(
     QuicConnectionId client_connection_id) {
-  DCHECK(!connected());
+  QUICHE_DCHECK(!connected());
   client_->UseClientConnectionId(client_connection_id);
 }
 
 void QuicTestClient::UseClientConnectionIdLength(
     int client_connection_id_length) {
-  DCHECK(!connected());
+  QUICHE_DCHECK(!connected());
   client_->UseClientConnectionIdLength(client_connection_id_length);
 }
 

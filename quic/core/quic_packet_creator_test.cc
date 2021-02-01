@@ -2442,7 +2442,7 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
   ~QuicPacketCreatorMultiplePacketsTest() override {}
 
   void SavePacket(SerializedPacket packet) {
-    DCHECK(packet.release_encrypted_buffer == nullptr);
+    QUICHE_DCHECK(packet.release_encrypted_buffer == nullptr);
     packet.encrypted_buffer = CopyBuffer(packet);
     packet.release_encrypted_buffer = [](const char* p) { delete[] p; };
     packets_.push_back(std::move(packet));

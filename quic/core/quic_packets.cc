@@ -74,8 +74,8 @@ QuicConnectionIdIncluded GetClientConnectionIdIncludedAsSender(
 QuicConnectionIdLength GetIncludedConnectionIdLength(
     QuicConnectionId connection_id,
     QuicConnectionIdIncluded connection_id_included) {
-  DCHECK(connection_id_included == CONNECTION_ID_PRESENT ||
-         connection_id_included == CONNECTION_ID_ABSENT);
+  QUICHE_DCHECK(connection_id_included == CONNECTION_ID_PRESENT ||
+                connection_id_included == CONNECTION_ID_ABSENT);
   return connection_id_included == CONNECTION_ID_PRESENT
              ? static_cast<QuicConnectionIdLength>(connection_id.length())
              : PACKET_0BYTE_CONNECTION_ID;
@@ -127,9 +127,9 @@ size_t GetPacketHeaderSize(
       if (VersionHasLengthPrefixedConnectionIds(version)) {
         size += kConnectionIdLengthSize;
       }
-      DCHECK(QuicVersionHasLongHeaderLengths(version) ||
-             retry_token_length_length + retry_token_length + length_length ==
-                 0);
+      QUICHE_DCHECK(
+          QuicVersionHasLongHeaderLengths(version) ||
+          retry_token_length_length + retry_token_length + length_length == 0);
       if (QuicVersionHasLongHeaderLengths(version)) {
         size += retry_token_length_length + retry_token_length + length_length;
       }
@@ -140,8 +140,8 @@ size_t GetPacketHeaderSize(
            packet_number_length;
   }
   // Google QUIC versions <= 43 can only carry one connection ID.
-  DCHECK(destination_connection_id_length == 0 ||
-         source_connection_id_length == 0);
+  QUICHE_DCHECK(destination_connection_id_length == 0 ||
+                source_connection_id_length == 0);
   return kPublicFlagsSize + destination_connection_id_length +
          source_connection_id_length +
          (include_version ? kQuicVersionSize : 0) + packet_number_length +
@@ -534,7 +534,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   // Copy underlying frames.
   copy->retransmittable_frames =
       CopyQuicFrames(allocator, serialized.retransmittable_frames);
-  DCHECK(copy->nonretransmittable_frames.empty());
+  QUICHE_DCHECK(copy->nonretransmittable_frames.empty());
   for (const auto& frame : serialized.nonretransmittable_frames) {
     if (frame.type == ACK_FRAME) {
       copy->has_ack_frame_copy = true;

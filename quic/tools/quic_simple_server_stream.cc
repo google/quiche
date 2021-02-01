@@ -34,7 +34,7 @@ QuicSimpleServerStream::QuicSimpleServerStream(
       content_length_(-1),
       generate_bytes_length_(0),
       quic_simple_server_backend_(quic_simple_server_backend) {
-  DCHECK(quic_simple_server_backend_);
+  QUICHE_DCHECK(quic_simple_server_backend_);
 }
 
 QuicSimpleServerStream::QuicSimpleServerStream(
@@ -46,7 +46,7 @@ QuicSimpleServerStream::QuicSimpleServerStream(
       content_length_(-1),
       generate_bytes_length_(0),
       quic_simple_server_backend_(quic_simple_server_backend) {
-  DCHECK(quic_simple_server_backend_);
+  QUICHE_DCHECK(quic_simple_server_backend_);
 }
 
 QuicSimpleServerStream::~QuicSimpleServerStream() {
@@ -132,7 +132,7 @@ void QuicSimpleServerStream::PushResponse(
   content_length_ = 0;
   QUIC_DVLOG(1) << "Stream " << id()
                 << " ready to receive server push response.";
-  DCHECK(reading_stopped());
+  QUICHE_DCHECK(reading_stopped());
 
   // Directly send response based on the emulated request_headers_.
   SendResponse();

@@ -138,9 +138,9 @@ class MockPacketFilter : public QbonePacketProcessor::Filter {
 class QbonePacketProcessorTest : public QuicTest {
  protected:
   QbonePacketProcessorTest() {
-    CHECK(client_ip_.FromString("fd00:0:0:1::1"));
-    CHECK(self_ip_.FromString("fd00:0:0:4::1"));
-    CHECK(network_ip_.FromString("fd00:0:0:5::1"));
+    QUICHE_CHECK(client_ip_.FromString("fd00:0:0:1::1"));
+    QUICHE_CHECK(self_ip_.FromString("fd00:0:0:4::1"));
+    QUICHE_CHECK(network_ip_.FromString("fd00:0:0:5::1"));
 
     processor_ = std::make_unique<QbonePacketProcessor>(
         self_ip_, client_ip_, /*client_ip_subnet_length=*/62, &output_,

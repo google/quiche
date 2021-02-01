@@ -13,14 +13,14 @@ namespace quic {
 uint64_t QpackAbsoluteIndexToEncoderStreamRelativeIndex(
     uint64_t absolute_index,
     uint64_t inserted_entry_count) {
-  DCHECK_LT(absolute_index, inserted_entry_count);
+  QUICHE_DCHECK_LT(absolute_index, inserted_entry_count);
 
   return inserted_entry_count - absolute_index - 1;
 }
 
 uint64_t QpackAbsoluteIndexToRequestStreamRelativeIndex(uint64_t absolute_index,
                                                         uint64_t base) {
-  DCHECK_LT(absolute_index, base);
+  QUICHE_DCHECK_LT(absolute_index, base);
 
   return base - absolute_index - 1;
 }

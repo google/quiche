@@ -69,8 +69,8 @@ QuicPeerIssuedConnectionIdManager::QuicPeerIssuedConnectionIdManager(
       clock_(clock),
       retire_connection_id_alarm_(alarm_factory->CreateAlarm(
           new RetirePeerIssuedConnectionIdAlarm(visitor))) {
-  DCHECK_GE(active_connection_id_limit_, 2u);
-  DCHECK(!initial_peer_issued_connection_id.IsEmpty());
+  QUICHE_DCHECK_GE(active_connection_id_limit_, 2u);
+  QUICHE_DCHECK(!initial_peer_issued_connection_id.IsEmpty());
   active_connection_id_data_.emplace_back(initial_peer_issued_connection_id,
                                           /*sequence_number=*/0u,
                                           QuicUint128());
@@ -294,7 +294,7 @@ QuicSelfIssuedConnectionIdManager::IssueNewConnectionId() {
 QuicNewConnectionIdFrame
 QuicSelfIssuedConnectionIdManager::IssueNewConnectionIdForPreferredAddress() {
   QuicNewConnectionIdFrame frame = IssueNewConnectionId();
-  DCHECK_EQ(frame.sequence_number, 1u);
+  QUICHE_DCHECK_EQ(frame.sequence_number, 1u);
   return frame;
 }
 
@@ -302,7 +302,7 @@ QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
     const QuicRetireConnectionIdFrame& frame,
     QuicTime::Delta pto_delay,
     std::string* error_detail) {
-  DCHECK(!active_connection_ids_.empty());
+  QUICHE_DCHECK(!active_connection_ids_.empty());
   if (frame.sequence_number > active_connection_ids_.back().second) {
     *error_detail = "To be retired connecton ID is never issued.";
     return IETF_QUIC_PROTOCOL_VIOLATION;

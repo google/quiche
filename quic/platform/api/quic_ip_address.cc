@@ -10,6 +10,7 @@
 #include <string>
 
 #include "quic/platform/api/quic_bug_tracker.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 
@@ -217,18 +218,18 @@ bool QuicIpAddress::InSameSubnet(const QuicIpAddress& other,
   if (bits_to_check == 0) {
     return true;
   }
-  DCHECK_LT(static_cast<size_t>(bytes_to_check), sizeof(address_.bytes));
+  QUICHE_DCHECK_LT(static_cast<size_t>(bytes_to_check), sizeof(address_.bytes));
   int mask = (~0u) << (8u - bits_to_check);
   return (lhs[bytes_to_check] & mask) == (rhs[bytes_to_check] & mask);
 }
 
 in_addr QuicIpAddress::GetIPv4() const {
-  DCHECK(IsIPv4());
+  QUICHE_DCHECK(IsIPv4());
   return address_.v4;
 }
 
 in6_addr QuicIpAddress::GetIPv6() const {
-  DCHECK(IsIPv6());
+  QUICHE_DCHECK(IsIPv6());
   return address_.v6;
 }
 

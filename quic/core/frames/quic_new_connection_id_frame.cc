@@ -17,7 +17,7 @@ QuicNewConnectionIdFrame::QuicNewConnectionIdFrame(
       sequence_number(sequence_number),
       stateless_reset_token(stateless_reset_token),
       retire_prior_to(retire_prior_to) {
-  DCHECK(retire_prior_to <= sequence_number);
+  QUICHE_DCHECK(retire_prior_to <= sequence_number);
 }
 
 std::ostream& operator<<(std::ostream& os,

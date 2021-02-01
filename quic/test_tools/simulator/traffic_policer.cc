@@ -45,7 +45,7 @@ bool TrafficPolicer::FilterPacket(const Packet& packet) {
   }
 
   auto bucket = token_buckets_.find(packet.destination);
-  DCHECK(bucket != token_buckets_.end());
+  QUICHE_DCHECK(bucket != token_buckets_.end());
 
   // Silently drop the packet on the floor if out of tokens
   if (bucket->second < packet.size) {

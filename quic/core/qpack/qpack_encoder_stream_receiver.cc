@@ -8,6 +8,7 @@
 #include "http2/decoder/decode_buffer.h"
 #include "http2/decoder/decode_status.h"
 #include "quic/core/qpack/qpack_instructions.h"
+#include "quic/platform/api/quic_logging.h"
 
 namespace quic {
 
@@ -15,7 +16,7 @@ QpackEncoderStreamReceiver::QpackEncoderStreamReceiver(Delegate* delegate)
     : instruction_decoder_(QpackEncoderStreamLanguage(), this),
       delegate_(delegate),
       error_detected_(false) {
-  DCHECK(delegate_);
+  QUICHE_DCHECK(delegate_);
 }
 
 void QpackEncoderStreamReceiver::Decode(absl::string_view data) {
@@ -46,7 +47,7 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
     return true;
   }
 
-  DCHECK_EQ(instruction, SetDynamicTableCapacityInstruction());
+  QUICHE_DCHECK_EQ(instruction, SetDynamicTableCapacityInstruction());
   delegate_->OnSetDynamicTableCapacity(instruction_decoder_.varint());
   return true;
 }
@@ -54,7 +55,7 @@ bool QpackEncoderStreamReceiver::OnInstructionDecoded(
 void QpackEncoderStreamReceiver::OnInstructionDecodingError(
     QpackInstructionDecoder::ErrorCode error_code,
     absl::string_view error_message) {
-  DCHECK(!error_detected_);
+  QUICHE_DCHECK(!error_detected_);
 
   error_detected_ = true;
 

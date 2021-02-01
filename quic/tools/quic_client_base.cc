@@ -55,7 +55,7 @@ class QuicClientSocketMigrationValidationResultDelegate
     client_->session()->MigratePath(
         migration_context->self_address(), migration_context->peer_address(),
         migration_context->WriterToUse(), /*owns_writer=*/false);
-    DCHECK(migration_context->WriterToUse() != nullptr);
+    QUICHE_DCHECK(migration_context->WriterToUse() != nullptr);
     // Hand the ownership of the alternative writer to the client.
     client_->set_writer(migration_context->ReleaseWriter());
   }
@@ -154,8 +154,8 @@ bool QuicClientBase::Connect() {
 }
 
 void QuicClientBase::StartConnect() {
-  DCHECK(initialized_);
-  DCHECK(!connected());
+  QUICHE_DCHECK(initialized_);
+  QUICHE_DCHECK(!connected());
   QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
   ParsedQuicVersion mutual_version = UnsupportedQuicVersion();
   const bool can_reconnect_with_different_version =
@@ -205,7 +205,7 @@ void QuicClientBase::InitializeSession() {
 }
 
 void QuicClientBase::Disconnect() {
-  DCHECK(initialized_);
+  QUICHE_DCHECK(initialized_);
 
   initialized_ = false;
   if (connected()) {
@@ -236,7 +236,7 @@ bool QuicClientBase::WaitForEvents() {
 
   network_helper_->RunEventLoop();
 
-  DCHECK(session() != nullptr);
+  QUICHE_DCHECK(session() != nullptr);
   ParsedQuicVersion version = UnsupportedQuicVersion();
   if (!connected() && CanReconnectWithDifferentVersion(&version)) {
     QUIC_DLOG(INFO) << "Can reconnect with version: " << version
@@ -273,9 +273,9 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
 }
 
 bool QuicClientBase::ValidateAndMigrateSocket(const QuicIpAddress& new_host) {
-  DCHECK(VersionHasIetfQuicFrames(
-             session_->connection()->version().transport_version) &&
-         session_->connection()->use_path_validator());
+  QUICHE_DCHECK(VersionHasIetfQuicFrames(
+                    session_->connection()->version().transport_version) &&
+                session_->connection()->use_path_validator());
   if (!connected()) {
     return false;
   }

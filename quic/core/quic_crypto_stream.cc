@@ -49,7 +49,8 @@ QuicCryptoStream::~QuicCryptoStream() {}
 QuicByteCount QuicCryptoStream::CryptoMessageFramingOverhead(
     QuicTransportVersion version,
     QuicConnectionId connection_id) {
-  DCHECK(QuicUtils::IsConnectionIdValidForVersion(connection_id, version));
+  QUICHE_DCHECK(
+      QuicUtils::IsConnectionIdValidForVersion(connection_id, version));
   QuicVariableLengthIntegerLength retry_token_length_length =
       VARIABLE_LENGTH_INTEGER_LENGTH_1;
   QuicVariableLengthIntegerLength length_length =
@@ -312,7 +313,7 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
                                             QuicByteCount data_length,
                                             bool /*fin*/,
                                             TransmissionType type) {
-  DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
+  QUICHE_DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   QuicIntervalSet<QuicStreamOffset> retransmission(offset,
                                                    offset + data_length);
   // Determine the encryption level to send data. This only needs to be once as
@@ -345,7 +346,7 @@ QuicConsumedData QuicCryptoStream::RetransmitStreamDataAtLevel(
     QuicByteCount retransmission_length,
     EncryptionLevel encryption_level,
     TransmissionType type) {
-  DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
+  QUICHE_DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   const auto consumed = stream_delegate()->WritevData(
       id(), retransmission_length, retransmission_offset, NO_FIN, type,
       encryption_level);
@@ -446,7 +447,8 @@ bool QuicCryptoStream::HasBufferedCryptoFrames() const {
       << "Versions less than 47 don't use CRYPTO frames";
   for (EncryptionLevel level : AllEncryptionLevels()) {
     const QuicStreamSendBuffer& send_buffer = substreams_[level].send_buffer;
-    DCHECK_GE(send_buffer.stream_offset(), send_buffer.stream_bytes_written());
+    QUICHE_DCHECK_GE(send_buffer.stream_offset(),
+                     send_buffer.stream_bytes_written());
     if (send_buffer.stream_offset() > send_buffer.stream_bytes_written()) {
       return true;
     }

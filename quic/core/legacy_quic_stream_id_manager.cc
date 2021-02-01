@@ -36,7 +36,7 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
 LegacyQuicStreamIdManager::~LegacyQuicStreamIdManager() {}
 
 bool LegacyQuicStreamIdManager::CanOpenNextOutgoingStream() const {
-  DCHECK_LE(num_open_outgoing_streams_, max_open_outgoing_streams_);
+  QUICHE_DCHECK_LE(num_open_outgoing_streams_, max_open_outgoing_streams_);
   QUIC_DLOG_IF(INFO, num_open_outgoing_streams_ == max_open_outgoing_streams_)
       << "Failed to create a new outgoing stream. "
       << "Already " << num_open_outgoing_streams_ << " open.";

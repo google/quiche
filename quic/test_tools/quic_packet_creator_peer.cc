@@ -30,7 +30,7 @@ void QuicPacketCreatorPeer::SetSendVersionInPacket(
     creator->packet_.encryption_level = ENCRYPTION_FORWARD_SECURE;
     return;
   }
-  DCHECK(creator->packet_.encryption_level < ENCRYPTION_FORWARD_SECURE);
+  QUICHE_DCHECK(creator->packet_.encryption_level < ENCRYPTION_FORWARD_SECURE);
 }
 
 // static
@@ -60,7 +60,7 @@ QuicVariableLengthIntegerLength QuicPacketCreatorPeer::GetLengthLength(
 
 void QuicPacketCreatorPeer::SetPacketNumber(QuicPacketCreator* creator,
                                             uint64_t s) {
-  DCHECK_NE(0u, s);
+  QUICHE_DCHECK_NE(0u, s);
   creator->packet_.packet_number = QuicPacketNumber(s);
 }
 
@@ -105,15 +105,15 @@ SerializedPacket QuicPacketCreatorPeer::SerializeAllFrames(
     const QuicFrames& frames,
     char* buffer,
     size_t buffer_len) {
-  DCHECK(creator->queued_frames_.empty());
-  DCHECK(!frames.empty());
+  QUICHE_DCHECK(creator->queued_frames_.empty());
+  QUICHE_DCHECK(!frames.empty());
   for (const QuicFrame& frame : frames) {
     bool success = creator->AddFrame(frame, NOT_RETRANSMISSION);
-    DCHECK(success);
+    QUICHE_DCHECK(success);
   }
   const bool success = creator->SerializePacket(
       QuicOwnedPacketBuffer(buffer, nullptr), buffer_len);
-  DCHECK(success);
+  QUICHE_DCHECK(success);
   SerializedPacket packet = std::move(creator->packet_);
   // The caller takes ownership of the QuicEncryptedPacket.
   creator->packet_.encrypted_buffer = nullptr;

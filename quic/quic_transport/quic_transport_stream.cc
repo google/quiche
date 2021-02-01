@@ -47,7 +47,7 @@ size_t QuicTransportStream::Read(std::string* output) {
   const size_t bytes_to_read = ReadableBytes();
   output->resize(old_size + bytes_to_read);
   size_t bytes_read = Read(&(*output)[old_size], bytes_to_read);
-  DCHECK_EQ(bytes_to_read, bytes_read);
+  QUICHE_DCHECK_EQ(bytes_to_read, bytes_read);
   output->resize(old_size + bytes_read);
   return bytes_read;
 }
@@ -93,7 +93,7 @@ bool QuicTransportStream::SendFin() {
   QuicMemSlice empty;
   QuicConsumedData consumed =
       WriteMemSlices(QuicMemSliceSpan(&empty), /*fin=*/true);
-  DCHECK_EQ(consumed.bytes_consumed, 0u);
+  QUICHE_DCHECK_EQ(consumed.bytes_consumed, 0u);
   return consumed.fin_consumed;
 }
 

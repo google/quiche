@@ -43,7 +43,7 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
     std::pair<SSL_CTX*, int> shared_handles = GetSharedSslHandles();
     int ex_data_index = shared_handles.second;
     const int rv = SSL_set_ex_data(ssl_.get(), ex_data_index, this);
-    CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
+    QUICHE_CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
   }
   state_ = other.state_;
   error_details_ = std::move(other.error_details_);
@@ -355,7 +355,7 @@ void TlsChloExtractor::SetupSslHandle() {
 
   ssl_ = bssl::UniquePtr<SSL>(SSL_new(ssl_ctx));
   const int rv = SSL_set_ex_data(ssl_.get(), ex_data_index, this);
-  CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
+  QUICHE_CHECK_EQ(rv, 1) << "Internal allocation failure in SSL_set_ex_data";
   SSL_set_accept_state(ssl_.get());
 }
 

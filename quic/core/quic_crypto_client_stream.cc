@@ -35,7 +35,8 @@ QuicCryptoClientStream::QuicCryptoClientStream(
     ProofHandler* proof_handler,
     bool has_application_state)
     : QuicCryptoClientStreamBase(session) {
-  DCHECK_EQ(Perspective::IS_CLIENT, session->connection()->perspective());
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT,
+                   session->connection()->perspective());
   switch (session->connection()->version().handshake_protocol) {
     case PROTOCOL_QUIC_CRYPTO:
       handshaker_ = std::make_unique<QuicCryptoClientHandshaker>(
@@ -149,13 +150,13 @@ void QuicCryptoClientStream::OnNewTokenReceived(absl::string_view token) {
 }
 
 std::string QuicCryptoClientStream::GetAddressToken() const {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return "";
 }
 
 bool QuicCryptoClientStream::ValidateAddressToken(
     absl::string_view /*token*/) const {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
   return false;
 }
 

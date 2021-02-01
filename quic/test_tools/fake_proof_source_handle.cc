@@ -22,7 +22,7 @@ class QUIC_EXPORT_PRIVATE ResultSavingSignatureCallback
   explicit ResultSavingSignatureCallback(
       absl::optional<ComputeSignatureResult>* result)
       : result_(result) {
-    DCHECK(!result_->has_value());
+    QUICHE_DCHECK(!result_->has_value());
   }
   void Run(bool ok,
            std::string signature,
@@ -46,8 +46,9 @@ ComputeSignatureResult ComputeSignatureNow(
   delegate->ComputeTlsSignature(
       server_address, client_address, hostname, signature_algorithm, in,
       std::make_unique<ResultSavingSignatureCallback>(&result));
-  CHECK(result.has_value()) << "delegate->ComputeTlsSignature must computes a "
-                               "signature immediately";
+  QUICHE_CHECK(result.has_value())
+      << "delegate->ComputeTlsSignature must computes a "
+         "signature immediately";
   return std::move(result.value());
 }
 }  // namespace
@@ -88,7 +89,7 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     return QUIC_FAILURE;
   }
 
-  DCHECK(select_cert_action_ == Action::DELEGATE_SYNC);
+  QUICHE_DCHECK(select_cert_action_ == Action::DELEGATE_SYNC);
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
       delegate_->GetCertChain(server_address, client_address, hostname);
 
@@ -116,7 +117,7 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
     return QUIC_FAILURE;
   }
 
-  DCHECK(compute_signature_action_ == Action::DELEGATE_SYNC);
+  QUICHE_DCHECK(compute_signature_action_ == Action::DELEGATE_SYNC);
   ComputeSignatureResult result =
       ComputeSignatureNow(delegate_, server_address, client_address, hostname,
                           signature_algorithm, in);
@@ -135,7 +136,7 @@ bool FakeProofSourceHandle::HasPendingOperation() const {
 }
 
 void FakeProofSourceHandle::CompletePendingOperation() {
-  DCHECK_LE(NumPendingOperations(), 1);
+  QUICHE_DCHECK_LE(NumPendingOperations(), 1);
 
   if (select_cert_op_.has_value()) {
     select_cert_op_->Run();

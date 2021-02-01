@@ -74,7 +74,7 @@ class NetlinkTest : public QuicTest {
             send_callback(buf.c_str(), buf.size());
           }
 
-          CHECK_EQ(seq, -1);
+          QUICHE_CHECK_EQ(seq, -1);
           seq = netlink_message->nlmsg_seq;
           return buf.size();
         }));
@@ -90,7 +90,7 @@ class NetlinkTest : public QuicTest {
           nl_addr->nl_groups = 0;  // no multicast
 
           int ret = recv_callback(reply_packet_, sizeof(reply_packet_), seq);
-          CHECK_LE(ret, sizeof(reply_packet_));
+          QUICHE_CHECK_LE(ret, sizeof(reply_packet_));
           return ret;
         }));
 
@@ -185,7 +185,7 @@ void CreateIfaddrmsg(struct nlmsghdr* nlm,
                      unsigned char flags,
                      unsigned char scope,
                      QuicIpAddress ip) {
-  CHECK(ip.IsInitialized());
+  QUICHE_CHECK(ip.IsInitialized());
   unsigned char family;
   switch (ip.address_family()) {
     case IpAddressFamily::IP_V4:

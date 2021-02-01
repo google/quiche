@@ -51,15 +51,15 @@ AeadBaseEncrypter::AeadBaseEncrypter(const EVP_AEAD* (*aead_getter)(),
       auth_tag_size_(auth_tag_size),
       nonce_size_(nonce_size),
       use_ietf_nonce_construction_(use_ietf_nonce_construction) {
-  DCHECK_LE(key_size_, sizeof(key_));
-  DCHECK_LE(nonce_size_, sizeof(iv_));
-  DCHECK_GE(kMaxNonceSize, nonce_size_);
+  QUICHE_DCHECK_LE(key_size_, sizeof(key_));
+  QUICHE_DCHECK_LE(nonce_size_, sizeof(iv_));
+  QUICHE_DCHECK_GE(kMaxNonceSize, nonce_size_);
 }
 
 AeadBaseEncrypter::~AeadBaseEncrypter() {}
 
 bool AeadBaseEncrypter::SetKey(absl::string_view key) {
-  DCHECK_EQ(key.size(), key_size_);
+  QUICHE_DCHECK_EQ(key.size(), key_size_);
   if (key.size() != key_size_) {
     return false;
   }
@@ -81,7 +81,7 @@ bool AeadBaseEncrypter::SetNoncePrefix(absl::string_view nonce_prefix) {
     QUIC_BUG << "Attempted to set nonce prefix on IETF QUIC crypter";
     return false;
   }
-  DCHECK_EQ(nonce_prefix.size(), nonce_size_ - sizeof(QuicPacketNumber));
+  QUICHE_DCHECK_EQ(nonce_prefix.size(), nonce_size_ - sizeof(QuicPacketNumber));
   if (nonce_prefix.size() != nonce_size_ - sizeof(QuicPacketNumber)) {
     return false;
   }
@@ -94,7 +94,7 @@ bool AeadBaseEncrypter::SetIV(absl::string_view iv) {
     QUIC_BUG << "Attempted to set IV on Google QUIC crypter";
     return false;
   }
-  DCHECK_EQ(iv.size(), nonce_size_);
+  QUICHE_DCHECK_EQ(iv.size(), nonce_size_);
   if (iv.size() != nonce_size_) {
     return false;
   }
@@ -106,7 +106,7 @@ bool AeadBaseEncrypter::Encrypt(absl::string_view nonce,
                                 absl::string_view associated_data,
                                 absl::string_view plaintext,
                                 unsigned char* output) {
-  DCHECK_EQ(nonce.size(), nonce_size_);
+  QUICHE_DCHECK_EQ(nonce.size(), nonce_size_);
 
   size_t ciphertext_len;
   if (!EVP_AEAD_CTX_seal(

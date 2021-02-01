@@ -133,9 +133,9 @@ WriteResult QuicEndpointBase::Writer::WritePacket(
     const QuicIpAddress& /*self_address*/,
     const QuicSocketAddress& /*peer_address*/,
     PerPacketOptions* options) {
-  DCHECK(!IsWriteBlocked());
-  DCHECK(options == nullptr);
-  DCHECK(buf_len <= kMaxOutgoingPacketSize);
+  QUICHE_DCHECK(!IsWriteBlocked());
+  QUICHE_DCHECK(options == nullptr);
+  QUICHE_DCHECK(buf_len <= kMaxOutgoingPacketSize);
 
   // Instead of losing a packet, become write-blocked when the egress queue is
   // full.

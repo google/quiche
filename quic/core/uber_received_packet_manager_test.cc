@@ -89,17 +89,17 @@ class UberReceivedPacketManagerTest : public QuicTest {
   }
 
   void CheckAckTimeout(QuicTime time) {
-    DCHECK(HasPendingAck());
+    QUICHE_DCHECK(HasPendingAck());
     if (!manager_->supports_multiple_packet_number_spaces()) {
-      DCHECK(manager_->GetAckTimeout(APPLICATION_DATA) == time);
+      QUICHE_DCHECK(manager_->GetAckTimeout(APPLICATION_DATA) == time);
       if (time <= clock_.ApproximateNow()) {
         // ACK timeout expires, send an ACK.
         manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
-        DCHECK(!HasPendingAck());
+        QUICHE_DCHECK(!HasPendingAck());
       }
       return;
     }
-    DCHECK(manager_->GetEarliestAckTimeout() == time);
+    QUICHE_DCHECK(manager_->GetEarliestAckTimeout() == time);
     // Send all expired ACKs.
     for (int8_t i = INITIAL_DATA; i < NUM_PACKET_NUMBER_SPACES; ++i) {
       const QuicTime ack_timeout =

@@ -103,7 +103,7 @@ void RttStats::OnConnectionMigration() {
 }
 
 QuicTime::Delta RttStats::GetStandardOrMeanDeviation() const {
-  DCHECK(calculate_standard_deviation_);
+  QUICHE_DCHECK(calculate_standard_deviation_);
   if (!standard_deviation_calculator_.has_valid_standard_deviation) {
     return mean_deviation_;
   }
@@ -124,7 +124,7 @@ void RttStats::StandardDeviationCaculator::OnNewRttSample(
 
 QuicTime::Delta
 RttStats::StandardDeviationCaculator::CalculateStandardDeviation() const {
-  DCHECK(has_valid_standard_deviation);
+  QUICHE_DCHECK(has_valid_standard_deviation);
   return QuicTime::Delta::FromMicroseconds(sqrt(m2));
 }
 

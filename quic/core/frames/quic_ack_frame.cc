@@ -20,7 +20,7 @@ const QuicPacketCount kMaxPrintRange = 128;
 bool IsAwaitingPacket(const QuicAckFrame& ack_frame,
                       QuicPacketNumber packet_number,
                       QuicPacketNumber peer_least_packet_awaiting_ack) {
-  DCHECK(packet_number.IsInitialized());
+  QUICHE_DCHECK(packet_number.IsInitialized());
   return (!peer_least_packet_awaiting_ack.IsInitialized() ||
           packet_number >= peer_least_packet_awaiting_ack) &&
          !ack_frame.packets.Contains(packet_number);
@@ -118,12 +118,12 @@ bool PacketNumberQueue::Empty() const {
 }
 
 QuicPacketNumber PacketNumberQueue::Min() const {
-  DCHECK(!Empty());
+  QUICHE_DCHECK(!Empty());
   return packet_number_intervals_.begin()->min();
 }
 
 QuicPacketNumber PacketNumberQueue::Max() const {
-  DCHECK(!Empty());
+  QUICHE_DCHECK(!Empty());
   return packet_number_intervals_.rbegin()->max() - 1;
 }
 
@@ -156,7 +156,7 @@ PacketNumberQueue::const_reverse_iterator PacketNumberQueue::rend() const {
 }
 
 QuicPacketCount PacketNumberQueue::LastIntervalLength() const {
-  DCHECK(!Empty());
+  QUICHE_DCHECK(!Empty());
   return packet_number_intervals_.rbegin()->Length();
 }
 

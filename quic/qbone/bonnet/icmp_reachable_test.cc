@@ -27,7 +27,7 @@ constexpr char kDestinationAddress[] = "fe80:4:3:2:1::1";
 constexpr int kFakeWriteFd = 0;
 
 icmp6_hdr GetHeaderFromPacket(const void* buf, size_t len) {
-  CHECK_GE(len, sizeof(ip6_hdr) + sizeof(icmp6_hdr));
+  QUICHE_CHECK_GE(len, sizeof(ip6_hdr) + sizeof(icmp6_hdr));
 
   auto* buffer = reinterpret_cast<const char*>(buf);
   return *reinterpret_cast<const icmp6_hdr*>(&buffer[sizeof(ip6_hdr)]);
@@ -80,11 +80,11 @@ class StatsInterface : public IcmpReachable::StatsInterface {
 class IcmpReachableTest : public QuicTest {
  public:
   IcmpReachableTest() {
-    CHECK(source_.FromString(kSourceAddress));
-    CHECK(destination_.FromString(kDestinationAddress));
+    QUICHE_CHECK(source_.FromString(kSourceAddress));
+    QUICHE_CHECK(destination_.FromString(kDestinationAddress));
 
     int pipe_fds[2];
-    CHECK(pipe(pipe_fds) >= 0) << "pipe() failed";
+    QUICHE_CHECK(pipe(pipe_fds) >= 0) << "pipe() failed";
 
     read_fd_ = pipe_fds[0];
     read_src_fd_ = pipe_fds[1];

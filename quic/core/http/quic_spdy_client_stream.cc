@@ -48,7 +48,7 @@ void QuicSpdyClientStream::OnInitialHeadersComplete(
     const QuicHeaderList& header_list) {
   QuicSpdyStream::OnInitialHeadersComplete(fin, frame_len, header_list);
 
-  DCHECK(headers_decompressed());
+  QUICHE_DCHECK(headers_decompressed());
   header_bytes_read_ += frame_len;
   if (!SpdyUtils::CopyAndValidateHeaders(header_list, &content_length_,
                                          &response_headers_)) {

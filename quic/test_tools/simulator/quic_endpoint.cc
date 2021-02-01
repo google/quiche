@@ -74,7 +74,8 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator,
   QuicErrorCode error_code = config.ProcessPeerHello(
       peer_hello, perspective == Perspective::IS_CLIENT ? SERVER : CLIENT,
       &error);
-  DCHECK_EQ(error_code, QUIC_NO_ERROR) << "Configuration failed: " << error;
+  QUICHE_DCHECK_EQ(error_code, QUIC_NO_ERROR)
+      << "Configuration failed: " << error;
   if (connection_->version().UsesTls()) {
     if (connection_->perspective() == Perspective::IS_CLIENT) {
       test::QuicConfigPeer::SetReceivedOriginalConnectionId(
@@ -131,7 +132,7 @@ void QuicEndpoint::AddBytesToTransfer(QuicByteCount bytes) {
 
 void QuicEndpoint::OnStreamFrame(const QuicStreamFrame& frame) {
   // Verify that the data received always matches the expected.
-  DCHECK(frame.stream_id == kDataStream);
+  QUICHE_DCHECK(frame.stream_id == kDataStream);
   for (size_t i = 0; i < frame.data_length; i++) {
     if (frame.data_buffer[i] != kStreamDataContents) {
       wrong_data_received_ = true;
@@ -139,7 +140,7 @@ void QuicEndpoint::OnStreamFrame(const QuicStreamFrame& frame) {
   }
   offsets_received_.Add(frame.offset, frame.offset + frame.data_length);
   // Sanity check against very pathological connections.
-  DCHECK_LE(offsets_received_.Size(), 1000u);
+  QUICHE_DCHECK_LE(offsets_received_.Size(), 1000u);
 }
 
 void QuicEndpoint::OnCryptoFrame(const QuicCryptoFrame& /*frame*/) {}
@@ -184,18 +185,18 @@ bool QuicEndpoint::OnFrameAcked(const QuicFrame& frame,
 }
 
 void QuicEndpoint::OnFrameLost(const QuicFrame& frame) {
-  DCHECK(notifier_);
+  QUICHE_DCHECK(notifier_);
   notifier_->OnFrameLost(frame);
 }
 
 void QuicEndpoint::RetransmitFrames(const QuicFrames& frames,
                                     TransmissionType type) {
-  DCHECK(notifier_);
+  QUICHE_DCHECK(notifier_);
   notifier_->RetransmitFrames(frames, type);
 }
 
 bool QuicEndpoint::IsFrameOutstanding(const QuicFrame& frame) const {
-  DCHECK(notifier_);
+  QUICHE_DCHECK(notifier_);
   return notifier_->IsFrameOutstanding(frame);
 }
 
@@ -243,7 +244,7 @@ void QuicEndpoint::WriteStreamData() {
     QuicConsumedData consumed_data = connection_->SendStreamData(
         kDataStream, transmission_size, bytes_transferred_, NO_FIN);
 
-    DCHECK(consumed_data.bytes_consumed <= transmission_size);
+    QUICHE_DCHECK(consumed_data.bytes_consumed <= transmission_size);
     bytes_transferred_ += consumed_data.bytes_consumed;
     bytes_to_transfer_ -= consumed_data.bytes_consumed;
     if (consumed_data.bytes_consumed != transmission_size) {

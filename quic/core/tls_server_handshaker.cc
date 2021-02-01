@@ -111,7 +111,7 @@ QuicAsyncStatus TlsServerHandshaker::DefaultProofSourceHandle::ComputeSignature(
 TlsServerHandshaker::SignatureCallback::SignatureCallback(
     TlsServerHandshaker* handshaker)
     : handshaker_(handshaker) {
-  DCHECK(!handshaker_->use_proof_source_handle_);
+  QUICHE_DCHECK(!handshaker_->use_proof_source_handle_);
 }
 
 void TlsServerHandshaker::SignatureCallback::Run(
@@ -169,7 +169,7 @@ void TlsServerHandshaker::DecryptCallback::Run(std::vector<uint8_t> plaintext) {
 }
 
 void TlsServerHandshaker::DecryptCallback::Cancel() {
-  DCHECK(handshaker_);
+  QUICHE_DCHECK(handshaker_);
   handshaker_ = nullptr;
 }
 
@@ -183,8 +183,8 @@ TlsServerHandshaker::TlsServerHandshaker(
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this),
       crypto_config_(crypto_config) {
-  DCHECK_EQ(PROTOCOL_TLS1_3,
-            session->connection()->version().handshake_protocol);
+  QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3,
+                   session->connection()->version().handshake_protocol);
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
@@ -214,7 +214,7 @@ void TlsServerHandshaker::CancelOutstandingCallbacks() {
 
 std::unique_ptr<ProofSourceHandle>
 TlsServerHandshaker::MaybeCreateProofSourceHandle() {
-  DCHECK(use_proof_source_handle_);
+  QUICHE_DCHECK(use_proof_source_handle_);
   return std::make_unique<DefaultProofSourceHandle>(this, proof_source_);
 }
 
@@ -263,11 +263,11 @@ void TlsServerHandshaker::OnPacketDecrypted(EncryptionLevel level) {
 }
 
 void TlsServerHandshaker::OnHandshakeDoneReceived() {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 void TlsServerHandshaker::OnNewTokenReceived(absl::string_view /*token*/) {
-  DCHECK(false);
+  QUICHE_DCHECK(false);
 }
 
 std::string TlsServerHandshaker::GetAddressToken() const {
@@ -388,7 +388,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
       params_bytes_len = 0;
     }
   } else {
-    DCHECK_EQ(client_hello, nullptr);
+    QUICHE_DCHECK_EQ(client_hello, nullptr);
     SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
                                        &params_bytes_len);
   }
@@ -402,7 +402,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
                                 Perspective::IS_CLIENT, client_params_bytes,
                                 params_bytes_len, &client_params,
                                 &parse_error_details)) {
-    DCHECK(!parse_error_details.empty());
+    QUICHE_DCHECK(!parse_error_details.empty());
     *error_details =
         "Unable to parse client's transport parameters: " + parse_error_details;
     return false;
@@ -451,7 +451,7 @@ bool TlsServerHandshaker::ProcessTransportParameters(
 TlsServerHandshaker::SetTransportParametersResult
 TlsServerHandshaker::SetTransportParameters() {
   SetTransportParametersResult result;
-  DCHECK(!result.success);
+  QUICHE_DCHECK(!result.success);
 
   TransportParameters server_params;
   server_params.perspective = Perspective::IS_SERVER;
@@ -580,7 +580,7 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
     size_t max_out,
     uint16_t sig_alg,
     absl::string_view in) {
-  DCHECK_EQ(expected_ssl_error(), SSL_ERROR_WANT_READ);
+  QUICHE_DCHECK_EQ(expected_ssl_error(), SSL_ERROR_WANT_READ);
   if (use_proof_source_handle_) {
     QUIC_RELOADABLE_FLAG_COUNT_N(quic_tls_use_per_handshaker_proof_source, 2,
                                  3);
@@ -631,7 +631,7 @@ void TlsServerHandshaker::OnComputeSignatureDone(
   QUIC_DVLOG(1) << "OnComputeSignatureDone. ok:" << ok
                 << ", is_sync:" << is_sync
                 << ", len(signature):" << signature.size();
-  DCHECK(use_proof_source_handle_);
+  QUICHE_DCHECK(use_proof_source_handle_);
   if (ok) {
     cert_verify_sig_ = std::move(signature);
     proof_source_details_ = std::move(details);
@@ -639,7 +639,8 @@ void TlsServerHandshaker::OnComputeSignatureDone(
   const int last_expected_ssl_error = expected_ssl_error();
   set_expected_ssl_error(SSL_ERROR_WANT_READ);
   if (!is_sync) {
-    DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+    QUICHE_DCHECK_EQ(last_expected_ssl_error,
+                     SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
     AdvanceHandshakeFromCallback();
   }
 }
@@ -650,7 +651,7 @@ bool TlsServerHandshaker::HasValidSignature(size_t max_signature_size) const {
 }
 
 size_t TlsServerHandshaker::SessionTicketMaxOverhead() {
-  DCHECK(proof_source_->GetTicketCrypter());
+  QUICHE_DCHECK(proof_source_->GetTicketCrypter());
   return proof_source_->GetTicketCrypter()->MaxOverhead();
 }
 
@@ -658,7 +659,7 @@ int TlsServerHandshaker::SessionTicketSeal(uint8_t* out,
                                            size_t* out_len,
                                            size_t max_out_len,
                                            absl::string_view in) {
-  DCHECK(proof_source_->GetTicketCrypter());
+  QUICHE_DCHECK(proof_source_->GetTicketCrypter());
   std::vector<uint8_t> ticket = proof_source_->GetTicketCrypter()->Encrypt(in);
   if (max_out_len < ticket.size()) {
     QUIC_BUG
@@ -677,7 +678,7 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
     size_t* out_len,
     size_t max_out_len,
     absl::string_view in) {
-  DCHECK(proof_source_->GetTicketCrypter());
+  QUICHE_DCHECK(proof_source_->GetTicketCrypter());
 
   if (!ticket_decryption_callback_) {
     ticket_received_ = true;
@@ -788,7 +789,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
         set_transport_params_result.quic_transport_params,
         set_transport_params_result.early_data_context);
 
-    DCHECK_EQ(status, select_cert_status().value());
+    QUICHE_DCHECK_EQ(status, select_cert_status().value());
 
     if (status == QUIC_PENDING) {
       set_expected_ssl_error(SSL_ERROR_PENDING_CERTIFICATE);
@@ -838,7 +839,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
     const ProofSource::Chain* chain) {
   QUIC_DVLOG(1) << "OnSelectCertificateDone. ok:" << ok
                 << ", is_sync:" << is_sync;
-  DCHECK(use_proof_source_handle_);
+  QUICHE_DCHECK(use_proof_source_handle_);
 
   select_cert_status_ = QUIC_FAILURE;
   if (ok) {
@@ -852,7 +853,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   const int last_expected_ssl_error = expected_ssl_error();
   set_expected_ssl_error(SSL_ERROR_WANT_READ);
   if (!is_sync) {
-    DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_PENDING_CERTIFICATE);
+    QUICHE_DCHECK_EQ(last_expected_ssl_error, SSL_ERROR_PENDING_CERTIFICATE);
     AdvanceHandshakeFromCallback();
   }
 }

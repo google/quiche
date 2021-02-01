@@ -481,7 +481,7 @@ bool SimpleSessionNotifier::OnControlFrameAcked(const QuicFrame& frame) {
   if (id == kInvalidControlFrameId) {
     return false;
   }
-  DCHECK(id < least_unacked_ + control_frames_.size());
+  QUICHE_DCHECK(id < least_unacked_ + control_frames_.size());
   if (id < least_unacked_ ||
       GetControlFrameId(control_frames_.at(id - least_unacked_)) ==
           kInvalidControlFrameId) {
@@ -504,7 +504,7 @@ void SimpleSessionNotifier::OnControlFrameLost(const QuicFrame& frame) {
   if (id == kInvalidControlFrameId) {
     return;
   }
-  DCHECK(id < least_unacked_ + control_frames_.size());
+  QUICHE_DCHECK(id < least_unacked_ + control_frames_.size());
   if (id < least_unacked_ ||
       GetControlFrameId(control_frames_.at(id - least_unacked_)) ==
           kInvalidControlFrameId) {

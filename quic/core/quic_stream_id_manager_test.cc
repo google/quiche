@@ -76,7 +76,7 @@ class QuicStreamIdManagerTest : public QuicTestWithParam<TestParams> {
                            GetParam().version,
                            0,
                            kDefaultMaxStreamsPerConnection) {
-    DCHECK(VersionHasIetfQuicFrames(transport_version()));
+    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
   }
 
   QuicTransportVersion transport_version() const {
