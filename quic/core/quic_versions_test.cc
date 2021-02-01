@@ -371,23 +371,25 @@ TEST_F(QuicVersionsTest, LookUpParsedVersionByIndex) {
 // yet a typo was made in doing the #defines and it was caught
 // only in some test far removed from here... Better safe than sorry.
 TEST_F(QuicVersionsTest, CheckTransportVersionNumbersForTypos) {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
   EXPECT_EQ(QUIC_VERSION_43, 43);
   EXPECT_EQ(QUIC_VERSION_46, 46);
   EXPECT_EQ(QUIC_VERSION_50, 50);
   EXPECT_EQ(QUIC_VERSION_51, 51);
   EXPECT_EQ(QUIC_VERSION_IETF_DRAFT_29, 73);
+  EXPECT_EQ(QUIC_VERSION_IETF_RFC_V1, 80);
 }
 
 TEST_F(QuicVersionsTest, AlpnForVersion) {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
   EXPECT_EQ("h3-Q043", AlpnForVersion(ParsedQuicVersion::Q043()));
   EXPECT_EQ("h3-Q046", AlpnForVersion(ParsedQuicVersion::Q046()));
   EXPECT_EQ("h3-Q050", AlpnForVersion(ParsedQuicVersion::Q050()));
   EXPECT_EQ("h3-T051", AlpnForVersion(ParsedQuicVersion::T051()));
   EXPECT_EQ("h3-29", AlpnForVersion(ParsedQuicVersion::Draft29()));
+  EXPECT_EQ("h3", AlpnForVersion(ParsedQuicVersion::RFCv1()));
 }
 
 TEST_F(QuicVersionsTest, QuicVersionEnabling) {

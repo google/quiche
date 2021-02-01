@@ -135,6 +135,9 @@ namespace {
 const uint8_t kDraft29InitialSalt[] = {0xaf, 0xbf, 0xec, 0x28, 0x99, 0x93, 0xd2,
                                        0x4c, 0x9e, 0x97, 0x86, 0xf1, 0x9c, 0x61,
                                        0x11, 0xe0, 0x43, 0x90, 0xa8, 0x99};
+const uint8_t kRFCv1InitialSalt[] = {0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34,
+                                     0xb3, 0x4d, 0x17, 0x9a, 0xe6, 0xa4, 0xc8,
+                                     0x0c, 0xad, 0xcc, 0xbb, 0x7f, 0x0a};
 
 // Salts used by deployed versions of QUIC. When introducing a new version,
 // generate a new salt by running `openssl rand -hex 20`.
@@ -155,9 +158,12 @@ const uint8_t kReservedForNegotiationSalt[] = {
 
 const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
                                      size_t* out_len) {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync with initial encryption salts");
-  if (version == ParsedQuicVersion::Draft29()) {
+  if (version == ParsedQuicVersion::RFCv1()) {
+    *out_len = ABSL_ARRAYSIZE(kRFCv1InitialSalt);
+    return kRFCv1InitialSalt;
+  } else if (version == ParsedQuicVersion::Draft29()) {
     *out_len = ABSL_ARRAYSIZE(kDraft29InitialSalt);
     return kDraft29InitialSalt;
   } else if (version == ParsedQuicVersion::T051()) {
@@ -184,6 +190,11 @@ const uint8_t kDraft29RetryIntegrityKey[] = {0xcc, 0xce, 0x18, 0x7e, 0xd0, 0x9a,
                                              0x6c, 0xb9, 0x6b, 0xe1};
 const uint8_t kDraft29RetryIntegrityNonce[] = {
     0xe5, 0x49, 0x30, 0xf9, 0x7f, 0x21, 0x36, 0xf0, 0x53, 0x0a, 0x8c, 0x1c};
+const uint8_t kRFCv1RetryIntegrityKey[] = {0xbe, 0x0c, 0x69, 0x0b, 0x9f, 0x66,
+                                           0x57, 0x5a, 0x1d, 0x76, 0x6b, 0x54,
+                                           0xe3, 0x68, 0xc8, 0x4e};
+const uint8_t kRFCv1RetryIntegrityNonce[] = {
+    0x46, 0x15, 0x99, 0xd3, 0x5d, 0x63, 0x2b, 0xf2, 0x23, 0x98, 0x25, 0xbb};
 
 // Keys used by Google versions of QUIC. When introducing a new version,
 // generate a new key by running `openssl rand -hex 16`.
@@ -205,12 +216,20 @@ const uint8_t kReservedForNegotiationRetryIntegrityNonce[] = {
 bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
                                   absl::string_view* key,
                                   absl::string_view* nonce) {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync with retry integrity keys");
   if (!version.UsesTls()) {
     QUIC_BUG << "Attempted to get retry integrity keys for invalid version "
              << version;
     return false;
+  } else if (version == ParsedQuicVersion::RFCv1()) {
+    *key = absl::string_view(
+        reinterpret_cast<const char*>(kRFCv1RetryIntegrityKey),
+        ABSL_ARRAYSIZE(kRFCv1RetryIntegrityKey));
+    *nonce = absl::string_view(
+        reinterpret_cast<const char*>(kRFCv1RetryIntegrityNonce),
+        ABSL_ARRAYSIZE(kRFCv1RetryIntegrityNonce));
+    return true;
   } else if (version == ParsedQuicVersion::Draft29()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityKey),

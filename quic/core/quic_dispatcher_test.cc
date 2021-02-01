@@ -1306,7 +1306,7 @@ TEST_P(QuicDispatcherTestOneVersion,
                              received_packet44);
 }
 
-static_assert(quic::SupportedVersions().size() == 5u,
+static_assert(quic::SupportedVersions().size() == 6u,
               "Please add new RejectDeprecatedVersion tests above this assert "
               "when deprecating versions");
 

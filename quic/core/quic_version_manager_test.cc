@@ -18,11 +18,12 @@ namespace {
 class QuicVersionManagerTest : public QuicTest {};
 
 TEST_F(QuicVersionManagerTest, QuicVersionManager) {
-  static_assert(SupportedVersions().size() == 5u,
+  static_assert(SupportedVersions().size() == 6u,
                 "Supported versions out of sync");
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     QuicEnableVersion(version);
   }
+  QuicDisableVersion(ParsedQuicVersion::RFCv1());
   QuicDisableVersion(ParsedQuicVersion::Draft29());
   QuicDisableVersion(ParsedQuicVersion::T051());
   QuicVersionManager manager(AllSupportedVersions());

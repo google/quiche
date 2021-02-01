@@ -123,6 +123,7 @@ enum QuicTransportVersion {
   // Number 71 used to represent draft-ietf-quic-transport-27.
   // Number 72 used to represent draft-ietf-quic-transport-28.
   QUIC_VERSION_IETF_DRAFT_29 = 73,  // draft-ietf-quic-transport-29.
+  QUIC_VERSION_IETF_RFC_V1 = 80,    // Not-yet-published RFC.
   // Version 99 was a dumping ground for IETF QUIC changes which were not yet
   // yet ready for production between 2018-02 and 2020-02.
 
@@ -170,6 +171,7 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
     QuicTransportVersion transport_version) {
   bool transport_version_is_valid = false;
   constexpr QuicTransportVersion valid_transport_versions[] = {
+      QUIC_VERSION_IETF_RFC_V1,
       QUIC_VERSION_IETF_DRAFT_29,
       QUIC_VERSION_51,
       QUIC_VERSION_50,
@@ -194,7 +196,8 @@ QUIC_EXPORT_PRIVATE constexpr bool ParsedQuicVersionIsValid(
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_RESERVED_FOR_NEGOTIATION &&
              transport_version != QUIC_VERSION_51 &&
-             transport_version != QUIC_VERSION_IETF_DRAFT_29;
+             transport_version != QUIC_VERSION_IETF_DRAFT_29 &&
+             transport_version != QUIC_VERSION_IETF_RFC_V1;
     case PROTOCOL_TLS1_3:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
              transport_version != QUIC_VERSION_50 &&
@@ -242,6 +245,10 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   bool operator!=(const ParsedQuicVersion& other) const {
     return handshake_protocol != other.handshake_protocol ||
            transport_version != other.transport_version;
+  }
+
+  static constexpr ParsedQuicVersion RFCv1() {
+    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_RFC_V1);
   }
 
   static constexpr ParsedQuicVersion Draft29() {
@@ -352,6 +359,9 @@ struct QUIC_EXPORT_PRIVATE ParsedQuicVersion {
   // frames or not.
   bool HasIetfQuicFrames() const;
 
+  // Returns whether this version uses the legacy TLS extension codepoint.
+  bool UsesLegacyTlsExtension() const;
+
   // Returns whether this version uses PROTOCOL_TLS1_3.
   bool UsesTls() const;
 
@@ -390,11 +400,11 @@ constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
   return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
 }
 
-constexpr std::array<ParsedQuicVersion, 5> SupportedVersions() {
+constexpr std::array<ParsedQuicVersion, 6> SupportedVersions() {
   return {
-      ParsedQuicVersion::Draft29(), ParsedQuicVersion::T051(),
-      ParsedQuicVersion::Q050(),    ParsedQuicVersion::Q046(),
-      ParsedQuicVersion::Q043(),
+      ParsedQuicVersion::RFCv1(), ParsedQuicVersion::Draft29(),
+      ParsedQuicVersion::T051(),  ParsedQuicVersion::Q050(),
+      ParsedQuicVersion::Q046(),  ParsedQuicVersion::Q043(),
   };
 }
 

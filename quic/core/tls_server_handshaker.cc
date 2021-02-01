@@ -189,6 +189,13 @@ TlsServerHandshaker::TlsServerHandshaker(
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());
 
+  // Make sure we use the right TLS extension codepoint.
+  int use_legacy_extension = 0;
+  if (session->version().UsesLegacyTlsExtension()) {
+    use_legacy_extension = 1;
+  }
+  SSL_set_quic_use_legacy_codepoint(ssl(), use_legacy_extension);
+
   if (GetQuicFlag(FLAGS_quic_disable_server_tls_resumption)) {
     SSL_set_options(ssl(), SSL_OP_NO_TICKET);
   }
@@ -379,12 +386,17 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   const uint8_t* client_params_bytes;
   size_t params_bytes_len;
   if (use_early_select_cert_) {
+    // Make sure we use the right TLS extension codepoint.
+    uint16_t extension_type = TLSEXT_TYPE_quic_transport_parameters_standard;
+    if (session()->version().UsesLegacyTlsExtension()) {
+      extension_type = TLSEXT_TYPE_quic_transport_parameters_legacy;
+    }
     // When using early select cert callback, SSL_get_peer_quic_transport_params
     // can not be used to retrieve the client's transport parameters, but we can
     // use SSL_early_callback_ctx_extension_get to do that.
-    if (!SSL_early_callback_ctx_extension_get(
-            client_hello, TLSEXT_TYPE_quic_transport_parameters,
-            &client_params_bytes, &params_bytes_len)) {
+    if (!SSL_early_callback_ctx_extension_get(client_hello, extension_type,
+                                              &client_params_bytes,
+                                              &params_bytes_len)) {
       params_bytes_len = 0;
     }
   } else {
