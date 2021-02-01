@@ -85,7 +85,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
       return false;
     }
     // Parse alt-authority.
-    DCHECK_EQ('=', *c);
+    QUICHE_DCHECK_EQ('=', *c);
     ++c;
     if (c == value.end() || *c != '"') {
       return false;
@@ -105,7 +105,7 @@ bool SpdyAltSvcWireFormat::ParseHeaderFieldValue(
     if (c == alt_authority_begin || c == value.end()) {
       return false;
     }
-    DCHECK_EQ('"', *c);
+    QUICHE_DCHECK_EQ('"', *c);
     std::string host;
     uint16_t port;
     if (!ParseAltAuthority(alt_authority_begin, c, &host, &port)) {
@@ -309,7 +309,7 @@ bool SpdyAltSvcWireFormat::PercentDecode(absl::string_view::const_iterator c,
       output->push_back(*c);
       continue;
     }
-    DCHECK_EQ('%', *c);
+    QUICHE_DCHECK_EQ('%', *c);
     ++c;
     if (c == end || !std::isxdigit(*c)) {
       return false;
@@ -347,7 +347,7 @@ bool SpdyAltSvcWireFormat::ParseAltAuthority(
     if (c == end) {
       return false;
     }
-    DCHECK_EQ(']', *c);
+    QUICHE_DCHECK_EQ(']', *c);
     host->push_back(*c);
     ++c;
   } else {
@@ -368,7 +368,7 @@ bool SpdyAltSvcWireFormat::ParseAltAuthority(
   if (c == end || *c != ':') {
     return false;
   }
-  DCHECK_EQ(':', *c);
+  QUICHE_DCHECK_EQ(':', *c);
   ++c;
   return ParsePositiveInteger16(c, end, port);
 }

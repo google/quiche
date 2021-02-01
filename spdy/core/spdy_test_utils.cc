@@ -93,7 +93,7 @@ void SetFrameFlags(SpdySerializedFrame* frame, uint8_t flags) {
 }
 
 void SetFrameLength(SpdySerializedFrame* frame, size_t length) {
-  CHECK_GT(1u << 14, length);
+  QUICHE_CHECK_GT(1u << 14, length);
   {
     int32_t wire_length = quiche::QuicheEndian::HostToNet32(length);
     memcpy(frame->data(), reinterpret_cast<char*>(&wire_length) + 1, 3);

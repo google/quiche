@@ -41,7 +41,7 @@ bool SpdyPrefixedBufferReader::ReadN(size_t count, char* out) {
     prefix_length_ = 0;
     // Fallthrough to suffix read.
   }
-  DCHECK(suffix_length_ >= count);
+  QUICHE_DCHECK(suffix_length_ >= count);
   // Read is satisfied by the suffix.
   std::copy(suffix_, suffix_ + count, out);
   suffix_ += count;
@@ -72,7 +72,7 @@ bool SpdyPrefixedBufferReader::ReadN(size_t count,
     ReadN(count, out->storage_.get());
     return true;
   } else {
-    DCHECK(suffix_length_ >= count);
+    QUICHE_DCHECK(suffix_length_ >= count);
     // Read is fully satisfied by the suffix.
     out->buffer_ = suffix_;
     suffix_ += count;

@@ -34,7 +34,7 @@ absl::string_view SpdyHeaderStorage::WriteFragments(
   }
   char* dst = arena_.Alloc(total_size);
   size_t written = Join(dst, fragments, separator);
-  DCHECK_EQ(written, total_size);
+  QUICHE_DCHECK_EQ(written, total_size);
   return absl::string_view(dst, total_size);
 }
 

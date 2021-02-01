@@ -365,7 +365,7 @@ const HpackStaticTable& ObtainHpackStaticTable() {
     auto* table = new HpackStaticTable();
     table->Initialize(HpackStaticTableVector().data(),
                       HpackStaticTableVector().size());
-    CHECK(table->IsInitialized());
+    QUICHE_CHECK(table->IsInitialized());
     return table;
   }();
   return *shared_static_table;

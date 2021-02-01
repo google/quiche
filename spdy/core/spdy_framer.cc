@@ -105,7 +105,7 @@ bool SerializeHeadersGivenEncoding(const SpdyHeadersIR& headers,
   bool ret = builder.BeginNewFrame(
       SpdyFrameType::HEADERS, SerializeHeaderFrameFlags(headers, end_headers),
       headers.stream_id(), frame_size - kFrameHeaderSize);
-  DCHECK_EQ(kFrameHeaderSize, builder.length());
+  QUICHE_DCHECK_EQ(kFrameHeaderSize, builder.length());
 
   if (ret && headers.padded()) {
     ret &= builder.WriteUInt8(headers.padding_payload_len());
@@ -449,7 +449,7 @@ SpdySerializedFrame SpdyFramer::SerializeData(const SpdyDataIR& data_ir) {
     std::string padding(data_ir.padding_payload_len(), 0);
     builder.WriteBytes(padding.data(), padding.length());
   }
-  DCHECK_EQ(size_with_padding, builder.length());
+  QUICHE_DCHECK_EQ(size_with_padding, builder.length());
   return builder.take();
 }
 
@@ -468,7 +468,7 @@ SpdySerializedFrame SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
   if (data_ir.padded()) {
     builder.WriteUInt8(data_ir.padding_payload_len() & 0xff);
   }
-  DCHECK_EQ(frame_size, builder.length());
+  QUICHE_DCHECK_EQ(frame_size, builder.length());
   return builder.take();
 }
 
@@ -481,7 +481,7 @@ SpdySerializedFrame SpdyFramer::SerializeRstStream(
 
   builder.WriteUInt32(rst_stream.error_code());
 
-  DCHECK_EQ(expected_length, builder.length());
+  QUICHE_DCHECK_EQ(expected_length, builder.length());
   return builder.take();
 }
 
@@ -500,14 +500,14 @@ SpdySerializedFrame SpdyFramer::SerializeSettings(
     return builder.take();
   }
 
-  DCHECK_EQ(kSettingsFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_EQ(kSettingsFrameMinimumSize, builder.length());
   for (auto it = values->begin(); it != values->end(); ++it) {
     int setting_id = it->first;
-    DCHECK_GE(setting_id, 0);
+    QUICHE_DCHECK_GE(setting_id, 0);
     builder.WriteUInt16(static_cast<SpdySettingsId>(setting_id));
     builder.WriteUInt32(it->second);
   }
-  DCHECK_EQ(size, builder.length());
+  QUICHE_DCHECK_EQ(size, builder.length());
   return builder.take();
 }
 
@@ -519,7 +519,7 @@ SpdySerializedFrame SpdyFramer::SerializePing(const SpdyPingIR& ping) const {
   }
   builder.BeginNewFrame(SpdyFrameType::PING, flags, 0);
   builder.WriteUInt64(ping.id());
-  DCHECK_EQ(kPingFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kPingFrameSize, builder.length());
   return builder.take();
 }
 
@@ -545,7 +545,7 @@ SpdySerializedFrame SpdyFramer::SerializeGoAway(
                        goaway.description().size());
   }
 
-  DCHECK_EQ(expected_length, builder.length());
+  QUICHE_DCHECK_EQ(expected_length, builder.length());
   return builder.take();
 }
 
@@ -618,7 +618,7 @@ SpdySerializedFrame SpdyFramer::SerializeHeaders(const SpdyHeadersIR& headers) {
   builder.BeginNewFrame(SpdyFrameType::HEADERS, flags, headers.stream_id(),
                         length_field);
 
-  DCHECK_EQ(kHeadersFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_EQ(kHeadersFrameMinimumSize, builder.length());
 
   int padding_payload_len = 0;
   if (headers.padded()) {
@@ -651,7 +651,7 @@ SpdySerializedFrame SpdyFramer::SerializeWindowUpdate(
   builder.BeginNewFrame(SpdyFrameType::WINDOW_UPDATE, kNoFlags,
                         window_update.stream_id());
   builder.WriteUInt32(window_update.delta());
-  DCHECK_EQ(kWindowUpdateFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kWindowUpdateFrameSize, builder.length());
   return builder.take();
 }
 
@@ -699,13 +699,13 @@ SpdySerializedFrame SpdyFramer::SerializePushPromise(
   if (push_promise.padded()) {
     builder.WriteUInt8(push_promise.padding_payload_len());
     builder.WriteUInt32(push_promise.promised_stream_id());
-    DCHECK_EQ(kPushPromiseFrameMinimumSize + kPadLengthFieldSize,
-              builder.length());
+    QUICHE_DCHECK_EQ(kPushPromiseFrameMinimumSize + kPadLengthFieldSize,
+                     builder.length());
 
     padding_payload_len = push_promise.padding_payload_len();
   } else {
     builder.WriteUInt32(push_promise.promised_stream_id());
-    DCHECK_EQ(kPushPromiseFrameMinimumSize, builder.length());
+    QUICHE_DCHECK_EQ(kPushPromiseFrameMinimumSize, builder.length());
   }
 
   WritePayloadWithContinuation(
@@ -731,7 +731,7 @@ SpdySerializedFrame SpdyFramer::SerializeContinuation(
   uint8_t flags = continuation.end_headers() ? HEADERS_FLAG_END_HEADERS : 0;
   builder.BeginNewFrame(SpdyFrameType::CONTINUATION, flags,
                         continuation.stream_id());
-  DCHECK_EQ(kFrameHeaderSize, builder.length());
+  QUICHE_DCHECK_EQ(kFrameHeaderSize, builder.length());
 
   builder.WriteBytes(encoding.data(), encoding.size());
   return builder.take();
@@ -747,7 +747,7 @@ SpdySerializedFrame SpdyFramer::SerializeAltSvc(const SpdyAltSvcIR& altsvc_ir) {
   builder.WriteUInt16(altsvc_ir.origin().length());
   builder.WriteBytes(altsvc_ir.origin().data(), altsvc_ir.origin().length());
   builder.WriteBytes(value.data(), value.length());
-  DCHECK_LT(kGetAltSvcFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_LT(kGetAltSvcFrameMinimumSize, builder.length());
   return builder.take();
 }
 
@@ -761,7 +761,7 @@ SpdySerializedFrame SpdyFramer::SerializePriority(
                                                  priority.parent_stream_id()));
   // Per RFC 7540 section 6.3, serialized weight value is actual value - 1.
   builder.WriteUInt8(priority.weight() - 1);
-  DCHECK_EQ(kPriorityFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kPriorityFrameSize, builder.length());
   return builder.take();
 }
 
@@ -776,7 +776,7 @@ SpdySerializedFrame SpdyFramer::SerializePriorityUpdate(
   builder.WriteUInt32(priority_update.prioritized_stream_id());
   builder.WriteBytes(priority_update.priority_field_value().data(),
                      priority_update.priority_field_value().size());
-  DCHECK_EQ(total_size, builder.length());
+  QUICHE_DCHECK_EQ(total_size, builder.length());
   return builder.take();
 }
 
@@ -970,7 +970,7 @@ bool SpdyFramer::SerializeData(const SpdyDataIR& data_ir,
     padding = std::string(data_ir.padding_payload_len(), 0);
     ok = ok && builder.WriteBytes(padding.data(), padding.length());
   }
-  DCHECK_EQ(size_with_padding, builder.length());
+  QUICHE_DCHECK_EQ(size_with_padding, builder.length());
   return ok;
 }
 
@@ -992,7 +992,7 @@ bool SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
   if (data_ir.padded()) {
     ok = ok && builder.WriteUInt8(data_ir.padding_payload_len() & 0xff);
   }
-  DCHECK_EQ(frame_size, builder.length());
+  QUICHE_DCHECK_EQ(frame_size, builder.length());
   return ok;
 }
 
@@ -1004,7 +1004,7 @@ bool SpdyFramer::SerializeRstStream(const SpdyRstStreamIR& rst_stream,
                                   rst_stream.stream_id());
   ok = ok && builder.WriteUInt32(rst_stream.error_code());
 
-  DCHECK_EQ(expected_length, builder.length());
+  QUICHE_DCHECK_EQ(expected_length, builder.length());
   return ok;
 }
 
@@ -1023,14 +1023,14 @@ bool SpdyFramer::SerializeSettings(const SpdySettingsIR& settings,
     return ok;
   }
 
-  DCHECK_EQ(kSettingsFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_EQ(kSettingsFrameMinimumSize, builder.length());
   for (auto it = values->begin(); it != values->end(); ++it) {
     int setting_id = it->first;
-    DCHECK_GE(setting_id, 0);
+    QUICHE_DCHECK_GE(setting_id, 0);
     ok = ok && builder.WriteUInt16(static_cast<SpdySettingsId>(setting_id)) &&
          builder.WriteUInt32(it->second);
   }
-  DCHECK_EQ(size, builder.length());
+  QUICHE_DCHECK_EQ(size, builder.length());
   return ok;
 }
 
@@ -1043,7 +1043,7 @@ bool SpdyFramer::SerializePing(const SpdyPingIR& ping,
   }
   bool ok = builder.BeginNewFrame(SpdyFrameType::PING, flags, 0);
   ok = ok && builder.WriteUInt64(ping.id());
-  DCHECK_EQ(kPingFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kPingFrameSize, builder.length());
   return ok;
 }
 
@@ -1068,7 +1068,7 @@ bool SpdyFramer::SerializeGoAway(const SpdyGoAwayIR& goaway,
                                   goaway.description().size());
   }
 
-  DCHECK_EQ(expected_length, builder.length());
+  QUICHE_DCHECK_EQ(expected_length, builder.length());
   return ok;
 }
 
@@ -1088,7 +1088,7 @@ bool SpdyFramer::SerializeHeaders(const SpdyHeadersIR& headers,
   SpdyFrameBuilder builder(size, output);
   ok = ok && builder.BeginNewFrame(SpdyFrameType::HEADERS, flags,
                                    headers.stream_id(), length_field);
-  DCHECK_EQ(kHeadersFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_EQ(kHeadersFrameMinimumSize, builder.length());
 
   int padding_payload_len = 0;
   if (headers.padded()) {
@@ -1123,7 +1123,7 @@ bool SpdyFramer::SerializeWindowUpdate(const SpdyWindowUpdateIR& window_update,
   bool ok = builder.BeginNewFrame(SpdyFrameType::WINDOW_UPDATE, kNoFlags,
                                   window_update.stream_id());
   ok = ok && builder.WriteUInt32(window_update.delta());
-  DCHECK_EQ(kWindowUpdateFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kWindowUpdateFrameSize, builder.length());
   return ok;
 }
 
@@ -1146,13 +1146,13 @@ bool SpdyFramer::SerializePushPromise(const SpdyPushPromiseIR& push_promise,
   if (push_promise.padded()) {
     ok = ok && builder.WriteUInt8(push_promise.padding_payload_len()) &&
          builder.WriteUInt32(push_promise.promised_stream_id());
-    DCHECK_EQ(kPushPromiseFrameMinimumSize + kPadLengthFieldSize,
-              builder.length());
+    QUICHE_DCHECK_EQ(kPushPromiseFrameMinimumSize + kPadLengthFieldSize,
+                     builder.length());
 
     padding_payload_len = push_promise.padding_payload_len();
   } else {
     ok = ok && builder.WriteUInt32(push_promise.promised_stream_id());
-    DCHECK_EQ(kPushPromiseFrameMinimumSize, builder.length());
+    QUICHE_DCHECK_EQ(kPushPromiseFrameMinimumSize, builder.length());
   }
 
   ok = ok && WritePayloadWithContinuation(
@@ -1179,7 +1179,7 @@ bool SpdyFramer::SerializeContinuation(const SpdyContinuationIR& continuation,
   bool ok = builder.BeginNewFrame(SpdyFrameType::CONTINUATION, flags,
                                   continuation.stream_id(),
                                   frame_size - kFrameHeaderSize);
-  DCHECK_EQ(kFrameHeaderSize, builder.length());
+  QUICHE_DCHECK_EQ(kFrameHeaderSize, builder.length());
 
   ok = ok && builder.WriteBytes(encoding.data(), encoding.size());
   return ok;
@@ -1197,7 +1197,7 @@ bool SpdyFramer::SerializeAltSvc(const SpdyAltSvcIR& altsvc_ir,
             builder.WriteBytes(altsvc_ir.origin().data(),
                                altsvc_ir.origin().length()) &&
             builder.WriteBytes(value.data(), value.length());
-  DCHECK_LT(kGetAltSvcFrameMinimumSize, builder.length());
+  QUICHE_DCHECK_LT(kGetAltSvcFrameMinimumSize, builder.length());
   return ok;
 }
 
@@ -1211,7 +1211,7 @@ bool SpdyFramer::SerializePriority(const SpdyPriorityIR& priority,
            priority.exclusive(), priority.parent_stream_id())) &&
        // Per RFC 7540 section 6.3, serialized weight value is actual value - 1.
        builder.WriteUInt8(priority.weight() - 1);
-  DCHECK_EQ(kPriorityFrameSize, builder.length());
+  QUICHE_DCHECK_EQ(kPriorityFrameSize, builder.length());
   return ok;
 }
 
@@ -1227,7 +1227,7 @@ bool SpdyFramer::SerializePriorityUpdate(
   ok = ok && builder.WriteUInt32(priority_update.prioritized_stream_id());
   ok = ok && builder.WriteBytes(priority_update.priority_field_value().data(),
                                 priority_update.priority_field_value().size());
-  DCHECK_EQ(total_size, builder.length());
+  QUICHE_DCHECK_EQ(total_size, builder.length());
   return ok;
 }
 

@@ -65,8 +65,8 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
                                      uint8_t flags,
                                      SpdyStreamId stream_id) {
   uint8_t raw_frame_type = SerializeFrameType(type);
-  DCHECK(IsDefinedFrameType(raw_frame_type));
-  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
+  QUICHE_DCHECK(IsDefinedFrameType(raw_frame_type));
+  QUICHE_DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   bool success = true;
   if (length_ > 0) {
     SPDY_BUG << "SpdyFrameBuilder doesn't have a clean state when BeginNewFrame"
@@ -79,7 +79,7 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
   success &= WriteUInt8(raw_frame_type);
   success &= WriteUInt8(flags);
   success &= WriteUInt32(stream_id);
-  DCHECK_EQ(kDataFrameMinimumSize, length_);
+  QUICHE_DCHECK_EQ(kDataFrameMinimumSize, length_);
   return success;
 }
 
@@ -88,8 +88,8 @@ bool SpdyFrameBuilder::BeginNewFrame(SpdyFrameType type,
                                      SpdyStreamId stream_id,
                                      size_t length) {
   uint8_t raw_frame_type = SerializeFrameType(type);
-  DCHECK(IsDefinedFrameType(raw_frame_type));
-  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
+  QUICHE_DCHECK(IsDefinedFrameType(raw_frame_type));
+  QUICHE_DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   SPDY_BUG_IF(length > kHttp2DefaultFramePayloadLimit)
       << "Frame length  " << length_ << " is longer than frame size limit.";
   return BeginNewFrameInternal(raw_frame_type, flags, stream_id, length);
@@ -106,7 +106,7 @@ bool SpdyFrameBuilder::BeginNewFrameInternal(uint8_t raw_frame_type,
                                              uint8_t flags,
                                              SpdyStreamId stream_id,
                                              size_t length) {
-  DCHECK_EQ(length, length & kLengthMask);
+  QUICHE_DCHECK_EQ(length, length & kLengthMask);
   bool success = true;
 
   offset_ += length_;
@@ -116,7 +116,7 @@ bool SpdyFrameBuilder::BeginNewFrameInternal(uint8_t raw_frame_type,
   success &= WriteUInt8(raw_frame_type);
   success &= WriteUInt8(flags);
   success &= WriteUInt32(stream_id);
-  DCHECK_EQ(kDataFrameMinimumSize, length_);
+  QUICHE_DCHECK_EQ(kDataFrameMinimumSize, length_);
   return success;
 }
 
@@ -161,7 +161,7 @@ bool SpdyFrameBuilder::WriteBytes(const void* data, uint32_t data_len) {
 
 bool SpdyFrameBuilder::CanWrite(size_t length) const {
   if (length > kLengthMask) {
-    DCHECK(false);
+    QUICHE_DCHECK(false);
     return false;
   }
 

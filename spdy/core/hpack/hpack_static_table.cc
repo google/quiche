@@ -18,7 +18,7 @@ HpackStaticTable::~HpackStaticTable() = default;
 
 void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
                                   size_t static_entry_count) {
-  CHECK(!IsInitialized());
+  QUICHE_CHECK(!IsInitialized());
 
   int total_insertions = 0;
   for (const HpackStaticEntry* it = static_entry_table;
@@ -29,7 +29,7 @@ void HpackStaticTable::Initialize(const HpackStaticEntry* static_entry_table,
                    true,  // is_static
                    total_insertions));
     HpackEntry* entry = &static_entries_.back();
-    CHECK(static_index_.insert(entry).second);
+    QUICHE_CHECK(static_index_.insert(entry).second);
     // Multiple static entries may have the same name, so inserts may fail.
     static_name_index_.insert(std::make_pair(entry->name(), entry));
 

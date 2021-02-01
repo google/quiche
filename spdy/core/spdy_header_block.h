@@ -15,6 +15,7 @@
 
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
+#include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_header_storage.h"
 #include "spdy/platform/api/spdy_containers.h"
 #include "spdy/platform/api/spdy_macros.h"
@@ -126,7 +127,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
     // fragments.
     const_reference operator*() const {
 #if SPDY_HEADER_DEBUG
-      CHECK(!dereference_forbidden_);
+      QUICHE_CHECK(!dereference_forbidden_);
 #endif  // SPDY_HEADER_DEBUG
       return it_->second.as_pair();
     }

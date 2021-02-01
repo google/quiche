@@ -273,7 +273,7 @@ const char* WriteSchedulerTypeToString(WriteSchedulerType type) {
 }
 
 size_t GetNumberRequiredContinuationFrames(size_t size) {
-  DCHECK_GT(size, kHttp2MaxControlFrameSendSize);
+  QUICHE_DCHECK_GT(size, kHttp2MaxControlFrameSendSize);
   size_t overflow = size - kHttp2MaxControlFrameSendSize;
   int payload_size =
       kHttp2MaxControlFrameSendSize - kContinuationFrameMinimumSize;

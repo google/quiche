@@ -81,7 +81,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     if (stream_info.ready) {
       bool erased =
           Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
-      DCHECK(erased);
+      QUICHE_DCHECK(erased);
     }
     stream_infos_.erase(it);
   }
@@ -126,7 +126,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     if (stream_info.ready) {
       bool erased =
           Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
-      DCHECK(erased);
+      QUICHE_DCHECK(erased);
       priority_infos_[new_priority].ready_list.push_back(&stream_info);
       ++num_ready_streams_;
     }
@@ -179,7 +179,8 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
         ready_list.pop_front();
         --num_ready_streams_;
 
-        DCHECK(stream_infos_.find(info->stream_id) != stream_infos_.end());
+        QUICHE_DCHECK(stream_infos_.find(info->stream_id) !=
+                      stream_infos_.end());
         info->ready = false;
         return std::make_tuple(info->stream_id,
                                StreamPrecedenceType(info->priority));
@@ -248,7 +249,7 @@ class PriorityWriteScheduler : public WriteScheduler<StreamIdType> {
     }
     bool erased =
         Erase(&priority_infos_[stream_info.priority].ready_list, stream_info);
-    DCHECK(erased);
+    QUICHE_DCHECK(erased);
     stream_info.ready = false;
   }
 

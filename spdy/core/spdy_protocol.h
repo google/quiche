@@ -537,8 +537,8 @@ class QUICHE_EXPORT_PRIVATE SpdyDataIR : public SpdyFrameWithFinIR {
   int padding_payload_len() const { return padding_payload_len_; }
 
   void set_padding_len(int padding_len) {
-    DCHECK_GT(padding_len, 0);
-    DCHECK_LE(padding_len, kPaddingSizePerFrame);
+    QUICHE_DCHECK_GT(padding_len, 0);
+    QUICHE_DCHECK_LE(padding_len, kPaddingSizePerFrame);
     padded_ = true;
     // The pad field takes one octet on the wire.
     padding_payload_len_ = padding_len - 1;
@@ -678,7 +678,7 @@ class QUICHE_EXPORT_PRIVATE SpdyGoAwayIR : public SpdyFrameIR {
 
   SpdyStreamId last_good_stream_id() const { return last_good_stream_id_; }
   void set_last_good_stream_id(SpdyStreamId last_good_stream_id) {
-    DCHECK_EQ(0u, last_good_stream_id & ~kStreamIdMask);
+    QUICHE_DCHECK_EQ(0u, last_good_stream_id & ~kStreamIdMask);
     last_good_stream_id_ = last_good_stream_id;
   }
   SpdyErrorCode error_code() const { return error_code_; }
@@ -728,8 +728,8 @@ class QUICHE_EXPORT_PRIVATE SpdyHeadersIR : public SpdyFrameWithHeaderBlockIR {
   bool padded() const { return padded_; }
   int padding_payload_len() const { return padding_payload_len_; }
   void set_padding_len(int padding_len) {
-    DCHECK_GT(padding_len, 0);
-    DCHECK_LE(padding_len, kPaddingSizePerFrame);
+    QUICHE_DCHECK_GT(padding_len, 0);
+    QUICHE_DCHECK_LE(padding_len, kPaddingSizePerFrame);
     padded_ = true;
     // The pad field takes one octet on the wire.
     padding_payload_len_ = padding_len - 1;
@@ -755,8 +755,8 @@ class QUICHE_EXPORT_PRIVATE SpdyWindowUpdateIR : public SpdyFrameIR {
 
   int32_t delta() const { return delta_; }
   void set_delta(int32_t delta) {
-    DCHECK_LE(0, delta);
-    DCHECK_LE(delta, kSpdyMaximumWindowSize);
+    QUICHE_DCHECK_LE(0, delta);
+    QUICHE_DCHECK_LE(delta, kSpdyMaximumWindowSize);
     delta_ = delta;
   }
 
@@ -795,8 +795,8 @@ class QUICHE_EXPORT_PRIVATE SpdyPushPromiseIR
   bool padded() const { return padded_; }
   int padding_payload_len() const { return padding_payload_len_; }
   void set_padding_len(int padding_len) {
-    DCHECK_GT(padding_len, 0);
-    DCHECK_LE(padding_len, kPaddingSizePerFrame);
+    QUICHE_DCHECK_GT(padding_len, 0);
+    QUICHE_DCHECK_LE(padding_len, kPaddingSizePerFrame);
     padded_ = true;
     // The pad field takes one octet on the wire.
     padding_payload_len_ = padding_len - 1;

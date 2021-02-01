@@ -81,7 +81,7 @@
 //   list<int*> a;
 //   a.push_back(new int);
 //   list<int*> b(a);
-//   CHECK(a.front() == b.front());
+//   QUICHE_CHECK(a.front() == b.front());
 //
 // Note that SpdyIntrusiveList::size() runs in O(N) time.
 

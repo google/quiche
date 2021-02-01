@@ -322,7 +322,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface,
   }
 
   void OnHeaderFrameEnd(SpdyStreamId /*stream_id*/) override {
-    CHECK(headers_handler_ != nullptr);
+    QUICHE_CHECK(headers_handler_ != nullptr);
     headers_ = headers_handler_->decoded_block().Clone();
     header_bytes_received_ = headers_handler_->uncompressed_header_bytes();
     headers_handler_.reset();
@@ -3158,46 +3158,56 @@ TEST_P(SpdyFramerTest, ProcessDataFrameWithPadding) {
   // Send the frame header.
   EXPECT_CALL(visitor,
               OnDataFrameHeader(1, kPaddingLen + strlen(data_payload), false));
-  CHECK_EQ(kDataFrameMinimumSize,
-           deframer_.ProcessInput(frame.data(), kDataFrameMinimumSize));
-  CHECK_EQ(deframer_.state(),
-           Http2DecoderAdapter::SPDY_READ_DATA_FRAME_PADDING_LENGTH);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(kDataFrameMinimumSize,
+                  deframer_.ProcessInput(frame.data(), kDataFrameMinimumSize));
+  QUICHE_CHECK_EQ(deframer_.state(),
+                  Http2DecoderAdapter::SPDY_READ_DATA_FRAME_PADDING_LENGTH);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
   bytes_consumed += kDataFrameMinimumSize;
 
   // Send the padding length field.
   EXPECT_CALL(visitor, OnStreamPadLength(1, kPaddingLen - 1));
-  CHECK_EQ(1u, deframer_.ProcessInput(frame.data() + bytes_consumed, 1));
-  CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_FORWARD_STREAM_FRAME);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(1u, deframer_.ProcessInput(frame.data() + bytes_consumed, 1));
+  QUICHE_CHECK_EQ(deframer_.state(),
+                  Http2DecoderAdapter::SPDY_FORWARD_STREAM_FRAME);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
   bytes_consumed += 1;
 
   // Send the first two bytes of the data payload, i.e., "he".
   EXPECT_CALL(visitor, OnStreamFrameData(1, _, 2));
-  CHECK_EQ(2u, deframer_.ProcessInput(frame.data() + bytes_consumed, 2));
-  CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_FORWARD_STREAM_FRAME);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(2u, deframer_.ProcessInput(frame.data() + bytes_consumed, 2));
+  QUICHE_CHECK_EQ(deframer_.state(),
+                  Http2DecoderAdapter::SPDY_FORWARD_STREAM_FRAME);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
   bytes_consumed += 2;
 
   // Send the rest three bytes of the data payload, i.e., "llo".
   EXPECT_CALL(visitor, OnStreamFrameData(1, _, 3));
-  CHECK_EQ(3u, deframer_.ProcessInput(frame.data() + bytes_consumed, 3));
-  CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_CONSUME_PADDING);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(3u, deframer_.ProcessInput(frame.data() + bytes_consumed, 3));
+  QUICHE_CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_CONSUME_PADDING);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
   bytes_consumed += 3;
 
   // Send the first 100 bytes of the padding payload.
   EXPECT_CALL(visitor, OnStreamPadding(1, 100));
-  CHECK_EQ(100u, deframer_.ProcessInput(frame.data() + bytes_consumed, 100));
-  CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_CONSUME_PADDING);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(100u,
+                  deframer_.ProcessInput(frame.data() + bytes_consumed, 100));
+  QUICHE_CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_CONSUME_PADDING);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
   bytes_consumed += 100;
 
   // Send rest of the padding payload.
   EXPECT_CALL(visitor, OnStreamPadding(1, 18));
-  CHECK_EQ(18u, deframer_.ProcessInput(frame.data() + bytes_consumed, 18));
-  CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_READY_FOR_FRAME);
-  CHECK_EQ(deframer_.spdy_framer_error(), Http2DecoderAdapter::SPDY_NO_ERROR);
+  QUICHE_CHECK_EQ(18u,
+                  deframer_.ProcessInput(frame.data() + bytes_consumed, 18));
+  QUICHE_CHECK_EQ(deframer_.state(), Http2DecoderAdapter::SPDY_READY_FOR_FRAME);
+  QUICHE_CHECK_EQ(deframer_.spdy_framer_error(),
+                  Http2DecoderAdapter::SPDY_NO_ERROR);
 }
 
 TEST_P(SpdyFramerTest, ReadWindowUpdate) {

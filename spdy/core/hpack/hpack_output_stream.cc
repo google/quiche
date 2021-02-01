@@ -16,13 +16,13 @@ HpackOutputStream::HpackOutputStream() : bit_offset_(0) {}
 HpackOutputStream::~HpackOutputStream() = default;
 
 void HpackOutputStream::AppendBits(uint8_t bits, size_t bit_size) {
-  DCHECK_GT(bit_size, 0u);
-  DCHECK_LE(bit_size, 8u);
-  DCHECK_EQ(bits >> bit_size, 0);
+  QUICHE_DCHECK_GT(bit_size, 0u);
+  QUICHE_DCHECK_LE(bit_size, 8u);
+  QUICHE_DCHECK_EQ(bits >> bit_size, 0);
   size_t new_bit_offset = bit_offset_ + bit_size;
   if (bit_offset_ == 0) {
     // Buffer ends on a byte boundary.
-    DCHECK_LE(bit_size, 8u);
+    QUICHE_DCHECK_LE(bit_size, 8u);
     buffer_.append(1, bits << (8 - bit_size));
   } else if (new_bit_offset <= 8) {
     // Buffer does not end on a byte boundary but the given bits fit
@@ -42,7 +42,7 @@ void HpackOutputStream::AppendPrefix(HpackPrefix prefix) {
 }
 
 void HpackOutputStream::AppendBytes(absl::string_view buffer) {
-  DCHECK_EQ(bit_offset_, 0u);
+  QUICHE_DCHECK_EQ(bit_offset_, 0u);
   buffer_.append(buffer.data(), buffer.size());
 }
 
@@ -61,18 +61,18 @@ void HpackOutputStream::AppendUint32(uint32_t I) {
     }
     AppendBits(static_cast<uint8_t>(I), 8);
   }
-  DCHECK_EQ(bit_offset_, 0u);
+  QUICHE_DCHECK_EQ(bit_offset_, 0u);
 }
 
 std::string* HpackOutputStream::MutableString() {
-  DCHECK_EQ(bit_offset_, 0u);
+  QUICHE_DCHECK_EQ(bit_offset_, 0u);
   return &buffer_;
 }
 
 void HpackOutputStream::TakeString(std::string* output) {
   // This must hold, since all public functions cause the buffer to
   // end on a byte boundary.
-  DCHECK_EQ(bit_offset_, 0u);
+  QUICHE_DCHECK_EQ(bit_offset_, 0u);
   buffer_.swap(*output);
   buffer_.clear();
   bit_offset_ = 0;

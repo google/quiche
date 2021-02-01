@@ -114,12 +114,12 @@ size_t HpackHeaderTable::IndexOf(const HpackEntry* entry) const {
 }
 
 void HpackHeaderTable::SetMaxSize(size_t max_size) {
-  CHECK_LE(max_size, settings_size_bound_);
+  QUICHE_CHECK_LE(max_size, settings_size_bound_);
 
   max_size_ = max_size;
   if (size_ > max_size_) {
     Evict(EvictionCountToReclaim(size_ - max_size_));
-    CHECK_LE(size_, max_size_);
+    QUICHE_CHECK_LE(size_, max_size_);
   }
 }
 
@@ -160,12 +160,12 @@ size_t HpackHeaderTable::EvictionCountToReclaim(size_t reclaim_size) const {
 
 void HpackHeaderTable::Evict(size_t count) {
   for (size_t i = 0; i != count; ++i) {
-    CHECK(!dynamic_entries_.empty());
+    QUICHE_CHECK(!dynamic_entries_.empty());
     HpackEntry* entry = &dynamic_entries_.back();
 
     size_ -= entry->Size();
     auto it = dynamic_index_.find(entry);
-    DCHECK(it != dynamic_index_.end());
+    QUICHE_DCHECK(it != dynamic_index_.end());
     // Only remove an entry from the index if its insertion index matches;
     // otherwise, the index refers to another entry with the same name and
     // value.
@@ -173,7 +173,7 @@ void HpackHeaderTable::Evict(size_t count) {
       dynamic_index_.erase(it);
     }
     auto name_it = dynamic_name_index_.find(entry->name());
-    DCHECK(name_it != dynamic_name_index_.end());
+    QUICHE_DCHECK(name_it != dynamic_name_index_.end());
     // Only remove an entry from the literal index if its insertion index
     /// matches; otherwise, the index refers to another entry with the same
     // name.
@@ -191,8 +191,8 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
   size_t entry_size = HpackEntry::Size(name, value);
   if (entry_size > (max_size_ - size_)) {
     // Entire table has been emptied, but there's still insufficient room.
-    DCHECK(dynamic_entries_.empty());
-    DCHECK_EQ(0u, size_);
+    QUICHE_DCHECK(dynamic_entries_.empty());
+    QUICHE_DCHECK_EQ(0u, size_);
     return nullptr;
   }
   dynamic_entries_.push_front(HpackEntry(name, value,
@@ -206,10 +206,10 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     SPDY_DVLOG(1) << "Found existing entry: "
                   << (*index_result.first)->GetDebugString()
                   << " replacing with: " << new_entry->GetDebugString();
-    DCHECK_GT(new_entry->InsertionIndex(),
-              (*index_result.first)->InsertionIndex());
+    QUICHE_DCHECK_GT(new_entry->InsertionIndex(),
+                     (*index_result.first)->InsertionIndex());
     dynamic_index_.erase(index_result.first);
-    CHECK(dynamic_index_.insert(new_entry).second);
+    QUICHE_CHECK(dynamic_index_.insert(new_entry).second);
   }
 
   auto name_result =
@@ -220,12 +220,12 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     SPDY_DVLOG(1) << "Found existing entry: "
                   << name_result.first->second->GetDebugString()
                   << " replacing with: " << new_entry->GetDebugString();
-    DCHECK_GT(new_entry->InsertionIndex(),
-              name_result.first->second->InsertionIndex());
+    QUICHE_DCHECK_GT(new_entry->InsertionIndex(),
+                     name_result.first->second->InsertionIndex());
     dynamic_name_index_.erase(name_result.first);
     auto insert_result = dynamic_name_index_.insert(
         std::make_pair(new_entry->name(), new_entry));
-    CHECK(insert_result.second);
+    QUICHE_CHECK(insert_result.second);
   }
 
   size_ += entry_size;

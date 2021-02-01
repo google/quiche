@@ -5,19 +5,19 @@
 #ifndef QUICHE_SPDY_PLATFORM_API_SPDY_LOGGING_H_
 #define QUICHE_SPDY_PLATFORM_API_SPDY_LOGGING_H_
 
-#include "net/spdy/platform/impl/spdy_logging_impl.h"
+#include "common/platform/api/quiche_logging.h"
 
-#define SPDY_LOG(severity) SPDY_LOG_IMPL(severity)
+#define SPDY_LOG(severity) QUICHE_LOG(severity)
 
-#define SPDY_VLOG(verbose_level) SPDY_VLOG_IMPL(verbose_level)
+#define SPDY_VLOG(verbose_level) QUICHE_VLOG(verbose_level)
 
-#define SPDY_DLOG(severity) SPDY_DLOG_IMPL(severity)
+#define SPDY_DLOG(severity) QUICHE_DLOG(severity)
 
-#define SPDY_DLOG_IF(severity, condition) SPDY_DLOG_IF_IMPL(severity, condition)
+#define SPDY_DLOG_IF(severity, condition) QUICHE_DLOG_IF(severity, condition)
 
-#define SPDY_DVLOG(verbose_level) SPDY_DVLOG_IMPL(verbose_level)
+#define SPDY_DVLOG(verbose_level) QUICHE_DVLOG(verbose_level)
 
 #define SPDY_DVLOG_IF(verbose_level, condition) \
-  SPDY_DVLOG_IF_IMPL(verbose_level, condition)
+  QUICHE_DVLOG_IF(verbose_level, condition)
 
 #endif  // QUICHE_SPDY_PLATFORM_API_SPDY_LOGGING_H_
