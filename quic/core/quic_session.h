@@ -240,15 +240,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   bool WriteControlFrame(const QuicFrame& frame,
                          TransmissionType type) override;
 
-  // Called by stream to send RST_STREAM (and STOP_SENDING in IETF QUIC).
-  // if |send_rst_only|, STOP_SENDING will not be sent for IETF QUIC.
-  // TODO(b/170233449): Delete this method when flag quic_split_up_send_rst_2 is
-  // deprecated.
-  virtual void SendRstStream(QuicStreamId id,
-                             QuicRstStreamErrorCode error,
-                             QuicStreamOffset bytes_written,
-                             bool send_rst_only);
-
   // Called to send RST_STREAM (and STOP_SENDING) and close stream. If stream
   // |id| does not exist, just send RST_STREAM (and STOP_SENDING).
   virtual void ResetStream(QuicStreamId id, QuicRstStreamErrorCode error);
@@ -368,8 +359,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   QuicConnectionId connection_id() const {
     return connection_->connection_id();
   }
-
-  bool split_up_send_rst() const { return split_up_send_rst_; }
 
   // Returns the number of currently open streams, excluding static streams, and
   // never counting unfinished streams.
@@ -947,9 +936,6 @@ class QUIC_EXPORT_PRIVATE QuicSession
   // This indicates a liveness testing is in progress, and push back the
   // creation of new outgoing bidirectional streams.
   bool liveness_testing_in_progress_;
-
-  const bool split_up_send_rst_ =
-      GetQuicReloadableFlag(quic_split_up_send_rst_2);
 
   const bool use_write_or_buffer_data_at_level_ =
       GetQuicReloadableFlag(quic_use_write_or_buffer_data_at_level);

@@ -847,32 +847,6 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
   return connection_->SendControlFrame(frame);
 }
 
-void QuicSession::SendRstStream(QuicStreamId id,
-                                QuicRstStreamErrorCode error,
-                                QuicStreamOffset bytes_written,
-                                bool send_rst_only) {
-  QUICHE_DCHECK(!split_up_send_rst());
-  if (!connection()->connected()) {
-    return;
-  }
-
-  QuicConnection::ScopedPacketFlusher flusher(connection());
-  if (!VersionHasIetfQuicFrames(transport_version()) ||
-      QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
-                               version()) != READ_UNIDIRECTIONAL) {
-    control_frame_manager_.WriteOrBufferRstStream(id, error, bytes_written);
-  }
-  if (!send_rst_only) {
-    if (VersionHasIetfQuicFrames(transport_version()) &&
-        QuicUtils::GetStreamType(id, perspective(), IsIncomingStream(id),
-                                 version()) != WRITE_UNIDIRECTIONAL) {
-      control_frame_manager_.WriteOrBufferStopSending(error, id);
-    }
-  }
-
-  connection_->OnStreamReset(id, error);
-}
-
 void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
   QuicStream* stream = GetStream(id);
   if (stream != nullptr && stream->is_static()) {
@@ -887,19 +861,14 @@ void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
     return;
   }
 
-  if (split_up_send_rst()) {
-    QuicConnection::ScopedPacketFlusher flusher(connection());
-    MaybeSendStopSendingFrame(id, error);
-    MaybeSendRstStreamFrame(id, error, 0);
-  } else {
-    SendRstStream(id, error, 0, /*send_rst_only = */ false);
-  }
+  QuicConnection::ScopedPacketFlusher flusher(connection());
+  MaybeSendStopSendingFrame(id, error);
+  MaybeSendRstStreamFrame(id, error, 0);
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
                                           QuicRstStreamErrorCode error,
                                           QuicStreamOffset bytes_written) {
-  QUICHE_DCHECK(split_up_send_rst());
   if (!connection()->connected()) {
     return;
   }
@@ -914,7 +883,6 @@ void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,
 
 void QuicSession::MaybeSendStopSendingFrame(QuicStreamId id,
                                             QuicRstStreamErrorCode error) {
-  QUICHE_DCHECK(split_up_send_rst());
   if (!connection()->connected()) {
     return;
   }

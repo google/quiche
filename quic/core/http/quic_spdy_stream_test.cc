@@ -520,13 +520,8 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
     stream_->OnStreamHeadersPriority(
         spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
-    if (!session_->split_up_send_rst()) {
-      EXPECT_CALL(*session_,
-                  SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0, _));
-    } else {
-      EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
-                                 stream_->id(), QUIC_HEADERS_TOO_LARGE, 0));
-    }
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
+                                                   QUIC_HEADERS_TOO_LARGE, 0));
     stream_->OnStreamHeaderList(false, 1 << 20, headers);
 
     EXPECT_THAT(stream_->stream_error(), IsStreamError(QUIC_HEADERS_TOO_LARGE));
@@ -541,15 +536,10 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
 
   QuicStreamFrame frame(stream_->id(), false, 0, headers);
 
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_,
-                SendRstStream(stream_->id(), QUIC_HEADERS_TOO_LARGE, 0, _));
-  } else {
-    EXPECT_CALL(*session_, MaybeSendStopSendingFrame(stream_->id(),
-                                                     QUIC_HEADERS_TOO_LARGE));
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                   QUIC_HEADERS_TOO_LARGE, 0));
-  }
+  EXPECT_CALL(*session_,
+              MaybeSendStopSendingFrame(stream_->id(), QUIC_HEADERS_TOO_LARGE));
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
+                                                 QUIC_HEADERS_TOO_LARGE, 0));
 
   auto qpack_decoder_stream =
       QuicSpdySessionPeer::GetQpackDecoderSendStream(session_.get());
@@ -685,11 +675,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWrongFramesOnSpdyStream) {
                               ConnectionCloseSource source) {
         session_->ReallyOnConnectionClosed(frame, source);
       }));
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_, SendRstStream(_, _, _, _)).Times(2);
-  } else {
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
-  }
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
 
   stream_->OnStreamFrame(frame);
 }
@@ -2116,11 +2102,7 @@ TEST_P(QuicSpdyStreamTest, MalformedHeadersStopHttpDecoder) {
                               ConnectionCloseSource source) {
         session_->ReallyOnConnectionClosed(frame, source);
       }));
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_, SendRstStream(_, _, _, _)).Times(2);
-  } else {
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
-  }
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _)).Times(2);
   stream_->OnStreamFrame(frame);
 }
 
@@ -2158,13 +2140,8 @@ TEST_P(QuicSpdyStreamTest, DoNotMarkConsumedAfterQpackDecodingError) {
           session_->ReallyOnConnectionClosed(frame, source);
         }));
   }
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_, SendRstStream(stream_->id(), _, _, _));
-    EXPECT_CALL(*session_, SendRstStream(stream2_->id(), _, _, _));
-  } else {
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream2_->id(), _, _));
-  }
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream2_->id(), _, _));
 
   // Invalid headers: Required Insert Count is zero, but the header block
   // contains a dynamic table reference.
@@ -2478,15 +2455,10 @@ TEST_P(QuicSpdyStreamTest, HeaderDecodingUnblockedAfterStreamClosed) {
                          /* offset = */ 1, _, _, _));
 
   // Reset stream by this endpoint, for example, due to stream cancellation.
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_,
-                SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, _, _));
-  } else {
-    EXPECT_CALL(*session_, MaybeSendStopSendingFrame(stream_->id(),
-                                                     QUIC_STREAM_CANCELLED));
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                   QUIC_STREAM_CANCELLED, _));
-  }
+  EXPECT_CALL(*session_,
+              MaybeSendStopSendingFrame(stream_->id(), QUIC_STREAM_CANCELLED));
+  EXPECT_CALL(*session_,
+              MaybeSendRstStreamFrame(stream_->id(), QUIC_STREAM_CANCELLED, _));
   stream_->Reset(QUIC_STREAM_CANCELLED);
 
   // Deliver dynamic table entry to decoder.
@@ -2987,15 +2959,10 @@ TEST_P(QuicSpdyStreamTest, StreamCancellationWhenStreamReset) {
   EXPECT_CALL(*session_,
               WritevData(qpack_decoder_stream->id(), /* write_length = */ 1,
                          /* offset = */ 1, _, _, _));
-  if (!session_->split_up_send_rst()) {
-    EXPECT_CALL(*session_,
-                SendRstStream(stream_->id(), QUIC_STREAM_CANCELLED, _, _));
-  } else {
-    EXPECT_CALL(*session_, MaybeSendStopSendingFrame(stream_->id(),
-                                                     QUIC_STREAM_CANCELLED));
-    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(stream_->id(),
-                                                   QUIC_STREAM_CANCELLED, _));
-  }
+  EXPECT_CALL(*session_,
+              MaybeSendStopSendingFrame(stream_->id(), QUIC_STREAM_CANCELLED));
+  EXPECT_CALL(*session_,
+              MaybeSendRstStreamFrame(stream_->id(), QUIC_STREAM_CANCELLED, _));
 
   stream_->Reset(QUIC_STREAM_CANCELLED);
 }

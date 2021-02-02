@@ -879,14 +879,6 @@ class MockQuicSession : public QuicSession {
               WriteControlFrame,
               (const QuicFrame& frame, TransmissionType type),
               (override));
-
-  MOCK_METHOD(void,
-              SendRstStream,
-              (QuicStreamId stream_id,
-               QuicRstStreamErrorCode error,
-               QuicStreamOffset bytes_written,
-               bool send_rst_only),
-              (override));
   MOCK_METHOD(void,
               MaybeSendRstStreamFrame,
               (QuicStreamId stream_id,
@@ -920,13 +912,6 @@ class MockQuicSession : public QuicSession {
                                StreamSendingState state,
                                TransmissionType type,
                                absl::optional<EncryptionLevel> level);
-
-  void ReallySendRstStream(QuicStreamId id,
-                           QuicRstStreamErrorCode error,
-                           QuicStreamOffset bytes_written,
-                           bool send_rst_only) {
-    QuicSession::SendRstStream(id, error, bytes_written, send_rst_only);
-  }
 
   void ReallyMaybeSendRstStreamFrame(QuicStreamId id,
                                      QuicRstStreamErrorCode error,
@@ -1031,13 +1016,6 @@ class MockQuicSpdySession : public QuicSpdySession {
                StreamSendingState state,
                TransmissionType type,
                absl::optional<EncryptionLevel> level),
-              (override));
-  MOCK_METHOD(void,
-              SendRstStream,
-              (QuicStreamId stream_id,
-               QuicRstStreamErrorCode error,
-               QuicStreamOffset bytes_written,
-               bool send_rst_only),
               (override));
   MOCK_METHOD(void,
               MaybeSendRstStreamFrame,
