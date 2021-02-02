@@ -170,8 +170,8 @@ class QUICHE_EXPORT_PRIVATE QuicheDataReader {
   size_t pos() const { return pos_; }
 
   void AdvancePos(size_t amount) {
-    DCHECK_LE(pos_, std::numeric_limits<size_t>::max() - amount);
-    DCHECK_LE(pos_, len_ - amount);
+    QUICHE_DCHECK_LE(pos_, std::numeric_limits<size_t>::max() - amount);
+    QUICHE_DCHECK_LE(pos_, len_ - amount);
     pos_ += amount;
   }
 

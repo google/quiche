@@ -123,10 +123,10 @@ class SimpleLinkedHashMap {
   // to the item that comes immediately after the deleted item in the list, or
   // end().
   // If the provided iterator is invalid or there is inconsistency between the
-  // map and list, a CHECK() error will occur.
+  // map and list, a QUICHE_CHECK() error will occur.
   iterator erase(iterator position) {
     typename MapType::iterator found = map_.find(position->first);
-    CHECK(found->second == position)
+    QUICHE_CHECK(found->second == position)
         << "Inconsisent iterator for map and list, or the iterator is invalid.";
 
     map_.erase(found);
@@ -188,7 +188,7 @@ class SimpleLinkedHashMap {
     typename ListType::iterator last = list_.end();
     --last;
 
-    CHECK(map_.insert(std::make_pair(pair.first, last)).second)
+    QUICHE_CHECK(map_.insert(std::make_pair(pair.first, last)).second)
         << "Map and list are inconsistent";
 
     return std::make_pair(last, true);
@@ -212,7 +212,7 @@ class SimpleLinkedHashMap {
     typename ListType::iterator last = list_.end();
     --last;
 
-    CHECK(map_.insert(std::make_pair(last->first, last)).second)
+    QUICHE_CHECK(map_.insert(std::make_pair(last->first, last)).second)
         << "Map and list are inconsistent";
     return std::make_pair(last, true);
   }

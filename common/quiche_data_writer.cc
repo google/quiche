@@ -89,7 +89,7 @@ char* QuicheDataWriter::BeginWrite(size_t length) {
   }
 
 #ifdef ARCH_CPU_64_BITS
-  DCHECK_LE(length, std::numeric_limits<uint32_t>::max());
+  QUICHE_DCHECK_LE(length, std::numeric_limits<uint32_t>::max());
 #endif
 
   return buffer_ + length_;
@@ -120,7 +120,7 @@ bool QuicheDataWriter::WriteRepeatedByte(uint8_t byte, size_t count) {
 }
 
 void QuicheDataWriter::WritePadding() {
-  DCHECK_LE(length_, capacity_);
+  QUICHE_DCHECK_LE(length_, capacity_);
   if (length_ > capacity_) {
     return;
   }

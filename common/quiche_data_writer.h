@@ -91,8 +91,8 @@ class QUICHE_EXPORT_PRIVATE QuicheDataWriter {
   char* buffer() const { return buffer_; }
 
   void IncreaseLength(size_t delta) {
-    DCHECK_LE(length_, std::numeric_limits<size_t>::max() - delta);
-    DCHECK_LE(length_, capacity_ - delta);
+    QUICHE_DCHECK_LE(length_, std::numeric_limits<size_t>::max() - delta);
+    QUICHE_DCHECK_LE(length_, capacity_ - delta);
     length_ += delta;
   }
 
