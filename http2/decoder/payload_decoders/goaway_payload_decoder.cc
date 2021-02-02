@@ -40,9 +40,9 @@ DecodeStatus GoAwayPayloadDecoder::StartDecodingPayload(
     DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "GoAwayPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
-  DCHECK_EQ(Http2FrameType::GOAWAY, state->frame_header().type);
-  DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
-  DCHECK_EQ(0, state->frame_header().flags);
+  QUICHE_DCHECK_EQ(Http2FrameType::GOAWAY, state->frame_header().type);
+  QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
+  QUICHE_DCHECK_EQ(0, state->frame_header().flags);
 
   state->InitializeRemainders();
   payload_state_ = PayloadState::kStartDecodingFixedFields;
@@ -57,13 +57,13 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
       << state->remaining_payload() << ", db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
-  DCHECK_EQ(Http2FrameType::GOAWAY, frame_header.type);
-  DCHECK_LE(db->Remaining(), frame_header.payload_length);
-  DCHECK_NE(PayloadState::kHandleFixedFieldsStatus, payload_state_);
+  QUICHE_DCHECK_EQ(Http2FrameType::GOAWAY, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), frame_header.payload_length);
+  QUICHE_DCHECK_NE(PayloadState::kHandleFixedFieldsStatus, payload_state_);
 
   // |status| has to be initialized to some value to avoid compiler error in
   // case PayloadState::kHandleFixedFieldsStatus below, but value does not
-  // matter, see DCHECK_NE above.
+  // matter, see QUICHE_DCHECK_NE above.
   DecodeStatus status = DecodeStatus::kDecodeError;
   size_t avail;
   while (true) {
@@ -82,10 +82,10 @@ DecodeStatus GoAwayPayloadDecoder::ResumeDecodingPayload(
           // Not done decoding the structure. Either we've got more payload
           // to decode, or we've run out because the payload is too short,
           // in which case OnFrameSizeError will have already been called.
-          DCHECK((status == DecodeStatus::kDecodeInProgress &&
-                  state->remaining_payload() > 0) ||
-                 (status == DecodeStatus::kDecodeError &&
-                  state->remaining_payload() == 0))
+          QUICHE_DCHECK((status == DecodeStatus::kDecodeInProgress &&
+                         state->remaining_payload() > 0) ||
+                        (status == DecodeStatus::kDecodeError &&
+                         state->remaining_payload() == 0))
               << "\n status=" << status
               << "; remaining_payload=" << state->remaining_payload();
           payload_state_ = PayloadState::kResumeDecodingFixedFields;

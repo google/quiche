@@ -41,7 +41,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   HpackVarintRoundTripTest() : prefix_length_(0) {}
 
   DecodeStatus StartDecoding(DecodeBuffer* b) override {
-    CHECK_LT(0u, b->Remaining());
+    QUICHE_CHECK_LT(0u, b->Remaining());
     uint8_t prefix = b->DecodeUInt8();
     return decoder_.Start(prefix, prefix_length_, b);
   }
@@ -82,8 +82,8 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   }
 
   void EncodeNoRandom(uint64_t value, uint8_t prefix_length) {
-    DCHECK_LE(3, prefix_length);
-    DCHECK_LE(prefix_length, 8);
+    QUICHE_DCHECK_LE(3, prefix_length);
+    QUICHE_DCHECK_LE(prefix_length, 8);
     prefix_length_ = prefix_length;
 
     HpackBlockBuilder bb;
@@ -156,7 +156,7 @@ class HpackVarintRoundTripTest : public RandomDecoderTest {
   void EncodeAndDecodeValues(const std::set<uint64_t>& values,
                              uint8_t prefix_length,
                              size_t expected_bytes) {
-    CHECK(!values.empty());
+    QUICHE_CHECK(!values.empty());
     const uint64_t minimum = *values.begin();
     const uint64_t maximum = *values.rbegin();
     for (const uint64_t value : values) {

@@ -69,7 +69,8 @@ bool HpackDecoder::DecodeFragment(DecodeBuffer* db) {
     return false;
   }
   // Should be positioned between entries iff decoding is complete.
-  DCHECK_EQ(block_decoder_.before_entry(), status == DecodeStatus::kDecodeDone)
+  QUICHE_DCHECK_EQ(block_decoder_.before_entry(),
+                   status == DecodeStatus::kDecodeDone)
       << status;
   if (!block_decoder_.before_entry()) {
     entry_buffer_.BufferStringsIfUnbuffered();

@@ -154,7 +154,7 @@ class QUICHE_EXPORT_PRIVATE HpackStringDecoder {
   bool ResumeDecodingLength(DecodeBuffer* db,
                             Listener* cb,
                             DecodeStatus* status) {
-    DCHECK_EQ(state_, kResumeDecodingLength);
+    QUICHE_DCHECK_EQ(state_, kResumeDecodingLength);
     *status = length_decoder_.Resume(db);
     if (*status == DecodeStatus::kDecodeDone) {
       state_ = kDecodingString;

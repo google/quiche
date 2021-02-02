@@ -19,9 +19,9 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
   while (!example.empty()) {
     const char c0 = example[0];
     if (isxdigit(c0)) {
-      CHECK_GT(example.size(), 1u) << "Truncated hex byte?";
+      QUICHE_CHECK_GT(example.size(), 1u) << "Truncated hex byte?";
       const char c1 = example[1];
-      CHECK(isxdigit(c1)) << "Found half a byte?";
+      QUICHE_CHECK(isxdigit(c1)) << "Found half a byte?";
       *output += Http2HexDecode(example.substr(0, 2));
       example.remove_prefix(2);
       continue;
@@ -44,7 +44,7 @@ void HpackExampleToStringOrDie(absl::string_view example, std::string* output) {
               << absl::StrCat(" (0x", Http2Hex(c0), ")")
               << "\nExample: " << example;
   }
-  CHECK_LT(0u, output->size()) << "Example is empty.";
+  QUICHE_CHECK_LT(0u, output->size()) << "Example is empty.";
 }
 
 }  // namespace

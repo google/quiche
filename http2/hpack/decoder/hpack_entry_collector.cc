@@ -216,11 +216,11 @@ void HpackEntryCollector::AppendToHpackBlockBuilder(
     case HpackEntryType::kNeverIndexedLiteralHeader:
       ASSERT_TRUE(value_.HasEnded()) << *this;
       if (index_ != 0) {
-        CHECK(name_.IsClear());
+        QUICHE_CHECK(name_.IsClear());
         hbb->AppendNameIndexAndLiteralValue(header_type_, index_,
                                             value_.huffman_encoded, value_.s);
       } else {
-        CHECK(name_.HasEnded()) << *this;
+        QUICHE_CHECK(name_.HasEnded()) << *this;
         hbb->AppendLiteralNameAndValue(header_type_, name_.huffman_encoded,
                                        name_.s, value_.huffman_encoded,
                                        value_.s);

@@ -46,11 +46,12 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   HTTP2_DVLOG(2) << "HeadersPayloadDecoder::StartDecodingPayload: "
                  << frame_header;
 
-  DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
-  DCHECK_EQ(0, frame_header.flags &
-                   ~(Http2FrameFlag::END_STREAM | Http2FrameFlag::END_HEADERS |
-                     Http2FrameFlag::PADDED | Http2FrameFlag::PRIORITY));
+  QUICHE_DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(
+      0, frame_header.flags &
+             ~(Http2FrameFlag::END_STREAM | Http2FrameFlag::END_HEADERS |
+               Http2FrameFlag::PADDED | Http2FrameFlag::PRIORITY));
 
   // Special case for HEADERS frames that contain only the HPACK block
   // (fragment or whole) and that fit fully into the decode buffer.
@@ -86,7 +87,7 @@ DecodeStatus HeadersPayloadDecoder::StartDecodingPayload(
   } else if (frame_header.IsPadded()) {
     payload_state_ = PayloadState::kReadPadLength;
   } else {
-    DCHECK(frame_header.HasPriority()) << frame_header;
+    QUICHE_DCHECK(frame_header.HasPriority()) << frame_header;
     payload_state_ = PayloadState::kStartDecodingPriorityFields;
   }
   state->InitializeRemainders();
@@ -103,10 +104,10 @@ DecodeStatus HeadersPayloadDecoder::ResumeDecodingPayload(
 
   const Http2FrameHeader& frame_header = state->frame_header();
 
-  DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
-  DCHECK_LE(state->remaining_payload_and_padding(),
-            frame_header.payload_length);
-  DCHECK_LE(db->Remaining(), state->remaining_payload_and_padding());
+  QUICHE_DCHECK_EQ(Http2FrameType::HEADERS, frame_header.type);
+  QUICHE_DCHECK_LE(state->remaining_payload_and_padding(),
+                   frame_header.payload_length);
+  QUICHE_DCHECK_LE(db->Remaining(), state->remaining_payload_and_padding());
   DecodeStatus status;
   size_t avail;
   while (true) {

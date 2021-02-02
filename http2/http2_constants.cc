@@ -85,7 +85,7 @@ std::string Http2FrameFlagsToString(Http2FrameType type, uint8_t flags) {
   if (flags != 0) {
     append_and_clear(Http2StringPrintf("0x%02x", flags), flags);
   }
-  DCHECK_EQ(0, flags);
+  QUICHE_DCHECK_EQ(0, flags);
   return s;
 }
 std::string Http2FrameFlagsToString(uint8_t type, uint8_t flags) {

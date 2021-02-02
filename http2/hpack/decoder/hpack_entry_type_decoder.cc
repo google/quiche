@@ -31,8 +31,8 @@ std::ostream& operator<<(std::ostream& out, const HpackEntryTypeDecoder& v) {
 // full HTTP/2 decoder level, but preferably still higher) to determine if the
 // alternatives that take less code/data space are preferable in that situation.
 DecodeStatus HpackEntryTypeDecoder::Start(DecodeBuffer* db) {
-  DCHECK(db != nullptr);
-  DCHECK(db->HasData());
+  QUICHE_DCHECK(db != nullptr);
+  QUICHE_DCHECK(db->HasData());
 
   // The high four bits (nibble) of first byte of the entry determine the type
   // of the entry, and may also be the initial bits of the varint that

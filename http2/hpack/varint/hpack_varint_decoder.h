@@ -102,12 +102,12 @@ class QUICHE_EXPORT_PRIVATE HpackVarintDecoder {
   }
   void CheckNotDone() const {
 #ifndef NDEBUG
-    DCHECK_NE(kHpackVarintDecoderOffsetDone, offset_);
+    QUICHE_DCHECK_NE(kHpackVarintDecoderOffsetDone, offset_);
 #endif
   }
   void CheckDone() const {
 #ifndef NDEBUG
-    DCHECK_EQ(kHpackVarintDecoderOffsetDone, offset_);
+    QUICHE_DCHECK_EQ(kHpackVarintDecoderOffsetDone, offset_);
 #endif
   }
 

@@ -22,11 +22,11 @@ DecodeStatus WindowUpdatePayloadDecoder::StartDecodingPayload(
   HTTP2_DVLOG(2) << "WindowUpdatePayloadDecoder::StartDecodingPayload: "
                  << frame_header;
 
-  DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
 
   // WINDOW_UPDATE frames have no flags.
-  DCHECK_EQ(0, frame_header.flags);
+  QUICHE_DCHECK_EQ(0, frame_header.flags);
 
   // Special case for when the payload is the correct size and entirely in
   // the buffer.
@@ -48,8 +48,8 @@ DecodeStatus WindowUpdatePayloadDecoder::ResumeDecodingPayload(
   HTTP2_DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
                  << state->remaining_payload()
                  << "; db->Remaining=" << db->Remaining();
-  DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, state->frame_header().type);
-  DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::WINDOW_UPDATE, state->frame_header().type);
+  QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(state, state->ResumeDecodingStructureInPayload(
                                  &window_update_fields_, db));
 }
@@ -70,7 +70,7 @@ DecodeStatus WindowUpdatePayloadDecoder::HandleStatus(FrameDecoderState* state,
   // Not done decoding the structure. Either we've got more payload to decode,
   // or we've run out because the payload is too short, in which case
   // OnFrameSizeError will have already been called.
-  DCHECK(
+  QUICHE_DCHECK(
       (status == DecodeStatus::kDecodeInProgress &&
        state->remaining_payload() > 0) ||
       (status == DecodeStatus::kDecodeError && state->remaining_payload() == 0))

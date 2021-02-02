@@ -89,7 +89,7 @@ class HpackVarintDecoderTest : public RandomDecoderTest,
   }
 
   DecodeStatus StartDecoding(DecodeBuffer* b) override {
-    CHECK_LT(0u, b->Remaining());
+    QUICHE_CHECK_LT(0u, b->Remaining());
     uint8_t prefix = b->DecodeUInt8();
     return decoder_.Start(prefix, prefix_length_, b);
   }

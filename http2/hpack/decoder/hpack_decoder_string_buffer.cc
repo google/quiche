@@ -62,7 +62,7 @@ void HpackDecoderStringBuffer::Reset() {
 
 void HpackDecoderStringBuffer::Set(absl::string_view value, bool is_static) {
   HTTP2_DVLOG(2) << "HpackDecoderStringBuffer::Set";
-  DCHECK_EQ(state_, State::RESET);
+  QUICHE_DCHECK_EQ(state_, State::RESET);
   value_ = value;
   state_ = State::COMPLETE;
   backing_ = is_static ? Backing::STATIC : Backing::UNBUFFERED;
@@ -73,7 +73,7 @@ void HpackDecoderStringBuffer::Set(absl::string_view value, bool is_static) {
 
 void HpackDecoderStringBuffer::OnStart(bool huffman_encoded, size_t len) {
   HTTP2_DVLOG(2) << "HpackDecoderStringBuffer::OnStart";
-  DCHECK_EQ(state_, State::RESET);
+  QUICHE_DCHECK_EQ(state_, State::RESET);
 
   remaining_len_ = len;
   is_huffman_encoded_ = huffman_encoded;
@@ -107,12 +107,12 @@ void HpackDecoderStringBuffer::OnStart(bool huffman_encoded, size_t len) {
 bool HpackDecoderStringBuffer::OnData(const char* data, size_t len) {
   HTTP2_DVLOG(2) << "HpackDecoderStringBuffer::OnData state=" << state_
                  << ", backing=" << backing_;
-  DCHECK_EQ(state_, State::COLLECTING);
-  DCHECK_LE(len, remaining_len_);
+  QUICHE_DCHECK_EQ(state_, State::COLLECTING);
+  QUICHE_DCHECK_LE(len, remaining_len_);
   remaining_len_ -= len;
 
   if (is_huffman_encoded_) {
-    DCHECK_EQ(backing_, Backing::BUFFERED);
+    QUICHE_DCHECK_EQ(backing_, Backing::BUFFERED);
     return decoder_.Decode(absl::string_view(data, len), &buffer_);
   }
 
@@ -136,7 +136,7 @@ bool HpackDecoderStringBuffer::OnData(const char* data, size_t len) {
 
   // This is not the first call to OnData for this string, so it should be
   // buffered.
-  DCHECK_EQ(backing_, Backing::BUFFERED);
+  QUICHE_DCHECK_EQ(backing_, Backing::BUFFERED);
 
   // Append to the current contents of the buffer.
   buffer_.append(data, len);
@@ -145,11 +145,11 @@ bool HpackDecoderStringBuffer::OnData(const char* data, size_t len) {
 
 bool HpackDecoderStringBuffer::OnEnd() {
   HTTP2_DVLOG(2) << "HpackDecoderStringBuffer::OnEnd";
-  DCHECK_EQ(state_, State::COLLECTING);
-  DCHECK_EQ(0u, remaining_len_);
+  QUICHE_DCHECK_EQ(state_, State::COLLECTING);
+  QUICHE_DCHECK_EQ(0u, remaining_len_);
 
   if (is_huffman_encoded_) {
-    DCHECK_EQ(backing_, Backing::BUFFERED);
+    QUICHE_DCHECK_EQ(backing_, Backing::BUFFERED);
     // Did the Huffman encoding of the string end properly?
     if (!decoder_.InputProperlyTerminated()) {
       return false;  // No, it didn't.
@@ -189,7 +189,7 @@ size_t HpackDecoderStringBuffer::BufferedLength() const {
 
 absl::string_view HpackDecoderStringBuffer::str() const {
   HTTP2_DVLOG(3) << "HpackDecoderStringBuffer::str";
-  DCHECK_EQ(state_, State::COMPLETE);
+  QUICHE_DCHECK_EQ(state_, State::COMPLETE);
   return value_;
 }
 
@@ -202,8 +202,8 @@ absl::string_view HpackDecoderStringBuffer::GetStringIfComplete() const {
 
 std::string HpackDecoderStringBuffer::ReleaseString() {
   HTTP2_DVLOG(3) << "HpackDecoderStringBuffer::ReleaseString";
-  DCHECK_EQ(state_, State::COMPLETE);
-  DCHECK_EQ(backing_, Backing::BUFFERED);
+  QUICHE_DCHECK_EQ(state_, State::COMPLETE);
+  QUICHE_DCHECK_EQ(backing_, Backing::BUFFERED);
   if (state_ == State::COMPLETE) {
     state_ = State::RESET;
     if (backing_ == Backing::BUFFERED) {

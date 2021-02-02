@@ -57,9 +57,9 @@ class ValueDecoderListener {
 
 DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
                                       HpackEntryDecoderListener* listener) {
-  DCHECK(db != nullptr);
-  DCHECK(listener != nullptr);
-  DCHECK(db->HasData());
+  QUICHE_DCHECK(db != nullptr);
+  QUICHE_DCHECK(listener != nullptr);
+  QUICHE_DCHECK(db->HasData());
   DecodeStatus status = entry_type_decoder_.Start(db);
   switch (status) {
     case DecodeStatus::kDecodeDone:
@@ -76,7 +76,7 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
     case DecodeStatus::kDecodeInProgress:
       // Hit the end of the decode buffer before fully decoding
       // the entry type and varint.
-      DCHECK_EQ(0u, db->Remaining());
+      QUICHE_DCHECK_EQ(0u, db->Remaining());
       state_ = EntryDecoderState::kResumeDecodingType;
       return status;
     case DecodeStatus::kDecodeError:
@@ -92,8 +92,8 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
 
 DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
                                        HpackEntryDecoderListener* listener) {
-  DCHECK(db != nullptr);
-  DCHECK(listener != nullptr);
+  QUICHE_DCHECK(db != nullptr);
+  QUICHE_DCHECK(listener != nullptr);
 
   DecodeStatus status;
 

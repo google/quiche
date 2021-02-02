@@ -67,7 +67,7 @@ class QUICHE_EXPORT_PRIVATE Http2StructureDecoder {
       DoDecode(out, &buffer_db);
       return true;
     }
-    DCHECK_LT(offset_, S::EncodedSize());
+    QUICHE_DCHECK_LT(offset_, S::EncodedSize());
     return false;
   }
 
@@ -104,7 +104,7 @@ class QUICHE_EXPORT_PRIVATE Http2StructureDecoder {
       DoDecode(out, &buffer_db);
       return true;
     }
-    DCHECK_LT(offset_, S::EncodedSize());
+    QUICHE_DCHECK_LT(offset_, S::EncodedSize());
     return false;
   }
 

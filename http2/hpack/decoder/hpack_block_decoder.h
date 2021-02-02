@@ -26,7 +26,7 @@ class QUICHE_EXPORT_PRIVATE HpackBlockDecoder {
  public:
   explicit HpackBlockDecoder(HpackEntryDecoderListener* listener)
       : listener_(listener) {
-    DCHECK_NE(listener_, nullptr);
+    QUICHE_DCHECK_NE(listener_, nullptr);
   }
   ~HpackBlockDecoder() {}
 

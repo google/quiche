@@ -95,7 +95,7 @@ void HpackBlockCollector::ShuffleEntries(Http2Random* rng) {
 
 void HpackBlockCollector::AppendToHpackBlockBuilder(
     HpackBlockBuilder* hbb) const {
-  CHECK(IsNotPending());
+  QUICHE_CHECK(IsNotPending());
   for (const auto& entry : entries_) {
     entry.AppendToHpackBlockBuilder(hbb);
   }

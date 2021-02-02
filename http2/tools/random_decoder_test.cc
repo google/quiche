@@ -151,7 +151,7 @@ RandomDecoderTest::SelectSize RandomDecoderTest::SelectRandom(
                                           size_t remaining) -> size_t {
     uint32_t r = random_.Rand32();
     if (first && return_non_zero_on_first) {
-      CHECK_LT(0u, remaining);
+      QUICHE_CHECK_LT(0u, remaining);
       if (remaining == 1) {
         return 1;
       }

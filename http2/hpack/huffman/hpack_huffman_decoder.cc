@@ -379,7 +379,7 @@ HuffmanAccumulatorBitCount HuffmanBitBuffer::free_count() const {
 }
 
 void HuffmanBitBuffer::ConsumeBits(HuffmanAccumulatorBitCount code_length) {
-  DCHECK_LE(code_length, count_);
+  QUICHE_DCHECK_LE(code_length, count_);
   accumulator_ <<= code_length;
   count_ -= code_length;
 }
@@ -393,7 +393,7 @@ bool HuffmanBitBuffer::InputProperlyTerminated() const {
     HuffmanAccumulator expected = ~(~HuffmanAccumulator() >> cnt);
     // We expect all the bits below the high order |cnt| bits of accumulator_
     // to be cleared as we perform left shift operations while decoding.
-    DCHECK_EQ(accumulator_ & ~expected, 0u)
+    QUICHE_DCHECK_EQ(accumulator_ & ~expected, 0u)
         << "\n  expected: " << HuffmanAccumulatorBitSet(expected) << "\n  "
         << *this;
     return accumulator_ == expected;
@@ -425,7 +425,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
       // code of 5, 6 or 7 bits.
       uint8_t short_code =
           bit_buffer_.value() >> (kHuffmanAccumulatorBitCount - 7);
-      DCHECK_LT(short_code, 128);
+      QUICHE_DCHECK_LT(short_code, 128);
       if (short_code < kShortCodeTableSize) {
         ShortCodeInfo info = kShortCodeTable[short_code];
         bit_buffer_.ConsumeBits(info.length);
@@ -449,8 +449,8 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
 
     PrefixInfo prefix_info = PrefixToInfo(code_prefix);
     HTTP2_DVLOG(3) << "prefix_info: " << prefix_info;
-    DCHECK_LE(kMinCodeBitCount, prefix_info.code_length);
-    DCHECK_LE(prefix_info.code_length, kMaxCodeBitCount);
+    QUICHE_DCHECK_LE(kMinCodeBitCount, prefix_info.code_length);
+    QUICHE_DCHECK_LE(prefix_info.code_length, kMaxCodeBitCount);
 
     if (prefix_info.code_length <= bit_buffer_.count()) {
       // We have enough bits for one code.
@@ -471,7 +471,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     // Append to it as many bytes as are available AND fit.
     size_t byte_count = bit_buffer_.AppendBytes(input);
     if (byte_count == 0) {
-      DCHECK_EQ(input.size(), 0u);
+      QUICHE_DCHECK_EQ(input.size(), 0u);
       return true;
     }
     input.remove_prefix(byte_count);

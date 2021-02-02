@@ -22,9 +22,9 @@ DecodeStatus ContinuationPayloadDecoder::StartDecodingPayload(
 
   HTTP2_DVLOG(2) << "ContinuationPayloadDecoder::StartDecodingPayload: "
                  << frame_header;
-  DCHECK_EQ(Http2FrameType::CONTINUATION, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
-  DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::END_HEADERS));
+  QUICHE_DCHECK_EQ(Http2FrameType::CONTINUATION, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::END_HEADERS));
 
   state->InitializeRemainders();
   state->listener()->OnContinuationStart(frame_header);
@@ -37,12 +37,13 @@ DecodeStatus ContinuationPayloadDecoder::ResumeDecodingPayload(
   HTTP2_DVLOG(2) << "ContinuationPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();
-  DCHECK_EQ(Http2FrameType::CONTINUATION, state->frame_header().type);
-  DCHECK_LE(state->remaining_payload(), state->frame_header().payload_length);
-  DCHECK_LE(db->Remaining(), state->remaining_payload());
+  QUICHE_DCHECK_EQ(Http2FrameType::CONTINUATION, state->frame_header().type);
+  QUICHE_DCHECK_LE(state->remaining_payload(),
+                   state->frame_header().payload_length);
+  QUICHE_DCHECK_LE(db->Remaining(), state->remaining_payload());
 
   size_t avail = db->Remaining();
-  DCHECK_LE(avail, state->remaining_payload());
+  QUICHE_DCHECK_LE(avail, state->remaining_payload());
   if (avail > 0) {
     state->listener()->OnHpackFragment(db->cursor(), avail);
     db->AdvanceCursor(avail);

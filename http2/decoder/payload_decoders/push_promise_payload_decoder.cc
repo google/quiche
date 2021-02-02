@@ -44,10 +44,10 @@ DecodeStatus PushPromisePayloadDecoder::StartDecodingPayload(
   HTTP2_DVLOG(2) << "PushPromisePayloadDecoder::StartDecodingPayload: "
                  << frame_header;
 
-  DCHECK_EQ(Http2FrameType::PUSH_PROMISE, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
-  DCHECK_EQ(0, frame_header.flags &
-                   ~(Http2FrameFlag::END_HEADERS | Http2FrameFlag::PADDED));
+  QUICHE_DCHECK_EQ(Http2FrameType::PUSH_PROMISE, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::END_HEADERS |
+                                             Http2FrameFlag::PADDED));
 
   if (!frame_header.IsPadded()) {
     // If it turns out that PUSH_PROMISE frames without padding are sufficiently
@@ -70,9 +70,9 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
                  << "  db->Remaining=" << db->Remaining();
 
   const Http2FrameHeader& frame_header = state->frame_header();
-  DCHECK_EQ(Http2FrameType::PUSH_PROMISE, frame_header.type);
-  DCHECK_LE(state->remaining_payload(), frame_header.payload_length);
-  DCHECK_LE(db->Remaining(), frame_header.payload_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::PUSH_PROMISE, frame_header.type);
+  QUICHE_DCHECK_LE(state->remaining_payload(), frame_header.payload_length);
+  QUICHE_DCHECK_LE(db->Remaining(), frame_header.payload_length);
 
   DecodeStatus status;
   while (true) {
@@ -81,7 +81,8 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
         << payload_state_;
     switch (payload_state_) {
       case PayloadState::kReadPadLength:
-        DCHECK_EQ(state->remaining_payload(), frame_header.payload_length);
+        QUICHE_DCHECK_EQ(state->remaining_payload(),
+                         frame_header.payload_length);
         // ReadPadLength handles the OnPadLength callback, and updating the
         // remaining_payload and remaining_padding fields. If the amount of
         // padding is too large to fit in the frame's payload, ReadPadLength
@@ -109,11 +110,12 @@ DecodeStatus PushPromisePayloadDecoder::ResumeDecodingPayload(
         HTTP2_FALLTHROUGH;
 
       case PayloadState::kReadPayload:
-        DCHECK_LT(state->remaining_payload(), frame_header.payload_length);
-        DCHECK_LE(state->remaining_payload(),
-                  frame_header.payload_length -
-                      Http2PushPromiseFields::EncodedSize());
-        DCHECK_LE(
+        QUICHE_DCHECK_LT(state->remaining_payload(),
+                         frame_header.payload_length);
+        QUICHE_DCHECK_LE(state->remaining_payload(),
+                         frame_header.payload_length -
+                             Http2PushPromiseFields::EncodedSize());
+        QUICHE_DCHECK_LE(
             state->remaining_payload(),
             frame_header.payload_length -
                 Http2PushPromiseFields::EncodedSize() -

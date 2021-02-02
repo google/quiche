@@ -17,10 +17,10 @@ DecodeStatus RstStreamPayloadDecoder::StartDecodingPayload(
     DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::StartDecodingPayload: "
                  << state->frame_header();
-  DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
-  DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
+  QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   // RST_STREAM has no flags.
-  DCHECK_EQ(0, state->frame_header().flags);
+  QUICHE_DCHECK_EQ(0, state->frame_header().flags);
   state->InitializeRemainders();
   return HandleStatus(
       state, state->StartDecodingStructureInPayload(&rst_stream_fields_, db));
@@ -32,8 +32,8 @@ DecodeStatus RstStreamPayloadDecoder::ResumeDecodingPayload(
   HTTP2_DVLOG(2) << "RstStreamPayloadDecoder::ResumeDecodingPayload"
                  << "  remaining_payload=" << state->remaining_payload()
                  << "  db->Remaining=" << db->Remaining();
-  DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
-  DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::RST_STREAM, state->frame_header().type);
+  QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(
       state, state->ResumeDecodingStructureInPayload(&rst_stream_fields_, db));
 }
@@ -54,7 +54,7 @@ DecodeStatus RstStreamPayloadDecoder::HandleStatus(FrameDecoderState* state,
   // Not done decoding the structure. Either we've got more payload to decode,
   // or we've run out because the payload is too short, in which case
   // OnFrameSizeError will have already been called by the FrameDecoderState.
-  DCHECK(
+  QUICHE_DCHECK(
       (status == DecodeStatus::kDecodeInProgress &&
        state->remaining_payload() > 0) ||
       (status == DecodeStatus::kDecodeError && state->remaining_payload() == 0))

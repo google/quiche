@@ -38,8 +38,8 @@ struct StaticEntry {
 std::vector<StaticEntry> MakeSpecStaticEntries() {
   std::vector<StaticEntry> static_entries;
 
-#define STATIC_TABLE_ENTRY(name, value, index)                      \
-  DCHECK_EQ(static_entries.size() + 1, static_cast<size_t>(index)); \
+#define STATIC_TABLE_ENTRY(name, value, index)                             \
+  QUICHE_DCHECK_EQ(static_entries.size() + 1, static_cast<size_t>(index)); \
   static_entries.push_back({name, value, index});
 
 #include "http2/hpack/hpack_static_table_entries.inc"

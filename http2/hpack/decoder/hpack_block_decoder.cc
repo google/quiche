@@ -24,14 +24,14 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
         before_entry_ = true;
         break;
       case DecodeStatus::kDecodeInProgress:
-        DCHECK_EQ(0u, db->Remaining());
+        QUICHE_DCHECK_EQ(0u, db->Remaining());
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
         HTTP2_CODE_COUNT_N(decompress_failure_3, 1, 23);
         return DecodeStatus::kDecodeError;
     }
   }
-  DCHECK(before_entry_);
+  QUICHE_DCHECK(before_entry_);
   while (db->HasData()) {
     HTTP2_DVLOG(2) << "HpackBlockDecoder::Decode start entry, db->Remaining="
                    << db->Remaining();
@@ -40,16 +40,16 @@ DecodeStatus HpackBlockDecoder::Decode(DecodeBuffer* db) {
       case DecodeStatus::kDecodeDone:
         continue;
       case DecodeStatus::kDecodeInProgress:
-        DCHECK_EQ(0u, db->Remaining());
+        QUICHE_DCHECK_EQ(0u, db->Remaining());
         before_entry_ = false;
         return DecodeStatus::kDecodeInProgress;
       case DecodeStatus::kDecodeError:
         HTTP2_CODE_COUNT_N(decompress_failure_3, 2, 23);
         return DecodeStatus::kDecodeError;
     }
-    DCHECK(false);
+    QUICHE_DCHECK(false);
   }
-  DCHECK(before_entry_);
+  QUICHE_DCHECK(before_entry_);
   return DecodeStatus::kDecodeDone;
 }
 

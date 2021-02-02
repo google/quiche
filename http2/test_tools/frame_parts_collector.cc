@@ -26,7 +26,7 @@ const FrameParts* FramePartsCollector::frame(size_t n) const {
   if (n < size()) {
     return collected_frames_.at(n).get();
   }
-  CHECK(n == size());
+  QUICHE_CHECK(n == size());
   return current_frame();
 }
 

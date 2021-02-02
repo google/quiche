@@ -40,10 +40,10 @@ DecodeStatus DataPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
 
   HTTP2_DVLOG(2) << "DataPayloadDecoder::StartDecodingPayload: "
                  << frame_header;
-  DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
-  DCHECK_EQ(0, frame_header.flags &
-                   ~(Http2FrameFlag::END_STREAM | Http2FrameFlag::PADDED));
+  QUICHE_DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::END_STREAM |
+                                             Http2FrameFlag::PADDED));
 
   // Special case for the hoped for common case: unpadded and fits fully into
   // the decode buffer. TO BE SEEN if that is true. It certainly requires that
@@ -80,10 +80,10 @@ DecodeStatus DataPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
   HTTP2_DVLOG(2) << "DataPayloadDecoder::ResumeDecodingPayload payload_state_="
                  << payload_state_;
   const Http2FrameHeader& frame_header = state->frame_header();
-  DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
-  DCHECK_LE(state->remaining_payload_and_padding(),
-            frame_header.payload_length);
-  DCHECK_LE(db->Remaining(), state->remaining_payload_and_padding());
+  QUICHE_DCHECK_EQ(Http2FrameType::DATA, frame_header.type);
+  QUICHE_DCHECK_LE(state->remaining_payload_and_padding(),
+                   frame_header.payload_length);
+  QUICHE_DCHECK_LE(db->Remaining(), state->remaining_payload_and_padding());
   DecodeStatus status;
   size_t avail;
   switch (payload_state_) {

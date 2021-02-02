@@ -47,7 +47,7 @@ struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
         stream_id(stream_id),
         type(type),
         flags(static_cast<Http2FrameFlag>(flags)) {
-    DCHECK_LT(payload_length, static_cast<uint32_t>(1 << 24))
+    QUICHE_DCHECK_LT(payload_length, static_cast<uint32_t>(1 << 24))
         << "Payload Length is only a 24 bit field\n"
         << ToString();
   }
@@ -66,38 +66,41 @@ struct QUICHE_EXPORT_PRIVATE Http2FrameHeader {
 
   // Is the END_STREAM flag set?
   bool IsEndStream() const {
-    DCHECK(type == Http2FrameType::DATA || type == Http2FrameType::HEADERS)
+    QUICHE_DCHECK(type == Http2FrameType::DATA ||
+                  type == Http2FrameType::HEADERS)
         << ToString();
     return (flags & Http2FrameFlag::END_STREAM) != 0;
   }
 
   // Is the ACK flag set?
   bool IsAck() const {
-    DCHECK(type == Http2FrameType::SETTINGS || type == Http2FrameType::PING)
+    QUICHE_DCHECK(type == Http2FrameType::SETTINGS ||
+                  type == Http2FrameType::PING)
         << ToString();
     return (flags & Http2FrameFlag::ACK) != 0;
   }
 
   // Is the END_HEADERS flag set?
   bool IsEndHeaders() const {
-    DCHECK(type == Http2FrameType::HEADERS ||
-           type == Http2FrameType::PUSH_PROMISE ||
-           type == Http2FrameType::CONTINUATION)
+    QUICHE_DCHECK(type == Http2FrameType::HEADERS ||
+                  type == Http2FrameType::PUSH_PROMISE ||
+                  type == Http2FrameType::CONTINUATION)
         << ToString();
     return (flags & Http2FrameFlag::END_HEADERS) != 0;
   }
 
   // Is the PADDED flag set?
   bool IsPadded() const {
-    DCHECK(type == Http2FrameType::DATA || type == Http2FrameType::HEADERS ||
-           type == Http2FrameType::PUSH_PROMISE)
+    QUICHE_DCHECK(type == Http2FrameType::DATA ||
+                  type == Http2FrameType::HEADERS ||
+                  type == Http2FrameType::PUSH_PROMISE)
         << ToString();
     return (flags & Http2FrameFlag::PADDED) != 0;
   }
 
   // Is the PRIORITY flag set?
   bool HasPriority() const {
-    DCHECK_EQ(type, Http2FrameType::HEADERS) << ToString();
+    QUICHE_DCHECK_EQ(type, Http2FrameType::HEADERS) << ToString();
     return (flags & Http2FrameFlag::PRIORITY) != 0;
   }
 
@@ -149,11 +152,11 @@ struct QUICHE_EXPORT_PRIVATE Http2PriorityFields {
         is_exclusive(is_exclusive) {
     // Can't have the high-bit set in the stream id because we need to use
     // that for the EXCLUSIVE flag bit.
-    DCHECK_EQ(stream_dependency, stream_dependency & StreamIdMask())
+    QUICHE_DCHECK_EQ(stream_dependency, stream_dependency & StreamIdMask())
         << "Stream Dependency is only a 31-bit field.\n"
         << ToString();
-    DCHECK_LE(1u, weight) << "Weight is too small.";
-    DCHECK_LE(weight, 256u) << "Weight is too large.";
+    QUICHE_DCHECK_LE(1u, weight) << "Weight is too small.";
+    QUICHE_DCHECK_LE(weight, 256u) << "Weight is too large.";
   }
   static constexpr size_t EncodedSize() { return 5; }
 

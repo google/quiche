@@ -20,9 +20,9 @@ DecodeStatus PingPayloadDecoder::StartDecodingPayload(FrameDecoderState* state,
 
   HTTP2_DVLOG(2) << "PingPayloadDecoder::StartDecodingPayload: "
                  << frame_header;
-  DCHECK_EQ(Http2FrameType::PING, frame_header.type);
-  DCHECK_LE(db->Remaining(), total_length);
-  DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::ACK));
+  QUICHE_DCHECK_EQ(Http2FrameType::PING, frame_header.type);
+  QUICHE_DCHECK_LE(db->Remaining(), total_length);
+  QUICHE_DCHECK_EQ(0, frame_header.flags & ~(Http2FrameFlag::ACK));
 
   // Is the payload entirely in the decode buffer and is it the correct size?
   // Given the size of the header and payload (17 bytes total), this is most
@@ -53,8 +53,8 @@ DecodeStatus PingPayloadDecoder::ResumeDecodingPayload(FrameDecoderState* state,
                                                        DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "ResumeDecodingPayload: remaining_payload="
                  << state->remaining_payload();
-  DCHECK_EQ(Http2FrameType::PING, state->frame_header().type);
-  DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
+  QUICHE_DCHECK_EQ(Http2FrameType::PING, state->frame_header().type);
+  QUICHE_DCHECK_LE(db->Remaining(), state->frame_header().payload_length);
   return HandleStatus(
       state, state->ResumeDecodingStructureInPayload(&ping_fields_, db));
 }
@@ -78,7 +78,7 @@ DecodeStatus PingPayloadDecoder::HandleStatus(FrameDecoderState* state,
   }
   // Not done decoding the structure. Either we've got more payload to decode,
   // or we've run out because the payload is too short.
-  DCHECK(
+  QUICHE_DCHECK(
       (status == DecodeStatus::kDecodeInProgress &&
        state->remaining_payload() > 0) ||
       (status == DecodeStatus::kDecodeError && state->remaining_payload() == 0))

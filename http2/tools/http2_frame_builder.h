@@ -11,7 +11,7 @@
 // For now, this is only intended for use in tests, and thus has EXPECT* in the
 // code. If desired to use it in an encoder, it will need optimization work,
 // especially w.r.t memory mgmt, and the EXPECT* will need to be removed or
-// replaced with DCHECKs.
+// replaced with QUICHE_DCHECKs.
 
 #include <stddef.h>  // for size_t
 

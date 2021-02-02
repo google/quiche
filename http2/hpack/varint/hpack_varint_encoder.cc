@@ -15,14 +15,14 @@ void HpackVarintEncoder::Encode(uint8_t high_bits,
                                 uint8_t prefix_length,
                                 uint64_t varint,
                                 std::string* output) {
-  DCHECK_LE(1u, prefix_length);
-  DCHECK_LE(prefix_length, 8u);
+  QUICHE_DCHECK_LE(1u, prefix_length);
+  QUICHE_DCHECK_LE(prefix_length, 8u);
 
   // prefix_mask defines the sequence of low-order bits of the first byte
   // that encode the prefix of the value. It is also the marker in those bits
   // of the first byte indicating that at least one extension byte is needed.
   const uint8_t prefix_mask = (1 << prefix_length) - 1;
-  DCHECK_EQ(0, high_bits & prefix_mask);
+  QUICHE_DCHECK_EQ(0, high_bits & prefix_mask);
 
   if (varint < prefix_mask) {
     // The integer fits into the prefix in its entirety.

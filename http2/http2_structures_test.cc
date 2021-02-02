@@ -91,8 +91,8 @@ TEST(Http2FrameHeaderTest, Constructor) {
   Http2Random random;
   uint8_t frame_type = 0;
   do {
-    // Only the payload length is DCHECK'd in the constructor, so we need to
-    // make sure it is a "uint24".
+    // Only the payload length is QUICHE_DCHECK'd in the constructor, so we need
+    // to make sure it is a "uint24".
     uint32_t payload_length = random.Rand32() & 0xffffff;
     Http2FrameType type = static_cast<Http2FrameType>(frame_type);
     uint8_t flags = random.Rand8();

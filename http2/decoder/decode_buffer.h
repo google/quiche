@@ -28,12 +28,12 @@ class QUICHE_EXPORT_PRIVATE DecodeBuffer {
  public:
   DecodeBuffer(const char* buffer, size_t len)
       : buffer_(buffer), cursor_(buffer), beyond_(buffer + len) {
-    DCHECK(buffer != nullptr);
+    QUICHE_DCHECK(buffer != nullptr);
     // We assume the decode buffers will typically be modest in size (i.e. often
     // a few KB, perhaps as high as 100KB). Let's make sure during testing that
     // we don't go very high, with 32MB selected rather arbitrarily.
     const size_t kMaxDecodeBufferLength = 1 << 25;
-    DCHECK_LE(len, kMaxDecodeBufferLength);
+    QUICHE_DCHECK_LE(len, kMaxDecodeBufferLength);
   }
   explicit DecodeBuffer(absl::string_view s)
       : DecodeBuffer(s.data(), s.size()) {}
@@ -49,7 +49,7 @@ class QUICHE_EXPORT_PRIVATE DecodeBuffer {
   bool Empty() const { return cursor_ >= beyond_; }
   bool HasData() const { return cursor_ < beyond_; }
   size_t Remaining() const {
-    DCHECK_LE(cursor_, beyond_);
+    QUICHE_DCHECK_LE(cursor_, beyond_);
     return beyond_ - cursor_;
   }
   size_t Offset() const { return cursor_ - buffer_; }
@@ -66,15 +66,18 @@ class QUICHE_EXPORT_PRIVATE DecodeBuffer {
   const char* cursor() const { return cursor_; }
   // Advances the cursor (pointer to the next byte/char to be decoded).
   void AdvanceCursor(size_t amount) {
-    DCHECK_LE(amount, Remaining());  // Need at least that much remaining.
-    DCHECK_EQ(subset_, nullptr) << "Access via subset only when present.";
+    QUICHE_DCHECK_LE(amount,
+                     Remaining());  // Need at least that much remaining.
+    QUICHE_DCHECK_EQ(subset_, nullptr)
+        << "Access via subset only when present.";
     cursor_ += amount;
   }
 
   // Only call methods starting "Decode" when there is enough input remaining.
   char DecodeChar() {
-    DCHECK_LE(1u, Remaining());  // Need at least one byte remaining.
-    DCHECK_EQ(subset_, nullptr) << "Access via subset only when present.";
+    QUICHE_DCHECK_LE(1u, Remaining());  // Need at least one byte remaining.
+    QUICHE_DCHECK_EQ(subset_, nullptr)
+        << "Access via subset only when present.";
     return *cursor_++;
   }
 
@@ -114,7 +117,7 @@ class QUICHE_EXPORT_PRIVATE DecodeBuffer {
   const char* const buffer_;
   const char* cursor_;
   const char* const beyond_;
-  const DecodeBufferSubset* subset_ = nullptr;  // Used for DCHECKs.
+  const DecodeBufferSubset* subset_ = nullptr;  // Used for QUICHE_DCHECKs.
 };
 
 // DecodeBufferSubset is used when decoding a known sized chunk of data, which
@@ -153,8 +156,8 @@ class QUICHE_EXPORT_PRIVATE DecodeBufferSubset : public DecodeBuffer {
  private:
   DecodeBuffer* const base_buffer_;
 #ifndef NDEBUG
-  size_t start_base_offset_;  // Used for DCHECKs.
-  size_t max_base_offset_;    // Used for DCHECKs.
+  size_t start_base_offset_;  // Used for QUICHE_DCHECKs.
+  size_t max_base_offset_;    // Used for QUICHE_DCHECKs.
 
   void DebugSetup();
   void DebugTearDown();

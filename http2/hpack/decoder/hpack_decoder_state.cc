@@ -43,7 +43,7 @@ void HpackDecoderState::ApplyHeaderTableSizeSetting(
     uint32_t header_table_size) {
   HTTP2_DVLOG(2) << "HpackDecoderState::ApplyHeaderTableSizeSetting("
                  << header_table_size << ")";
-  DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
+  QUICHE_DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
   if (header_table_size < lowest_header_table_size_) {
     lowest_header_table_size_ = header_table_size;
   }
@@ -59,9 +59,9 @@ void HpackDecoderState::OnHeaderBlockStart() {
   // This instance can't be reused after an error has been detected, as we must
   // assume that the encoder and decoder compression states are no longer
   // synchronized.
-  DCHECK(error_ == HpackDecodingError::kOk)
+  QUICHE_DCHECK(error_ == HpackDecodingError::kOk)
       << HpackDecodingErrorToString(error_);
-  DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
+  QUICHE_DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
   allow_dynamic_table_size_update_ = true;
   saw_dynamic_table_size_update_ = false;
   // If the peer has acknowledged a HEADER_TABLE_SIZE smaller than that which
@@ -155,7 +155,7 @@ void HpackDecoderState::OnDynamicTableSizeUpdate(size_t size_limit) {
   if (error_ != HpackDecodingError::kOk) {
     return;
   }
-  DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
+  QUICHE_DCHECK_LE(lowest_header_table_size_, final_header_table_size_);
   if (!allow_dynamic_table_size_update_) {
     // At most two dynamic table size updates allowed at the start, and not
     // after a header.

@@ -10,14 +10,14 @@ DecodeStatus FrameDecoderState::ReadPadLength(DecodeBuffer* db,
                                               bool report_pad_length) {
   HTTP2_DVLOG(2) << "ReadPadLength db->Remaining=" << db->Remaining()
                  << "; payload_length=" << frame_header().payload_length;
-  DCHECK(IsPaddable());
-  DCHECK(frame_header().IsPadded());
+  QUICHE_DCHECK(IsPaddable());
+  QUICHE_DCHECK(frame_header().IsPadded());
 
   // Pad Length is always at the start of the frame, so remaining_payload_
   // should equal payload_length at this point.
   const uint32_t total_payload = frame_header().payload_length;
-  DCHECK_EQ(total_payload, remaining_payload_);
-  DCHECK_EQ(0u, remaining_padding_);
+  QUICHE_DCHECK_EQ(total_payload, remaining_payload_);
+  QUICHE_DCHECK_EQ(0u, remaining_padding_);
 
   if (db->HasData()) {
     const uint32_t pad_length = db->DecodeUInt8();
@@ -54,9 +54,9 @@ bool FrameDecoderState::SkipPadding(DecodeBuffer* db) {
   HTTP2_DVLOG(2) << "SkipPadding remaining_padding_=" << remaining_padding_
                  << ", db->Remaining=" << db->Remaining()
                  << ", header: " << frame_header();
-  DCHECK_EQ(remaining_payload_, 0u);
-  DCHECK(IsPaddable()) << "header: " << frame_header();
-  DCHECK(remaining_padding_ == 0 || frame_header().IsPadded())
+  QUICHE_DCHECK_EQ(remaining_payload_, 0u);
+  QUICHE_DCHECK(IsPaddable()) << "header: " << frame_header();
+  QUICHE_DCHECK(remaining_padding_ == 0 || frame_header().IsPadded())
       << "remaining_padding_=" << remaining_padding_
       << ", header: " << frame_header();
   const size_t avail = AvailablePadding(db);

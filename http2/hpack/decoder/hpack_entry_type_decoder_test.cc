@@ -24,7 +24,7 @@ const bool kReturnNonZeroOnFirst = true;
 class HpackEntryTypeDecoderTest : public RandomDecoderTest {
  protected:
   DecodeStatus StartDecoding(DecodeBuffer* b) override {
-    CHECK_LT(0u, b->Remaining());
+    QUICHE_CHECK_LT(0u, b->Remaining());
     return decoder_.Start(b);
   }
 
