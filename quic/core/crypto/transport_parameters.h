@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/quic_connection_id.h"
@@ -29,7 +30,7 @@ struct QUIC_EXPORT_PRIVATE TransportParameters {
   // The identifier used to differentiate transport parameters.
   enum TransportParameterId : uint64_t;
   // A map used to specify custom parameters.
-  using ParameterMap = QuicHashMap<TransportParameterId, std::string>;
+  using ParameterMap = absl::flat_hash_map<TransportParameterId, std::string>;
   // Represents an individual QUIC transport parameter that only encodes a
   // variable length integer. Can only be created inside the constructor for
   // TransportParameters.

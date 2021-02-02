@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_PROTOCOL_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_session.h"
@@ -117,7 +118,7 @@ class QUIC_NO_EXPORT MasqueCompressionEngine {
                                bool* version_present);
 
   QuicSession* masque_session_;  // Unowned.
-  QuicHashMap<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
+  absl::flat_hash_map<QuicDatagramFlowId, MasqueCompressionContext> contexts_;
   QuicDatagramFlowId next_flow_id_;
 };
 

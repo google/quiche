@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/crypto/null_decrypter.h"
 #include "quic/core/crypto/null_encrypter.h"
 #include "quic/core/quic_connection.h"
@@ -150,7 +151,7 @@ class QuicEndpointMultiplexer : public Endpoint,
   void Act() override {}
 
  private:
-  QuicHashMap<std::string, QuicEndpointBase*> mapping_;
+  absl::flat_hash_map<std::string, QuicEndpointBase*> mapping_;
 };
 
 }  // namespace simulator

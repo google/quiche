@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/quic_spdy_client_session.h"
 #include "quic/masque/masque_compression_engine.h"
@@ -86,9 +87,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession {
   void UnregisterConnectionId(QuicConnectionId client_connection_id);
 
  private:
-  QuicHashMap<QuicConnectionId,
-              EncapsulatedClientSession*,
-              QuicConnectionIdHash>
+  absl::flat_hash_map<QuicConnectionId,
+                      EncapsulatedClientSession*,
+                      QuicConnectionIdHash>
       client_connection_id_registrations_;
   Owner* owner_;  // Unowned;
   MasqueCompressionEngine compression_engine_;

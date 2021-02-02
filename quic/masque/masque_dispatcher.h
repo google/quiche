@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_DISPATCHER_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_DISPATCHER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/masque/masque_server_backend.h"
 #include "quic/masque/masque_server_session.h"
 #include "quic/platform/api/quic_export.h"
@@ -53,7 +54,9 @@ class QUIC_NO_EXPORT MasqueDispatcher : public QuicSimpleDispatcher,
   MasqueServerBackend* masque_server_backend_;  // Unowned.
   // Mapping from client connection IDs to server sessions, allows routing
   // incoming packets to the right MASQUE connection.
-  QuicHashMap<QuicConnectionId, MasqueServerSession*, QuicConnectionIdHash>
+  absl::flat_hash_map<QuicConnectionId,
+                      MasqueServerSession*,
+                      QuicConnectionIdHash>
       client_connection_id_registrations_;
 };
 

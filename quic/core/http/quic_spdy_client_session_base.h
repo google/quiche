@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/http/quic_spdy_session.h"
 #include "quic/core/quic_crypto_client_stream.h"
 #include "quic/platform/api/quic_containers.h"
@@ -24,7 +25,8 @@ class QuicSpdyClientStream;
 // to authority constraints).  Clients should use this map to enforce
 // session affinity for requests corresponding to cross-origin push
 // promised streams.
-using QuicPromisedByUrlMap = QuicHashMap<std::string, QuicClientPromisedInfo*>;
+using QuicPromisedByUrlMap =
+    absl::flat_hash_map<std::string, QuicClientPromisedInfo*>;
 
 // The maximum time a promises stream can be reserved without being
 // claimed by a client request.
@@ -126,7 +128,8 @@ class QUIC_EXPORT_PRIVATE QuicSpdyClientSessionBase
   // For QuicSpdyClientStream to detect that a response corresponds to a
   // promise.
   using QuicPromisedByIdMap =
-      QuicHashMap<QuicStreamId, std::unique_ptr<QuicClientPromisedInfo>>;
+      absl::flat_hash_map<QuicStreamId,
+                          std::unique_ptr<QuicClientPromisedInfo>>;
 
   // As per rfc7540, section 10.5: track promise streams in "reserved
   // (remote)".  The primary key is URL from the promise request

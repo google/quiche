@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/congestion_control/loss_detection_interface.h"
@@ -2239,7 +2240,8 @@ class TestPacketWriter : public QuicPacketWriter {
   // Used to verify writer-allocated packet buffers are properly released.
   std::vector<PacketBuffer*> packet_buffer_pool_;
   // Buffer address => Address of the owning PacketBuffer.
-  QuicHashMap<char*, PacketBuffer*> packet_buffer_pool_index_;
+  absl::flat_hash_map<char*, PacketBuffer*, absl::Hash<char*>>
+      packet_buffer_pool_index_;
   // Indices in packet_buffer_pool_ that are not allocated.
   std::list<PacketBuffer*> packet_buffer_free_list_;
   // The soruce/peer address passed into WritePacket().

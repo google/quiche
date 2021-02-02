@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "absl/base/attributes.h"
+#include "absl/container/node_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/certificate_view.h"
 #include "quic/core/crypto/proof_source.h"
@@ -68,7 +69,7 @@ class QUIC_EXPORT_PRIVATE ProofSourceX509 : public ProofSource {
 
   std::forward_list<Certificate> certificates_;
   Certificate* default_certificate_;
-  QuicUnorderedMap<std::string, Certificate*> certificate_map_;
+  absl::node_hash_map<std::string, Certificate*> certificate_map_;
 };
 
 }  // namespace quic

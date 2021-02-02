@@ -11,6 +11,7 @@
 #include <ostream>
 #include <sstream>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/http/http_constants.h"
@@ -70,7 +71,7 @@ struct QUIC_EXPORT_PRIVATE CancelPushFrame {
 //   affect how endpoints communicate, such as preferences and constraints
 //   on peer behavior
 
-using SettingsMap = QuicHashMap<uint64_t, uint64_t>;
+using SettingsMap = absl::flat_hash_map<uint64_t, uint64_t>;
 
 struct QUIC_EXPORT_PRIVATE SettingsFrame {
   SettingsMap values;

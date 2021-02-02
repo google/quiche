@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/container/node_hash_map.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_logging.h"
 #include "quic/platform/api/quic_test.h"
@@ -102,7 +103,7 @@ class CounterPort : public UnconstrainedPortInterface {
   QuicByteCount bytes_;
   QuicPacketCount packets_;
 
-  QuicUnorderedMap<std::string, QuicPacketCount>
+  absl::node_hash_map<std::string, QuicPacketCount>
       per_destination_packet_counter_;
 };
 

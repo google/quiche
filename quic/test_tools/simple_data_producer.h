@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMPLE_DATA_PRODUCER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_DATA_PRODUCER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/core/quic_stream_frame_data_producer.h"
@@ -59,12 +60,12 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
  private:
   using SendBufferMap =
-      QuicHashMap<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
+      absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
 
   using CryptoBufferMap =
-      QuicHashMap<std::pair<EncryptionLevel, QuicStreamOffset>,
-                  absl::string_view,
-                  PairHash>;
+      absl::flat_hash_map<std::pair<EncryptionLevel, QuicStreamOffset>,
+                          absl::string_view,
+                          PairHash>;
 
   SimpleBufferAllocator allocator_;
 

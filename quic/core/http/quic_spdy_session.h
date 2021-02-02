@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/http/http_frames.h"
@@ -591,7 +592,7 @@ class QUIC_EXPORT_PRIVATE QuicSpdySession
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
   // open yet.
-  QuicHashMap<QuicStreamId, int> buffered_stream_priorities_;
+  absl::flat_hash_map<QuicStreamId, int> buffered_stream_priorities_;
 
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate

@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "quic/core/frames/quic_ack_frequency_frame.h"
@@ -612,15 +613,16 @@ class QUIC_EXPORT_PRIVATE QuicSession
   }
 
  protected:
-  using StreamMap = QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
+  using StreamMap =
+      absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
 
   using PendingStreamMap =
-      QuicHashMap<QuicStreamId, std::unique_ptr<PendingStream>>;
+      absl::flat_hash_map<QuicStreamId, std::unique_ptr<PendingStream>>;
 
   using ClosedStreams = std::vector<std::unique_ptr<QuicStream>>;
 
   using ZombieStreamMap =
-      QuicHashMap<QuicStreamId, std::unique_ptr<QuicStream>>;
+      absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
 
   // Creates a new stream to handle a peer-initiated stream.
   // Caller does not own the returned stream.
@@ -833,7 +835,7 @@ class QUIC_EXPORT_PRIVATE QuicSession
 
   // Keep track of highest received byte offset of locally closed streams, while
   // waiting for a definitive final highest offset from the peer.
-  QuicHashMap<QuicStreamId, QuicStreamOffset>
+  absl::flat_hash_map<QuicStreamId, QuicStreamOffset>
       locally_closed_streams_highest_offset_;
 
   QuicConnection* connection_;

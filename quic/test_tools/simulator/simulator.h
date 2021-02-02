@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -130,7 +131,7 @@ class Simulator : public QuicConnectionHelperInterface {
   std::multimap<QuicTime, Actor*> schedule_;
   // For each actor, maintain the time it is scheduled at.  The value for
   // unscheduled actors is QuicTime::Infinite().
-  QuicHashMap<Actor*, QuicTime> scheduled_times_;
+  absl::flat_hash_map<Actor*, QuicTime> scheduled_times_;
   QuicHashSet<std::string> actor_names_;
 };
 

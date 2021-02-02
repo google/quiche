@@ -6,6 +6,7 @@
 
 #include <netinet/ip6.h>
 
+#include "absl/container/node_hash_map.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_epoll.h"
 #include "quic/platform/api/quic_ip_address.h"
@@ -73,8 +74,8 @@ class StatsInterface : public IcmpReachable::StatsInterface {
 
   std::string current_source_{};
 
-  QuicUnorderedMap<int, int> read_errors_;
-  QuicUnorderedMap<int, int> write_errors_;
+  absl::node_hash_map<int, int> read_errors_;
+  absl::node_hash_map<int, int> write_errors_;
 };
 
 class IcmpReachableTest : public QuicTest {

@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/quic_blocked_writer_interface.h"
 #include "quic/core/quic_connection_id.h"
 #include "quic/core/quic_framer.h"
@@ -294,7 +295,7 @@ class QUIC_NO_EXPORT QuicTimeWaitListManager
   // find the entry, look up the cannoical ConnectionId in
   // indirect_connection_id_map_ first, and look up connection_id_map_ with the
   // cannoical ConnectionId.
-  QuicHashMap<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>
+  absl::flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>
       indirect_connection_id_map_;
 
   // Find an iterator for the given connection_id. Returns

@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMULATOR_TRAFFIC_POLICER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/test_tools/simulator/packet_filter.h"
 #include "quic/test_tools/simulator/port.h"
 
@@ -44,7 +45,7 @@ class TrafficPolicer : public PacketFilter {
   QuicTime last_refill_time_;
 
   // Maps each destination to the number of tokens it has left.
-  QuicHashMap<std::string, QuicByteCount> token_buckets_;
+  absl::flat_hash_map<std::string, QuicByteCount> token_buckets_;
 };
 
 }  // namespace simulator

@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_interval_set.h"
 #include "quic/core/session_notifier_interface.h"
@@ -106,7 +107,7 @@ class SimpleSessionNotifier : public SessionNotifierInterface {
 
   friend std::ostream& operator<<(std::ostream& os, const StreamState& s);
 
-  using StreamMap = QuicHashMap<QuicStreamId, StreamState>;
+  using StreamMap = absl::flat_hash_map<QuicStreamId, StreamState>;
 
   void OnStreamDataConsumed(QuicStreamId id,
                             QuicStreamOffset offset,

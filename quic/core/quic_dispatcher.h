@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quic/core/crypto/quic_random.h"
@@ -119,13 +120,14 @@ class QUIC_NO_EXPORT QuicDispatcher
   void OnConnectionAddedToTimeWaitList(
       QuicConnectionId server_connection_id) override;
 
-  using SessionMap = QuicHashMap<QuicConnectionId,
-                                 std::unique_ptr<QuicSession>,
-                                 QuicConnectionIdHash>;
+  using SessionMap = absl::flat_hash_map<QuicConnectionId,
+                                         std::unique_ptr<QuicSession>,
+                                         QuicConnectionIdHash>;
 
-  using ReferenceCountedSessionMap = QuicHashMap<QuicConnectionId,
-                                                 std::shared_ptr<QuicSession>,
-                                                 QuicConnectionIdHash>;
+  using ReferenceCountedSessionMap =
+      absl::flat_hash_map<QuicConnectionId,
+                          std::shared_ptr<QuicSession>,
+                          QuicConnectionIdHash>;
 
   size_t NumSessions() const;
 
@@ -134,8 +136,8 @@ class QUIC_NO_EXPORT QuicDispatcher
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
 
-  using ConnectionIdMap =
-      QuicHashMap<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>;
+  using ConnectionIdMap = absl::
+      flat_hash_map<QuicConnectionId, QuicConnectionId, QuicConnectionIdHash>;
 
   // QuicBufferedPacketStore::VisitorInterface implementation.
   void OnExpiredPackets(QuicConnectionId server_connection_id,

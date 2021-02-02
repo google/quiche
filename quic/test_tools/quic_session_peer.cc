@@ -4,6 +4,7 @@
 
 #include "quic/test_tools/quic_session_peer.h"
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/core/quic_session.h"
 #include "quic/core/quic_stream.h"
 #include "quic/core/quic_utils.h"
@@ -120,7 +121,7 @@ QuicStream* QuicSessionPeer::GetOrCreateStream(QuicSession* session,
 }
 
 // static
-QuicHashMap<QuicStreamId, QuicStreamOffset>&
+absl::flat_hash_map<QuicStreamId, QuicStreamOffset>&
 QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(QuicSession* session) {
   return session->locally_closed_streams_highest_offset_;
 }

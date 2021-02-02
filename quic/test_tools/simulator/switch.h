@@ -7,6 +7,7 @@
 
 #include <deque>
 
+#include "absl/container/flat_hash_map.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/test_tools/simulator/queue.h"
 
@@ -80,7 +81,7 @@ class Switch {
   // This can not be a QuicCircularDeque since pointers into this are
   // assumed to be stable.
   std::deque<Port> ports_;
-  QuicHashMap<std::string, Port*> switching_table_;
+  absl::flat_hash_map<std::string, Port*> switching_table_;
 };
 
 }  // namespace simulator
