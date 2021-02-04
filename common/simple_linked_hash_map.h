@@ -22,8 +22,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/container/node_hash_map.h"
 #include "common/platform/api/quiche_logging.h"
-#include "common/platform/api/quiche_unordered_containers.h"
 
 namespace quiche {
 
@@ -41,7 +41,7 @@ template <class Key,
 class SimpleLinkedHashMap {
  private:
   typedef std::list<std::pair<Key, Value>> ListType;
-  typedef QuicheUnorderedMap<Key, typename ListType::iterator, Hash, Eq>
+  typedef absl::node_hash_map<Key, typename ListType::iterator, Hash, Eq>
       MapType;
 
  public:
