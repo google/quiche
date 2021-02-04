@@ -131,20 +131,10 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
   void SetDecoderHeaderTableDebugVisitor(
       std::unique_ptr<spdy::HpackHeaderTable::DebugVisitorInterface> visitor);
 
-  // Sets whether or not ProcessInput returns after finishing a frame, or
-  // continues processing additional frames. Normally ProcessInput processes
-  // all input, but this method enables the caller (and visitor) to work with
-  // a single frame at a time (or that portion of the frame which is provided
-  // as input). Reset() does not change the value of this flag.
-  void set_process_single_input_frame(bool v);
-  bool process_single_input_frame() const {
-    return process_single_input_frame_;
-  }
-
   // Decode the |len| bytes of encoded HTTP/2 starting at |*data|. Returns
   // the number of bytes consumed. It is safe to pass more bytes in than
   // may be consumed. Should process (or otherwise buffer) as much as
-  // available, unless process_single_input_frame is true.
+  // available.
   size_t ProcessInput(const char* data, size_t len);
 
   // Reset the decoder (used just for tests at this time).
@@ -350,8 +340,6 @@ class QUICHE_EXPORT_PRIVATE Http2DecoderAdapter
 
   // Is the current frame payload destined for |extension_|?
   bool handling_extension_payload_ = false;
-
-  bool process_single_input_frame_ = false;
 };
 
 }  // namespace http2

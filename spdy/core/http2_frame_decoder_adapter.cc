@@ -272,10 +272,6 @@ void Http2DecoderAdapter::set_debug_visitor(
   debug_visitor_ = debug_visitor;
 }
 
-void Http2DecoderAdapter::set_process_single_input_frame(bool v) {
-  process_single_input_frame_ = v;
-}
-
 void Http2DecoderAdapter::set_extension_visitor(
     ExtensionVisitorInterface* visitor) {
   extension_ = visitor;
@@ -307,7 +303,7 @@ size_t Http2DecoderAdapter::ProcessInput(const char* data, size_t len) {
     data += processed;
     len -= processed;
     total_processed += processed;
-    if (process_single_input_frame() || processed == 0) {
+    if (processed == 0) {
       break;
     }
   }

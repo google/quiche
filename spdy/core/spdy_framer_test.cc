@@ -4799,8 +4799,7 @@ TEST_P(SpdyFramerTest, ReadInvalidRstStreamWithPayload) {
              visitor.deframer_.spdy_framer_error());
 }
 
-// Test that SpdyFramer processes, by default, all passed input in one call
-// to ProcessInput (i.e. will not be calling set_process_single_input_frame()).
+// Test that SpdyFramer processes all passed input in one call to ProcessInput.
 TEST_P(SpdyFramerTest, ProcessAllInput) {
   auto visitor =
       std::make_unique<TestSpdyVisitor>(SpdyFramer::DISABLE_COMPRESSION);
@@ -4844,88 +4843,6 @@ TEST_P(SpdyFramerTest, ProcessAllInput) {
   EXPECT_EQ(1, visitor->headers_frame_count_);
   EXPECT_EQ(1, visitor->data_frame_count_);
   EXPECT_EQ(strlen(four_score), static_cast<unsigned>(visitor->data_bytes_));
-}
-
-// Test that SpdyFramer stops after processing a full frame if
-// process_single_input_frame is set. Input to ProcessInput has two frames, but
-// only processes the first when we give it the first frame split at any point,
-// or give it more than one frame in the input buffer.
-TEST_P(SpdyFramerTest, ProcessAtMostOneFrame) {
-  deframer_.set_process_single_input_frame(true);
-
-  // Create two input frames.
-  const char four_score[] = "Four score and ...";
-  SpdyDataIR four_score_ir(/* stream_id = */ 1, four_score);
-  SpdySerializedFrame four_score_frame(framer_.SerializeData(four_score_ir));
-
-  SpdyHeadersIR headers(/* stream_id = */ 2);
-  headers.SetHeader("alpha", "beta");
-  headers.SetHeader("gamma", "charlie");
-  headers.SetHeader("cookie", "key1=value1; key2=value2");
-  SpdySerializedFrame headers_frame(SpdyFramerPeer::SerializeHeaders(
-      &framer_, headers, use_output_ ? &output_ : nullptr));
-
-  // Put them in a single buffer (new variables here to make it easy to
-  // change the order and type of frames).
-  SpdySerializedFrame frame1 = std::move(four_score_frame);
-  SpdySerializedFrame frame2 = std::move(headers_frame);
-
-  const size_t frame1_size = frame1.size();
-  const size_t frame2_size = frame2.size();
-
-  SPDY_VLOG(1) << "frame1_size = " << frame1_size;
-  SPDY_VLOG(1) << "frame2_size = " << frame2_size;
-
-  std::string input_buffer;
-  input_buffer.append(frame1.data(), frame1_size);
-  input_buffer.append(frame2.data(), frame2_size);
-
-  const char* buf = input_buffer.data();
-  const size_t buf_size = input_buffer.size();
-
-  SPDY_VLOG(1) << "buf_size = " << buf_size;
-
-  for (size_t first_size = 0; first_size <= buf_size; ++first_size) {
-    SPDY_VLOG(1) << "first_size = " << first_size;
-    auto visitor =
-        std::make_unique<TestSpdyVisitor>(SpdyFramer::DISABLE_COMPRESSION);
-    deframer_.set_visitor(visitor.get());
-
-    EXPECT_EQ(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
-
-    size_t processed_first = deframer_.ProcessInput(buf, first_size);
-    if (first_size < frame1_size) {
-      EXPECT_EQ(first_size, processed_first);
-
-      if (first_size == 0) {
-        EXPECT_EQ(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
-      } else {
-        EXPECT_NE(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
-      }
-
-      const char* rest = buf + processed_first;
-      const size_t remaining = buf_size - processed_first;
-      SPDY_VLOG(1) << "remaining = " << remaining;
-
-      size_t processed_second = deframer_.ProcessInput(rest, remaining);
-
-      // Redundant tests just to make it easier to think about.
-      EXPECT_EQ(frame1_size - processed_first, processed_second);
-      size_t processed_total = processed_first + processed_second;
-      EXPECT_EQ(frame1_size, processed_total);
-    } else {
-      EXPECT_EQ(frame1_size, processed_first);
-    }
-
-    EXPECT_EQ(Http2DecoderAdapter::SPDY_READY_FOR_FRAME, deframer_.state());
-
-    // At this point should have processed the entirety of the first frame,
-    // and none of the second frame.
-
-    EXPECT_EQ(1, visitor->data_frame_count_);
-    EXPECT_EQ(strlen(four_score), static_cast<unsigned>(visitor->data_bytes_));
-    EXPECT_EQ(0, visitor->headers_frame_count_);
-  }
 }
 
 namespace {
