@@ -984,7 +984,7 @@ int TlsServerHandshaker::SelectAlpn(const uint8_t** out,
     const std::string& origin = crypto_negotiated_params_->sni;
     std::string accept_ch_value = GetAcceptChValueForOrigin(origin);
     if (!accept_ch_value.empty()) {
-      AcceptChFrame frame{{{origin, accept_ch_value}}};
+      AcceptChFrame frame{{{origin, std::move(accept_ch_value)}}};
       alps_length = HttpEncoder::SerializeAcceptChFrame(frame, &buffer);
       alps_data = reinterpret_cast<const uint8_t*>(buffer.get());
     }
