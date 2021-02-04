@@ -7,7 +7,6 @@
 
 #include "absl/strings/str_cat.h"
 #include "quic/test_tools/simulator/switch.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -34,9 +33,7 @@ Switch::Port::Port(Simulator* simulator,
       parent_(parent),
       port_number_(port_number),
       connected_(false),
-      queue_(simulator,
-             quiche::QuicheStringPrintf("%s (queue)", name.c_str()),
-             queue_capacity) {}
+      queue_(simulator, absl::StrCat(name, " (queue)"), queue_capacity) {}
 
 void Switch::Port::AcceptPacket(std::unique_ptr<Packet> packet) {
   parent_->DispatchPacket(port_number_, std::move(packet));

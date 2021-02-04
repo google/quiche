@@ -7,7 +7,6 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
-#include "common/platform/api/quiche_str_cat.h"
 #include "common/platform/api/quiche_test.h"
 
 namespace http2 {

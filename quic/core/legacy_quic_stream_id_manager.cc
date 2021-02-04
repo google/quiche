@@ -8,7 +8,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/core/quic_versions.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 

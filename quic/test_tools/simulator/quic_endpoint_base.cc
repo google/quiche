@@ -16,7 +16,6 @@
 #include "quic/test_tools/quic_connection_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simulator/simulator.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -61,7 +60,7 @@ QuicEndpointBase::QuicEndpointBase(Simulator* simulator,
       peer_name_(peer_name),
       writer_(this),
       nic_tx_queue_(simulator,
-                    quiche::QuicheStringPrintf("%s (TX Queue)", name.c_str()),
+                    absl::StrCat(name, " (TX Queue)"),
                     kMaxOutgoingPacketSize * kTxQueueSize),
       connection_(nullptr),
       write_blocked_count_(0),

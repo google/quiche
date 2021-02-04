@@ -56,7 +56,6 @@
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_socket_address.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 

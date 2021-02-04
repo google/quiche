@@ -9,7 +9,6 @@
 #include "quic/core/quic_utils.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_flags.h"
-#include "common/platform/api/quiche_str_cat.h"
 #include "common/quiche_endian.h"
 
 namespace quic {

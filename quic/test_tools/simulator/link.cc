@@ -4,8 +4,9 @@
 
 #include "quic/test_tools/simulator/link.h"
 
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "quic/test_tools/simulator/simulator.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -96,12 +97,12 @@ SymmetricLink::SymmetricLink(Simulator* simulator,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
     : a_to_b_link_(simulator,
-                   quiche::QuicheStringPrintf("%s (A-to-B)", name.c_str()),
+                   absl::StrCat(name, " (A-to-B)"),
                    sink_b,
                    bandwidth,
                    propagation_delay),
       b_to_a_link_(simulator,
-                   quiche::QuicheStringPrintf("%s (B-to-A)", name.c_str()),
+                   absl::StrCat(name, " (B-to-A)"),
                    sink_a,
                    bandwidth,
                    propagation_delay) {}
@@ -111,9 +112,9 @@ SymmetricLink::SymmetricLink(Endpoint* endpoint_a,
                              QuicBandwidth bandwidth,
                              QuicTime::Delta propagation_delay)
     : SymmetricLink(endpoint_a->simulator(),
-                    quiche::QuicheStringPrintf("Link [%s]<->[%s]",
-                                               endpoint_a->name().c_str(),
-                                               endpoint_b->name().c_str()),
+                    absl::StrFormat("Link [%s]<->[%s]",
+                                    endpoint_a->name(),
+                                    endpoint_b->name()),
                     endpoint_a->GetRxPort(),
                     endpoint_b->GetRxPort(),
                     bandwidth,

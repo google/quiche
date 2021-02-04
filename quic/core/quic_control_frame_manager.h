@@ -11,7 +11,6 @@
 #include "quic/core/frames/quic_frame.h"
 #include "quic/core/quic_circular_deque.h"
 #include "quic/core/quic_connection_id.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 

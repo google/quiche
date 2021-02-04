@@ -39,7 +39,6 @@
 #include "quic/test_tools/quic_stream_peer.h"
 #include "quic/test_tools/quic_test_utils.h"
 #include "quic/test_tools/simple_session_cache.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 using spdy::SpdyHeaderBlock;
 using ::testing::_;
@@ -769,7 +768,7 @@ TEST_P(QuicSpdyClientSessionTest, PushPromiseDuplicateUrl) {
 TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
   CompleteCryptoHandshake();
   for (size_t i = 0u; i < session_->get_max_promises(); i++) {
-    push_promise_[":path"] = quiche::QuicheStringPrintf("/bar%zu", i);
+    push_promise_[":path"] = absl::StrCat("/bar", i);
 
     QuicStreamId id =
         promised_stream_id_ +
@@ -787,7 +786,7 @@ TEST_P(QuicSpdyClientSessionTest, ReceivingPromiseEnhanceYourCalm) {
 
   // One more promise, this should be refused.
   int i = session_->get_max_promises();
-  push_promise_[":path"] = quiche::QuicheStringPrintf("/bar%d", i);
+  push_promise_[":path"] = absl::StrCat("/bar", i);
 
   QuicStreamId id =
       promised_stream_id_ +

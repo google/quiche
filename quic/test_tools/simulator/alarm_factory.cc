@@ -4,8 +4,8 @@
 
 #include "quic/test_tools/simulator/alarm_factory.h"
 
+#include "absl/strings/str_format.h"
 #include "quic/core/quic_alarm.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 namespace simulator {
@@ -58,7 +58,7 @@ AlarmFactory::~AlarmFactory() {}
 
 std::string AlarmFactory::GetNewAlarmName() {
   ++counter_;
-  return quiche::QuicheStringPrintf("%s (alarm %i)", name_.c_str(), counter_);
+  return absl::StrFormat("%s (alarm %i)", name_, counter_);
 }
 
 QuicAlarm* AlarmFactory::CreateAlarm(QuicAlarm::Delegate* delegate) {

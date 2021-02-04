@@ -7,16 +7,15 @@
 #include <cinttypes>
 #include <string>
 
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "common/platform/api/quiche_str_cat.h"
 
 namespace quic {
 
 std::string QuicBandwidth::ToDebuggingValue() const {
   if (bits_per_second_ < 80000) {
-    return quiche::QuicheStringPrintf("%" PRId64 " bits/s (%" PRId64
-                                      " bytes/s)",
-                                      bits_per_second_, bits_per_second_ / 8);
+    return absl::StrFormat("%d bits/s (%d bytes/s)", bits_per_second_,
+                           bits_per_second_ / 8);
   }
 
   double divisor;
@@ -34,9 +33,9 @@ std::string QuicBandwidth::ToDebuggingValue() const {
 
   double bits_per_second_with_unit = bits_per_second_ / divisor;
   double bytes_per_second_with_unit = bits_per_second_with_unit / 8;
-  return quiche::QuicheStringPrintf("%.2f %cbits/s (%.2f %cbytes/s)",
-                                    bits_per_second_with_unit, unit,
-                                    bytes_per_second_with_unit, unit);
+  return absl::StrFormat("%.2f %cbits/s (%.2f %cbytes/s)",
+                         bits_per_second_with_unit, unit,
+                         bytes_per_second_with_unit, unit);
 }
 
 }  // namespace quic
