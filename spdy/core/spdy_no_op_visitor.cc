@@ -7,7 +7,6 @@
 #include <type_traits>
 
 namespace spdy {
-namespace test {
 
 SpdyNoOpVisitor::SpdyNoOpVisitor() {
   static_assert(std::is_abstract<SpdyNoOpVisitor>::value == false,
@@ -25,5 +24,4 @@ bool SpdyNoOpVisitor::OnUnknownFrame(SpdyStreamId /*stream_id*/,
   return true;
 }
 
-}  // namespace test
 }  // namespace spdy

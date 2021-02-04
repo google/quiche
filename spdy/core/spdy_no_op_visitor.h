@@ -16,7 +16,6 @@
 #include "spdy/core/spdy_protocol.h"
 
 namespace spdy {
-namespace test {
 
 class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
                         public SpdyFramerDebugVisitorInterface,
@@ -90,7 +89,6 @@ class SpdyNoOpVisitor : public SpdyFramerVisitorInterface,
                         size_t /* compressed_header_bytes */) override {}
 };
 
-}  // namespace test
 }  // namespace spdy
 
 #endif  // QUICHE_SPDY_CORE_SPDY_NO_OP_VISITOR_H_
