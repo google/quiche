@@ -10188,7 +10188,6 @@ TEST_P(QuicConnectionTest, ClientParsesRetryWrongRetryId) {
 }
 
 TEST_P(QuicConnectionTest, ClientRetransmitsInitialPacketsOnRetry) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
   if (!connection_.version().HasIetfQuicFrames()) {
     // TestClientRetryHandling() currently only supports IETF draft versions.
     return;
@@ -10213,7 +10212,6 @@ TEST_P(QuicConnectionTest, ClientRetransmitsInitialPacketsOnRetry) {
 }
 
 TEST_P(QuicConnectionTest, NoInitialPacketsRetransmissionOnInvalidRetry) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
   if (!connection_.version().HasIetfQuicFrames()) {
     return;
   }

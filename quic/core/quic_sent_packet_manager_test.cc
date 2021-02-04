@@ -3972,7 +3972,6 @@ TEST_F(QuicSentPacketManagerTest, NeuterUnencryptedPackets) {
 }
 
 TEST_F(QuicSentPacketManagerTest, MarkInitialPacketsForRetransmission) {
-  SetQuicReloadableFlag(quic_retransmit_after_receiving_retry, true);
   SendCryptoPacket(1);
   SendPingPacket(2, ENCRYPTION_HANDSHAKE);
   // Only the INITIAL packet will be retransmitted.
