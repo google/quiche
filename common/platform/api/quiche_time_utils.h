@@ -7,7 +7,7 @@
 
 #include <cstdint>
 
-#include "net/quiche/common/platform/impl/quiche_time_utils_impl.h"
+#include "quiche_platform_impl/quiche_time_utils_impl.h"
 
 namespace quiche {
 
