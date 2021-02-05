@@ -172,16 +172,14 @@ class QuicConnectionPeer {
 
   static QuicPathValidator* path_validator(QuicConnection* connection);
 
-  static QuicByteCount BytesSentOnMostRecentAlternativePath(
+  static QuicByteCount BytesSentOnAlternativePath(QuicConnection* connection);
+
+  static QuicByteCount BytesReceivedOnAlternativePath(
       QuicConnection* connection);
 
-  static QuicByteCount BytesReceivedOnMostRecentAlternativePath(
-      QuicConnection* connection);
-
-  static bool IsMostRecentAlternativePath(
-      QuicConnection* connection,
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address);
+  static bool IsAlternativePath(QuicConnection* connection,
+                                const QuicSocketAddress& self_address,
+                                const QuicSocketAddress& peer_address);
 };
 
 }  // namespace test

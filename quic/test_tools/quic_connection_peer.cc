@@ -415,25 +415,23 @@ QuicPathValidator* QuicConnectionPeer::path_validator(
 }
 
 //  static
-QuicByteCount QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(
+QuicByteCount QuicConnectionPeer::BytesSentOnAlternativePath(
     QuicConnection* connection) {
-  return connection->most_recent_alternative_path_
-      .bytes_sent_before_address_validation;
+  return connection->alternative_path_.bytes_sent_before_address_validation;
 }
 
 //  static
-QuicByteCount QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
+QuicByteCount QuicConnectionPeer::BytesReceivedOnAlternativePath(
     QuicConnection* connection) {
-  return connection->most_recent_alternative_path_
-      .bytes_received_before_address_validation;
+  return connection->alternative_path_.bytes_received_before_address_validation;
 }
 
 // static
-bool QuicConnectionPeer::IsMostRecentAlternativePath(
+bool QuicConnectionPeer::IsAlternativePath(
     QuicConnection* connection,
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address) {
-  return connection->IsMostRecentAlternativePath(self_address, peer_address);
+  return connection->IsAlternativePath(self_address, peer_address);
 }
 
 }  // namespace test

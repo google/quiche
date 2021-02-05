@@ -1604,8 +1604,8 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                               const QuicSocketAddress& peer_address,
                               bool measure_rtt);
 
-  // Increment bytes sent/received on the most recent alternative path if the
-  // current packet is sent/received on that path.
+  // Increment bytes sent/received on the alternative path if the current packet
+  // is sent/received on that path.
   void MaybeUpdateBytesSentToAlternativeAddress(
       const QuicSocketAddress& peer_address,
       QuicByteCount sent_packet_size);
@@ -1618,9 +1618,9 @@ class QUIC_EXPORT_PRIVATE QuicConnection
                      const QuicSocketAddress& peer_address) const;
 
   // Return true if the given self address and peer address is the same as the
-  // self address and peer address of the most recent alternative path.
-  bool IsMostRecentAlternativePath(const QuicSocketAddress& self_address,
-                                   const QuicSocketAddress& peer_address) const;
+  // self address and peer address of the alternative path.
+  bool IsAlternativePath(const QuicSocketAddress& self_address,
+                         const QuicSocketAddress& peer_address) const;
 
   QuicFramer framer_;
 
@@ -2036,12 +2036,13 @@ class QUIC_EXPORT_PRIVATE QuicConnection
 
   QuicPathValidator path_validator_;
 
-  // The most recent alternative path probed by an endpoint or its peer.
-  // It keeps track of the state of the probed path till it becomes the default
-  // path of the connection or replaced by a newer path under probing. The
-  // client starts to track it when it starts to validate the path. The server
-  // starts to track it when it receives a PATH_CHALLENGE in non-default path.
-  AlternativePathState most_recent_alternative_path_;
+  // Stores information of a path which maybe used as default path in the
+  // future. On the client side, it gets created when the client starts
+  // validating a new path and gets cleared once it becomes the default path or
+  // the path validation fails or replaced by a newer path of interest. On the
+  // server side, alternative_path gets created when server receives
+  // PATH_CHALLENGE on non-default path.
+  AlternativePathState alternative_path_;
 
   // This field is used to debug b/177312785.
   QuicFrameType most_recent_frame_type_;

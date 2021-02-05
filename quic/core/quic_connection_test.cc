@@ -1944,11 +1944,10 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
       connection_.use_path_validator() &&
       GetQuicReloadableFlag(quic_count_bytes_on_alternative_path_seperately)) {
     QuicByteCount bytes_sent =
-        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_);
+        QuicConnectionPeer::BytesSentOnAlternativePath(&connection_);
     EXPECT_LT(0u, bytes_sent);
     EXPECT_EQ(received->length(),
-              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
-                  &connection_));
+              QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
 
     // Receiving one more probing packet should update the bytes count.
     probing_packet = ConstructProbingPacket();
@@ -1960,12 +1959,10 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
 
     EXPECT_EQ(num_probing_received + 2,
               connection_.GetStats().num_connectivity_probing_received);
-    EXPECT_EQ(
-        2 * bytes_sent,
-        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_));
+    EXPECT_EQ(2 * bytes_sent,
+              QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
     EXPECT_EQ(2 * received->length(),
-              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
-                  &connection_));
+              QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
 
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
         .Times(AtLeast(1u))
@@ -1978,9 +1975,8 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
             connection_.self_address(), kNewPeerAddress, writer_.get()),
         std::make_unique<TestValidationResultDelegate>(
             connection_.self_address(), kNewPeerAddress, &success));
-    EXPECT_EQ(
-        3 * bytes_sent,
-        QuicConnectionPeer::BytesSentOnMostRecentAlternativePath(&connection_));
+    EXPECT_EQ(3 * bytes_sent,
+              QuicConnectionPeer::BytesSentOnAlternativePath(&connection_));
 
     QuicFrames frames;
     frames.push_back(QuicFrame(new QuicPathResponseFrame(
@@ -1989,8 +1985,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingAtServer) {
                                      kNewPeerAddress,
                                      ENCRYPTION_FORWARD_SECURE);
     EXPECT_LT(2 * received->length(),
-              QuicConnectionPeer::BytesReceivedOnMostRecentAlternativePath(
-                  &connection_));
+              QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_));
   }
 
   // Process another packet with the old peer address on server side will not
@@ -12971,14 +12966,14 @@ TEST_P(QuicConnectionTest, MigrateToNewPathDuringValidation) {
       std::make_unique<TestValidationResultDelegate>(
           kNewSelfAddress, connection_.peer_address(), &success));
   EXPECT_TRUE(connection_.HasPendingPathValidation());
-  EXPECT_TRUE(QuicConnectionPeer::IsMostRecentAlternativePath(
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
 
   connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
                           &new_writer, /*owns_writer=*/false);
   EXPECT_EQ(kNewSelfAddress, connection_.self_address());
   EXPECT_TRUE(connection_.HasPendingPathValidation());
-  EXPECT_FALSE(QuicConnectionPeer::IsMostRecentAlternativePath(
+  EXPECT_FALSE(QuicConnectionPeer::IsAlternativePath(
       &connection_, kNewSelfAddress, connection_.peer_address()));
 }
 
