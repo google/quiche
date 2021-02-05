@@ -100,6 +100,7 @@ enum class SpdyFrameType : uint8_t {
   // ALTSVC is a public extension.
   ALTSVC = 0x0a,
   PRIORITY_UPDATE = 0x10,
+  ACCEPT_CH = 0x89,
 };
 
 // Flags on data packets.
@@ -313,6 +314,11 @@ const size_t kContinuationFrameMinimumSize = kFrameHeaderSize;
 const size_t kGetAltSvcFrameMinimumSize = kFrameHeaderSize + 2;
 // PRIORITY_UPDATE frame has prioritized_stream_id (4 octets) field.
 const size_t kPriorityUpdateFrameMinimumSize = kFrameHeaderSize + 4;
+// ACCEPT_CH frame may have empty payload.
+const size_t kAcceptChFrameMinimumSize = kFrameHeaderSize;
+// Each ACCEPT_CH frame entry has a 16-bit origin length and a 16-bit value
+// length.
+const size_t kAcceptChFramePerEntryOverhead = 4;
 
 // Maximum possible configurable size of a frame in octets.
 const size_t kMaxFrameSizeLimit = kSpdyMaxFrameSizeLimit + kFrameHeaderSize;
@@ -915,6 +921,30 @@ class QUICHE_EXPORT_PRIVATE SpdyPriorityUpdateIR : public SpdyFrameIR {
   std::string priority_field_value_;
 };
 
+class QUICHE_EXPORT_PRIVATE SpdyAcceptChIR : public SpdyFrameIR {
+ public:
+  struct OriginValuePair {
+    std::string origin;
+    std::string value;
+  };
+
+  SpdyAcceptChIR(std::vector<OriginValuePair> entries)
+      : entries_(std::move(entries)) {}
+  SpdyAcceptChIR(const SpdyAcceptChIR&) = delete;
+  SpdyAcceptChIR& operator=(const SpdyAcceptChIR&) = delete;
+
+  void Visit(SpdyFrameVisitor* visitor) const override;
+
+  SpdyFrameType frame_type() const override;
+
+  size_t size() const override;
+
+  const std::vector<OriginValuePair>& entries() const { return entries_; }
+
+ private:
+  std::vector<OriginValuePair> entries_;
+};
+
 // Represents a frame of unrecognized type.
 class QUICHE_EXPORT_PRIVATE SpdyUnknownIR : public SpdyFrameIR {
  public:
@@ -1056,6 +1086,7 @@ class QUICHE_EXPORT_PRIVATE SpdyFrameVisitor {
   virtual void VisitData(const SpdyDataIR& data) = 0;
   virtual void VisitPriorityUpdate(
       const SpdyPriorityUpdateIR& priority_update) = 0;
+  virtual void VisitAcceptCh(const SpdyAcceptChIR& accept_ch) = 0;
   virtual void VisitUnknown(const SpdyUnknownIR& /*unknown*/) {
     // TODO(birenroy): make abstract.
   }

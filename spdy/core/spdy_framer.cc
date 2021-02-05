@@ -780,6 +780,24 @@ SpdySerializedFrame SpdyFramer::SerializePriorityUpdate(
   return builder.take();
 }
 
+SpdySerializedFrame SpdyFramer::SerializeAcceptCh(
+    const SpdyAcceptChIR& accept_ch) const {
+  const size_t total_size = accept_ch.size();
+  SpdyFrameBuilder builder(total_size);
+  builder.BeginNewFrame(SpdyFrameType::ACCEPT_CH, kNoFlags,
+                        accept_ch.stream_id());
+
+  for (const SpdyAcceptChIR::OriginValuePair& entry : accept_ch.entries()) {
+    builder.WriteUInt16(entry.origin.size());
+    builder.WriteBytes(entry.origin.data(), entry.origin.size());
+    builder.WriteUInt16(entry.value.size());
+    builder.WriteBytes(entry.value.data(), entry.value.size());
+  }
+
+  QUICHE_DCHECK_EQ(total_size, builder.length());
+  return builder.take();
+}
+
 SpdySerializedFrame SpdyFramer::SerializeUnknown(
     const SpdyUnknownIR& unknown) const {
   const size_t total_size = kFrameHeaderSize + unknown.payload().size();
@@ -836,6 +854,9 @@ class FrameSerializationVisitor : public SpdyFrameVisitor {
   void VisitPriorityUpdate(
       const SpdyPriorityUpdateIR& priority_update) override {
     frame_ = framer_->SerializePriorityUpdate(priority_update);
+  }
+  void VisitAcceptCh(const SpdyAcceptChIR& accept_ch) override {
+    frame_ = framer_->SerializeAcceptCh(accept_ch);
   }
   void VisitUnknown(const SpdyUnknownIR& unknown) override {
     frame_ = framer_->SerializeUnknown(unknown);
@@ -925,6 +946,10 @@ class FlagsSerializationVisitor : public SpdyFrameVisitor {
 
   void VisitPriorityUpdate(
       const SpdyPriorityUpdateIR& /*priority_update*/) override {
+    flags_ = kNoFlags;
+  }
+
+  void VisitAcceptCh(const SpdyAcceptChIR& /*accept_ch*/) override {
     flags_ = kNoFlags;
   }
 
@@ -1231,6 +1256,24 @@ bool SpdyFramer::SerializePriorityUpdate(
   return ok;
 }
 
+bool SpdyFramer::SerializeAcceptCh(const SpdyAcceptChIR& accept_ch,
+                                   ZeroCopyOutputBuffer* output) const {
+  const size_t total_size = accept_ch.size();
+  SpdyFrameBuilder builder(total_size, output);
+  bool ok = builder.BeginNewFrame(SpdyFrameType::ACCEPT_CH, kNoFlags,
+                                  accept_ch.stream_id());
+
+  for (const SpdyAcceptChIR::OriginValuePair& entry : accept_ch.entries()) {
+    ok = ok && builder.WriteUInt16(entry.origin.size());
+    ok = ok && builder.WriteBytes(entry.origin.data(), entry.origin.size());
+    ok = ok && builder.WriteUInt16(entry.value.size());
+    ok = ok && builder.WriteBytes(entry.value.data(), entry.value.size());
+  }
+
+  QUICHE_DCHECK_EQ(total_size, builder.length());
+  return ok;
+}
+
 bool SpdyFramer::SerializeUnknown(const SpdyUnknownIR& unknown,
                                   ZeroCopyOutputBuffer* output) const {
   const size_t total_size = kFrameHeaderSize + unknown.payload().size();
@@ -1290,6 +1333,10 @@ class FrameSerializationVisitorWithOutput : public SpdyFrameVisitor {
       const SpdyPriorityUpdateIR& priority_update) override {
     result_ = framer_->SerializePriorityUpdate(priority_update, output_);
   }
+  void VisitAcceptCh(const SpdyAcceptChIR& accept_ch) override {
+    result_ = framer_->SerializeAcceptCh(accept_ch, output_);
+  }
+
   void VisitUnknown(const SpdyUnknownIR& unknown) override {
     result_ = framer_->SerializeUnknown(unknown, output_);
   }

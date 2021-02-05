@@ -2544,6 +2544,36 @@ TEST_P(SpdyFramerTest, CreatePriorityUpdate) {
   CompareFrame(kDescription, frame, kFrameData, ABSL_ARRAYSIZE(kFrameData));
 }
 
+TEST_P(SpdyFramerTest, CreateAcceptCh) {
+  const char kDescription[] = "ACCEPT_CH frame";
+  const unsigned char kType = SerializeFrameType(SpdyFrameType::ACCEPT_CH);
+  const unsigned char kFrameData[] = {
+      0x00,  0x00, 0x2d,                  // frame length
+      kType,                              // frame type
+      0x00,                               // flags
+      0x00,  0x00, 0x00, 0x00,            // stream ID, must be 0 for ACCEPT_CH
+      0x00,  0x0f,                        // origin length
+      'w',   'w',  'w',  '.',  'e', 'x',  // origin
+      'a',   'm',  'p',  'l',  'e', '.',  //
+      'c',   'o',  'm',                   //
+      0x00,  0x03,                        // value length
+      'f',   'o',  'o',                   // value
+      0x00,  0x10,                        // origin length
+      'm',   'a',  'i',  'l',  '.', 'e',  //
+      'x',   'a',  'm',  'p',  'l', 'e',  //
+      '.',   'c',  'o',  'm',             //
+      0x00,  0x03,                        // value length
+      'b',   'a',  'r'};                  // value
+  SpdyAcceptChIR accept_ch_ir(
+      {{"www.example.com", "foo"}, {"mail.example.com", "bar"}});
+  SpdySerializedFrame frame(framer_.SerializeFrame(accept_ch_ir));
+  if (use_output_) {
+    EXPECT_EQ(framer_.SerializeFrame(accept_ch_ir, &output_), frame.size());
+    frame = SpdySerializedFrame(output_.Begin(), output_.Size(), false);
+  }
+  CompareFrame(kDescription, frame, kFrameData, ABSL_ARRAYSIZE(kFrameData));
+}
+
 TEST_P(SpdyFramerTest, CreateUnknown) {
   const char kDescription[] = "Unknown frame";
   const uint8_t kType = 0xaf;

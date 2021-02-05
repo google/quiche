@@ -85,6 +85,8 @@ bool IsDefinedFrameType(uint8_t frame_type_field) {
       return true;
     case SpdyFrameType::PRIORITY_UPDATE:
       return true;
+    case SpdyFrameType::ACCEPT_CH:
+      return true;
   }
   return false;
 }
@@ -153,6 +155,8 @@ const char* FrameTypeToString(SpdyFrameType frame_type) {
       return "ALTSVC";
     case SpdyFrameType::PRIORITY_UPDATE:
       return "PRIORITY_UPDATE";
+    case SpdyFrameType::ACCEPT_CH:
+      return "ACCEPT_CH";
   }
   return "UNKNOWN_FRAME_TYPE";
 }
@@ -576,6 +580,23 @@ SpdyFrameType SpdyPriorityUpdateIR::frame_type() const {
 
 size_t SpdyPriorityUpdateIR::size() const {
   return kPriorityUpdateFrameMinimumSize + priority_field_value_.size();
+}
+
+void SpdyAcceptChIR::Visit(SpdyFrameVisitor* visitor) const {
+  return visitor->VisitAcceptCh(*this);
+}
+
+SpdyFrameType SpdyAcceptChIR::frame_type() const {
+  return SpdyFrameType::ACCEPT_CH;
+}
+
+size_t SpdyAcceptChIR::size() const {
+  size_t total_size = kAcceptChFrameMinimumSize;
+  for (const OriginValuePair& entry : entries_) {
+    total_size += entry.origin.size() + entry.value.size() +
+                  kAcceptChFramePerEntryOverhead;
+  }
+  return total_size;
 }
 
 void SpdyUnknownIR::Visit(SpdyFrameVisitor* visitor) const {

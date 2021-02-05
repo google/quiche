@@ -129,6 +129,10 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   SpdySerializedFrame SerializePriorityUpdate(
       const SpdyPriorityUpdateIR& priority_update) const;
 
+  // Serializes an ACCEPT_CH frame.  See
+  // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02.
+  SpdySerializedFrame SerializeAcceptCh(const SpdyAcceptChIR& accept_ch) const;
+
   // Serializes an unknown frame given a frame header and payload.
   SpdySerializedFrame SerializeUnknown(const SpdyUnknownIR& unknown) const;
 
@@ -201,6 +205,11 @@ class QUICHE_EXPORT_PRIVATE SpdyFramer {
   // See https://httpwg.org/http-extensions/draft-ietf-httpbis-priority.html.
   bool SerializePriorityUpdate(const SpdyPriorityUpdateIR& priority_update,
                                ZeroCopyOutputBuffer* output) const;
+
+  // Serializes an ACCEPT_CH frame.  See
+  // https://tools.ietf.org/html/draft-davidben-http-client-hint-reliability-02.
+  bool SerializeAcceptCh(const SpdyAcceptChIR& accept_ch,
+                         ZeroCopyOutputBuffer* output) const;
 
   // Serializes an unknown frame given a frame header and payload.
   bool SerializeUnknown(const SpdyUnknownIR& unknown,
