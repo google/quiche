@@ -592,7 +592,7 @@ SpdyFrameType SpdyAcceptChIR::frame_type() const {
 
 size_t SpdyAcceptChIR::size() const {
   size_t total_size = kAcceptChFrameMinimumSize;
-  for (const OriginValuePair& entry : entries_) {
+  for (const AcceptChOriginValuePair& entry : entries_) {
     total_size += entry.origin.size() + entry.value.size() +
                   kAcceptChFramePerEntryOverhead;
   }

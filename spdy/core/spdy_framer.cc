@@ -787,7 +787,7 @@ SpdySerializedFrame SpdyFramer::SerializeAcceptCh(
   builder.BeginNewFrame(SpdyFrameType::ACCEPT_CH, kNoFlags,
                         accept_ch.stream_id());
 
-  for (const SpdyAcceptChIR::OriginValuePair& entry : accept_ch.entries()) {
+  for (const AcceptChOriginValuePair& entry : accept_ch.entries()) {
     builder.WriteUInt16(entry.origin.size());
     builder.WriteBytes(entry.origin.data(), entry.origin.size());
     builder.WriteUInt16(entry.value.size());
@@ -1263,7 +1263,7 @@ bool SpdyFramer::SerializeAcceptCh(const SpdyAcceptChIR& accept_ch,
   bool ok = builder.BeginNewFrame(SpdyFrameType::ACCEPT_CH, kNoFlags,
                                   accept_ch.stream_id());
 
-  for (const SpdyAcceptChIR::OriginValuePair& entry : accept_ch.entries()) {
+  for (const AcceptChOriginValuePair& entry : accept_ch.entries()) {
     ok = ok && builder.WriteUInt16(entry.origin.size());
     ok = ok && builder.WriteBytes(entry.origin.data(), entry.origin.size());
     ok = ok && builder.WriteUInt16(entry.value.size());

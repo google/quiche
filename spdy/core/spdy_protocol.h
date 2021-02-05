@@ -921,14 +921,17 @@ class QUICHE_EXPORT_PRIVATE SpdyPriorityUpdateIR : public SpdyFrameIR {
   std::string priority_field_value_;
 };
 
+struct AcceptChOriginValuePair {
+  std::string origin;
+  std::string value;
+  bool operator==(const AcceptChOriginValuePair& rhs) const {
+    return origin == rhs.origin && value == rhs.value;
+  }
+};
+
 class QUICHE_EXPORT_PRIVATE SpdyAcceptChIR : public SpdyFrameIR {
  public:
-  struct OriginValuePair {
-    std::string origin;
-    std::string value;
-  };
-
-  SpdyAcceptChIR(std::vector<OriginValuePair> entries)
+  SpdyAcceptChIR(std::vector<AcceptChOriginValuePair> entries)
       : entries_(std::move(entries)) {}
   SpdyAcceptChIR(const SpdyAcceptChIR&) = delete;
   SpdyAcceptChIR& operator=(const SpdyAcceptChIR&) = delete;
@@ -939,10 +942,12 @@ class QUICHE_EXPORT_PRIVATE SpdyAcceptChIR : public SpdyFrameIR {
 
   size_t size() const override;
 
-  const std::vector<OriginValuePair>& entries() const { return entries_; }
+  const std::vector<AcceptChOriginValuePair>& entries() const {
+    return entries_;
+  }
 
  private:
-  std::vector<OriginValuePair> entries_;
+  std::vector<AcceptChOriginValuePair> entries_;
 };
 
 // Represents a frame of unrecognized type.
