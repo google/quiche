@@ -20,7 +20,6 @@
 #include "spdy/core/write_scheduler.h"
 #include "spdy/platform/api/spdy_bug_tracker.h"
 #include "spdy/platform/api/spdy_logging.h"
-#include "spdy/platform/api/spdy_macros.h"
 
 namespace spdy {
 

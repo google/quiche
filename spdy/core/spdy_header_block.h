@@ -13,12 +13,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 #include "common/platform/api/quiche_logging.h"
 #include "spdy/core/spdy_header_storage.h"
 #include "spdy/platform/api/spdy_containers.h"
-#include "spdy/platform/api/spdy_macros.h"
 #include "spdy/platform/api/spdy_string_utils.h"
 
 namespace spdy {
@@ -244,7 +244,7 @@ class QUICHE_EXPORT_PRIVATE Http2HeaderBlock {
   };
 
   // Allows either lookup or mutation of the value associated with a key.
-  SPDY_MUST_USE_RESULT ValueProxy operator[](const absl::string_view key);
+  ABSL_MUST_USE_RESULT ValueProxy operator[](const absl::string_view key);
 
   // Returns the estimate of dynamically allocated memory in bytes.
   size_t EstimateMemoryUsage() const;

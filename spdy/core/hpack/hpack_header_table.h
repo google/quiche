@@ -10,12 +10,12 @@
 #include <deque>
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "common/platform/api/quiche_export.h"
 #include "spdy/core/hpack/hpack_entry.h"
 #include "spdy/platform/api/spdy_containers.h"
-#include "spdy/platform/api/spdy_macros.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
@@ -122,7 +122,7 @@ class QUICHE_EXPORT_PRIVATE HpackHeaderTable {
   const HpackEntry* TryAddEntry(absl::string_view name,
                                 absl::string_view value);
 
-  void DebugLogTableState() const SPDY_UNUSED;
+  void DebugLogTableState() const ABSL_ATTRIBUTE_UNUSED;
 
   void set_debug_visitor(std::unique_ptr<DebugVisitorInterface> visitor) {
     debug_visitor_ = std::move(visitor);
