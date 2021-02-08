@@ -124,20 +124,11 @@ QuicUnackedPacketMap::QuicUnackedPacketMap(Perspective perspective)
       last_crypto_packet_sent_time_(QuicTime::Zero()),
       session_notifier_(nullptr),
       supports_multiple_packet_number_spaces_(false) {
-  if (use_circular_deque_) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_use_circular_deque_for_unacked_packets_v2);
-  }
 }
 
 QuicUnackedPacketMap::~QuicUnackedPacketMap() {
-  if (use_circular_deque_) {
-    for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
-      DeleteFrames(&(transmission_info.retransmittable_frames));
-    }
-  } else {
-    for (QuicTransmissionInfo& transmission_info : unacked_packets_deque_) {
-      DeleteFrames(&(transmission_info.retransmittable_frames));
-    }
+  for (QuicTransmissionInfo& transmission_info : unacked_packets_) {
+    DeleteFrames(&(transmission_info.retransmittable_frames));
   }
 }
 
@@ -153,10 +144,10 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
               largest_sent_packet_ >= packet_number)
       << "largest_sent_packet_: " << largest_sent_packet_
       << ", packet_number: " << packet_number;
-  QUICHE_DCHECK_GE(packet_number, least_unacked_ + unacked_packets_size());
-  while (least_unacked_ + unacked_packets_size() < packet_number) {
-    unacked_packets_push_back(QuicTransmissionInfo());
-    unacked_packets_back().state = NEVER_SENT;
+  QUICHE_DCHECK_GE(packet_number, least_unacked_ + unacked_packets_.size());
+  while (least_unacked_ + unacked_packets_.size() < packet_number) {
+    unacked_packets_.push_back(QuicTransmissionInfo());
+    unacked_packets_.back().state = NEVER_SENT;
   }
 
   const bool has_crypto_handshake = packet.has_crypto_handshake == IS_HANDSHAKE;
@@ -183,7 +174,7 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
     last_inflight_packet_sent_time_ = sent_time;
     last_inflight_packets_sent_time_[packet_number_space] = sent_time;
   }
-  unacked_packets_push_back(info);
+  unacked_packets_.push_back(info);
   // Swap the retransmittable frames to avoid allocations.
   // TODO(ianswett): Could use emplace_back when Chromium can.
   if (has_crypto_handshake) {
@@ -191,16 +182,16 @@ void QuicUnackedPacketMap::AddSentPacket(SerializedPacket* mutable_packet,
   }
 
   mutable_packet->retransmittable_frames.swap(
-      unacked_packets_back().retransmittable_frames);
+      unacked_packets_.back().retransmittable_frames);
 }
 
 void QuicUnackedPacketMap::RemoveObsoletePackets() {
-  while (!unacked_packets_empty()) {
-    if (!IsPacketUseless(least_unacked_, unacked_packets_front())) {
+  while (!unacked_packets_.empty()) {
+    if (!IsPacketUseless(least_unacked_, unacked_packets_.front())) {
       break;
     }
-    DeleteFrames(&unacked_packets_front().retransmittable_frames);
-    unacked_packets_pop_front();
+    DeleteFrames(&unacked_packets_.front().retransmittable_frames);
+    unacked_packets_.pop_front();
     ++least_unacked_;
   }
 }
@@ -208,9 +199,9 @@ void QuicUnackedPacketMap::RemoveObsoletePackets() {
 bool QuicUnackedPacketMap::HasRetransmittableFrames(
     QuicPacketNumber packet_number) const {
   QUICHE_DCHECK_GE(packet_number, least_unacked_);
-  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   return HasRetransmittableFrames(
-      unacked_packets_at(packet_number - least_unacked_));
+      unacked_packets_[packet_number - least_unacked_]);
 }
 
 bool QuicUnackedPacketMap::HasRetransmittableFrames(
@@ -236,9 +227,9 @@ void QuicUnackedPacketMap::RemoveRetransmittability(
 void QuicUnackedPacketMap::RemoveRetransmittability(
     QuicPacketNumber packet_number) {
   QUICHE_DCHECK_GE(packet_number, least_unacked_);
-  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   QuicTransmissionInfo* info =
-      &unacked_packets_at(packet_number - least_unacked_);
+      &unacked_packets_[packet_number - least_unacked_];
   RemoveRetransmittability(info);
 }
 
@@ -289,11 +280,11 @@ bool QuicUnackedPacketMap::IsPacketUseless(
 
 bool QuicUnackedPacketMap::IsUnacked(QuicPacketNumber packet_number) const {
   if (packet_number < least_unacked_ ||
-      packet_number >= least_unacked_ + unacked_packets_size()) {
+      packet_number >= least_unacked_ + unacked_packets_.size()) {
     return false;
   }
   return !IsPacketUseless(packet_number,
-                          unacked_packets_at(packet_number - least_unacked_));
+                          unacked_packets_[packet_number - least_unacked_]);
 }
 
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
@@ -327,9 +318,9 @@ void QuicUnackedPacketMap::RemoveFromInFlight(QuicTransmissionInfo* info) {
 
 void QuicUnackedPacketMap::RemoveFromInFlight(QuicPacketNumber packet_number) {
   QUICHE_DCHECK_GE(packet_number, least_unacked_);
-  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_size());
+  QUICHE_DCHECK_LT(packet_number, least_unacked_ + unacked_packets_.size());
   QuicTransmissionInfo* info =
-      &unacked_packets_at(packet_number - least_unacked_);
+      &unacked_packets_[packet_number - least_unacked_];
   RemoveFromInFlight(info);
 }
 
@@ -391,12 +382,12 @@ bool QuicUnackedPacketMap::HasInFlightPackets() const {
 
 const QuicTransmissionInfo& QuicUnackedPacketMap::GetTransmissionInfo(
     QuicPacketNumber packet_number) const {
-  return unacked_packets_at(packet_number - least_unacked_);
+  return unacked_packets_[packet_number - least_unacked_];
 }
 
 QuicTransmissionInfo* QuicUnackedPacketMap::GetMutableTransmissionInfo(
     QuicPacketNumber packet_number) {
-  return &unacked_packets_at(packet_number - least_unacked_);
+  return &unacked_packets_[packet_number - least_unacked_];
 }
 
 QuicTime QuicUnackedPacketMap::GetLastInFlightPacketSentTime() const {
@@ -641,7 +632,7 @@ int32_t QuicUnackedPacketMap::GetLastPacketContent() const {
     return -1;
   }
   int32_t content = 0;
-  const QuicTransmissionInfo& last_packet = unacked_packets_back();
+  const QuicTransmissionInfo& last_packet = unacked_packets_.back();
   for (const auto& frame : last_packet.retransmittable_frames) {
     content |= GetFrameTypeBitfield(frame.type);
   }
