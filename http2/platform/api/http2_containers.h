@@ -1,7 +1,7 @@
 #ifndef QUICHE_HTTP2_PLATFORM_API_HTTP2_CONTAINERS_H_
 #define QUICHE_HTTP2_PLATFORM_API_HTTP2_CONTAINERS_H_
 
-#include "net/http2/platform/impl/http2_containers_impl.h"
+#include "quiche_platform_impl/quiche_containers_impl.h"
 
 namespace http2 {
 
@@ -10,7 +10,7 @@ namespace http2 {
 //
 // DOES NOT GUARANTEE POINTER OR ITERATOR STABILITY!
 template <typename T>
-using Http2Deque = Http2DequeImpl<T>;
+using Http2Deque = quiche::QuicheDequeImpl<T>;
 
 }  // namespace http2
 
