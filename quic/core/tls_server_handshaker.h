@@ -324,12 +324,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   QuicReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
-  const bool use_early_select_cert_ =
-      GetQuicReloadableFlag(quic_tls_use_early_select_cert);
   const bool use_proof_source_handle_ =
-      use_early_select_cert_ &&
       GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source);
-
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
 };
 

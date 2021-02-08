@@ -385,24 +385,19 @@ bool TlsServerHandshaker::ProcessTransportParameters(
   TransportParameters client_params;
   const uint8_t* client_params_bytes;
   size_t params_bytes_len;
-  if (use_early_select_cert_) {
-    // Make sure we use the right TLS extension codepoint.
-    uint16_t extension_type = TLSEXT_TYPE_quic_transport_parameters_standard;
-    if (session()->version().UsesLegacyTlsExtension()) {
-      extension_type = TLSEXT_TYPE_quic_transport_parameters_legacy;
-    }
-    // When using early select cert callback, SSL_get_peer_quic_transport_params
-    // can not be used to retrieve the client's transport parameters, but we can
-    // use SSL_early_callback_ctx_extension_get to do that.
-    if (!SSL_early_callback_ctx_extension_get(client_hello, extension_type,
-                                              &client_params_bytes,
-                                              &params_bytes_len)) {
-      params_bytes_len = 0;
-    }
-  } else {
-    QUICHE_DCHECK_EQ(client_hello, nullptr);
-    SSL_get_peer_quic_transport_params(ssl(), &client_params_bytes,
-                                       &params_bytes_len);
+
+  // Make sure we use the right TLS extension codepoint.
+  uint16_t extension_type = TLSEXT_TYPE_quic_transport_parameters_standard;
+  if (session()->version().UsesLegacyTlsExtension()) {
+    extension_type = TLSEXT_TYPE_quic_transport_parameters_legacy;
+  }
+  // When using early select cert callback, SSL_get_peer_quic_transport_params
+  // can not be used to retrieve the client's transport parameters, but we can
+  // use SSL_early_callback_ctx_extension_get to do that.
+  if (!SSL_early_callback_ctx_extension_get(client_hello, extension_type,
+                                            &client_params_bytes,
+                                            &params_bytes_len)) {
+    params_bytes_len = 0;
   }
 
   if (params_bytes_len == 0) {
@@ -729,12 +724,6 @@ ssl_ticket_aead_result_t TlsServerHandshaker::SessionTicketOpen(
 
 ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     const SSL_CLIENT_HELLO* client_hello) {
-  if (!use_early_select_cert_) {
-    return ssl_select_cert_success;
-  }
-
-  QUIC_RELOADABLE_FLAG_COUNT(quic_tls_use_early_select_cert);
-
   // EarlySelectCertCallback can be called twice from BoringSSL: If the first
   // call returns ssl_select_cert_retry, when cert selection completes,
   // SSL_do_handshake will call it again.
@@ -880,57 +869,9 @@ bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   return true;
 }
 
-int TlsServerHandshaker::TlsExtServernameCallback(int* out_alert) {
-  if (use_early_select_cert_) {
-    return SSL_TLSEXT_ERR_OK;
-  }
-
-  const char* hostname = SSL_get_servername(ssl(), TLSEXT_NAMETYPE_host_name);
-  if (hostname) {
-    hostname_ = hostname;
-    crypto_negotiated_params_->sni =
-        QuicHostnameUtils::NormalizeHostname(hostname_);
-    if (!ValidateHostname(hostname_)) {
-      return SSL_TLSEXT_ERR_ALERT_FATAL;
-    }
-  } else {
-    QUIC_LOG(INFO) << "No hostname indicated in SNI";
-  }
-
-  QuicReferenceCountedPointer<ProofSource::Chain> chain =
-      proof_source_->GetCertChain(session()->connection()->self_address(),
-                                  session()->connection()->peer_address(),
-                                  hostname_);
-  if (!chain || chain->certs.empty()) {
-    QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
-
-  if (!pre_shared_key_.empty()) {
-    // TODO(b/154162689) add PSK support to QUIC+TLS.
-    QUIC_BUG << "QUIC server pre-shared keys not yet supported with TLS";
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
-
-  CryptoBuffers cert_buffers = chain->ToCryptoBuffers();
-  tls_connection_.SetCertChain(cert_buffers.value);
-
-  std::string error_details;
-  if (!ProcessTransportParameters(nullptr, &error_details)) {
-    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
-    *out_alert = SSL_AD_INTERNAL_ERROR;
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
-  OverrideQuicConfigDefaults(session()->config());
-  session()->OnConfigNegotiated();
-
-  if (!SetTransportParameters().success) {
-    QUIC_LOG(ERROR) << "Failed to set transport parameters";
-    return SSL_TLSEXT_ERR_ALERT_FATAL;
-  }
-
-  QUIC_DLOG(INFO) << "Set " << chain->certs.size() << " certs for server "
-                  << "with hostname " << hostname_;
+int TlsServerHandshaker::TlsExtServernameCallback(int* /*out_alert*/) {
+  // SSL_TLSEXT_ERR_OK causes the server_name extension to be acked in
+  // ServerHello.
   return SSL_TLSEXT_ERR_OK;
 }
 

@@ -376,8 +376,7 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
-  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
-        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
     return;
   }
 
@@ -403,8 +402,7 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
-  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
-        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
     return;
   }
 
@@ -427,8 +425,7 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertFailure) {
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertAndSignature) {
-  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
-        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
     return;
   }
 
@@ -486,8 +483,7 @@ TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSignature) {
 }
 
 TEST_P(TlsServerHandshakerTest, CancelPendingSelectCert) {
-  if (!(GetQuicReloadableFlag(quic_tls_use_early_select_cert) &&
-        GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source))) {
+  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
     return;
   }
 
