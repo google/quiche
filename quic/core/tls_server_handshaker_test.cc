@@ -327,6 +327,31 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     EXPECT_EQ(0, server_crypto_params.peer_signature_algorithm);
   }
 
+  // Should only be called when using FakeProofSourceHandle.
+  FakeProofSourceHandle::SelectCertArgs last_select_cert_args() const {
+    QUICHE_CHECK(server_handshaker_ &&
+                 server_handshaker_->fake_proof_source_handle());
+    QUICHE_CHECK(!server_handshaker_->fake_proof_source_handle()
+                      ->all_select_cert_args()
+                      .empty());
+    return server_handshaker_->fake_proof_source_handle()
+        ->all_select_cert_args()
+        .back();
+  }
+
+  // Should only be called when using FakeProofSourceHandle.
+  FakeProofSourceHandle::ComputeSignatureArgs last_compute_signature_args()
+      const {
+    QUICHE_CHECK(server_handshaker_ &&
+                 server_handshaker_->fake_proof_source_handle());
+    QUICHE_CHECK(!server_handshaker_->fake_proof_source_handle()
+                      ->all_compute_signature_args()
+                      .empty());
+    return server_handshaker_->fake_proof_source_handle()
+        ->all_compute_signature_args()
+        .back();
+  }
+
  protected:
   // Every connection gets its own MockQuicConnectionHelper and
   // MockAlarmFactory, tracked separately from the server and client state so
@@ -530,6 +555,36 @@ TEST_P(TlsServerHandshakerTest, ExtractSNI) {
 
   EXPECT_EQ(server_stream()->crypto_negotiated_params().sni,
             "test.example.com");
+}
+
+TEST_P(TlsServerHandshakerTest, HostnameForCertSelectionAndComputeSignature) {
+  if (!GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source)) {
+    return;
+  }
+
+  // Client uses upper case letters in hostname. It is considered valid by
+  // QuicHostnameUtils::IsValidSNI, but it should be normalized for cert
+  // selection.
+  server_id_ = QuicServerId("tEsT.EXAMPLE.CoM", kServerPort, false);
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream()->crypto_negotiated_params().sni,
+            "test.example.com");
+
+  if (GetQuicReloadableFlag(quic_tls_use_normalized_sni_for_cert_selectioon)) {
+    EXPECT_EQ(last_select_cert_args().hostname, "test.example.com");
+    EXPECT_EQ(last_compute_signature_args().hostname, "test.example.com");
+  } else {
+    EXPECT_EQ(last_select_cert_args().hostname, "tEsT.EXAMPLE.CoM");
+    EXPECT_EQ(last_compute_signature_args().hostname, "tEsT.EXAMPLE.CoM");
+  }
 }
 
 TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {

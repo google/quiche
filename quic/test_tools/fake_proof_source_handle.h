@@ -59,6 +59,61 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   bool HasPendingOperation() const;
   void CompletePendingOperation();
 
+  struct SelectCertArgs {
+    SelectCertArgs(QuicSocketAddress server_address,
+                   QuicSocketAddress client_address,
+                   std::string hostname,
+                   absl::string_view client_hello,
+                   std::string alpn,
+                   std::vector<uint8_t> quic_transport_params,
+                   absl::optional<std::vector<uint8_t>> early_data_context)
+        : server_address(server_address),
+          client_address(client_address),
+          hostname(hostname),
+          client_hello(client_hello),
+          alpn(alpn),
+          quic_transport_params(quic_transport_params),
+          early_data_context(early_data_context) {}
+
+    QuicSocketAddress server_address;
+    QuicSocketAddress client_address;
+    std::string hostname;
+    std::string client_hello;
+    std::string alpn;
+    std::vector<uint8_t> quic_transport_params;
+    absl::optional<std::vector<uint8_t>> early_data_context;
+  };
+
+  struct ComputeSignatureArgs {
+    ComputeSignatureArgs(QuicSocketAddress server_address,
+                         QuicSocketAddress client_address,
+                         std::string hostname,
+                         uint16_t signature_algorithm,
+                         absl::string_view in,
+                         size_t max_signature_size)
+        : server_address(server_address),
+          client_address(client_address),
+          hostname(hostname),
+          signature_algorithm(signature_algorithm),
+          in(in),
+          max_signature_size(max_signature_size) {}
+
+    QuicSocketAddress server_address;
+    QuicSocketAddress client_address;
+    std::string hostname;
+    uint16_t signature_algorithm;
+    std::string in;
+    size_t max_signature_size;
+  };
+
+  std::vector<SelectCertArgs> all_select_cert_args() const {
+    return all_select_cert_args_;
+  }
+
+  std::vector<ComputeSignatureArgs> all_compute_signature_args() const {
+    return all_compute_signature_args_;
+  }
+
  private:
   class PendingOperation {
    public:
@@ -77,30 +132,17 @@ class FakeProofSourceHandle : public ProofSourceHandle {
 
   class SelectCertOperation : public PendingOperation {
    public:
-    SelectCertOperation(
-        ProofSource* delegate,
-        ProofSourceHandleCallback* callback,
-        Action action,
-        const QuicSocketAddress& server_address,
-        const QuicSocketAddress& client_address,
-        const std::string& hostname,
-        absl::string_view client_hello,
-        const std::string& alpn,
-        const std::vector<uint8_t>& quic_transport_params,
-        const absl::optional<std::vector<uint8_t>>& early_data_context);
+    SelectCertOperation(ProofSource* delegate,
+                        ProofSourceHandleCallback* callback,
+                        Action action,
+                        SelectCertArgs args);
 
     ~SelectCertOperation() override = default;
 
     void Run() override;
 
    private:
-    QuicSocketAddress server_address_;
-    QuicSocketAddress client_address_;
-    std::string hostname_;
-    std::string client_hello_;
-    std::string alpn_;
-    std::vector<uint8_t> quic_transport_params_;
-    absl::optional<std::vector<uint8_t>> early_data_context_;
+    const SelectCertArgs args_;
   };
 
   class ComputeSignatureOperation : public PendingOperation {
@@ -108,24 +150,14 @@ class FakeProofSourceHandle : public ProofSourceHandle {
     ComputeSignatureOperation(ProofSource* delegate,
                               ProofSourceHandleCallback* callback,
                               Action action,
-                              const QuicSocketAddress& server_address,
-                              const QuicSocketAddress& client_address,
-                              const std::string& hostname,
-                              uint16_t signature_algorithm,
-                              absl::string_view in,
-                              size_t max_signature_size);
+                              ComputeSignatureArgs args);
 
     ~ComputeSignatureOperation() override = default;
 
     void Run() override;
 
    private:
-    QuicSocketAddress server_address_;
-    QuicSocketAddress client_address_;
-    std::string hostname_;
-    uint16_t signature_algorithm_;
-    std::string in_;
-    size_t max_signature_size_;
+    const ComputeSignatureArgs args_;
   };
 
  private:
@@ -139,6 +171,10 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   Action compute_signature_action_ = Action::DELEGATE_SYNC;
   absl::optional<SelectCertOperation> select_cert_op_;
   absl::optional<ComputeSignatureOperation> compute_signature_op_;
+
+  // Save all the select cert and compute signature args for tests to inspect.
+  std::vector<SelectCertArgs> all_select_cert_args_;
+  std::vector<ComputeSignatureArgs> all_compute_signature_args_;
 };
 
 }  // namespace test

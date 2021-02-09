@@ -76,12 +76,14 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
     const std::string& alpn,
     const std::vector<uint8_t>& quic_transport_params,
     const absl::optional<std::vector<uint8_t>>& early_data_context) {
+  all_select_cert_args_.push_back(
+      SelectCertArgs(server_address, client_address, hostname, client_hello,
+                     alpn, quic_transport_params, early_data_context));
+
   if (select_cert_action_ == Action::DELEGATE_ASYNC ||
       select_cert_action_ == Action::FAIL_ASYNC) {
     select_cert_op_.emplace(delegate_, callback_, select_cert_action_,
-                            server_address, client_address, hostname,
-                            client_hello, alpn, quic_transport_params,
-                            early_data_context);
+                            all_select_cert_args_.back());
     return QUIC_PENDING;
   } else if (select_cert_action_ == Action::FAIL_SYNC) {
     callback()->OnSelectCertificateDone(/*ok=*/false,
@@ -105,11 +107,15 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
     uint16_t signature_algorithm,
     absl::string_view in,
     size_t max_signature_size) {
+  all_compute_signature_args_.push_back(
+      ComputeSignatureArgs(server_address, client_address, hostname,
+                           signature_algorithm, in, max_signature_size));
+
   if (compute_signature_action_ == Action::DELEGATE_ASYNC ||
       compute_signature_action_ == Action::FAIL_ASYNC) {
-    compute_signature_op_.emplace(
-        delegate_, callback_, compute_signature_action_, server_address,
-        client_address, hostname, signature_algorithm, in, max_signature_size);
+    compute_signature_op_.emplace(delegate_, callback_,
+                                  compute_signature_action_,
+                                  all_compute_signature_args_.back());
     return QUIC_PENDING;
   } else if (compute_signature_action_ == Action::FAIL_SYNC) {
     callback()->OnComputeSignatureDone(/*ok=*/false, /*is_sync=*/true,
@@ -156,21 +162,8 @@ FakeProofSourceHandle::SelectCertOperation::SelectCertOperation(
     ProofSource* delegate,
     ProofSourceHandleCallback* callback,
     Action action,
-    const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    absl::string_view client_hello,
-    const std::string& alpn,
-    const std::vector<uint8_t>& quic_transport_params,
-    const absl::optional<std::vector<uint8_t>>& early_data_context)
-    : PendingOperation(delegate, callback, action),
-      server_address_(server_address),
-      client_address_(client_address),
-      hostname_(hostname),
-      client_hello_(client_hello),
-      alpn_(alpn),
-      quic_transport_params_(quic_transport_params),
-      early_data_context_(early_data_context) {}
+    SelectCertArgs args)
+    : PendingOperation(delegate, callback, action), args_(std::move(args)) {}
 
 void FakeProofSourceHandle::SelectCertOperation::Run() {
   if (action_ == Action::FAIL_ASYNC) {
@@ -178,7 +171,8 @@ void FakeProofSourceHandle::SelectCertOperation::Run() {
                                        /*is_sync=*/false, nullptr);
   } else if (action_ == Action::DELEGATE_ASYNC) {
     QuicReferenceCountedPointer<ProofSource::Chain> chain =
-        delegate_->GetCertChain(server_address_, client_address_, hostname_);
+        delegate_->GetCertChain(args_.server_address, args_.client_address,
+                                args_.hostname);
     bool ok = chain && !chain->certs.empty();
     callback_->OnSelectCertificateDone(ok, /*is_sync=*/false, chain.get());
   } else {
@@ -190,19 +184,8 @@ FakeProofSourceHandle::ComputeSignatureOperation::ComputeSignatureOperation(
     ProofSource* delegate,
     ProofSourceHandleCallback* callback,
     Action action,
-    const QuicSocketAddress& server_address,
-    const QuicSocketAddress& client_address,
-    const std::string& hostname,
-    uint16_t signature_algorithm,
-    absl::string_view in,
-    size_t max_signature_size)
-    : PendingOperation(delegate, callback, action),
-      server_address_(server_address),
-      client_address_(client_address),
-      hostname_(hostname),
-      signature_algorithm_(signature_algorithm),
-      in_(in),
-      max_signature_size_(max_signature_size) {}
+    ComputeSignatureArgs args)
+    : PendingOperation(delegate, callback, action), args_(std::move(args)) {}
 
 void FakeProofSourceHandle::ComputeSignatureOperation::Run() {
   if (action_ == Action::FAIL_ASYNC) {
@@ -210,9 +193,9 @@ void FakeProofSourceHandle::ComputeSignatureOperation::Run() {
         /*ok=*/false, /*is_sync=*/false,
         /*signature=*/"", /*details=*/nullptr);
   } else if (action_ == Action::DELEGATE_ASYNC) {
-    ComputeSignatureResult result =
-        ComputeSignatureNow(delegate_, server_address_, client_address_,
-                            hostname_, signature_algorithm_, in_);
+    ComputeSignatureResult result = ComputeSignatureNow(
+        delegate_, args_.server_address, args_.client_address, args_.hostname,
+        args_.signature_algorithm, args_.in);
     callback_->OnComputeSignatureDone(result.ok, /*is_sync=*/false,
                                       result.signature,
                                       std::move(result.details));

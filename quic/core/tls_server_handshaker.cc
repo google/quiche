@@ -593,8 +593,8 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
                                  3);
     QuicAsyncStatus status = proof_source_handle_->ComputeSignature(
         session()->connection()->self_address(),
-        session()->connection()->peer_address(), hostname_, sig_alg, in,
-        max_out);
+        session()->connection()->peer_address(), cert_selection_hostname(),
+        sig_alg, in, max_out);
     if (status == QUIC_PENDING) {
       set_expected_ssl_error(SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
     }
@@ -604,8 +604,8 @@ ssl_private_key_result_t TlsServerHandshaker::PrivateKeySign(
   signature_callback_ = new SignatureCallback(this);
   proof_source_->ComputeTlsSignature(
       session()->connection()->self_address(),
-      session()->connection()->peer_address(), hostname_, sig_alg, in,
-      std::unique_ptr<SignatureCallback>(signature_callback_));
+      session()->connection()->peer_address(), cert_selection_hostname(),
+      sig_alg, in, std::unique_ptr<SignatureCallback>(signature_callback_));
   if (signature_callback_) {
     set_expected_ssl_error(SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
     return ssl_private_key_retry;
@@ -761,6 +761,15 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     if (!ValidateHostname(hostname_)) {
       return ssl_select_cert_error;
     }
+    if (hostname_ != crypto_negotiated_params_->sni) {
+      QUIC_CODE_COUNT(quic_tls_server_hostname_diff);
+      QUIC_LOG_EVERY_N_SEC(WARNING, 300)
+          << "Raw and normalized hostnames differ, but both are valid SNIs. "
+             "raw hostname:"
+          << hostname_ << ", normalized:" << crypto_negotiated_params_->sni;
+    } else {
+      QUIC_CODE_COUNT(quic_tls_server_hostname_same);
+    }
   } else {
     QUIC_LOG(INFO) << "No hostname indicated in SNI";
   }
@@ -782,7 +791,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
     const QuicAsyncStatus status = proof_source_handle_->SelectCertificate(
         session()->connection()->self_address(),
-        session()->connection()->peer_address(), hostname_,
+        session()->connection()->peer_address(), cert_selection_hostname(),
         absl::string_view(
             reinterpret_cast<const char*>(client_hello->client_hello),
             client_hello->client_hello_len),
@@ -807,9 +816,10 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
   QuicReferenceCountedPointer<ProofSource::Chain> chain =
       proof_source_->GetCertChain(session()->connection()->self_address(),
                                   session()->connection()->peer_address(),
-                                  hostname_);
+                                  cert_selection_hostname());
   if (!chain || chain->certs.empty()) {
-    QUIC_LOG(ERROR) << "No certs provided for host '" << hostname_ << "'";
+    QUIC_LOG(ERROR) << "No certs provided for host. raw:" << hostname_
+                    << ", normalized:" << crypto_negotiated_params_->sni;
     return ssl_select_cert_error;
   }
 

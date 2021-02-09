@@ -98,6 +98,14 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
 
   virtual bool ValidateHostname(const std::string& hostname) const;
 
+  // The hostname to be used to select certificates and compute signatures.
+  // The function should only be called after a successful ValidateHostname().
+  const std::string& cert_selection_hostname() const {
+    return use_normalized_sni_for_cert_selection_
+               ? crypto_negotiated_params_->sni
+               : hostname_;
+  }
+
   const TlsConnection* tls_connection() const override {
     return &tls_connection_;
   }
@@ -326,6 +334,8 @@ class QUIC_EXPORT_PRIVATE TlsServerHandshaker
   TlsServerConnection tls_connection_;
   const bool use_proof_source_handle_ =
       GetQuicReloadableFlag(quic_tls_use_per_handshaker_proof_source);
+  const bool use_normalized_sni_for_cert_selection_ =
+      GetQuicReloadableFlag(quic_tls_use_normalized_sni_for_cert_selectioon);
   const QuicCryptoServerConfig* crypto_config_;  // Unowned.
 };
 
