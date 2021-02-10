@@ -15,9 +15,6 @@
 #include "quic/platform/api/quic_export.h"
 #include "quic/platform/api/quic_flags.h"
 #include "quic/platform/api/quic_map_util.h"
-#include "spdy/core/fifo_write_scheduler.h"
-#include "spdy/core/http2_priority_write_scheduler.h"
-#include "spdy/core/lifo_write_scheduler.h"
 #include "spdy/core/priority_write_scheduler.h"
 
 namespace quic {
