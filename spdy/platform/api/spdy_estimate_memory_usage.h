@@ -7,13 +7,13 @@
 
 #include <cstddef>
 
-#include "net/spdy/platform/impl/spdy_estimate_memory_usage_impl.h"
+#include "quiche_platform_impl/quiche_estimate_memory_usage_impl.h"
 
 namespace spdy {
 
 template <class T>
 size_t SpdyEstimateMemoryUsage(const T& object) {
-  return SpdyEstimateMemoryUsageImpl(object);
+  return quiche::QuicheEstimateMemoryUsageImpl(object);
 }
 
 }  // namespace spdy

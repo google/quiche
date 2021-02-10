@@ -7,13 +7,13 @@
 
 #include <cstddef>
 
-#include "net/http2/platform/impl/http2_estimate_memory_usage_impl.h"
+#include "quiche_platform_impl/quiche_estimate_memory_usage_impl.h"
 
 namespace http2 {
 
 template <class T>
 size_t Http2EstimateMemoryUsage(const T& object) {
-  return Http2EstimateMemoryUsageImpl(object);
+  return quiche::QuicheEstimateMemoryUsageImpl(object);
 }
 
 }  // namespace http2

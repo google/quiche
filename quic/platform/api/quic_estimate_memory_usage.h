@@ -7,13 +7,13 @@
 
 #include <cstddef>
 
-#include "net/quic/platform/impl/quic_estimate_memory_usage_impl.h"
+#include "quiche_platform_impl/quiche_estimate_memory_usage_impl.h"
 
 namespace quic {
 
 template <class T>
 size_t QuicEstimateMemoryUsage(const T& object) {
-  return QuicEstimateMemoryUsageImpl(object);
+  return quiche::QuicheEstimateMemoryUsageImpl(object);
 }
 
 }  // namespace quic
