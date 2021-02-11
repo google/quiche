@@ -8,6 +8,7 @@
 #include <map>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "quic/core/quic_connection.h"
 #include "quic/core/quic_simple_buffer_allocator.h"
 #include "quic/platform/api/quic_bug_tracker.h"
@@ -132,7 +133,7 @@ class Simulator : public QuicConnectionHelperInterface {
   // For each actor, maintain the time it is scheduled at.  The value for
   // unscheduled actors is QuicTime::Infinite().
   absl::flat_hash_map<Actor*, QuicTime> scheduled_times_;
-  QuicHashSet<std::string> actor_names_;
+  absl::flat_hash_set<std::string> actor_names_;
 };
 
 template <class TerminationPredicate>

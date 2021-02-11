@@ -4,6 +4,7 @@
 #ifndef QUICHE_QUIC_CORE_LEGACY_QUIC_STREAM_ID_MANAGER_H_
 #define QUICHE_QUIC_CORE_LEGACY_QUIC_STREAM_ID_MANAGER_H_
 
+#include "absl/container/flat_hash_set.h"
 #include "quic/core/quic_stream_id_manager.h"
 #include "quic/core/quic_types.h"
 #include "quic/core/quic_versions.h"
@@ -111,7 +112,7 @@ class QUIC_EXPORT_PRIVATE LegacyQuicStreamIdManager {
 
   // Set of stream ids that are less than the largest stream id that has been
   // received, but are nonetheless available to be created.
-  QuicHashSet<QuicStreamId> available_streams_;
+  absl::flat_hash_set<QuicStreamId> available_streams_;
 
   QuicStreamId largest_peer_created_stream_id_;
 

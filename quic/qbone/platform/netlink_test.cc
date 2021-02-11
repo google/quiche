@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "absl/container/node_hash_set.h"
 #include "quic/platform/api/quic_bug_tracker.h"
 #include "quic/platform/api/quic_containers.h"
 #include "quic/platform/api/quic_test.h"
@@ -287,8 +288,8 @@ TEST_F(NetlinkTest, GetLinkInfoWorks) {
 TEST_F(NetlinkTest, GetAddressesWorks) {
   auto netlink = std::make_unique<Netlink>(&mock_kernel_);
 
-  QuicUnorderedSet<std::string> addresses = {QuicIpAddress::Any4().ToString(),
-                                             QuicIpAddress::Any6().ToString()};
+  absl::node_hash_set<std::string> addresses = {
+      QuicIpAddress::Any4().ToString(), QuicIpAddress::Any6().ToString()};
 
   ExpectNetlinkPacket(
       RTM_GETADDR, NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST,
