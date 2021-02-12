@@ -1142,10 +1142,19 @@ TEST_P(QuicSpdyStreamTest, TestHandlingQuicRstStreamNoError) {
   Initialize(kShouldProcessData);
   ProcessHeaders(false, headers_);
 
+  EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AnyNumber());
+
   stream_->OnStreamReset(QuicRstStreamFrame(
       kInvalidControlFrameId, stream_->id(), QUIC_STREAM_NO_ERROR, 0));
-  EXPECT_TRUE(stream_->write_side_closed());
-  EXPECT_FALSE(stream_->reading_stopped());
+
+  if (GetQuicReloadableFlag(quic_fix_on_stream_reset) && UsesHttp3()) {
+    // RESET_STREAM should close the read side but not the write side.
+    EXPECT_TRUE(stream_->read_side_closed());
+    EXPECT_FALSE(stream_->write_side_closed());
+  } else {
+    EXPECT_TRUE(stream_->write_side_closed());
+    EXPECT_FALSE(stream_->reading_stopped());
+  }
 }
 
 // Tests that on if the peer sends too much data (i.e. violates the flow control
@@ -3027,6 +3036,39 @@ TEST_P(QuicSpdyStreamTest, WriteHeadersReturnValue) {
   EXPECT_TRUE(stream_->fin_sent());
 
   EXPECT_EQ(headers_frame_payload_length, write_headers_return_value);
+}
+
+// Regression test for https://crbug.com/1177662.
+// RESET_STREAM with QUIC_STREAM_NO_ERROR should not be treated in a special
+// way: it should close the read side but not the write side.
+TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
+  if (!UsesHttp3()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _)).Times(AnyNumber());
+
+  QuicRstStreamFrame rst_frame1(kInvalidControlFrameId, stream_->id(),
+                                QUIC_STREAM_CANCELLED, /* bytes_written = */ 0);
+  stream_->OnStreamReset(rst_frame1);
+  EXPECT_TRUE(stream_->read_side_closed());
+  EXPECT_FALSE(stream_->write_side_closed());
+
+  QuicRstStreamFrame rst_frame2(kInvalidControlFrameId, stream_->id(),
+                                QUIC_STREAM_NO_ERROR, /* bytes_written = */ 0);
+  if (GetQuicReloadableFlag(quic_fix_on_stream_reset)) {
+    stream_->OnStreamReset(rst_frame2);
+    EXPECT_TRUE(stream_->read_side_closed());
+    EXPECT_FALSE(stream_->write_side_closed());
+  } else {
+    EXPECT_CALL(*session_, MaybeSendRstStreamFrame(
+                               stream_->id(), QUIC_RST_ACKNOWLEDGEMENT, _));
+    EXPECT_QUIC_BUG(
+        stream_->OnStreamReset(rst_frame2),
+        "The stream should've already sent RST in response to STOP_SENDING");
+  }
 }
 
 }  // namespace

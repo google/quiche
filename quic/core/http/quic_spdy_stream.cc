@@ -725,6 +725,9 @@ void QuicSpdyStream::OnPriorityFrame(
 }
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
+  // TODO(bnc): Merge the two blocks below when both
+  // quic_abort_qpack_on_stream_reset and quic_fix_on_stream_reset are
+  // deprecated.
   if (frame.error_code != QUIC_STREAM_NO_ERROR) {
     if (VersionUsesHttp3(transport_version()) && !fin_received() &&
         spdy_session_->qpack_decoder()) {
@@ -733,6 +736,18 @@ void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {
         QUIC_RELOADABLE_FLAG_COUNT_N(quic_abort_qpack_on_stream_reset, 1, 2);
         qpack_decoded_headers_accumulator_.reset();
       }
+    }
+
+    QuicStream::OnStreamReset(frame);
+    return;
+  }
+
+  if (GetQuicReloadableFlag(quic_fix_on_stream_reset) &&
+      VersionUsesHttp3(transport_version())) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_on_stream_reset);
+    if (!fin_received() && spdy_session_->qpack_decoder()) {
+      spdy_session_->qpack_decoder()->OnStreamReset(id());
+      qpack_decoded_headers_accumulator_.reset();
     }
 
     QuicStream::OnStreamReset(frame);
