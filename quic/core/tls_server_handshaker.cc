@@ -557,15 +557,11 @@ void TlsServerHandshaker::FinishHandshake() {
   handshaker_delegate()->OnTlsHandshakeComplete();
   handshaker_delegate()->DiscardOldEncryptionKey(ENCRYPTION_HANDSHAKE);
   handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_HANDSHAKE);
-  if (!GetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys)) {
-    handshaker_delegate()->DiscardOldDecryptionKey(ENCRYPTION_ZERO_RTT);
-  } else {
-    // ENCRYPTION_ZERO_RTT decryption key is not discarded here as "Servers MAY
-    // temporarily retain 0-RTT keys to allow decrypting reordered packets
-    // without requiring their contents to be retransmitted with 1-RTT keys."
-    // It is expected that QuicConnection will discard the key at an
-    // appropriate time.
-  }
+  // ENCRYPTION_ZERO_RTT decryption key is not discarded here as "Servers MAY
+  // temporarily retain 0-RTT keys to allow decrypting reordered packets
+  // without requiring their contents to be retransmitted with 1-RTT keys."
+  // It is expected that QuicConnection will discard the key at an
+  // appropriate time.
 }
 
 QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(

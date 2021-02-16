@@ -13004,50 +13004,7 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
 }
 
 TEST_P(QuicConnectionTest,
-       ServerReceivedZeroRttPacketAfterOneRttPacketWithoutRetainedKey) {
-  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, false);
-  if (!connection_.version().UsesTls()) {
-    return;
-  }
-
-  set_perspective(Perspective::IS_SERVER);
-  SetDecrypter(ENCRYPTION_ZERO_RTT,
-               std::make_unique<NullDecrypter>(Perspective::IS_SERVER));
-
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
-
-  // Finish handshake.
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  notifier_.NeuterUnencryptedData();
-  connection_.NeuterUnencryptedPackets();
-  connection_.OnHandshakeComplete();
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
-  // When quic_server_temporarily_retain_tls_zero_rtt_keys=false,
-  // TlsServerHandshaker::FinishHandshake will remove the ENCRYPTION_ZERO_RTT
-  // decrypter, simulate that here:
-  connection_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
-
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(1);
-  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_FALSE(connection_.GetDiscardZeroRttDecryptionKeysAlarm()->IsSet());
-  EXPECT_EQ(
-      0u,
-      connection_.GetStats()
-          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
-
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(0);
-  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_ZERO_RTT);
-  EXPECT_EQ(
-      1u,
-      connection_.GetStats()
-          .num_tls_server_zero_rtt_packets_received_after_discarding_decrypter);
-}
-
-TEST_P(QuicConnectionTest,
        ServerReceivedZeroRttPacketAfterOneRttPacketWithRetainedKey) {
-  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, true);
   if (!connection_.version().UsesTls()) {
     return;
   }
@@ -13167,7 +13124,6 @@ TEST_P(QuicConnectionTest, DonotOverrideRetryTokenWithAddressToken) {
 
 TEST_P(QuicConnectionTest,
        ServerReceivedZeroRttWithHigherPacketNumberThanOneRttAndFlagDisabled) {
-  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, true);
   SetQuicReloadableFlag(
       quic_close_connection_on_0rtt_packet_number_higher_than_1rtt, false);
   if (!connection_.version().UsesTls()) {
@@ -13223,7 +13179,6 @@ TEST_P(QuicConnectionTest,
 
 TEST_P(QuicConnectionTest,
        ServerReceivedZeroRttWithHigherPacketNumberThanOneRtt) {
-  SetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys, true);
   SetQuicReloadableFlag(
       quic_close_connection_on_0rtt_packet_number_higher_than_1rtt, true);
   if (!connection_.version().UsesTls()) {

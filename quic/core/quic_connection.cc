@@ -1138,15 +1138,13 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
   if (level == ENCRYPTION_FORWARD_SECURE &&
       !have_decrypted_first_one_rtt_packet_) {
     have_decrypted_first_one_rtt_packet_ = true;
-    if (GetQuicRestartFlag(quic_server_temporarily_retain_tls_zero_rtt_keys) &&
-        version().UsesTls() && perspective_ == Perspective::IS_SERVER) {
+    if (version().UsesTls() && perspective_ == Perspective::IS_SERVER) {
       // Servers MAY temporarily retain 0-RTT keys to allow decrypting reordered
       // packets without requiring their contents to be retransmitted with 1-RTT
       // keys. After receiving a 1-RTT packet, servers MUST discard 0-RTT keys
       // within a short time; the RECOMMENDED time period is three times the
       // Probe Timeout.
       // https://quicwg.org/base-drafts/draft-ietf-quic-tls.html#name-discarding-0-rtt-keys
-      QUIC_RESTART_FLAG_COUNT(quic_server_temporarily_retain_tls_zero_rtt_keys);
       discard_zero_rtt_decryption_keys_alarm_->Set(
           clock_->ApproximateNow() + sent_packet_manager_.GetPtoDelay() * 3);
     }
