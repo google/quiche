@@ -1413,7 +1413,15 @@ bool QuicSpdySession::ProcessPendingStream(PendingStream* pending) {
       return true;
     }
     default:
-      SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
+      if (GetQuicReloadableFlag(quic_unify_stop_sending)) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_unify_stop_sending);
+        MaybeSendStopSendingFrame(pending->id(),
+                                  QUIC_STREAM_STREAM_CREATION_ERROR);
+      } else {
+        // TODO(renjietang): deprecate SendStopSending() when the flag is
+        // deprecated.
+        SendStopSending(QUIC_STREAM_STREAM_CREATION_ERROR, pending->id());
+      }
       pending->StopReading();
   }
   return false;
